@@ -7,7 +7,7 @@
   <div v-if="(part !== 'more' && shifts.length) || (part !== 'shifts' && more)" class="space-y-1 text-body" data-testid="route-extras">
     <details v-if="part !== 'more' && shifts.length" data-testid="first-shifts">
       <summary class="cursor-pointer font-bold" :class="tone">
-        First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
+        First ascension:<template v-if="firstNote">{{ ' ' }}{{ firstNote }},</template> {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
         {{ short(shifts[0].at) }} to {{ short(shifts[shifts.length - 1].at) }}
       </summary>
       <ul class="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2 pl-4 list-disc" :class="muted">
@@ -55,8 +55,11 @@ const props = withDefaults(
     /** One part only: By a date's card shows the shifts in the card and one more TE inside its Next TE fold (UX fluff
      *  review 2, 5 Nov 2026, items D3 and D5). */
     part?: 'all' | 'shifts' | 'more';
+    /** A clause for the First ascension line: "carries on your build-up (157.2 days sooner than …)" (store
+     *  `buildUpClause`; UX fluff review 2, 5 Nov 2026, item C3). */
+    firstNote?: string;
   }>(),
-  { runCost: null, green: false, noRate: false, deadline: null, part: 'all' }
+  { runCost: null, green: false, noRate: false, deadline: null, part: 'all', firstNote: '' }
 );
 
 const shifts = computed(() => firstLegShifts(props.legs));

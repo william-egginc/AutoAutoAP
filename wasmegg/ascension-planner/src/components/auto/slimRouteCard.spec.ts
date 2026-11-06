@@ -90,8 +90,10 @@ describe('under the Custom card (InsanePanel.vue, SavedRuns.vue)', () => {
   it('no "Compare runs by finish date" (C2)', () => {
     expect(panel).not.toContain('Compare runs by finish date');
   });
-  it('the build-up good news is not amber (C3)', () => {
-    expect(panel).not.toMatch(/v-if="store\.continueWarning"\s+class="[^"]*amber/);
+  it('the build-up good news is not amber: it is a clause in the First ascension line (C3)', () => {
+    // store `buildUpClause` goes to RouteExtras; continueWarning (amber) no longer carries it (rewordsAfterMove.spec).
+    expect(panel).toContain(':first-note="store.buildUpClause"');
+    expect(panel).not.toContain('buildUpGoodNews');
   });
   it('no second CSV row; diagnostics move into the card (C8)', () => {
     expect(panel).not.toContain('Safe to download mid-run');

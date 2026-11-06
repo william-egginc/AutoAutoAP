@@ -335,7 +335,8 @@ describe('the card', () => {
     expect(t).toContain('from your Fast run, on your account done Oct 22 at 4:47 PM, your save of Oct 22 at 11:03 AM');
     expect(t).toMatch(/^Right now Calculated /);
     expect(t).not.toContain('(Fast run)');
-    expect(t).toContain('Makes the date on your account, so it replaces the instant answer for the same goal: Go back to the instant answer');
+    // "Replaces the instant answer · Go back to it" (UX fluff review 2, 5 Nov 2026, item R6).
+    expect(t).toContain('Replaces the instant answer · Go back to it');
     expect(t).toContain('Shift to Humility tomorrow at 2:47 PM');
     expect(t).toContain('Wed, Oct 28 at 4:12 AM');
     expect(t).toContain('Add to calendar');

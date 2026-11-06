@@ -904,6 +904,7 @@
             >
               <RouteExtras
                 v-if="!store.isRunning"
+                :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
                 :reach-at="store.planStart + store.bestDays * 86400"
@@ -955,18 +956,10 @@
                   @check="checkRouteExactly"
                 />
               </div>
-              <!-- Ascension 1 carries on the build-up: good news, so not in an amber box (item C3). The other
-                   continue notes are advice and keep the amber. The words are search/health.ts's (a result code
-                   input), unchanged here. -->
+              <!-- Ascension 1 carrying on the build-up is a clause in the First ascension line (store `buildUpClause`,
+                   item C3); the other leg-1 notes are advice and keep the amber. -->
               <p
-                v-if="store.continueWarning && buildUpGoodNews"
-                class="text-body text-emerald-900/80"
-                data-testid="build-up-note"
-              >
-                {{ store.continueWarning }}
-              </p>
-              <p
-                v-else-if="store.continueWarning"
+                v-if="store.continueWarning"
                 class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-900"
               >
                 {{ store.continueWarning }}
@@ -2347,9 +2340,6 @@ const resuming = ref('');
 
 /** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
-/** Ascension 1 carries on the build-up (search/health.ts `buildUpNote`, its 'buildup' leg): good news, said without
- *  the amber box (UX fluff review 2, item C3). */
-const buildUpGoodNews = computed(() => store.bestLegs[0]?.key === 'buildup');
 /** The one amber box for the edges (item C0b): 'edge' when the best sits on a box's edge or on the most ascensions
  *  searched (it gets the heading), 'hint' for the instant answer's faster route alone, '' for none. The same rule as
  *  LongerRouteHint.vue's own list (lib/longerRouteHint.ts). */

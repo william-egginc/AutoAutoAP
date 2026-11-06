@@ -123,7 +123,8 @@
       <p v-if="replaceLine" class="text-body text-slate-600" data-testid="now-replaces">
         {{ replaceLine }}
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-go-back" @click="emit('goBack')">
-          Go back to the instant answer
+          <!-- "Replaces the instant answer · Go back to it" (lib/searchPlanWords.ts; UX fluff review 2, item R6). -->
+          {{ replaceLine.endsWith('·') ? 'Go back to it' : 'Go back to the instant answer' }}
         </button>
       </p>
       <p v-else-if="backLine" class="text-body text-slate-600" data-testid="now-went-back">

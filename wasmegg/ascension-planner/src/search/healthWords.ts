@@ -11,7 +11,10 @@ export function buildUpNoteWords(key: string, by: string, freshBy: string | null
   return key === 'continue'
     ? `Your build isn't finished: carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, which is what this plan does. ${PICK_IT}`
     : key === 'buildup'
-      ? `Ascension 1 carries on your build-up: that ends it ${by} sooner than finishing your farm as it is, without buying anything more.`
+      ? // A clause in the cards' First ascension line since 5 Nov 2026 (UX fluff review 2, item C3; good news, not a
+        // warning). DRAFT (Words). Was "Ascension 1 carries on your build-up: that ends it … sooner than finishing your
+        // farm as it is, without buying anything more."
+        `carries on your build-up (${by} sooner than finishing the farm as it is)`
       : freshBy !== null
         ? `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, and ${freshBy} days sooner than the fresh start this plan takes. ${PICK_IT}`
         : `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying; prestiging now was faster still.`;

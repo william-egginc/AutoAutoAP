@@ -569,6 +569,7 @@
               </p>
               <RouteExtras
                 v-if="!store.isRunning"
+                :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
                 :reach-at="store.planStart + store.bestDays * 86400"
