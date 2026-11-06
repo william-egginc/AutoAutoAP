@@ -178,13 +178,13 @@ describe('validation', () => {
 describe('limits', () => {
   it('takes 30 writes an hour per key, 429 with the wait, a new hour starts again, another key is unaffected, and /follow has its own budget', async () => {
     for (let i = 0; i < 30; i++) expect((await send('setup', { ...SETUP, targetTE: 100 + (i % 300), at: T0 + i, timezone: `Zone/N${i}` }, K, T0 + i * 1000)).status).toBe(200);
-    const over = await send('setup', { ...SETUP, targetTE: 77 }, K, T0 + 40_000);
+    const over = await send('setup', { ...SETUP, targetTE: 77, at: T0 + 40_000 }, K, T0 + 40_000);
     expect(over.status).toBe(429);
     const body = await over.json();
     expect(body.retryAfter).toBeGreaterThan(0);
     expect(over.headers.get('retry-after')).toBe(String(body.retryAfter));
     expect((await send('setup', SETUP, K2, T0 + 40_000)).status).toBe(200);
-    expect((await send('setup', { ...SETUP, targetTE: 77 }, K, T0 + 3_700_000)).status).toBe(200);
+    expect((await send('setup', { ...SETUP, targetTE: 77, at: T0 + 3_700_000 }, K, T0 + 3_700_000)).status).toBe(200);
     // /follow's own budget for the same key is untouched.
     const followed = await handleFollow(
       new Request('https://c.example/follow', {

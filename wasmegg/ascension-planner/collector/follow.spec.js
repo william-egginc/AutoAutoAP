@@ -180,13 +180,13 @@ describe('limits', () => {
     for (let i = 0; i < FOLLOW_WRITES_PER_HOUR; i++) {
       expect((await send({ ...VALUE, chain: [100 + (i % 90), 200 + i], at: T0 + i }, GOAL, K, T0 + i * 1000)).status).toBe(200);
     }
-    const over = await send({ ...VALUE, chain: [150, 480] }, GOAL, K, T0 + 40_000);
+    const over = await send({ ...VALUE, chain: [150, 480], at: T0 + 40_000 }, GOAL, K, T0 + 40_000);
     expect(over.status).toBe(429);
     const body = await over.json();
     expect(body.retryAfter).toBeGreaterThan(0);
     expect(over.headers.get('retry-after')).toBe(String(body.retryAfter));
     expect((await send(VALUE, GOAL, K2, T0 + 40_000)).status).toBe(200);
-    expect((await send({ ...VALUE, chain: [150, 480] }, GOAL, K, T0 + 3_700_000)).status).toBe(200);
+    expect((await send({ ...VALUE, chain: [150, 480], at: T0 + 3_700_000 }, GOAL, K, T0 + 3_700_000)).status).toBe(200);
   });
 
   it(`takes at most ${FOLLOW_MAX_GOALS} goals for one key`, async () => {
