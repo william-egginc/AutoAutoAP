@@ -1,6 +1,6 @@
 /**
  * composables/useBuildUpTracker.ts: the fold opens by itself once per ascension while building and the player's close
- * then holds; the plan is asked for only while open and building and none is kept; the first plan of an ascension is
+ * then holds; the plan is asked for while building (open or closed) and none is kept; the first plan of an ascension is
  * kept (a newer save's is not); ticks are kept per account and ascension. Fixed clock, stubbed storage, placeholder plan.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -71,7 +71,8 @@ describe('useBuildUpTracker', () => {
     t.playerToggle(false);
     expect(mem.get(foldChoiceKey('acct-hash', A1))).toBe('0');
     expect(t.open.value).toBe(false);
-    expect(t.wanted.value).toBe(false);
+    // The plan is still asked for while closed: the closed fold's hint is the plan's (spec-buildup-storage).
+    expect(t.wanted.value).toBe(true);
     // Still building, next visit: stays closed.
     const again = setup();
     expect(again.t.open.value).toBe(false);

@@ -3,8 +3,9 @@
  * the fold shows and when the simulation is asked for the build-up list.
  *
  *   - THE PLAN. The followed route's current ascension simulated by useCurrentSim with `wantBuildUp` on (helper A's
- *     opt-in; off by default). It is asked for ONLY while the fold is open and the player is in a build-up, never during
- *     a search (useCurrentSim waits for one), and only when no plan is kept for this ascension yet: `buildUpWanted`
+ *     opt-in; off by default). It is asked for ONLY while the player is in a build-up, never during
+ *     a search (useCurrentSim waits for one), and only when no plan is kept for this ascension yet (open or closed:
+ *     the closed fold's hint is the plan's, spec-buildup-storage): `buildUpWanted`
  *     below is the switch useNowPage hands to useCurrentSim. The first plan of an ascension is kept per account
  *     (lib/buildUpTracker.ts `writeAnchoredPlan`): tied to the save it was worked out from, so a newer save never
  *     re-plans (Re-plan is Phase 2).
@@ -224,10 +225,15 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /** A1 CHOICE: finishing without buying is followed: nothing to buy, no plan asked for, a kept plan left as it is
    *  (Keep building brings it back). */
   const finishChosen = computed(() => i.finishChosen?.value ?? null);
+  /**
+   * NOT ONLY WHILE OPEN (spec-buildup-storage, 6 Nov 2026: Safari's normal window said "working it out" for good while
+   * a private window had the plan). The closed fold's hint is the plan's ("0 of 105 check-ins done · next ..."), so a
+   * player's close (kept per account and ascension) must not stop the plan being asked for: with an older build's plan
+   * dropped on load, nothing was ever asked and the stall bound, which counts only a wanted plan, never fired.
+   */
   const wanted = computed(
     () =>
       !finishChosen.value &&
-      open.value &&
       i.building.value &&
       i.hasSave.value &&
       i.followed.value &&
