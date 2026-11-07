@@ -33,6 +33,12 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-07T18:41:52Z', note: 'Release 8 (beta): plans and the Build-up tracker use your real TE again, so no more wrong “prestige now” or “shift now”; a stuck tracker fix for Safari; long searches can tell the maintainer', level: 'big' },
+  { at: '2026-11-07T18:41:51Z', note: 'Fixed: a TE you haven’t claimed yet was counted, so your current ascension looked about 10% richer; plans, buy times and the tracker now use your claimed TE' },
+  { at: '2026-11-07T18:41:50Z', note: 'Build-up tracker: no longer stuck “working it out” in Safari; says “max” for maxed research; cheap buys are grouped; a Tight warning when a sale buy is due minutes before the sale ends' },
+  { at: '2026-11-07T18:41:49Z', note: 'If your build-up can’t be worked out, the first step now says not to prestige and to reload, instead of “prestige now”; a reload works it out again' },
+  { at: '2026-11-07T18:41:48Z', note: 'Searches of 2 hours or more tell the maintainer they started and ended, so site updates can wait for them; nothing about you is sent, and Setup has an off switch (see About)' },
+  { at: '2026-11-07T18:41:47Z', note: 'The “?” tip and About say exactly what goes online; downloaded saves keep only what the planner reads; instant answers are worked out again when your save changes' },
   { at: '2026-11-04T18:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
   { at: '2026-11-04T18:00:06Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
   { at: '2026-11-04T18:00:05Z', note: 'When keeping on building would end your ascension later, My runs lets you pick: keep building or finish without buying' },
