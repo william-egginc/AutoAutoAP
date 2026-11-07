@@ -358,7 +358,7 @@
                  the box; lib/hoursNote.ts). -->
             <p
               v-if="firstStep"
-              :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+              :class="firstStepWarn ? 'text-body text-amber-800' : 'text-body text-slate-800'"
               class="max-w-prose"
               data-testid="box-first-step"
             >
@@ -566,7 +566,7 @@
           <!-- First step, as in By a date's box. -->
           <p
             v-if="firstStep"
-            :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+            :class="firstStepWarn ? 'text-body text-amber-800' : 'text-body text-slate-800'"
             class="max-w-prose"
             data-testid="box-first-step"
           >

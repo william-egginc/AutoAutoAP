@@ -50,7 +50,7 @@ export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a
  * now and reach 220 TE" in the middle of a build-up). Words' wording, 6 Nov 2026: the whole First step line, in place of
  * "prestige now…", when the setting builds up but the build-up could not be worked out, so the route starts with a fresh
  * prestige only for that (search/instantFirstLegs.ts `buildUpMissing`, spec-buildupmissing). Its first sentence
- * (`_LEAD`) is drawn bold, the rest plain, all small and amber (components/auto/InstantRoute.vue).
+ * (`_LEAD`) is drawn bold, the rest plain, all amber, at body size (components/auto/InstantRoute.vue).
  */
 export const FIRST_STEP_BUILDUP_MISSING_LEAD = 'Do not prestige if you are in the middle of a build-up.';
 export const FIRST_STEP_BUILDUP_MISSING_REST =

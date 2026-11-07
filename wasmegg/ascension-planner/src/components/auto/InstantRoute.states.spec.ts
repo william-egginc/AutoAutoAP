@@ -1028,9 +1028,9 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
       };
       const warned = step(await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING, firstStepWarn: true }));
       expect(textOf(warned)).toContain(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
-      expect(warned).toMatch(/class="[^"]*text-small text-amber-800/);
-      expect(warned).not.toContain('text-body');
-      // The first sentence bold after the bold label; the rest plain, in the same small amber paragraph.
+      expect(warned).toMatch(/class="[^"]*text-body text-amber-800/);
+      expect(warned).not.toContain('text-small');
+      // The first sentence bold after the bold label; the rest plain, in the same amber paragraph at body size (a warning is never smaller than the line it replaces).
       expect(warned.replace(/<!--[\s\S]*?-->/g, '')).toContain(`<b>First step:</b> <b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_REST}`);
       const plain = step(await draw(at(answer, deadline), { firstStep: 'prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).' }));
       expect(plain).toMatch(/class="[^"]*text-body text-slate-800/);
