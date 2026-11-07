@@ -421,7 +421,8 @@ export class AnswersClient {
       return 'skipped';
     }
     const body = await encodeAnswer({ v: 1, goal: o.goal, at: o.at, snap: o.snap, pricing: o.pricing });
-    this.pending = null;
+    // An offer made while this one was being compressed is still wanted (its own timer sends it): clear only our own.
+    if (this.pending === o) this.pending = null;
     if (!body) return 'skipped';
     this.writes.push(now);
     try {
