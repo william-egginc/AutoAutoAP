@@ -24,6 +24,60 @@ import {
   type CloudAnswer,
 } from './answersCloud';
 
+// Opt-in slow gzip and slow collector, to check the waits below: ANSWERS_SPEC_GZIP_DELAY_MS=50 (the real CompressionStream
+// behind an uneven delay of 0 to twice that, as a slow machine's is) and ANSWERS_SPEC_FETCH_DELAY_MS=50, in the environment.
+const GZIP_DELAY_MS = Number(process.env.ANSWERS_SPEC_GZIP_DELAY_MS ?? 0) || 0;
+const FETCH_DELAY_MS = Number(process.env.ANSWERS_SPEC_FETCH_DELAY_MS ?? 0) || 0;
+const realSetTimeout = globalThis.setTimeout;
+const realNow = () => Number(process.hrtime.bigint() / 1_000_000n);
+if (GZIP_DELAY_MS) {
+  const RealCS = globalThis.CompressionStream;
+  globalThis.CompressionStream = class {
+    constructor(format: CompressionFormat) {
+      const real = new RealCS(format);
+      const delay = new TransformStream<BufferSource, BufferSource>({
+        transform: async (chunk, ctl) => {
+          await new Promise<void>(r => realSetTimeout(r, Math.random() * 2 * GZIP_DELAY_MS));
+          ctl.enqueue(chunk);
+        },
+      });
+      void delay.readable.pipeTo(real.writable);
+      return { writable: delay.writable, readable: real.readable } as unknown as CompressionStream;
+    }
+  } as unknown as typeof CompressionStream;
+}
+
+/** Wait (real time, 5 s at most; the fake timers are not moved, as `vi.waitFor` would) until `done()`, turning the
+ *  event loop between looks. */
+async function until(what: string, done: () => boolean): Promise<void> {
+  const t0 = realNow();
+  while (!done()) {
+    if (realNow() - t0 > 5000) throw new Error(`answersCloud spec: ${what} still pending after 5000 ms`);
+    await new Promise<void>(r => setImmediate(r));
+  }
+}
+/** `vi.waitFor` without moving the clock: the check retried against real time, the last failure thrown after 5 s. */
+async function waitFor(check: () => void): Promise<void> {
+  let last: unknown;
+  await until('the check', () => {
+    try {
+      check();
+      return true;
+    } catch (e) {
+      last = e;
+      return false;
+    }
+  }).catch(e => {
+    throw last ?? e;
+  });
+}
+/** The client has no offer left to work on (the debounce fired and its flush ran to the end: sent, or skipped) and the
+ *  collector has no request in flight; then a few turns for what follows the response. */
+async function idle(w: AnswersClient, c: { inflight: () => number }): Promise<void> {
+  await until('the write', () => (w as unknown as { pending: unknown }).pending === null && c.inflight() === 0);
+  for (let i = 0; i < 5; i++) await new Promise<void>(r => setImmediate(r));
+}
+
 const K = 'a'.repeat(64);
 const URL = 'https://collector.example/answers';
 const ID = 'EI1234567890123456';
@@ -52,6 +106,7 @@ const offer = (at: number, extra: Partial<AnswerOffer> = {}): AnswerOffer => ({
 function collector(opts: { missing?: boolean } = {}) {
   const store = new Map<string, { at: number; bytes: Uint8Array; updatedAt: number }>();
   const calls: { method: string; url: string; body?: Uint8Array }[] = [];
+  let inflight = 0;
   const res = (status: number, body: unknown, bytes?: Uint8Array) => ({
     ok: status >= 200 && status < 300,
     status,
@@ -60,6 +115,15 @@ function collector(opts: { missing?: boolean } = {}) {
     headers: { get: () => null },
   });
   const f: AnswersFetch = async (url, init) => {
+    inflight++;
+    try {
+      if (FETCH_DELAY_MS) await new Promise<void>(r => realSetTimeout(r, FETCH_DELAY_MS));
+      return await handle(url, init);
+    } finally {
+      inflight--;
+    }
+  };
+  const handle: AnswersFetch = async (url, init) => {
     const method = init?.method ?? 'GET';
     calls.push({ method, url, ...(init?.body ? { body: init.body } : {}) });
     if (opts.missing) return res(404, { error: 'not found' });
@@ -82,7 +146,7 @@ function collector(opts: { missing?: boolean } = {}) {
     }
     return res(400, { error: 'rejected' });
   };
-  return { f, calls, store };
+  return { f, calls, store, inflight: () => inflight };
 }
 
 function client(c: ReturnType<typeof collector>, busy = () => false) {
@@ -137,7 +201,7 @@ describe('the client against a stand-in collector', () => {
     const w = client(c);
     w.offer(offer(1000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS);
-    await vi.waitFor(() => expect(c.store.size).toBe(1));
+    await waitFor(() => expect(c.store.size).toBe(1));
     // Another page load (a new browser): nothing kept, the cloud answer read.
     const r = client(c);
     const got = await r.newestFor({ goal: 'target 490' });
@@ -158,17 +222,19 @@ describe('the client against a stand-in collector', () => {
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS - 10);
     expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(20);
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
     expect(c.calls.find(x => x.method === 'PUT')!.url).toContain('&at=2000');
     w.offer(offer(2000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
+    await idle(w, c);
     expect(await w.flush()).toBe('skipped');
     expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1);
     // A page load that finds the same entry and time online writes nothing either.
     const again = client(c);
     again.offer(offer(2000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'GET').length).toBeGreaterThan(1));
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'GET').length).toBeGreaterThan(1));
+    await idle(again, c);
     expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1);
   });
 
@@ -190,7 +256,7 @@ describe('the client against a stand-in collector', () => {
     expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(0);
     busy = false;
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
   });
 
   it('404 (an older collector): quiet, and nothing more is asked on this page load', async () => {
@@ -216,7 +282,7 @@ describe('the client against a stand-in collector', () => {
     for (let i = 0; i < ANSWERS_MAX_ENTRIES + 2; i++) {
       w.offer(offer(2000 + i, { backupTime: 1_790_000_000 + i }));
       await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
-      await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(i + 1));
+      await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(i + 1));
     }
     const list = await w.entries();
     expect(list).toHaveLength(ANSWERS_MAX_ENTRIES);
@@ -230,9 +296,13 @@ describe('the client against a stand-in collector', () => {
     for (let i = 0; i < ANSWERS_WRITES_PER_HOUR + 2; i++) {
       w.offer(offer(5000 + i, { backupTime: 1_790_000_000 + i }));
       await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
+      // The debounce's own flush is the one that writes: wait for it to end, not a second flush beside it (two at once
+      // both pass the hour's count before either has written, and the cap is crossed or an offer is lost).
+      await idle(w, c);
       await w.flush();
     }
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT').length).toBe(ANSWERS_WRITES_PER_HOUR));
+    await idle(w, c);
+    expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(ANSWERS_WRITES_PER_HOUR);
   });
 
   it('the ID never in a URL or a body; the key is the hashed follow key', async () => {
@@ -240,7 +310,7 @@ describe('the client against a stand-in collector', () => {
     const w = client(c);
     w.offer(offer(1000, { snap: snapOf(1000, { note: ID, meta: { account: 'x', goal: 'target 490', backupTime: 1, id: ID } }) }));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
     for (const call of c.calls) {
       expect(call.url).not.toMatch(/EI\d{16}/i);
       expect(call.url).toContain(`k=${K}`);
@@ -281,7 +351,7 @@ describe("the browser's fetch", () => {
     const w = new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => strict });
     w.offer(offer(1000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
-    await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
     expect((await new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => strict }).newestFor({ goal: 'target 490' }))?.at).toBe(1000);
   });
 
