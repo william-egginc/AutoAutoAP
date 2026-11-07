@@ -23,25 +23,102 @@ let staleDownloadCleared = false;
 
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
+/**
+ * THE SPILL WORKER IS BOUNDED (spec-stuck3, 7 Nov 2026). Every ask used to wait for its reply for good: a worker that
+ * never loaded, threw, or sat in an OPFS call that never returns (a file handle Safari thinks a dead page still holds)
+ * kept a run's start, its checkpoint and its end waiting forever, with the running flags set. The worker answers its
+ * requests one at a time, so one stuck request holds every later one: past `SPILL_ASK.ms` with asks waiting and no
+ * reply of any kind (a worker busy with a long queue still replies to each), or on the worker's own error, every
+ * waiting ask is rejected, the worker is let go, and the next open starts a new one. The store then treats the spill
+ * as unavailable, as when another tab holds the file. 30 s: one request is an append or read of a few MB, a sync or
+ * an open, which takes milliseconds to a few seconds; the same bound db.ts gives an IndexedDB transaction.
+ */
+const SPILL_ASK = { ms: 30_000 };
+/** Specs: another bound (null: back to the default). */
+export function setSpillAskMs(ms: number | null): void {
+  SPILL_ASK.ms = ms ?? 30_000;
+}
+/** When the spill worker last answered anything, ms; 0 when never. A start that waits on the spill reads it as
+ *  progress (stores/chainSearch.ts `storageLimit`). */
+let lastAnswerAt = 0;
+export function lastSpillAnswerAt(): number {
+  return lastAnswerAt;
+}
+
 class SpillWorker {
   private worker: Worker;
   private next = 1;
-  private waiting = new Map<number, (r: LegSpillReply) => void>();
+  private waiting = new Map<number, { resolve: (r: LegSpillReply) => void; reject: (e: Error) => void }>();
+  private heardAt = Date.now();
+  private watchdog: ReturnType<typeof setTimeout> | null = null;
+  /** Why it was let go; null while it is usable. */
+  private dead: Error | null = null;
 
   constructor(make: () => Worker) {
     this.worker = make();
     this.worker.onmessage = (e: MessageEvent<LegSpillReply>) => {
+      this.heardAt = lastAnswerAt = Date.now();
       const done = this.waiting.get(e.data.id);
       this.waiting.delete(e.data.id);
-      done?.(e.data);
+      done?.resolve(e.data);
+      this.arm();
     };
+    this.worker.onerror = (e: ErrorEvent) => {
+      e.preventDefault?.();
+      this.fail(new Error(`the spill worker failed (${e.message || 'it did not load'})`));
+    };
+    this.worker.onmessageerror = () => this.fail(new Error('the spill worker sent a message that could not be read'));
+  }
+
+  /** The watchdog: due `SPILL_ASK.ms` after the last reply (or the ask that started the wait), while asks wait. */
+  private arm(): void {
+    if (this.watchdog) clearTimeout(this.watchdog);
+    this.watchdog = null;
+    if (!this.waiting.size || this.dead) return;
+    this.watchdog = setTimeout(
+      () => {
+        this.watchdog = null;
+        if (!this.waiting.size) return;
+        if (Date.now() - this.heardAt < SPILL_ASK.ms) return this.arm();
+        this.fail(new Error(`the spill worker did not answer within ${Math.round(SPILL_ASK.ms / 1000)} s`));
+      },
+      Math.max(0, this.heardAt + SPILL_ASK.ms - Date.now())
+    );
+  }
+
+  /** Every waiting ask rejected, the worker let go; a later ask fails at once, and the next open makes a new one. */
+  private fail(err: Error): void {
+    if (this.dead) return;
+    this.dead = err;
+    if (this.watchdog) clearTimeout(this.watchdog);
+    this.watchdog = null;
+    console.warn('chain search: the leg spill stopped answering, so this page goes on without it', err.message);
+    const waiting = [...this.waiting.values()];
+    this.waiting.clear();
+    for (const w of waiting) w.reject(err);
+    try {
+      this.worker.terminate();
+    } catch {
+      // already gone
+    }
+    if (shared === this) shared = null;
   }
 
   async ask(body: Body<LegSpillRequest>, transfer: Transferable[] = []): Promise<LegSpillReply & { ok: true }> {
+    if (this.dead) throw this.dead;
     const id = this.next++;
-    const reply = await new Promise<LegSpillReply>(resolve => {
-      this.waiting.set(id, resolve);
-      this.worker.postMessage({ ...body, id } as LegSpillRequest, transfer);
+    const reply = await new Promise<LegSpillReply>((resolve, reject) => {
+      // A wait starts now: an idle worker's last reply may be long ago.
+      if (!this.waiting.size) this.heardAt = Date.now();
+      this.waiting.set(id, { resolve, reject });
+      this.arm();
+      try {
+        this.worker.postMessage({ ...body, id } as LegSpillRequest, transfer);
+      } catch (e) {
+        this.waiting.delete(id);
+        this.arm();
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
     });
     if (!reply.ok) {
       const err = new Error(reply.quota ? `disk full (${reply.error})` : reply.error);
@@ -52,6 +129,11 @@ class SpillWorker {
 }
 
 let shared: SpillWorker | null = null;
+/** Specs: the next open makes a new worker. */
+export function resetSpillWorker(): void {
+  shared = null;
+  staleDownloadCleared = false;
+}
 function spillWorker(): SpillWorker {
   if (!shared)
     shared = new SpillWorker(() => new Worker(new URL('../workers/legSpill.worker.ts', import.meta.url), { type: 'module' }));
