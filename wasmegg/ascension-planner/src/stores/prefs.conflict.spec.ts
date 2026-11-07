@@ -16,8 +16,22 @@ import { useShareNameStore } from '@/stores/shareName';
 import { usePrefsStore, PREFS_DEBOUNCE_MS } from '@/stores/prefs';
 import { hashID } from '@/lib/storage/db';
 import { localAtKey, prefsSig, buildSetupValue, type CloudSetup } from '@/lib/prefsCloud';
-import { consentAgreed, consentGivenThisVisit, consentRecord, resetConsents, setConsentAccount } from '@/composables/useConsent';
-import { answerYes, defaultCredit, resetStudy, setStudyTick, studyState, studyStep, yesToAll } from '@/composables/useStudy';
+import {
+  consentAgreed,
+  consentGivenThisVisit,
+  consentRecord,
+  resetConsents,
+  setConsentAccount,
+} from '@/composables/useConsent';
+import {
+  answerYes,
+  defaultCredit,
+  resetStudy,
+  setStudyTick,
+  studyState,
+  studyStep,
+  yesToAll,
+} from '@/composables/useStudy';
 import { useShareIdentity } from '@/composables/useShareResult';
 import { useEidsStore } from 'lib';
 
@@ -141,9 +155,15 @@ const CLOUD_SETUP: CloudSetup = {
   timezone: 'Europe/London',
 };
 
-const AHEAD = { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"] };
+const AHEAD = {
+  error: 'rejected',
+  problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"],
+};
 /** The collector's 409 with a stored value. */
-const conflict = (value: unknown) => ({ status: 409, body: { error: 'a newer value is stored (its at is higher); use it', latest: { value, version: 9, updatedAt: AT } } });
+const conflict = (value: unknown) => ({
+  status: 409,
+  body: { error: 'a newer value is stored (its at is higher); use it', latest: { value, version: 9, updatedAt: AT } },
+});
 const keptAt = async (kind: 'consent' | 'setup') => JSON.parse(mem.get(localAtKey(await hashID(ID), kind)) ?? 'null');
 
 describe('409: a newer value is saved online', () => {
@@ -157,7 +177,12 @@ describe('409: a newer value is saved online', () => {
     expect(puts()).toHaveLength(1);
     expect(body().value.targetTE).toBe(350);
     // The saved Setup, as a load applies it.
-    expect([search.scheduleEnabled, search.availableFrom, search.availableTo, search.availableDays]).toEqual([true, 9, 17, [1, 2, 3, 4, 5]]);
+    expect([search.scheduleEnabled, search.availableFrom, search.availableTo, search.availableDays]).toEqual([
+      true,
+      9,
+      17,
+      [1, 2, 3, 4, 5],
+    ]);
     expect(search.timeOff).toEqual([{ from: '2026-12-24', to: '2026-12-26' }]);
     expect(search.noPrestige).toEqual([{ from: '2026-11-03', to: '2026-11-04' }]);
     expect(search.finalTE).toBe(300);
@@ -165,7 +190,23 @@ describe('409: a newer value is saved online', () => {
     const kept = await keptAt('setup');
     expect(kept.at).toBe(AT + 60_000);
     expect(kept.pending).toBeUndefined();
-    expect(kept.sig).toBe(prefsSig(buildSetupValue({ scheduleEnabled: true, fromHour: 9, toHour: 17, days: [1, 2, 3, 4, 5], timeOff: [{ from: '2026-12-24', to: '2026-12-26' }], noPrestige: [{ from: '2026-11-03', to: '2026-11-04' }], finalTE: 300, timezone: 'Europe/London' }, 0)));
+    expect(kept.sig).toBe(
+      prefsSig(
+        buildSetupValue(
+          {
+            scheduleEnabled: true,
+            fromHour: 9,
+            toHour: 17,
+            days: [1, 2, 3, 4, 5],
+            timeOff: [{ from: '2026-12-24', to: '2026-12-26' }],
+            noPrestige: [{ from: '2026-11-03', to: '2026-11-04' }],
+            finalTE: 300,
+            timezone: 'Europe/London',
+          },
+          AT
+        )
+      )
+    );
     expect(prefs.saves.setup).toEqual({ state: 'saved' });
     // Putting it in place is not a change: nothing goes back up.
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 5);
@@ -176,7 +217,14 @@ describe('409: a newer value is saved online', () => {
   it('a consent change answered 409 takes the saved consent, one PUT', async () => {
     await loadAccount();
     calls = [];
-    const newer = { at: AT + 60_000, answeredAt: AT + 60_000, study: 'yes', ticks: { leaderboard: false, sendCsv: true }, credit: 'name', nickname: 'Hen Solo' };
+    const newer = {
+      at: AT + 60_000,
+      answeredAt: AT + 60_000,
+      study: 'yes',
+      ticks: { leaderboard: false, sendCsv: true },
+      credit: 'name',
+      nickname: 'Hen Solo',
+    };
     answer = (_u, m) => (m === 'PUT' ? conflict(newer) : cloudPrefs({})());
     answerYes({ share: true, csv: false, diag: false, checks: true }, 'anon', '');
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
@@ -220,7 +268,12 @@ describe("400: this device's `at` is over 10 minutes ahead of the collector's cl
   it('sent again ONCE stamped now, saved: kept here with that at', async () => {
     const { prefs, search } = await loadAccount();
     calls = [];
-    answer = (_u, m) => (m !== 'PUT' ? cloudPrefs({})() : puts().length === 1 ? { status: 400, body: AHEAD } : { status: 200, body: { ok: true, version: 2 } });
+    answer = (_u, m) =>
+      m !== 'PUT'
+        ? cloudPrefs({})()
+        : puts().length === 1
+          ? { status: 400, body: AHEAD }
+          : { status: 200, body: { ok: true, version: 2 } };
     // Changed while this device's clock was an hour fast; corrected before the save goes.
     vi.setSystemTime(AT + 3_600_000);
     search.finalTE = 350;
@@ -254,7 +307,12 @@ describe("400: this device's `at` is over 10 minutes ahead of the collector's cl
   it('ahead, then 409 on the resend: the saved value is taken, two PUTs', async () => {
     const { search } = await loadAccount();
     calls = [];
-    answer = (_u, m) => (m !== 'PUT' ? cloudPrefs({})() : puts().length === 1 ? { status: 400, body: AHEAD } : conflict({ ...CLOUD_SETUP, at: AT + 3_600_000 }));
+    answer = (_u, m) =>
+      m !== 'PUT'
+        ? cloudPrefs({})()
+        : puts().length === 1
+          ? { status: 400, body: AHEAD }
+          : conflict({ ...CLOUD_SETUP, at: AT + 3_600_000 });
     search.finalTE = 350;
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
     expect(puts()).toHaveLength(2);

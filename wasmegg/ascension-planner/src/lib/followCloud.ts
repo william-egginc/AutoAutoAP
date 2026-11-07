@@ -13,7 +13,9 @@
  *
  * Endpoints (the collector's own, from the submit URL, lib/collectorUrl.ts; no other URL):
  *   GET  /follow?k=                 every goal's latest value
- *   PUT  /follow {k, goal, value}   one goal's new value (30 an hour per key, 8 goals per key, 4 KB a value)
+ *   PUT  /follow {k, goal, value}   one goal's new value (30 an hour per key, 8 goals per key, 4 KB a value);
+ *                                   409 {latest}: a newer `at` is stored (red team C4, 6 Nov 2026), 400 "ahead": the
+ *                                   `at` sent is over 10 minutes ahead of the collector's clock (`putFollow`)
  *   GET  /follow/history?k=&goal=   the last 5 versions of one goal, newest first; a restore is a PUT of one again
  * There is no delete: un-following is kept in this browser only (stores/follow.ts keeps when, so an older saved
  * route doesn't come back on the next load).
@@ -251,8 +253,10 @@ export type FetchLike = (url: string, init?: { method?: string; headers?: Record
   json(): Promise<unknown>;
 }>;
 
-/** Why a call didn't work: 'limit' (429), 'big' (413), 'rejected' (400), 'off' (no collector or 503), 'offline'. */
-export type CloudFail = 'limit' | 'big' | 'rejected' | 'off' | 'offline' | 'error';
+/** Why a call didn't work: 'limit' (429), 'big' (413), 'rejected' (400), 'off' (no collector or 503), 'offline';
+ *  'ahead' (400 for an `at` over 10 minutes ahead of the collector's clock, sent again stamped now and refused again:
+ *  this device's clock is fast; not a refusal of the value, so it stays pending). */
+export type CloudFail = 'limit' | 'big' | 'rejected' | 'off' | 'offline' | 'error' | 'ahead';
 
 const failOf = (status: number): CloudFail =>
   status === 429 ? 'limit' : status === 413 ? 'big' : status === 400 ? 'rejected' : status === 503 ? 'off' : 'error';
@@ -286,36 +290,91 @@ export async function getFollows(
   }
 }
 
-/** PUT /follow: one goal's value. `version`: the collector's version of it now. */
+/**
+ * The collector's 400 for an `at` over 10 minutes ahead of its clock (collector/follow.js AT_AHEAD_MS, the same for
+ * /prefs): a 400 whose problems say so. Any other 400 is a refusal of the value.
+ */
+export function isAheadRefusal(status: number, body: unknown): boolean {
+  const problems = (body as { problems?: unknown } | null)?.problems;
+  return status === 400 && Array.isArray(problems) && problems.some(p => typeof p === 'string' && /ahead of the collector/i.test(p));
+}
+
+/**
+ * The stored value a 409 sends (`{ latest: { value, version, updatedAt } }`), read with `read`; null when it doesn't
+ * read (the next load's GET has it anyway).
+ */
+export function readLatest<V>(body: unknown, read: (v: unknown) => V | null): { value: V; version: number; updatedAt: number } | null {
+  const l = (body as { latest?: { value?: unknown; version?: unknown; updatedAt?: unknown } } | null)?.latest;
+  const value = l && typeof l === 'object' ? read(l.value) : null;
+  return value ? { value, version: Number(l!.version) || 0, updatedAt: Number(l!.updatedAt) || 0 } : null;
+}
+
+/**
+ * What a PUT of a follow or prefs value came to. `resentAt`: the collector refused the `at` as ahead of its clock, so
+ * the value went again stamped `resentAt` (this device's now), and this is that second answer. 'newer': 409, the
+ * collector holds a newer value (by `at`) and here it is; the caller follows it as a read would, never writing back.
+ */
+export type PutResult<V, Ok, Fail extends string> =
+  | ({ ok: true; resentAt?: number } & Ok)
+  | { ok: false; why: 'newer'; latest: { value: V; version: number; updatedAt: number }; resentAt?: number }
+  | { ok: false; why: Fail; retryAfter?: number; resentAt?: number };
+
+/**
+ * One PUT, and on the collector's "ahead" 400 ONE more, stamped `now()` (red team C4, 6 Nov 2026: the collector
+ * refuses an `at` over 10 minutes ahead of its clock, so a value stamped while this device's clock was fast would
+ * never save). Never a third: refused again, it is 'ahead'. `send` makes one call for a value.
+ */
+export async function putOnceMore<V extends { at: number }, R extends { ok: boolean; why?: string }>(
+  value: V,
+  send: (v: V) => Promise<R>,
+  now: () => number
+): Promise<R | (R & { resentAt: number })> {
+  const first = await send(value);
+  if (first.ok || first.why !== 'ahead') return first;
+  const at = Math.round(now());
+  return { ...(await send({ ...value, at })), resentAt: at };
+}
+
+/** PUT /follow: one goal's value. `version`: the collector's version of it now. 409 and the "ahead" 400: `PutResult`. */
 export async function putFollow(
   url: string,
   k: string,
   goalKey: GoalKey,
   value: CloudValue,
-  f: FetchLike | null = defaultFetch()
-): Promise<{ ok: true; version: number } | { ok: false; why: CloudFail; retryAfter?: number }> {
+  f: FetchLike | null = defaultFetch(),
+  now: () => number = Date.now
+): Promise<PutResult<CloudValue, { version: number }, CloudFail>> {
   const goal = cloudGoalOf(goalKey);
   if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
   if (!goal) return { ok: false, why: 'rejected' };
-  const body = JSON.stringify({ k, goal, value });
-  if (hasPlayerId(body)) return { ok: false, why: 'rejected' };
-  try {
-    const res = await f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body });
-    if (!res.ok) {
-      let retryAfter: number | undefined;
-      try {
-        const j = (await res.json()) as { retryAfter?: number };
-        if (typeof j?.retryAfter === 'number') retryAfter = j.retryAfter;
-      } catch {
-        // no body
+  // `value` here: the one sent this time (stamped now on the second).
+  const send = async (value: CloudValue): Promise<PutResult<CloudValue, { version: number }, CloudFail>> => {
+    const body = JSON.stringify({ k, goal, value });
+    if (hasPlayerId(body)) return { ok: false, why: 'rejected' };
+    try {
+      const res = await f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body });
+      if (!res.ok) {
+        let j: unknown = null;
+        try {
+          j = await res.json();
+        } catch {
+          // no body
+        }
+        if (res.status === 409) {
+          const latest = readLatest(j, readCloudValue);
+          return latest ? { ok: false, why: 'newer', latest } : { ok: false, why: 'error' };
+        }
+        if (isAheadRefusal(res.status, j)) return { ok: false, why: 'ahead' };
+        const retryAfter = (j as { retryAfter?: unknown } | null)?.retryAfter;
+        return { ok: false, why: failOf(res.status), ...(typeof retryAfter === 'number' ? { retryAfter } : {}) };
       }
-      return { ok: false, why: failOf(res.status), ...(retryAfter !== undefined ? { retryAfter } : {}) };
+      const j = (await res.json().catch(() => ({}))) as { version?: number };
+      return { ok: true, version: Number(j?.version) || 0 };
+    } catch {
+      return { ok: false, why: 'offline' };
     }
-    const j = (await res.json().catch(() => ({}))) as { version?: number };
-    return { ok: true, version: Number(j?.version) || 0 };
-  } catch {
-    return { ok: false, why: 'offline' };
-  }
+  };
+  return putOnceMore(value, send, now);
 }
 
 /** GET /follow/history?k=&goal=: the last 5 versions of a goal, newest first. */

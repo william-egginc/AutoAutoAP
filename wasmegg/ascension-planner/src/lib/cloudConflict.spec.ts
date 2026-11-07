@@ -16,7 +16,10 @@ const AT = Date.UTC(2026, 10, 6, 18);
 const T = Math.floor(AT / 1000);
 const FOLLOW = 'https://collector.example/follow';
 const PREFS = 'https://collector.example/prefs';
-const AHEAD = { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"] };
+const AHEAD = {
+  error: 'rejected',
+  problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"],
+};
 
 type Reply = { status: number; body: unknown } | 'offline';
 /** A fake collector answering each call in turn (the last answer repeats), counting the calls. */
@@ -40,7 +43,10 @@ const clock = () => NOW;
 
 describe('putFollow', () => {
   it('409: the stored value is newer; says so with it, in one call', async () => {
-    const c = collector({ status: 409, body: { error: 'a newer value is stored', latest: { value: newerRoute, version: 7, updatedAt: AT + 61_000 } } });
+    const c = collector({
+      status: 409,
+      body: { error: 'a newer value is stored', latest: { value: newerRoute, version: 7, updatedAt: AT + 61_000 } },
+    });
     const r = await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock);
     expect(r).toEqual({ ok: false, why: 'newer', latest: { value: newerRoute, version: 7, updatedAt: AT + 61_000 } });
     expect(c.calls.length).toBe(1);
@@ -64,12 +70,19 @@ describe('putFollow', () => {
 
   it('400 ahead twice: no third call; says ahead (left pending, not refused for good)', async () => {
     const c = collector({ status: 400, body: AHEAD });
-    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({ ok: false, why: 'ahead', resentAt: NOW });
+    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({
+      ok: false,
+      why: 'ahead',
+      resentAt: NOW,
+    });
     expect(c.calls.length).toBe(2);
   });
 
   it('400 ahead, then 409 on the resend: the newer stored value, two calls', async () => {
-    const c = collector({ status: 400, body: AHEAD }, { status: 409, body: { latest: { value: newerRoute, version: 2, updatedAt: AT } } });
+    const c = collector(
+      { status: 400, body: AHEAD },
+      { status: 409, body: { latest: { value: newerRoute, version: 2, updatedAt: AT } } }
+    );
     const r = await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock);
     expect(r).toMatchObject({ ok: false, why: 'newer', resentAt: NOW, latest: { value: newerRoute, version: 2 } });
     expect(c.calls.length).toBe(2);
@@ -77,21 +90,48 @@ describe('putFollow', () => {
 
   it('400 ahead, then 429 or offline on the resend: that answer, two calls', async () => {
     let c = collector({ status: 400, body: AHEAD }, { status: 429, body: { retryAfter: 90 } });
-    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({ ok: false, why: 'limit', retryAfter: 90, resentAt: NOW });
+    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({
+      ok: false,
+      why: 'limit',
+      retryAfter: 90,
+      resentAt: NOW,
+    });
     expect(c.calls.length).toBe(2);
     c = collector({ status: 400, body: AHEAD }, 'offline');
-    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({ ok: false, why: 'offline', resentAt: NOW });
+    expect(await putFollow(FOLLOW, KEY, 'fastest-490', route(), c.f, clock)).toEqual({
+      ok: false,
+      why: 'offline',
+      resentAt: NOW,
+    });
     expect(c.calls.length).toBe(2);
   });
 
   it("today's answers are unchanged, each in one call: 200, 429, 400 (any other problem), 413, 503, 500, offline", async () => {
     const cases: [Reply, unknown][] = [
-      [{ status: 200, body: { ok: true, version: 2, updatedAt: AT } }, { ok: true, version: 2 }],
-      [{ status: 429, body: { error: 'x', retryAfter: 1200 } }, { ok: false, why: 'limit', retryAfter: 1200 }],
-      [{ status: 400, body: { error: 'rejected', problems: ['at most 8 goals'] } }, { ok: false, why: 'rejected' }],
-      [{ status: 413, body: { error: 'too big' } }, { ok: false, why: 'big' }],
-      [{ status: 503, body: { error: 'off' } }, { ok: false, why: 'off' }],
-      [{ status: 500, body: {} }, { ok: false, why: 'error' }],
+      [
+        { status: 200, body: { ok: true, version: 2, updatedAt: AT } },
+        { ok: true, version: 2 },
+      ],
+      [
+        { status: 429, body: { error: 'x', retryAfter: 1200 } },
+        { ok: false, why: 'limit', retryAfter: 1200 },
+      ],
+      [
+        { status: 400, body: { error: 'rejected', problems: ['at most 8 goals'] } },
+        { ok: false, why: 'rejected' },
+      ],
+      [
+        { status: 413, body: { error: 'too big' } },
+        { ok: false, why: 'big' },
+      ],
+      [
+        { status: 503, body: { error: 'off' } },
+        { ok: false, why: 'off' },
+      ],
+      [
+        { status: 500, body: {} },
+        { ok: false, why: 'error' },
+      ],
       ['offline', { ok: false, why: 'offline' }],
     ];
     for (const [reply, want] of cases) {
@@ -102,8 +142,15 @@ describe('putFollow', () => {
   });
 
   it('the 8-goal cap (429) keeps its own handling: limit with its retryAfter, one call', async () => {
-    const c = collector({ status: 429, body: { error: 'too many', why: 'at most 8 goals for one key', retryAfter: 3600 } });
-    expect(await putFollow(FOLLOW, KEY, 'date-1800000000', route(), c.f, clock)).toEqual({ ok: false, why: 'limit', retryAfter: 3600 });
+    const c = collector({
+      status: 429,
+      body: { error: 'too many', why: 'at most 8 goals for one key', retryAfter: 3600 },
+    });
+    expect(await putFollow(FOLLOW, KEY, 'date-1800000000', route(), c.f, clock)).toEqual({
+      ok: false,
+      why: 'limit',
+      retryAfter: 3600,
+    });
     expect(c.calls.length).toBe(1);
   });
 });
@@ -116,7 +163,11 @@ describe('putPrefs', () => {
     expect(c.calls.length).toBe(1);
     const consent = { at: AT + 5, study: 'yes', ticks: { leaderboard: true }, credit: 'anonymous' };
     const c2 = collector({ status: 409, body: { latest: { value: consent, version: 1, updatedAt: AT } } });
-    expect(await putPrefs(PREFS, KEY, 'consent', { at: AT, study: 'no' }, c2.f, clock)).toMatchObject({ ok: false, why: 'newer', latest: { value: { at: AT + 5, study: 'yes' } } });
+    expect(await putPrefs(PREFS, KEY, 'consent', { at: AT, study: 'no' }, c2.f, clock)).toMatchObject({
+      ok: false,
+      why: 'newer',
+      latest: { value: { at: AT + 5, study: 'yes' } },
+    });
     expect(c2.calls.length).toBe(1);
   });
 
@@ -130,19 +181,44 @@ describe('putPrefs', () => {
 
   it('400 ahead twice: no third call; says ahead', async () => {
     const c = collector({ status: 400, body: AHEAD });
-    expect(await putPrefs(PREFS, KEY, 'setup', setupValue(), c.f, clock)).toEqual({ ok: false, why: 'ahead', resentAt: NOW });
+    expect(await putPrefs(PREFS, KEY, 'setup', setupValue(), c.f, clock)).toEqual({
+      ok: false,
+      why: 'ahead',
+      resentAt: NOW,
+    });
     expect(c.calls.length).toBe(2);
   });
 
   it("today's answers are unchanged, each in one call: 200, 429, 400, 404, 413, 503, 500, offline", async () => {
     const cases: [Reply, unknown][] = [
-      [{ status: 200, body: { ok: true, version: 2, unchanged: true } }, { ok: true, version: 2, unchanged: true }],
-      [{ status: 429, body: { error: 'x', retryAfter: 120 } }, { ok: false, why: 'limit', retryAfter: 120 }],
-      [{ status: 400, body: { error: 'rejected', problems: ['kind must be consent or setup'] } }, { ok: false, why: 'rejected' }],
-      [{ status: 404, body: {} }, { ok: false, why: 'missing' }],
-      [{ status: 413, body: {} }, { ok: false, why: 'big' }],
-      [{ status: 503, body: {} }, { ok: false, why: 'off' }],
-      [{ status: 500, body: {} }, { ok: false, why: 'error' }],
+      [
+        { status: 200, body: { ok: true, version: 2, unchanged: true } },
+        { ok: true, version: 2, unchanged: true },
+      ],
+      [
+        { status: 429, body: { error: 'x', retryAfter: 120 } },
+        { ok: false, why: 'limit', retryAfter: 120 },
+      ],
+      [
+        { status: 400, body: { error: 'rejected', problems: ['kind must be consent or setup'] } },
+        { ok: false, why: 'rejected' },
+      ],
+      [
+        { status: 404, body: {} },
+        { ok: false, why: 'missing' },
+      ],
+      [
+        { status: 413, body: {} },
+        { ok: false, why: 'big' },
+      ],
+      [
+        { status: 503, body: {} },
+        { ok: false, why: 'off' },
+      ],
+      [
+        { status: 500, body: {} },
+        { ok: false, why: 'error' },
+      ],
       ['offline', { ok: false, why: 'offline' }],
     ];
     for (const [reply, want] of cases) {

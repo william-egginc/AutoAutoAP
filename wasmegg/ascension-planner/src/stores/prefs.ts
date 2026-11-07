@@ -14,6 +14,10 @@
  *  - QUIET: 404 (an older collector: no cloud prefs here) and 503 stop every call for this page load; offline, 5xx,
  *    413 and 429 carry on locally (a 429 pauses that kind's writes for its `retryAfter`). Never a banner, never a retry
  *    loop, never a throw.
+ *  - NEWER ONLINE (red team C4, 6 Nov 2026): a 409 says the collector holds a newer value of the kind (by `at`) and
+ *    sends it; it is put in place as a load puts a newer saved value in place (`takeConsent`, `takeSetup`), nothing
+ *    written back. A 400 for an `at` over 10 minutes ahead of the collector's clock is sent again once stamped now
+ *    (lib/prefsCloud.ts `putPrefs`); refused again, it stays pending.
  *  - The ID: only `accountHash` and `prefsKey` take it (plus the "Credit me as" store, which keys its memory by it);
  *    the URL and the value hold only the key and the choices (lib/prefsCloud.ts refuses any value with an ID).
  *  - Not synced: the workers, the memory cap and the other "This computer" settings, hold shifts, first ascension.
@@ -310,6 +314,40 @@ export const usePrefsStore = defineStore('prefs', () => {
     }
   }
 
+  /** A saved consent newer than this browser's, put in place: applied, the value last synced, kept with its `at`. */
+  function takeConsent(id: string, hash: string, cloud: CloudConsent): void {
+    applyConsent(id, hash, cloud);
+    synced.consent = sigNow('consent');
+    writeLocalAt(hash, 'consent', { at: cloud.at, sig: synced.consent });
+  }
+
+  /** The same for a saved Setup. */
+  function takeSetup(hash: string, cloud: CloudSetup): void {
+    applySetup(cloud);
+    synced.setup = sigNow('setup');
+    writeLocalAt(hash, 'setup', { at: cloud.at, sig: synced.setup });
+  }
+
+  /**
+   * A 409's newer value of a kind (the collector's `latest`), put in place as a load puts a newer saved value in place
+   * (`takeConsent`, `takeSetup`), nothing written back. Only for the account on screen once the kind is ready, while
+   * the value sent (`sentAt`) is still this browser's latest of the kind (a change made since is newer: it goes up
+   * and wins), when the saved value is newer by the load's own rule, and, for the Setup, not during a search (as a
+   * load). Otherwise left: the next load reads it.
+   */
+  function takeNewer(kind: PrefsKind, hash: string, sentAt: number, v: CloudPrefValue): void {
+    if (hash !== partition.value || !ready.value[kind] || pending[kind]) return;
+    if (readLocalAt(hash, kind)?.at !== sentAt) return;
+    if (kind === 'consent') {
+      const id = readyIdRef.value;
+      if (!id || !sameAccount(id, hash) || !cloudIsNewer(v.at, localConsentAt(hash))) return;
+      takeConsent(id, hash, v as CloudConsent);
+      return;
+    }
+    if (searchStore()?.isRunning || !cloudIsNewer(v.at, localSetupAt(hash))) return;
+    takeSetup(hash, v as CloudSetup);
+  }
+
   // ------------------------------------------------------------------------------ loading
 
   /** Resolves true once `cond` holds, false after `ms` or when the account changes. */
@@ -358,9 +396,7 @@ export const usePrefsStore = defineStore('prefs', () => {
       (rec.accounts[hash] !== undefined && rec.at >= genStart);
     missed.consent = false;
     if (cloud && cloudIsNewer(cloud.at, localConsentAt(hash))) {
-      applyConsent(id, hash, cloud);
-      synced.consent = sigNow('consent');
-      writeLocalAt(hash, 'consent', { at: cloud.at, sig: synced.consent });
+      takeConsent(id, hash, cloud);
       ready.value = { ...ready.value, consent: true };
       return;
     }
@@ -385,11 +421,8 @@ export const usePrefsStore = defineStore('prefs', () => {
       // Newer online; or the same save as this browser's last, with this page not showing it (the target isn't kept
       // in this browser, so a reload puts it back from here).
       const take = cloudIsNewer(cloud.at, localSetupAt(hash)) || (!!kept && !kept.pending && kept.at === cloud.at && kept.sig !== here);
-      if (take) {
-        applySetup(cloud);
-        synced.setup = sigNow('setup');
-        writeLocalAt(hash, 'setup', { at: cloud.at, sig: synced.setup });
-      } else synced.setup = here;
+      if (take) takeSetup(hash, cloud);
+      else synced.setup = here;
     } else synced.setup = sigNow('setup');
     ready.value = { ...ready.value, setup: true };
   }
@@ -498,9 +531,22 @@ export const usePrefsStore = defineStore('prefs', () => {
         return;
       }
       const r = await putPrefs(p.url, p.key, kind, p.value);
+      // Sent again stamped now (the collector refused an `at` over 10 minutes ahead of its clock): kept here with it.
+      let at = p.value.at;
+      if (r.resentAt !== undefined) {
+        const was = readLocalAt(p.hash, kind);
+        if (was && was.at === at) writeLocalAt(p.hash, kind, { ...was, at: r.resentAt });
+        at = r.resentAt;
+      }
       if (r.ok) {
         const now = readLocalAt(p.hash, kind);
-        if (now && now.at === p.value.at) writeLocalAt(p.hash, kind, { at: p.value.at, sig: p.sig });
+        if (now && now.at === at) writeLocalAt(p.hash, kind, { at, sig: p.sig });
+        saves.value = { ...saves.value, [kind]: { state: 'saved' } };
+        return;
+      }
+      // 409: a newer value is saved online. Not a failure: put in place as a load would, nothing said.
+      if (r.why === 'newer') {
+        takeNewer(kind, p.hash, at, r.latest.value);
         saves.value = { ...saves.value, [kind]: { state: 'saved' } };
         return;
       }

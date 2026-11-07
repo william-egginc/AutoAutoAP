@@ -20,14 +20,20 @@ const KEY = '3726b0602ac082295aa779d59a2d977c10f29a2aa3f7673705e02dc1889dab55';
 const SUBMIT = 'https://collector.example/submit';
 const AT = Date.UTC(2026, 10, 6, 18);
 const T = Math.floor(AT / 1000);
-const AHEAD = { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"] };
+const AHEAD = {
+  error: 'rejected',
+  problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"],
+};
 
 let mem: Map<string, string>;
 let calls: { url: string; method: string; body?: string }[];
 let answer: (url: string, method: string, body?: string) => { status: number; body: unknown } | 'offline';
 
 const fakeSearch = (submitUrl: string) =>
-  defineStore('chainSearch', () => ({ submitUrl, availability: { days: [], fromHour: 7, toHour: 1, timezone: 'America/Denver' } }))();
+  defineStore('chainSearch', () => ({
+    submitUrl,
+    availability: { days: [], fromHour: 7, toHour: 1, timezone: 'America/Denver' },
+  }))();
 
 beforeEach(() => {
   mem = new Map<string, string>();
@@ -71,13 +77,25 @@ const settle = () => new Promise(r => setTimeout(r, 30));
 const keepPending = async (at: number) =>
   mem.set(
     `${FOLLOW_PREFIX}${await hashID(ID)}`,
-    JSON.stringify({ 'fastest-490': { chain: [222, 490], from: 'answer', at, source: 'instant', planStart: T, sync: 'pending' } })
+    JSON.stringify({
+      'fastest-490': { chain: [222, 490], from: 'answer', at, source: 'instant', planStart: T, sync: 'pending' },
+    })
   );
 const empty = { status: 200, body: { goals: {}, now: AT } };
 /** The collector's 409 for a PUT: the stored route, its `at` a minute after the one sent. */
 const newerThan = (body: string | undefined) => {
   const at = JSON.parse(body!).value.at + 60_000;
-  return { status: 409, body: { error: 'a newer value is stored (its at is higher); use it', latest: { value: { chain: [230, 313, 490], planStart: T, source: 'exact', at, finish: T + 86400 * 9 }, version: 6, updatedAt: AT } } };
+  return {
+    status: 409,
+    body: {
+      error: 'a newer value is stored (its at is higher); use it',
+      latest: {
+        value: { chain: [230, 313, 490], planStart: T, source: 'exact', at, finish: T + 86400 * 9 },
+        version: 6,
+        updatedAt: AT,
+      },
+    },
+  };
 };
 
 describe('409: a newer route is saved online', () => {
@@ -93,7 +111,12 @@ describe('409: a newer route is saved online', () => {
     const v0 = follows.version;
     expect(await follows.follow('fastest-490', [222, 490], 'answer')).toBe(true);
     expect(puts().length).toBe(1);
-    expect(follows.followed('fastest-490')).toMatchObject({ chain: [230, 313, 490], source: 'exact', cloud: true, finish: T + 86400 * 9 });
+    expect(follows.followed('fastest-490')).toMatchObject({
+      chain: [230, 313, 490],
+      source: 'exact',
+      cloud: true,
+      finish: T + 86400 * 9,
+    });
     expect(follows.version).toBeGreaterThan(v0 + 1);
     // Kept in this browser as a read would keep it.
     expect(await kept()).toMatchObject({ chain: [230, 313, 490], cloud: true });
@@ -132,7 +155,12 @@ describe("400: this device's `at` is over 10 minutes ahead of the collector's cl
   it('sent again ONCE stamped now, saved: the follow here takes that `at`, the next load writes nothing', async () => {
     const fast = Date.now() + 3_600_000;
     await keepPending(fast);
-    answer = (_u, m) => (m !== 'PUT' ? empty : puts().length === 1 ? { status: 400, body: AHEAD } : { status: 200, body: { ok: true, version: 1 } });
+    answer = (_u, m) =>
+      m !== 'PUT'
+        ? empty
+        : puts().length === 1
+          ? { status: 400, body: AHEAD }
+          : { status: 200, body: { ok: true, version: 1 } };
     const before = Date.now();
     const follows = await loadAccount();
     await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
@@ -145,7 +173,10 @@ describe("400: this device's `at` is over 10 minutes ahead of the collector's cl
     expect((await kept()).at).toBe(resent);
     expect(follows.notSaved('fastest-490')).toBe(false);
     const saved = sent(1).value;
-    answer = () => ({ status: 200, body: { goals: { race490: { value: saved, version: 1, updatedAt: AT } }, now: AT } });
+    answer = () => ({
+      status: 200,
+      body: { goals: { race490: { value: saved, version: 1, updatedAt: AT } }, now: AT },
+    });
     await reload();
     await settle();
     expect(puts()).toEqual([]);

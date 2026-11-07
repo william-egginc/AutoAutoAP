@@ -20,7 +20,10 @@
  * its mark, is written up once on the load (the collector keeps the last write without comparing `at`, so an older
  * route can stand there), and "Save it online" reads first, so an old page never writes over a newer route. NOT SAVED (Jordan, 23 Oct 2026: his
  * Egg Day follow never reached the collector and nothing said so): while a follow is still not saved after the read,
- * Right now says so with "Save it online" (`notSaved`, `saveNow`).
+ * Right now says so with "Save it online" (`notSaved`, `saveNow`). NEWER ONLINE (red team C4, 6 Nov 2026): the
+ * collector now compares `at` and answers an older one with 409 and the newer route it holds, which is followed here
+ * through the read's own merge, nothing written back, nothing said; an `at` over 10 minutes ahead of its clock is
+ * sent again once stamped now (lib/followCloud.ts `putFollow`), and refused again stays pending.
  */
 import { defineStore, getActivePinia } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -293,13 +296,52 @@ export const useFollowStore = defineStore('follow', () => {
     }
     if (!retry) saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
     const r = await putFollow(url, cloudKey.value, goalKey, built.value);
+    // Sent again stamped now (red team C4: the collector refused an `at` over 10 minutes ahead of its clock): the
+    // follow here takes that `at`, so it and the saved one agree. Counted as tried, so a read this visit never sends
+    // it a third time.
+    let at = f.at;
+    if (r.resentAt !== undefined) {
+      tried.add(`${p}|${goalKey}|${r.resentAt}`);
+      if (restamp(p, goalKey, f.at, r.resentAt)) at = r.resentAt;
+    }
+    // 409: a newer route is saved online for the goal (by `at`). Followed here as a read follows it, nothing written
+    // back, nothing said: this press or retry simply lost to a newer one.
+    if (!r.ok && r.why === 'newer') {
+      takeNewer(p, goalKey, r.latest.value);
+      const s: SaveState = { state: 'saved', words: '' };
+      if (!retry) saves.value = { ...saves.value, [goalKey]: s };
+      return s;
+    }
     const s: SaveState = r.ok
       ? { state: 'saved', words: '', ...(built.trimmed ? { trimmed: true } : {}) }
       : { state: 'failed', why: r.why, words: saveFailWords(r.why) };
-    // Refused for what it is (400, 413): never tried again. Offline, 5xx, the hour's limit: the next load tries once.
-    markSync(p, goalKey, f.at, r.ok ? 'synced' : r.why === 'rejected' || r.why === 'big' ? 'unsyncable' : 'pending');
+    // Refused for what it is (400, 413): never tried again. Offline, 5xx, the hour's limit, a clock still ahead: the
+    // next load tries once.
+    markSync(p, goalKey, at, r.ok ? 'synced' : r.why === 'rejected' || r.why === 'big' ? 'unsyncable' : 'pending');
     if (!retry || r.ok) saves.value = { ...saves.value, [goalKey]: s };
     return s;
+  }
+
+  /** A kept follow's `at` moved to `at` (only when it is still that follow: same `at`). True when it moved. */
+  function restamp(p: string, goalKey: GoalKey, was: number, at: number): boolean {
+    const f = mapOf(p)[goalKey];
+    if (!f || f.at !== was) return false;
+    held.set(p, writeFollow(p, goalKey, { ...f, at }, mapOf(p)));
+    version.value++;
+    return true;
+  }
+
+  /**
+   * The collector's newer route for a goal (a 409's `latest`), taken through the same merge as a read
+   * (lib/followCloud.ts `mergeCloud`): followed and kept here when newer than this browser's follow and not
+   * un-followed here since, as a route read back (`cloud`). A Follow press made here since, being newer, stays.
+   */
+  function takeNewer(p: string, goalKey: GoalKey, v: CloudValue): void {
+    if (!p) return;
+    const { map, taken } = mergeCloud(mapOf(p), { [goalKey]: v }, readGone(p));
+    if (!taken.includes(goalKey)) return;
+    held.set(p, writeFollow(p, goalKey, map[goalKey], mapOf(p)));
+    version.value++;
   }
 
   /**

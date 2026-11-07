@@ -12,12 +12,14 @@
  *   GET /prefs?k=                     both kinds' latest values ({ prefs: { consent?, setup? } }); 404: an older
  *                                     collector with no /prefs ("no cloud prefs here")
  *   PUT /prefs {k, kind, value}       one kind's new value (30 an hour per key, 4 KB a value, 6 KB a body)
- * Last write wins by the client's own `at` inside the value; the collector doesn't compare them.
+ * Last write wins by the client's own `at` inside the value. Since red team C4 (6 Nov 2026) the collector compares
+ * them: 409 {latest} for an older `at` than the stored one, 400 "ahead" for one over 10 minutes ahead of its clock
+ * (`putPrefs`, as lib/followCloud.ts `putFollow`).
  *
  * Pure apart from `fetch` (injected, the global one by default), `crypto.subtle` (the key) and the guarded
  * localStorage of the local `at` records (`readLocalAt`/`writeLocalAt`).
  */
-import { followKey, followUrlOf, hasPlayerId, type CloudFail } from './followCloud';
+import { followKey, followUrlOf, hasPlayerId, isAheadRefusal, putOnceMore, readLatest, type CloudFail, type PutResult } from './followCloud';
 import type { TimeOffDates } from '@/search/timeOff';
 
 export { hasPlayerId };
@@ -482,36 +484,52 @@ export async function getPrefs(
   }
 }
 
-/** PUT /prefs: one kind's new value. `retryAfter`: seconds, from a 429. */
+/** PUT /prefs: one kind's new value. `retryAfter`: seconds, from a 429. 409 and the "ahead" 400: followCloud's
+ *  `PutResult` (the stored value read as its kind; one more send stamped `now()`). */
 export async function putPrefs(
   url: string,
   k: string,
   kind: PrefsKind,
   value: CloudPrefValue,
-  f: PrefsFetch | null = defaultFetch()
-): Promise<{ ok: true; version: number; unchanged: boolean } | { ok: false; why: PrefsFail; retryAfter?: number }> {
+  f: PrefsFetch | null = defaultFetch(),
+  now: () => number = Date.now
+): Promise<PutResult<CloudPrefValue, { version: number; unchanged: boolean }, PrefsFail>> {
   if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
-  if (prefsProblems(kind, value).length) return { ok: false, why: 'rejected' };
-  const body = JSON.stringify({ k, kind, value });
-  if (hasPlayerId(body)) return { ok: false, why: 'rejected' };
-  if (bytes(body) > PREFS_MAX_BODY_BYTES) return { ok: false, why: 'big' };
-  try {
-    return await timed(async signal => {
-      const res = await f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body, ...(signal ? { signal } : {}) });
-      if (!res.ok) {
-        let retryAfter: number | undefined;
-        try {
-          const j = (await res.json()) as { retryAfter?: number };
-          if (typeof j?.retryAfter === 'number' && Number.isFinite(j.retryAfter)) retryAfter = j.retryAfter;
-        } catch {
-          // no body
+  const read = (v: unknown): CloudPrefValue | null => (kind === 'consent' ? readConsentValue(v) : readSetupValue(v));
+  // `value` here: the one sent this time (stamped now on the second).
+  const send = async (value: CloudPrefValue): Promise<PutResult<CloudPrefValue, { version: number; unchanged: boolean }, PrefsFail>> => {
+    if (prefsProblems(kind, value).length) return { ok: false, why: 'rejected' };
+    const body = JSON.stringify({ k, kind, value });
+    if (hasPlayerId(body)) return { ok: false, why: 'rejected' };
+    if (bytes(body) > PREFS_MAX_BODY_BYTES) return { ok: false, why: 'big' };
+    try {
+      return await timed(async signal => {
+        const res = await f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body, ...(signal ? { signal } : {}) });
+        if (!res.ok) {
+          let j: unknown = null;
+          try {
+            j = await res.json();
+          } catch {
+            // no body
+          }
+          if (res.status === 409) {
+            const latest = readLatest(j, read);
+            return latest ? { ok: false as const, why: 'newer' as const, latest } : { ok: false as const, why: 'error' as const };
+          }
+          if (isAheadRefusal(res.status, j)) return { ok: false as const, why: 'ahead' as const };
+          const retryAfter = (j as { retryAfter?: unknown } | null)?.retryAfter;
+          return {
+            ok: false as const,
+            why: failOf(res.status),
+            ...(typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? { retryAfter } : {}),
+          };
         }
-        return { ok: false as const, why: failOf(res.status), ...(retryAfter !== undefined ? { retryAfter } : {}) };
-      }
-      const j = (await res.json().catch(() => ({}))) as { version?: number; unchanged?: boolean };
-      return { ok: true as const, version: Number(j?.version) || 0, unchanged: j?.unchanged === true };
-    });
-  } catch {
-    return { ok: false, why: 'offline' };
-  }
+        const j = (await res.json().catch(() => ({}))) as { version?: number; unchanged?: boolean };
+        return { ok: true as const, version: Number(j?.version) || 0, unchanged: j?.unchanged === true };
+      });
+    } catch {
+      return { ok: false, why: 'offline' };
+    }
+  };
+  return putOnceMore(value, send, now);
 }
