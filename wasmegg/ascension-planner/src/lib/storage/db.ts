@@ -37,6 +37,45 @@ export const OPEN_TIMEOUT_MS = 5000;
  *  mode) instead of each waiting another 5 s; it clears when that open answers either way. */
 let stalledOpen: IDBOpenDBRequest | null = null;
 
+/**
+ * How long one transaction may wait for its answer (spec-crosstab, 7 Nov 2026). The open is bounded above, but the
+ * database never changes version, so another tab can't block an open: what it CAN hold is a transaction. A tab frozen
+ * between its write and its commit (Safari suspends pages) keeps every later transaction on that store waiting, in
+ * every tab, and a run's checkpoint write or the page's draft read then never answered. Past this the caller is told
+ * the database did not answer and this tab's transaction is aborted (all or nothing, as a failed write). While the
+ * database is known not to answer, later calls wait only `STUCK_TX_TIMEOUT_MS`; any answer ends that.
+ */
+export const TX_TIMEOUT_MS = 30_000;
+export const STUCK_TX_TIMEOUT_MS = 5_000;
+let txStuck = false;
+
+function bounded<T>(tx: IDBTransaction, wait: Promise<T>): Promise<T> {
+    const ms = txStuck ? STUCK_TX_TIMEOUT_MS : TX_TIMEOUT_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+            txStuck = true;
+            try {
+                tx.abort();
+            } catch {
+                // Already finished.
+            }
+            reject(new Error(`IndexedDB did not answer within ${ms / 1000} s (another tab may be holding it)`));
+        }, ms);
+    });
+    return Promise.race([wait, limit]).then(
+        v => {
+            clearTimeout(timer);
+            txStuck = false;
+            return v;
+        },
+        e => {
+            clearTimeout(timer);
+            throw e;
+        }
+    );
+}
+
 function openDB(): Promise<IDBDatabase> {
     if (stalledOpen) return Promise.reject(new Error('IndexedDB is not answering (an earlier open is still out)'));
     return new Promise((resolve, reject) => {
@@ -91,11 +130,11 @@ export async function savePlanToLibrary(partitionHash: string, plan: PlanData): 
     // Sanitize data through JSON round-trip to avoid DataCloneError with complex Vue Proxies
     const sanitizedPlan = JSON.parse(JSON.stringify(plan));
 
-    await new Promise<void>((resolve, reject) => {
+    await bounded(tx, new Promise<void>((resolve, reject) => {
         const request = store.put({ ...sanitizedPlan, storageKey, partitionHash });
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
@@ -106,7 +145,7 @@ export async function loadLibraryPlans(partitionHash: string): Promise<PlanData[
     const tx = db.transaction('plans', 'readonly');
     const store = tx.objectStore('plans');
 
-    return new Promise((resolve, reject) => {
+    return bounded(tx, new Promise((resolve, reject) => {
         const plans: PlanData[] = [];
         const request = store.openCursor();
 
@@ -122,7 +161,7 @@ export async function loadLibraryPlans(partitionHash: string): Promise<PlanData[
             }
         };
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
@@ -134,11 +173,11 @@ export async function deletePlanFromLibrary(partitionHash: string, planId: strin
     const store = tx.objectStore('plans');
     const storageKey = `${partitionHash}_${planId}`;
 
-    await new Promise<void>((resolve, reject) => {
+    await bounded(tx, new Promise<void>((resolve, reject) => {
         const request = store.delete(storageKey);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
@@ -156,13 +195,13 @@ export async function saveMetadata(partitionHash: string, key: string, value: an
     // Resolved when the transaction COMMITS, not when the put succeeds: a put can succeed and its
     // transaction still abort (quota, a crash before commit), and a caller that goes on as if it were
     // saved would lose it (the 28-29 Sep edge cases).
-    await new Promise<void>((resolve, reject) => {
+    await bounded(tx, new Promise<void>((resolve, reject) => {
         const request = store.put({ key: storageKey, partitionHash, value: sanitizedValue });
         request.onerror = () => reject(request.error);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error ?? request.error);
         tx.onabort = () => reject(tx.error ?? new Error('the write was aborted'));
-    });
+    }));
 }
 
 /**
@@ -188,11 +227,11 @@ export async function putMetadataRecords(
         if (value === null) store.delete(storageKey);
         else store.put({ key: storageKey, partitionHash, value: raw ? value : JSON.parse(JSON.stringify(value)) });
     }
-    await new Promise<void>((resolve, reject) => {
+    await bounded(tx, new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error ?? new Error('the write was aborted'));
-    });
+    }));
 }
 
 /** Every key from `${hash}_${prefix}` up to the end of that prefix. */
@@ -206,11 +245,11 @@ export async function loadMetadataPrefix(partitionHash: string, prefix: string):
     const db = await openDB();
     const tx = db.transaction('metadata', 'readonly');
     const store = tx.objectStore('metadata');
-    return new Promise((resolve, reject) => {
+    return bounded(tx, new Promise((resolve, reject) => {
         const request = store.getAll(prefixRange(partitionHash, prefix));
         request.onsuccess = () => resolve((request.result ?? []).map((r: { value: unknown }) => r?.value));
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
@@ -222,9 +261,9 @@ export async function loadMetadata(partitionHash: string, key: string): Promise<
     const store = tx.objectStore('metadata');
 
     const storageKey = `${partitionHash}_${key}`;
-    return new Promise((resolve, reject) => {
+    return bounded(tx, new Promise((resolve, reject) => {
         const request = store.get(storageKey);
         request.onsuccess = () => resolve(request.result?.value ?? null);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
