@@ -151,6 +151,7 @@ import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
+import { simKeyChange } from '@/lib/simKeyChange';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { buildUpWanted } from './useBuildUpTracker';
 import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
@@ -1473,6 +1474,39 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     };
   }));
   const { state: currentSim, slow: simSlow, retry: retrySim, worker: simWorker } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  /**
+   * REQUEST CHURN (spec-stuck3, 7 Nov 2026): useCurrentSim starts a run only once its request has been unchanged for
+   * 3 s, so a key that keeps changing never starts one. A breadcrumb says when a key change restarts that wait (the old
+   * key's state was 'working' and no run had started for it), with which part changed (lib/simKeyChange.ts). The states
+   * are noted by key as they come, so the order the watchers run in doesn't matter.
+   */
+  const simStateByKey = new Map<string, string>();
+  let simRunStartedFor: string | null = null;
+  watch(
+    currentSim,
+    st => {
+      if (!st) return;
+      if (simStateByKey.size > 20) simStateByKey.clear();
+      simStateByKey.set(st.key, st.status);
+    },
+    { flush: 'sync' }
+  );
+  watch(
+    simWorker,
+    w => {
+      if (w) simRunStartedFor = currentSim.value?.key ?? null;
+    },
+    { flush: 'sync' }
+  );
+  watch(simRequest, (req, was) => {
+    if (!req !== !was) {
+      buildUpLog(`sim request ${req ? 'asked' : 'dropped'}`);
+      return;
+    }
+    if (!req || !was || req.key === was.key) return;
+    const restarted = simStateByKey.get(was.key) === 'working' && simRunStartedFor !== was.key;
+    buildUpLog(`sim request changed: ${simKeyChange(was, req)}${restarted ? ' (the 3 s wait before its run starts again)' : ''}`);
+  });
   // A1 CHOICE: the candidates from the first side's simulation of this base to come in.
   watch(
     currentSim,

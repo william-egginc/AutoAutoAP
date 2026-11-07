@@ -29,6 +29,7 @@ import { getResearchById } from '@/calculations/commonResearch';
 import type { Availability } from '@/search/availability';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
 import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
+import { trackerCapReason } from '@/lib/buildUpWords';
 import {
   anchoredPlanCurrent,
   buildUpTracker,
@@ -135,6 +136,20 @@ export function setTrackerStallMs(ms: number | null): void {
   STALL.ms = ms ?? 3 * 60_000;
 }
 export const TRACKER_STALL_REASON = 'nothing came back for it';
+/**
+ * AN OVERALL CAP (spec-stuck3, 7 Nov 2026): the bounds above each start again when the simulation's state changes, and
+ * a request whose key keeps changing restarts useCurrentSim's 3-second wait before its run every time, so no run ever
+ * starts and no bound is ever reached. This one is measured from when the tracker FIRST said "working it out" for this
+ * account and save, and nothing but Try again, another save or account, the plan coming in, or a search really running
+ * in this tab (`searchRunning`: the wait is the search's) starts it again: past it
+ * the tracker says failed, with Try again and why. 8 minutes: past the run's own 6-minute bound (useCurrentSim
+ * `runMs`) plus its 3-second wait, so a run that started gets its full time first.
+ */
+const CAP = { ms: 8 * 60_000 };
+/** Specs: another cap (null: back to the default). */
+export function setTrackerCapMs(ms: number | null): void {
+  CAP.ms = ms ?? 8 * 60_000;
+}
 
 export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /**
@@ -515,11 +530,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   function retry(): void {
     buildUpLog('tracker retry');
     clearStall();
+    clearCap();
   }
 
   /** A kept plan and a save still coming in: nothing to tick from that is settled yet (spec-anchornewer). */
   const checking = computed(() => !!plan.value && !!i.saveLoading?.value);
-  const shown = computed<TrackerState>(() => {
+  /** What the fold shows before the overall cap. */
+  const beforeCap = computed<TrackerState>(() => {
     if (i.onVirtue.value === false) return 'hidden';
     if (checking.value) return 'checking';
     if (!i.hasSave.value) return 'noSave';
@@ -530,6 +547,54 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (i.sim.value?.status === 'failed' || stalled.value) return 'failed';
     return 'working';
   });
+
+  // ------------------------------------------------------------------ the overall cap
+  const capped = ref(false);
+  let capTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the tracker first said "working it out" for `capFor`; 0 while the clock is not going. */
+  let capSince = 0;
+  let capFor: string | null = null;
+  function clearCap(): void {
+    if (capTimer) clearTimeout(capTimer);
+    capTimer = null;
+    capSince = 0;
+    capped.value = false;
+  }
+  /** The account and save the clock is for: a request worked out again for the same ones never starts it again. */
+  const capKey = computed(() => `${i.account.value ?? ''}|${i.saveSeconds.value}`);
+  /** Waiting for a search really running in this tab: not counted (the search ends it, and may take hours). */
+  const searchWait = computed(() => {
+    const s = i.sim.value;
+    return s?.status === 'waiting' && !s.reason && !!i.searchRunning?.value;
+  });
+  watch(
+    [beforeCap, capKey, plan, searchWait],
+    ([s, key, p, forSearch]) => {
+      if (key !== capFor || p || forSearch) {
+        clearCap();
+        capFor = key;
+      }
+      if (s !== 'working' || capSince || forSearch) return;
+      capSince = Date.now();
+      capTimer = setTimeout(() => {
+        capTimer = null;
+        // Only a tracker still at it is capped (working it out, or failed and trying once more); one that has moved on
+        // (ready, nothing to buy) lets the clock go.
+        if (beforeCap.value !== 'working' && beforeCap.value !== 'failed') {
+          capSince = 0;
+          return;
+        }
+        const reason = trackerCapReason(Math.round(CAP.ms / 60_000));
+        buildUpLog(`tracker capped: ${reason} since it first said working it out`);
+        console.warn('My runs: the build-up list was not worked out:', reason);
+        capped.value = true;
+      }, CAP.ms);
+    },
+    { immediate: true }
+  );
+  onScopeDispose(clearCap);
+
+  const shown = computed<TrackerState>(() => (beforeCap.value === 'working' && capped.value ? 'failed' : beforeCap.value));
   const state = shown;
   watch(shown, (s, was) => buildUpLog(`tracker ${was ?? 'start'} -> ${s}${s === 'failed' ? ` (${i.sim.value?.reason ?? ''})` : ''}`), { immediate: true });
   watch(open, o => buildUpLog(`fold ${o ? 'open' : 'closed'}`), { immediate: true });
@@ -559,7 +624,15 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     siloWarnings,
     /** A1 CHOICE: why there is nothing to buy ('picked' / 'default'), for the tracker's own words; null otherwise. */
     finishChosen,
-    failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : stalled.value ? TRACKER_STALL_REASON : '')),
+    failReason: computed(() =>
+      i.sim.value?.status === 'failed'
+        ? (i.sim.value.reason ?? '')
+        : stalled.value
+          ? TRACKER_STALL_REASON
+          : capped.value
+            ? trackerCapReason(Math.round(CAP.ms / 60_000))
+            : ''
+    ),
     retry,
     /** The failure was a stop (its worker torn down) rather than the simulation's own: said so, with Try again. */
     failStopped: computed(() => i.sim.value?.status === 'failed' && /stopped|terminated|paused/i.test(i.sim.value.reason ?? '')),
