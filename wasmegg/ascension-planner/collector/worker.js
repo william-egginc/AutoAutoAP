@@ -71,6 +71,7 @@ import { handleAnswers, isAnswersRequest } from './answers.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { pruneBudgets } from './budget.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
+import { handleSync, isSyncRequest } from './sync.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
@@ -3221,6 +3222,8 @@ export default {
     if (isFollowRequest(url)) return handleFollow(request, env);
     // "Long-run alert" (runs.js): a page announces a long search and its end, anonymously; D1 only.
     if (isRunsRequest(url)) return handleRuns(request, env, ctx);
+    // Synced records (sync.js): the starting-TE override and the Build-up tracker's ticks and plan, per account; D1 only.
+    if (isSyncRequest(url)) return handleSync(request, env);
     // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
     if (isPrefsRequest(url)) return handlePrefs(request, env);
     // The full-detail CSV of a very large run, to R2 (bigcsv.js): D1 and R2, none of it touches SUBMISSIONS writes.
