@@ -46,11 +46,25 @@ export const FIRST_STEP_LABEL = 'First step:';
 export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a few minutes late can cost days.';
 
 /**
+ * THE BUILD-UP COULD NOT BE WORKED OUT (spec-buildupmissing-words, 6 Nov 2026; Jordan's phone said "First step: prestige
+ * now and reach 220 TE" in the middle of a build-up). Words' wording, 6 Nov 2026: the whole First step line, in place of
+ * "prestige now…", when the setting builds up but the build-up could not be worked out, so the route starts with a fresh
+ * prestige only for that (search/instantFirstLegs.ts `buildUpMissing`, spec-buildupmissing). Its first sentence
+ * (`_LEAD`) is drawn bold, the rest plain, all small and amber (components/auto/InstantRoute.vue).
+ */
+export const FIRST_STEP_BUILDUP_MISSING_LEAD = 'Do not prestige if you are in the middle of a build-up.';
+export const FIRST_STEP_BUILDUP_MISSING_REST =
+  'The planner could not work out your build-up, so this answer starts with a fresh prestige. Reload this page to try again.';
+/** The two together, as plain text (`firstStepLine`). */
+export const FIRST_STEP_BUILDUP_MISSING = `${FIRST_STEP_BUILDUP_MISSING_LEAD} ${FIRST_STEP_BUILDUP_MISSING_REST}`;
+
+/**
  * The First step line in the green box (DRAFT), from the route's first two ascensions as "When each step happens"
  * lists them (lib/instantSteps.ts): what the first ascension is (`kind`: the one you are in continued, your build-up
  * continued, or a fresh start, now or at `start`), the TE it reaches and when, then the prestige after it, at the time
  * alone when it is the same day (`sameDay`). Times come formatted (" at " between date and time). The hours clause only
- * when the answer keeps awake hours and the line names a prestige time.
+ * when the answer keeps awake hours and the line names a prestige time. A fresh first step there only because the
+ * build-up could not be worked out (`buildUpMissing`) is FIRST_STEP_BUILDUP_MISSING instead.
  */
 export function firstStepLine(o: {
   kind: 'continue' | 'buildup' | 'fresh';
@@ -62,7 +76,11 @@ export function firstStepLine(o: {
   prestigeTime: string | null;
   sameDay: boolean;
   hours: boolean;
+  /** The build-up could not be worked out (the first-legs request's `buildUpMissing`): a fresh first step says so
+   *  instead. */
+  buildUpMissing?: boolean;
 }): string {
+  if (o.kind === 'fresh' && o.buildUpMissing) return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`;
   const first =
     o.kind === 'buildup'
       ? `continue your build-up to ${o.stopTE} TE`
