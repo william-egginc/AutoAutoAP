@@ -63,6 +63,8 @@ export interface SavedTables {
   tables?: string | null;
   /** lib/resultCode.ts `resultCode()` when it was worked out; absent on one saved before Release 7. */
   rc?: string;
+  /** BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags): its build-up could not be worked out. */
+  buildUpMissing?: boolean;
 }
 
 /**
@@ -73,6 +75,9 @@ export interface SavedTables {
  */
 export function savedAnswerFits(s: SavedTables | null | undefined, gearRule: number, now: string | null): boolean {
   if (!s || !snapshotUsable(s, gearRule)) return false;
+  // BUILD-UP MISSING (6 Nov 2026): one priced without the build-up because it could not be worked out is never put
+  // back (InstantRoute.vue never saves one; this is the belt and braces): worked out again, the build-up asked again.
+  if (s.buildUpMissing === true) return false;
   // RELEASE 7 (allanfieldhouse: after a reload onto a new build the page kept the old code's answer, as his inputs had
   // not changed): one worked out by other code (or before answers carried it) is worked out again, even offline. It may
   // still be shown meanwhile, marked "From <time> (older version), checking…" (InstantRoute.vue `showStale`).

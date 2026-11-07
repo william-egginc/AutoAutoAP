@@ -37,6 +37,7 @@ import { setChainPricer, type ChainPricer } from './useFollowEstimate';
 import {
   computeInstantPricing,
   instantFailureWords,
+  PlainFailure,
   setInstantComputeTiming,
   setInstantComputer,
   useInstantCompute,
@@ -227,6 +228,9 @@ describe("the record My runs builds prices a route exactly as the instant answer
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(EXACT_AT);
+    // No worker runs here, so the build-up's tails come back empty, as they always did here (silently, before
+    // BUILD-UP MISSING made a worker failure count as one: search/instantFirstLegs.ts BuildUpFlags).
+    vi.spyOn(useChainSearchStore(), 'buildUpTails').mockResolvedValue({ tails: [] });
   });
   afterEach(() => vi.useRealTimers());
 
@@ -336,6 +340,18 @@ describe("the record My runs builds prices a route exactly as the instant answer
     expect(instantFailureWords(err)).toBe("the instant answer couldn't be loaded (no connection, or the file is missing)");
     expect(instantFailureWords(new Error('Failed to fetch'))).toBe("the instant answer couldn't be loaded (no connection, or the file is missing)");
     expect(instantFailureWords(new Error(`precomputed table version 9 is not supported for ${A_ID}`))).toBe('an older version of this page is open: reload it');
+  });
+
+  it('a build-up that could not be worked out: a plain failure, never a record priced without it (BUILD-UP MISSING)', async () => {
+    loadSave();
+    withSetup();
+    vi.mocked(useChainSearchStore().buildUpTails).mockResolvedValue({ tails: [], failed: true, reason: 'worker lost' });
+    const err = await computeInstantPricing(req(260, false), pool(), () => true).catch(e => e);
+    expect(err).toBeInstanceOf(PlainFailure);
+    expect(instantFailureWords(err)).toBe("your build-up couldn't be worked out from your save");
+    // Empty without a failure (nothing left to buy) is priced as before.
+    vi.mocked(useChainSearchStore().buildUpTails).mockResolvedValue({ tails: [] });
+    expect(await computeInstantPricing(req(260, false), pool(), () => true)).not.toBeNull();
   });
 
   it('a save below the instant answer: said with the TEs', async () => {

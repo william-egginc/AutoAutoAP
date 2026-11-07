@@ -6,6 +6,12 @@
  *
  * 'auto' and 'buildup' with a farm in the save include the build-up's tails; 'continue' and 'fresh'
  * never simulate them.
+ *
+ * BUILD-UP MISSING (6 Nov 2026, Jordan's phone): the page's worker failed, the store handed back [] without a word
+ * and kept it, and with only fresh and continue to price the answer said "prestige now and reach 220" mid build-up
+ * (Continue my build-up reached it 4 days 19 h sooner). Now the request says when the setting builds up, the save has
+ * a farm and working the build-up out FAILED (`buildUpMissing`), so the page can say so and never keep that answer.
+ * An empty build-up that did not fail (nothing left to buy) is right, and is not flagged.
  */
 import { continueTailParams } from './leg';
 import { nextHour } from './routeFinder';
@@ -18,8 +24,31 @@ import type { SearchInputs } from './types';
 /** The backup's egg numbers (50-54) in EGG_ORDER, as search/leg.ts `continueState` maps them. */
 const SAVE_EGG_INDEX: Record<number, number> = { 50: 0, 54: 1, 51: 2, 53: 3, 52: 4 };
 
+/**
+ * The build-up's tails as the page's worker answers (store `buildUpTails`): `failed` when they could not be worked
+ * out (the worker threw or was lost), with `reason` for the log, never for the player. A bare array is the same with
+ * `failed` false (the CLI and specs).
+ */
+export interface BuildUpTailsResult {
+  tails: BuildParams[];
+  failed?: boolean;
+  reason?: string;
+}
+
+/** Whether the first ascension's build-up could be worked out (`instantFirstLegsBase`). */
+export interface BuildUpFlags {
+  /**
+   * True only when the setting builds up (auto or buildup), the save has a farm (and the caller did not leave the
+   * build-up out), and working the build-up out FAILED (store `buildUpTails` `failed`: the worker threw, was lost or
+   * stalled). The answer's first ascension was then priced from fresh and continue only: the page says so and never
+   * keeps that answer (InstantRoute.vue `saveSnapshot`, search/instantTables.ts `savedAnswerFits`), so a reload or the
+   * next visit works it out again. Absent otherwise, an empty build-up included (nothing left to buy: that is right).
+   */
+  buildUpMissing?: true;
+}
+
 /** `firstLegOptions` without the table and the delivery scale (which the caller's table decides). */
-export type InstantFirstLegsBase = Omit<FirstLegOptions, 'table' | 'deliveryScale'>;
+export type InstantFirstLegsBase = Omit<FirstLegOptions, 'table' | 'deliveryScale'> & BuildUpFlags;
 
 export interface InstantFirstLegsParams {
   startTE: number;
@@ -35,9 +64,9 @@ export interface InstantFirstLegsParams {
   /**
    * The build-up's tails timed from `start`: the page asks a background worker (store
    * `buildUpTails`), the CLI simulates in place (`buildUpTailParams`). Only called when the setting
-   * builds up and the save has a farm.
+   * builds up and the save has a farm. The page's says when it failed (`BuildUpTailsResult`).
    */
-  buildUpTails: (start: number) => Promise<BuildParams[]> | BuildParams[];
+  buildUpTails: (start: number) => Promise<BuildParams[] | BuildUpTailsResult> | BuildParams[] | BuildUpTailsResult;
   /** The table has no row for `startTE` (the player is above its top): the fresh first build simulated
    *  live instead (search/liveCell.ts), from `start` (the next whole hour). The page asks a background
    *  worker (store `liveFreshBuilds`), the CLI simulates in place. */
@@ -57,7 +86,9 @@ export async function instantFirstLegsBase(
   const withSave = p.save !== false;
   // The egg the save's farm is on (EGG_ORDER), for continue's holds (routeFinder.ts `firstLegOptions`).
   const contEgg = SAVE_EGG_INDEX[inputs.currentFarmState?.eggType as number] ?? 0;
-  const buildUp = withSave && p.buildUp !== false && buildsUpFirst(inputs) ? await p.buildUpTails(start) : [];
+  const asked = withSave && p.buildUp !== false && buildsUpFirst(inputs);
+  const got: BuildUpTailsResult = asked ? readTails(await p.buildUpTails(start)) : { tails: [] };
+  const buildUp = got.tails;
   return {
     startTE: p.startTE,
     start,
@@ -74,5 +105,10 @@ export async function instantFirstLegsBase(
     firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+    ...(asked && got.failed ? { buildUpMissing: true as const } : {}),
   };
+}
+
+function readTails(r: BuildParams[] | BuildUpTailsResult): BuildUpTailsResult {
+  return Array.isArray(r) ? { tails: r } : { ...r, tails: r.tails ?? [] };
 }

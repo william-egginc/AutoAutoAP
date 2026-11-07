@@ -23,7 +23,7 @@ import { gearChanges, gearStamp, gearTableFiles, legacyGearTableName } from './t
 import { tableSimMismatch } from './simVersion';
 import { instantDeliveryScale, saveSiloSeconds } from './leg';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './instantGear';
-import { instantFirstLegsBase } from './instantFirstLegs';
+import { instantFirstLegsBase, type BuildUpFlags, type BuildUpTailsResult } from './instantFirstLegs';
 import { cardDeliveryScale } from './instantScale';
 import type { FirstLegsBase } from './priceOnTable';
 import type { FirstLeg, PolishOptions, TailOptions } from './routeFinder';
@@ -175,8 +175,8 @@ export interface InstantLegsDeps {
   hours: Availability | null;
   /** Setup's "hold my shifts for my hours" (the store's `deferShifts`). */
   deferShifts: boolean;
-  /** Continue my build-up's tails (the store's `buildUpTails`). */
-  buildUpTails: () => Promise<BuildParams[]>;
+  /** Continue my build-up's tails (the store's `buildUpTails`, which says when they failed). */
+  buildUpTails: () => Promise<BuildParams[] | BuildUpTailsResult>;
   /** A fresh build simulated live, above the table's top (the store's `liveFreshBuilds`). */
   liveFresh: (te: number, start: number) => Promise<BuildParams[]>;
   /** False once the caller no longer wants the answer (a newer run): stops before the worker is asked. */
@@ -184,7 +184,8 @@ export interface InstantLegsDeps {
 }
 
 export interface InstantLegs {
-  legsRequest: FirstLegsBase;
+  /** With `buildUpMissing` when the build-up could not be worked out (search/instantFirstLegs.ts BuildUpFlags). */
+  legsRequest: FirstLegsBase & BuildUpFlags;
   days: ReturnType<typeof instantDays>;
   tail: TailOptions;
   firstLegs: FirstLeg[];
@@ -195,7 +196,7 @@ export async function instantFirstLegs(d: InstantLegsDeps): Promise<InstantLegs 
   const { inputs, te, url } = d;
   // The first-legs request, Continue my build-up included (search/instantFirstLegs.ts): the standard
   // build carried on from the farm in the save, simulated on a background worker (a few seconds).
-  const legsRequest: FirstLegsBase = await instantFirstLegsBase(inputs, {
+  const legsRequest: FirstLegsBase & BuildUpFlags = await instantFirstLegsBase(inputs, {
     startTE: te,
     final: d.final,
     // Above the table's top it has no row for the player: their one ascension to the target is

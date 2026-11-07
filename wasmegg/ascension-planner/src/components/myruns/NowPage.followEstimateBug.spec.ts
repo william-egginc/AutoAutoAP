@@ -276,7 +276,8 @@ describe('the pricing record and the saved answers from before it', () => {
 
   it('InstantRoute keeps the record the moment the first answer is in, and again when a saved one is put back', () => {
     const src = fs.readFileSync(path.resolve(__dirname, '../auto/InstantRoute.vue'), 'utf8');
-    expect(src).toMatch(/answerPricing = snapPricing\(polishOptions, target\.value\);\n\s+keepPricing\(\);/);
+    // Unless its build-up could not be worked out (BUILD-UP MISSING, InstantRoute.buildUpMissing.spec.ts).
+    expect(src).toMatch(/answerPricing = snapPricing\(polishOptions, target\.value\);\n(\s+\/\/[^\n]*\n)*\s+if \(!missing\) keepPricing\(\);/);
     expect(src.indexOf('keepPricing();')).toBeLessThan(src.indexOf('result.value = answer;'));
     const apply = src.slice(src.indexOf('function applySnapshot('));
     expect(apply.slice(0, apply.indexOf('\n}'))).toMatch(/answerPricing = stale \? null : readPricing\(s\.pricing\);[\s\S]*if \(!stale\) keepPricing\(\);/);

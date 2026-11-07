@@ -124,13 +124,10 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'buildup-tails': {
         if (!loaded) throw new Error('chainSearch worker received buildup-tails before init');
         // With table version 2's extras, so the instant answer replays its tail as the simulator runs it
-        // (and, with the player's hours, held: routeFinder.ts TailOptions).
-        let tails: ReturnType<typeof buildUpTailParamsV2> = [];
-        try {
-          tails = buildUpTailParamsV2(loaded, loaded.planStart);
-        } catch {
-          tails = [];
-        }
+        // (and, with the player's hours, held: routeFinder.ts TailOptions). A throw goes back as an error, never as
+        // no tails: the page then says the build-up couldn't be worked out (search/instantFirstLegs.ts BuildUpFlags)
+        // instead of pricing only a fresh prestige and continue.
+        const tails = buildUpTailParamsV2(loaded, loaded.planStart);
         post({ type: 'buildup-tails', requestId: msg.requestId, tails });
         break;
       }

@@ -307,7 +307,8 @@ export interface ChainSearchPool {
    *  found (search/leg.ts `integrityCheck`), or null. Optional: test pools leave it out. */
   integrityLowTe?(): import('./leg').LowTeOpeningInfo | null;
   /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
-   *  first worker against the pool's own inputs: empty without a farm in the save. */
+   *  first worker against the pool's own inputs: empty without a farm in the save. Rejects when the
+   *  simulation throws or the worker is lost (never an empty list for a failure). */
   buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
   /** A fresh build at `te` from `start` on the pool's own account, as a table cell holds it (search/
    *  liveCell.ts), on the first worker. Optional: test pools leave it out. */

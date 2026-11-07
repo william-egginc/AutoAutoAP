@@ -161,7 +161,7 @@ export interface IntegrityResultMessage {
 export interface BuildUpTailsResultMessage {
   type: 'buildup-tails';
   requestId: number;
-  /** Empty without a farm in the save (or when nothing could be simulated). */
+  /** Empty without a farm in the save, or with nothing left to build. A failure is an 'error' reply instead. */
   tails: import('@/search/precomputedLeg').BuildParams[];
 }
 

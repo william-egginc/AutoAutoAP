@@ -91,6 +91,9 @@ const BASE = `${import.meta.env.BASE_URL}precompute/`;
 
 /** The instant answer as the page works it out, with every table it asked for (an own one is a 404 here). */
 async function instantAnswer(): Promise<{ asked: string[]; pricing: string }> {
+  // No worker runs here, so the build-up's tails come back empty, as they always did here (silently, before BUILD-UP
+  // MISSING made a worker failure count as one: search/instantFirstLegs.ts BuildUpFlags).
+  vi.spyOn(useChainSearchStore(), 'buildUpTails').mockResolvedValue({ tails: [] });
   const asked: string[] = [];
   const pool: InstantPool = {
     async header(url: string) {

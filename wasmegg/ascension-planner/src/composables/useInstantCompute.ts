@@ -111,6 +111,9 @@ export async function computeInstantPricing(req: InstantComputeRequest, p: Insta
     alive,
   });
   if (!legs || !alive()) return null;
+  // BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags): a build-up that failed is never kept as the pricing
+  // (it would price only a fresh prestige and continue); a failure is tried again on the next page load.
+  if (legs.legsRequest.buildUpMissing) throw new PlainFailure("your build-up couldn't be worked out from your save");
   const pricing = snapPricing(
     instantPricingOptions({ te, start: inputs.planStart, firstLegs: legs.firstLegs, scale, hours, tail: legs.tail }),
     req.final

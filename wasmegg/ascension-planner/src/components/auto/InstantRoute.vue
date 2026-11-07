@@ -1110,6 +1110,15 @@ const below = ref<{ from: number; te: number } | null>(null);
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
+/**
+ * BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags; 6 Nov 2026, Jordan's phone: "prestige now and reach 220"
+ * mid build-up, when continuing reached it 4 days 19 h sooner): the answer in `result` was worked out with the
+ * setting building up and a farm in the save, but the build-up could not be worked out (the store's worker failed), so
+ * its first ascension is only fresh or continue. Such an answer is shown but never kept: no snapshot, no answer
+ * offered online, no pricing record for My runs (`saveSnapshot`, `run`), and one that somehow carries the flag is not
+ * put back (search/instantTables.ts `savedAnswerFits`), so a reload or the next visit works it out again.
+ */
+const answerBuildUpMissing = ref(false);
 /** The instant answer's state, for the screen reader's status line. */
 const instantLive = computed(() => instantLiveText(status.value, !!result.value));
 const header = ref<TableHeader | null>(null);
@@ -2038,6 +2047,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (!legs) return;
     if (id !== runs) return;
     const { legsRequest, tail, firstLegs } = legs;
+    const missing = legsRequest.buildUpMissing === true;
     answerDays = legs.days;
     prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     whatIfInputs.value = { legs: legsRequest, hours };
@@ -2072,9 +2082,11 @@ async function run(force = false, goAhead = false): Promise<void> {
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
     answerPricing = snapPricing(polishOptions, target.value);
-    keepPricing();
+    // A build-up that failed is never kept (`answerBuildUpMissing`): My runs would price only fresh and continue.
+    if (!missing) keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
+    answerBuildUpMissing.value = missing;
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
@@ -2705,6 +2717,9 @@ interface InstantSnapshot {
   /** The code that worked it out (lib/resultCode.ts, Release 7): put back only under the same (search/instantTables.ts
    *  `savedAnswerFits`). Absent before Release 7: worked out again once. */
   rc?: string;
+  /** The build-up could not be worked out (`answerBuildUpMissing`): never saved (`saveSnapshot`), only remembered for a
+   *  panel opened again, and never put back (search/instantTables.ts `savedAnswerFits`). Absent otherwise. */
+  buildUpMissing?: boolean;
 }
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
@@ -2782,6 +2797,9 @@ function saveSnapshot(id: number): void {
   if (id !== runs || !snapKey || !result.value || status.value !== 'done') return;
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
   if (prestigeStatus.value === 'running') return;
+  // A build-up that could not be worked out is never kept, here or online (`answerBuildUpMissing`): the next visit
+  // works the answer out again.
+  if (answerBuildUpMissing.value) return;
   const snap = currentSnapshot();
   if (snap && writeSnapshot(snapKey, snap)) {
     keptAnswer.value = result.value;
@@ -2842,6 +2860,7 @@ function currentSnapshot(): InstantSnapshot | null {
       tables: runTables,
       pricing: answerPricing,
       rc: resultCode(),
+      ...(answerBuildUpMissing.value ? { buildUpMissing: true } : {}),
     })
   ) as InstantSnapshot;
   // Too big with the pricing inputs (lib/followEstimate.ts): kept without them rather than not at all.
@@ -2943,6 +2962,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
+  answerBuildUpMissing.value = s.buildUpMissing === true;
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
   ms.value = typeof s.ms === 'number' ? s.ms : null;
   answerStart.value = typeof s.answerStart === 'number' ? s.answerStart : 0;

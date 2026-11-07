@@ -44,6 +44,7 @@ import { lastTECostFrom } from '@/search/oneMoreTE';
 import { createChainSearchPool, WorkerLostError, type ChainSearchPool, type PoolFault } from '@/search/pool';
 import { probeLimit } from '@/search/instantIntegrity';
 import type { BuildParams } from '@/search/precomputedLeg';
+import type { BuildUpTailsResult } from '@/search/instantFirstLegs';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
@@ -1917,29 +1918,40 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`): a few
    * seconds of simulation, so on one background worker, as the integrity check runs. Kept for the
    * same account, TE, plan start and setting, so the instant answer asks once. Empty when the setting
-   * never builds up (Finish without buying, Prestige now), without a farm in the save, or on failure.
+   * never builds up (Finish without buying, Prestige now) or without a farm in the save.
+   *
+   * BUILD-UP MISSING (6 Nov 2026, Jordan's phone): a failure was [] here, silent and kept, and the instant answer then
+   * said "prestige now" mid build-up. Now a failure says so (`failed`, search/instantFirstLegs.ts BuildUpTailsResult),
+   * is logged, and is never kept: the next call asks the worker again.
    */
-  let buildUpTailsMemo: { key: string; tails: Promise<BuildParams[]> } | null = null;
-  function buildUpTails(): Promise<BuildParams[]> {
+  let buildUpTailsMemo: { key: string; tails: Promise<BuildUpTailsResult> } | null = null;
+  function buildUpTails(): Promise<BuildUpTailsResult> {
     const inputs = collectInputs();
     const mode = inputs.firstAscension ?? 'auto';
     if ((mode !== 'auto' && mode !== 'buildup') || !inputs.currentFarmState || !inputs.context.rawBackup)
-      return Promise.resolve([]);
+      return Promise.resolve({ tails: [] });
     const raw = inputs.context.rawBackup as { approxTime?: number };
     const key = `${raw.approxTime ?? ''}|${inputs.currentTE}|${inputs.planStart}|${mode}`;
     if (buildUpTailsMemo?.key === key) return buildUpTailsMemo.tails;
-    const tails = (async () => {
+    const tails = (async (): Promise<BuildUpTailsResult> => {
       let pool: ChainSearchPool | null = null;
       try {
         pool = await createChainSearchPool(inputs, { size: 1 });
-        return await pool.buildUpTails();
-      } catch {
-        return [];
+        return { tails: await pool.buildUpTails() };
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : String(e);
+        console.warn('chain search: could not work out the build-up for the instant answer', reason);
+        return { tails: [], failed: true, reason };
       } finally {
         pool?.terminate();
       }
     })();
-    buildUpTailsMemo = { key, tails };
+    const kept = { key, tails };
+    buildUpTailsMemo = kept;
+    // A failure is never kept (callers already waiting get it; the next call tries again).
+    void tails.then(r => {
+      if (r.failed && buildUpTailsMemo === kept) buildUpTailsMemo = null;
+    });
     return tails;
   }
 

@@ -63,3 +63,20 @@ describe('instantFirstLegsBase', () => {
     expect(base.cont).toBeNull();
   });
 });
+
+describe("instantFirstLegsBase: the store's status shape (BUILD-UP MISSING, 6 Nov 2026)", () => {
+  const params = (r: unknown) => ({ startTE: 100, final: 490, buildUpTails: vi.fn(async () => r as BuildParams[]) });
+
+  it('tails in the status shape are used as a bare list is, with no flag', async () => {
+    const base = await instantFirstLegsBase(inputs({ firstAscension: 'auto' }), params({ tails: [tail] }));
+    expect(base.buildUp).toEqual([tail]);
+    expect(base).not.toHaveProperty('buildUpMissing');
+  });
+
+  it('a failure is never asked about when the setting never builds up', async () => {
+    const p = params({ tails: [], failed: true });
+    const base = await instantFirstLegsBase(inputs({ firstAscension: 'fresh' }), p);
+    expect(p.buildUpTails).not.toHaveBeenCalled();
+    expect(base).not.toHaveProperty('buildUpMissing');
+  });
+});
