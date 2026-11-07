@@ -81,6 +81,22 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
  *     `itemSequence` is the next number. The worn and owned gear read back the same.
  * Nothing on the page reads serverId, a mission's identifier or reportedUuids (checked by grep, 6 Nov 2026: the
  * loaders, artifact and inventory parsing, the gear stamp, kept saves, the save loader, lib, ui and QA's harness).
+ *
+ * And (spec-scrub-p5b, 6 Nov 2026, approved by Jordan) every other player's name and id in the contract and co-op
+ * data, from a review of ei.proto `MyContracts` and everything it holds, and two more values that link downloads:
+ *   - `contracts.currentCoopStatuses[]` (ContractCoopStatusResponse): `coopIdentifier`, `creatorId`; each
+ *     `contributors[]` (ContributionInfo) `uuid`, `userId`, `userName`, `pushId` (the account's own row too: the page
+ *     reads the name only from the save's top-level `userName`); `gifts[]` `userId`, `userName`, `tracking`;
+ *     `chickenRuns[]` `userId`, `userName`. Blanked. What the others contributed (amounts, `farmInfo`) stays: no name
+ *     or id in it.
+ *   - `contracts.archive[]` / `contracts.contracts[]` `coopIdentifier` and `evaluation.coopIdentifier`, and
+ *     `contracts.lastCpi.unreadEvaluations[].coopIdentifier`: the co-op's code, which looks up its members. Blanked.
+ *   - Every artifact set's `uid` (`activeArtifactSets`, `savedArtifactSets`, `virtueAfxDb.activeArtifacts`): 0.
+ *   - Every mission's `missionLog` (wherever a mission sits, as `identifier`). Blanked.
+ * Kept: the save's own `userName` (initialState `nickname`, App's player name, LeaderboardPanel's own row) and all a
+ * contract's colleggtibles and farm read (lib collegtibles.ts, contracts.ts `resolveColleggtibleContracts`, farm.ts,
+ * prophecy_eggs.ts: `contract`, `contractIdentifier`, `maxFarmSizeReached`, `timeAccepted`, `league`, `grade`,
+ * `numGoalsAchieved`). Nothing on the page, in lib or ui reads a field blanked here (checked by grep, 6 Nov 2026).
  * A copy of `raw` with only those changed (and only where present; nothing added). `raw` is not changed.
  */
 export function blankLinkingIds<T>(raw: T): T {
@@ -88,10 +104,11 @@ export function blankLinkingIds<T>(raw: T): T {
   const copy = { ...(raw as Obj) };
   if (isObj(copy.contracts)) {
     const c = { ...copy.contracts };
-    for (const k of ['archive', 'contracts']) {
-      if (Array.isArray(c[k]))
-        c[k] = (c[k] as unknown[]).map(x => (isObj(x) && x.reportedUuids != null ? { ...x, reportedUuids: [] } : x));
-    }
+    for (const k of ['archive', 'contracts'])
+      if (Array.isArray(c[k])) c[k] = (c[k] as unknown[]).map(blankLocalContract);
+    if (Array.isArray(c.currentCoopStatuses)) c.currentCoopStatuses = c.currentCoopStatuses.map(blankCoopStatus);
+    if (isObj(c.lastCpi) && Array.isArray(c.lastCpi.unreadEvaluations))
+      c.lastCpi = { ...c.lastCpi, unreadEvaluations: c.lastCpi.unreadEvaluations.map(x => blank(x, COOP_CODE)) };
     copy.contracts = c;
   }
   if (isObj(copy.artifactsDb)) {
@@ -111,8 +128,39 @@ export function blankLinkingIds<T>(raw: T): T {
   return copy as T;
 }
 
+/** `x` (an object) with each of `fields` it has set to `to`; anything else as it is. */
+function blank(x: unknown, fields: readonly string[], to: unknown = ''): unknown {
+  if (!isObj(x) || !fields.some(f => x[f] != null)) return x;
+  const out = { ...x };
+  for (const f of fields) if (out[f] != null) out[f] = to;
+  return out;
+}
+
+const COOP_CODE = ['coopIdentifier'] as const;
+/** A co-op member, gift or chicken run: the player's ids and name (ei.proto ContributionInfo, CoopGift, ChickenRun). */
+const PLAYER_FIELDS = ['uuid', 'userId', 'userName', 'pushId', 'tracking'] as const;
+
+/** A LocalContract: reportedUuids emptied, the co-op's code (its own and its evaluation's) blank. */
+function blankLocalContract(x: unknown): unknown {
+  if (!isObj(x)) return x;
+  const out = { ...x };
+  if (out.coopIdentifier != null) out.coopIdentifier = '';
+  if (out.reportedUuids != null) out.reportedUuids = [];
+  if (out.evaluation != null) out.evaluation = blank(out.evaluation, COOP_CODE);
+  return out;
+}
+
+/** A ContractCoopStatusResponse: its code and creator blank, and every member's, gift's and chicken run's player. */
+function blankCoopStatus(x: unknown): unknown {
+  if (!isObj(x)) return x;
+  const copy = { ...(blank(x, ['coopIdentifier', 'creatorId']) as Obj) };
+  for (const k of ['contributors', 'gifts', 'chickenRuns'])
+    if (Array.isArray(copy[k])) copy[k] = (copy[k] as unknown[]).map(p => blank(p, PLAYER_FIELDS));
+  return copy;
+}
+
 function blankMission(m: unknown): unknown {
-  return isObj(m) && m.identifier != null ? { ...m, identifier: '' } : m;
+  return blank(m, ['identifier', 'missionLog']);
 }
 
 /** An itemId as a key: a number, or a protobuf Long read as one (`{low, high, unsigned}`). */
@@ -124,8 +172,8 @@ function idKey(id: unknown): unknown {
 
 /**
  * `db` (a copy) with its inventory's serverIds blank and its itemIds renumbered from `next.n`, and the slots of the
- * sets under `setKeys` (each a set or a list of sets) following their items. A slot's id that names no item gets a
- * number of its own (still naming no item). Changes `db` and `next`, not what they point at.
+ * sets under `setKeys` (each a set or a list of sets) following their items, each set's `uid` 0. A slot's id that
+ * names no item gets a number of its own (still naming no item). Changes `db` and `next`, not what they point at.
  */
 function renumberItems(db: Obj, setKeys: string[], next: { n: number }): Obj {
   const ids = new Map<unknown, number>();
@@ -144,10 +192,15 @@ function renumberItems(db: Obj, setKeys: string[], next: { n: number }): Obj {
       return out;
     });
   }
-  const set = (s: unknown): unknown =>
-    isObj(s) && Array.isArray(s.slots)
-      ? { ...s, slots: s.slots.map(sl => (isObj(sl) && sl.itemId != null ? { ...sl, itemId: fresh(sl.itemId) } : sl)) }
-      : s;
+  const set = (s: unknown): unknown => {
+    const out = blank(s, ['uid'], 0);
+    return isObj(out) && Array.isArray(out.slots)
+      ? {
+          ...out,
+          slots: out.slots.map(sl => (isObj(sl) && sl.itemId != null ? { ...sl, itemId: fresh(sl.itemId) } : sl)),
+        }
+      : out;
+  };
   for (const k of setKeys) {
     if (Array.isArray(db[k])) db[k] = (db[k] as unknown[]).map(set);
     else if (db[k] != null) db[k] = set(db[k]);
