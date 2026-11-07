@@ -67,6 +67,13 @@ export function buildUpMissingOf(legsRequest: unknown): boolean {
   );
 }
 
+/** What the route's first ascension is, from its first leg's label (search/routeFinder.ts `firstLegOptions`): your
+ *  build-up continued ('buildup'), a fresh start ('2-sale', '3-sale-tier13', ...), else the one you are in continued. */
+export function firstStepKind(label: string | null | undefined): 'continue' | 'buildup' | 'fresh' {
+  const l = label ?? '';
+  return l === 'buildup' ? 'buildup' : /^\d+-sale/.test(l) ? 'fresh' : 'continue';
+}
+
 /**
  * The First step line in the green box (DRAFT), from the route's first two ascensions as "When each step happens"
  * lists them (lib/instantSteps.ts): what the first ascension is (`kind`: the one you are in continued, your build-up

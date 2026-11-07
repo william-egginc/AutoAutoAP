@@ -356,7 +356,12 @@
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
                  same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
                  the box; lib/hoursNote.ts). -->
-            <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
+            <p
+              v-if="firstStep"
+              :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+              class="max-w-prose"
+              data-testid="box-first-step"
+            >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
@@ -557,7 +562,12 @@
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <!-- First step, as in By a date's box. -->
-          <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
+          <p
+            v-if="firstStep"
+            :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+            class="max-w-prose"
+            data-testid="box-first-step"
+          >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
@@ -1022,7 +1032,16 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
-import { FIRST_STEP_LABEL, INSTANT_ESTIMATE_LINE, firstStepLine, instantHeaderLine, noPrestigeDayCount } from '@/lib/instantWords';
+import {
+  FIRST_STEP_BUILDUP_MISSING,
+  FIRST_STEP_LABEL,
+  INSTANT_ESTIMATE_LINE,
+  buildUpMissingOf,
+  firstStepKind,
+  firstStepLine,
+  instantHeaderLine,
+  noPrestigeDayCount,
+} from '@/lib/instantWords';
 import { instantSteps } from '@/lib/instantSteps';
 import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
@@ -1615,6 +1634,12 @@ function showAt(unix: number): string {
   return dateStyle.value === 'iso' ? show(unix) : formatMoment(unix * 1000, { zone: zone.value, at: true }) || show(unix);
 }
 /**
+ * The answer on screen started fresh with no build-up to offer though the setting builds up and the save has a farm
+ * (search/instantFirstLegs.ts `buildUpMissing`, spec-buildupmissing): its First step says so instead of "prestige now"
+ * (lib/instantWords.ts FIRST_STEP_BUILDUP_MISSING). Set with the answer it is for; kept and put back with it.
+ */
+const answerBuildUpMissing = ref(false);
+/**
  * First step in the green box, after its name (FIRST_STEP_LABEL, drawn bold): the box's route's first ascension and the
  * prestige after it, from the same lines as When each step happens (lib/instantSteps.ts), with the awake-hours clause
  * when the hours limit the prestiges. '' with no route in the box.
@@ -1623,8 +1648,7 @@ const firstStep = computed(() => {
   const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
   const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
   if (!a || !legs?.length) return '';
-  const label = legs[0].label ?? '';
-  const kind = label === 'buildup' ? 'buildup' : /^\d+-sale/.test(label) ? 'fresh' : 'continue';
+  const kind = firstStepKind(legs[0].label);
   const day = (t: number) => calendarOf(t * 1000, zone.value)?.ymd ?? '';
   const line = firstStepLine({
     kind,
@@ -1635,9 +1659,12 @@ const firstStep = computed(() => {
     prestigeTime: b && dateStyle.value !== 'iso' ? formatClock(b.prestigeAt * 1000, zone.value) || null : null,
     sameDay: !!b && day(a.reachedAt) !== '' && day(a.reachedAt) === day(b.prestigeAt),
     hours: hoursLimited.value,
+    buildUpMissing: answerBuildUpMissing.value,
   });
   return line.slice(FIRST_STEP_LABEL.length + 1);
 });
+/** First step is the build-up-could-not-be-worked-out line: drawn smaller and amber (spec-buildupmissing-words). */
+const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
@@ -2038,6 +2065,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (!legs) return;
     if (id !== runs) return;
     const { legsRequest, tail, firstLegs } = legs;
+    // No build-up came back though the setting builds up (spec-buildupmissing): First step says so.
+    const missing = buildUpMissingOf(legsRequest);
     answerDays = legs.days;
     prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     whatIfInputs.value = { legs: legsRequest, hours };
@@ -2075,6 +2104,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
+    answerBuildUpMissing.value = missing;
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
@@ -2705,6 +2735,9 @@ interface InstantSnapshot {
   /** The code that worked it out (lib/resultCode.ts, Release 7): put back only under the same (search/instantTables.ts
    *  `savedAnswerFits`). Absent before Release 7: worked out again once. */
   rc?: string;
+  /** Its First step started fresh only because the build-up could not be worked out (`answerBuildUpMissing`,
+   *  spec-buildupmissing-words); absent otherwise and before 6 Nov 2026. */
+  buildUpMissing?: boolean;
 }
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
@@ -2842,6 +2875,7 @@ function currentSnapshot(): InstantSnapshot | null {
       tables: runTables,
       pricing: answerPricing,
       rc: resultCode(),
+      ...(answerBuildUpMissing.value ? { buildUpMissing: true } : {}),
     })
   ) as InstantSnapshot;
   // Too big with the pricing inputs (lib/followEstimate.ts): kept without them rather than not at all.
@@ -2942,6 +2976,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   tableUrl.value = s.tableUrl;
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
+  answerBuildUpMissing.value = s.buildUpMissing === true;
   result.value = s.result;
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
   ms.value = typeof s.ms === 'number' ? s.ms : null;
