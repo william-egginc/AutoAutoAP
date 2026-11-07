@@ -221,9 +221,12 @@ import {
   stepAwayOptions,
   stepAwayPageClosing,
   stepAwayRunEnded,
+  stepAwayDropRunMark,
   stepAwayRunStarted,
   stepAwayStopPressed,
 } from '@/composables/useStepAway';
+import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
+import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 import {
   currentWatchLink,
@@ -283,7 +286,7 @@ import {
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import type { LegSpill } from '@/search/legSpill';
-import { lastSpillOpenFailure, openBigCsvSink, openPageLegSpill } from '@/lib/legSpillOpfs';
+import { lastSpillAnswerAt, lastSpillOpenFailure, openBigCsvSink, openPageLegSpill } from '@/lib/legSpillOpfs';
 import {
   BIG_CSV_MIN_ROUTES,
   bigCsvMessage,
@@ -6498,6 +6501,43 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
+  /**
+   * THE RUN'S STORAGE IS BOUNDED (spec-stuck3, lib/runStorageLimit.ts): one limit for the awaits at a run's start (the
+   * hash, the checkpoint read, the spill's open and restore, the save kept for the run) and one for those at its end.
+   * Past it the console says why, once, and the run's mark is removed (useStepAway `stepAwayDropRunMark`), so nothing
+   * carries on a run whose storage does not answer; the caller then clears the running flags.
+   */
+  function runStorageLimit(what: string): StorageLimit {
+    return storageLimit(what, {
+      progress: lastSpillAnswerAt,
+      onExpire: e => {
+        console.warn(`chain search: ${e.message}. The page goes on without it.`);
+        stepAwayDropRunMark(`${what} did not answer`);
+      },
+    });
+  }
+  /** A run's start whose storage did not answer: no run, the flags cleared, and the screen says why. */
+  function abandonRunStart(kind: 'fastest' | 'deadline'): void {
+    error.value = RUN_STORAGE_STUCK;
+    errorBeforeStart.value = true;
+    // Never a crash to carry on (the black box and the watcher read a failed run as one): it never started.
+    runEnd = 'stopped';
+    stage.value = 'idle';
+    if (kind === 'fastest') isRunning.value = false;
+    else deadlineRunning.value = false;
+  }
+  /** `persist` at a run's end, bounded: false (a write that failed) when the storage does not answer. */
+  async function persistAtEnd(entries: CacheEntry[], complete: boolean): Promise<boolean> {
+    const limit = runStorageLimit("saving the run's last checkpoint");
+    try {
+      return await limit.within(persist(entries, true, complete));
+    } catch {
+      return false;
+    } finally {
+      limit.done();
+    }
+  }
+
   /** False only when a write was tried and failed (the run's end reads it: `runEnd`). */
   async function persist(entries: CacheEntry[], force = false, complete = false): Promise<boolean> {
     if (!partitionHash) return true;
@@ -6796,15 +6836,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const alreadyPriced = new Map<string, CacheEntry>(carried);
     // Before the try, so a storage failure cannot leave the previous run's fingerprint in place.
     runFingerprint = currentFingerprint;
+    const startLimit = runStorageLimit('reading the last run');
     try {
-      partitionHash = await hashID(playerId);
-      const saved = await loadCheckpoint(partitionHash, runFingerprint);
+      partitionHash = await startLimit.within(hashID(playerId));
+      const saved = await startLimit.within(loadCheckpoint(partitionHash, runFingerprint));
       const carry = !!saved && (!saved.inputsKey || saved.inputsKey === startKey);
       if (carry) {
         for (const e of restoreEntries(saved!)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
       }
-      await restoreLegSpill('fastest', carry ? saved!.spillBytes : 0);
+      await startLimit.within(restoreLegSpill('fastest', carry ? saved!.spillBytes : 0));
     } catch (e) {
+      if (e instanceof StorageTimeout) {
+        startLimit.done();
+        return abandonRunStart('fastest');
+      }
       console.warn('chain search: could not prepare storage', e);
     }
 
@@ -6849,9 +6894,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
+      startLimit.done();
       return;
     }
-    await storeRunSave(startInputs, startKey);
+    try {
+      await startLimit.within(storeRunSave(startInputs, startKey));
+    } catch {
+      return abandonRunStart('fastest');
+    } finally {
+      startLimit.done();
+    }
 
     holdRunLock();
     void holdScreenLock();
@@ -6950,7 +7002,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       stage.value = stopRequested.value ? 'stopped' : 'done';
       refreshShortlist(true);
-      runEnd = (await persist(liveCache, true, !stopRequested.value))
+      runEnd = (await persistAtEnd(liveCache, !stopRequested.value))
         ? stopRequested.value
           ? 'stopped'
           : 'finished'
@@ -7143,7 +7195,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       'A search worker stopped, so the search ended early with the best route it had found. Press Run again to carry on: the routes already priced are kept.',
     ];
     refreshShortlist(true);
-    runEnd = (await persist(liveCache, true, false)) ? 'stopped' : 'failed';
+    runEnd = (await persistAtEnd(liveCache, false)) ? 'stopped' : 'failed';
     return true;
   }
   /**
@@ -7721,8 +7773,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
-    // The leg spill cut back to the checkpoint's length (a fresh run: emptied).
-    await restoreLegSpill('deadline', seed ? seed.spillBytes : 0);
+    // The leg spill cut back to the checkpoint's length (a fresh run: emptied). Bounded (spec-stuck3): a spill that never
+    // answers leaves no run rather than a page waiting for good.
+    const startLimit = runStorageLimit('opening the search detail file');
+    try {
+      await startLimit.within(restoreLegSpill('deadline', seed ? seed.spillBytes : 0));
+    } catch {
+      return abandonRunStart('deadline');
+    } finally {
+      startLimit.done();
+    }
     // Until its result is saved, a run that ends is a run that failed (search/stepAway.ts `failed`).
     runEnd = 'failed';
     deadlineRunning.value = true;
@@ -7855,6 +7915,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      * finished used to be able to land after the clear, leaving a finished run offered as unfinished.
      */
     const writer = checkpointWriter(seed);
+    // The end's storage, bounded (spec-stuck3): the result, the last checkpoint and its spill, before deadlineRunning
+    // is cleared. One limit for the end, started at its first wait.
+    let endLimit: StorageLimit | null = null;
+    const atEnd = <T>(p: Promise<T>): Promise<T> => (endLimit ??= runStorageLimit("saving the search's end")).within(p);
     let written: Promise<void> = Promise.resolve();
     let closed = false;
     const checkpoint = (replay: ReturnType<typeof replayingEvaluator>, force = false): Promise<void> => {
@@ -8093,7 +8157,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       deadlineAccount = account;
       let saved = false;
       try {
-        await saveDeadlineResult(partitionHash, deadlineResult.value);
+        await atEnd(saveDeadlineResult(partitionHash, deadlineResult.value));
         saved = true;
       } catch (e) {
         console.warn('chain search: could not save the deadline result', e);
@@ -8106,8 +8170,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (saved && out.routes.length) void keepFinishedResult('deadline');
       if (out.stoppedEarly) {
         try {
-          await checkpoint(replay, true);
-          runSaves.value = await listRunSaves(partitionHash);
+          await atEnd(checkpoint(replay, true));
+          runSaves.value = await atEnd(listRunSaves(partitionHash));
         } catch (e) {
           console.warn('chain search: could not save the deadline search', e);
         }
@@ -8123,9 +8187,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       } else if (saved) {
         // Finished and saved: no checkpoint write may land after this, and the one left is cleared.
         closed = true;
-        await written;
+        await atEnd(written).catch(() => {});
         try {
-          await clearDeadlineCheckpoint(partitionHash);
+          await atEnd(clearDeadlineCheckpoint(partitionHash));
         } catch (e) {
           // `loadDeadlineState` still knows a finished run's leftover checkpoint (`checkpointFinished`).
           console.warn('chain search: could not clear the deadline checkpoint', e);
@@ -8133,7 +8197,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         runEnd = 'finished';
       } else {
         // Not saved: keep the checkpoint, so a carry-on replays to the same answer and saves it.
-        await checkpoint(replay, true);
+        await atEnd(checkpoint(replay, true)).catch(() => {});
       }
     } catch (e) {
       // A crashed worker or a stall: keep what was priced and offer the carry-on now. The error text
@@ -8141,9 +8205,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // (Start begins afresh).
       pool?.terminate();
       if (replayed && replayed.count()) {
-        await checkpoint(replayed, true);
+        await atEnd(checkpoint(replayed, true)).catch(() => {});
         try {
-          runSaves.value = await listRunSaves(partitionHash);
+          runSaves.value = await atEnd(listRunSaves(partitionHash));
         } catch {
           // the box still shows; it just can't say whether the save is kept
         }
@@ -8168,6 +8232,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         message: e instanceof Error ? e.message : String(e),
       });
     } finally {
+      (endLimit as StorageLimit | null)?.done();
       pool?.terminate();
       deadlinePool = null;
       replayed = null;
@@ -9127,8 +9192,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Chains already priced before the driver starts, so its own 0-based counter does not
     // make the progress bar jump backwards after the coarse scan.
     let chainsBase = 0;
+    const startLimit = runStorageLimit('reading the last run');
     try {
-      partitionHash = await hashID(playerId);
+      partitionHash = await startLimit.within(hashID(playerId));
       runFingerprint = fingerprint(playerId);
       // Checked again AFTER the await: anything that moved the inputs meanwhile (a backup landing
       // and rewriting the start boxes) would otherwise save old durations under a new fingerprint.
@@ -9147,10 +9213,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // replayed chains (durations only - a checkpoint keeps legs for the best chain alone).
         liveCache = [...restoredCache];
         csvRows.value = liveCache.length;
-        await restoreLegSpill('fastest', resumeFrom.spillBytes);
+        await startLimit.within(restoreLegSpill('fastest', resumeFrom.spillBytes));
         refreshShortlist(true);
-      } else await restoreLegSpill('fastest', 0);
+      } else await startLimit.within(restoreLegSpill('fastest', 0));
     } catch (e) {
+      if (e instanceof StorageTimeout) {
+        startLimit.done();
+        return abandonRunStart('fastest');
+      }
       console.warn('chain search: could not prepare storage', e);
     }
 
@@ -9168,9 +9238,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
+      startLimit.done();
       return;
     }
-    await storeRunSave(startInputs, startKey);
+    try {
+      await startLimit.within(storeRunSave(startInputs, startKey));
+    } catch {
+      return abandonRunStart('fastest');
+    } finally {
+      startLimit.done();
+    }
 
     holdRunLock();
     void holdScreenLock();
@@ -9335,7 +9412,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // banner, and an un-awaited write lost that race every time: the banner kept showing
       // the pre-run record - "468 chains were already priced (1h ago)" next to a DONE line
       // reading 483 - so a finished run still advertised itself as unfinished.
-      runEnd = (await persist(cacheAtEnd, true, !outcome.stoppedEarly))
+      runEnd = (await persistAtEnd(cacheAtEnd, !outcome.stoppedEarly))
         ? outcome.stoppedEarly
           ? 'stopped'
           : 'finished'

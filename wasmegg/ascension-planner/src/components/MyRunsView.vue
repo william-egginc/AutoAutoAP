@@ -445,6 +445,8 @@ const tracker = useBuildUpTracker({
   fresh: page.buildUpPlan,
   sim: page.buildUpSim,
   simWorker: page.buildUpSimWorker,
+  // A search really running here (spec-stuck3): a wait for a search with none running counts toward the stall.
+  searchRunning: computed(() => store.isRunning || store.deadlineRunning),
   saveFarm: page.buildUpSave,
   // A newer save still coming in (the page's own "Reading your save" pair): the tracker says so (spec-anchornewer).
   saveLoading: computed(() => props.loading || page.saveWaiting.value),

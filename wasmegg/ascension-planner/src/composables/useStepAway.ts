@@ -289,6 +289,26 @@ export function stepAwayGiveUp(status: 'stopped' | 'stuck'): void {
   if (!ownStartedAt) restoreBudget();
 }
 
+/**
+ * A run whose storage did not answer at its start or end (stores/chainSearch.ts `storageLimit`, spec-stuck3): its run
+ * mark is removed, so neither this page's next load, the watcher nor the carry-on box takes it up again (a carry-on
+ * whose restore never answers would only hang again). Only that mark: this page's own, or one no other tab's live run
+ * holds (a fresh heartbeat). True when one was removed.
+ */
+export function stepAwayDropRunMark(why: string): boolean {
+  const m = sa.readRunMark();
+  if (!m) return false;
+  if (m.startedAt !== ownStartedAt && sa.markHeldElsewhere({ mark: m, now: Date.now(), ownStartedAt, lock: 'unknown' })) return false;
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(sa.RUN_KEY);
+  } catch {
+    return false;
+  }
+  console.warn(`Removed the stored run mark (${m.kind}, ${m.status}): ${why}.`);
+  if (m.startedAt === ownStartedAt) ownStartedAt = 0;
+  return true;
+}
+
 /** The watcher page's address. */
 export function watcherUrl(): string {
   return `${import.meta.env.BASE_URL || '/'}watch.html`;
