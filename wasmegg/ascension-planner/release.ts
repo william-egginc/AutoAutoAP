@@ -55,7 +55,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-10-17T23:00:00Z',
+  reloadIfBuiltBefore: '2026-10-23T00:00:00Z',
   note: history[0].note,
   history,
 };
