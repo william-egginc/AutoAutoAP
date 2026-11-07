@@ -3,6 +3,10 @@
  * loads, applied only when newer, written only on the player's own change (2 s after the last one, the kind that
  * changed, the contract's shape), quiet on every failure, one key per account. A fake chain-search store (same id)
  * holds the collector URL and Your setup; fetch is a fake; the clock is fake. Ids: placeholders only.
+ *
+ * The WebCrypto work (the account hash, the key, the "Credit me as" write behind a choice) is waited for by what it
+ * does (watch/specSettle.ts `settle`), never by a count of ticks, and never with `vi.waitFor` (under fake timers it
+ * moves the clock, so a slow crypto would run a debounce early). Run with WATCH_SPEC_CRYPTO_DELAY_MS=50 to check.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, defineStore, setActivePinia } from 'pinia';
@@ -17,6 +21,7 @@ import { consentAgreed, consentGivenThisVisit, consentRecord, resetConsents, set
 import { answerYes, defaultCredit, resetStudy, setStudyTick, studyState, studyStep, yesToAll } from '@/composables/useStudy';
 import { useShareIdentity } from '@/composables/useShareResult';
 import { useEidsStore } from 'lib';
+import { settle } from '@/watch/specSettle';
 
 const ID = 'EI0000000000000000';
 /** sha256("aaap-follow-v1:EI0000000000000000") (node crypto). */
@@ -72,6 +77,21 @@ const puts = () => calls.filter(c => c.method === 'PUT');
 const gets = () => calls.filter(c => c.method === 'GET');
 const body = (i = 0) => JSON.parse(puts()[i].body!);
 
+/** `vi.waitFor` without its side effect: retried against real time (Date is faked here), the clock left alone, the
+ *  last failure thrown after 5 s. */
+async function waitFor(check: () => void): Promise<void> {
+  const t0 = Number(process.hrtime.bigint() / 1_000_000n);
+  for (;;) {
+    try {
+      check();
+      return;
+    } catch (e) {
+      if (Number(process.hrtime.bigint() / 1_000_000n) - t0 > 5000) throw e;
+    }
+    await new Promise<void>(r => setImmediate(r));
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
   vi.setSystemTime(AT);
@@ -96,8 +116,11 @@ beforeEach(() => {
   resetStudy(st);
 });
 
-afterEach(() => {
+afterEach(async () => {
   disposeAll();
+  // A choice made in a test writes its "Credit me as" after a hash: let it land in this test's own storage, not in
+  // the next test's fresh one (where the next load reads it as a change made during the load, and PUTs it).
+  await settle();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -112,7 +135,9 @@ async function loadAccount(id = ID, submitUrl = SUBMIT, remembered: { at: number
   useInitialStateStore().rawBackup = { eiUserId: id } as never;
   const prefs = usePrefsStore();
   made.push(prefs);
-  await vi.waitFor(() => expect(prefs.following || prefs.cloudStatus === 'none').toBe(true));
+  await waitFor(() => expect(prefs.following || prefs.cloudStatus === 'none').toBe(true));
+  // Following is set once the kinds are ready; the hashes and writes behind it have finished too.
+  await settle();
   return { prefs, search, planner };
 }
 
@@ -220,6 +245,7 @@ describe('loading an account', () => {
   it('a consent saved as answered hides Help improve the planner in a new browser, setting nothing else', async () => {
     for (const study of ['no', 'later', 'yes'] as const) {
       disposeAll();
+      await settle();
       setActivePinia(createPinia());
       mem.clear();
       resetConsents(st);
@@ -234,6 +260,7 @@ describe('loading an account', () => {
     }
     // Nothing saved: asked.
     disposeAll();
+    await settle();
     setActivePinia(createPinia());
     mem.clear();
     resetConsents(st);
@@ -404,10 +431,11 @@ describe('two accounts', () => {
     // Switched before the 2 s are up.
     await setConsentAccount(ID2);
     useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
-    await vi.waitFor(() => expect(gets().map(c => c.url)).toEqual([`${PREFS}?k=${KEY}`, `${PREFS}?k=${KEY2}`]));
+    await waitFor(() => expect(gets().map(c => c.url)).toEqual([`${PREFS}?k=${KEY}`, `${PREFS}?k=${KEY2}`]));
     expect(puts()).toHaveLength(1);
     expect(body(0)).toMatchObject({ k: KEY, kind: 'setup', value: { targetTE: 310 } });
-    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    await waitFor(() => expect(prefs.following).toBe(true));
+    await settle();
     search.finalTE = 420;
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
     expect(puts()).toHaveLength(2);
@@ -478,8 +506,9 @@ describe('"Credit me as": one setting with Before you send (Jordan, 26 Oct 2026)
     const { prefs } = await loadAccount();
     await setConsentAccount(ID2);
     useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
-    await vi.waitFor(() => expect(gets()).toHaveLength(2));
-    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    await waitFor(() => expect(gets()).toHaveLength(2));
+    await waitFor(() => expect(prefs.following).toBe(true));
+    await settle();
     expect(useShareIdentity(() => ID2).anonymous.value).toBe(true);
     expect(useShareNameStore().nameFor(ID2)).toBeUndefined();
     expect(useShareIdentity(() => ID).nickname.value).toBe(NAME);
@@ -509,7 +538,7 @@ describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer win
     useInitialStateStore().rawBackup = { eiUserId: ID } as never;
     const prefs = usePrefsStore();
     made.push(prefs);
-    await vi.waitFor(() => expect(gets()).toHaveLength(1));
+    await waitFor(() => expect(gets()).toHaveLength(1));
     return { prefs, release };
   }
 
@@ -519,7 +548,7 @@ describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer win
     vi.setSystemTime(AT + 1000);
     yesToAll('anon', '');
     release();
-    await vi.waitFor(() => expect(prefs.ready.consent).toBe(true));
+    await waitFor(() => expect(prefs.ready.consent).toBe(true));
     for (const id of Object.keys(ON) as (keyof typeof ON)[]) expect(consentAgreed(id), id).toBe(true);
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
     expect(puts()).toHaveLength(1);
@@ -532,7 +561,7 @@ describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer win
     const { prefs, release } = await loadHeld(null, null);
     yesToAll('anon', '');
     release();
-    await vi.waitFor(() => expect(prefs.ready.consent).toBe(true));
+    await waitFor(() => expect(prefs.ready.consent).toBe(true));
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
     expect(puts()).toHaveLength(1);
     expect(body().value.ticks).toEqual(ON);
@@ -548,6 +577,7 @@ describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer win
     expect(body().value.at).toBe(AT + 1000);
     // A reload in which the collector still answers the old value (its write lost): this browser's newer choice stands.
     disposeAll();
+    await settle();
     setActivePinia(createPinia());
     resetConsents(st);
     resetStudy(st);
@@ -563,8 +593,9 @@ describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer win
     yesToAll('anon', '');
     await setConsentAccount(ID2);
     useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
-    await vi.waitFor(() => expect(gets()).toHaveLength(2));
-    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    await waitFor(() => expect(gets()).toHaveLength(2));
+    await waitFor(() => expect(prefs.following).toBe(true));
+    await settle();
     for (const id of ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks', 'shareBaseline'] as const) expect(consentAgreed(id), id).toBe(false);
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 2);
     expect(puts().every(c => JSON.parse(c.body!).k === KEY)).toBe(true);
