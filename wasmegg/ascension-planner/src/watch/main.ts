@@ -6,7 +6,10 @@
  *  - `watch.html#<id>.<secret>` is the phone page ("Watch this run from your phone",
  *    src/watch/phone.ts), which reads the run's sealed heartbeat from the collector.
  *
- * Each is loaded only when it is the one asked for, so neither carries the other.
+ * Each is loaded only when it is the one asked for, so neither carries the other. The fragment is read through
+ * ./fragment: watch.html's head script has already moved it out of the address.
  */
-if (location.hash.length > 1) void import('./phone').then(m => m.startPhone());
+import { watchFragment } from './fragment';
+
+if (watchFragment()) void import('./phone').then(m => m.startPhone());
 else void import('./local');

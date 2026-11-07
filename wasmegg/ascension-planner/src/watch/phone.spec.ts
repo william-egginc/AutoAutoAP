@@ -5,8 +5,10 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newWatchId, newWatchSecret, sealHeartbeat, type WatchHeartbeat } from '@/search/watchLink';
+import { loadWatchPage } from '@/watch/specHeadScript';
 import { settle } from '@/watch/specSettle';
 
+const PAGE = 'https://egg.example.org/ascension-planner/watch.html';
 const ID = newWatchId();
 const SECRET = newWatchSecret();
 const T0 = Date.UTC(2026, 9, 10, 12);
@@ -162,6 +164,47 @@ describe('the phone page', () => {
     await settle();
     expect(fetches).toHaveLength(4);
     expect(els['p-title'].textContent).toBe('Running');
+  });
+
+  it("after watch.html's head script took the link out of the address, and again after a reload", async () => {
+    // P3 (6 Nov 2026): the address no longer holds the fragment, so the page reads the link the head script kept.
+    const tab = new Map<string, string>();
+    for (const url of [`${PAGE}?collector=https://c.example#${ID}.${SECRET}`, `${PAGE}?collector=https://c.example`]) {
+      vi.resetModules();
+      fetches = [];
+      const p = loadWatchPage(url, tab);
+      expect(p.location.hash).toBe('');
+      vi.stubGlobal('location', p.location);
+      vi.stubGlobal('window', {
+        aaapWatchLink: p.window.aaapWatchLink,
+        addEventListener: (t: string, f: () => void) => (winListeners[t] = f),
+      });
+      const m = await import('./phone');
+      m.startPhone();
+      await settle();
+      expect(fetches).toEqual([`https://c.example/watch?id=${ID}`]);
+      expect(els['p-title'].textContent).toBe('Running');
+    }
+  });
+
+  it('a new link pasted over the held one is read from the address it arrives in, and leaves it', async () => {
+    const tab = new Map<string, string>();
+    const p = loadWatchPage(`${PAGE}?collector=https://c.example#${newWatchId()}.${newWatchSecret()}`, tab);
+    vi.stubGlobal('location', p.location);
+    vi.stubGlobal('window', {
+      aaapWatchLink: p.window.aaapWatchLink,
+      addEventListener: (t: string, f: () => void) => (winListeners[t] = f),
+    });
+    const m = await import('./phone');
+    m.startPhone();
+    await settle();
+    fetches = [];
+    p.location.hash = `#${ID}.${SECRET}`;
+    winListeners.hashchange();
+    await settle();
+    expect(fetches).toEqual([`https://c.example/watch?id=${ID}`]);
+    expect(els['p-title'].textContent).toBe('Running');
+    expect(p.location.hash).toBe('');
   });
 
   it('the plain status wins over the sealed one (a page that closed sends only that)', async () => {

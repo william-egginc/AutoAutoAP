@@ -3,7 +3,8 @@
  *
  * NO VUE, NO PINIA, NO SIMULATOR, like the second-tab watcher: it imports search/watchLink.ts and the
  * collector's address alone. It fetches `GET /watch?id=` (collector/watch.js) and opens the sealed
- * heartbeat with the secret from the fragment, which never leaves this browser; a wrong or missing
+ * heartbeat with the secret from the fragment (which watch.html's head script has moved out of the address into this
+ * tab's sessionStorage: ./fragment.ts), which never leaves this browser; a wrong or missing
  * secret reads as an incomplete link. It reads every minute WHILE ON SCREEN only (a hidden tab or a
  * locked phone asks nothing), and at once when it comes back into view.
  */
@@ -16,6 +17,7 @@ import {
   type WatchHeartbeat,
   type WatchStatus,
 } from '@/search/watchLink';
+import { watchFragment } from './fragment';
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -168,7 +170,7 @@ function start(): void {
   last = null;
   reading?.stop?.abort();
   reading = null;
-  link = parseWatchFragment(location.hash);
+  link = parseWatchFragment(watchFragment());
   if (!link) {
     show(INCOMPLETE, 'bad', INCOMPLETE_NOTE);
     return;

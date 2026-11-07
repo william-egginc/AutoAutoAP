@@ -2,6 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // First, before any other script (the Cloudflare beacon too): take the phone link's #<id>.<secret> out of
+      // the address and keep it for this tab (sessionStorage, else memory), for src/watch/fragment.ts to read; a
+      // reload still has it. Then show the right half of the page for the mode (no flash of the other).
+      (function (w) {
+        var K = 'aaap-watch-link', held = '';
+        try { held = w.sessionStorage.getItem(K) || ''; } catch (e) {}
+        function take() {
+          var h = '';
+          try { h = w.location.hash.slice(1); } catch (e) {}
+          if (h) {
+            held = h;
+            try { w.sessionStorage.setItem(K, h); } catch (e) {}
+            try { w.history.replaceState(w.history.state, '', w.location.pathname + w.location.search); } catch (e) {}
+          }
+          return held;
+        }
+        w.aaapWatchLink = take;
+        try { if (take()) document.documentElement.className = 'phone'; } catch (e) {}
+      })(window);
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Run watcher</title>
     <meta
@@ -12,7 +33,8 @@
          without a #fragment it is the second-tab watcher (src/watch/local.ts), reading the run tab's
          heartbeat from this site's localStorage; with #<id>.<secret> it is the phone page
          (src/watch/phone.ts), reading the run's sealed heartbeat from the collector and opening it
-         with the secret, which never leaves this browser. src/watch/main.ts picks. -->
+         with the secret, which never leaves this browser. src/watch/main.ts picks. The script above
+         clears that fragment from the address at once and keeps it for this tab (QA's P3, 6 Nov 2026). -->
     <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
@@ -25,12 +47,6 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="AAAP run" />
-    <script>
-      // Before first paint: show the right half of the page for the mode (no flash of the other).
-      try {
-        if (location.hash.length > 1) document.documentElement.className = 'phone';
-      } catch (e) {}
-    </script>
     <style>
       body {
         margin: 0;
