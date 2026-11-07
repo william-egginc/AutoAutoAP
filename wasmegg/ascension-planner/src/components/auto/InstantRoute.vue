@@ -356,8 +356,15 @@
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
                  same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
                  the box; lib/hoursNote.ts). -->
-            <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
-              <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
+            <p
+              v-if="firstStep"
+              :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+              class="max-w-prose"
+              data-testid="box-first-step"
+            >
+              <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
+                ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
+              ><template v-else>{{ firstStep }}</template>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -557,8 +564,15 @@
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <!-- First step, as in By a date's box. -->
-          <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
-            <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
+          <p
+            v-if="firstStep"
+            :class="firstStepWarn ? 'text-small text-amber-800' : 'text-body text-slate-800'"
+            class="max-w-prose"
+            data-testid="box-first-step"
+          >
+            <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
+              ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
+            ><template v-else>{{ firstStep }}</template>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1022,7 +1036,17 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
-import { FIRST_STEP_LABEL, INSTANT_ESTIMATE_LINE, firstStepLine, instantHeaderLine, noPrestigeDayCount } from '@/lib/instantWords';
+import {
+  FIRST_STEP_BUILDUP_MISSING,
+  FIRST_STEP_BUILDUP_MISSING_LEAD,
+  FIRST_STEP_BUILDUP_MISSING_REST,
+  FIRST_STEP_LABEL,
+  INSTANT_ESTIMATE_LINE,
+  firstStepKind,
+  firstStepLine,
+  instantHeaderLine,
+  noPrestigeDayCount,
+} from '@/lib/instantWords';
 import { instantSteps } from '@/lib/instantSteps';
 import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
@@ -1116,7 +1140,8 @@ const result = ref<FoundRoutes | null>(null);
  * setting building up and a farm in the save, but the build-up could not be worked out (the store's worker failed), so
  * its first ascension is only fresh or continue. Such an answer is shown but never kept: no snapshot, no answer
  * offered online, no pricing record for My runs (`saveSnapshot`, `run`), and one that somehow carries the flag is not
- * put back (search/instantTables.ts `savedAnswerFits`), so a reload or the next visit works it out again.
+ * put back (search/instantTables.ts `savedAnswerFits`), so a reload or the next visit works it out again. A fresh
+ * First step says so instead of "prestige now" (`firstStep`, lib/instantWords.ts FIRST_STEP_BUILDUP_MISSING).
  */
 const answerBuildUpMissing = ref(false);
 /** The instant answer's state, for the screen reader's status line. */
@@ -1632,8 +1657,7 @@ const firstStep = computed(() => {
   const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
   const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
   if (!a || !legs?.length) return '';
-  const label = legs[0].label ?? '';
-  const kind = label === 'buildup' ? 'buildup' : /^\d+-sale/.test(label) ? 'fresh' : 'continue';
+  const kind = firstStepKind(legs[0].label);
   const day = (t: number) => calendarOf(t * 1000, zone.value)?.ymd ?? '';
   const line = firstStepLine({
     kind,
@@ -1644,9 +1668,12 @@ const firstStep = computed(() => {
     prestigeTime: b && dateStyle.value !== 'iso' ? formatClock(b.prestigeAt * 1000, zone.value) || null : null,
     sameDay: !!b && day(a.reachedAt) !== '' && day(a.reachedAt) === day(b.prestigeAt),
     hours: hoursLimited.value,
+    buildUpMissing: answerBuildUpMissing.value,
   });
   return line.slice(FIRST_STEP_LABEL.length + 1);
 });
+/** First step is the build-up-could-not-be-worked-out line: drawn smaller and amber (spec-buildupmissing-words). */
+const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked

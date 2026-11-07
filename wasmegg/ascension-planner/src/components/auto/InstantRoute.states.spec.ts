@@ -27,7 +27,14 @@ import { HOURS_NOTE } from '@/lib/hoursNote';
 import { instantLiveText } from '@/lib/liveStatus';
 import { headlineGap, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';
-import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
+import {
+  FIRST_STEP_BUILDUP_MISSING,
+  FIRST_STEP_BUILDUP_MISSING_LEAD,
+  FIRST_STEP_BUILDUP_MISSING_REST,
+  INSTANT_ESTIMATE_LINE,
+  firstStepKind,
+  firstStepLine,
+} from '@/lib/instantWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
@@ -117,6 +124,9 @@ function ctxOf(s: State): Record<string, unknown> {
     FIRST_STEP_LABEL: 'First step:',
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
+    firstStepWarn: false,
+    FIRST_STEP_BUILDUP_MISSING_LEAD,
+    FIRST_STEP_BUILDUP_MISSING_REST,
     INSTANT_ESTIMATE_LINE,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
@@ -959,5 +969,76 @@ describe('the slim card: one line under the title, First step in the box', () =>
       expect(m[0]).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     }
     expect(t.match(/data-testid="box-first-step"/g)).toHaveLength(2);
+  });
+});
+
+describe('First step when the build-up could not be worked out (spec-buildupmissing-words; Words, 6 Nov 2026)', () => {
+  // Jordan's phone, 6 Nov 2026: "First step: prestige now and reach 220 TE" in the middle of a build-up, a fresh start
+  // only because the build-up could not be worked out (search/instantFirstLegs.ts `buildUpMissing`, spec-buildupmissing).
+  // How the flag is read off the first-legs request, set with its answer, never saved and put back:
+  // InstantRoute.buildUpMissing.spec.ts (Reliability). Here: what First step makes of it.
+  const script = source.slice(source.indexOf('<script setup'));
+  const lineFor = (label: string, buildUpMissing: boolean) =>
+    firstStepLine({
+      kind: firstStepKind(label),
+      stopTE: 220,
+      reached: 'Jan 1, 2027 at 2:11 AM',
+      prestigeDate: null,
+      prestigeTime: null,
+      sameDay: false,
+      hours: false,
+      buildUpMissing,
+    });
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+
+  it('the first leg: a fresh start with buildUpMissing says so; a build-up or continue first leg never does', () => {
+    for (const fresh of ['2-sale', '0-sale', '3-sale-tier13'])
+      expect(lineFor(fresh, true)).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
+    expect(lineFor('2-sale', false)).toBe('First step: prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).');
+    expect(lineFor('buildup', true)).toBe('First step: continue your build-up to 220 TE (Jan 1, 2027 at 2:11 AM).');
+    expect(lineFor('continue', true)).toBe('First step: continue your current ascension to 220 TE (Jan 1, 2027 at 2:11 AM).');
+  });
+
+  it('the page: First step reads the kind from the first leg and the answer\'s buildUpMissing', () => {
+    expect(script).toContain('const kind = firstStepKind(legs[0].label);');
+    expect(script).toMatch(/firstStepLine\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
+  });
+
+  for (const [name, answer, deadline] of [
+    ['By a date', 'date', true],
+    ['Fastest', 'fastest', false],
+  ] as const) {
+    it(`${name}: the warning is drawn as First step, small and amber; a plain First step stays as it was`, async () => {
+      const step = (html: string) => {
+        const box = html.slice(html.indexOf('data-testid="instant-box"'));
+        const i = box.indexOf('data-testid="box-first-step"');
+        return box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
+      };
+      const warned = step(await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING, firstStepWarn: true }));
+      expect(textOf(warned)).toContain(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
+      expect(warned).toMatch(/class="[^"]*text-small text-amber-800/);
+      expect(warned).not.toContain('text-body');
+      // The first sentence bold after the bold label; the rest plain, in the same small amber paragraph.
+      expect(warned.replace(/<!--[\s\S]*?-->/g, '')).toContain(`<b>First step:</b> <b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_REST}`);
+      const plain = step(await draw(at(answer, deadline), { firstStep: 'prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).' }));
+      expect(plain).toMatch(/class="[^"]*text-body text-slate-800/);
+      expect(plain).not.toContain('amber');
+    });
+  }
+
+  it('the page warns exactly when First step is the warning line', () => {
+    expect(script).toContain('const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);');
   });
 });
