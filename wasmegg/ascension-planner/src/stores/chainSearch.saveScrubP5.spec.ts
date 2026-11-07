@@ -10,6 +10,10 @@
  * identifier. The scrubbed file still loads into the same account (R7 red team, finding 2), and the gear read from it
  * (the worn sets, the gear stamp's delivery-set picks, the owned inventory, the missions shown) is the original's.
  *
+ * Since spec-scrub-p5b a download keeps only what the planner reads (lib/saveKeep.ts): the home inventory and sets,
+ * the mission archive, the non-virtue missions, serverIds, mission identifiers, itemSequence and coopUserId are not in
+ * the file at all; the virtue items are still renumbered.
+ *
  * Real stores, the real download and the real save loader on the synthetic save with a made-up ID
  * (EI9876543210987654) and made-up identifiers, a fixed clock. No player data.
  */
@@ -143,32 +147,35 @@ afterEach(() => {
 });
 
 describe('(1) a downloaded save carries no other players’ UUIDs, and (2) nothing that links two downloads', () => {
-  it('reportedUuids empty, serverIds and mission identifiers blank, item numbers renumbered', async () => {
+  it('no reportedUuids, serverIds or mission identifiers, item numbers renumbered', async () => {
     setActivePinia(createPinia());
     const text = await download();
     const file = JSON.parse(text);
     // (1) Other players reported: none left, in the archive or the current contracts.
     for (const u of REPORTED) expect(text, u).not.toContain(u);
-    for (const c of [...file.contracts.archive, ...file.contracts.contracts]) expect(c.reportedUuids ?? []).toEqual([]);
-    // (2) serverIds: every item's blank, home and virtue.
+    for (const c of [...file.contracts.archive, ...file.contracts.contracts]) expect(c.reportedUuids).toBeUndefined();
+    // (2) serverIds: none, on any item (the home inventory is not in the file: the page reads the virtue one only).
     const adb = file.artifactsDb;
-    const items = [...adb.inventoryItems, ...adb.virtueAfxDb.inventoryItems];
-    expect(items.length).toBe(9);
-    for (const item of items) expect(item.serverId).toBe('');
+    expect(adb.inventoryItems).toBeUndefined();
+    const items = adb.virtueAfxDb.inventoryItems;
+    expect(items.length).toBe(6);
+    for (const item of items) expect(item.serverId).toBeUndefined();
     expect(text).not.toMatch(/SYNTHSRV/);
-    // Mission identifiers: blank wherever a mission sits.
-    const missions = [...adb.missionArchive, ...adb.missionInfos, adb.fuelingMission, adb.virtueAfxDb.fuelingMission];
-    expect(missions.length).toBe(MISSION_IDS.length);
-    for (const mi of missions) expect(mi.identifier).toBe('');
+    // Mission identifiers: none (only the virtue missions are in the file, the page shows no other).
+    expect(adb.missionArchive).toBeUndefined();
+    expect(adb.fuelingMission).toBeUndefined();
+    const missions = [...adb.missionInfos, adb.virtueAfxDb.fuelingMission];
+    expect(missions.length).toBe(2);
+    for (const mi of missions) expect(mi.identifier).toBeUndefined();
     for (const id of MISSION_IDS) expect(text).not.toContain(id);
-    // The account's own item numbers: 1..n in file order, none of the originals, itemSequence the next one.
-    expect(items.map(i => i.itemId)).toEqual(items.map((_, i) => i + 1));
+    // The account's own item numbers: 1..n in file order, none of the originals; no itemSequence.
+    expect(items.map((i: any) => i.itemId)).toEqual(items.map((_: unknown, i: number) => i + 1));
     for (const id of ITEM_IDS) expect(text).not.toContain(String(id));
-    expect(adb.itemSequence).toBe(items.length + 1);
+    expect(adb.itemSequence).toBeUndefined();
     expect(text).not.toContain(String(ITEM_SEQUENCE));
   });
 
-  it('as before: no player ID but the stand-in (eiUserId and every coopUserId), device identifiers blank', async () => {
+  it('as before: no player ID but the stand-in, no device identifiers', async () => {
     setActivePinia(createPinia());
     const text = await download();
     const file = JSON.parse(text);
@@ -176,16 +183,17 @@ describe('(1) a downloaded save carries no other players’ UUIDs, and (2) nothi
     expect(file.eiUserId).toBe(PLACEHOLDER_ID);
     const contracts = [...file.contracts.archive, ...file.contracts.contracts];
     expect(contracts.length).toBe(3);
-    for (const c of contracts) expect(c.coopUserId).toBe(PLACEHOLDER_ID);
+    // coopUserId is not in the file since spec-scrub-p5b (nothing reads it), nor the device identifiers or checksum.
+    for (const c of contracts) expect(c.coopUserId).toBeUndefined();
     for (const [f, v] of Object.entries(DEVICE)) {
-      expect(file[f], f).toBe('');
+      expect(file[f], f).toBeUndefined();
       expect(text, f).not.toContain(v);
     }
     expect(file.userName).toBe('SyntheticFixture');
-    expect(file.checksum).toBe(123456789);
+    expect(file.checksum).toBeUndefined();
   });
 
-  it('every equipped or saved slot still names the same artifact; a slot naming no item still names none', async () => {
+  it('every equipped slot still names the same artifact; a slot naming no item still names none', async () => {
     setActivePinia(createPinia());
     const file = JSON.parse(await download());
     const orig = keptBackup().artifactsDb;
@@ -193,10 +201,9 @@ describe('(1) a downloaded save carries no other players’ UUIDs, and (2) nothi
     expect(worn(adb.virtueAfxDb, adb.virtueAfxDb.activeArtifacts)).toEqual(
       worn(orig.virtueAfxDb, orig.virtueAfxDb.activeArtifacts)
     );
-    expect(worn(adb, adb.activeArtifactSets[0])).toEqual(worn(orig, orig.activeArtifactSets[0]));
-    expect(worn(adb, adb.savedArtifactSets[0])).toEqual(worn(orig, orig.savedArtifactSets[0]));
-    // A set's uid is 0 since spec-scrub-p5b (chainSearch.saveScrubP5b.spec.ts).
-    expect(adb.savedArtifactSets[0].uid).toBe(0);
+    // The home and saved sets are not in the file since spec-scrub-p5b (the page reads the virtue set only).
+    expect(adb.activeArtifactSets).toBeUndefined();
+    expect(adb.savedArtifactSets).toBeUndefined();
     // A dangling slot (the game's known inconsistent-backup case) stays dangling, not pointed at some other item.
     const b = keptBackup();
     b.artifactsDb.virtueAfxDb.activeArtifacts.slots[3] = { occupied: true, itemId: 123 };

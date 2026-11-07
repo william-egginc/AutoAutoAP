@@ -32,6 +32,7 @@ import { followKey } from '@/lib/followCloud';
 import { hashID } from '@/lib/storage/db';
 import { computeInstantPricing, type InstantPool } from '@/composables/useInstantCompute';
 import { blankLinkingIds, NO_ACCOUNT_LINE, PLACEHOLDER_ID, scrubPlayerIds } from '@/lib/saveScrub';
+import { plannerFieldsOnly } from '@/lib/saveKeep';
 import RunSaveNotice from '@/components/auto/RunSaveNotice.vue';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
@@ -176,16 +177,16 @@ afterEach(() => {
 });
 
 describe('(1) "Download this save" writes no player ID', () => {
-  it('the kept save comes back as a file with every ID replaced, the rest as it was', async () => {
+  it('the kept save comes back as a file with every ID replaced, the rest as the planner reads it', async () => {
     setActivePinia(createPinia());
     const raw = syntheticSaveWithId(ID);
     const kept = await keepSave(await hashID(ID), raw, 190);
     const out = await useChainSearchStore().entrySaveFile(ID, kept);
     expect(out).not.toBeNull();
     expect(leftovers(out!.text)).toEqual([]);
-    // The rest as it was, but for the ids that link two downloads (red team P5: blankLinkingIds, its own spec
-    // chainSearch.saveScrubP5.spec.ts).
-    expect(out!.text).toBe(backupText(blankLinkingIds(raw)).replaceAll(ID, PLACEHOLDER_ID));
+    // Only what the planner reads (lib/saveKeep.ts, chainSearch.saveScrubP5b.spec.ts), without the ids that link two
+    // downloads (red team P5: blankLinkingIds, its own spec chainSearch.saveScrubP5.spec.ts).
+    expect(out!.text).toBe(backupText(blankLinkingIds(plannerFieldsOnly(raw))).replaceAll(ID, PLACEHOLDER_ID));
     expect(out!.name).not.toMatch(/EI\d/i);
   });
 });

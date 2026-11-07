@@ -53,8 +53,8 @@ export function* scrubParts(parts: Iterable<BlobPart>): Generator<BlobPart> {
 /**
  * A save's other persistent identifiers (QA's R7 red team, finding 1): the device, the Game Center / Play Games
  * player and the push-notification user. The page reads none of them (checked by grep, 1 Nov 2026), so a downloaded
- * save carries them blank. `userName` stays (the name over the ID box; pending Jordan). `checksum` stays: the file is
- * the backup as plain JSON (no container), and nothing checks the checksum when a file is loaded back.
+ * save carries them blank. Since spec-scrub-p5b a download keeps only what the planner reads (lib/saveKeep.ts), so
+ * these, `checksum` and `signature` are not in it at all (nothing verifies either on load); `userName` stays.
  */
 export const DEVICE_ID_FIELDS = ['deviceId', 'gameServicesId', 'gameServicesIdScoped', 'pushUserId'] as const;
 
@@ -87,8 +87,8 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
  *   - `contracts.currentCoopStatuses[]` (ContractCoopStatusResponse): `coopIdentifier`, `creatorId`; each
  *     `contributors[]` (ContributionInfo) `uuid`, `userId`, `userName`, `pushId` (the account's own row too: the page
  *     reads the name only from the save's top-level `userName`); `gifts[]` `userId`, `userName`, `tracking`;
- *     `chickenRuns[]` `userId`, `userName`. Blanked. What the others contributed (amounts, `farmInfo`) stays: no name
- *     or id in it.
+ *     `chickenRuns[]` `userId`, `userName`. Blanked. (A download has no `currentCoopStatuses` at all since Jordan's
+ *     ruling the same day: lib/saveKeep.ts keeps only what the planner reads.)
  *   - `contracts.archive[]` / `contracts.contracts[]` `coopIdentifier` and `evaluation.coopIdentifier`, and
  *     `contracts.lastCpi.unreadEvaluations[].coopIdentifier`: the co-op's code, which looks up its members. Blanked.
  *   - Every artifact set's `uid` (`activeArtifactSets`, `savedArtifactSets`, `virtueAfxDb.activeArtifacts`): 0.

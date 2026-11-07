@@ -103,9 +103,10 @@ describe('(1) a downloaded save carries no device identifiers', () => {
     }
     expect(leftovers(text)).toEqual([]);
     expect(file.eiUserId).toBe(PLACEHOLDER_ID);
-    // Kept as they were: the name (pending Jordan) and the game's checksum (nothing reads it).
+    // The name kept (the name over the ID box); the game's checksum left out since spec-scrub-p5b (only what the
+    // planner reads, and nothing verifies it: chainSearch.saveScrubP5b.spec.ts).
     expect(file.userName).toBe('SyntheticFixture');
-    expect(file.checksum).toBe(123456789);
+    expect(file.checksum).toBeUndefined();
   });
 
   it('the kept save itself is left as it was (only the file is blanked)', async () => {

@@ -194,12 +194,13 @@
           send includes (see <a href="#sent">What is sent, and when</a>). The command line keeps its own file,
           <code>legs.spill</code>, on the computer it runs on.
         </p>
-        <!-- lib/saveScrub.ts (entrySaveFile, idFromScreen), utils/xlsxWriter.ts, utils/xlsxRows.ts: these sentences go with that code. -->
+        <!-- lib/saveKeep.ts, lib/saveScrub.ts (entrySaveFile, idFromScreen), utils/xlsxWriter.ts, utils/xlsxRows.ts: these sentences go with that code. -->
         <p id="downloads">
           Downloads are made in your browser and saved to your computer. Nothing is sent. <b>Download this save</b>
-          (under Saved runs and Saved answers) writes your game save to a file with your player ID swapped for a
-          stand-in and your device IDs left blank. The rest of your save is still in it, including your in-game name,
-          so share it with care. <b>Load a save file</b> puts it back under the account on screen.
+          (under Saved runs and Saved answers) writes the parts of your game save the planner reads to a file, with
+          your player ID swapped for a stand-in. Nothing else from your save goes in it: no other players, co-op codes,
+          device IDs or purchase records. Your in-game name is in it, so share it with care. <b>Load a save file</b>
+          puts it back under the account on screen.
           <b>Download for Excel (.xlsx)</b>, beside <b>Download CSV</b>, has the same routes as the CSV, with each
           ascension's times for the top routes only. Every column is wide enough, the header row stays in view, and
           the CSV's notes are on a second sheet. It is offered for a finished result of up to 200,000 rows.

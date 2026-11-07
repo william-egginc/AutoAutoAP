@@ -344,6 +344,7 @@ import {
   sameAccountId,
   scrubPlayerIds,
 } from '@/lib/saveScrub';
+import { plannerFieldsOnly } from '@/lib/saveKeep';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -7435,9 +7436,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
-    // The device identifiers blank too (R7 red team, finding 1), and the item and mission ids that link two downloads
-    // of one account and the other players it reported (red team P5, lib/saveScrub.ts `blankLinkingIds`).
-    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(raw)))) };
+    // Only what the planner reads (Jordan, 6 Nov 2026: lib/saveKeep.ts `plannerFieldsOnly`), then, as before, the
+    // device identifiers blank (R7 red team, finding 1) and the item numbers that link two downloads of one account
+    // renumbered (red team P5, lib/saveScrub.ts `blankLinkingIds`).
+    const kept = plannerFieldsOnly(raw);
+    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(kept)))) };
   }
 
   /**

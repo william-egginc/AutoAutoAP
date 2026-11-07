@@ -365,7 +365,7 @@ describe('About and privacy page', () => {
   it('says what a downloaded save holds, what the Excel download holds, that saving again keeps one entry, the update banner and the recalc (Release 7, Nov 5, 2026)', () => {
     expect(text).toContain('Saving the same run or answer again updates the one already in the list, so each is listed once.');
     expect(text).toContain(
-      'Downloads are made in your browser and saved to your computer. Nothing is sent. Download this save (under Saved runs and Saved answers) writes your game save to a file with your player ID swapped for a stand-in and your device IDs left blank. The rest of your save is still in it, including your in-game name, so share it with care. Load a save file puts it back under the account on screen.'
+      'Downloads are made in your browser and saved to your computer. Nothing is sent. Download this save (under Saved runs and Saved answers) writes the parts of your game save the planner reads to a file, with your player ID swapped for a stand-in. Nothing else from your save goes in it: no other players, co-op codes, device IDs or purchase records. Your in-game name is in it, so share it with care. Load a save file puts it back under the account on screen.'
     );
     expect(text).toContain(
       "Download for Excel (.xlsx) , beside Download CSV , has the same routes as the CSV, with each ascension's times for the top routes only. Every column is wide enough, the header row stays in view, and the CSV's notes are on a second sheet. It is offered for a finished result of up to 200,000 rows."
@@ -379,12 +379,15 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       "After an update, answers that an older version worked out and kept in this browser are worked out again: instant answers, the times My runs works out for the route you follow, and the Build-up tracker's plan. Meanwhile an instant answer is marked \"From &lt;time&gt; (older version), checking…\". Saved runs and saved answers are kept as they are."
     );
-    // What it says must stay true: the save download scrubs IDs and blanks the device IDs, a file loads under the
+    // What it says must stay true: the save download keeps only what the planner reads (lib/saveKeep.ts, its fields
+    // and their readers listed there; chainSearch.saveScrubP5b.spec.ts checks every leaf), scrubs IDs, a file loads under the
     // account on screen, the .xlsx cap and sheets, saving again replaces, the banner's cap and no-new-note rule, the stamp.
     const scrub = read('src/lib/saveScrub.ts');
     expect(scrub).toContain("export const DEVICE_ID_FIELDS = ['deviceId', 'gameServicesId', 'gameServicesIdScoped', 'pushUserId'] as const;");
     expect(scrub).toContain('export function idFromScreen(');
-    expect(read('src/stores/chainSearch.ts')).toContain('text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(raw))))');
+    expect(read('src/stores/chainSearch.ts')).toContain('const kept = plannerFieldsOnly(raw);');
+    expect(read('src/stores/chainSearch.ts')).toContain('text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(kept))))');
+    expect(read('src/lib/saveKeep.ts')).toContain('export function plannerFieldsOnly<T>(raw: T): T {');
     expect(read('src/utils/xlsxRows.ts')).toContain('export const XLSX_ROW_CAP = 200_000;');
     const xlsx = read('src/utils/xlsxWriter.ts');
     expect(xlsx).toContain("export const DATA_SHEET = 'Routes';");
