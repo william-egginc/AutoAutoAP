@@ -523,9 +523,27 @@ describe('time off cutting the ascension you are in (26 Oct 2026, regression of 
     followCalls()[0].resolve(route490(now, now + 9 * D));
     await vi.waitFor(() => expect(sims).toHaveLength(1));
     sims[0].reject(new RangeError('Invalid time value'));
-    await vi.waitFor(() => expect(page.simFailure.value).toEqual({ reason: 'RangeError: Invalid time value', retrying: true }));
+    // The error's own words, never its type ("RangeError:"): spec-stuck2.
+    await vi.waitFor(() => expect(page.simFailure.value).toEqual({ reason: 'Invalid time value', retrying: true }));
     const t = textOf(await renderHtml(RightNowCard, { ...(await renderProps(page)), simFailure: page.simFailure.value }, {}, [getActivePinia()!]));
-    expect(t).toContain('Could not work out your shifts: RangeError: Invalid time value (trying once more in a minute)');
+    expect(t).toContain('Could not work out your shifts: Invalid time value (trying once more in a minute)');
+    expect(t).not.toMatch(/Error:/);
+    scope.stop();
+  });
+
+  it('the run bound (a run that never ends) is said without a raw "Error:" (spec-stuck2, QA t115)', async () => {
+    // A short bound on real timers (the page's own timers are many): said in whole minutes, so "0 minutes" here.
+    setSimTiming({ delayMs: 0, runMs: 400 });
+    let started = 0;
+    setSimRunner((): SimRunner => ({ run: () => (started++, new Promise(() => undefined)), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(started).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(page.simFailure.value).toEqual({ reason: 'it did not finish in 0 minutes', retrying: true }));
+    const t = textOf(await renderHtml(RightNowCard, { ...(await renderProps(page)), simFailure: page.simFailure.value }, {}, [getActivePinia()!]));
+    expect(t).toContain('Could not work out your shifts: it did not finish in 0 minutes (trying once more in a minute)');
+    expect(t).not.toMatch(/Error:/);
     scope.stop();
   });
 });

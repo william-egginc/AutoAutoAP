@@ -141,7 +141,7 @@ describe('the Build-up tracker stalls on a silent worker, not on a slow one', ()
     expect(t.failReason.value).toBe('');
     await after(70_000);
     expect(t.state.value).toBe('failed');
-    expect(t.failReason.value).toMatch(/did not finish/);
+    expect(t.failReason.value).toBe('it did not finish in 6 minutes');
     scope.stop();
   });
 

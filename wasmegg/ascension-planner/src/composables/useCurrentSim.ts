@@ -163,9 +163,10 @@ function simulatedFrom(inputs: SearchInputs, requestTime: number): NonNullable<B
   const farm = saveFarmFor(inputs.currentFarmState ?? saveFarmOf(raw), null);
   return { backupTime: backupSecondsOf(raw) || requestTime, ...(farm ? { farm } : {}) };
 }
-/** The words of a failure, short and without any ID (an error message names no account). */
+/** The words of a failure, short and without any ID (an error message names no account). The error's own message,
+ *  never its type: "Error: …" / "RangeError: …" read as raw code on Right now and in the tracker (spec-stuck2). */
 function reasonOf(err: unknown): string {
-  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  const text = (err instanceof Error ? err.message || err.name : String(err)).replace(/^\w*Error: /, '');
   return text.replace(/EI\d{16}/gi, 'EI…').slice(0, 160);
 }
 
@@ -242,7 +243,7 @@ export function useCurrentSim(
     // failure of its own would be. A timer beside the run, so the run's own path is not changed.
     const runTimer = setTimeout(() => {
       if (id !== asked) return;
-      const reason = `Error: it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
+      const reason = `it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
       console.warn('My runs: simulating the ascension you are in failed:', reason);
       buildUpLog(`run timed out${have ? ' (planFailed)' : ''}: ${reason}`);
       letGo();
