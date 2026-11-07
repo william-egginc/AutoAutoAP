@@ -127,3 +127,8 @@ namespace_id = "1106"
 [[r2_buckets]]
 binding = "BIGCSV"
 bucket_name = "aaap-bigcsv"
+
+# "Long-run alert" (runs.js, 7 Nov 2026): POST /runs and GET /runs/active, D1 only. Worker secrets (never in this file):
+#   wrangler secret put RUNS_ADMIN_TOKEN   owner token for GET /runs/active (aaap-tools/active-runs.sh)
+#   wrangler secret put RUNS_NTFY_TOPIC    ntfy.sh topic for the start and stop notes; unset = no notes
+# Optional [vars]: RUNS_MARGIN_MIN (60), RUNS_NEW_PER_DAY (200), RUNS_MAX_OPEN (100), RUNS_PUSH_PER_DAY (20).
