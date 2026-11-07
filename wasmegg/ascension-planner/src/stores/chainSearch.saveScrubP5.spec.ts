@@ -195,7 +195,8 @@ describe('(1) a downloaded save carries no other players’ UUIDs, and (2) nothi
     );
     expect(worn(adb, adb.activeArtifactSets[0])).toEqual(worn(orig, orig.activeArtifactSets[0]));
     expect(worn(adb, adb.savedArtifactSets[0])).toEqual(worn(orig, orig.savedArtifactSets[0]));
-    expect(adb.savedArtifactSets[0].uid).toBe(1);
+    // A set's uid is 0 since spec-scrub-p5b (chainSearch.saveScrubP5b.spec.ts).
+    expect(adb.savedArtifactSets[0].uid).toBe(0);
     // A dangling slot (the game's known inconsistent-backup case) stays dangling, not pointed at some other item.
     const b = keptBackup();
     b.artifactsDb.virtueAfxDb.activeArtifacts.slots[3] = { occupied: true, itemId: 123 };
