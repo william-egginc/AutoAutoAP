@@ -384,7 +384,7 @@ describe('About and privacy page', () => {
     const scrub = read('src/lib/saveScrub.ts');
     expect(scrub).toContain("export const DEVICE_ID_FIELDS = ['deviceId', 'gameServicesId', 'gameServicesIdScoped', 'pushUserId'] as const;");
     expect(scrub).toContain('export function idFromScreen(');
-    expect(read('src/stores/chainSearch.ts')).toContain('text: scrubPlayerIds(backupText(blankDeviceIds(raw)))');
+    expect(read('src/stores/chainSearch.ts')).toContain('text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(raw))))');
     expect(read('src/utils/xlsxRows.ts')).toContain('export const XLSX_ROW_CAP = 200_000;');
     const xlsx = read('src/utils/xlsxWriter.ts');
     expect(xlsx).toContain("export const DATA_SHEET = 'Routes';");

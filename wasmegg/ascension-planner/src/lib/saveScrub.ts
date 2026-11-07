@@ -66,6 +66,95 @@ export function blankDeviceIds<T>(raw: T): T {
   return copy as T;
 }
 
+type Obj = Record<string, unknown>;
+const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * The values that link two downloads of one account, and other players' identifiers (red team P5, 6 Nov 2026):
+ *   - `contracts.archive[]` / `contracts.contracts[]` `.reportedUuids`: other players this account reported. Emptied.
+ *   - `artifactsDb` (home and `virtueAfxDb`) `inventoryItems[].serverId`: the server's per-item id. Blanked.
+ *   - Every mission's `identifier` (`missionInfos`, `missionArchive`, both `fuelingMission`s). Blanked.
+ *   - `inventoryItems[].itemId`, the slots that point at them (`activeArtifactSets`, `savedArtifactSets`,
+ *     `virtueAfxDb.activeArtifacts`) and `itemSequence`: the page DOES read itemId (an equipped slot names its item by
+ *     it: lib/artifacts/virtue.ts, utils.ts `getArtifactLoadoutFromBackup`, lib Farm), so it is renumbered 1, 2, 3, ...
+ *     in file order rather than blanked, every slot following its item (a slot naming no item still names none), and
+ *     `itemSequence` is the next number. The worn and owned gear read back the same.
+ * Nothing on the page reads serverId, a mission's identifier or reportedUuids (checked by grep, 6 Nov 2026: the
+ * loaders, artifact and inventory parsing, the gear stamp, kept saves, the save loader, lib, ui and QA's harness).
+ * A copy of `raw` with only those changed (and only where present; nothing added). `raw` is not changed.
+ */
+export function blankLinkingIds<T>(raw: T): T {
+  if (!raw || typeof raw !== 'object') return raw;
+  const copy = { ...(raw as Obj) };
+  if (isObj(copy.contracts)) {
+    const c = { ...copy.contracts };
+    for (const k of ['archive', 'contracts']) {
+      if (Array.isArray(c[k]))
+        c[k] = (c[k] as unknown[]).map(x => (isObj(x) && x.reportedUuids != null ? { ...x, reportedUuids: [] } : x));
+    }
+    copy.contracts = c;
+  }
+  if (isObj(copy.artifactsDb)) {
+    const next = { n: 1 };
+    const db = renumberItems({ ...copy.artifactsDb }, ['activeArtifactSets', 'savedArtifactSets'], next);
+    for (const k of ['missionInfos', 'missionArchive'])
+      if (Array.isArray(db[k])) db[k] = (db[k] as unknown[]).map(blankMission);
+    if (db.fuelingMission != null) db.fuelingMission = blankMission(db.fuelingMission);
+    if (isObj(db.virtueAfxDb)) {
+      const v = renumberItems({ ...db.virtueAfxDb }, ['activeArtifacts'], next);
+      if (v.fuelingMission != null) v.fuelingMission = blankMission(v.fuelingMission);
+      db.virtueAfxDb = v;
+    }
+    if (db.itemSequence != null) db.itemSequence = next.n;
+    copy.artifactsDb = db;
+  }
+  return copy as T;
+}
+
+function blankMission(m: unknown): unknown {
+  return isObj(m) && m.identifier != null ? { ...m, identifier: '' } : m;
+}
+
+/** An itemId as a key: a number, or a protobuf Long read as one (`{low, high, unsigned}`). */
+function idKey(id: unknown): unknown {
+  if (isObj(id) && typeof id.low === 'number' && typeof id.high === 'number')
+    return (id.unsigned ? id.high >>> 0 : id.high) * 4294967296 + (id.low >>> 0);
+  return id;
+}
+
+/**
+ * `db` (a copy) with its inventory's serverIds blank and its itemIds renumbered from `next.n`, and the slots of the
+ * sets under `setKeys` (each a set or a list of sets) following their items. A slot's id that names no item gets a
+ * number of its own (still naming no item). Changes `db` and `next`, not what they point at.
+ */
+function renumberItems(db: Obj, setKeys: string[], next: { n: number }): Obj {
+  const ids = new Map<unknown, number>();
+  const fresh = (id: unknown): number => {
+    const k = idKey(id);
+    let n = ids.get(k);
+    if (n === undefined) ids.set(k, (n = next.n++));
+    return n;
+  };
+  if (Array.isArray(db.inventoryItems)) {
+    db.inventoryItems = db.inventoryItems.map(item => {
+      if (!isObj(item)) return item;
+      const out = { ...item };
+      if (out.serverId != null) out.serverId = '';
+      if (out.itemId != null) out.itemId = fresh(out.itemId);
+      return out;
+    });
+  }
+  const set = (s: unknown): unknown =>
+    isObj(s) && Array.isArray(s.slots)
+      ? { ...s, slots: s.slots.map(sl => (isObj(sl) && sl.itemId != null ? { ...sl, itemId: fresh(sl.itemId) } : sl)) }
+      : s;
+  for (const k of setKeys) {
+    if (Array.isArray(db[k])) db[k] = (db[k] as unknown[]).map(set);
+    else if (db[k] != null) db[k] = set(db[k]);
+  }
+  return db;
+}
+
 /** An ID compared as an account: trimmed, the "mk2!" super-user prefix (lib/schema PlayerIdSchema) dropped, upper case. */
 function plainId(id: string | null | undefined): string {
   return String(id ?? '')
