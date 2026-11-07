@@ -103,6 +103,10 @@ export interface BuildUpTrackerInputs {
   /** The simulation's run going and whether its worker has said anything (useCurrentSim `worker`); null when no run
    *  is going. Absent: the stall counts only the waits below, never a run going. */
   simWorker?: Ref<{ since: number; heard: boolean } | null>;
+  /** A search is really running in this tab (the store's `isRunning || deadlineRunning`; never `resultSending`, which
+   *  has its own 10-minute cap). 'waiting' with no reason while this is false waits for nothing: the stall counts it.
+   *  Absent: such a wait is taken as a search's, as before. */
+  searchRunning?: Ref<boolean>;
   /** Phase 2: the loaded save as the tracker ticks from it (useNowPage `buildUpSave`); null without one. */
   saveFarm?: Ref<SaveFarm | null>;
   /** A save is still coming in (being read, or the stores not holding it yet): the card says so ('checking') rather
@@ -117,7 +121,8 @@ export interface BuildUpTrackerInputs {
  * NEVER "WORKING IT OUT" FOR GOOD (spec-buildup-stuck, 6 Nov 2026: Safari's tracker said it at 10:05 am and still at
  * 12:39 pm). A run going is bounded by useCurrentSim's own `runMs`; this bounds the rest: the plan wanted and nothing
  * going for it (no simulation state, 'done' without a plan, or the page's inputs never ready) this long reads as
- * failed, with Try again. A search running ('waiting' with no reason) is not counted: it ends by itself.
+ * failed, with Try again. A search running ('waiting' with no reason) is not counted: it ends by itself. Unless no
+ * search is really running in this tab (`searchRunning` false, spec-stuck3): then that wait counts too.
  *
  * A SILENT WORKER (spec-stuck2, 7 Nov 2026, QA t115: every message to the worker swallowed, "working it out…" until the
  * 6-minute run bound, the stall never shown): a run going whose worker has not said a word this long (`simWorker`, from
@@ -478,7 +483,9 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const s = i.sim.value;
     if (!s) return true;
     if (s.status === 'done') return !i.fresh.value;
-    return s.status === 'waiting' && !!s.reason;
+    // A search's wait ends with the search; one with no search running in this tab (spec-stuck3, 7 Nov 2026: Safari's
+    // tracker waited for good on a fresh load with no search started) waits for nothing.
+    return s.status === 'waiting' && (!!s.reason || (!!i.searchRunning && !i.searchRunning.value));
   });
   /** A run going whose worker has not said a word: since when (the run's start); null otherwise. */
   const silentSince = computed(() => {
