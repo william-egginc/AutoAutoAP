@@ -105,6 +105,9 @@ describe('the Build-up tracker under request churn', () => {
     t.retry();
     await nextTick();
     expect(t.state.value).toBe('working');
+    // ...and the cap holds again: the same churn, 8 minutes on, fails again rather than working it out for good.
+    await after(8 * 60_000 + 2_000);
+    expect(t.state.value).toBe('failed');
     stop();
     scope.stop();
   });

@@ -541,6 +541,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     buildUpLog('tracker retry');
     armStall();
     clearCap();
+    armCap();
   }
 
   /** A kept plan and a save still coming in: nothing to tick from that is settled yet (spec-anchornewer). */
@@ -577,28 +578,32 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const s = i.sim.value;
     return s?.status === 'waiting' && !s.reason && !!i.searchRunning?.value;
   });
+  /** The clock started, if the tracker is working it out and it is not going yet (a Try again starts it afresh). */
+  function armCap(): void {
+    if (beforeCap.value !== 'working' || capSince || searchWait.value) return;
+    capSince = Date.now();
+    capTimer = setTimeout(() => {
+      capTimer = null;
+      // Only a tracker still at it is capped (working it out, or failed and trying once more); one that has moved on
+      // (ready, nothing to buy) lets the clock go.
+      if (beforeCap.value !== 'working' && beforeCap.value !== 'failed') {
+        capSince = 0;
+        return;
+      }
+      const reason = trackerCapReason(Math.round(CAP.ms / 60_000));
+      buildUpLog(`tracker capped: ${reason} since it first said working it out`);
+      console.warn('My runs: the build-up list was not worked out:', reason);
+      capped.value = true;
+    }, CAP.ms);
+  }
   watch(
     [beforeCap, capKey, plan, searchWait],
-    ([s, key, p, forSearch]) => {
+    ([, key, p, forSearch]) => {
       if (key !== capFor || p || forSearch) {
         clearCap();
         capFor = key;
       }
-      if (s !== 'working' || capSince || forSearch) return;
-      capSince = Date.now();
-      capTimer = setTimeout(() => {
-        capTimer = null;
-        // Only a tracker still at it is capped (working it out, or failed and trying once more); one that has moved on
-        // (ready, nothing to buy) lets the clock go.
-        if (beforeCap.value !== 'working' && beforeCap.value !== 'failed') {
-          capSince = 0;
-          return;
-        }
-        const reason = trackerCapReason(Math.round(CAP.ms / 60_000));
-        buildUpLog(`tracker capped: ${reason} since it first said working it out`);
-        console.warn('My runs: the build-up list was not worked out:', reason);
-        capped.value = true;
-      }, CAP.ms);
+      armCap();
     },
     { immediate: true }
   );
