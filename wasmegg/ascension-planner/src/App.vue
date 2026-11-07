@@ -2125,6 +2125,9 @@ async function submitPlayerId(id: string) {
   loadingSaveFor = '';
 
   playerId.value = id;
+  // My runs sets this save up again (loadSaveForMyRuns), even for the same ID: this load leaves the pending Truth Eggs
+  // not rolled up, and a save with a TE not claimed yet then never matched (spec-webkit-tracker, 7 Nov 2026).
+  myRunsLoadFor = '';
   savePlayerID(id);
   // An account now: a save file loaded without one gives way to this account's own save (set up as on entering).
   if (uiStore.runSaveLoaded?.noAccount) uiStore.runSaveLoaded = null;

@@ -472,25 +472,34 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (s.status === 'done') return !i.fresh.value;
     return s.status === 'waiting' && !!s.reason;
   });
+  /** The bound from now, while waiting for nothing. */
+  function armStall(): void {
+    clearStall();
+    if (!idleWaiting.value) return;
+    stallTimer = setTimeout(() => {
+      stallTimer = null;
+      buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}`);
+      stalled.value = true;
+    }, STALL.ms);
+  }
+  /**
+   * The simulation's state in words. EQUAL IS UNCHANGED (spec-webkit-tracker, 7 Nov 2026: Safari said "working it
+   * out…" for 15 minutes and more with no Try again): useNowPage makes a new state object (its `simGap`) every time the
+   * followed route's state is worked out again, which its minute clock does every minute, so a bound started afresh on
+   * every new object never ran out.
+   */
+  const simSig = computed(() => {
+    const s = i.sim.value;
+    return s ? `${s.status}|${s.reason ?? ''}` : '';
+  });
   // Started afresh whenever the simulation's state changes (a retry, a new run): only an unchanged wait counts.
-  watch(
-    [idleWaiting, i.sim],
-    ([idle]) => {
-      clearStall();
-      if (!idle) return;
-      stallTimer = setTimeout(() => {
-        stallTimer = null;
-        buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}`);
-        stalled.value = true;
-      }, STALL.ms);
-    },
-    { immediate: true }
-  );
+  watch([idleWaiting, simSig], armStall, { immediate: true });
   onScopeDispose(clearStall);
-  /** Try again: the stall forgotten (the caller asks the simulation again). */
+  /** Try again: the stall forgotten (the caller asks the simulation again), and the bound from now if the wait goes on
+   *  unchanged (nothing new asked: the same state, so the watch above does not run again). */
   function retry(): void {
     buildUpLog('tracker retry');
-    clearStall();
+    armStall();
   }
 
   /** A kept plan and a save still coming in: nothing to tick from that is settled yet (spec-anchornewer). */
