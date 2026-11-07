@@ -487,27 +487,37 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   });
   /** A run going whose worker answered: it is simulating, bounded by useCurrentSim's `runMs`. */
   const workerAnswered = computed(() => !!i.simWorker?.value?.heard);
-  // Started afresh whenever the simulation's state changes (a retry, a new run): only an unchanged wait counts. A
-  // silent worker counts from its run's start, whatever changed meanwhile.
-  watch(
-    [idleWaiting, i.sim, silentSince, workerAnswered],
-    ([idle, , quiet, answered]) => {
-      clearStall();
-      const left = quiet !== null ? quiet + STALL.ms - Date.now() : idle && !answered ? STALL.ms : null;
-      if (left === null) return;
-      stallTimer = setTimeout(() => {
-        stallTimer = null;
-        buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}${quiet !== null ? ' (the worker said nothing)' : ''}`);
-        stalled.value = true;
-      }, Math.max(0, left));
-    },
-    { immediate: true }
-  );
+  /** The bound, while waiting for nothing: from now, or a silent worker from its run's start, whatever changed meanwhile. */
+  function armStall(): void {
+    clearStall();
+    const quiet = silentSince.value;
+    const left = quiet !== null ? quiet + STALL.ms - Date.now() : idleWaiting.value && !workerAnswered.value ? STALL.ms : null;
+    if (left === null) return;
+    stallTimer = setTimeout(() => {
+      stallTimer = null;
+      buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}${quiet !== null ? ' (the worker said nothing)' : ''}`);
+      stalled.value = true;
+    }, Math.max(0, left));
+  }
+  /**
+   * The simulation's state in words. EQUAL IS UNCHANGED (spec-webkit-tracker, 7 Nov 2026: Safari said "working it
+   * out…" for 15 minutes and more with no Try again): useNowPage makes a new state object (its `simGap`) every time the
+   * followed route's state is worked out again, which its minute clock does every minute, so a bound started afresh on
+   * every new object never ran out.
+   */
+  const simSig = computed(() => {
+    const s = i.sim.value;
+    return s ? `${s.status}|${s.reason ?? ''}` : '';
+  });
+  // Started afresh whenever the simulation's state changes in words (a retry, a new run) or a run's worker starts or
+  // answers: only an unchanged wait counts. A silent worker counts from its run's start (spec-stuck2).
+  watch([idleWaiting, simSig, silentSince, workerAnswered], armStall, { immediate: true });
   onScopeDispose(clearStall);
-  /** Try again: the stall forgotten (the caller asks the simulation again). */
+  /** Try again: the stall forgotten (the caller asks the simulation again), and the bound from now if the wait goes on
+   *  unchanged (nothing new asked: the same state, so the watch above does not run again). */
   function retry(): void {
     buildUpLog('tracker retry');
-    clearStall();
+    armStall();
   }
 
   /** A kept plan and a save still coming in: nothing to tick from that is settled yet (spec-anchornewer). */
