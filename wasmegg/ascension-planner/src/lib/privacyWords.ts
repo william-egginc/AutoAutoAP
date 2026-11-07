@@ -16,6 +16,7 @@ export const PRIVACY_TIP_LINES = [
   'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',
   'On the Leaderboard: only what you tick. Never your player ID or your save.',
   "Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.",
+  'A search expected to take over 2 hours tells the planner\'s server that it started and ended, with a random code for that search, its kind and its estimated time. Nothing about you. You can turn it off in Setup.',
 ];
 
 /** Science's "The leaderboard, and what is sent": the two sentences that said "Nothing is sent unless you tick it". */
