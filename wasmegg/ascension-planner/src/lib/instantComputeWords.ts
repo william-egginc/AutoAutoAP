@@ -5,5 +5,6 @@
  */
 
 /** BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags): the build-up failed, so the instant answer is not kept.
- *  Shown in My runs after "Prestige at <time>" (RightNowCard.vue now-follow-nosource), via instantFailureWords. */
-export const BUILD_UP_MISSING_FAILURE = "your build-up couldn't be worked out from your save";
+ *  Shown in My runs (RightNowCard.vue now-follow-nosource), which can show "Prestige at <time>" above it, so it
+ *  says not to prestige on this answer (the Words rule). */
+export const BUILD_UP_MISSING_FAILURE = "your build-up couldn't be worked out from your save, so do not prestige on this answer; reload to try again";

@@ -348,7 +348,7 @@ describe("the record My runs builds prices a route exactly as the instant answer
     vi.mocked(useChainSearchStore().buildUpTails).mockResolvedValue({ tails: [], failed: true, reason: 'worker lost' });
     const err = await computeInstantPricing(req(260, false), pool(), () => true).catch(e => e);
     expect(err).toBeInstanceOf(PlainFailure);
-    expect(instantFailureWords(err)).toBe("your build-up couldn't be worked out from your save");
+    expect(instantFailureWords(err)).toBe("your build-up couldn't be worked out from your save, so do not prestige on this answer; reload to try again");
     // Empty without a failure (nothing left to buy) is priced as before.
     vi.mocked(useChainSearchStore().buildUpTails).mockResolvedValue({ tails: [] });
     expect(await computeInstantPricing(req(260, false), pool(), () => true)).not.toBeNull();

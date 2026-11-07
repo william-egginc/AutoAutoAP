@@ -91,6 +91,7 @@ describe('the result code hash (vite.config.ts, at build time)', () => {
     // spec-r7verify: the instant answer's estimate line and Right now's fresh-start line are words only.
     expect(isWordingOnly('src/lib/instantWords.ts')).toBe(true);
     expect(isWordingOnly('src/lib/freshSoonerWords.ts')).toBe(true);
+    expect(isWordingOnly('src/lib/instantComputeWords.ts')).toBe(true);
     expect(isWordingOnly('src/lib/followSim.ts')).toBe(false);
     const t = tree();
     expect(resolveImport('src/search/chain.ts', './leg', t)).toBe('src/search/leg.ts');
