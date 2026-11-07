@@ -55,7 +55,7 @@ export function researchRangeWords(name: string, before: number, after: number, 
 /** The cheap sweep mark (DRAFT words): after a sweep name on a mixed line, or once at the end of an all-sweep line. */
 export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
 
-/** Why the Build-up tracker gave up when its plan took longer than its overall cap (DRAFT; spec-stuck3, 7 Nov 2026):
+/** Why the Build-up tracker gave up when its plan took longer than its overall cap (spec-stuck3; Jordan's OK, 7 Nov 2026):
  *  "The build-up list could not be worked out (it took over 8 minutes)." */
 export function trackerCapReason(minutes: number): string {
   return `it took over ${minutes} minutes`;
