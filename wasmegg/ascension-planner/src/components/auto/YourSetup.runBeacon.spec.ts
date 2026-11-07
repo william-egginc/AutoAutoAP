@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import { renderHtml } from '@/test/renderComponent';
+import { renderHtml, textOf } from '@/test/renderComponent';
+import { BEACON_SETUP_LABEL, BEACON_SETUP_LINE, BEACON_SETUP_OFF } from '@/lib/runBeaconWords';
 import { resetTabPrefsForTest } from '@/composables/useTabPrefs';
 import { RUN_BEACON_DEFAULT, RUN_BEACON_KEY, resetRunBeacon } from '@/lib/runBeacon';
 import YourSetup from './YourSetup.vue';
@@ -45,6 +46,14 @@ const inputOf = (html: string): string => {
   return html.slice(input, html.indexOf('>', input) + 1);
 };
 
+/** The line under the tick (data-testid="run-beacon-line"), its whole element. */
+const lineOf = (html: string): string => {
+  const at = html.indexOf('data-testid="run-beacon-line"');
+  expect(at).toBeGreaterThan(0);
+  const open = html.lastIndexOf('<p', at);
+  return html.slice(open, html.indexOf('</p>', at) + 4);
+};
+
 describe("Setup's long-run alert switch", () => {
   it('is in Sharing, in view, before the saved-online fold and before More options', async () => {
     withCollector();
@@ -55,7 +64,7 @@ describe("Setup's long-run alert switch", () => {
     expect(tick).toBeLessThan(html.indexOf('id="setup-more-body"'));
   });
 
-  it('a real checkbox with its label (DRAFT words), ticked by default', async () => {
+  it('a real checkbox with its label (lib/runBeaconWords.ts), ticked by default', async () => {
     withCollector();
     expect(RUN_BEACON_DEFAULT).toBe(true);
     const html = await docked();
@@ -66,13 +75,19 @@ describe("Setup's long-run alert switch", () => {
       html.indexOf('data-testid="run-beacon"'),
       html.indexOf('</label>', html.indexOf('data-testid="run-beacon"'))
     );
-    expect(label).toContain('Tell the maintainer about long searches');
+    expect(textOf(label)).toContain(BEACON_SETUP_LABEL);
+    // Words' line under the tick: what is sent while on, BEACON_SETUP_OFF while off.
+    const line = lineOf(html);
+    expect(textOf(line)).toBe(BEACON_SETUP_LINE);
+    expect(line).not.toContain(BEACON_SETUP_OFF);
   });
 
   it('unticked when this browser turned it off', async () => {
     withCollector();
     mem.set(RUN_BEACON_KEY, '0');
-    expect(inputOf(await docked())).not.toMatch(/\schecked[\s>=]/);
+    const html = await docked();
+    expect(inputOf(html)).not.toMatch(/\schecked[\s>=]/);
+    expect(textOf(lineOf(html))).toBe(BEACON_SETUP_OFF);
   });
 
   it('not shown with no collector', async () => {
