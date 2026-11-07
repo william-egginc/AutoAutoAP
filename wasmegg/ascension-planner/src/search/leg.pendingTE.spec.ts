@@ -20,7 +20,7 @@
  */
 import '../../scripts/node-shims';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PLAN_START, syntheticBackup, syntheticInputs } from '@/test/syntheticSave';
 import { TE_BREAKPOINTS, getThresholdForTE } from '@/lib/truthEggs';
 import { computeSnapshot } from '@/engine/compute';
@@ -116,5 +116,29 @@ describe('the farm in the save with one pending TE', () => {
     const st = continueState(inputs, base)!;
     expect(st.teEarned.integrity).toBe(45);
     expect(st.te).toBe(claimed + 45 - was);
+  });
+});
+
+// spec-workervirtue (6 Nov 2026): the workers' trimmed save lost its `virtue` block, and claimedTEEarned read that as
+// "0 claimed on every egg" (min(te, 0)), so every worker priced the farm in the save at TE 0. A save without the block
+// now falls back to the base state's TE (the behaviour before spec-pendingte), never 0, and says so once.
+describe('a save without a virtue block', () => {
+  it("falls back to the base state's TE, not 0, and warns once", async () => {
+    const { inputs, claimed } = await pendingInputs();
+    const raw = { ...(inputs.context.rawBackup as object), virtue: undefined };
+    const noVirtue = { ...inputs, context: { ...inputs.context, rawBackup: raw } } as typeof inputs;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const st = continueState(noVirtue, inputs.baseState)!;
+      expect(st.te).toBe(inputs.baseState.te);
+      expect(st.te).toBe(claimed + 1);
+      expect(st.teEarned).toEqual(inputs.baseState.teEarned);
+      continueState(noVirtue, inputs.baseState);
+      expect(warn.mock.calls.filter(c => String(c[0]).includes('virtue'))).toHaveLength(1);
+      // With the block, the claimed TE as before.
+      expect(continueState(inputs, inputs.baseState)!.te).toBe(claimed);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

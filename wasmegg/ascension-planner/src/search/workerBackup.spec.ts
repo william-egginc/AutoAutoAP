@@ -5,7 +5,8 @@
  *
  * The fixture (src/test/syntheticSave.ts) is synthetic (no player data) and deliberately carries everything the trim drops: a
  * home farm after the virtue farm, home-farm artifacts, a mission archive, colleggtible contracts,
- * and the usual identity fields. Its virtue farm is farms[0] with equipped artifacts, so the
+ * and the usual identity fields. Its `virtue` block has claimed TE on every egg (non-zero `eovEarned`), which
+ * `continueState` reads (search/leg.ts claimedTEEarned, spec-pendingte): a trim that drops it prices the farm at 0 TE. Its virtue farm is farms[0] with equipped artifacts, so the
  * continue variant (getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet on the
  * save's own habs and vehicles) runs, not only the fresh builds.
  *
@@ -19,7 +20,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { syntheticInputs } from '@/test/syntheticSave';
 import { createChainEvaluator } from './chain';
-import { continueTailParams, instantDeliveryScale, integrityWaitSeconds } from './leg';
+import { parseVirtueProgress } from '@/lib/backupVirtue';
+import { continueState, continueTailParams, instantDeliveryScale, integrityWaitSeconds } from './leg';
 import { inputsForWorkers, trimBackupForWorkers } from './workerBackup';
 import type { SearchInputs } from './types';
 
@@ -39,14 +41,29 @@ beforeAll(async () => {
 describe('trimBackupForWorkers', () => {
   it('keeps what the simulator reads, in the same nesting, and drops the rest', () => {
     const t: any = trimBackupForWorkers(rawFull, base.context);
-    expect(Object.keys(t).sort()).toEqual(['artifactsDb', 'farms', 'game']);
+    expect(Object.keys(t).sort()).toEqual(['artifactsDb', 'farms', 'game', 'virtue']);
     expect(Object.keys(t.artifactsDb).sort()).toEqual(['artifactStatus', 'virtueAfxDb']);
     expect(t.artifactsDb.virtueAfxDb).toEqual(rawFull.artifactsDb.virtueAfxDb);
     expect(t.farms).toHaveLength(1);
     expect(Object.keys(t.farms[0]).sort()).toEqual(['commonResearch', 'habs', 'trainLength', 'vehicles']);
     expect(t.game).toEqual({ permitLevel: 1, epicResearch: rawFull.game.epicResearch });
+    expect(t.virtue).toEqual(rawFull.virtue);
     expect(JSON.stringify(t).length).toBeLessThan(JSON.stringify(rawFull).length / 2);
   });
+
+  // spec-workervirtue (6 Nov 2026): the trim dropped `virtue`, so in every worker continueState priced the farm in
+  // the save at claimed TE 0 (aaap-tools notes/buildup-tails-iphone-2026-11-06.md).
+  it("keeps the save's virtue block: the farm in the save starts at the same claimed TE as with the full save", () => {
+    const sent = asSent(inputsForWorkers(base));
+    const full = asSent(base);
+    const v = parseVirtueProgress(sent.context.rawBackup as never);
+    expect(v).toEqual(parseVirtueProgress(rawFull));
+    expect(Object.values(v.teEarned).every(n => n > 0)).toBe(true);
+    const pick = (s: ReturnType<typeof continueState>) => ({ te: s!.te, teEarned: s!.teEarned, eggsDelivered: s!.eggsDelivered });
+    const trimmedState = pick(continueState(sent, sent.baseState));
+    expect(trimmedState).toEqual(pick(continueState(full, full.baseState)));
+    expect(trimmedState.te).toBeGreaterThan(0);
+  }, 120_000);
 
   it('keeps the contracts only when the context has no colleggtible modifiers to use instead', () => {
     const t: any = trimBackupForWorkers(rawFull, { colleggtibleModifiers: undefined as never });
@@ -127,6 +144,8 @@ describe('a worker given the trimmed save prices chains exactly as with the full
       /^\.farms(\.length)?$/,
       /^\.farms\.0(\.(habs|vehicles|trainLength|commonResearch)(\..*)?)?$/,
       /^\.game(\.(permitLevel|epicResearch)(\..*)?)?$/,
+      // The claimed TE (search/leg.ts claimedTEEarned via lib/backupVirtue.ts parseVirtueProgress).
+      /^\.virtue(\..*)?$/,
       // Not a read of the save: Joo's `'pool' in source` probe (lib/artifacts/virtue.ts isDeliverySearch) asks
       // whether it was handed loadout inputs instead of a backup. It reads nothing from the save itself.
       /^\.pool$/,
