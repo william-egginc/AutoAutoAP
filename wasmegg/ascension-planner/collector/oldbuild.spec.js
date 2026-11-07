@@ -48,7 +48,7 @@ function makeKV() {
 
 
 
-const CUT = '2026-10-23T00:00:00.000Z';
+const CUT = '2026-10-23T00:13:48.000Z';
 const MESSAGE = 'This page is an old version: reload to send.';
 const T = Math.floor(Date.UTC(2026, 10, 6, 18, 0, 0) / 1000);
 const TOKEN_A = 'a'.repeat(32);
@@ -89,7 +89,7 @@ describe('/submit', () => {
     expect((await submitWith({ schema: 7, nickname: 'Upload page' }, ['build'])).status).toBe(200);
   });
   it('takes the cutoff itself and anything newer, and refuses the millisecond before it', async () => {
-    expect((await submitWith({ build: '2026-10-22T23:59:59.999Z' })).status).toBe(426);
+    expect((await submitWith({ build: '2026-10-23T00:13:47.999Z' })).status).toBe(426);
     expect((await submitWith({ build: CUT })).status).toBe(200);
     expect((await submitWith({ build: '2026-11-04T17:18:24.914Z' })).status).toBe(200);
   });
@@ -188,7 +188,7 @@ describe('/instant', () => {
   });
   it("takes Release 5's build and refuses the minute before the cutoff", async () => {
     expect((await instant({ ...RECORD, build: '2026-10-23T00:13:48.665Z' })).status).toBe(200);
-    expect((await instant({ ...RECORD, build: '2026-10-22T23:59:00.000Z', planStart: T + 9 })).status).toBe(426);
+    expect((await instant({ ...RECORD, build: '2026-10-23T00:13:00.000Z', planStart: T + 9 })).status).toBe(426);
   });
   it('takes a new build, and a non-date build is not judged', async () => {
     expect((await instant({ ...RECORD, build: '2026-11-04T17:18:24.914Z' })).status).toBe(200);

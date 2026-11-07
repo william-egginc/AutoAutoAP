@@ -99,7 +99,7 @@ RANK_NEEDS_EVIDENCE = "1"
 
 # Pages built before this time are told to reload and refused (426) on /submit, /instant and /follow: see oldbuild.js
 # and README "Old builds". An ISO time; delete the line to turn it off, raise it to refuse more.
-MIN_BUILD_STAMP = "2026-10-23T00:00:00Z"
+MIN_BUILD_STAMP = "2026-10-23T00:13:48.000Z"
 
 # "Follow in the cloud" (follow.js): per-address, counted at the edge, no D1 or KV spent. 60 a minute for GET and
 # PUT each (the app reads once when an ID is entered and writes only when Follow is pressed). The per-key
