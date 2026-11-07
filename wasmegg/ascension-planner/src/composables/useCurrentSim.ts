@@ -58,13 +58,26 @@ export type SimState =
 
 type DoneState = Extract<SimState, { status: 'done' }>;
 
+/**
+ * The run going and its chain worker (spec-stuck2, 7 Nov 2026): `since` the run started, or the worker's last message;
+ * `heard` once the worker has said anything (its start-up answer, a heartbeat). Null when no run is going. The Build-up
+ * tracker's stall reads it: a worker silent since the run started is gone or never loaded; one that answered is
+ * simulating, which sends nothing until it ends (one route, one chain), and is left to `runMs`.
+ */
+export interface SimWorker {
+  since: number;
+  heard: boolean;
+}
+
 /** What simulates one route (a chain worker pool of one). */
 export interface SimRunner {
   /** Every segment the one-stop route comes back with (one leg; with time off, the cut leg and the rebuild). */
   run(
     inputs: SearchInputs,
     chain: number[],
-    opts?: { keepPurchases?: boolean }
+    opts?: { keepPurchases?: boolean },
+    /** Called on every message from the worker (search/pool.ts `onMessage`). */
+    heard?: () => void
   ): Promise<LegSummary[] | LegSummary | null>;
   terminate(): void;
 }
@@ -75,9 +88,9 @@ async function defaultRunner(): Promise<SimRunner | null> {
   let pool: import('@/search/pool').ChainSearchPool | null = null;
   let gone = false;
   return {
-    async run(inputs, chain, opts) {
+    async run(inputs, chain, opts, heard) {
       const t0 = perfStart('sim pool create');
-      pool = await createChainSearchPool(inputs, { size: 1 });
+      pool = await createChainSearchPool(inputs, { size: 1, ...(heard ? { onMessage: heard } : {}) });
       perfEnd('sim pool create', t0);
       if (gone) {
         pool.terminate();
@@ -150,9 +163,10 @@ function simulatedFrom(inputs: SearchInputs, requestTime: number): NonNullable<B
   const farm = saveFarmFor(inputs.currentFarmState ?? saveFarmOf(raw), null);
   return { backupTime: backupSecondsOf(raw) || requestTime, ...(farm ? { farm } : {}) };
 }
-/** The words of a failure, short and without any ID (an error message names no account). */
+/** The words of a failure, short and without any ID (an error message names no account). The error's own message,
+ *  never its type: "Error: …" / "RangeError: …" read as raw code on Right now and in the tracker (spec-stuck2). */
 function reasonOf(err: unknown): string {
-  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  const text = (err instanceof Error ? err.message || err.name : String(err)).replace(/^\w*Error: /, '');
   return text.replace(/EI\d{16}/gi, 'EI…').slice(0, 160);
 }
 
@@ -175,6 +189,8 @@ export function useCurrentSim(
   }
   /** It has run `slowMs` without an answer. */
   const slow = ref(false);
+  /** The run going and whether its worker has said anything (`SimWorker`); null when none is going. */
+  const worker = shallowRef<SimWorker | null>(null);
   let runner: SimRunner | null = null;
   let runningKey: string | null = null;
   /** Whether the run going asked for the plan (read when it ends: wanted since?). */
@@ -193,6 +209,7 @@ export function useCurrentSim(
   function letGo(): void {
     ++asked;
     runningKey = null;
+    worker.value = null;
     clearTimers();
     runner?.terminate();
     runner = null;
@@ -211,6 +228,11 @@ export function useCurrentSim(
     }, timing.delayMs);
   }
   async function run(req: SimRequest, id: number, have: DoneState | null = null): Promise<void> {
+    worker.value = { since: Date.now(), heard: false };
+    /** A word from this run's worker (any message): it is alive. */
+    const heard = (): void => {
+      if (id === asked) worker.value = { since: Date.now(), heard: true };
+    };
     slowTimer = setTimeout(() => {
       slowTimer = null;
       if (id === asked) slow.value = true;
@@ -221,7 +243,7 @@ export function useCurrentSim(
     // failure of its own would be. A timer beside the run, so the run's own path is not changed.
     const runTimer = setTimeout(() => {
       if (id !== asked) return;
-      const reason = `Error: it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
+      const reason = `it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
       console.warn('My runs: simulating the ascension you are in failed:', reason);
       buildUpLog(`run timed out${have ? ' (planFailed)' : ''}: ${reason}`);
       letGo();
@@ -248,7 +270,9 @@ export function useCurrentSim(
       const want = !!unref(wantBuildUp);
       wantAsked = want;
       buildUpLog(`run started${want ? ' with the plan' : ''} key ${shortKey(req.key)}`);
-      const got = await (want ? r.run(inputs, [req.route[0]], { keepPurchases: true }) : r.run(inputs, [req.route[0]]));
+      const got = await (want
+        ? r.run(inputs, [req.route[0]], { keepPurchases: true }, heard)
+        : r.run(inputs, [req.route[0]], undefined, heard));
       const leg = perfStep('simLegFromSegments', () =>
         simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
           timeOff: inputs.timeOff,
@@ -313,6 +337,7 @@ export function useCurrentSim(
     runner?.terminate();
     runner = null;
     runningKey = null;
+    worker.value = null;
     clearTimers();
     setState(result, result.status);
     // STOPPED → NEVER STUCK (spec-buildstop): the plan became wanted while a run without it was going (the fold opened,
@@ -428,5 +453,5 @@ export function useCurrentSim(
     }
     schedule(req, have);
   }
-  return { state, slow, retry };
+  return { state, slow, retry, worker };
 }

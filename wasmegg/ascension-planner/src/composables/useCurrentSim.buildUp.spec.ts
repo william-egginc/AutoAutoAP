@@ -86,11 +86,12 @@ function mount(want?: boolean | ReturnType<typeof ref<boolean>>) {
 }
 
 describe('useCurrentSim, wantBuildUp', () => {
-  it('off (the default): the run is asked as before (two arguments) and the state has no plan', async () => {
+  it('off (the default): the run is asked as before (no options; the worker-heard hook only) and the state has no plan', async () => {
     const m = mount();
     await flush();
     expect(runs).toHaveLength(1);
-    expect(runs[0].args).toHaveLength(2);
+    expect(runs[0].args[2]).toBeUndefined();
+    expect(typeof runs[0].args[3]).toBe('function');
     runs[0].resolve(legOf(false));
     await flush();
     expect(m.state.value).toMatchObject({ status: 'done' });

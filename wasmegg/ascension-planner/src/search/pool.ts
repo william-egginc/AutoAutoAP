@@ -182,6 +182,11 @@ export interface PoolOptions {
    * memory kill or a script that would not load looks), and how many requests it had in hand.
    */
   onFault?: (f: PoolFault) => void;
+  /**
+   * Any message from any worker (a start-up answer, a heartbeat, a reply), as it arrives. For a caller that bounds its
+   * own wait on worker silence (composables/useCurrentSim.ts: the Build-up tracker's stall, spec-stuck2).
+   */
+  onMessage?: () => void;
 }
 
 /** One worker failure (`PoolOptions.onFault`). */
@@ -414,6 +419,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       const t0 = perfStart('worker reply read', true);
       const msg = event.data;
       if (t0 !== null) perfEnd(`worker reply read (${msg?.type ?? '?'})`, t0);
+      opts.onMessage?.();
       if ('heapMB' in msg && typeof msg.heapMB === 'number') pw.heapMB = msg.heapMB;
       if ('memoEntries' in msg && typeof msg.memoEntries === 'number') pw.memoEntries = msg.memoEntries;
       if ('memoCapacity' in msg && typeof msg.memoCapacity === 'number') pw.memoCapacity = msg.memoCapacity;
