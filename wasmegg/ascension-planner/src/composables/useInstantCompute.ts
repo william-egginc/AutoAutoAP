@@ -20,6 +20,7 @@
  */
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 import { recordPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
+import { BUILD_UP_MISSING_FAILURE } from '@/lib/instantComputeWords';
 import { plainError } from '@/lib/plainError';
 import { MAXED_TABLE_FILE } from '@/search/tableBracket';
 import { tableLoadFailed, tableNewerThanPage } from '@/search/tableFetch';
@@ -113,7 +114,7 @@ export async function computeInstantPricing(req: InstantComputeRequest, p: Insta
   if (!legs || !alive()) return null;
   // BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags): a build-up that failed is never kept as the pricing
   // (it would price only a fresh prestige and continue); a failure is tried again on the next page load.
-  if (legs.legsRequest.buildUpMissing) throw new PlainFailure("your build-up couldn't be worked out from your save");
+  if (legs.legsRequest.buildUpMissing) throw new PlainFailure(BUILD_UP_MISSING_FAILURE);
   const pricing = snapPricing(
     instantPricingOptions({ te, start: inputs.planStart, firstLegs: legs.firstLegs, scale, hours, tail: legs.tail }),
     req.final
