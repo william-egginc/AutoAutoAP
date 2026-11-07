@@ -68,6 +68,7 @@ import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
 import { handleAnswers, isAnswersRequest } from './answers.js';
+import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
@@ -3245,6 +3246,8 @@ export default {
       } catch {
         return json({ error: 'body must be JSON' }, 400);
       }
+      // MIN_BUILD_STAMP (see oldbuild.js): an old page is told to reload, before anything is validated or stored.
+      if (oldBuild(env, body?.build, !(Number(body?.schema) >= 7))) return json(OLD_BUILD_BODY, 426);
 
       const problems = validateSubmission(body);
       if (problems.length) return json({ error: 'rejected', problems }, 400);
@@ -4102,6 +4105,7 @@ export default {
       } catch {
         return json({ error: 'body must be JSON' }, 400);
       }
+      if (oldBuild(env, body?.build, false)) return json(OLD_BUILD_BODY, 426);
       const { record, problems } = pickInstant(body);
       if (!record) return json({ error: 'rejected', problems }, 400);
       const now = Date.now();

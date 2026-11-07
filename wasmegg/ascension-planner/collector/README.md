@@ -1208,3 +1208,6 @@ save hash, the Setup key and the table identity / rules.
   under `answers|<key>`), 20,000 entries in all, `FOLLOW_LIMIT` per address. D1 (the `WATCH` binding), migration
   `0006_answers.sql` (one table; the data is base64 text because D1 returns BLOBs as number arrays). No KV, no R2.
 - An older collector answers `/answers` with 404: the app treats it as "no cloud answers here".
+
+## Old builds (`MIN_BUILD_STAMP`, 6 Nov 2026)
+Env var (wrangler.toml `[vars]`), an ISO time; unset or unreadable = off. Live: `2026-10-23T00:00:00Z`, just before Release 5's live build (`2026-10-23T00:13:48Z`), which and every later build pass. A write from an older build is `426 { error: 'old build', problems: ['This page is an old version: reload to send.'], reload: true }`, and nothing is stored or counted; an old client shows the problem as it is ("Not sent: collector said 426: ..."). Checked where a stamp is sent: `/submit` (`build`; a missing one only counts as old at schema 6 and below, because the Insights upload page leaves it out on purpose), `/instant` (`build`) and `/follow` (`value.build`, optional). A stamp that is not an ISO time (a commit name) is not judged. `/csv`, `/csvd` and `/bigcsv` carry no stamp but need tokens only an accepted `/submit` issues. It is the sender's word: it turns away an honest old tab, not a forger.

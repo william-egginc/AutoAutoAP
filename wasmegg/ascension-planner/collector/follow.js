@@ -20,6 +20,8 @@
  * field (`readValue`): a field that is out of bounds refuses the write with its name; an unknown field is dropped.
  */
 
+import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
+
 export const FOLLOW_MAX_BODY = 6 * 1024;
 export const FOLLOW_MAX_VALUE = 4096;
 export const FOLLOW_VERSIONS = 5;
@@ -202,6 +204,8 @@ export async function handleFollow(request, env, now = Date.now()) {
   }
   if (problems.length) return reply({ error: 'rejected', problems }, 400);
   const { k, value: valueText } = { k: body.k, value: checked.text };
+  // MIN_BUILD_STAMP (oldbuild.js): the value's build stamp is optional here, so only a stamp that is old is refused.
+  if (oldBuild(env, checked.value.build, false)) return reply(OLD_BUILD_BODY, 426);
 
   // The latest stored version of this goal: an equal value is not stored again.
   const latest = await env.WATCH.prepare(
