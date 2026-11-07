@@ -10,6 +10,10 @@
  *   - AAP_EGG_BETA_RELOAD_AT=<ISO time>: adds `eggBeta: { reloadAt, builtAt }`. Tabs built with this code, on the
  *     egg-beta host only, and older than `builtAt`, count down to `reloadAt` and reload then, never during a search
  *     (lib/eggBetaReload.ts). A later build without the var drops the field and turns it off.
+ *
+ * A PLANNED UPDATE (7 Nov 2026, any build): AAP_RELOAD_PLANNED_AT=<ISO time> adds `reloadPlanned: { at }` (with `note`
+ * from AAP_RELOAD_PLANNED_NOTE, at most 200 characters), so a page whose long search is running asks its player to
+ * message the maintainer before that time (lib/reloadPlanned.ts). Unset: no field, the body exactly as before.
  * An unreadable time throws, so the deploy fails instead of shipping nonsense.
  */
 export type BuildEnv = Record<string, string | undefined>;
@@ -23,7 +27,11 @@ export interface VersionJsonBody {
   [entry: string]: unknown;
   release: { reloadIfBuiltBefore: string; note: string; history: unknown[] };
   eggBeta?: { reloadAt: string; builtAt: string };
+  reloadPlanned?: { at: string; note?: string };
 }
+
+/** The owner's note for a planned update, at most this long (lib/reloadPlanned.ts RELOAD_PLANNED_NOTE_MAX). */
+const PLANNED_NOTE_MAX = 200;
 
 /** The env var's value, '' when unset or blank. */
 function envValue(env: BuildEnv, name: string): string {
@@ -68,5 +76,12 @@ export function versionJsonBody(
     },
   };
   if (eggBetaBuild(env)) body.eggBeta = { reloadAt: envTime(env, 'AAP_EGG_BETA_RELOAD_AT', buildTime), builtAt: buildTime };
+  if (envValue(env, 'AAP_RELOAD_PLANNED_AT')) {
+    const note = envValue(env, 'AAP_RELOAD_PLANNED_NOTE');
+    if (note.length > PLANNED_NOTE_MAX) {
+      throw new Error(`AAP_RELOAD_PLANNED_NOTE is ${note.length} characters; at most ${PLANNED_NOTE_MAX}`);
+    }
+    body.reloadPlanned = { at: envTime(env, 'AAP_RELOAD_PLANNED_AT', buildTime), ...(note ? { note } : {}) };
+  }
   return body;
 }

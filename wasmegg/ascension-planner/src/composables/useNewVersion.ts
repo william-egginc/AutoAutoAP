@@ -26,7 +26,7 @@
  * and a new build shows its banner in every tab at once, including ones hidden behind the one that
  * looked.
  */
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { buildIdFrom, startBuildCount } from '@/lib/buildCount';
 import { listNotes, type ListedNote, type RunningBuild } from '@/lib/updateNotes';
 
@@ -202,6 +202,10 @@ interface Seen {
 
 const CHANNEL = 'aap-new-version';
 
+/** The last version.json this page read (or another tab told it of), whatever build it names; null before the first.
+ *  lib/reloadPlanned.ts reads its `reloadPlanned` from here, so a planned update needs no poller of its own. */
+export const liveVersionJson = shallowRef<LiveEntries | null>(null);
+
 /**
  * `available` turns true once a newer build is live. `pageUrl` is the page's HTML (relative to this
  * page) for the fallback, `entry` the script name to compare.
@@ -245,6 +249,7 @@ export function useNewVersion(pageUrl: string, entry: string) {
     try {
       const entries = await fetchEntries();
       if (entries && liveEntryFrom(entries, entry)) {
+        liveVersionJson.value = entries;
         if (isNewerEntry(entries, loadedSrc, entry)) {
           release.value = raiseLevel(available.value ? release.value : null, releaseFrom(entries));
           available.value = true;
@@ -268,6 +273,7 @@ export function useNewVersion(pageUrl: string, entry: string) {
   const onSeen = (e: MessageEvent<Seen>) => {
     if (e.data?.kind !== 'seen') return;
     lastChecked = Date.now();
+    if (e.data.entries && typeof e.data.entries === 'object') liveVersionJson.value = e.data.entries;
     if (isNewerEntry(e.data.entries, loadedSrc, entry)) {
       release.value = raiseLevel(available.value ? release.value : null, releaseFrom(e.data.entries));
       available.value = true;

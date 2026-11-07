@@ -56,3 +56,38 @@ describe('versionJsonBody', () => {
     expect(src).toMatch(/__AAP_EGG_BETA_RELOAD__:\s*JSON\.stringify\(eggBetaBuild\(process\.env\)\)/);
   });
 });
+
+describe('reloadPlanned (the planned-update notice, lib/reloadPlanned.ts)', () => {
+  it('unset: no field, the body exactly as before', () => {
+    const body = versionJsonBody(entries, release, { AAP_RELOAD_PLANNED_AT: ' ', AAP_RELOAD_PLANNED_NOTE: 'x' }, BUILT);
+    expect(body).not.toHaveProperty('reloadPlanned');
+    expect(JSON.stringify(body)).toBe(JSON.stringify(versionJsonBody(entries, release, {}, BUILT)));
+  });
+
+  it('AAP_RELOAD_PLANNED_AT writes reloadPlanned.at (normalised ISO), with the note when given', () => {
+    expect(versionJsonBody(entries, release, { AAP_RELOAD_PLANNED_AT: '2026-11-08T03:00:00Z' }, BUILT).reloadPlanned).toEqual({
+      at: '2026-11-08T03:00:00.000Z',
+    });
+    expect(
+      versionJsonBody(
+        entries,
+        release,
+        { AAP_RELOAD_PLANNED_AT: '2026-11-08T03:00:00Z', AAP_RELOAD_PLANNED_NOTE: ' New tables ' },
+        BUILT
+      ).reloadPlanned
+    ).toEqual({ at: '2026-11-08T03:00:00.000Z', note: 'New tables' });
+  });
+
+  it('does not touch release or eggBeta', () => {
+    const body = versionJsonBody(entries, release, { AAP_RELOAD_PLANNED_AT: '2026-11-08T03:00:00Z' }, BUILT);
+    expect(body.release.reloadIfBuiltBefore).toBe(release.reloadIfBuiltBefore);
+    expect(body).not.toHaveProperty('eggBeta');
+  });
+
+  it('an unreadable time or a note over 200 characters fails the build', () => {
+    expect(() => versionJsonBody(entries, release, { AAP_RELOAD_PLANNED_AT: 'tonight' }, BUILT)).toThrow(/AAP_RELOAD_PLANNED_AT/);
+    expect(() =>
+      versionJsonBody(entries, release, { AAP_RELOAD_PLANNED_AT: '2026-11-08T03:00:00Z', AAP_RELOAD_PLANNED_NOTE: 'x'.repeat(201) }, BUILT)
+    ).toThrow(/AAP_RELOAD_PLANNED_NOTE/);
+  });
+});

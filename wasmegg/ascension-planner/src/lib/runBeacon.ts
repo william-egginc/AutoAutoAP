@@ -23,6 +23,9 @@
  * the watcher reopened, a sweep queue's later boxes) sends nothing. The store's run watcher calls `runBeaconRunEnded`, and
  * its pagehide `runBeaconPageClosing` (sendBeacon). A stop only follows a start this page sent, and only once.
  *
+ * THE PLANNED-UPDATE BANNER (ReloadPlannedBanner.vue, lib/reloadPlanned.ts) reads `longRun`: a long run started with Run,
+ * switch on or off (the banner is local); only the sends follow the switch.
+ *
  * NEVER TOUCHES THE RUN. Every hook returns nothing to wait on, and every step is in try/catch; a fetch is bounded by
  * BEACON_TIMEOUT_MS and its promise caught; the answer (200, 404, 429, 503, anything) is ignored. Nothing is sent with
  * the switch off (`beaconEnabled`), offline, or with no collector.
@@ -32,13 +35,15 @@
  * gate is one function, `beaconEnabled`: tying the alert to "Help improve the planner" instead (Words' Option 2) changes
  * only that function (and drops the Setup tick).
  */
-import { ref, watch, type Ref } from 'vue';
+import { computed, ref, shallowRef, watch, type Ref } from 'vue';
 import { appBuildId } from '@/search/submission';
 import type { SearchOption } from '@/lib/searchOption';
+import { BEACON_MIN_HOURS } from '@/lib/runBeaconWords';
 
-/** A run estimated at this or more announces itself (Jordan: over 2 hours). The collector takes 0.25 hours and up, so
- *  this can change without a collector change. */
-export const BEACON_MIN_SECONDS = 7200;
+/** A run estimated at this or more announces itself and shows the banner (Jordan: 2 hours; one number, Words'
+ *  BEACON_MIN_HOURS in lib/runBeaconWords.ts). The collector takes 0.25 hours and up, so this can change without a
+ *  collector change. */
+export const BEACON_MIN_SECONDS = BEACON_MIN_HOURS * 3600;
 /** The Setup switch's default: ON for now. Jordan may make it opt-in: change this one line (and its pin in
  *  runBeacon.spec.ts). */
 export const RUN_BEACON_DEFAULT = true;
@@ -141,6 +146,21 @@ let startedUnarmed: { url: string; at: number } | null = null;
 /** The run this page announced and has not yet said ended. */
 let current: { run: string; url: string } | null = null;
 
+/** The long run going now (started with Run, estimated at BEACON_MIN_SECONDS or more), switch on or off: its estimate
+ *  and when it started. For the planned-refresh banner (ReloadPlannedBanner.vue, lib/reloadPlanned.ts), which is local
+ *  and does not depend on the switch (Jordan, 7 Nov 2026); only the sends follow the switch. Never the run code. */
+export interface LongRun {
+  estimateSeconds: number;
+  startedAt: number;
+}
+const going = shallowRef<LongRun | null>(null);
+/** The long run going now, or null (read only). */
+export const longRun = computed<LongRun | null>(() => going.value);
+function forget(): void {
+  current = null;
+  going.value = null;
+}
+
 const online = (): boolean => {
   try {
     return typeof navigator === 'undefined' || navigator.onLine !== false;
@@ -165,16 +185,21 @@ function post(url: string, body: string): void {
   }
 }
 
-function send(url: string, kind: BeaconKind, estimateSeconds: number): void {
+/** A long run started with Run: `longRun` (the planned-update banner reads it), always; the start, when the switch is on
+ *  and the page online. No collector (a self-hosted copy): neither, since its updates are not the maintainer's. */
+function longRunStarted(url: string, kind: BeaconKind, estimateSeconds: number): void {
   try {
-    if (!url || !canSend()) return;
+    if (!url) return;
+    const startedAt = Date.now();
+    going.value = { estimateSeconds, startedAt };
+    if (!canSend()) return;
     const run = makeRunCode();
     if (run.length !== RUN_CODE_LENGTH) return;
     const estHours = Math.min(2000, Math.max(0.25, Math.round((estimateSeconds / 3600) * 100) / 100));
     const stamp = appBuildId();
     const build = BUILD_RE.test(stamp) ? stamp : 'unknown';
     current = { run, url };
-    post(url, JSON.stringify({ t: 'start', run, kind, estHours, build, startedAt: Date.now() }));
+    post(url, JSON.stringify({ t: 'start', run, kind, estHours, build, startedAt }));
   } catch {
     current = null;
   }
@@ -191,10 +216,10 @@ export function armLongRun(kind: BeaconKind, estimateSeconds: number | null | un
     )
       return;
     const now = Date.now();
-    if (startedUnarmed && now - startedUnarmed.at <= ARM_WINDOW_MS && !current) {
+    if (startedUnarmed && now - startedUnarmed.at <= ARM_WINDOW_MS && !going.value) {
       const { url } = startedUnarmed;
       startedUnarmed = null;
-      send(url, kind, estimateSeconds);
+      longRunStarted(url, kind, estimateSeconds);
       return;
     }
     armed = { kind, estimateSeconds, at: now };
@@ -211,8 +236,8 @@ export function runBeaconRunStarted(submitUrl: string): void {
     const a = armed;
     armed = null;
     startedUnarmed = null;
-    if (current) return;
-    if (a && now - a.at <= ARM_WINDOW_MS) send(url, a.kind, a.estimateSeconds);
+    if (going.value) return;
+    if (a && now - a.at <= ARM_WINDOW_MS) longRunStarted(url, a.kind, a.estimateSeconds);
     else startedUnarmed = { url, at: now };
   } catch {
     /* nothing */
@@ -224,7 +249,7 @@ export function runBeaconRunEnded(how: RunEnd): void {
   try {
     startedUnarmed = null;
     const c = current;
-    current = null;
+    forget();
     if (!c || !canSend()) return;
     post(c.url, JSON.stringify({ t: 'stop', run: c.run, reason: REASON[how] ?? 'failed' }));
   } catch {
@@ -236,7 +261,7 @@ export function runBeaconRunEnded(how: RunEnd): void {
 export function runBeaconPageClosing(): void {
   try {
     const c = current;
-    current = null;
+    forget();
     if (!c || !canSend()) return;
     const body = JSON.stringify({ t: 'stop', run: c.run, reason: 'closed' });
     let queued = false;
@@ -256,6 +281,6 @@ export function runBeaconPageClosing(): void {
 export function resetRunBeacon(): void {
   armed = null;
   startedUnarmed = null;
-  current = null;
+  forget();
   shared = null;
 }
