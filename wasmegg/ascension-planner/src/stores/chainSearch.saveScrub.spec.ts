@@ -31,7 +31,7 @@ import { getNextSaleEnd } from '@/lib/events';
 import { followKey } from '@/lib/followCloud';
 import { hashID } from '@/lib/storage/db';
 import { computeInstantPricing, type InstantPool } from '@/composables/useInstantCompute';
-import { NO_ACCOUNT_LINE, PLACEHOLDER_ID, scrubPlayerIds } from '@/lib/saveScrub';
+import { blankLinkingIds, NO_ACCOUNT_LINE, PLACEHOLDER_ID, scrubPlayerIds } from '@/lib/saveScrub';
 import RunSaveNotice from '@/components/auto/RunSaveNotice.vue';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
@@ -183,7 +183,9 @@ describe('(1) "Download this save" writes no player ID', () => {
     const out = await useChainSearchStore().entrySaveFile(ID, kept);
     expect(out).not.toBeNull();
     expect(leftovers(out!.text)).toEqual([]);
-    expect(out!.text).toBe(backupText(raw).replaceAll(ID, PLACEHOLDER_ID));
+    // The rest as it was, but for the ids that link two downloads (red team P5: blankLinkingIds, its own spec
+    // chainSearch.saveScrubP5.spec.ts).
+    expect(out!.text).toBe(backupText(blankLinkingIds(raw)).replaceAll(ID, PLACEHOLDER_ID));
     expect(out!.name).not.toMatch(/EI\d/i);
   });
 });

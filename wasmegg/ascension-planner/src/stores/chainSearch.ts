@@ -336,7 +336,14 @@ import {
   type EntrySave,
   type KeptSaveSummary,
 } from '@/search/keptSaves';
-import { blankDeviceIds, idFromScreen, isPlaceholderId, sameAccountId, scrubPlayerIds } from '@/lib/saveScrub';
+import {
+  blankDeviceIds,
+  blankLinkingIds,
+  idFromScreen,
+  isPlaceholderId,
+  sameAccountId,
+  scrubPlayerIds,
+} from '@/lib/saveScrub';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -7428,8 +7435,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
-    // The device identifiers blank too (R7 red team, finding 1).
-    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankDeviceIds(raw))) };
+    // The device identifiers blank too (R7 red team, finding 1), and the item and mission ids that link two downloads
+    // of one account and the other players it reported (red team P5, lib/saveScrub.ts `blankLinkingIds`).
+    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankLinkingIds(blankDeviceIds(raw)))) };
   }
 
   /**
