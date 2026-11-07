@@ -15,9 +15,13 @@ export const BEACON_SETUP_LINE =
 /** The line under the tick when it is off. */
 export const BEACON_SETUP_OFF = 'Off: long searches are not reported.';
 
-/** The banner shown to the person who starts a long search (closable). `estimate` as "3 h 30 min", `until` as "7:34 pm". */
-export function longRunBannerWords(estimate: string, until: string): string {
-  return `This search should take about ${estimate} (until about ${until}). Please message Williamthe5thc on Discord so site updates wait for it.`;
+/**
+ * The banner (closable), shown only when the maintainer plans a forced update of the site and only on a page whose long
+ * search is still running (not reported stopped). `plannedAt` as "3:00 pm" (12-hour, the player's zone). The update
+ * reloads the page and a reload stops a running search (App.vue), so the line says so, then what to do.
+ */
+export function longRunBannerWords(plannedAt: string): string {
+  return `The site will update at about ${plannedAt}, and the update reloads this page, which would stop your search. Please message Williamthe5thc on Discord and the update will wait for it.`;
 }
 /** The banner's close button, for screen readers and its visible text. */
 export const LONG_RUN_BANNER_CLOSE = 'Close';
