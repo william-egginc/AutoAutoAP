@@ -12,6 +12,7 @@ import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
 import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
 import { resultCodeHash } from './src/lib/resultCodeHash';
 import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
+import { withAppLoadWatch } from './src/lib/appLoadWatch';
 import {
   BROTLI_TYPES,
   digest,
@@ -501,6 +502,21 @@ function collectorEarlyStart(submitUrl: string | undefined): Plugin {
   };
 }
 
+/**
+ * THE PLANNER THAT NEVER LOADS (src/lib/appLoadWatch.ts, spec-stuck2): index.html's "Loading the planner…" line says
+ * the planner is taking too long, with a reload hint, when the app has not mounted in time (its scripts hung or failed).
+ * index.html only; the inline script is hashed into the policy like the others (securityHeaders).
+ */
+function appLoadWatch(): Plugin {
+  return {
+    name: 'aap-app-load-watch',
+    transformIndexHtml(html, ctx) {
+      if (path.basename(ctx.filename) !== 'index.html') return;
+      return withAppLoadWatch(html);
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // vite.config.ts is evaluated before vite loads .env files, so `process.env` here holds only
@@ -554,6 +570,7 @@ export default defineConfig(({ mode }) => {
       immutableAssets(),
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
+      appLoadWatch(),
     ],
     define: {
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
