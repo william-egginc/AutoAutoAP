@@ -40,6 +40,7 @@ import { insideHoursFor, readFilters, readInsideHoursChoice } from '@/search/ins
 import { isConstrained } from '@/search/availability';
 import { virtueInventory } from '@/search/csv';
 import { accountOf } from '@/search/runSaves';
+import { plannerStartTEOf } from '@/lib/teOverrideAccount';
 import { loadHistory, type CheckEntry } from '@/search/checkHistory';
 import { GEAR_RULE } from '@/search/tableGear';
 import { getSimulationContext } from '@/engine/adapter';
@@ -350,12 +351,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    *     and both tiles "Your TE has moved since" over a save at 191 (fix 21).
    * The page shows once the stores hold THIS save (same save time); App sets them up the Auto Planner's way on My
    * runs. What has to match another screen or the planner's setup (the instant answer's key, the gear sets) waits
-   * for `storeReady`: the stores set up from this save with its pending TE rolled up, as Fastest and By a date have.
+   * for `storeReady`: the stores set up from this save with its pending TE rolled up, as Fastest and By a date have
+   * (or this account's starting-TE override put back over it, as setting up does: lib/teOverrideAccount.ts).
    */
   const raw = computed(() => (backupSecondsOf(initial.rawBackup) > 0 ? initial.rawBackup : null));
   const saveSeconds = computed(() => backupSecondsOf(raw.value));
   const storeHasSave = computed(() => !!raw.value && initial.hasData && initial.lastBackupTime === saveSeconds.value);
-  const storeReady = computed(() => storeHasSave.value && Math.floor(store.currentTE) === saveTEOf(raw.value));
+  const storeReady = computed(() => storeHasSave.value && Math.floor(store.currentTE) === plannerStartTEOf(raw.value));
   const hasSave = computed(() => storeHasSave.value);
   /** A save is here but the stores don't hold it yet: the page waits for it (App loads it). */
   const saveWaiting = computed(() => !!raw.value && !storeHasSave.value);

@@ -157,15 +157,19 @@ describe('My runs on a cold load', () => {
 });
 
 describe('the cold load, in the source', () => {
-  it('App loads the save on My runs once the draft is restored, once per account, never under a search', async () => {
+  it('App loads the save on My runs once the draft is restored, once per account and save, never under a search', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
-    expect(app).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
+    // spec-overridestart (7 Nov 2026): also looked at again when a running search ends or a picked save is cleared.
+    expect(app).toContain(
+      'watch([plannerTab, playerId, loading, storesSetUpFromSave, searchActive, () => uiStore.runSaveLoaded], loadSaveForMyRuns);'
+    );
     // Then the Auto Planner's own (setUpForInstantAnswer, search/startProvenance.ts), at the end of the restore too.
     expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+(\/\/[^\n]*\n\s+)?setUpForInstantAnswer\(\);\s+\}\);/);
-    expect(app).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
+    // Once per account and save time since spec-overridestart (7 Nov 2026).
+    expect(app).toContain('if (myRunsLoadFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;');
   });
 
   it('the board’s look-alike TE and My runs’ summary read the save’s own TE, never the stores’', async () => {

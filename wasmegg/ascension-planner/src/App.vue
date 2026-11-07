@@ -849,6 +849,7 @@ import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
+import { plannerStartTEOf } from '@/lib/teOverrideAccount';
 import { needsSaveSetUp } from '@/search/saveStart';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
@@ -1989,19 +1990,23 @@ function loadFreshSave(): void {
  * and By a date have them, so then it sets them up from the save already in hand (no second fetch; fix 21).
  */
 const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);
-/** The stores hold the loaded save set up the Auto Planner's way: its own time, its pending TE rolled up. */
+/** The stores hold the loaded save set up the Auto Planner's way: its own time, its pending TE rolled up (or this
+ *  account's starting-TE override put back over it: lib/teOverrideAccount.ts). */
 const storesSetUpFromSave = computed(
   () =>
     storesFromSave.value &&
     initialStateStore.lastBackupTime === backupSecondsOf(initialStateStore.rawBackup) &&
-    chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)
+    chainSearchStore.currentTE === plannerStartTEOf(initialStateStore.rawBackup)
 );
 let myRunsReady = false;
 let myRunsLoadFor = '';
 function loadSaveForMyRuns(): void {
   if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesSetUpFromSave.value) return;
-  if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;
-  myRunsLoadFor = playerId.value;
+  // Once per account and save time: a newer save (the header's refresh, a stale tab) is set up again, a failed
+  // set-up isn't retried.
+  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;
+  if (myRunsLoadFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;
+  myRunsLoadFor = forSave;
   const raw = initialStateStore.rawBackup;
   const inHand =
     storesFromSave.value &&
@@ -2024,9 +2029,10 @@ async function setUpFromSaveInHand(): Promise<void> {
     loading.value = false;
   }
 }
-// Once per account per visit: a switch back to an account counts again (its stores were loaded the switch's way).
+// A switch back to an account counts again (its stores were loaded the switch's way). A set-up put off by a running
+// search or a picked save is looked at again when that ends (spec-overridestart, 7 Nov 2026).
 watch(playerId, () => (myRunsLoadFor = ''));
-watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);
+watch([plannerTab, playerId, loading, storesSetUpFromSave, searchActive, () => uiStore.runSaveLoaded], loadSaveForMyRuns);
 
 /**
  * The same for the Auto Planner, whose instant answer waits for the save set up the Auto Planner's way

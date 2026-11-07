@@ -15,6 +15,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { accountOf } from '@/search/runSaves';
 import { loadAutoPlannerTEOverride } from '@/lib/autoPlannerFormCache';
+import { saveTEOf } from '@/lib/saveFreshness';
+import { VIRTUE_TE_ORDER } from '@/stores/truthEggs';
 
 /** Makes `teOverride` this save's own. True when the loaded account has an override to apply. */
 export function syncTEOverrideToAccount(): boolean {
@@ -26,4 +28,19 @@ export function syncTEOverrideToAccount(): boolean {
     planner.teOverride = loadAutoPlannerTEOverride(initialState.playerId);
   }
   return !!planner.teOverride;
+}
+
+/**
+ * The TE the Auto Planner sets this save up to start from: this account's override when it has one (claimed TE
+ * only, put back over the rolled-up save, lib/modes/planFuture.ts 4b), else the save's own TE (pending counted).
+ * What "the stores hold this save set up" is checked against (useNowPage `storeReady`, App `storesSetUpFromSave`):
+ * against the save's TE alone, an override on left My runs waiting for good (spec-overridestart, 7 Nov 2026).
+ */
+export function plannerStartTEOf(raw: unknown): number {
+  const planner = useAutoPlannerStore();
+  const override = planner.teOverride;
+  const account = accountOf(raw);
+  if (override && account && planner.teOverrideAccount === account)
+    return VIRTUE_TE_ORDER.reduce((sum, egg) => sum + (override[egg] ?? 0), 0);
+  return saveTEOf(raw);
 }

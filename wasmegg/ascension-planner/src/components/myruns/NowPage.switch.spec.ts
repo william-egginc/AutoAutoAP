@@ -210,7 +210,8 @@ describe('the switch, in the source', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
-    expect(app).toContain('chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)');
+    // The save's TE, or this account's starting-TE override (spec-overridestart, lib/teOverrideAccount.ts).
+    expect(app).toContain('chainSearchStore.currentTE === plannerStartTEOf(initialStateStore.rawBackup)');
     expect(app).toContain('void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());');
     // A fresh save (the switch fetched it a moment ago), for the start's provenance (search/startProvenance.ts).
     expect(app).toContain("await initPlanFuture(playerId.value, raw, 'fresh');");

@@ -29,9 +29,25 @@ describe('My runs sets up again a save loaded from the player ID box', () => {
     expect(reset).toBeGreaterThan(0);
   });
 
-  it('My runs still sets an account up at most once per load (no loop when the set-up cannot match)', () => {
+  it('My runs still sets an account up at most once per save (no loop when the set-up cannot match)', () => {
     const load = body('function loadSaveForMyRuns(): void {');
-    expect(load).toContain('if (myRunsLoadFor === playerId.value');
-    expect(load).toContain('myRunsLoadFor = playerId.value;');
+    expect(load).toContain('if (myRunsLoadFor === forSave');
+    expect(load).toContain('myRunsLoadFor = forSave;');
+  });
+
+  // spec-overridestart (7 Nov 2026): Jordan's tracker stayed stuck after opening Fastest and coming back. Once per
+  // account per VISIT left nothing to set a newer save up again, nor to retry a set-up that a running search or a
+  // picked save had put off. Now: once per account and save time, and looked at again when either of those ends.
+  it('keys the set-up on the account AND the save time', () => {
+    const load = body('function loadSaveForMyRuns(): void {');
+    expect(load).toMatch(
+      /const forSave = `\$\{playerId\.value\}\|\$\{backupSecondsOf\(initialStateStore\.rawBackup\)\}`;/
+    );
+  });
+
+  it('looks again when a running search ends or a picked save is cleared', () => {
+    const w = app.split('\n').find(l => l.startsWith('watch(') && l.includes('loadSaveForMyRuns);'));
+    expect(w).toContain('searchActive');
+    expect(w).toContain('() => uiStore.runSaveLoaded');
   });
 });
