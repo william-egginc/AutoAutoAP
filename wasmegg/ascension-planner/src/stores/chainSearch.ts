@@ -235,6 +235,7 @@ import {
   watchLinkTick,
 } from '@/composables/useWatchLink';
 import { readWatchLinkState, type WatchLinkState } from '@/search/watchLink';
+import { runBeaconPageClosing, runBeaconRunEnded, runBeaconRunStarted } from '@/lib/runBeacon';
 import { DEFAULT_LIMITS, followLimits, followingFields, type LimitsTouched } from '@/lib/limitsFollow';
 import {
   appendDeadlineCheckpoint,
@@ -8746,6 +8747,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         runWatch = null;
         blackBoxBeat();
         blackBoxTimer = setInterval(blackBoxBeat, 15_000);
+        runBeaconRunStarted(submitUrl); // the long-run alert (lib/runBeacon.ts): never waits, never throws
       } else {
         // A progress send still building its CSV so far gives way to the run's final send.
         supersedeProgressSend();
@@ -8760,6 +8762,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           blackBox.end('search');
           blackBox.end('deadline search');
         }
+        runBeaconRunEnded(how);
       }
     }
   );
@@ -8768,6 +8771,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       blackBox.pageClosing();
       stepAwayPageClosing();
       watchLinkPageClosing();
+      runBeaconPageClosing();
     });
     window.addEventListener('pageshow', e => {
       if (e.persisted) blackBox.pageShown();

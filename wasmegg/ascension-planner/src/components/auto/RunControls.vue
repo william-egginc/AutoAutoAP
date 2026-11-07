@@ -115,6 +115,7 @@ import RunSendReport from './RunSendReport.vue';
 import SafariNotice from './SafariNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import { nudgeStepAway } from '@/composables/useStepAwayNudge';
+import { armLongRun, beaconKindOf } from '@/lib/runBeacon';
 import type { RunKind } from '@/search/stepAway';
 import UnsentResults from './UnsentResults.vue';
 
@@ -215,10 +216,13 @@ const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() =>
 
 /** Stepping away?'s name for this screen's runs. */
 const stepAwayKind = computed<RunKind>(() => (props.kind === 'by-date' ? 'deadline' : props.kind === 'full' ? 'sweep' : 'smart'));
-/** Run pressed: the screen starts the run, then a long one opens Stepping away? (never holding the run up). */
+/** Run pressed: the screen starts the run, then a long one opens Stepping away? (never holding the run up), and one of
+ *  BEACON_MIN_SECONDS or more tells the planner's server it started (lib/runBeacon.ts; sent when the store sees the run
+ *  start, never waited on). */
 function onFind(andSubmit: boolean): void {
   emit('find', andSubmit);
   nudgeStepAway(stepAwayKind.value, props.estimateSeconds);
+  armLongRun(beaconKindOf(props.kind, props.option), props.estimateSeconds);
 }
 
 const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);

@@ -10,6 +10,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { SET_UP_KEY, stepAwayNudge } from '@/composables/useStepAwayNudge';
 import { resetConsents } from '@/composables/useConsent';
+import { resetRunBeacon, runBeaconRunEnded, runBeaconRunStarted } from '@/lib/runBeacon';
 
 let pinia: Pinia;
 let mem: Map<string, string>;
@@ -124,5 +125,46 @@ describe('Run on a long run opens Stepping away? (28 Oct 2026, ux35-d)', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue', 'DeadlinePanel.vue'])
       expect(read(f), f).toMatch(/<RunControls\b[\s\S]{0,200}?\s:estimate-seconds="/);
+  });
+});
+
+describe('Run on a run of 2 hours or more tells the planner’s server (the long-run alert, lib/runBeacon.ts)', () => {
+  const SUBMIT = 'https://collector.example.workers.dev/submit';
+  async function pressRun(p: Record<string, unknown>): Promise<void> {
+    const app = createSSRApp({ render: () => h(RunControls, { ...props, ...p, onFind: () => {} } as never) });
+    app.use(pinia);
+    app.mixin({
+      created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+        if (this.$.type.__file?.endsWith('/RunControls.vue')) (this.$.setupState.onFind as (s: boolean) => void)(true);
+      },
+    });
+    await renderToString(app);
+  }
+  let fetchMock: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    resetRunBeacon();
+    fetchMock = vi.fn(async () => new Response('{"ok":true}'));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  const sent = () => fetchMock.mock.calls.map(c => JSON.parse((c[1] as RequestInit).body as string));
+
+  it('arms the start with the screen’s kind and estimate; sent when the run starts', async () => {
+    await pressRun({ option: 'exact', estimateSeconds: 3 * 3600 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    runBeaconRunStarted(SUBMIT);
+    expect(sent()).toEqual([expect.objectContaining({ t: 'start', kind: 'exact', estHours: 3 })]);
+    runBeaconRunEnded('finished');
+    await pressRun({ kind: 'by-date', option: 'fast', estimateSeconds: 7200 });
+    runBeaconRunStarted(SUBMIT);
+    expect(sent()[2]).toEqual(expect.objectContaining({ t: 'start', kind: 'bydate', estHours: 2 }));
+  });
+
+  it('under 2 hours, or no estimate: nothing', async () => {
+    await pressRun({ option: 'exact', estimateSeconds: 7199 });
+    runBeaconRunStarted(SUBMIT);
+    runBeaconRunEnded('finished');
+    await pressRun({ option: 'exact' });
+    runBeaconRunStarted(SUBMIT);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
