@@ -230,6 +230,23 @@ describe('createChainSearchPool', () => {
     pool.terminate();
   });
 
+  it('onMessage hears every message from a worker: its start-up answer, each heartbeat and the reply (spec-stuck2)', async () => {
+    let heard = 0;
+    const pool = await createChainSearchPool(INPUTS, {
+      spawn: () => new FakeWorker() as unknown as Worker,
+      size: 1,
+      now,
+      onMessage: () => void heard++,
+    });
+    await pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
+    // init-done, two heartbeats, one result.
+    expect(heard).toBe(4);
+    pool.terminate();
+  });
+
   it('rejects a request whose worker goes silent, instead of hanging forever', async () => {
     const pool = await makePool(1000);
     // Two chains -> two workers under the stubbed split; the second never answers.

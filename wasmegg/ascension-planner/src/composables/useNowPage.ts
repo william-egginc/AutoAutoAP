@@ -1472,7 +1472,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
     };
   }));
-  const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  const { state: currentSim, slow: simSlow, retry: retrySim, worker: simWorker } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
   // A1 CHOICE: the candidates from the first side's simulation of this base to come in.
   watch(
     currentSim,
@@ -1642,6 +1642,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (st.status === 'done' && st.planFailed) return { status: 'failed' as const, reason: st.planFailed };
     return st.status === 'failed' ? { status: st.status, reason: st.reason } : { status: st.status };
   });
+  /** The simulation's run going and whether its worker has said anything, for the tracker's stall (spec-stuck2). */
+  const buildUpSimWorker = computed(() => (simRequest.value ? simWorker.value : null));
   const cardPlan = computed<CardPlan | null>(() =>
     perfStep('nowPage cardPlan', () => {
       const c = basePlan.value;
@@ -2218,6 +2220,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     account,
     buildUpPlan,
     buildUpSim,
+    buildUpSimWorker,
     buildUpSave,
     retryBuildUp,
     a1Choice,

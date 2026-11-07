@@ -444,6 +444,7 @@ const tracker = useBuildUpTracker({
   now: page.now,
   fresh: page.buildUpPlan,
   sim: page.buildUpSim,
+  simWorker: page.buildUpSimWorker,
   saveFarm: page.buildUpSave,
   // A newer save still coming in (the page's own "Reading your save" pair): the tracker says so (spec-anchornewer).
   saveLoading: computed(() => props.loading || page.saveWaiting.value),

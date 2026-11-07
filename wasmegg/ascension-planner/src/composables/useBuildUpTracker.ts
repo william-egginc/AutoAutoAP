@@ -100,6 +100,9 @@ export interface BuildUpTrackerInputs {
   fresh: Ref<BuildUpPlan | null>;
   /** The simulation's state while asked: working / waiting for a search / failed with why. */
   sim: Ref<{ status: 'working' | 'waiting' | 'failed' | 'done'; reason?: string } | null>;
+  /** The simulation's run going and whether its worker has said anything (useCurrentSim `worker`); null when no run
+   *  is going. Absent: the stall counts only the waits below, never a run going. */
+  simWorker?: Ref<{ since: number; heard: boolean } | null>;
   /** Phase 2: the loaded save as the tracker ticks from it (useNowPage `buildUpSave`); null without one. */
   saveFarm?: Ref<SaveFarm | null>;
   /** A save is still coming in (being read, or the stores not holding it yet): the card says so ('checking') rather
@@ -115,6 +118,11 @@ export interface BuildUpTrackerInputs {
  * 12:39 pm). A run going is bounded by useCurrentSim's own `runMs`; this bounds the rest: the plan wanted and nothing
  * going for it (no simulation state, 'done' without a plan, or the page's inputs never ready) this long reads as
  * failed, with Try again. A search running ('waiting' with no reason) is not counted: it ends by itself.
+ *
+ * A SILENT WORKER (spec-stuck2, 7 Nov 2026, QA t115: every message to the worker swallowed, "working it out…" until the
+ * 6-minute run bound, the stall never shown): a run going whose worker has not said a word this long (`simWorker`, from
+ * the run's start) reads as failed too. A worker that answered (loaded and simulating, or sending progress) is not
+ * counted: one route is one chain, which sends nothing until it ends, so its silence is left to `runMs`.
  */
 const STALL = { ms: 3 * 60_000 };
 /** Specs: another bound (null: back to the default). */
@@ -472,17 +480,26 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (s.status === 'done') return !i.fresh.value;
     return s.status === 'waiting' && !!s.reason;
   });
-  // Started afresh whenever the simulation's state changes (a retry, a new run): only an unchanged wait counts.
+  /** A run going whose worker has not said a word: since when (the run's start); null otherwise. */
+  const silentSince = computed(() => {
+    const w = i.simWorker?.value;
+    return wanted.value && !replanning.value && w && !w.heard ? w.since : null;
+  });
+  /** A run going whose worker answered: it is simulating, bounded by useCurrentSim's `runMs`. */
+  const workerAnswered = computed(() => !!i.simWorker?.value?.heard);
+  // Started afresh whenever the simulation's state changes (a retry, a new run): only an unchanged wait counts. A
+  // silent worker counts from its run's start, whatever changed meanwhile.
   watch(
-    [idleWaiting, i.sim],
-    ([idle]) => {
+    [idleWaiting, i.sim, silentSince, workerAnswered],
+    ([idle, , quiet, answered]) => {
       clearStall();
-      if (!idle) return;
+      const left = quiet !== null ? quiet + STALL.ms - Date.now() : idle && !answered ? STALL.ms : null;
+      if (left === null) return;
       stallTimer = setTimeout(() => {
         stallTimer = null;
-        buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}`);
+        buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}${quiet !== null ? ' (the worker said nothing)' : ''}`);
         stalled.value = true;
-      }, STALL.ms);
+      }, Math.max(0, left));
     },
     { immediate: true }
   );
