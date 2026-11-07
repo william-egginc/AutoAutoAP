@@ -443,8 +443,8 @@
         <p>
           When you start a search that is expected to take over 2 hours, your page tells the planner's server. The
           maintainer uses it to see that a long search is running, and waits before updating the site. An update makes
-          open pages reload, which would lose the search. The page also shows a banner with the time the search should
-          take, asking you to message Williamthe5thc on Discord so site updates wait for it. You can close the banner.
+          open pages reload, which would lose the search. The page shows a banner only if the maintainer plans an update of the site
+          while your long search is still running. It says when, and asks you to message Williamthe5thc on Discord so the update waits for it. You can close the banner.
         </p>
         <ul>
           <li><b>What is sent:</b> a random code made for this one search (not linked to your player ID, an account code, a name or any other record); the kind of search (Fast, Exact, Custom, or Highest TE by a date); the time it is expected to take; the version of the page (its build time); when it started; and, when it ends, that it ended and why (finished, cancelled, the tab was closed, or failed).</li>
@@ -453,7 +453,7 @@
           <li><b>Who sees it:</b> only the maintainer, privately. A phone note tells the maintainer that a long search started or ended: its kind, its estimated time, when it started and should end, how many are running, and, at the end, why it ended and how long it ran. The note has no search code, no page version and no address.</li>
           <li><b>How long it is kept:</b> deleted about 3 days after the search ends. If a page disappears without saying the search ended, the record is deleted about 3 days after the search should have ended.</li>
           <li><b>What it does not do:</b> it does not check whether the page is still open. If you close the tab, the page tries to say so. If the tab or the browser is lost another way, nothing is sent.</li>
-          <li><b>Turn it off:</b> in Setup. Nothing is then sent about your searches. The banner is only a reminder to message the maintainer, and does not depend on the switch.</li>
+          <li><b>Turn it off:</b> in Setup. Nothing is then sent about your searches. The banner does not depend on the switch.</li>
         </ul>
       </section>
 

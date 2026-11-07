@@ -20,14 +20,14 @@ describe('run beacon words', () => {
     expect(BEACON_MIN_HOURS).toBe(2);
     expect(BEACON_SETUP_LINE).toContain(`over ${BEACON_MIN_HOURS} hours`);
   });
-  it('the banner names the time and who to message', () => {
-    expect(longRunBannerWords('3 h 30 min', '7:34 pm')).toBe(
-      'This search should take about 3 h 30 min (until about 7:34 pm). Please message Williamthe5thc on Discord so site updates wait for it.'
+  it('the banner names the planned time, says the update stops the search, and who to message', () => {
+    expect(longRunBannerWords('3:00 pm')).toBe(
+      'The site will update at about 3:00 pm, and the update reloads this page, which would stop your search. Please message Williamthe5thc on Discord and the update will wait for it.'
     );
     expect(LONG_RUN_BANNER_CLOSE).toBe('Close');
   });
   it('says nothing that is not true of the alert: no player ID, no promise of a heartbeat', () => {
-    const all = [BEACON_SETUP_LINE, longRunBannerWords('3 h', '7:00 pm')].join(' ');
+    const all = [BEACON_SETUP_LINE, longRunBannerWords('7:00 pm')].join(' ');
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all.toLowerCase()).not.toContain('anonymous');
   });
