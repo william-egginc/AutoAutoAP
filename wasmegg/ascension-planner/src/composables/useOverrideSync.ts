@@ -296,9 +296,10 @@ export async function flushOverrideSync(): Promise<void> {
   pending = null;
   if (!p) return;
   try {
-    // Save online turned off (or the sync, or a 404 since): the change stays in this browser.
+    // Save online turned off (or the sync, or a 404 since): the change stays in this browser. Another account loaded
+    // since: it still goes, under its own account's key (as stores/prefs.ts sends a change waiting at a switch).
     const w = where();
-    if (!w || w.url !== p.url || w.k !== p.k) return;
+    if (!w || w.url !== p.url) return;
     const wait = pausedUntil - Date.now();
     if (wait > 0) {
       pending = p;
