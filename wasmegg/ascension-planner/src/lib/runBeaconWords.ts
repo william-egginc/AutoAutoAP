@@ -11,7 +11,7 @@ export const BEACON_MIN_HOURS = 2;
 /** Setup's tick (on to start). */
 export const BEACON_SETUP_LABEL = 'Tell the maintainer about long searches';
 export const BEACON_SETUP_LINE =
-  "When a search is expected to take over 2 hours, the planner's server is told it started and ended: a random code for that search, its kind, its estimated time and the page version. Nothing about you or your account. It lets the maintainer wait before updating the site, so your search isn't lost to a reload.";
+  "When a search is expected to take 2 hours or more, the planner's server is told it started and ended: a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you or your account. It lets the maintainer wait before updating the site, so your search isn't lost to a reload.";
 /** The line under the tick when it is off. */
 export const BEACON_SETUP_OFF = 'Off: long searches are not reported.';
 
