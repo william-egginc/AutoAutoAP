@@ -145,40 +145,42 @@ describe('put, list, get', () => {
   });
 });
 
-describe('the override: which one wins (brief sections 3 and 5)', () => {
+describe('the override: which one wins (brief sections 3 and 5; decision c, 8 Nov 2026)', () => {
   const none: LocalOverride = { teEarned: null, at: 0, removedAt: 0 };
   const mine = (te: typeof TE197, at: number): LocalOverride => ({ teEarned: te, at, removedAt: 0 });
-  const never = () => false;
 
   it('the cloud no newer than this device: kept as it is here', () => {
-    expect(resolveOverride(mine(TE197, T0), { record: { ...TE198 }, at: T0 }, 198, never)).toEqual({ act: 'keep' });
-    expect(resolveOverride({ teEarned: null, at: 0, removedAt: T0 }, { record: TE198, at: T0 - 1 }, 198, never)).toEqual({ act: 'keep' });
+    expect(resolveOverride(mine(TE197, T0), { record: { ...TE198 }, at: T0 })).toEqual({ act: 'keep' });
+    expect(resolveOverride({ teEarned: null, at: 0, removedAt: T0 }, { record: TE198, at: T0 - 1 })).toEqual({ act: 'keep' });
   });
   it('a local override with no at (written before this) counts as at 0: a newer cloud one is weighed', () => {
-    expect(resolveOverride(mine(TE197, 0), { record: TE197, at: 1 }, 198, never)).toEqual({ act: 'adopt', teEarned: TE197, at: 1 });
+    expect(resolveOverride(mine(TE197, 0), { record: TE197, at: 1 })).toEqual({ act: 'adopt', teEarned: TE197, at: 1 });
   });
   it('NEVER SILENTLY: a different override from another device, this device having none or another, is asked', () => {
-    expect(resolveOverride(none, { record: { ...TE197, saveTE: 198 }, at: T0 }, 198, never)).toEqual({
+    expect(resolveOverride(none, { record: { ...TE197, saveTE: 198 }, at: T0 })).toEqual({
       act: 'ask',
       teEarned: TE197,
       at: T0,
       saveTE: 198,
     });
-    expect(resolveOverride(mine(TE198, T0 - 1), { record: TE197, at: T0 }, 198, never)).toMatchObject({ act: 'ask', teEarned: TE197 });
+    expect(resolveOverride(mine(TE198, T0 - 1), { record: TE197, at: T0 })).toMatchObject({ act: 'ask', teEarned: TE197 });
   });
-  it("applied without the question only when it equals the save's TE, equals this device's own, or was confirmed here", () => {
-    expect(resolveOverride(none, { record: TE198, at: T0 }, 198, never)).toEqual({ act: 'adopt', teEarned: TE198, at: T0 });
-    expect(resolveOverride(mine(TE197, T0 - 1), { record: TE197, at: T0 }, 198, never)).toEqual({ act: 'adopt', teEarned: TE197, at: T0 });
-    const confirmed = (te: Record<string, number>) => overrideTotal(te) === 197;
-    expect(resolveOverride(none, { record: TE197, at: T0 }, 198, confirmed)).toEqual({ act: 'adopt', teEarned: TE197, at: T0 });
-    // The save's TE unknown: asked.
-    expect(resolveOverride(none, { record: TE198, at: T0 }, null, never)).toMatchObject({ act: 'ask' });
+  it("STRICTER (decision c): applied without the question ONLY when per egg the same as this device's current override", () => {
+    expect(resolveOverride(mine(TE197, T0 - 1), { record: TE197, at: T0 })).toEqual({ act: 'adopt', teEarned: TE197, at: T0 });
+    // The same total spread differently over the eggs: asked.
+    const other197 = { ...TE197, curiosity: 41, kindness: 36 };
+    expect(overrideTotal(other197)).toBe(197);
+    expect(resolveOverride(mine(TE197, T0 - 1), { record: other197, at: T0 })).toMatchObject({ act: 'ask' });
+    // Equal to the save's TE (198) with none here: asked now (was applied silently).
+    expect(resolveOverride(none, { record: TE198, at: T0 })).toMatchObject({ act: 'ask', teEarned: TE198 });
+    // None here after a removal: asked.
+    expect(resolveOverride({ teEarned: null, at: 0, removedAt: T0 - 5 }, { record: TE197, at: T0 })).toMatchObject({ act: 'ask' });
   });
   it('a newer tombstone removes the override here; with none here, nothing to do', () => {
-    expect(resolveOverride(mine(TE197, T0 - 1), { record: { removed: true }, at: T0 }, 198, never)).toEqual({ act: 'remove', at: T0 });
-    expect(resolveOverride(none, { record: { removed: true }, at: T0 }, 198, never)).toEqual({ act: 'keep' });
+    expect(resolveOverride(mine(TE197, T0 - 1), { record: { removed: true }, at: T0 })).toEqual({ act: 'remove', at: T0 });
+    expect(resolveOverride(none, { record: { removed: true }, at: T0 })).toEqual({ act: 'keep' });
     // An override typed here after the removal elsewhere stays.
-    expect(resolveOverride(mine(TE197, T0 + 1), { record: { removed: true }, at: T0 }, 198, never)).toEqual({ act: 'keep' });
+    expect(resolveOverride(mine(TE197, T0 + 1), { record: { removed: true }, at: T0 })).toEqual({ act: 'keep' });
   });
 });
 

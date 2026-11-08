@@ -115,21 +115,27 @@ describe('account switch', () => {
 });
 
 describe('while a search runs', () => {
-  it("another device's override is not put in place under it; the next read after it does", async () => {
+  it("another device's removal (a tombstone) is not put in place under it; the next read after it does", async () => {
+    // Decision c (8 Nov 2026): an override is put in place silently only when per egg the same as here, which changes
+    // nothing on screen; a removal is the silent case that does, so it carries this check now.
     const A = browser();
     const B = browser();
-    await A.load();
-    // Equal to the save's TE: applied without the question (resolveOverride `adopt`).
-    A.type(TE198);
+    await B.load();
+    B.type(TE198);
     await flushOverrideSync();
+    vi.advanceTimersByTime(60_000);
+    await A.load();
+    A.type(null);
+    await flushOverrideSync();
+    applyAutoStartingTE.mockClear();
     running.value = true;
     const p = await B.load();
-    expect(p.teOverride).toBeNull();
+    expect(p.teOverride).toEqual(TE198);
     expect(applyAutoStartingTE).not.toHaveBeenCalled();
     // App.vue's useOverrideSync reads again once the search ends.
     useOverrideSync();
     running.value = false;
-    await vi.waitFor(() => expect(p.teOverride).toEqual(TE198));
+    await vi.waitFor(() => expect(p.teOverride).toBeNull());
     expect(applyAutoStartingTE).toHaveBeenCalled();
     expect(cloudOverrideOffer()).toBeNull();
   });

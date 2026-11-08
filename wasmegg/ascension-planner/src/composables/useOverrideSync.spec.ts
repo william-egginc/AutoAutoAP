@@ -8,7 +8,8 @@
  *  - READ when the account is set up: the list, then the record when newer than this browser's.
  *  - NEVER SILENTLY: another device's different override is ASKED ("Another device set a starting TE of N. Your save
  *    says M."), applied only by Use it; Use my save's TE removes it everywhere. Equal to the save's TE, the same as this
- *    device's, or confirmed here before: applied without the question. A newer tombstone removes it here.
+ *    device's (per egg; decision c, 8 Nov 2026: no longer when equal to the save's TE or confirmed before): applied
+ *    without the question. A newer tombstone removes it here.
  *  - 404 (an older collector) turns it off for the page quietly; 429 waits retryAfter; 409 takes the newer record.
  *  - Save online off, or SYNC_RECORDS off: nothing read or written. No payload holds an ID.
  * Placeholder ID only.
@@ -210,15 +211,33 @@ describe('two browsers', () => {
     expect(cloudOverrideOffer()).toBeNull();
   });
 
-  it("equal to the save's TE (198): applied without the question", async () => {
+  it("equal to the save's TE (198), none here: ASKED (decision c, 8 Nov 2026: silent only when per egg the same as here)", async () => {
     const A = browser();
     const B = browser();
     await A.load();
     A.type(TE198);
     await flushOverrideSync();
     const p = await B.load();
-    expect(cloudOverrideOffer()).toBeNull();
+    expect(cloudOverrideOffer()).toMatchObject({ teEarned: TE198, typed: 198, saveNow: 198 });
+    expect(p.teOverride).toBeNull();
+  });
+
+  it('confirmed on this device before, then another typed here: the old numbers from another device are ASKED (decision c)', async () => {
+    const A = browser();
+    const B = browser();
+    await B.load();
+    B.type(TE197);
+    await flushOverrideSync();
+    vi.advanceTimersByTime(1000);
+    B.type(TE198);
+    await flushOverrideSync();
+    vi.advanceTimersByTime(60_000);
+    await A.load();
+    A.type(TE197);
+    await flushOverrideSync();
+    const p = await B.load();
     expect(p.teOverride).toEqual(TE198);
+    expect(cloudOverrideOffer()).toMatchObject({ teEarned: TE197 });
   });
 
   it('the same numbers B already uses: no question', async () => {

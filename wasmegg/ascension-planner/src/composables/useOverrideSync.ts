@@ -16,8 +16,8 @@
  *  - WRITE only from the player's actions, 2 s after the last edit, stamped with the time of the action; removing writes
  *    the tombstone { removed: true } with a fresh `at`. Never on a load, never from a watcher.
  *  - READ: the list once per account and collector (and again when the tab becomes visible, at most every 5 minutes);
- *    the record only when newer than this browser's. lib/syncedRecords.ts `resolveOverride` decides: keep, adopt (the
- *    same numbers, equal to the save's TE, or confirmed on this device before), remove (a newer tombstone), or ASK:
+ *    the record only when newer than this browser's. lib/syncedRecords.ts `resolveOverride` decides: keep, adopt (per
+ *    egg the same numbers as here: decision c, 8 Nov 2026), remove (a newer tombstone), or ASK:
  *    another device's different override is NEVER applied silently; `cloudOverrideOffer` holds the question for
  *    TeOverrideBanner.vue ("Another device set a starting TE of N. Your save says M. [Use it] [Use my save's TE]").
  *  - 404 turns it off for the page quietly; 429 waits `retryAfter` and sends once more; 409 weighs the newer record as a
@@ -65,7 +65,6 @@ export const OVERRIDE_SYNC_DEBOUNCE_MS = 2000;
 /** A tab becoming visible reads again at most this often. */
 export const OVERRIDE_REREAD_MS = 5 * 60_000;
 const removedKey = (account: string) => `aap.teOverride.removedAt.${account}`;
-const confirmedKey = (account: string) => `aap.teOverride.confirmed.${account}`;
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 function storage(): StorageLike | null {
@@ -76,7 +75,6 @@ function storage(): StorageLike | null {
   }
 }
 const accountOfId = (playerId: string) => accountOf({ eiUserId: playerId });
-const sigOf = (te: Partial<Record<string, number>>) => Object.values(eggsOf(te)).join(',');
 const whole = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 
 // ----------------------------------------------------------------------------------------- this browser's copy
@@ -127,26 +125,6 @@ function writeRemovedAt(playerId: string, at: number): void {
     // this visit only
   }
 }
-/** The player chose these numbers on this device (typed, or Use it): another device's same numbers apply unasked. */
-function confirm(playerId: string, te: Partial<Record<string, number>>): void {
-  try {
-    const key = confirmedKey(accountOfId(playerId));
-    const list = (JSON.parse(storage()?.getItem(key) ?? '[]') as unknown[]).filter((x): x is string => typeof x === 'string');
-    const sig = sigOf(te);
-    storage()?.setItem(key, JSON.stringify([sig, ...list.filter(x => x !== sig)].slice(0, 5)));
-  } catch {
-    // this visit only
-  }
-}
-function isConfirmed(playerId: string, te: TEByEgg): boolean {
-  try {
-    const list = JSON.parse(storage()?.getItem(confirmedKey(accountOfId(playerId))) ?? '[]') as unknown[];
-    return Array.isArray(list) && list.includes(sigOf(te));
-  } catch {
-    return false;
-  }
-}
-
 // ----------------------------------------------------------------------------------------- page state
 
 /** The question to ask (TeOverrideBanner.vue), or null. */
@@ -271,7 +249,7 @@ function apply(res: OverrideResolution, playerId: string, account: string): void
 function weigh(playerId: string, record: OverrideRecord, at: number): void {
   const account = accountOfId(playerId);
   if (!account) return;
-  apply(resolveOverride(readLocalOverride(playerId), { record, at }, saveTENow(), te => isConfirmed(playerId, te)), playerId, account);
+  apply(resolveOverride(readLocalOverride(playerId), { record, at }), playerId, account);
 }
 
 // ----------------------------------------------------------------------------------------- writing
@@ -288,7 +266,6 @@ export function noteTEOverrideChange(playerId: string, te: Partial<Record<string
     const account = accountOfId(playerId);
     if (te) {
       stampLocal(playerId, at, saveTE);
-      confirm(playerId, te);
     } else writeRemovedAt(playerId, at);
     // The player's own change answers any question still open for the account.
     if (offer.value?.account === account) offer.value = null;
@@ -413,12 +390,11 @@ export function syncPausedFor(): number {
 
 // ----------------------------------------------------------------------------------------- the question's answers
 
-/** "Use it": take the other device's starting TE (with its `at`), and remember it was confirmed here. */
+/** "Use it": take the other device's starting TE (with its `at`). */
 export async function useCloudOverride(): Promise<void> {
   const o = cloudOverrideOffer();
   if (!o) return;
   const playerId = useInitialStateStore().playerId;
-  confirm(playerId, o.teEarned);
   adopt(playerId, o.account, o.teEarned, o.at, o.saveTE);
 }
 

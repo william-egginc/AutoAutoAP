@@ -109,26 +109,21 @@ export type OverrideResolution =
   | { act: 'ask'; teEarned: TEByEgg; at: number; saveTE?: number };
 
 /**
- * NEWER WINS by the client's `at` (brief section 3), and NEVER SILENTLY (section 5): a cloud override newer than this
- * device's is applied without asking only when it is the same as this device's own, equals the save's TE (`saveTE`,
- * claimed plus pending; null unknown: asked), or the player already confirmed those numbers on this device
- * (`confirmed`); otherwise it is ASKED ("Another device set a starting TE of N. Your save says M."). A newer tombstone
- * removes the override here (going back to the save's TE is the safe way); with none here there is nothing to do.
- * Cloud empty (no record) is never a reason to change anything here: the caller does not call this then.
+ * NEWER WINS by the client's `at` (brief section 3), and NEVER SILENTLY (section 5). STRICTER since decision c
+ * (the orchestrator, 8 Nov 2026, after Reliability's review): a cloud override newer than this device's is applied
+ * without asking ONLY when per egg the same as this device's current override (only its `at` is taken: nothing on
+ * screen changes). Everything else is ASKED ("Another device set a starting TE of N. Your save says M."), including
+ * one whose total equals the save's TE and numbers confirmed on this device before. A newer tombstone removes the
+ * override here (going back to the save's TE is the safe way); with none here there is nothing to do. Cloud empty
+ * (no record) is never a reason to change anything here: the caller does not call this then.
  */
-export function resolveOverride(
-  local: LocalOverride,
-  cloud: { record: OverrideRecord; at: number },
-  saveTE: number | null,
-  confirmed: (te: TEByEgg) => boolean
-): OverrideResolution {
+export function resolveOverride(local: LocalOverride, cloud: { record: OverrideRecord; at: number }): OverrideResolution {
   const localAt = Math.max(local.at || 0, local.removedAt || 0);
   if (!(cloud.at > localAt)) return { act: 'keep' };
   if (isRemoved(cloud.record)) return local.teEarned ? { act: 'remove', at: cloud.at } : { act: 'keep' };
   const te = eggsOf(cloud.record);
   const extra = cloud.record.saveTE !== undefined ? { saveTE: cloud.record.saveTE } : {};
-  const silent =
-    (local.teEarned && sameEggs(local.teEarned, te)) || (saveTE !== null && overrideTotal(te) === saveTE) || confirmed(te);
+  const silent = !!local.teEarned && sameEggs(local.teEarned, te);
   return { act: silent ? 'adopt' : 'ask', teEarned: te, at: cloud.at, ...extra };
 }
 
