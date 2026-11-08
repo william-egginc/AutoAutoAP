@@ -489,6 +489,10 @@ export const usePrefsStore = defineStore('prefs', () => {
   /** A change of the player's: saved online 2 s after the last one, unless it came back to the value last synced. */
   function changed(kind: PrefsKind): void {
     if (applying > 0) return;
+    if (!saveOnlineOn()) {
+      keepWhileOff(kind);
+      return;
+    }
     if (!ready.value[kind]) {
       if (kind === 'consent' && readyIdRef.value) missed.consent = true;
       return;
@@ -511,6 +515,23 @@ export const usePrefsStore = defineStore('prefs', () => {
       timers[kind] = setTimeout(() => void flush(kind), PREFS_DEBOUNCE_MS);
     } catch {
       // quiet: this browser keeps it
+    }
+  }
+
+  /**
+   * Save online off (lib/saveOnline.ts): nothing is read, so the kind is never ready, but a change of the player's is
+   * still kept here with its time (pending), as a change that couldn't be sent is: the load when it comes back on then
+   * weighs it against what is saved online, and an older saved value doesn't undo it.
+   */
+  function keepWhileOff(kind: PrefsKind): void {
+    try {
+      const hash = partition.value;
+      if (!hash || !readyIdRef.value) return;
+      const at = Date.now();
+      const value = valueNow(kind, at);
+      if (value) writeLocalAt(hash, kind, { at, sig: prefsSig(value), pending: true });
+    } catch {
+      // quiet: this browser keeps the change itself
     }
   }
 

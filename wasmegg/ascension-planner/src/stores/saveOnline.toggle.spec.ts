@@ -134,6 +134,7 @@ describe('turned on again within the minute', () => {
     expect(gets('/follow')).toHaveLength(1);
     setSaveOnline(false);
     await vi.advanceTimersByTimeAsync(5_000);
+    await vi.waitFor(() => expect(follows.autoReady).toBe(true));
     expect(await follows.follow('fastest-490', [200, 300, 490], 'typed')).toBe(true);
     expect(puts('/follow')).toEqual([]);
     setSaveOnline(true);
@@ -181,6 +182,8 @@ describe('a Setup change made while off', () => {
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS + 10);
     expect(puts('/prefs')).toHaveLength(1);
     setSaveOnline(false);
+    // The store has taken the switch-off in (it hashes the account first: real time, not the fake clock).
+    await vi.waitFor(() => expect(prefs.cloudStatus).toBe('idle'));
     // Another device saves a Setup (target 450) at +30 min; this one, still off, changes its target at +60 min.
     const other = buildSetupValue(
       { scheduleEnabled: false, fromHour: 7, toHour: 23, days: [0, 1, 2, 3, 4, 5, 6], timeOff: [], noPrestige: [], finalTE: 450, timezone: 'America/Denver' },
