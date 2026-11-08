@@ -402,7 +402,7 @@ describe('About and privacy page', () => {
   it('says what goes online and what the code made from the ID is (6 Nov 2026)', () => {
     expect(text).toContain('What goes online, and the code made from your ID');
     expect(text).toContain(
-      'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), and your newest instant answers. The same code on another device shows them.'
+      'Saved online while Save online in Setup is on (it is on to start), under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.'
     );
     expect(text).toContain(
       'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.'
@@ -419,5 +419,16 @@ describe('About and privacy page', () => {
     expect(text).toContain('deleted about 3 days after the search ends.');
     expect(text).toContain('it does not check whether the page is still open. If you close the tab, the page tries to say so.');
     expect(text).toContain('Turn it off: in Setup. Nothing is then sent about your searches. The banner does not depend on the switch.');
+  });
+  it('says what the starting TE, tracker ticks and plan saved online are, who can read them, how long they are kept and how to delete them (7 Nov 2026)', () => {
+    expect(text).toContain('Your starting TE, tracker ticks and plan, saved online');
+    expect(text).toContain("the lines you ticked in the Build-up tracker; and the tracker's kept plan, which is what to buy and when, worked out from your save.");
+    expect(text).toContain('saved online, under the same code as your saved routes and Setup, a code made from your player ID. The ID itself is never sent.');
+    expect(text).toContain('The maintainer can see it too. A plan shows what you are planning to buy and when.');
+    expect(text).toContain('Not saved online: your save, your player ID, a name or a route.');
+    expect(text).toContain('How long it is kept: until you delete it.');
+    expect(text).toContain('The switch: Save online in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this device saves nothing online and loads nothing from online, and what is already saved online stays until you delete it.');
+    expect(text).toContain('After it, Save online is off on this device.');
+    expect(text).toContain('Delete everything saved online for this account deletes everything saved online under your code');
   });
 });
