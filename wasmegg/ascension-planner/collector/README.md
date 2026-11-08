@@ -1151,7 +1151,7 @@ live never see a `consent` or `setup` goal.
 - **consent** (`readConsent`): `at` required (ms), `answeredAt`, `study` yes/no/later, `ticks` (up to 16 named booleans),
   `credit` name/anonymous, `nickname` (40 characters, only with credit name). **setup** (`readSetup`): `at` required,
   `hours` (`{start, end, days?, scheduleEnabled?}` or null), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
-  texts each), `targetTE` (1 to 490 or null), `timezone`. Not the "This computer" settings. Unknown fields are dropped;
+  texts each), `targetTE` (1 to 490 or null), `timezone`, `progressSends` (`{ on: true/false, everyHours: whole 1 to 6 }`, optional; a bad shape is refused with the problem named progressSends). Not the "This computer" settings. Unknown fields are dropped;
   a bad field refuses the write (`400`, `problems`); a value over 4 KB is `413`.
 - **Limits:** 30 writes an hour per key (D1 `follow_rate` under `prefs|<key>`, apart from `/follow`'s), 5 versions per
   kind, a 6 KB body, `FOLLOW_LIMIT` per address (60 a minute, GET and PUT counted apart), 20,000 keys. An equal value is
@@ -1230,3 +1230,11 @@ Module `sync.js`, D1 table `synced` (migration 0008), specs `sync.spec.js`. Thre
 - `DELETE /forget?k=&all=1` (7 Nov 2026): "Delete everything saved online for this account": the saved routes, Setup and consent, instant answers and synced records under the key, in one call: `{ ok, deleted: { follows, prefs, answers, synced } }`. `all=1` is required (`400` without it); 10 a hour a key; the budget rows stay. It does not reach results shared with the leaderboard, the private instant records or CSVs (those are kept under the owner code, not this key).
 ## start.teSrc (R8, prepared 7 Nov 2026)
 The `start` block gains `teSrc` (`save` | `typed`: whether the run priced from the save's TE or from a starting-TE override typed in) and `teTyped` (the typed total, a whole number 0 to 490, kept only with `teSrc: 'typed'`). Kept on board rows and instant records; a bad value is dropped, never the row. Env `FLAG_TYPED_TE=1` (off until the client sends it and Jordan confirms): a `typed` run goes to the flagged board with the flag `typed-te`, unranked. `analysis/simfilter.py` reads `teSrc` too (and finds the older case by pending TE).
+## Red team round 3 (6 Nov 2026)
+Specs: `redteam2.spec.js`, `budgets.spec.js`, and additions to `hardening2.spec.js` and `worker.spec.js`. No migration: the budgets reuse `follow_rate`.
+- **Stale and far-future `at` (follow, prefs).** A PUT whose `at` is lower than the stored value's is `409` with `{ error, latest: { value, version, updatedAt } }` and stores nothing (a tie is accepted; a restore sends a fresh `at`). An `at` more than 10 minutes ahead of the collector's clock is `400` (problem names `at`). The client adopts the `latest` it is given.
+- **Lost version race.** The version insert is tried twice; a second failure is `503` "try again", not a thrown 500.
+- **/csvd budgets (`budget.js`).** One run's deltas add up to at most 32 MB (`413`); the whole collector takes at most 200 `/csvd` writes a day (env `CSVD_DAY_WRITES`) and 32 MB of CSV bytes a day across `/csv` and `/csvd` (env `CSV_DAY_BYTES`), both `429` with `retryAfter`. A delta expires after 7 days. `/submit` takes 100 accepted sends a day (env `SUBMITS_PER_DAY`). Follow, prefs and answers share 5,000 PUTs a day (`CLOUD_PUTS_PER_DAY`) and follow/prefs take 150 brand-new keys a day (`CLOUD_NEW_KEYS_PER_DAY`).
+- **/answers.** New entries are capped at 150 a day for the whole collector (env `ANSWERS_NEW_PER_DAY`), the stored gzip bytes at 100 MB in all as well as 20,000 rows (`429`, "full"); replacing an existing entry is free. The cron drops entries not written for 45 days, and spent `follow_rate` rows older than 3 days.
+- **Simulator gate.** Env `RANK_SIMS` (comma list of simVersion stamps): a row from another simulator is kept but unranked (flag `other-simulator`, the flagged board). Rows with no stamp are not judged. Unset = off.
+- **Server scrub** of player ids is case-insensitive.

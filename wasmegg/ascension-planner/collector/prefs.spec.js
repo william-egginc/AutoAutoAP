@@ -148,6 +148,13 @@ describe('validation', () => {
     ['a non-boolean scheduleEnabled', { k: K, kind: 'setup', value: { ...SETUP, hours: { start: '07:00', end: '23:00', scheduleEnabled: 'yes' } } }],
     ['a targetTE of 0', { k: K, kind: 'setup', value: { ...SETUP, targetTE: 0 } }],
     ['a bad timezone', { k: K, kind: 'setup', value: { ...SETUP, timezone: 'x y' } }],
+    ['progressSends not an object', { k: K, kind: 'setup', value: { ...SETUP, progressSends: true } }],
+    ['progressSends with a non-boolean on', { k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: 'yes', everyHours: 2 } } }],
+    ['progressSends without everyHours', { k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: true } } }],
+    ['progressSends every 0 hours', { k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: true, everyHours: 0 } } }],
+    ['progressSends every 7 hours', { k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: true, everyHours: 7 } } }],
+    ['progressSends every 1.5 hours', { k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: true, everyHours: 1.5 } } }],
+    ['progressSends null', { k: K, kind: 'setup', value: { ...SETUP, progressSends: null } }],
     ['value not an object', { k: K, kind: 'setup', value: 'x' }],
   ])('refuses %s with 400 and names the problem, storing nothing', async (_n, body) => {
     const res = await put(body);
@@ -168,6 +175,26 @@ describe('validation', () => {
     expect((await put('not json')).status).toBe(400);
   });
 
+  it('names progressSends in the problem for a bad shape', async () => {
+    const res = await put({ k: K, kind: 'setup', value: { ...SETUP, progressSends: { on: true, everyHours: 9 } } });
+    expect((await res.json()).problems.join(' ')).toContain('progressSends');
+  });
+
+  it('stores progressSends, serves it back, drops extra keys inside it, and treats a change as a new version', async () => {
+    const v = { ...SETUP, progressSends: { on: true, everyHours: 3, extra: 'x' } };
+    expect(await (await send('setup', v)).json()).toEqual({ ok: true, version: 1, updatedAt: T0 });
+    const got = (await (await get(`/prefs?k=${K}`)).json()).prefs.setup.value;
+    expect(got.progressSends).toEqual({ on: true, everyHours: 3 });
+    const same = await (await send('setup', { ...SETUP, progressSends: { on: true, everyHours: 3 } })).json();
+    expect(same.unchanged).toBe(true);
+    expect((await (await send('setup', { ...SETUP, progressSends: { on: false, everyHours: 3 } })).json()).version).toBe(2);
+    for (const n of [1, 6]) expect(readSetup({ ...SETUP, progressSends: { on: true, everyHours: n } }).value.progressSends.everyHours).toBe(n);
+  });
+
+  it('a Setup without progressSends is still fine', () => {
+    expect(readSetup(SETUP).value).not.toHaveProperty('progressSends');
+  });
+
   it('readConsent and readSetup directly', () => {
     expect(readConsent(CONSENT).value).toEqual(CONSENT);
     expect(readSetup(SETUP).value).toEqual(SETUP);
@@ -178,13 +205,13 @@ describe('validation', () => {
 describe('limits', () => {
   it('takes 30 writes an hour per key, 429 with the wait, a new hour starts again, another key is unaffected, and /follow has its own budget', async () => {
     for (let i = 0; i < 30; i++) expect((await send('setup', { ...SETUP, targetTE: 100 + (i % 300), at: T0 + i, timezone: `Zone/N${i}` }, K, T0 + i * 1000)).status).toBe(200);
-    const over = await send('setup', { ...SETUP, targetTE: 77 }, K, T0 + 40_000);
+    const over = await send('setup', { ...SETUP, targetTE: 77, at: T0 + 40_000 }, K, T0 + 40_000);
     expect(over.status).toBe(429);
     const body = await over.json();
     expect(body.retryAfter).toBeGreaterThan(0);
     expect(over.headers.get('retry-after')).toBe(String(body.retryAfter));
     expect((await send('setup', SETUP, K2, T0 + 40_000)).status).toBe(200);
-    expect((await send('setup', { ...SETUP, targetTE: 77 }, K, T0 + 3_700_000)).status).toBe(200);
+    expect((await send('setup', { ...SETUP, targetTE: 77, at: T0 + 3_700_000 }, K, T0 + 3_700_000)).status).toBe(200);
     // /follow's own budget for the same key is untouched.
     const followed = await handleFollow(
       new Request('https://c.example/follow', {

@@ -326,6 +326,35 @@ describe('simulator stamps', () => {
   });
 });
 
+describe('simulator gate (RANK_SIMS, red team 6 Nov C9)', () => {
+  const board = async () => (await (await get('/all')).json()).rows;
+  const sendSim = (simVersion, n) => send({ ...GOOD, ...(simVersion ? { simVersion } : {}) }, { ip: `5.0.0.${n}`, token: String(n).padEnd(32, 'd') });
+  beforeEach(() => {
+    env.RANK_SIMS = '2026-10-21-egg-beta2';
+  });
+  it('a stamp on the list ranks as before', async () => {
+    const j = await (await sendSim('2026-10-21-egg-beta2', 1)).json();
+    expect(j.flagged).toBeUndefined();
+    expect((await board()).map(r => r.id)).toEqual([j.id]);
+  });
+  it('another simulator (a newer app on the live collector) is kept but unranked, on the flagged board', async () => {
+    const j = await (await sendSim('2026-11-03-sim3', 2)).json();
+    expect(j.ok).toBe(true);
+    expect(j.flagged).toEqual(['other-simulator']);
+    expect(await board()).toEqual([]);
+    expect(keysOf('flag:')).toHaveLength(1);
+  });
+  it('a row with no stamp (an older app) is not judged: it ranks', async () => {
+    expect((await (await sendSim(undefined, 3)).json()).flagged).toBeUndefined();
+  });
+  it('several stamps may be listed, and the whole rule is off without the var', async () => {
+    env.RANK_SIMS = '2026-10-21-egg-beta2, 2026-11-03-sim3';
+    expect((await (await sendSim('2026-11-03-sim3', 4)).json()).flagged).toBeUndefined();
+    delete env.RANK_SIMS;
+    expect((await (await sendSim('2026-11-09-other', 5)).json()).flagged).toBeUndefined();
+  });
+});
+
 // ------------------------------------------------------------------------------------------- (d)
 describe("a row's size in the snapshot is capped", () => {
   const BIG_SPACE = {

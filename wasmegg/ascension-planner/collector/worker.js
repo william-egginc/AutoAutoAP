@@ -67,9 +67,9 @@ import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
-import { handleAnswers, isAnswersRequest } from './answers.js';
+import { handleAnswers, isAnswersRequest, pruneAnswers } from './answers.js';
+import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, CSVD_TTL_SECONDS, SUBMITS_PER_DAY, csvDayRefusal, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
-import { pruneBudgets } from './budget.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
 import { handleForget, handleSync, isForgetRequest, isSyncRequest } from './sync.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
@@ -290,7 +290,7 @@ function progressOf(p) {
 /** A player id is a bearer token for the whole save. One must never be stored here even if
  *  someone posts one by hand, so text is swept on the way in. */
 function scrubText(s) {
-  return String(s).replace(/EI\d{16}/g, 'EI[redacted]');
+  return String(s).replace(/EI\d{16}/gi, 'EI[redacted]');
 }
 
 // ---------------------------------------------------------------- private extras
@@ -3286,6 +3286,20 @@ export default {
       // R8: a run that priced from a typed starting-TE override, not the save's TE, is kept but unranked (the flagged board),
       // so it cannot take a ranked place with a start the save does not have. Off until FLAG_TYPED_TE=1.
       if (env.FLAG_TYPED_TE === '1' && record.start?.teSrc === 'typed') record.flags = [...(record.flags || []), 'typed-te'];
+      // The simulator gate (red team 6 Nov, C9): with RANK_SIMS set to the stamp(s) the live site runs, a row from
+      // another simulator is kept but unranked (the flagged board), so a preview build on this collector cannot
+      // mix into the main board. A row with no stamp is not judged. The stamp is the sender's word: this keeps an
+      // honest preview out, not a forger.
+      if (env.RANK_SIMS && record.simVersion && !String(env.RANK_SIMS).split(',').map(x => x.trim()).includes(record.simVersion)) {
+        record.flags = [...(record.flags || []), 'other-simulator'];
+      }
+      // A day-wide cap on accepted sends (red team C5, quotas 6 Nov): each costs about 3 or 4 of KV's 1,000 free writes a day.
+      const sendsPerDay = Number(env.SUBMITS_PER_DAY) || SUBMITS_PER_DAY;
+      const sendDay = await spend(env, 'submits-day', 1, sendsPerDay, Date.now(), DAY_MS);
+      if (!sendDay.ok) {
+        const retryAfter = waitSeconds(sendDay.since, DAY_MS, Date.now());
+        return json({ error: 'the collector has taken all the results it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
+      }
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';
@@ -3751,7 +3765,21 @@ export default {
         return json({ error: `delta too large (${body.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
       }
       if (!endsSynced(body)) return json({ error: 'a delta must be a sync-flushed raw deflate segment' }, 400);
-      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() } });
+      // Budgets (red team 6 Nov, C1): one run's deltas add up to at most CSVD_RUN_BYTES, and the whole collector
+      // takes at most CSVD_DAY_WRITES a day, so an invented owner code cannot use up KV's daily writes or storage.
+      const now = Date.now();
+      const dayWrites = Number(env.CSVD_DAY_WRITES) || CSVD_DAY_WRITES;
+      const day = await spend(env, 'csvd-day', 1, dayWrites, now, DAY_MS);
+      if (!day.ok) {
+        return json({ error: 'the collector has taken all the CSV deltas it can today', retryAfter: waitSeconds(day.since, DAY_MS, now) }, 429, {
+          'retry-after': String(waitSeconds(day.since, DAY_MS, now)),
+        });
+      }
+      const runBudget = await spend(env, `csvd|${run}`, body.byteLength, CSVD_RUN_BYTES, now, FOREVER_MS);
+      if (!runBudget.ok) return json({ error: `this run's CSV deltas are over ${CSVD_RUN_BYTES / 1048576} MB` }, 413);
+      const csvdBytes = await csvDayRefusal(env, body.byteLength, now, json);
+      if (csvdBytes) return csvdBytes;
+      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() }, expirationTtl: CSVD_TTL_SECONDS });
       return json({ ok: true, seq, bytes: body.byteLength });
     }
 
@@ -3796,6 +3824,8 @@ export default {
           return json({ error: `head too large (${head.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
         }
         if (!endsSynced(head)) return json({ error: 'a head must be a sync-flushed raw deflate segment' }, 400);
+        const headDay = await csvDayRefusal(env, head.byteLength, Date.now(), json);
+        if (headDay) return headDay;
         const missing = [];
         let total = len;
         let all = crc;
@@ -3838,6 +3868,8 @@ export default {
       if (body.byteLength > MAX.CSV_BYTES) {
         return json({ error: `CSV too large (${body.byteLength} bytes gzipped, limit ${MAX.CSV_BYTES})` }, 413);
       }
+      const csvDay = await csvDayRefusal(env, body.byteLength, Date.now(), json);
+      if (csvDay) return csvDay;
       // A later part is a slice from the middle of one gzip stream: stored as it came, and done.
       if (split && split.part > 0) {
         await env.SUBMISSIONS.put(csvPartKey(id, split.part, base), body, ttl);
@@ -4218,6 +4250,7 @@ export default {
     if (prune) ctx.waitUntil(buildCountSweep(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneBudgets(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneRuns(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(pruneAnswers(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();
     if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));

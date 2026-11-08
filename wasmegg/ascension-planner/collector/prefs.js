@@ -17,7 +17,8 @@
  * Last write wins by the CLIENT's `at`: the server stores every write and keeps `updatedAt`; the app compares.
  * D1 (the WATCH binding), not KV: KV's 1,000 writes a day belong to the board.
  */
-import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole } from './follow.js';
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
+import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
 
 const KINDS = ['consent', 'setup'];
 const STUDY = ['yes', 'no', 'later'];
@@ -121,6 +122,12 @@ export function readSetup(v) {
     if (typeof v.timezone !== 'string' || !ZONE.test(v.timezone)) problems.push('timezone must be an IANA name of at most 64 characters');
     else out.timezone = v.timezone;
   }
+  if (v.progressSends !== undefined) {
+    const g = v.progressSends;
+    if (!g || typeof g !== 'object' || Array.isArray(g) || typeof g.on !== 'boolean' || !whole(g.everyHours, 1, 6))
+      problems.push('progressSends must be { on: true/false, everyHours: whole number 1 to 6 }');
+    else out.progressSends = { on: g.on, everyHours: g.everyHours };
+  }
   return finish(out, problems);
 }
 
@@ -197,18 +204,26 @@ export async function handlePrefs(request, env, now = Date.now()) {
   if (problems.length) return reply({ error: 'rejected', problems }, 400);
   const k = body.k;
   const valueText = checked.text;
+  if (checked.value.at > now + AT_AHEAD_MS) return reply({ error: 'rejected', problems: ['at is more than 10 minutes ahead of the collector clock: check this device\'s clock'] }, 400);
 
   const latest = await env.WATCH.prepare('SELECT version, value, updated FROM prefs WHERE key = ? AND kind = ? ORDER BY version DESC LIMIT 1')
     .bind(k, kind)
     .first();
   if (latest && latest.value === valueText) return reply({ ok: true, version: latest.version, updatedAt: latest.updated, unchanged: true });
+  // An older `at` never replaces a newer one (a tie is accepted): the client adopts the stored value.
+  if (latest && parse(latest.value)?.at > checked.value.at) return newerStored(latest);
   if (!latest) {
     const other = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM prefs WHERE key = ?').bind(k).first();
     if (!other?.n) {
+      const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
+      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM prefs').first();
       if ((keys?.n ?? 0) >= FOLLOW_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
     }
   }
+
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The hour's budget, in one statement (as follow.js does): a refused write changes no row, so it costs no read.
   const budgetKey = `prefs|${k}`;
@@ -228,13 +243,15 @@ export async function handlePrefs(request, env, now = Date.now()) {
     return retry(wait, `at most ${FOLLOW_WRITES_PER_HOUR} changes an hour for one key`);
   }
 
-  const ins = await env.WATCH.prepare(
-    `INSERT INTO prefs (key, kind, version, value, updated)
-     SELECT ?, ?, COALESCE(MAX(version), 0) + 1, ?, ? FROM prefs WHERE key = ? AND kind = ?`
-  )
-    .bind(k, kind, valueText, now, k, kind)
-    .run();
-  if (!ins.meta || !ins.meta.changes) return reply({ error: 'could not store it, try again' }, 503);
+  const ins = await insertTwice(() =>
+    env.WATCH.prepare(
+      `INSERT INTO prefs (key, kind, version, value, updated)
+       SELECT ?, ?, COALESCE(MAX(version), 0) + 1, ?, ? FROM prefs WHERE key = ? AND kind = ?`
+    )
+      .bind(k, kind, valueText, now, k, kind)
+      .run()
+  );
+  if (!ins) return reply({ error: 'could not store it, try again' }, 503);
   const top = await env.WATCH.prepare('SELECT MAX(version) AS v FROM prefs WHERE key = ? AND kind = ?').bind(k, kind).first();
   const version = top?.v ?? 1;
   await env.WATCH.prepare('DELETE FROM prefs WHERE key = ? AND kind = ? AND version <= ?').bind(k, kind, version - FOLLOW_VERSIONS).run();

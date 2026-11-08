@@ -20,6 +20,7 @@
  * field (`readValue`): a field that is out of bounds refuses the write with its name; an unknown field is dropped.
  */
 
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 
 export const FOLLOW_MAX_BODY = 6 * 1024;
@@ -133,6 +134,29 @@ export async function overLimit(env, request, kind) {
   return retry(60, 'too many requests from this address');
 }
 
+/** How far ahead of the collector's clock a client's `at` may be (clocks differ; a year ahead pins a value for good). */
+export const AT_AHEAD_MS = 600_000;
+
+/**
+ * The version insert, tried twice: two writers can both compute MAX(version)+1 and the loser hits the primary key.
+ * A second failure is a plain "try again" (503), never a thrown 500. `run` returns the D1 result.
+ */
+export async function insertTwice(run) {
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await run();
+      if (r?.meta?.changes) return r;
+    } catch {
+      /* the other writer took the number: take the next one */
+    }
+  }
+  return null;
+}
+
+/** 409: the stored value is newer than the one sent (by the client's `at`), and here it is. */
+export const newerStored = latest =>
+  reply({ error: 'a newer value is stored (its at is higher); use it', latest: { value: parse(latest.value), version: latest.version, updatedAt: latest.updated } }, 409);
+
 export const parse = text => {
   try {
     return JSON.parse(text);
@@ -206,6 +230,7 @@ export async function handleFollow(request, env, now = Date.now()) {
   const { k, value: valueText } = { k: body.k, value: checked.text };
   // MIN_BUILD_STAMP (oldbuild.js): the value's build stamp is optional here, so only a stamp that is old is refused.
   if (oldBuild(env, checked.value.build, false)) return reply(OLD_BUILD_BODY, 426);
+  if (checked.value.at > now + AT_AHEAD_MS) return reply({ error: 'rejected', problems: ['at is more than 10 minutes ahead of the collector clock: check this device\'s clock'] }, 400);
 
   // The latest stored version of this goal: an equal value is not stored again.
   const latest = await env.WATCH.prepare(
@@ -214,16 +239,24 @@ export async function handleFollow(request, env, now = Date.now()) {
     .bind(k, goal)
     .first();
   if (latest && latest.value === valueText) return reply({ ok: true, version: latest.version, updatedAt: latest.updated, unchanged: true });
+  // An older `at` never replaces a newer one (a tie is accepted): the client adopts the stored value.
+  if (latest && parse(latest.value)?.at > checked.value.at) return newerStored(latest);
 
   // Caps on a new goal or a new key: a read each, only when something new would be created.
   if (!latest) {
     const goals = await env.WATCH.prepare('SELECT COUNT(DISTINCT goal) AS n FROM follows WHERE key = ?').bind(k).first();
     if ((goals?.n ?? 0) >= FOLLOW_MAX_GOALS) return retry(3600, `at most ${FOLLOW_MAX_GOALS} goals for one key`);
     if (!goals?.n) {
+      const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
+      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM follows').first();
       if ((keys?.n ?? 0) >= FOLLOW_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
     }
   }
+
+  // Every cloud write counts against a day-wide budget (D1's free plan: 100,000 rows written a day).
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The hour's budget for this key, in one statement: a new hour starts the count over, a write past the
   // budget changes no row (so `changes` says it was refused, and no read was needed).
@@ -244,13 +277,15 @@ export async function handleFollow(request, env, now = Date.now()) {
   }
 
   // The next version number, taken in the insert itself so two writes cannot share one.
-  const ins = await env.WATCH.prepare(
-    `INSERT INTO follows (key, goal, version, value, updated)
-     SELECT ?, ?, COALESCE(MAX(version), 0) + 1, ?, ? FROM follows WHERE key = ? AND goal = ?`
-  )
-    .bind(k, goal, valueText, now, k, goal)
-    .run();
-  if (!ins.meta || !ins.meta.changes) return reply({ error: 'could not store it, try again' }, 503);
+  const ins = await insertTwice(() =>
+    env.WATCH.prepare(
+      `INSERT INTO follows (key, goal, version, value, updated)
+       SELECT ?, ?, COALESCE(MAX(version), 0) + 1, ?, ? FROM follows WHERE key = ? AND goal = ?`
+    )
+      .bind(k, goal, valueText, now, k, goal)
+      .run()
+  );
+  if (!ins) return reply({ error: 'could not store it, try again' }, 503);
   const top = await env.WATCH.prepare('SELECT MAX(version) AS v FROM follows WHERE key = ? AND goal = ?').bind(k, goal).first();
   const version = top?.v ?? 1;
   await env.WATCH.prepare('DELETE FROM follows WHERE key = ? AND goal = ? AND version <= ?')
