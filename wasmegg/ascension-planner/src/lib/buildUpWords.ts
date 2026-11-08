@@ -66,3 +66,22 @@ export function trackerCapReason(minutes: number): string {
 export const TRACKER_VIEW_LABEL = 'Show the build-up as';
 export const TRACKER_VIEW_LIST = 'List';
 export const TRACKER_VIEW_COMPACT = 'Compact';
+
+/** Compact (spec-trackercompact; DRAFT words). A sale line as a chip: "sale on 10:00 am", "sale off 10:00 am". */
+export function compactSaleWords(on: boolean, time: string): string {
+  return `${on ? 'sale on' : 'sale off'}${time ? ` ${time}` : ''}`;
+}
+/** A day's check-ins and when: "4 check-ins · 8:00 am to 9:46 am", "1 check-in · 9:52 am". */
+export function checkInSpanWords(n: number, first: string, last: string): string {
+  const count = `${n} check-in${n === 1 ? '' : 's'}`;
+  if (!first) return count;
+  return `${count} · ${first === last ? first : `${first} to ${last}`}`;
+}
+/** The header's state: the next check-in when it is on this day. */
+export const compactNextWords = (time: string): string => `next ${time}`;
+export const COMPACT_ALL_DONE = 'all done';
+/** Said after "›" for a screen reader: the header jumps to the day in List. */
+export const COMPACT_JUMP = 'show this day in the list';
+/** After a done chip / a done range, for a screen reader (the ✓ is hidden from it). */
+export const COMPACT_DONE_SR = '(done)';
+export const COMPACT_BOUGHT_SR = '(bought)';

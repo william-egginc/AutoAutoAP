@@ -163,7 +163,7 @@
           <template v-if="view === 'list'">
             <section v-for="d in result.days" :key="d.ymd" class="border-t border-slate-200 pt-2" :data-testid="`buildup-day-${d.ymd}`">
               <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                <h3 class="label text-slate-700">{{ d.title }}</h3>
+                <h3 class="label text-slate-700" :id="`buildup-dayhead-${d.ymd}`" tabindex="-1">{{ d.title }}</h3>
                 <span class="text-small text-slate-500 tabular-nums">
                   {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
                 </span>
@@ -269,18 +269,62 @@
               </ul>
             </section>
           </template>
-          <!-- COMPACT: one block per day, no boxes (ticking is List's). -->
+          <!-- COMPACT (spec-trackercompact): a day at a glance, no boxes (ticking is List's). The header is a button in the
+               heading: it jumps to List with the day open. Bold kinds as chips in the lines' words without "buy", sale on and
+               off as quiet chips, one range per research over the day (lib/buildUpDays.ts), notes and warnings in full. -->
           <template v-else>
             <section
               v-for="d in result.days"
               :key="d.ymd"
-              class="border-t border-slate-200 pt-2"
+              class="border-t border-slate-200 pt-1"
               :data-testid="`buildup-cday-${d.ymd}`"
             >
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                <h3 class="label text-slate-700">{{ d.title }}</h3>
-                <span class="text-small text-slate-500 tabular-nums">{{ dayWords(d) }}</span>
-              </div>
+              <h3><button
+                  type="button"
+                  class="flex min-h-[44px] w-full flex-wrap items-center gap-x-3 gap-y-0.5 text-left"
+                  :data-testid="`buildup-cday-open-${d.ymd}`"
+                  @click="jumpToDay(d.ymd)"
+                >
+                  <span class="label text-slate-700">{{ d.title }}</span>
+                  <span class="text-small text-slate-500 tabular-nums">{{ compactMeta(d) }}</span>
+                  <span class="ml-auto text-small tabular-nums" :class="dayDone(d, ticked) ? 'text-green-700' : 'text-slate-500'"
+                    >{{ compactStatus(d) }}{{ ' ' }}<span class="font-bold text-indigo-700" aria-hidden="true">›</span
+                    ><span class="sr-only">{{ ' ' }}{{ COMPACT_JUMP }}</span></span
+                  >
+                </button></h3>
+              <ul v-if="compactChips(d).length" class="mt-1 flex flex-wrap gap-1.5">
+                <li
+                  v-for="c in compactChips(d)"
+                  :key="c.key"
+                  class="rounded-lg border px-2.5 py-0.5 text-small"
+                  :class="c.event ? 'border-indigo-300 text-indigo-700' : c.done ? 'border-slate-200 text-slate-500' : 'border-slate-400 font-bold text-slate-900'"
+                  data-testid="buildup-chip"
+                >
+                  <template v-if="c.done"><span aria-hidden="true" class="text-green-700">✓</span>{{ ' ' }}</template>{{ c.text
+                  }}<span v-if="c.done" class="sr-only">{{ ' ' }}{{ COMPACT_DONE_SR }}</span>
+                </li>
+              </ul>
+              <ul v-if="compactRanges(d).length" class="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-3">
+                <li
+                  v-for="r in compactRanges(d)"
+                  :key="r.id"
+                  class="flex items-baseline gap-x-2 text-small tabular-nums"
+                  :class="r.done ? 'text-slate-500' : 'text-slate-700'"
+                  data-testid="buildup-range"
+                >
+                  <span v-if="r.done" aria-hidden="true" class="font-bold text-green-700">✓</span
+                  ><span v-else aria-hidden="true" class="h-1.5 w-1.5 shrink-0 -translate-y-0.5 rounded-full bg-slate-400"></span
+                  ><span>{{ r.words }}<span v-if="r.done" class="sr-only">{{ ' ' }}{{ COMPACT_BOUGHT_SR }}</span></span>
+                </li>
+              </ul>
+              <p v-for="n in compactKind(d, 'note')" :key="n.key" class="mt-1 text-small text-slate-500">{{ n.text }}</p>
+              <p
+                v-for="w in compactKind(d, 'warning')"
+                :key="w.key"
+                class="mt-1 rounded-md bg-amber-50 px-2 py-1 text-small text-amber-800"
+              >
+                {{ w.text }}
+              </p>
             </section>
           </template>
           <p class="text-small text-slate-500" data-testid="buildup-foot">
@@ -294,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
@@ -306,7 +350,19 @@ import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
-import { TRACKER_VIEW_COMPACT, TRACKER_VIEW_LABEL, TRACKER_VIEW_LIST } from '@/lib/buildUpWords';
+import {
+  COMPACT_ALL_DONE,
+  COMPACT_BOUGHT_SR,
+  COMPACT_DONE_SR,
+  COMPACT_JUMP,
+  TRACKER_VIEW_COMPACT,
+  TRACKER_VIEW_LABEL,
+  TRACKER_VIEW_LIST,
+  checkInSpanWords,
+  compactNextWords,
+  compactSaleWords,
+} from '@/lib/buildUpWords';
+import { chipWords, dayDone, researchRanges, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
 const props = withDefaults(
@@ -451,6 +507,50 @@ function dayWords(d: TrackerDay): string {
 }
 /** The first check-in not fully ticked: its lines are "next". */
 const nextKeys = computed(() => new Set(props.summary?.next?.keys ?? []));
+// ------------------------------------------------------------------ Compact
+/** "18 check-ins · 8:41 am to 10:52 pm" (the first and last boxed lines' times); a day with none: as List says it. */
+function compactMeta(d: TrackerDay): string {
+  const t = d.lines.filter(l => l.tickable);
+  if (!t.length) return dayWords(d);
+  return checkInSpanWords(d.checkIns, t[0].time, t[t.length - 1].time);
+}
+/** "all done", "next 8:41 am" (the next check-in is on this day), "3 of 20 lines done", or nothing. */
+function compactStatus(d: TrackerDay): string {
+  if (dayDone(d, ticked.value)) return COMPACT_ALL_DONE;
+  const next = props.summary?.next;
+  if (next && d.lines.some(l => nextKeys.value.has(l.key))) return compactNextWords(clock12(next.at, props.zone));
+  const tick = d.lines.filter(l => l.tickable);
+  const done = tick.filter(l => ticked.value.has(l.key)).length;
+  return done ? `${done} of ${tick.length} lines done` : '';
+}
+/** The day's chips, in line order: its bold kinds (boxed lines that aren't research) and sale on / off. */
+function compactChips(d: TrackerDay): { key: string; text: string; done: boolean; event: boolean }[] {
+  const out: { key: string; text: string; done: boolean; event: boolean }[] = [];
+  for (const l of d.lines) {
+    if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
+    else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
+  }
+  return out;
+}
+function compactRanges(d: TrackerDay): RangeItem[] {
+  return researchRanges(d.lines, ticked.value);
+}
+function compactKind(d: TrackerDay, kind: 'note' | 'warning'): TrackerLine[] {
+  return d.lines.filter(l => l.kind === kind);
+}
+/** A Compact day's header: List, that day open, its heading focused. Not remembered as the player's view (a jump, not a
+ *  press of the toggle). */
+function jumpToDay(ymd: string): void {
+  view.value = 'list';
+  const d = props.result?.days.find(x => x.ymd === ymd);
+  if (d) setOpen(d, true);
+  void nextTick(() => {
+    if (typeof document === 'undefined') return;
+    const h = document.getElementById(`buildup-dayhead-${ymd}`);
+    h?.scrollIntoView({ block: 'start' });
+    h?.focus({ preventScroll: true });
+  });
+}
 // ------------------------------------------------------------------ Phase 2: from the save
 function boughtOf(l: TrackerLine): LineBought | null {
   return props.bought?.get(l.key) ?? null;
