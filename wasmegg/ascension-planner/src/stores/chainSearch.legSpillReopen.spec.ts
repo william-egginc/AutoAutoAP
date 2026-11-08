@@ -100,7 +100,7 @@ function failingBackend() {
     sync: guard(() => mem.sync()),
     truncate: guard((n: number) => mem.truncate(n)),
     size: guard(() => mem.size()),
-    close: guard((r?: boolean) => mem.close(r)),
+    close: guard(() => mem.close()),
   };
   return { backend, state };
 }
