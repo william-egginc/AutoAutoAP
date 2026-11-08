@@ -147,6 +147,7 @@
           <li><a href="#follow">The route you follow, saved online</a></li>
           <li><a href="#prefs">Your choices and Setup, saved online</a></li>
           <li><a href="#answers">Your instant answers, saved online</a></li>
+          <li><a href="#synced">Your starting TE, tracker ticks and plan, saved online</a></li>
           <li><a href="#readback">Your own run's CSV, read back</a></li>
           <li><a href="#never">What is never sent to the leaderboard</a></li>
           <li><a href="#online">What goes online, and the code made from your ID</a></li>
@@ -404,6 +405,25 @@
       </section>
 
       <!-- composables/useBoardRunLegs.ts, explorer/collector.ts fetchRunCsv: these sentences go with that code. -->
+      <!-- lib/syncWords.ts: this section, Setup's line and the delete button go with that code. -->
+      <section id="synced">
+        <h2>Your starting TE, tracker ticks and plan, saved online</h2>
+        <p>
+          With the setting that saves your choices online on, these are also saved online for your account: the
+          starting TE you typed (a number for each egg) and the TE your save had when you typed it; the lines you
+          ticked in the Build-up tracker; and the tracker's kept plan, which is what to buy and when, worked out from
+          your save.
+        </p>
+        <ul>
+          <li><b>Why:</b> so every browser and device you use shows the same starting TE, the same plan and the same ticks.</li>
+          <li><b>Where:</b> saved online, under the same code as your saved routes and Setup, a code made from your player ID. The ID itself is never sent.</li>
+          <li><b>Who can read it:</b> anyone who knows your player ID can make the same code, so they can see it, and change it. The maintainer can see it too. A plan shows what you are planning to buy and when.</li>
+          <li><b>Not saved online:</b> your save, your player ID, a name or a route.</li>
+          <li><b>How long it is kept:</b> until you delete it.</li>
+          <li><b>Delete it:</b> <b>Delete everything saved online for this account</b> deletes everything saved online under your code: your followed routes, Setup and sharing choices, instant answers, starting TE, tracker ticks and plan. Your save and everything kept in this browser stay.</li>
+        </ul>
+      </section>
+
       <section id="readback">
         <h2>Your own run's CSV, read back</h2>
         <p>
@@ -430,7 +450,7 @@
       <section id="online">
         <h2>What goes online, and the code made from your ID</h2>
         <ul>
-          <li>Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), and your newest instant answers. The same code on another device shows them.</li>
+          <li>Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.</li>
           <li>The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.</li>
           <li>On the leaderboard: only what you tick. Never your player ID or your save.</li>
           <li>Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.</li>
