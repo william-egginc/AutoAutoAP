@@ -26,6 +26,12 @@
  * Per key: one override and at most 3 ascensions of ticks and plans (a 4th evicts the lowest). 60 writes an hour a key (`follow_rate`
  * under 'sync|<key>'), SYNC_PUTS_PER_DAY (6,000) writes and SYNC_NEW_KEYS_PER_DAY (100) new keys a day for the whole collector,
  * 3,000 keys and SYNC_MAX_TOTAL_BYTES (150 MB) in all, and the FOLLOW_LIMIT edge binding per address.
+ *
+ *   DELETE /forget?k=&all=1   "Delete everything saved online for this account": the saved routes (/follow), Setup and consent (/prefs),
+ *                             instant answers (/answers) and synced records (this file) under the key, in one call:
+ *                             { ok, deleted: { follows, prefs, answers, synced } } (rows). `all=1` is required. 10 a hour a key. The
+ *                             budget rows stay (forgetting is not a way to reset a limit). It does NOT reach results shared with the
+ *                             leaderboard, the private instant records or CSVs (kept under the owner code, not this key).
  */
 import { dayWait } from './budget.js';
 import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
@@ -230,4 +236,39 @@ export async function handleSync(request, env, now = Date.now()) {
       .run();
   }
   return reply({ ok: true, updatedAt: now });
+}
+
+export const isForgetRequest = url => url.pathname === '/forget';
+
+/** `DELETE /forget?k=&all=1`: everything saved online under the account key, in one call. */
+export async function handleForget(request, env, now = Date.now()) {
+  if (!env.WATCH) return reply({ error: 'synced records are not set up on this collector' }, 503);
+  const url = new URL(request.url);
+  if (request.method !== 'DELETE') return reply({ error: 'method not allowed' }, 405);
+  if (PLAYER_ID.test(url.search)) return bad(['send the key, never the player id']);
+  const k = url.searchParams.get('k');
+  if (!isKey(k)) return bad(['k must be 64 lowercase hex characters']);
+  if (url.searchParams.get('all') !== '1') return bad(['add all=1 to delete everything saved online for this account']);
+  const slow = await overLimit(env, request, 'forget');
+  if (slow) return slow;
+  const hourAgo = now - HOUR_MS;
+  const budget = await env.WATCH.prepare(
+    `INSERT INTO follow_rate (key, since, n) VALUES (?, ?, 1)
+     ON CONFLICT(key) DO UPDATE SET
+       n = CASE WHEN follow_rate.since <= ? THEN 1 ELSE follow_rate.n + 1 END,
+       since = CASE WHEN follow_rate.since <= ? THEN excluded.since ELSE follow_rate.since END
+     WHERE follow_rate.since <= ? OR follow_rate.n < ?`
+  )
+    .bind(`forget|${k}`, now, hourAgo, hourAgo, hourAgo, 10)
+    .run();
+  if (!budget.meta || !budget.meta.changes) {
+    const r = await env.WATCH.prepare('SELECT since FROM follow_rate WHERE key = ?').bind(`forget|${k}`).first();
+    return retry(Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000)), 'at most 10 deletions an hour for one key');
+  }
+  const deleted = {};
+  for (const [name, table] of [['follows', 'follows'], ['prefs', 'prefs'], ['answers', 'answers'], ['synced', 'synced']]) {
+    const r = await env.WATCH.prepare(`DELETE FROM ${table} WHERE key = ?`).bind(k).run();
+    deleted[name] = r.meta?.changes ?? 0;
+  }
+  return reply({ ok: true, deleted });
 }
