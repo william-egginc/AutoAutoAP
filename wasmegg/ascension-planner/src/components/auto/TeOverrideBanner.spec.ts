@@ -113,17 +113,17 @@ describe('when the banner shows', () => {
     load(save(ID));
     overrideFor(ID);
     expect(saveTEOf(save(ID))).toBe(198);
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: 198 });
+    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: 198, pendingTE: 1 });
     const text = textOf(await html());
     expect(text).toBe(
-      "Your typed starting TE (197) is lower than your save's TE (198), so the answers here start behind where you are. Use my save's TE"
+      "Your typed starting TE (197) is lower than your save's TE (198, counting 1 not yet claimed), so the answers here start behind where you are. Use my save's TE"
     );
   });
   it('higher than the save (a what-if): the neutral line with both numbers', async () => {
     load(save(ID));
     overrideFor(ID, { ...CLAIMED_197, kindness: 39 });
     expect(textOf(await html())).toBe(
-      "Your answers start from a typed TE (199), not your save's (198). Use my save's TE"
+      "Your answers start from a typed TE (199), not your save's (198, counting 1 not yet claimed). Use my save's TE"
     );
   });
   it('the save at the same TE: no comparison', async () => {
@@ -134,7 +134,7 @@ describe('when the banner shows', () => {
   it("the save's TE unknown (no virtue progress in it): no comparison", async () => {
     load(save(ID, { virtue: false }));
     overrideFor(ID);
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: null });
+    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: null, pendingTE: 0 });
     expect(textOf(await html())).toBe("Your answers start from a typed TE (197). Use my save's TE");
   });
   it('no typed TE: nothing', async () => {
@@ -148,6 +148,39 @@ describe('when the banner shows', () => {
     overrideFor(OTHER);
     expect(teOverrideBannerOf()).toBeNull();
     expect(await html()).not.toContain('data-testid="te-override-banner"');
+  });
+});
+
+describe('TE not yet claimed (spec-overridebanner3)', () => {
+  it("the composable passes the save's pending TE: its total less its claimed total (2 here, on two eggs)", async () => {
+    const raw = save(ID);
+    raw.virtue!.eggsDelivered[3] = getThresholdForTE(41); // Resilience: 40 claimed, 41 passed
+    load(raw);
+    overrideFor(ID);
+    expect(saveTEOf(raw)).toBe(199);
+    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: 199, pendingTE: 2 });
+    expect(textOf(await html())).toBe(
+      "Your typed starting TE (197) is lower than your save's TE (199, counting 2 not yet claimed), so the answers here start behind where you are. Use my save's TE"
+    );
+  });
+  it('nothing pending: no clause', async () => {
+    load(save(ID, { pendingOne: false }));
+    overrideFor(ID, { ...CLAIMED_197, kindness: 36 });
+    expect(teOverrideBannerOf()).toEqual({ overrideTE: 196, saveTE: 197, pendingTE: 0 });
+    expect(textOf(await html())).toBe(
+      "Your typed starting TE (196) is lower than your save's TE (197), so the answers here start behind where you are. Use my save's TE"
+    );
+  });
+  it("lower or higher is against the save's total INCLUDING pending, not its claimed TE", async () => {
+    // Typed 197 = the save's claimed 197, but the save's TE is 198 counting the pending one: lower, not the same.
+    load(save(ID));
+    overrideFor(ID);
+    expect(textOf(await html())).toMatch(
+      /^Your typed starting TE \(197\) is lower than your save's TE \(198, counting 1/
+    );
+    // Typed 198 = the save's total: the same, no comparison, though it is above the claimed 197.
+    overrideFor(ID, { ...CLAIMED_197, kindness: 38 });
+    expect(textOf(await html())).toBe("Your answers start from a typed TE (198). Use my save's TE");
   });
 });
 

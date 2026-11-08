@@ -36,7 +36,10 @@ import { TE_OVERRIDE_REMOVE, teOverrideBannerLine } from '@/lib/teOverrideWords'
 import { useChainSearchStore } from '@/stores/chainSearch';
 
 const banner = computed(() => teOverrideBannerOf());
-const line = computed(() => (banner.value ? teOverrideBannerLine(banner.value.overrideTE, banner.value.saveTE) : ''));
+// The save's TE counts the ones not yet claimed, and the line says how many (lib/teOverrideWords.ts).
+const line = computed(() =>
+  banner.value ? teOverrideBannerLine(banner.value.overrideTE, banner.value.saveTE, banner.value.pendingTE) : ''
+);
 
 // A search going (App.vue `searchActive`: a run, or between a Full sweep queue's chains).
 const chainSearchStore = useChainSearchStore();

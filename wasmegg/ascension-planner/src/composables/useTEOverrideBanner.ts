@@ -18,6 +18,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { accountOf } from '@/search/runSaves';
 import { saveTEOf } from '@/lib/saveFreshness';
+import { parseVirtueProgress } from '@/lib/backupVirtue';
+import type { ei } from 'lib';
 import { VIRTUE_TE_ORDER } from '@/stores/truthEggs';
 import { applyAutoStartingTE } from '@/auto/startingTE';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
@@ -27,6 +29,8 @@ export interface TEOverrideBanner {
   overrideTE: number;
   /** The save's own TE (pending counted, lib/saveFreshness.ts `saveTEOf`), or null when the save holds no virtue progress. */
   saveTE: number | null;
+  /** The part of `saveTE` not yet claimed: the save's TE less its claimed TE (0 when `saveTE` is null). */
+  pendingTE: number;
 }
 
 /** The banner, or null while no override of this account's is on. Reads the stores, so a computed follows it. */
@@ -37,8 +41,14 @@ export function teOverrideBannerOf(): TEOverrideBanner | null {
   const account = accountOf(raw);
   if (!(override && account && planner.teOverrideAccount === account)) return null;
   const overrideTE = VIRTUE_TE_ORDER.reduce((sum, egg) => sum + (override[egg] ?? 0), 0);
-  const hasVirtue = !!(raw as { virtue?: unknown } | null)?.virtue;
-  return { overrideTE, saveTE: hasVirtue ? saveTEOf(raw) : null };
+  if (!(raw as { virtue?: unknown } | null)?.virtue) return { overrideTE, saveTE: null, pendingTE: 0 };
+  // The save's TE (saveTEOf: per egg the claimed TE or the thresholds passed, whichever is more, capped at 98) less
+  // its claimed TE (lib/backupVirtue.ts parseVirtueProgress `teEarned`, the save's eovEarned, as Virtue Progress
+  // reads it), so "198, counting 1 not yet claimed" always adds up.
+  const saveTE = saveTEOf(raw);
+  const claimed = parseVirtueProgress(raw as ei.IBackup).teEarned;
+  const claimedTE = VIRTUE_TE_ORDER.reduce((sum, egg) => sum + Math.min(98, claimed[egg] ?? 0), 0);
+  return { overrideTE, saveTE, pendingTE: Math.max(0, saveTE - claimedTE) };
 }
 
 /**
