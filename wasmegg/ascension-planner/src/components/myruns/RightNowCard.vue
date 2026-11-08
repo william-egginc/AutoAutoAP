@@ -562,7 +562,8 @@ import { freshSoonerLine } from '@/lib/freshSoonerWords';
 import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
-import { showDateTime } from '@/lib/displayTime';
+import { dateStyle, showDateTime } from '@/lib/displayTime';
+import { formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
@@ -874,10 +875,15 @@ const nextText = computed(() =>
 const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
 /** The fresh-start line in this card's zone (as every other time on it). */
 const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
-const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
+const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
-const shiftLineText = (l: NextShiftLine) =>
-  nextShiftWords(l, (t, exact) => showDateTime(exact ? t : roundToHourIn(t, props.zone), props.zone));
+const shiftLineText = (l: NextShiftLine) => nextShiftWords(l, (t, exact) => sentenceWhen(exact ? t : roundToHourIn(t, props.zone)));
+/** A moment in a sentence, "Nov 13, 2026 at 10:00 AM" (spec-uxpass item 2, 8 Nov 2026: was "Nov 13, 2026, 10:00 AM"
+ *  after "at"); the ISO style keeps its fixed form. */
+function sentenceWhen(t: number): string {
+  if (dateStyle.value === 'iso') return showDateTime(t, props.zone);
+  return formatMoment(t * 1000, { zone: props.zone, at: true }) || showDateTime(t, props.zone);
+}
 /** The first prestige ahead that the estimate can't time (lib/instantSteps.ts flags), in words; '' when none. */
 const nextFlag = computed(() => {
   const e = props.events.find(x => !x.past && x.kind === 'prestige' && !x.timeOff);

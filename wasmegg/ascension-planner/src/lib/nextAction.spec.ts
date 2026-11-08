@@ -58,10 +58,10 @@ describe('nextAction, each phase', () => {
 describe('nextActionWords', () => {
   const when = (t: number) => `<${t - T0}>`;
   it('says each in the player words', () => {
-    expect(nextActionWords({ kind: 'shift', egg: 'humility', at: T0 + 5 }, when)).toBe('Shift to Humility at <5>');
+    expect(nextActionWords({ kind: 'shift', egg: 'humility', at: T0 + 5 }, when)).toBe('Shift to Humility on <5>');
     expect(nextActionWords({ kind: 'build', until: T0 + 5 }, when)).toBe('Building up until about <5>');
-    expect(nextActionWords({ kind: 'prestige', at: T0 + 5, te: 227 }, when)).toBe('Prestige at <5>');
-    expect(nextActionWords({ kind: 'goal', at: T0 + 5, te: 490 }, when)).toBe('Reach 490 TE at <5>');
+    expect(nextActionWords({ kind: 'prestige', at: T0 + 5, te: 227 }, when)).toBe('Prestige on <5>');
+    expect(nextActionWords({ kind: 'goal', at: T0 + 5, te: 490 }, when)).toBe('Reach 490 TE on <5>');
   });
 });
 

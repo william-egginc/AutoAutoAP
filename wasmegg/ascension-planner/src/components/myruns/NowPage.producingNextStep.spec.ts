@@ -200,7 +200,7 @@ describe('B1: a producing save never reads "Building up until"', () => {
       expect(lines[0]).toMatchObject({ kind: 'prestige', te: page.teSoFar.value });
       expect(lines.slice(1).some(l => l.kind === 'shift')).toBe(true);
       const t = await cardText(page);
-      expect(t).toMatch(/Next step Prestige at /);
+      expect(t).toMatch(/Next step Prestige on [A-Z][a-z]{2} \d{1,2}, \d{4} at /);
       expect(t).not.toMatch(/Building up until/);
     },
     SLOW

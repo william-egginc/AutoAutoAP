@@ -418,12 +418,13 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     await vi.waitFor(() => expect(page.nextStep.value).toEqual({ kind: 'shift', egg: 'humility', at: now + 2 * H }));
     const html = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value }, {}, [getActivePinia()!]);
     expect(html).toContain('data-testid="now-next-action"');
-    expect(textOf(html)).toMatch(/Next step Shift to Humility at [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    // "on Nov 14, 2026 at 9:52 AM", not "at Nov 14, 2026, 9:52 AM" (spec-uxpass item 2, 8 Nov 2026).
+    expect(textOf(html)).toMatch(/Next step Shift to Humility on [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d\d [AP]M/);
     // Next shifts: the simulated one, then the prestige (the route's table legs list no shifts here).
     expect(page.nextShiftLines.value.map(l => l.kind)).toEqual(['shift', 'prestige', 'prestige', 'prestige', 'goal']);
     const withList = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!]);
     expect(withList).toContain('data-testid="now-next-shifts"');
-    expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4}, [^·]* Prestige at 226 TE · about/);
+    expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d\d [AP]M Prestige at 226 TE · about [A-Z][a-z]{2} \d{1,2}, \d{4} at /);
     scope.stop();
   });
 });
@@ -597,7 +598,7 @@ describe('the ascension you are in without the table\'s estimate (26 Oct 2026)',
       [getActivePinia()!]
     );
     const t = textOf(html);
-    expect(t).toMatch(/Next step Shift to Humility at [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(t).toMatch(/Next step Shift to Humility on [A-Z][a-z]{2} \d{1,2}, \d{4} at /);
     expect(t).toContain('Next shifts Shift to Humility · about');
     expect(t).toContain('Prestige at 226 TE · about');
     expect(t).toContain("Your route couldn't be priced on the instant answer's data");

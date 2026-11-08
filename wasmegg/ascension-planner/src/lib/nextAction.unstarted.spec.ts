@@ -29,7 +29,7 @@ describe('nextAction: a fresh start not begun', () => {
     expect(nextAction({ now: NOW, leg, last: false })).toEqual({ kind: 'prestige', at: NOW, te: null });
     const a = nextAction({ now: NOW, leg, last: false, prestigeAt: t => t + 2 * H })!;
     expect(a).toEqual({ kind: 'prestige', at: NOW + 2 * H, te: null });
-    expect(nextActionWords(a, t => String(t))).toBe(`Prestige at ${NOW + 2 * H}`);
+    expect(nextActionWords(a, t => String(t))).toBe(`Prestige on ${NOW + 2 * H}`);
     const lines = nextShifts({ now: NOW, legs: [leg], more: true });
     expect(lines.map(l => [l.kind, l.egg ?? l.te])).toEqual([
       ['prestige', 147],

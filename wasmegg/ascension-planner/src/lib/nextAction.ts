@@ -149,18 +149,19 @@ function nextActionOf(o: {
   return { kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(leg.end) : leg.end, te };
 }
 
-/** The Next step's words: "Shift to Humility at Oct 28, 2026, 3:12 PM", "Building up until about …", "Prestige at …",
- *  "Reach 490 TE at …". `when` formats a moment (lib/displayTime.ts `showDateTime`). */
+/** The Next step's words: "Shift to Humility on Oct 28, 2026 at 3:12 PM", "Building up until about …", "Prestige on …",
+ *  "Reach 490 TE on …" ("on", spec-uxpass item 2, 8 Nov 2026: `when` gives the date AND the time, "Oct 28, 2026 at
+ *  3:12 PM", RightNowCard.vue `sentenceWhen`). */
 export function nextActionWords(a: NextAction, when: (t: number) => string): string {
   if (a.kind === 'build') return `Building up until about ${when(a.until)}`;
   if (a.kind === 'keepbuilding') return `Keep building: ${buildLeftWords(a.left)} until about ${when(a.until)}`;
-  if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} at ${when(a.at)}`;
-  if (a.kind === 'goal') return `Reach ${a.te} TE at ${when(a.at)}`;
+  if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} on ${when(a.at)}`;
+  if (a.kind === 'goal') return `Reach ${a.te} TE on ${when(a.at)}`;
   if (a.kind === 'timeoff') return `Your time off starts ${when(a.at)}: go to your home farm (this ascension ends at ${a.te} TE)`;
-  if (a.kind === 'back') return `Back from your time off: prestige at ${when(a.at)} to build again`;
+  if (a.kind === 'back') return `Back from your time off: prestige on ${when(a.at)} to build again`;
   if (a.inTimeOff)
     return `Your time off starts ${when(a.inTimeOff.from)}: this ascension ends there (going to your home farm is a prestige); Fast prices the rest`;
-  return `Prestige at ${when(a.at)}`;
+  return `Prestige on ${when(a.at)}`;
 }
 
 /** One line of the Next shifts list. */
@@ -271,7 +272,7 @@ function shiftLines(o: {
   return out;
 }
 
-/** A line's words: "Shift to Humility · about Oct 28, 2026, 3:00 PM", "Building up until about …",
+/** A line's words: "Shift to Humility · about Oct 28, 2026 at 3:00 PM", "Building up until about …",
  *  "Prestige at 277 TE · about …", "490 TE reached · about …". `when` formats a moment. */
 export function nextShiftWords(l: NextShiftLine, when: (t: number, exact: boolean) => string): string {
   const t = `about ${when(l.at, l.exact)}`;
