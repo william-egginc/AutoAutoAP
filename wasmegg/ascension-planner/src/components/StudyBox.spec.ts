@@ -13,6 +13,7 @@ import { hashID } from '@/lib/storage/db';
 import StudyBox from './StudyBox.vue';
 import StudySetup from './auto/StudySetup.vue';
 import StudyForm from './StudyForm.vue';
+import { WITHDRAW_SHORT } from '@/lib/withdrawWords';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
@@ -50,6 +51,15 @@ const WITHDRAW_LINE =
   'Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as ' +
   'each next loads. Another account that agreed only under a share button keeps that choice. What was already ' +
   'sent stays. Each share button still shows its own agreement, with Withdraw there too.';
+
+/** The whole Withdraw line, word for word, in the "?" (HelpTip) after the short line (spec-uxpass item 12). */
+function expectWithdrawLineBehindTip(): void {
+  const src = readFileSync(new URL('./auto/StudySetup.vue', import.meta.url), 'utf8');
+  const note = src.slice(src.indexOf('data-testid="study-setup-withdraw-note"'));
+  const tip = note.slice(note.indexOf('<HelpTip'), note.indexOf('</HelpTip'));
+  expect(note.slice(0, note.indexOf('</p>'))).toContain('{{ WITHDRAW_SHORT }}');
+  expect(tip.replace(/^<HelpTip[^>]*>/, '').replace(/\s+/g, ' ').trim()).toBe(WITHDRAW_LINE);
+}
 
 describe('the box', () => {
   it('keeps its paragraph short: under 300 characters, 5 or 6 lines at 390 px', async () => {
@@ -261,7 +271,8 @@ describe('Setup › Help improve the planner', () => {
     );
     const t = textOf(await setup());
     expect(t).toContain('Withdraw');
-    expect(t).toContain(WITHDRAW_LINE);
+    expect(t).toContain(WITHDRAW_SHORT);
+    expectWithdrawLineBehindTip();
   });
 
   it('yes with every tick, and yes with some: the yes line, read from the same consents', async () => {
@@ -315,7 +326,10 @@ describe('Setup › Help improve the planner', () => {
     await setConsentAccount(A);
     answerYes({ ...ALL_ON }, 'anon', '');
     const t = textOf(await setup());
-    expect(t).toContain(WITHDRAW_LINE);
+    // One short line in view; the whole line, word for word, behind its "?" (spec-uxpass item 12, 8 Nov 2026).
+    expect(t).toContain(WITHDRAW_SHORT);
+    expect(t).not.toContain(WITHDRAW_LINE);
+    expectWithdrawLineBehindTip();
     expect(t).not.toContain('keep their own choices');
     expect(t).not.toContain('for this account from now on');
   });

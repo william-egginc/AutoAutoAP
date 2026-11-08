@@ -91,9 +91,13 @@
       class="text-body text-slate-500 max-w-prose"
       data-testid="study-setup-withdraw-note"
     >
-      Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as each
+      <!-- One short line in view, the whole Withdraw paragraph word for word behind its "?" (spec-uxpass item 12, 8 Nov
+           2026; the short line is DRAFT and waits for Jordan's OK: lib/withdrawWords.ts). -->
+      {{ WITHDRAW_SHORT }}{{ ' ' }}<HelpTip
+        >Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as each
       next loads. Another account that agreed only under a share button keeps that choice. What was already sent stays.
-      Each share button still shows its own agreement, with Withdraw there too.
+      Each share button still shows its own agreement, with Withdraw there too.</HelpTip
+      >
     </p>
   </div>
 </template>
@@ -101,6 +105,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { WITHDRAW_SHORT } from '@/lib/withdrawWords';
+import HelpTip from './HelpTip.vue';
 import { showDay } from '@/lib/displayTime';
 import { WITHDRAW_CONSENTS, capName, type StudyCredit, type StudyTicks } from '@/lib/study';
 import { consentAgreed, consentState } from '@/composables/useConsent';
