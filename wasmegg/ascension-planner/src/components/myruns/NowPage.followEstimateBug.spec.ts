@@ -207,7 +207,8 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
     expect(page.cardPlan.value?.plan).toMatchObject({ chain: [225, 300], estimated: true, endTE: 300 });
     r = await render(page);
-    expect(r.text).toContain("Your route's steps, estimated from the instant answer's data (times rounded to the hour).");
+    expect(r.text).toContain('from the instant answer your route estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.');
+    expect(r.text.match(/rounded to the hour/g)).toHaveLength(1);
     expect(r.text).not.toContain('No timeline for your route');
     scope.stop();
   });

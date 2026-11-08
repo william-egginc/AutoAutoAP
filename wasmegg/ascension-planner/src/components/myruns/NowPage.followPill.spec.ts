@@ -276,7 +276,9 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
     expect(pillOf(page, 'fastest-490')?.follow).toEqual({ times: 'estimate', end });
     r = await render(page);
     expect(r.text).toMatch(/Fastest to 490 TE following · lands about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
-    expect(r.text).toContain("Estimated from the instant answer's data");
+    // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026).
+    expect(r.text).toContain('from the instant answer your route estimated on its data, times rounded to the hour.');
+    expect(r.text).not.toContain("Estimated from the instant answer's data");
     expect(r.text).not.toContain('no saved plan yet');
     expect(r.html).toContain('data-follow="estimate"');
     scope.stop();
@@ -632,8 +634,10 @@ describe("Jordan's continued ascension on Curiosity (26 Oct 2026: \"Building up 
       await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!])
     );
     expect(t).not.toContain('Building up');
-    expect(t).toContain("The ascension you are in simulated on your save, the rest estimated from the instant answer's data");
-    expect(t).toContain('The ascension you are in, simulated on your save; the rest of your route');
+    // Said once, on the tag line (spec-uxpass item 1).
+    expect(t).toContain('from the instant answer the ascension you are in simulated on your save, the rest estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.');
+    expect(t).not.toContain("estimated from the instant answer's data");
+    expect(t.match(/simulated on your save/g)).toHaveLength(1);
     scope.stop();
   });
 });

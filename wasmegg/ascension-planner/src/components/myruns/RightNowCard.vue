@@ -383,10 +383,6 @@
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
         <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
-        <p v-if="card.plan.estimated" class="mt-0.5 text-body text-slate-600 max-w-prose" data-testid="now-next-estimated">
-          <template v-if="simulatedNow">The ascension you are in, simulated on your save; the rest of your route's steps, {{ ESTIMATE_WORDS }}.</template>
-          <template v-else>Your route's steps, {{ ESTIMATE_WORDS }}.</template>
-        </p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
           <p class="label text-indigo-700">Next shifts</p>
@@ -588,7 +584,7 @@ import { askGoal, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
 import { NOT_SAVED_WORDS, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { SAVE_ONLINE_FOLLOW_OFF } from '@/lib/syncWords';
-import { ESTIMATE_WORDS } from '@/lib/followEstimate';
+import { SOURCE_ESTIMATE_SIM_WORDS, SOURCE_ESTIMATE_WORDS, SOURCE_INSTANT_WORDS } from '@/lib/nowSourceWords';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
@@ -743,7 +739,9 @@ const followName = computed(() => {
  *  lib/followPolicy.ts); '' for a Follow press ("Following your pick" until 5 Nov 2026: the route line says Following). */
 const followWhose = computed(() => {
   const l = props.follow?.label ?? 'your pick';
-  return l === 'your pick' ? '' : capitalise(l);
+  // Not again when the pill above says it ("from the instant answer", spec-uxpass item 1, 8 Nov 2026).
+  if (l === 'your pick' || l.toLowerCase() === pill.value.toLowerCase()) return '';
+  return capitalise(l);
 });
 function capitalise(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -778,10 +776,8 @@ const followNote = computed(() => {
             ? 'failed'
             : 'none'
     );
-  if (f.price === 'estimate')
-    return simulatedNow.value
-      ? "the ascension you are in simulated on your save, the rest estimated from the instant answer's data"
-      : "estimated from the instant answer's data";
+  // Said on the tag line under the pill (`pillSub`, spec-uxpass item 1), not again here.
+  if (f.price === 'estimate') return '';
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);
     return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
@@ -941,8 +937,10 @@ const pill = computed(() => {
 const pillSub = computed(() => {
   const p = props.card?.plan;
   if (!p) return '';
-  if (p.estimated) return ESTIMATE_WORDS;
-  if (!p.from) return 'worked out ahead of time; times rounded to the hour';
+  // The one place the instant answer's data is explained (spec-uxpass item 1, 8 Nov 2026): not on the follow line,
+  // under Next step or under the events again.
+  if (p.estimated) return simulatedNow.value ? SOURCE_ESTIMATE_SIM_WORDS : SOURCE_ESTIMATE_WORDS;
+  if (!p.from) return SOURCE_INSTANT_WORDS;
   const done = dateAt(p.from.at / 1000, props.now, props.zone);
   return `done ${done}, your save of ${planSaveWhen.value}${props.card?.pricedWith ? `, ${props.card.pricedWith}` : ''}`;
 });

@@ -309,7 +309,9 @@ describe('the card', () => {
   it('R1, from the instant answer: the pill, times rounded to the hour, no calendar, "run Fast"', async () => {
     const html = await renderHtml(RightNowCard, cardFor(drivingPlan(snap as never, 'date', DEADLINE)));
     const t = textOf(html);
-    expect(t).toContain('from the instant answer worked out ahead of time; times rounded to the hour');
+    // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026): no footer under the events.
+    expect(t).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
+    expect(t.match(/rounded to the hour/g)).toHaveLength(1);
     // The header is "Calculated …" only when the pill says the source (UX fluff review 2, 5 Nov 2026, item R1).
     expect(t).toMatch(/^Right now Calculated /);
     expect(t).not.toContain('(instant answer)');
@@ -321,7 +323,7 @@ describe('the card', () => {
     expect(t).toMatch(/\d+h( \d+m)? spare \(instant\)/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
     // No Run Fast on the card (one path per card, 25 Oct 2026): the events point at Try next in plain words.
-    expect(t).toContain('From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.');
+    expect(html).not.toContain('data-testid="now-events-rounded"');
     expect(html).not.toContain('data-testid="now-run-fast"');
     expect(t).not.toContain('Add to calendar');
     expect(t).not.toContain('＋ Add');

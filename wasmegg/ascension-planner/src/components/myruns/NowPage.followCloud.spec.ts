@@ -182,7 +182,9 @@ describe('Right now: a better result with and without a followed route', () => {
     }
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     expect(text).not.toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
-    expect(text).toContain('from the instant answer worked out ahead of time; times rounded to the hour From the instant answer ');
+    // Said once (spec-uxpass item 1): the follow line doesn't say "From the instant answer" again under the pill.
+    expect(text).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
+    expect(text).not.toContain('From the instant answer');
     expect(text).toContain("Stop following: use the planner's route");
     expect(text).not.toContain('your pick');
     // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant

@@ -158,7 +158,7 @@ async function expectInstantTimeline(goal: Goal, name: string) {
     expect(text).toContain('Following 197 → 218 → 239');
     expect(text).not.toContain(`(${name} · from the instant answer)`);
     expect(html).toContain('data-testid="now-source-pill"');
-    expect(text).toContain('worked out ahead of time; times rounded to the hour');
+    expect(text).toContain('worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
     expect(text).not.toContain(NOT_PRICED);
     expect(text).not.toContain(NO_TIMELINE);
     expect(html).not.toContain('data-testid="calendar-button"');
