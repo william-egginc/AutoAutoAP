@@ -9,7 +9,7 @@
 /**
  * The master switch in Setup (Jordan, 7 Nov 2026): one "Save online" tick, on to start, for everything saved online
  * under the account's code: followed routes, Setup and sharing choices, saved answers, and the starting TE with the
- * tracker's ticks and plan. It is per device. Turning it off saves nothing new from this device; what is already
+ * tracker's ticks and plan. It is per device. Turning it off means this device neither saves nor loads anything online; what is already
  * saved stays until the delete button removes it. After the delete button it turns off on this device.
  */
 export const SAVE_ONLINE_LABEL = 'Save online';
@@ -18,7 +18,9 @@ export const SAVE_ONLINE_LINE_ON =
   'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.';
 /** The line under the tick, off. */
 export const SAVE_ONLINE_LINE_OFF =
-  'Off: this device saves nothing new online. What is already saved online stays until you delete it.';
+  'Off: this device does not save anything online and does not load what is saved online. What is already saved online stays until you delete it.';
+/** The note on a followed route's own "Save online" action while the switch is off (that action is disabled then). */
+export const SAVE_ONLINE_FOLLOW_OFF = 'Save online is off in Setup, so this route is not saved online. Turn it on to save it.';
 /** After the delete button, in place of the on line. */
 export const SAVE_ONLINE_OFF_AFTER_DELETE = 'Save online is off on this device. Turn it on to start saving again.';
 /** How long it is kept. */

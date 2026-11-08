@@ -9,6 +9,7 @@ import {
   SYNC_DELETE_NO,
   SYNC_DELETE_YES,
   SYNC_KEPT,
+  SAVE_ONLINE_FOLLOW_OFF,
   SAVE_ONLINE_LABEL,
   SAVE_ONLINE_LINE_OFF,
   SAVE_ONLINE_LINE_ON,
@@ -24,7 +25,8 @@ describe('sync words', () => {
     expect(SAVE_ONLINE_LINE_ON).toBe(
       'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.'
     );
-    expect(SAVE_ONLINE_LINE_OFF).toBe('Off: this device saves nothing new online. What is already saved online stays until you delete it.');
+    expect(SAVE_ONLINE_LINE_OFF).toBe('Off: this device does not save anything online and does not load what is saved online. What is already saved online stays until you delete it.');
+    expect(SAVE_ONLINE_FOLLOW_OFF).toBe('Save online is off in Setup, so this route is not saved online. Turn it on to save it.');
     expect(SAVE_ONLINE_OFF_AFTER_DELETE).toBe('Save online is off on this device. Turn it on to start saving again.');
     expect(SYNC_KEPT).toBe('Kept until you delete it.');
   });
