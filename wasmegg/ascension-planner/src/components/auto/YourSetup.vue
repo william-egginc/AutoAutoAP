@@ -490,6 +490,9 @@
           >
             {{ UNREACHABLE_NOTE }}
           </p>
+          <!-- The master Save online switch and Delete everything saved online for this account (lib/saveOnline.ts,
+               Jordan 7 Nov 2026). -->
+          <SaveOnlineSetup />
         </div>
       </div>
 
@@ -810,6 +813,7 @@ import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
+import SaveOnlineSetup from './SaveOnlineSetup.vue';
 
 /** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
 const REMEMBERED_TITLE =

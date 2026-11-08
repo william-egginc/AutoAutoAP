@@ -1,0 +1,83 @@
+/**
+ * "Delete everything saved online for this account" (client brief section 4; Jordan, 7 Nov 2026), the flow behind
+ * Setup's button (components/auto/SaveOnlineSetup.vue):
+ *   ask -> a confirm naming what goes (Words' SYNC_DELETE_CONFIRM) and what stays -> DELETE /forget?k=<key>&all=1
+ *   (lib/syncedRecords.ts `forgetEverything`), the button disabled while it runs -> 200: the counts, then Save online
+ *   turned OFF on this device (lib/saveOnline.ts) and said so; otherwise why, with Try again when the server could not
+ *   be reached. Nothing in this browser changes on a failure, and on success only the switch does: an empty cloud never
+ *   clears local data. Not gated by the switch (it works with Save online off). Shown only with SYNC_RECORDS on (the
+ *   live collector has no /forget yet), a collector and an account key.
+ */
+import { computed, ref } from 'vue';
+import { getActivePinia } from 'pinia';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { useFollowStore } from '@/stores/follow';
+import { SYNC_RECORDS, forgetEverything, forgetUrlOf, type ForgetResult } from '@/lib/syncedRecords';
+import { setSaveOnline } from '@/lib/saveOnline';
+import { SYNC_DELETED, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
+import { SYNC_DELETE_STAYS, forgetCountsWords, forgetFailWords } from '@/lib/saveOnlineWords';
+
+/** Delete went through on this page: the switch's line says what it did (SAVE_ONLINE_OFF_AFTER_DELETE). */
+const deletedHere = ref(false);
+export function deletedThisVisit(): boolean {
+  return deletedHere.value;
+}
+/** Specs: a new page load. */
+export function resetForgetEverything(): void {
+  deletedHere.value = false;
+}
+
+export function useForgetEverything() {
+  const searchStore = () => {
+    try {
+      const pinia = getActivePinia() as { state: { value: Record<string, unknown> } } | undefined;
+      return pinia && 'chainSearch' in pinia.state.value ? useChainSearchStore() : null;
+    } catch {
+      return null;
+    }
+  };
+  const follows = useFollowStore();
+  const submitUrl = () => searchStore()?.submitUrl ?? '';
+  /** The button is there: the sync is on, there is a collector and an account key. */
+  const available = computed(() => SYNC_RECORDS.enabled && !!forgetUrlOf(submitUrl()) && /^[0-9a-f]{64}$/.test(follows.cloudKey));
+  const phase = ref<'idle' | 'confirm' | 'running' | 'done' | 'failed'>('idle');
+  const result = ref<ForgetResult | null>(null);
+  const busy = computed(() => phase.value === 'running');
+
+  function ask(): void {
+    if (busy.value) return;
+    phase.value = 'confirm';
+  }
+  function cancel(): void {
+    if (busy.value) return;
+    phase.value = 'idle';
+  }
+  async function confirm(): Promise<void> {
+    if (busy.value) return;
+    phase.value = 'running';
+    const key = follows.cloudKey;
+    let r: ForgetResult;
+    try {
+      r = await forgetEverything(submitUrl(), key);
+    } catch {
+      r = { ok: false, why: 'offline' };
+    }
+    result.value = r;
+    if (r.ok) {
+      // Else the next edit or load writes it straight back (brief section 4.3).
+      setSaveOnline(false);
+      deletedHere.value = true;
+      phase.value = 'done';
+    } else phase.value = 'failed';
+  }
+
+  const confirmLines = computed(() => [SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
+  const lines = computed<string[]>(() => {
+    const r = result.value;
+    if (!r || (phase.value !== 'done' && phase.value !== 'failed')) return [];
+    return r.ok ? [forgetCountsWords(r.deleted), SYNC_DELETED] : [forgetFailWords(r.why, r.retryAfter)];
+  });
+  const canRetry = computed(() => phase.value === 'failed' && !!result.value && !result.value.ok && result.value.why === 'offline');
+
+  return { available, phase, busy, result, ask, cancel, confirm, confirmLines, lines, canRetry };
+}
