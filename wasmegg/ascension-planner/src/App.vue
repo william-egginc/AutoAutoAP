@@ -680,6 +680,7 @@
           @open="openFromMyRuns"
           @fresh="loadFreshSave"
           @recalc="recalcFromMyRuns"
+          @setup="setUpAgainForMyRuns"
         />
       </div>
 
@@ -2038,6 +2039,15 @@ async function setUpFromSaveInHand(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+/**
+ * My runs' Build-up tracker Try again while the stores are not this save's (QA review 7 Nov 2026 #5): the set-up of
+ * this account and save time forgotten and asked for once more. Called by the press only, so a set-up that still
+ * cannot match is asked once per press, never in a loop (`loadSaveForMyRuns` keeps its once-per-save guard).
+ */
+function setUpAgainForMyRuns(): void {
+  myRunsLoadFor = '';
+  loadSaveForMyRuns();
 }
 // A switch back to an account counts again (its stores were loaded the switch's way). A set-up put off by a running
 // search or a picked save is looked at again when that ends (spec-overridestart, 7 Nov 2026).

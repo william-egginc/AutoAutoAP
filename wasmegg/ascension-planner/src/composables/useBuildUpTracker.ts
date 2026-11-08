@@ -658,15 +658,14 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     siloWarnings,
     /** A1 CHOICE: why there is nothing to buy ('picked' / 'default'), for the tracker's own words; null otherwise. */
     finishChosen,
-    failReason: computed(() =>
-      i.sim.value?.status === 'failed'
-        ? (i.sim.value.reason ?? '')
-        : stalled.value
-          ? TRACKER_STALL_REASON
-          : capped.value
-            ? trackerCapReason(Math.round(CAP.ms / 60_000))
-            : ''
-    ),
+    /** Why it failed. A stall or cap over a wait with a reason of its own (useNowPage `buildUpSimGap`: "the planner's
+     *  inputs are not this save's yet") says that reason, never "nothing came back for it" (QA review 7 Nov 2026 #5). */
+    failReason: computed(() => {
+      const s = i.sim.value;
+      if (s?.status === 'failed') return s.reason ?? '';
+      if ((stalled.value || capped.value) && s?.status === 'waiting' && s.reason) return s.reason;
+      return stalled.value ? TRACKER_STALL_REASON : capped.value ? trackerCapReason(Math.round(CAP.ms / 60_000)) : '';
+    }),
     retry,
     /** The failure was a stop (its worker torn down) rather than the simulation's own: said so, with Try again. */
     failStopped: computed(() => i.sim.value?.status === 'failed' && /stopped|terminated|paused/i.test(i.sim.value.reason ?? '')),

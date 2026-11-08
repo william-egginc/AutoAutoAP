@@ -113,7 +113,7 @@
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
             @replan="tracker.replan"
-            @retry="tracker.retry(); page.retryBuildUp()"
+            @retry="retryTracker"
             @show-goal="page.selectGoal"
           />
         </template>
@@ -365,6 +365,8 @@ const emit = defineEmits<{
   fresh: [];
   /** Right now's "Run Fast": App opens the goal's screen with the save and Fast selected (lib/recalc.ts). */
   recalc: [req: RecalcRequest];
+  /** The Build-up tracker's Try again while the stores are not this save's: App sets the save up again, once. */
+  setup: [];
 }>();
 
 /** Right now's "When should I start?" (not on virtue yet): Science › When should I start?, on the plan's route when
@@ -457,6 +459,16 @@ const tracker = useBuildUpTracker({
   saveLoading: computed(() => props.loading || page.saveWaiting.value),
   finishChosen: page.a1Finish,
 });
+/**
+ * The Build-up tracker's Try again: the tracker's bounds started again and the simulation asked again. With the stores
+ * not this save's (useNowPage `storeReady` false) no simulation is asked, so App is asked to set the save up again
+ * (QA review 7 Nov 2026 #5): once per press, never from a watcher.
+ */
+function retryTracker(): void {
+  tracker.retry();
+  page.retryBuildUp();
+  if (!page.storeReady.value) emit('setup');
+}
 /** R7 red-team #3 (31 Oct 2026): the tracker is the shown goal's; with no route followed for it but one for another
  *  goal, the tracker names that goal (and shows it on a press) instead of "follow a route first". */
 const trackerFollowedFor = computed(() => {
