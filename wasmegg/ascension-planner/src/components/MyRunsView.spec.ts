@@ -204,7 +204,7 @@ describe('the My runs tab', () => {
     expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[/);
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
-      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+\/>/
+      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+@setup="setUpAgainForMyRuns"\s+\/>/
     );
     // No address for it is turned away any more: only a hidden Leaderboard or Science falls back.
     expect(app).not.toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);

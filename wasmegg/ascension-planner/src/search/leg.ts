@@ -592,13 +592,14 @@ function freshList(
  * override, auto/startingTE.ts: eggs at exactly that TE's threshold, not the save's eggs) is claimed as set, with
  * nothing pending.
  *
- * A save with no claimed TE to read (no `virtue.eovEarned`) keeps the base state's TE, as before spec-pendingte, and
- * warns once: read as 0 claimed, it priced the farm at TE 0 (spec-workervirtue, 6 Nov 2026: the workers' trimmed save
- * had lost its `virtue` block).
+ * A save with no virtue block keeps the base state's TE, as before spec-pendingte, and warns once: read as 0 claimed,
+ * it priced the farm at TE 0 (spec-workervirtue, 6 Nov 2026: the workers' trimmed save had lost its `virtue` block).
+ * Only a missing block (QA review 7 Nov 2026 #10): a block with an empty `eovEarned` has claimed nothing, as the game
+ * reports it, so its eggs' TE are all pending (0 claimed per egg), never priced as claimed.
  */
 let warnedNoVirtue = false;
 function claimedTEEarned(baseState: EngineState, raw: ei.IBackup): Record<VirtueEgg, number> {
-  if (!raw.virtue?.eovEarned?.length) {
+  if (!raw.virtue) {
     if (!warnedNoVirtue) {
       warnedNoVirtue = true;
       console.warn("continueState: the save has no virtue block (claimed TE), so the base state's TE is used");
