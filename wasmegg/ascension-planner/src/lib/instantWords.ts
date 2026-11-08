@@ -61,10 +61,11 @@ export const FIRST_STEP_BUILDUP_MISSING = `${FIRST_STEP_BUILDUP_MISSING_LEAD} ${
  * The same when the route's first ascension carries on the one you are in ('continue'), not a fresh start
  * (spec-buildupmissing-continue; QA, 7 Nov 2026: with the build-up job failing, First step read "continue your current
  * ascension to 198 TE (…), then prestige at 2:00 AM" with no warning). Same bold lead (`_LEAD`).
- * PLACEHOLDER / DRAFT (the orchestrator's suggestion; Words has not written it yet): Words may overwrite this string.
+ * Final (Words, 8 Nov 2026): says the reason, what the answer does (carries on this ascension, without any build-up buys),
+ * and what to do.
  */
 export const FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST =
-  'The planner could not work out your build-up, so this answer carries on your current ascension without it. Reload this page to try again.';
+  'The planner could not work out your build-up, so this answer carries on your current ascension without any build-up buys. Reload this page to try again.';
 export const FIRST_STEP_BUILDUP_MISSING_CONTINUE = `${FIRST_STEP_BUILDUP_MISSING_LEAD} ${FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST}`;
 
 /** The part after the bold lead of a build-up-missing First step (fresh or continue), from the line's plain text
