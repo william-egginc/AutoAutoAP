@@ -427,7 +427,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('The maintainer can see it too. A plan shows what you are planning to buy and when.');
     expect(text).toContain('Not saved online: your save, your player ID, a name or a route.');
     expect(text).toContain('How long it is kept: until you delete it.');
-    expect(text).toContain('The switch: Save online in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this device saves nothing online and loads nothing from online, and what is already saved online stays until you delete it.');
+    expect(text).toContain('The switch: Save online in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this device saves nothing online and shows nothing from online, and what is already saved online stays until you delete it.');
     expect(text).toContain('After it, Save online is off on this device.');
     expect(text).toContain('Delete everything saved online for this account deletes everything saved online under your code');
   });

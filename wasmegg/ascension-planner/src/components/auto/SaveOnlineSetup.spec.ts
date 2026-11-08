@@ -107,7 +107,7 @@ describe('Delete everything: the flow', () => {
     expect(d.phase.value).toBe('confirm');
     expect(d.confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
     expect(SYNC_DELETE_STAYS).toMatch(/Leaderboard/);
-    expect(SYNC_DELETE_STAYS).toMatch(/[Oo]ther devices keep their own copy until Save online is turned off there too/);
+    expect(SYNC_DELETE_STAYS).toMatch(/[Oo]ther devices keep their own copy and may save it online again; turn Save online off on them to stop that/);
     d.cancel();
     expect(d.phase.value).toBe('idle');
     // (The follow store's own read of /follow is the only call.)
@@ -151,8 +151,8 @@ describe('Delete everything: the flow', () => {
   });
 
   for (const [mode, why, words] of [
-    ['old', 'cannot', 'This server cannot delete yet.'],
-    ['405', 'cannot', 'This server cannot delete yet.'],
+    ['old', 'cannot', 'Deleting is not available yet. Nothing was deleted.'],
+    ['405', 'cannot', 'Deleting is not available yet. Nothing was deleted.'],
     ['limit', 'limit', 'Too many deletions this hour. Try again in 2 minutes.'],
     ['offline', 'offline', "Couldn't reach the planner's server. Nothing was deleted."],
   ] as const)

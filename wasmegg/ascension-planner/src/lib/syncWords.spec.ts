@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   START_TE_USE_SAVE,
   SYNC_DELETED,
-  SYNC_DELETED_OTHER_DEVICES,
   SYNC_DELETE_CONFIRM,
   SYNC_DELETE_LABEL,
   SYNC_DELETE_NO,
@@ -25,7 +24,7 @@ describe('sync words', () => {
     expect(SAVE_ONLINE_LINE_ON).toBe(
       'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.'
     );
-    expect(SAVE_ONLINE_LINE_OFF).toBe('Off: this device does not save anything online and does not load what is saved online. What is already saved online stays until you delete it.');
+    expect(SAVE_ONLINE_LINE_OFF).toBe('Off: this device does not save anything online, and shows nothing from online. What is already saved online stays until you delete it.');
     expect(SAVE_ONLINE_FOLLOW_OFF).toBe('Save online is off in Setup, so this route is not saved online. Turn it on to save it.');
     expect(SAVE_ONLINE_OFF_AFTER_DELETE).toBe('Save online is off on this device. Turn it on to start saving again.');
     expect(SYNC_KEPT).toBe('Kept until you delete it.');
@@ -48,7 +47,6 @@ describe('sync words', () => {
     );
     expect([SYNC_DELETE_YES, SYNC_DELETE_NO]).toEqual(['Delete', 'Keep it']);
     expect(SYNC_DELETED).toBe('Deleted. Nothing is saved online for this account now, and Save online is off on this device.');
-    expect(SYNC_DELETED_OTHER_DEVICES).toBe('Other devices will stop showing it once they reload.');
   });
   it('no player ID, and a wording-only file (out of the result code hash)', () => {
     expect(JSON.stringify([SAVE_ONLINE_LINE_ON, SYNC_DELETE_CONFIRM])).not.toMatch(/EI\d{16}/);

@@ -18,7 +18,7 @@ export const SAVE_ONLINE_LINE_ON =
   'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.';
 /** The line under the tick, off. */
 export const SAVE_ONLINE_LINE_OFF =
-  'Off: this device does not save anything online and does not load what is saved online. What is already saved online stays until you delete it.';
+  'Off: this device does not save anything online, and shows nothing from online. What is already saved online stays until you delete it.';
 /** The note on a followed route's own "Save online" action while the switch is off (that action is disabled then). */
 export const SAVE_ONLINE_FOLLOW_OFF = 'Save online is off in Setup, so this route is not saved online. Turn it on to save it.';
 /** After the delete button, in place of the on line. */
@@ -49,4 +49,3 @@ export const SYNC_DELETE_CONFIRM =
 export const SYNC_DELETE_YES = 'Delete';
 export const SYNC_DELETE_NO = 'Keep it';
 export const SYNC_DELETED = 'Deleted. Nothing is saved online for this account now, and Save online is off on this device.';
-export const SYNC_DELETED_OTHER_DEVICES = 'Other devices will stop showing it once they reload.';
