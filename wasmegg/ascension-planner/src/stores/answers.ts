@@ -12,6 +12,7 @@ import { defineStore, getActivePinia } from 'pinia';
 import { ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
+import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
 import { AnswersClient, answersUrlOf, type AnswerOffer, type AnswersFetch, type CloudAnswer } from '@/lib/answersCloud';
 
 /** The browser's fetch, called as itself (never as a method of another object: "Illegal invocation"). */
@@ -42,12 +43,15 @@ export const useAnswersStore = defineStore('answers', () => {
       return '';
     }
   };
-  const urlNow = (): string => answersUrlOf(searchStore()?.submitUrl);
+  /** '' without a collector, and while Save online is off (lib/saveOnline.ts: nothing read, nothing written). */
+  const urlNow = (): string => answersUrlOf(cloudSubmitUrl(searchStore()?.submitUrl));
   /**
    * The key and the collector known (27 Oct 2026: a fresh private window asked before its account key was worked out,
    * got nothing and never asked again). Resolves when both are, or after READY_WAIT_MS (the read then says why not).
    */
   function whenReady(): Promise<void> {
+    // Off: nothing to wait for (the read then says "no collector").
+    if (!saveOnlineOn()) return Promise.resolve();
     if (/^[0-9a-f]{64}$/.test(keyNow()) && urlNow()) return Promise.resolve();
     return new Promise<void>(resolve => {
       let stop: (() => void) | null = null;

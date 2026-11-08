@@ -72,6 +72,7 @@
         :follow-set-with="page.followSetWith.value"
         :follow-save-words="page.followSaveWords.value"
         :follow-not-saved="page.followNotSaved.value"
+        :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"

@@ -57,6 +57,7 @@ import {
   type FollowSource,
 } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
+import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
 import { AUTO_FOLLOW_FIRST, autoFollowsGoal, type AutoFollow } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
@@ -108,11 +109,15 @@ export const useFollowStore = defineStore('follow', () => {
       return null;
     }
   };
-  /** The collector's /follow, from the submit URL every other call uses; '' without one. */
-  const followUrl = (): string => followUrlOf(searchStore()?.submitUrl);
+  /** The collector's /follow, from the submit URL every other call uses; '' without one, and while Save online is off
+   *  (lib/saveOnline.ts `cloudSubmitUrl`: nothing read, nothing written; following works in this browser). */
+  const followUrl = (): string => followUrlOf(cloudSubmitUrl(searchStore()?.submitUrl));
 
   /** The followed routes are saved online for this account (a collector and an account). */
   const online = computed(() => !!cloudKey.value && !!followUrl());
+  /** There is a collector and an account, but Save online is off in Setup: Right now says so where it would offer
+   *  "Save it online" (lib/syncWords.ts SAVE_ONLINE_FOLLOW_OFF). */
+  const offByChoice = computed(() => !saveOnlineOn() && !!cloudKey.value && !!followUrlOf(searchStore()?.submitUrl));
 
   /** The account and collector (`id|url`) whose hashes are worked out ('' until then). */
   const hashedFor = ref('');
@@ -547,6 +552,7 @@ export const useFollowStore = defineStore('follow', () => {
     cloudKey,
     cloudStatus,
     online,
+    offByChoice,
     autoReady,
     autoFollow,
     followed,

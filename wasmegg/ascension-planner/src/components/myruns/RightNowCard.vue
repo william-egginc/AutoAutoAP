@@ -169,6 +169,20 @@
         Save it online ›
       </button>
     </p>
+    <!-- Save online is off in Setup (lib/saveOnline.ts; stores/follow.ts `offByChoice`): the route is followed in this
+         browser only; "Save it online" is shown disabled with Words' note (Jordan, 7 Nov 2026: off disables it, it never
+         turns the switch on). -->
+    <p v-if="follow && followSaveOff" class="text-body text-slate-500" data-testid="now-follow-save-off">
+      {{ SAVE_ONLINE_FOLLOW_OFF }}{{ ' ' }}
+      <button
+        type="button"
+        disabled
+        class="inline-flex min-h-[44px] items-center font-bold text-slate-400 sm:min-h-0"
+        data-testid="now-follow-save-off-button"
+      >
+        Save it online ›
+      </button>
+    </p>
     <!-- The routes saved online couldn't be read on this load: amber with Retry, never red, as following still works in
          this browser (UX review, 25 Oct 2026). -->
     <p v-if="followCloudUnreachable" class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
@@ -563,6 +577,7 @@ import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
 import { NOT_SAVED_WORDS, UNREACHABLE_NOTE } from '@/lib/followCloud';
+import { SAVE_ONLINE_FOLLOW_OFF } from '@/lib/syncWords';
 import { ESTIMATE_WORDS } from '@/lib/followEstimate';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
@@ -621,6 +636,8 @@ const props = defineProps<{
   followSaveWords?: string;
   /** The followed route isn't saved online (stores/follow.ts `notSaved`): said, with "Save it online". */
   followNotSaved?: boolean;
+  /** Save online is off in Setup (stores/follow.ts `offByChoice`): the route action shown disabled, with a note. */
+  followSaveOff?: boolean;
   /** The routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus` 'unreachable'). */
   followCloudUnreachable?: boolean;
   /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */

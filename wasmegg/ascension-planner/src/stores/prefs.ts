@@ -31,6 +31,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
+import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
 import { stepAwayOptions } from '@/composables/useStepAway';
 import { readAutoEveryMin } from '@/search/stepAway';
@@ -124,7 +125,8 @@ export const usePrefsStore = defineStore('prefs', () => {
       return null;
     }
   };
-  const prefsUrl = (): string => prefsUrlOf(searchStore()?.submitUrl);
+  /** '' without a collector, and while Save online is off (lib/saveOnline.ts: nothing read, nothing written). */
+  const prefsUrl = (): string => prefsUrlOf(cloudSubmitUrl(searchStore()?.submitUrl));
   const planner = () => {
     try {
       return useAutoPlannerStore();
@@ -525,7 +527,8 @@ export const usePrefsStore = defineStore('prefs', () => {
       }
       if (p.hash === partition.value) synced[kind] = p.sig;
       writeLocalAt(p.hash, kind, { at: p.value.at, sig: p.sig, pending: true });
-      if (missing.has(p.url)) return;
+      // A change still waiting when Save online went off stays in this browser (lib/saveOnline.ts).
+      if (missing.has(p.url) || !saveOnlineOn()) return;
       if ((pausedUntil[kind] ?? 0) > Date.now()) {
         saves.value = { ...saves.value, [kind]: { state: 'waiting', why: 'limit' } };
         return;
