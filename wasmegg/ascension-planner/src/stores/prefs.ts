@@ -436,8 +436,6 @@ export const usePrefsStore = defineStore('prefs', () => {
     partition.value = h;
     cloudKey.value = k;
     readyIdRef.value = id;
-    // No collector (Save online off): the read kept for the minute is from before, so turning it on reads as a load.
-    if (!url) lastRead = null;
     if (!h || !k || !url) {
       cloudStatus.value = 'idle';
       return;
@@ -477,6 +475,8 @@ export const usePrefsStore = defineStore('prefs', () => {
       readyIdRef.value = '';
       const id = sig.slice(0, sig.lastIndexOf('|'));
       const url = sig.slice(sig.lastIndexOf('|') + 1);
+      // No collector (Save online off): the read kept for the minute is from before, so turning it on reads as a load.
+      if (!url) lastRead = null;
       void load(id, url, g).catch(() => {
         if (g === gen) cloudStatus.value = 'idle';
       });
