@@ -16,7 +16,15 @@ import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { SYNC_RECORDS } from '@/lib/syncedRecords';
 import { resetSaveOnline, setSaveOnline } from '@/lib/saveOnline';
 import { fakeSyncCollector, type FakeSyncCollector } from '@/test/fakeSyncCollector';
-import { OVERRIDE_SYNC_DEBOUNCE_MS, cloudOverrideOffer, flushOverrideSync, noteTEOverrideChange, resetOverrideSync, syncOverrideFromCloud } from './useOverrideSync';
+import {
+  OVERRIDE_SYNC_DEBOUNCE_MS,
+  cloudOverrideOffer,
+  flushOverrideSync,
+  noteTEOverrideChange,
+  resetOverrideSync,
+  syncOverrideFromCloud,
+  useOverrideSync,
+} from './useOverrideSync';
 
 const applyAutoStartingTE = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('@/auto/startingTE', async orig => ({ ...(await orig<typeof import('@/auto/startingTE')>()), applyAutoStartingTE }));
@@ -117,9 +125,11 @@ describe('while a search runs', () => {
     const p = await B.load();
     expect(p.teOverride).toBeNull();
     expect(applyAutoStartingTE).not.toHaveBeenCalled();
+    // App.vue's useOverrideSync reads again once the search ends.
+    useOverrideSync();
     running.value = false;
-    await syncOverrideFromCloud();
-    expect(p.teOverride).toEqual(TE198);
+    await vi.waitFor(() => expect(p.teOverride).toEqual(TE198));
+    expect(applyAutoStartingTE).toHaveBeenCalled();
     expect(cloudOverrideOffer()).toBeNull();
   });
 });

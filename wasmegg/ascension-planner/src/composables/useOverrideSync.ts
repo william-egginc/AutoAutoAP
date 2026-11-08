@@ -175,6 +175,8 @@ let pausedUntil = 0;
 let pending: { playerId: string; url: string; k: string; at: number; value: OverrideRecord } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastReadAt = 0;
+/** A record left unweighed because a search was running: read again when it ends. */
+let deferred = false;
 
 /** Specs: a new page load. */
 export function resetOverrideSync(): void {
@@ -185,6 +187,7 @@ export function resetOverrideSync(): void {
   if (timer) clearTimeout(timer);
   timer = null;
   lastReadAt = 0;
+  deferred = false;
 }
 
 function searchStore() {
@@ -206,6 +209,11 @@ function where(): { url: string; k: string } | null {
   } catch {
     return null;
   }
+}
+/** A search running or starting: the starting TE is what it reads, so nothing changes it under it. */
+function searchBusy(): boolean {
+  const s = searchStore() as { isRunning?: boolean; deadlineRunning?: boolean } | null;
+  return !!s && (!!s.isRunning || !!s.deadlineRunning);
 }
 function saveTENow(): number | null {
   const raw = useInitialStateStore().rawBackup as { virtue?: unknown } | null;
@@ -240,6 +248,11 @@ function removeHere(playerId: string, account: string, at: number): void {
   if (offer.value?.account === account) offer.value = null;
 }
 function apply(res: OverrideResolution, playerId: string, account: string): void {
+  // Never under a running search (as stores/prefs.ts leaves a newer Setup): read again when it ends (`useOverrideSync`).
+  if ((res.act === 'adopt' || res.act === 'remove') && searchBusy()) {
+    deferred = true;
+    return;
+  }
   if (res.act === 'adopt') adopt(playerId, account, res.teEarned, res.at, res.saveTE);
   else if (res.act === 'remove') removeHere(playerId, account, res.at);
   else if (res.act === 'ask')
@@ -402,6 +415,11 @@ export function useOverrideSync(): void {
     () => void syncOverrideFromCloud(),
     { immediate: true }
   );
+  watch(searchBusy, busy => {
+    if (busy || !deferred) return;
+    deferred = false;
+    void syncOverrideFromCloud();
+  });
   if (typeof document === 'undefined') return;
   const onVisible = () => {
     if (document.visibilityState === 'visible' && Date.now() - lastReadAt >= OVERRIDE_REREAD_MS) void syncOverrideFromCloud();
