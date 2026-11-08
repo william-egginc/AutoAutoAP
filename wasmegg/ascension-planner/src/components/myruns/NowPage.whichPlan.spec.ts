@@ -214,7 +214,8 @@ describe('the route followed', () => {
     expect(t).toContain('Following 197 → 490');
     expect(read('RightNowCard.vue')).toContain(':following="following"');
     expect(read('RightNowCard.vue')).toMatch(/planCalEvent\(nextEvent\.value, \{[\s\S]*?following: following\.value/);
-    expect(read('EventsTable.vue')).toMatch(/planCalEvent\(e, \{[\s\S]*?following: props\.following/);
+    // The row as it happens (a waiting prestige at its held time, spec-uxpass item 10), with the same `following` label.
+    expect(read('EventsTable.vue')).toMatch(/planCalEvent\(shown\(e\), \{[\s\S]*?following: props\.following/);
     // EventsTable's own render still works with the line passed.
     const events = planEvents(datePlan, NOW);
     const html = await renderHtml(EventsTable, {

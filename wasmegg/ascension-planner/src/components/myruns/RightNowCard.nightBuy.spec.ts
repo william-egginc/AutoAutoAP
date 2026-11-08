@@ -86,9 +86,10 @@ describe('Right now: the night-buy note in Next step', () => {
     expect(await render({ nextStep: BUILD, nextShiftLines: lines(null) })).not.toContain('data-testid="now-night-buy"');
     expect(await render({ nextStep: BUILD, nextShiftLines: lines(null), awakeHours: null })).not.toContain(NIGHT_BUY_NOTE);
   });
-  it('a fresh start not begun (Prestige at …, no build-up line): no note, even with awake hours', async () => {
+  it('a fresh start not begun (Prestige on …, no build-up line): no note, even with awake hours', async () => {
     const html = await render({ nextStep: PRESTIGE, nextShiftLines: lines(null), awakeHours: HOURS });
-    expect(textOf(html)).toContain('Prestige at');
+    // "Prestige on Nov 6, 2026 at 3:20 PM" (spec-uxpass item 2).
+    expect(textOf(html)).toMatch(/Prestige on [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d\d [AP]M/);
     expect(html).not.toContain(NIGHT_BUY_NOTE);
   });
   it('past the build-up (Shift to …, no build-up line): no note', async () => {

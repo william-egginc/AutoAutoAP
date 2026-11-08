@@ -348,7 +348,8 @@ describe('Phase 2 end to end: a second synthetic save ticks the right lines of t
         // ("N of M bought" once Show all opens it).
         expect(t).toMatch(/Build-up tracker \d+ of \d+ check-ins done/);
         expect(t).toMatch(/\d+ check-ins · \d+ of \d+ lines done/);
-        expect(t).toMatch(/· bought /);
+        // A line the save has done: "bought" on a buy line, "done" on a shift or set swap (spec-uxpass item 3).
+        expect(t).toMatch(/· (bought|done) /);
         expect(t).toMatch(/Show all \d+ still to do/);
         const part = b.lines.get(multi.key)!;
         expect(part.bought).toBeGreaterThan(0);
