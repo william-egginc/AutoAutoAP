@@ -19,6 +19,7 @@
  * evicts the least recently written, so the answer is never refused for room), 30 writes an hour per key (`follow_rate`
  * under 'answers|<key>'), MAX_TOTAL entries in all, and the FOLLOW_LIMIT edge binding per address.
  */
+import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_PUTS_PER_DAY, DAY_MS, dayWait, spend, waitSeconds } from './budget.js';
 import { AT_AHEAD_MS, FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
@@ -49,8 +50,15 @@ export async function handleAnswers(request, env, now = Date.now()) {
   if (!env.WATCH) return reply({ error: 'instant answers are not set up on this collector' }, 503);
   const url = new URL(request.url);
   if (PLAYER_ID.test(url.search)) return bad(['send the key, never the player id']);
-  const k = url.searchParams.get('k');
-  if (!isKey(k)) return bad(['k must be 64 lowercase hex characters']);
+  const rawK = url.searchParams.get('k');
+  if (!isKey(rawK)) return bad(['k must be 64 lowercase hex characters']);
+  let k;
+  try {
+    k = await accountKey(env, rawK);
+  } catch (e) {
+    if (e instanceof AccountKeyError) return accountKeyDown(reply);
+    throw e;
+  }
   const e = url.searchParams.get('e');
 
   if (request.method === 'GET') {

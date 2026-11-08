@@ -33,6 +33,7 @@
  *                             budget rows stay (forgetting is not a way to reset a limit). It does NOT reach results shared with the
  *                             leaderboard, the private instant records or CSVs (kept under the owner code, not this key).
  */
+import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { dayWait } from './budget.js';
 import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
@@ -111,8 +112,15 @@ export async function handleSync(request, env, now = Date.now()) {
   if (!env.WATCH) return reply({ error: 'synced records are not set up on this collector' }, 503);
   const url = new URL(request.url);
   if (PLAYER_ID.test(url.search)) return bad(['send the key, never the player id']);
-  const k = url.searchParams.get('k');
-  if (!isKey(k)) return bad(['k must be 64 lowercase hex characters']);
+  const rawK = url.searchParams.get('k');
+  if (!isKey(rawK)) return bad(['k must be 64 lowercase hex characters']);
+  let k;
+  try {
+    k = await accountKey(env, rawK);
+  } catch (e) {
+    if (e instanceof AccountKeyError) return accountKeyDown(reply);
+    throw e;
+  }
 
   if (request.method === 'GET') {
     const slow = await overLimit(env, request, 'sync-get');
@@ -246,8 +254,15 @@ export async function handleForget(request, env, now = Date.now()) {
   const url = new URL(request.url);
   if (request.method !== 'DELETE') return reply({ error: 'method not allowed' }, 405);
   if (PLAYER_ID.test(url.search)) return bad(['send the key, never the player id']);
-  const k = url.searchParams.get('k');
-  if (!isKey(k)) return bad(['k must be 64 lowercase hex characters']);
+  const rawK = url.searchParams.get('k');
+  if (!isKey(rawK)) return bad(['k must be 64 lowercase hex characters']);
+  let k;
+  try {
+    k = await accountKey(env, rawK);
+  } catch (e) {
+    if (e instanceof AccountKeyError) return accountKeyDown(reply);
+    throw e;
+  }
   if (url.searchParams.get('all') !== '1') return bad(['add all=1 to delete everything saved online for this account']);
   const slow = await overLimit(env, request, 'forget');
   if (slow) return slow;

@@ -17,6 +17,7 @@
  * Last write wins by the CLIENT's `at`: the server stores every write and keeps `updatedAt`; the app compares.
  * D1 (the WATCH binding), not KV: KV's 1,000 writes a day belong to the board.
  */
+import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
 
@@ -147,8 +148,15 @@ export async function handlePrefs(request, env, now = Date.now()) {
 
   if (request.method === 'GET') {
     if (PLAYER_ID.test(url.search)) return reply({ error: 'rejected', problems: ['send the key, never the player id'] }, 400);
-    const k = url.searchParams.get('k');
-    if (!isKey(k)) return reply({ error: 'rejected', problems: ['k must be 64 lowercase hex characters'] }, 400);
+    const rawK = url.searchParams.get('k');
+    if (!isKey(rawK)) return reply({ error: 'rejected', problems: ['k must be 64 lowercase hex characters'] }, 400);
+    let k;
+    try {
+      k = await accountKey(env, rawK);
+    } catch (e) {
+      if (e instanceof AccountKeyError) return accountKeyDown(reply);
+      throw e;
+    }
     const slow = await overLimit(env, request, 'prefs-get');
     if (slow) return slow;
     if (url.pathname === '/prefs/history') {
@@ -202,7 +210,13 @@ export async function handlePrefs(request, env, now = Date.now()) {
     }
   }
   if (problems.length) return reply({ error: 'rejected', problems }, 400);
-  const k = body.k;
+  let k;
+  try {
+    k = await accountKey(env, body.k);
+  } catch (e) {
+    if (e instanceof AccountKeyError) return accountKeyDown(reply);
+    throw e;
+  }
   const valueText = checked.text;
   if (checked.value.at > now + AT_AHEAD_MS) return reply({ error: 'rejected', problems: ['at is more than 10 minutes ahead of the collector clock: check this device\'s clock'] }, 400);
 

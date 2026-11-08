@@ -139,3 +139,11 @@ bucket_name = "aaap-bigcsv"
 #   wrangler secret put RUNS_ADMIN_TOKEN   owner token for GET /runs/active (aaap-tools/active-runs.sh)
 #   wrangler secret put RUNS_NTFY_TOPIC    ntfy.sh topic for the start and stop notes; unset = no notes
 # Optional [vars]: RUNS_MARGIN_MIN (60), RUNS_NEW_PER_DAY (200), RUNS_MAX_OPEN (100), RUNS_PUSH_PER_DAY (20).
+
+# Salted account codes (acct.js, 8 Nov 2026; red team P2): with the Worker secret ACCOUNT_KEY_SALT set, follows, prefs, answers and
+# synced rows are stored under 's1:' + HMAC(secret, the client's code), never the code itself. The secret is NOT in this file:
+#   openssl rand -hex 32 > ~/.aaap-account-salt && chmod 600 ~/.aaap-account-salt      (keep this copy; also a second one offline)
+#   npx wrangler@4 secret put ACCOUNT_KEY_SALT --config "$PWD/wrangler.toml" < ~/.aaap-account-salt
+# Unset = nothing changes. Once rows are salted the secret must never go missing or change (the Worker answers 503 rather than fork
+# the data). Optional [vars]: ACCOUNT_KEY_LEGACY = "0" once the hourly sweep has moved every old row (skips the old-code lookup).
+

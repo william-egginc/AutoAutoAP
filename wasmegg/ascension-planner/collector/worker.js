@@ -71,6 +71,7 @@ import { handleAnswers, isAnswersRequest, pruneAnswers } from './answers.js';
 import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, CSVD_TTL_SECONDS, SUBMITS_PER_DAY, csvDayRefusal, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
+import { rekeyLegacy } from './acct.js';
 import { handleForget, handleSync, isForgetRequest, isSyncRequest } from './sync.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
@@ -4250,6 +4251,7 @@ export default {
     if (prune) ctx.waitUntil(buildCountSweep(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneBudgets(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneRuns(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(rekeyLegacy(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneAnswers(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();

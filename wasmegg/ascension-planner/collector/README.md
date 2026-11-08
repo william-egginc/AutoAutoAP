@@ -1238,3 +1238,10 @@ Specs: `redteam2.spec.js`, `budgets.spec.js`, and additions to `hardening2.spec.
 - **/answers.** New entries are capped at 150 a day for the whole collector (env `ANSWERS_NEW_PER_DAY`), the stored gzip bytes at 100 MB in all as well as 20,000 rows (`429`, "full"); replacing an existing entry is free. The cron drops entries not written for 45 days, and spent `follow_rate` rows older than 3 days.
 - **Simulator gate.** Env `RANK_SIMS` (comma list of simVersion stamps): a row from another simulator is kept but unranked (flag `other-simulator`, the flagged board). Rows with no stamp are not judged. Unset = off.
 - **Server scrub** of player ids is case-insensitive.
+
+## Salted account codes (`acct.js`, 8 Nov 2026)
+The client's account code `k` (SHA-256 of the player ID, unsalted) is the key of the `follows`, `prefs`, `answers` and `synced` rows and their budget rows in `follow_rate`. With the Worker secret `ACCOUNT_KEY_SALT` set, the collector stores `'s1:' + HMAC-SHA-256(secret, 'acct-key-v1:' + k)` instead: a D1 export, backup or time-travel copy taken after that no longer holds codes that can be inverted to an ID or sent back as a working code. The client changes nothing.
+- Off while the secret is unset (today's behaviour). Rows written before are moved on the account's first request, and by the hourly cron (`rekeyLegacy`, 50 accounts a run). `ACCOUNT_KEY_LEGACY=0` skips the old-code lookup once the sweep is done.
+- Fail closed: once salted rows exist, a missing secret answers `503` on follow, prefs, answers and sync instead of writing raw codes beside salted rows.
+- One way: the raw code is gone once a row is moved, so the secret cannot be rotated by a sweep and must be backed up. It does not hide `k` in a request URL (a log would see it): that is the R9 client step (a slow hash, and the code out of the query string).
+- Nothing to migrate for the owner code (a random 128 to 256 bit token, stored as its SHA-256), the watch id and the run code (random), or the board's `acct` label (HMAC under CSV_UPLOAD_KEY).

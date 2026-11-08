@@ -20,6 +20,7 @@
  * field (`readValue`): a field that is out of bounds refuses the write with its name; an unknown field is dropped.
  */
 
+import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 
@@ -172,8 +173,15 @@ export async function handleFollow(request, env, now = Date.now()) {
 
   if (request.method === 'GET') {
     if (PLAYER_ID.test(url.search)) return reply({ error: 'rejected', problems: ['send the key, never the player id'] }, 400);
-    const k = url.searchParams.get('k');
-    if (!isKey(k)) return reply({ error: 'rejected', problems: ['k must be 64 lowercase hex characters'] }, 400);
+    const rawK = url.searchParams.get('k');
+    if (!isKey(rawK)) return reply({ error: 'rejected', problems: ['k must be 64 lowercase hex characters'] }, 400);
+    let k;
+    try {
+      k = await accountKey(env, rawK);
+    } catch (e) {
+      if (e instanceof AccountKeyError) return accountKeyDown(reply);
+      throw e;
+    }
     const slow = await overLimit(env, request, 'get');
     if (slow) return slow;
     if (url.pathname === '/follow/history') {
@@ -227,7 +235,14 @@ export async function handleFollow(request, env, now = Date.now()) {
     problems.push(...checked.problems);
   }
   if (problems.length) return reply({ error: 'rejected', problems }, 400);
-  const { k, value: valueText } = { k: body.k, value: checked.text };
+  const valueText = checked.text;
+  let k;
+  try {
+    k = await accountKey(env, body.k);
+  } catch (e) {
+    if (e instanceof AccountKeyError) return accountKeyDown(reply);
+    throw e;
+  }
   // MIN_BUILD_STAMP (oldbuild.js): the value's build stamp is optional here, so only a stamp that is old is refused.
   if (oldBuild(env, checked.value.build, false)) return reply(OLD_BUILD_BODY, 426);
   if (checked.value.at > now + AT_AHEAD_MS) return reply({ error: 'rejected', problems: ['at is more than 10 minutes ahead of the collector clock: check this device\'s clock'] }, 400);
