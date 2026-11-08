@@ -166,7 +166,7 @@ export type SyncFailure = { ok: false; why: SyncFail; retryAfter?: number };
 const isKey = (k: string) => /^[0-9a-f]{64}$/.test(k);
 const KINDS: readonly SyncKind[] = ['override', 'ticks', 'plan'];
 const defaultFetch = (): SyncFetch | null =>
-  typeof fetch === 'function' ? (((u, i) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
+  typeof fetch === 'function' ? (((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
 
 const failOf = (status: number): SyncFail =>
   status === 404 ? 'missing' : status === 429 ? 'limit' : status === 413 ? 'big' : status === 400 ? 'rejected' : status === 503 ? 'off' : 'error';
