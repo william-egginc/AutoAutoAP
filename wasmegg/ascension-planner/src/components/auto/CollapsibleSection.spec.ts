@@ -42,6 +42,8 @@ describe('Hide in the heading row (spec-uxpass items 8 and 13, 8 Nov 2026: a lon
     const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer', hideInHeading: true }, { default: () => h(Card) });
     expect(html).not.toContain('data-testid="hide-instant"');
     expect(html).toContain('data-testid="card-hide"');
+    // Open: never the hidden section's Show bar as well.
+    expect(html).not.toContain('data-testid="show-instant"');
     // Without it, as before: the pill, and nothing handed down.
     const plain = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer' }, { default: () => h(Card) });
     expect(plain).toContain('data-testid="hide-instant"');

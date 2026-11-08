@@ -28,7 +28,7 @@
       >
     </button>
     <button
-      v-else
+      v-if="!open"
       type="button"
       class="w-full flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300"
       :aria-expanded="false"
