@@ -74,6 +74,7 @@
         :follow-not-saved="page.followNotSaved.value"
         :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
+        :awake-hours="store.availability"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"
         @open="to => emit('open', to)"

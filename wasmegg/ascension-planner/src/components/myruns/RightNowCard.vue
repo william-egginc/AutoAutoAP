@@ -482,6 +482,12 @@
           Work out my plan ›
         </button>
       </p>
+      <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts): a
+           build-up's finish is shown above (Building up / Keep building, or the Keep building choice) with awake hours
+           set, and its research buys can fall outside them: the finish is a best case. Once, at the foot of Next step. -->
+      <p v-if="nightBuy" class="mt-1 text-small text-slate-500 max-w-prose" data-testid="now-night-buy">
+        {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+      </p>
     </div>
 
     <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
@@ -550,6 +556,10 @@ import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
 import A1Choice from './A1Choice.vue';
+import HelpTip from '@/components/auto/HelpTip.vue';
+import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
+import type { Availability } from '@/search/availabilitySchedule';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
 import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
 import { freshSoonerLine } from '@/lib/freshSoonerWords';
@@ -640,6 +650,9 @@ const props = defineProps<{
   followSaveOff?: boolean;
   /** The routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus` 'unreachable'). */
   followCloudUnreachable?: boolean;
+  /** Setup's awake hours (the store's `availability`; null or absent: none): with hours that rule something out and a
+   *  build-up's finish in Next step, the night-buy note (spec-nightbuynote). */
+  awakeHours?: Availability | null;
   /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
   ascensions?: AscensionStep[];
   /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
@@ -688,6 +701,21 @@ const emit = defineEmits<{
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
 const notOnVirtue = computed(() => props.onVirtue === false);
+/**
+ * The night-buy note (lib/nightBuyNote.ts): awake hours set and a build-up's finish drawn in Next step: the next action
+ * or a Next shifts line building up (drawn with a plan, or with a followed route's simulation), or the A1 choice.
+ */
+const nightBuy = computed(() => {
+  const drawn = !!props.card || (!!props.follow && (!!actionText.value || !!props.simWorking || !!props.simFailure));
+  return nightBuyNoteShown(
+    props.awakeHours,
+    nextStepShowsBuildUp({
+      nextStep: drawn && actionText.value ? props.nextStep : null,
+      nextShiftLines: drawn ? props.nextShiftLines : null,
+      a1Choice: props.a1Choice && !notOnVirtue.value ? props.a1Choice : null,
+    })
+  );
+});
 const phaseText = computed(() => (props.phase ? phaseWords(props.phase) : null));
 
 const CHIP = {
