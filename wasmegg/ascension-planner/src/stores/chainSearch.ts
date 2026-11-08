@@ -3805,19 +3805,43 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function restoreLegSpill(kind: 'fastest' | 'deadline', bytes: number | undefined): Promise<void> {
     if (kind === 'fastest') spilled = new WeakSet();
     // The page's: the account's own file, opened at its first run (the CLI sets its spill itself).
-    if (openLegSpill && !legSpillSet[kind] && partitionHash && legSpillFor[kind] !== partitionHash) {
+    const opener = openLegSpill && !legSpillSet[kind] ? openLegSpill : null;
+    const open = async (): Promise<void> => {
+      if (!opener || !partitionHash) return;
       await legSpills[kind]?.close().catch(() => {});
-      legSpills[kind] = await openLegSpill(kind, partitionHash, planTimezone()).catch(() => null);
-      legSpillFor[kind] = partitionHash;
+      legSpills[kind] = await opener(kind, partitionHash, planTimezone()).catch(() => null);
+      // Only an open spill is kept for the account: with none, the next run asks again (review 7 Nov 2026,
+      // finding 11), the other tab may have let go of the file by then.
+      legSpillFor[kind] = legSpills[kind] ? partitionHash : '';
       // No spill here: Setup > Memory says why (no OPFS, another tab holds the file).
       if (!legSpills[kind]) legSpillInfo.value = { routes: 0, bytes: 0, stopped: null, unavailable: lastSpillOpenFailure() ?? 'error' };
+    };
+    let fresh = false;
+    if (opener && partitionHash && legSpillFor[kind] !== partitionHash) {
+      await open();
+      fresh = true;
     }
-    const spill = legSpills[kind];
-    if (!spill) return;
-    try {
-      await spill.restore(bytes ?? 0);
-    } catch (e) {
-      console.warn('chain search: could not reopen the leg spill', e);
+    for (;;) {
+      const spill = legSpills[kind];
+      if (!spill) return;
+      try {
+        await spill.restore(bytes ?? 0);
+        return;
+      } catch (e) {
+        console.warn('chain search: could not reopen the leg spill', e);
+      }
+      // One spill-worker failure must not turn the spill off for the page (review 7 Nov 2026, finding 11): a spill
+      // that cannot be read is let go, and one kept from an earlier run is opened afresh once (a new worker).
+      if (!opener || fresh) {
+        if (opener) {
+          await spill.close().catch(() => {});
+          legSpills[kind] = null;
+          legSpillFor[kind] = '';
+        }
+        return;
+      }
+      await open();
+      fresh = true;
     }
   }
 
