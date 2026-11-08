@@ -244,9 +244,10 @@ describe("Use my save's TE (Remove in the code)", () => {
       .split('\n')
       .map(l => l.trim());
     expect(body).toEqual(['autoPlannerStore.teOverride = null;', 'applyAutoStartingTE();', 'cacheTEOverride();']);
-    // spec-syncclient-a: the cache write, then the sync's note (its time, the save's TE, saved online).
+    // Joo's card is unchanged (spec-syncclient-nohook): the sync notices the cache write from outside
+    // (composables/useOverrideSync.ts installTECacheObserver).
     expect(vp).toMatch(
-      /function cacheTEOverride\(\) \{\s*const override = autoPlannerStore\.teOverride;\s*saveAutoPlannerTEInputs\(initialStateStore\.playerId, override \? \{ teEarned: \{ \.\.\.override \} \} : null\);\s*\/\/[^\n]*\n\s*noteTEOverrideChange\(initialStateStore\.playerId, override\);\s*\}/
+      /function cacheTEOverride\(\) \{\s*const override = autoPlannerStore\.teOverride;\s*saveAutoPlannerTEInputs\(initialStateStore\.playerId, override \? \{ teEarned: \{ \.\.\.override \} \} : null\);\s*\}/
     );
   });
   it('a real button, 44 px tall at every width, with an amber notice round it', () => {

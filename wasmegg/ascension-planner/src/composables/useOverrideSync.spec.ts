@@ -13,6 +13,8 @@
  *  - Save online off, or SYNC_RECORDS off: nothing read or written. No payload holds an ID.
  * Placeholder ID only.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, defineStore, setActivePinia } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -30,7 +32,9 @@ import {
   TE_INPUTS_V2_PREFIX,
   cloudOverrideOffer,
   flushOverrideSync,
+  installTECacheObserver,
   noteTEOverrideChange,
+  onTECacheStorageEvent,
   readLocalOverride,
   rejectCloudOverride,
   resetOverrideSync,
@@ -52,7 +56,16 @@ const raw = () => ({ eiUserId: ID, virtue: { eovEarned: [40, 40, 40, 40, 37], eg
 let c: FakeSyncCollector;
 
 /** One browser: its own storage; `load` is a page load that sets the account up as the Auto Planner does. */
-function browser() {
+/**
+ * spec-syncclient-nohook: two ways the player's change is noticed. 'observed': the card's own steps only (the store,
+ * then the cache's `saveAutoPlannerTEInputs`), as Virtue Progress does with no hook in it: the cache observer
+ * (`installTECacheObserver`) sees the write. 'explicit': the same, plus a direct `noteTEOverrideChange` as the banner's
+ * own buttons do (observer and note together must still send one record).
+ */
+type Mode = 'observed' | 'explicit';
+const MODES: Mode[] = ['observed', 'explicit'];
+
+function browser(mode: Mode) {
   const mem = new Map<string, string>();
   async function load() {
     vi.stubGlobal('localStorage', {
@@ -63,6 +76,7 @@ function browser() {
       length: 0,
     });
     vi.stubGlobal('fetch', c.f);
+    installTECacheObserver();
     resetSaveOnline();
     resetOverrideSync();
     setActivePinia(createPinia());
@@ -82,7 +96,7 @@ function browser() {
     const p = useAutoPlannerStore();
     p.teOverride = te as never;
     saveAutoPlannerTEInputs(ID, te ? { teEarned: { ...te } as never } : null);
-    noteTEOverrideChange(ID, te as never);
+    if (mode === 'explicit') noteTEOverrideChange(ID, te as never);
   }
   return { mem, load, type };
 }
@@ -110,9 +124,11 @@ afterEach(() => {
   resetSaveOnline();
 });
 
+for (const mode of MODES)
+describe(`noticed: ${mode}`, () => {
 describe('the local value', () => {
   it('{ teEarned, at, saveTE } in the same v2 key; the hashed cache still reads it; no at counts as 0', async () => {
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     const at = Date.now();
     A.type(TE197);
@@ -126,7 +142,7 @@ describe('the local value', () => {
 
 describe('writing', () => {
   it('one PUT 2 s after the last edit, stamped with the edit; removing writes the tombstone', async () => {
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     A.type({ ...TE197, kindness: 36 });
     vi.advanceTimersByTime(500);
@@ -145,7 +161,7 @@ describe('writing', () => {
   });
 
   it('a load writes nothing (never from a watcher)', async () => {
-    const A = browser();
+    const A = browser(mode);
     A.mem.set(`${TE_INPUTS_V2_PREFIX}:${ID}`, JSON.stringify({ teEarned: TE197, at: T0 - 1000, saveTE: 198 }));
     await A.load();
     await vi.advanceTimersByTimeAsync(10_000);
@@ -155,8 +171,8 @@ describe('writing', () => {
 
 describe('two browsers', () => {
   it('A types 197; B (none) is ASKED, not applied; Use it applies it, and B is not asked again for it', async () => {
-    const A = browser();
-    const B = browser();
+    const A = browser(mode);
+    const B = browser(mode);
     await A.load();
     const at = Date.now();
     A.type(TE197);
@@ -175,8 +191,8 @@ describe('two browsers', () => {
   });
 
   it("B has its own different override: asked, B's stays in effect until answered", async () => {
-    const A = browser();
-    const B = browser();
+    const A = browser(mode);
+    const B = browser(mode);
     await B.load();
     B.type(TE198);
     await flushOverrideSync();
@@ -190,8 +206,8 @@ describe('two browsers', () => {
   });
 
   it("Use my save's TE on the question removes it everywhere (a tombstone), here too", async () => {
-    const A = browser();
-    const B = browser();
+    const A = browser(mode);
+    const B = browser(mode);
     await A.load();
     A.type(TE197);
     await flushOverrideSync();
@@ -211,8 +227,8 @@ describe('two browsers', () => {
   });
 
   it("equal to the save's TE (198): applied without the question", async () => {
-    const A = browser();
-    const B = browser();
+    const A = browser(mode);
+    const B = browser(mode);
     await A.load();
     A.type(TE198);
     await flushOverrideSync();
@@ -222,8 +238,8 @@ describe('two browsers', () => {
   });
 
   it('the same numbers B already uses: no question', async () => {
-    const A = browser();
-    const B = browser();
+    const A = browser(mode);
+    const B = browser(mode);
     await B.load();
     const at = Date.now();
     B.type(TE197);
@@ -240,7 +256,7 @@ describe('two browsers', () => {
   });
 
   it('an older cloud record than this browser: nothing changes, nothing asked', async () => {
-    const A = browser();
+    const A = browser(mode);
     c.put(KEY, 'override', '0', T0 - 60_000, TE197);
     A.mem.set(`${TE_INPUTS_V2_PREFIX}:${ID}`, JSON.stringify({ teEarned: TE198, at: T0 - 1000, saveTE: 198 }));
     const p = await A.load();
@@ -250,7 +266,7 @@ describe('two browsers', () => {
   });
 
   it('cloud empty: nothing changes here (never clears local data)', async () => {
-    const A = browser();
+    const A = browser(mode);
     A.mem.set(`${TE_INPUTS_V2_PREFIX}:${ID}`, JSON.stringify({ teEarned: TE197, at: T0 - 1000 }));
     const p = await A.load();
     expect(p.teOverride).toEqual(TE197);
@@ -260,7 +276,7 @@ describe('two browsers', () => {
 
 describe('conflicts and failures', () => {
   it('409: a newer record stored meanwhile is weighed as a read (asked here), nothing written back', async () => {
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     A.type(TE198);
     c.put(KEY, 'override', '0', T0 + 5000, TE197);
@@ -271,7 +287,7 @@ describe('conflicts and failures', () => {
 
   it('404 (an older collector): off for the page, quietly: no more calls', async () => {
     c.state.mode = 'old';
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     const n = syncCalls().length;
     expect(n).toBe(1);
@@ -282,7 +298,7 @@ describe('conflicts and failures', () => {
   });
 
   it('429: waits retryAfter, then sends once', async () => {
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     c.state.mode = 'limit';
     c.state.retryAfter = 30;
@@ -298,9 +314,9 @@ describe('conflicts and failures', () => {
   });
 
   it('offline or 503: quiet, never a throw, the override here unchanged', async () => {
-    for (const mode of ['offline', 'off'] as const) {
-      c.state.mode = mode;
-      const A = browser();
+    for (const m of ['offline', 'off'] as const) {
+      c.state.mode = m;
+      const A = browser(mode);
       const p = await A.load();
       A.type(TE197);
       await expect(flushOverrideSync()).resolves.toBeUndefined();
@@ -311,7 +327,7 @@ describe('conflicts and failures', () => {
 
 describe('the switches', () => {
   it('Save online off: nothing read, nothing written', async () => {
-    const A = browser();
+    const A = browser(mode);
     A.mem.set('aap.saveOnline', '0');
     c.put(KEY, 'override', '0', T0, TE197);
     await A.load();
@@ -324,7 +340,7 @@ describe('the switches', () => {
 
   it('SYNC_RECORDS off (as shipped): nothing read, nothing written', async () => {
     SYNC_RECORDS.enabled = false;
-    const A = browser();
+    const A = browser(mode);
     c.put(KEY, 'override', '0', T0, TE197);
     await A.load();
     A.type(TE198);
@@ -333,11 +349,69 @@ describe('the switches', () => {
   });
 
   it('turned off with an edit waiting: not sent', async () => {
-    const A = browser();
+    const A = browser(mode);
     await A.load();
     A.type(TE197);
     setSaveOnline(false);
     await vi.advanceTimersByTimeAsync(OVERRIDE_SYNC_DEBOUNCE_MS * 2);
     expect(syncPuts()).toEqual([]);
+  });
+});
+});
+
+describe('spec-syncclient-nohook: the hook-less path', () => {
+  const mode: Mode = 'observed';
+  it("Virtue Progress's card has no hook: byte for byte Joo's cacheTEOverride", () => {
+    const vp = fs.readFileSync(path.resolve(__dirname, '../components/auto/VirtueProgressSection.vue'), 'utf8');
+    expect(vp).not.toContain('noteTEOverrideChange');
+    expect(vp).not.toContain('useOverrideSync');
+  });
+
+  it('a restored plan (stores/autoPlanner.ts setPlan) or a load setting the store writes nothing: only cache writes count', async () => {
+    const A = browser(mode);
+    await A.load();
+    useAutoPlannerStore().teOverride = TE197 as never;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(syncPuts()).toEqual([]);
+    expect(readLocalOverride(ID).at).toBe(0);
+  });
+
+  it("the at is the time of the card's write (the user action), not of the send", async () => {
+    const A = browser(mode);
+    await A.load();
+    const at = Date.now();
+    A.type(TE197);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(c.record(KEY, 'override')?.at).toBe(at);
+  });
+
+  it("another tab's write (the storage event): an unstamped value (a tab without this code) is noted here; a stamped one is left to its tab", async () => {
+    const A = browser(mode);
+    await A.load();
+    const key = `${TE_INPUTS_V2_PREFIX}:${ID}`;
+    // The other tab, this build: it stamped its own write and sends it itself.
+    A.mem.set(key, JSON.stringify({ teEarned: TE198, at: Date.now() - 10, saveTE: 198 }));
+    onTECacheStorageEvent({ key, newValue: A.mem.get(key)!, storageArea: localStorage } as never);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(syncPuts()).toEqual([]);
+    // An older tab: unstamped.
+    A.mem.set(key, JSON.stringify({ teEarned: TE197 }));
+    const at = Date.now();
+    onTECacheStorageEvent({ key, newValue: A.mem.get(key)!, storageArea: localStorage } as never);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(c.record(KEY, 'override')).toEqual({ at, value: { ...TE197, saveTE: 198 } });
+    // Another key: nothing.
+    onTECacheStorageEvent({ key: 'something.else', newValue: '1', storageArea: localStorage } as never);
+    expect(syncPuts()).toHaveLength(1);
+  });
+
+  it('installing twice observes once', async () => {
+    const A = browser(mode);
+    await A.load();
+    installTECacheObserver();
+    installTECacheObserver();
+    A.type(TE197);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(syncPuts()).toHaveLength(1);
   });
 });
