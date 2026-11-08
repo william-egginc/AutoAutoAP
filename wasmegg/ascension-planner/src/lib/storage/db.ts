@@ -4,6 +4,8 @@
  * Supports partitioned storage using SHA-256 hashes of Player IDs.
  */
 
+import { noteDbAnswer } from './dbAnswer';
+
 const DB_NAME = 'AscensionPlannerDB';
 const DB_VERSION = 1;
 
@@ -62,6 +64,8 @@ function noAnswer(message: string): Error {
 function bounded<T>(tx: IDBTransaction, wait: Promise<T>): Promise<T> {
     const ms = txStuck ? STUCK_TX_TIMEOUT_MS : TX_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // An answer, either way: the run's start limit counts it (dbAnswer.ts). Not the timeout below.
+    wait.then(noteDbAnswer, noteDbAnswer);
     const limit = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
             txStuck = true;
@@ -97,6 +101,7 @@ function openDB(): Promise<IDBDatabase> {
             reject(noAnswer(`IndexedDB did not open within ${OPEN_TIMEOUT_MS / 1000} s`));
         }, OPEN_TIMEOUT_MS);
         const settle = () => {
+            noteDbAnswer();
             clearTimeout(timer);
             if (stalledOpen === request) stalledOpen = null;
         };

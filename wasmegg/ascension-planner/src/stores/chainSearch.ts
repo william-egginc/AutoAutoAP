@@ -228,6 +228,7 @@ import {
 } from '@/composables/useStepAway';
 import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
 import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
+import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 import {
   currentWatchLink,
@@ -6534,7 +6535,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function runStorageLimit(what: string): StorageLimit {
     return storageLimit(what, {
-      progress: lastSpillAnswerAt,
+      // The spill worker's messages and IndexedDB's answers both count (review 7 Nov 2026, finding 7).
+      progress: () => Math.max(lastSpillAnswerAt(), lastDbAnswerAt()),
       onExpire: e => {
         console.warn(`chain search: ${e.message}. The page goes on without it.`);
         stepAwayDropRunMark(`${what} did not answer`);
