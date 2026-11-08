@@ -41,7 +41,11 @@
         @click="sel = clearExplore(sel)"
       >Clear filters</button>
     </p>
-    <div v-else class="overflow-x-auto">
+    <!-- Every run a "maybe you": said once here, not tagged on each row (spec-uxpass item 6, 8 Nov 2026). DRAFT. -->
+    <p v-if="shown.length && allMaybe" class="text-small text-slate-500" data-testid="my-runs-maybe-note">
+      None of these were sent from this browser: they are listed because their timezone and gear match your save.
+    </p>
+    <div v-if="shown.length" class="overflow-x-auto">
       <table class="w-full text-small tabular-nums" data-testid="my-runs-table">
         <thead>
           <tr class="text-left label text-indigo-700/60 whitespace-nowrap">
@@ -89,7 +93,7 @@
                   >hidden</span
                 >
                 <span
-                  v-if="l.maybe"
+                  v-if="l.maybe && !allMaybe"
                   class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-bold text-slate-500"
                   title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it is yours."
                   >maybe you</span
@@ -269,6 +273,8 @@ const groups = computed(() => chipGroups(lineRows.value, sel.value, ctx.value));
 const applied = computed(() => effectiveSelection(lineRows.value, sel.value, ctx.value));
 const active = computed(() => activeCount(applied.value));
 
+/** Every run listed is a "maybe you" (none sent from this browser): one note, no tag on each row. */
+const allMaybe = computed(() => lines.value.length > 0 && lines.value.every(l => l.maybe));
 const shown = computed(() =>
   sortExplore(
     lines.value.filter(l => inExplore(l.row, applied.value, ctx.value)),

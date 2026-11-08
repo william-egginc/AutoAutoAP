@@ -121,6 +121,18 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(t.match(/maybe you/g)).toHaveLength(1);
   });
 
+  it('every run "maybe you": no tag on each row, one note above the list instead (spec-uxpass item 6, 8 Nov 2026)', async () => {
+    const maybeRows = rows.map(r => ({ ...r, yours: false }));
+    const html = await renderWith({ rows: maybeRows });
+    const t = textOf(html);
+    expect(t).not.toContain('maybe you');
+    expect(html.match(/data-testid="my-runs-maybe-note"/g)).toHaveLength(1);
+    // Mixed (some sent from this browser): the tag still tells which rows, and no note.
+    const mixed = await renderWith({});
+    expect(textOf(mixed).match(/maybe you/g)).toHaveLength(1);
+    expect(mixed).not.toContain('data-testid="my-runs-maybe-note"');
+  });
+
   it("opened, a hidden run offers Show again (LeaderboardRunDetail with the board's hide control)", async () => {
     const t = textOf(await renderWith({}, { open: 'race1' }));
     expect(t).toContain('Hidden from the public · Show again');
