@@ -49,6 +49,16 @@ export const TX_TIMEOUT_MS = 30_000;
 export const STUCK_TX_TIMEOUT_MS = 5_000;
 let txStuck = false;
 
+/**
+ * The database did not answer (an open or a transaction past its bound), as opposed to answering with an error or
+ * with "no record" (review 7 Nov 2026, finding 2). A caller that read in order to decide what to write
+ * (persistence.ts saveCheckpoint) must not take this as "nothing there". Marked on the error itself, so callers need
+ * no import from here (specs mock this module).
+ */
+function noAnswer(message: string): Error {
+    return Object.assign(new Error(message), { noAnswer: true });
+}
+
 function bounded<T>(tx: IDBTransaction, wait: Promise<T>): Promise<T> {
     const ms = txStuck ? STUCK_TX_TIMEOUT_MS : TX_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,7 +70,7 @@ function bounded<T>(tx: IDBTransaction, wait: Promise<T>): Promise<T> {
             } catch {
                 // Already finished.
             }
-            reject(new Error(`IndexedDB did not answer within ${ms / 1000} s (another tab may be holding it)`));
+            reject(noAnswer(`IndexedDB did not answer within ${ms / 1000} s (another tab may be holding it)`));
         }, ms);
     });
     return Promise.race([wait, limit]).then(
@@ -77,14 +87,14 @@ function bounded<T>(tx: IDBTransaction, wait: Promise<T>): Promise<T> {
 }
 
 function openDB(): Promise<IDBDatabase> {
-    if (stalledOpen) return Promise.reject(new Error('IndexedDB is not answering (an earlier open is still out)'));
+    if (stalledOpen) return Promise.reject(noAnswer('IndexedDB is not answering (an earlier open is still out)'));
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         let timedOut = false;
         const timer = setTimeout(() => {
             timedOut = true;
             stalledOpen = request;
-            reject(new Error(`IndexedDB did not open within ${OPEN_TIMEOUT_MS / 1000} s`));
+            reject(noAnswer(`IndexedDB did not open within ${OPEN_TIMEOUT_MS / 1000} s`));
         }, OPEN_TIMEOUT_MS);
         const settle = () => {
             clearTimeout(timer);
