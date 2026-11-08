@@ -6,6 +6,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { createSSRApp, h, type Component } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
 import { buildUpTracker, dayView, lineText, trackerSummary } from '@/lib/buildUpTracker';
@@ -33,6 +35,16 @@ function props(state: TrackerState, over: Record<string, unknown> = {}) {
   };
 }
 const render = async (state: TrackerState, over: Record<string, unknown> = {}) => renderHtml(BuildUpTracker, props(state, over));
+/** Rendered with `poke` run on the component's setup state first (a press played, as PanelFold.spec does). */
+async function renderOpened(p: Record<string, unknown>, poke: (s: Record<string, unknown>) => void): Promise<string> {
+  const app = createSSRApp({ render: () => h(BuildUpTracker as Component, p) });
+  app.mixin({
+    created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+      if (this.$.type.__file?.endsWith('/BuildUpTracker.vue')) poke(this.$.setupState);
+    },
+  });
+  return renderToString(app);
+}
 
 describe('BuildUpTracker: the states', () => {
   it('not on virtue: nothing', async () => {
@@ -71,7 +83,8 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
     // Fri Oct 30 is open with 32 lines: its first 8, then "Show all 32" (UX fluff review 2, 5 Nov 2026, item R12; the
     // cap is BuildUpTracker.cap.spec's). Its later lines, such as the wait for the sale, are the plan's still.
-    expect(t).toContain('9:04 am · buy 1 Hyperloop Train (slot 17), cars to 5 Show all 32 Sat Oct 31');
+    // The cap counts lines still to do since spec-trackercompact (8 Nov 2026): "Show all N still to do".
+    expect(t).toContain(`9:04 am · buy 1 Hyperloop Train (slot 17), cars to 5 Show all ${result.days[0].lines.filter(l => l.tickable).length} still to do Sat Oct 31`);
     expect(result.lines.map(lineText)).toContain('wait for the sale: offline until Fri Oct 30 10:00 am (25 min)');
     expect(t).toContain('clocks go back 1 h at 2:00 am');
     expect(t).toContain('Times are in your zone (America/Denver), rounded down to the minute.');
@@ -185,7 +198,9 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
   });
 
   it('a bought line: ticked, "bought", and the label says it came from the save', async () => {
-    const html = await renderHtml(BuildUpTracker, fromSave(save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 })));
+    // Both lines ticked from the save are the day's leading done run, folded into one green line since
+    // spec-trackercompact (8 Nov 2026): opened here (its press played on the setup state) to read the line.
+    const html = await renderOpened(fromSave(save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 })), s => (s.toggleRun as (y: string) => void)('2026-10-30'));
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
     expect(box).toContain('checked');
     expect(box).toMatch(/aria-label="Done: 8:42 am · buy Comfortable Nests \(0 → 50\), [^"]*, from your save"/);
@@ -262,8 +277,9 @@ describe('the template rules (Phase 2)', () => {
   it('no text-[Npx], caps, medium/semibold weights or mono; every button at least 44 px', () => {
     expect(tpl).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
-    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026).
-    expect(buttons.length).toBe(7);
+    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026);
+    // 9: List and Compact (spec-trackercompact, 8 Nov 2026); 10: a Compact day's header (jumps to List).
+    expect(buttons.length).toBe(10);
     for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
   });
   it('meaningful spaces are explicit', () => {

@@ -21,7 +21,8 @@ export type FoldSection =
   | 'countTable' // the instant answer's "Every number of ascensions" table (InstantRoute.vue)
   | 'howWorkedOut' // the instant answer's "How this is worked out" (InstantRoute.vue)
   | 'buildUpTracker' // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
-  | 'setupMore'; // Setup's More options (auto/YourSetup.vue, docked; UX fluff review 2, 5 Nov 2026): its own button, same table and toggle
+  | 'setupMore' // Setup's More options (auto/YourSetup.vue, docked; UX fluff review 2, 5 Nov 2026): its own button, same table and toggle
+  | 'buildUpCompact'; // the Build-up tracker's List / Compact toggle (myruns/BuildUpTracker.vue; open = Compact, spec-trackercompact)
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -46,6 +47,9 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   // Closed (Jordan approved the slim Setup with it closed, 5 Nov 2026): its summary line names every value inside
   // that isn't its default, so nothing changed is hidden by it.
   setupMore: 'folded',
+  // Not a fold: the Build-up tracker's view, "open" being Compact (spec-trackercompact, 8 Nov 2026, Jordan: "all
+  // suggested"). Starts on List; the player's press is remembered in this browser like a fold's toggle.
+  buildUpCompact: 'folded',
 };
 
 /** What the screen is doing, for the triggers. */

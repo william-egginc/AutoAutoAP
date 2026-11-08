@@ -57,6 +57,7 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       howWorkedOut: 'folded',
       buildUpTracker: 'folded',
       setupMore: 'folded', // Setup's More options (5 Nov 2026)
+      buildUpCompact: 'folded', // the Build-up tracker starts on List (spec-trackercompact, 8 Nov 2026)
     });
   });
 

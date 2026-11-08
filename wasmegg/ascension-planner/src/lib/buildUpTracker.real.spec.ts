@@ -193,8 +193,10 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const day0 = r.days[0];
     expect(day0.lines.length).toBeGreaterThan(8);
     const section = html.slice(html.indexOf(`data-testid="buildup-day-${day0.ymd}"`), html.indexOf('</section>', html.indexOf(`data-testid="buildup-day-${day0.ymd}"`)));
-    expect(section.match(/<li[^>]*data-testid="buildup-line-/g)).toHaveLength(8);
-    expect(section).toMatch(new RegExp(`data-testid="buildup-cap-${day0.ymd}"[^>]*>\\s*Show all ${day0.lines.length}\\s*</button>`));
+    // Since spec-trackercompact (8 Nov 2026) the cap counts lines still to do (boxes not ticked): 8 boxes, "Show all N
+    // still to do".
+    expect(section.match(/type="checkbox"/g)).toHaveLength(8);
+    expect(section).toMatch(new RegExp(`data-testid="buildup-cap-${day0.ymd}"[^>]*>\\s*Show all ${day0.lines.filter(l => l.tickable).length} still to do\\s*</button>`));
     expect(day0.lines.some(l => l.bold && l.text === 'shift to Kindness')).toBe(true);
     expect(html).not.toContain('<span class="font-bold">shift to Kindness</span>');
     if (process.env.BUILDUP_SHOT_DIR) {
@@ -347,7 +349,7 @@ describe('Phase 2 end to end: a second synthetic save ticks the right lines of t
         expect(t).toMatch(/Build-up tracker \d+ of \d+ check-ins done/);
         expect(t).toMatch(/\d+ check-ins · \d+ of \d+ lines done/);
         expect(t).toMatch(/· bought /);
-        expect(t).toMatch(new RegExp(`Show all ${r.days[0].lines.length}`));
+        expect(t).toMatch(/Show all \d+ still to do/);
         const part = b.lines.get(multi.key)!;
         expect(part.bought).toBeGreaterThan(0);
         expect(part.bought).toBeLessThan(part.total);

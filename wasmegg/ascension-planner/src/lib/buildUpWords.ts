@@ -60,3 +60,52 @@ export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
 export function trackerCapReason(minutes: number): string {
   return `it took over ${minutes} minutes`;
 }
+
+/** The tracker's List / Compact toggle (spec-trackercompact, 8 Nov 2026; DRAFT words): the group's name and its two
+ *  buttons. */
+export const TRACKER_VIEW_LABEL = 'Show the build-up as';
+export const TRACKER_VIEW_LIST = 'List';
+export const TRACKER_VIEW_COMPACT = 'Compact';
+
+/** Compact (spec-trackercompact; DRAFT words). A sale line as a chip: "sale on 10:00 am", "sale off 10:00 am". */
+export function compactSaleWords(on: boolean, time: string): string {
+  return `${on ? 'sale on' : 'sale off'}${time ? ` ${time}` : ''}`;
+}
+/** A day's check-ins and when: "4 check-ins · 8:00 am to 9:46 am", "1 check-in · 9:52 am". */
+export function checkInSpanWords(n: number, first: string, last: string): string {
+  const count = `${n} check-in${n === 1 ? '' : 's'}`;
+  if (!first) return count;
+  return `${count} · ${first === last ? first : `${first} to ${last}`}`;
+}
+/** The header's state: the next check-in when it is on this day. */
+export const compactNextWords = (time: string): string => `next ${time}`;
+export const COMPACT_ALL_DONE = 'all done';
+/** Said after "›" for a screen reader: the header jumps to the day in List. */
+export const COMPACT_JUMP = 'show this day in the list';
+/** After a done chip / a done range, for a screen reader (the ✓ is hidden from it). */
+export const COMPACT_DONE_SR = '(done)';
+export const COMPACT_BOUGHT_SR = '(bought)';
+
+/** Done work folded into one line that says what was bought (spec-trackercompact; DRAFT words). `ranges`: the research
+ *  ranges; `others`: the other things done, in the lines' words without "buy". "bought A (1 → 2), B (3 → max); shift to
+ *  Kindness"; with no research, the others alone. */
+export function boughtWords(ranges: readonly string[], others: readonly string[]): string {
+  return ranges.length ? `bought ${doneListWords(ranges, others)}` : doneListWords(ranges, others);
+}
+/** The same without "bought", after a lead that says it ("Bought 8:41 am to 9:01 am: A (1 → 2); shift to Kindness"). */
+export function doneListWords(ranges: readonly string[], others: readonly string[]): string {
+  return [ranges.join(', '), others.join(', ')].filter(Boolean).join('; ');
+}
+/** A done run's lead: "Bought 8:41 am to 9:01 am:", "Bought 10:00 am:". */
+export function boughtRunLead(first: string, last: string): string {
+  return `Bought ${!last || first === last ? first : `${first} to ${last}`}:`;
+}
+/** Compact's done run inside today, and the label of what is left. */
+export const BOUGHT_SO_FAR = 'Bought so far:';
+export const STILL_TO_BUY = 'Still to buy';
+/** The group line over the older done days: "Earlier: 2 days, all bought". */
+export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n === 1 ? '' : 's'}, all bought`;
+/** The cap's button when an open day has more lines to do than it shows: "Show all 101 still to do". */
+export const showAllToDoWords = (n: number): string => `Show all ${n} still to do`;
+/** Said after a done day's line for a screen reader. */
+export const DONE_DAY_SR = 'all done';
