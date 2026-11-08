@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createSSRApp, h } from 'vue';
+import { createSSRApp, h, type Component } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
@@ -37,7 +37,7 @@ function props(state: TrackerState, over: Record<string, unknown> = {}) {
 const render = async (state: TrackerState, over: Record<string, unknown> = {}) => renderHtml(BuildUpTracker, props(state, over));
 /** Rendered with `poke` run on the component's setup state first (a press played, as PanelFold.spec does). */
 async function renderOpened(p: Record<string, unknown>, poke: (s: Record<string, unknown>) => void): Promise<string> {
-  const app = createSSRApp({ render: () => h(BuildUpTracker, p) });
+  const app = createSSRApp({ render: () => h(BuildUpTracker as Component, p) });
   app.mixin({
     created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
       if (this.$.type.__file?.endsWith('/BuildUpTracker.vue')) poke(this.$.setupState);

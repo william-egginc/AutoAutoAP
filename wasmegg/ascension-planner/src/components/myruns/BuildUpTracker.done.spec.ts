@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSSRApp, h } from 'vue';
+import { createSSRApp, h, type Component } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
@@ -43,7 +43,7 @@ afterEach(() => vi.unstubAllGlobals());
 async function render(ticks: Set<string>, poke?: (s: Record<string, unknown>) => void): Promise<string> {
   const app = createSSRApp({
     render: () =>
-      h(BuildUpTracker, {
+      h(BuildUpTracker as Component, {
         state: 'ready',
         open: true,
         result,

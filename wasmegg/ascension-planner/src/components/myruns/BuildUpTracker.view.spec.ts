@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSSRApp, h } from 'vue';
+import { createSSRApp, h, type Component } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
@@ -45,7 +45,7 @@ async function renderTracker(over: Record<string, unknown> = {}, poke?: (s: Reco
     planSave: mt(10, 30, 8, 41),
     ...over,
   };
-  const app = createSSRApp({ render: () => h(BuildUpTracker, props) });
+  const app = createSSRApp({ render: () => h(BuildUpTracker as Component, props) });
   if (poke)
     app.mixin({
       created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
