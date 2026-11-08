@@ -262,8 +262,9 @@ describe('the template rules (Phase 2)', () => {
   it('no text-[Npx], caps, medium/semibold weights or mono; every button at least 44 px', () => {
     expect(tpl).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
-    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026).
-    expect(buttons.length).toBe(7);
+    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026);
+    // 9: List and Compact (spec-trackercompact, 8 Nov 2026).
+    expect(buttons.length).toBe(9);
     for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
   });
   it('meaningful spaces are explicit', () => {

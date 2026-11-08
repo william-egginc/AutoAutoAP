@@ -22,6 +22,8 @@ const SECTIONS: FoldSection[] = [
   'howWorkedOut',
   'buildUpTracker',
   'setupMore',
+  // The Build-up tracker's List / Compact toggle (spec-trackercompact): folded = List.
+  'buildUpCompact',
 ];
 
 let mem: Map<string, string>;

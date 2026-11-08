@@ -92,6 +92,36 @@
           <p v-if="nightBuy" class="text-small text-slate-500" data-testid="buildup-night-buy">
             {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
           </p>
+          <!-- LIST / COMPACT (spec-trackercompact, 8 Nov 2026, Jordan: "all suggested"): two real buttons with aria-pressed
+               (Enter and Space are a button's own), 44 px. Starts on List; this browser remembers the press (lib/panelFold.ts
+               `buildUpCompact`). -->
+          <div
+            role="group"
+            :aria-label="TRACKER_VIEW_LABEL"
+            class="inline-flex self-start overflow-hidden rounded-lg border border-indigo-300"
+            data-testid="buildup-view"
+          >
+            <button
+              type="button"
+              class="min-h-[44px] min-w-[44px] px-4 text-small font-bold"
+              :class="view === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-700'"
+              :aria-pressed="view === 'list'"
+              data-testid="buildup-view-list"
+              @click="setView('list')"
+            >
+              {{ TRACKER_VIEW_LIST }}
+            </button>
+            <button
+              type="button"
+              class="min-h-[44px] min-w-[44px] border-l border-indigo-300 px-4 text-small font-bold"
+              :class="view === 'compact' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-700'"
+              :aria-pressed="view === 'compact'"
+              data-testid="buildup-view-compact"
+              @click="setView('compact')"
+            >
+              {{ TRACKER_VIEW_COMPACT }}
+            </button>
+          </div>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"
@@ -130,113 +160,129 @@
             The silo trick does not fit this plan {{ siloWarnings === 1 ? 'once' : `${siloWarnings} times` }}: see the amber lines.
           </p>
 
-          <section v-for="d in result.days" :key="d.ymd" class="border-t border-slate-200 pt-2" :data-testid="`buildup-day-${d.ymd}`">
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-              <h3 class="label text-slate-700">{{ d.title }}</h3>
-              <span class="text-small text-slate-500 tabular-nums">
-                {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
-              </span>
-              <button
-                v-if="dayView(d, false, ticked).hidden > 0"
-                type="button"
-                class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
-                :aria-expanded="isOpen(d)"
-                :data-testid="`buildup-showall-${d.ymd}`"
-                @click="isOpen(d) ? setOpen(d, false) : showAll(d)"
-              >
-                {{ isOpen(d) ? 'Show less' : `Show all ${d.lines.length}` }}
-              </button>
-            </div>
-            <ul class="mt-1 space-y-0.5">
-              <li
-                v-for="l in shownLines(d)"
-                :key="l.key"
-                class="flex items-start gap-x-1 rounded-md pr-1.5"
-                :class="lineClass(l)"
-                :data-testid="`buildup-line-${l.kind}`"
-              >
-                <label
-                  v-if="l.tickable"
-                  class="flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer items-center justify-center"
-                  :title="sourceWords(l) || undefined"
-                >
-                  <input
-                    :id="tickId(l.key)"
-                    type="checkbox"
-                    class="h-5 w-5"
-                    :checked="ticked.has(l.key)"
-                    :aria-label="`Done: ${lineText(l)}${sourceWords(l) ? `, ${sourceWords(l)}` : ''}`"
-                    :data-testid="`buildup-tick-${l.key}`"
-                    @change="emit('tick', l.key, ($event.target as HTMLInputElement).checked)"
-                  />
-                </label>
-                <span v-else class="w-[44px] shrink-0" aria-hidden="true"></span>
-                <!-- The words are a second label for the box (red team R7: 16 px boxes on a phone), so the whole row is
-                     the target; a line with no box keeps them as text. -->
-                <component
-                  :is="l.tickable ? 'label' : 'span'"
-                  :for="l.tickable ? tickId(l.key) : undefined"
-                  class="min-h-[44px] min-w-0 flex-1 py-[13px] text-small break-words"
-                  :class="l.tickable ? 'cursor-pointer' : ''"
-                >
-                  <span v-if="l.time" class="tabular-nums text-slate-500">{{ l.time }}{{ ' · ' }}</span>
-                  <span v-if="struck(l)" :class="l.bold ? 'font-bold' : ''" :data-testid="`buildup-parts-${l.key}`"
-                    >buy{{ ' ' }}<template v-for="(p, n) in l.parts" :key="n"
-                      ><template v-if="n">{{ ', ' }}</template
-                      ><span v-if="boughtOf(l)!.items[n]" class="line-through decoration-slate-400"
-                        >{{ p }}<span class="sr-only">{{ ' ' }}(bought)</span></span
-                      ><template v-else>{{ p }}</template></template
-                    >{{ sweepTail(l) }}</span
-                  >
-                  <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
-                  <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
-                  <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
-                  <span v-if="statusOf(l) === 'partial'"
-                    >{{ ' · ' }}<span class="tabular-nums text-amber-800" :data-testid="`buildup-status-${l.key}`"
-                      >{{ boughtOf(l)!.bought }} of {{ boughtOf(l)!.total }} bought</span
-                    ></span
-                  >
-                  <span v-else-if="statusOf(l) === 'bought'"
-                    >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></span
-                  >
-                  <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}to buy</span>
-                </component>
+          <template v-if="view === 'list'">
+            <section v-for="d in result.days" :key="d.ymd" class="border-t border-slate-200 pt-2" :data-testid="`buildup-day-${d.ymd}`">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <h3 class="label text-slate-700">{{ d.title }}</h3>
+                <span class="text-small text-slate-500 tabular-nums">
+                  {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
+                </span>
                 <button
-                  v-if="l.tickable && canClear(l)"
+                  v-if="dayView(d, false, ticked).hidden > 0"
                   type="button"
-                  class="min-h-[44px] min-w-[44px] shrink-0 px-1 text-small text-indigo-700 underline"
-                  :aria-label="`Use what your save says: ${lineText(l)}`"
-                  title="Go back to what your save says"
-                  :data-testid="`buildup-clear-${l.key}`"
-                  @click="emit('clear', l.key)"
+                  class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
+                  :aria-expanded="isOpen(d)"
+                  :data-testid="`buildup-showall-${d.ymd}`"
+                  @click="isOpen(d) ? setOpen(d, false) : showAll(d)"
                 >
-                  use save
+                  {{ isOpen(d) ? 'Show less' : `Show all ${d.lines.length}` }}
                 </button>
-              </li>
-              <!-- An open day stops at its first 8 lines (UX fluff review 2, 5 Nov 2026, item R12: the next sale day opened
-                   with 112). -->
-              <li v-if="capped(d)">
-                <button
-                  type="button"
-                  class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
-                  :data-testid="`buildup-cap-${d.ymd}`"
-                  @click="showAll(d)"
+              </div>
+              <ul class="mt-1 space-y-0.5">
+                <li
+                  v-for="l in shownLines(d)"
+                  :key="l.key"
+                  class="flex items-start gap-x-1 rounded-md pr-1.5"
+                  :class="lineClass(l)"
+                  :data-testid="`buildup-line-${l.kind}`"
                 >
-                  Show all {{ d.lines.length }}
-                </button>
-              </li>
-              <li v-if="!isOpen(d) && hiddenCount(d) > 0">
-                <button
-                  type="button"
-                  class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
-                  :data-testid="`buildup-more-${d.ymd}`"
-                  @click="setOpen(d, true)"
-                >
-                  + {{ hiddenCount(d) }} more · show all
-                </button>
-              </li>
-            </ul>
-          </section>
+                  <label
+                    v-if="l.tickable"
+                    class="flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer items-center justify-center"
+                    :title="sourceWords(l) || undefined"
+                  >
+                    <input
+                      :id="tickId(l.key)"
+                      type="checkbox"
+                      class="h-5 w-5"
+                      :checked="ticked.has(l.key)"
+                      :aria-label="`Done: ${lineText(l)}${sourceWords(l) ? `, ${sourceWords(l)}` : ''}`"
+                      :data-testid="`buildup-tick-${l.key}`"
+                      @change="emit('tick', l.key, ($event.target as HTMLInputElement).checked)"
+                    />
+                  </label>
+                  <span v-else class="w-[44px] shrink-0" aria-hidden="true"></span>
+                  <!-- The words are a second label for the box (red team R7: 16 px boxes on a phone), so the whole row is
+                       the target; a line with no box keeps them as text. -->
+                  <component
+                    :is="l.tickable ? 'label' : 'span'"
+                    :for="l.tickable ? tickId(l.key) : undefined"
+                    class="min-h-[44px] min-w-0 flex-1 py-[13px] text-small break-words"
+                    :class="l.tickable ? 'cursor-pointer' : ''"
+                  >
+                    <span v-if="l.time" class="tabular-nums text-slate-500">{{ l.time }}{{ ' · ' }}</span>
+                    <span v-if="struck(l)" :class="l.bold ? 'font-bold' : ''" :data-testid="`buildup-parts-${l.key}`"
+                      >buy{{ ' ' }}<template v-for="(p, n) in l.parts" :key="n"
+                        ><template v-if="n">{{ ', ' }}</template
+                        ><span v-if="boughtOf(l)!.items[n]" class="line-through decoration-slate-400"
+                          >{{ p }}<span class="sr-only">{{ ' ' }}(bought)</span></span
+                        ><template v-else>{{ p }}</template></template
+                      >{{ sweepTail(l) }}</span
+                    >
+                    <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
+                    <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
+                    <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
+                    <span v-if="statusOf(l) === 'partial'"
+                      >{{ ' · ' }}<span class="tabular-nums text-amber-800" :data-testid="`buildup-status-${l.key}`"
+                        >{{ boughtOf(l)!.bought }} of {{ boughtOf(l)!.total }} bought</span
+                      ></span
+                    >
+                    <span v-else-if="statusOf(l) === 'bought'"
+                      >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></span
+                    >
+                    <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}to buy</span>
+                  </component>
+                  <button
+                    v-if="l.tickable && canClear(l)"
+                    type="button"
+                    class="min-h-[44px] min-w-[44px] shrink-0 px-1 text-small text-indigo-700 underline"
+                    :aria-label="`Use what your save says: ${lineText(l)}`"
+                    title="Go back to what your save says"
+                    :data-testid="`buildup-clear-${l.key}`"
+                    @click="emit('clear', l.key)"
+                  >
+                    use save
+                  </button>
+                </li>
+                <!-- An open day stops at its first 8 lines (UX fluff review 2, 5 Nov 2026, item R12: the next sale day opened
+                     with 112). -->
+                <li v-if="capped(d)">
+                  <button
+                    type="button"
+                    class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
+                    :data-testid="`buildup-cap-${d.ymd}`"
+                    @click="showAll(d)"
+                  >
+                    Show all {{ d.lines.length }}
+                  </button>
+                </li>
+                <li v-if="!isOpen(d) && hiddenCount(d) > 0">
+                  <button
+                    type="button"
+                    class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
+                    :data-testid="`buildup-more-${d.ymd}`"
+                    @click="setOpen(d, true)"
+                  >
+                    + {{ hiddenCount(d) }} more · show all
+                  </button>
+                </li>
+              </ul>
+            </section>
+          </template>
+          <!-- COMPACT: one block per day, no boxes (ticking is List's). -->
+          <template v-else>
+            <section
+              v-for="d in result.days"
+              :key="d.ymd"
+              class="border-t border-slate-200 pt-2"
+              :data-testid="`buildup-cday-${d.ymd}`"
+            >
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <h3 class="label text-slate-700">{{ d.title }}</h3>
+                <span class="text-small text-slate-500 tabular-nums">{{ dayWords(d) }}</span>
+              </div>
+            </section>
+          </template>
           <p class="text-small text-slate-500" data-testid="buildup-foot">
             Times are in your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
             ({{ saleEndWords }}).
@@ -260,6 +306,8 @@ import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
+import { TRACKER_VIEW_COMPACT, TRACKER_VIEW_LABEL, TRACKER_VIEW_LIST } from '@/lib/buildUpWords';
+import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
 const props = withDefaults(
   defineProps<{
@@ -354,6 +402,15 @@ const saleEndWords = computed(() => {
   const e = getNextSaleEnd(props.now);
   return dayClock(e, props.zone, props.now).replace(/ [A-Z][a-z]{2} \d+ /, ' ');
 });
+
+// ------------------------------------------------------------------ List / Compact
+/** The view: List (the lines, with boxes) or Compact (a day at a glance). This browser's last press, else List
+ *  (lib/panelFold.ts `buildUpCompact`, "open" being Compact). */
+const view = ref<'list' | 'compact'>(foldOpen('buildUpCompact', { remembered: readFoldToggle('buildUpCompact') }) ? 'compact' : 'list');
+function setView(v: 'list' | 'compact'): void {
+  view.value = v;
+  rememberFoldToggle('buildUpCompact', v === 'compact');
+}
 
 // ------------------------------------------------------------------ days
 const dayOpen = ref<Record<string, boolean>>({});

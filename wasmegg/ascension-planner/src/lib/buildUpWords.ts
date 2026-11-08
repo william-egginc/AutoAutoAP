@@ -60,3 +60,9 @@ export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
 export function trackerCapReason(minutes: number): string {
   return `it took over ${minutes} minutes`;
 }
+
+/** The tracker's List / Compact toggle (spec-trackercompact, 8 Nov 2026; DRAFT words): the group's name and its two
+ *  buttons. */
+export const TRACKER_VIEW_LABEL = 'Show the build-up as';
+export const TRACKER_VIEW_LIST = 'List';
+export const TRACKER_VIEW_COMPACT = 'Compact';
