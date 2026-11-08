@@ -5,7 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createPinia } from 'pinia';
+import { createPinia, setActivePinia } from 'pinia';
+import { useChainSearchStore } from '@/stores/chainSearch';
 import { deviceWord, isPhone, thisDevice, ThisDevice } from './device';
 import { describeFetchError } from '@/utils/errors';
 import { renderHtml, textOf } from '@/test/renderComponent';
@@ -59,12 +60,19 @@ describe('the places that say it', () => {
 
   it('My runs: "Saved on this phone" on a phone, "Saved on this computer" on a computer', async () => {
     stubPhone();
-    const phone = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [createPinia()]));
+    // The part shows only with something saved (spec-uxpass item 7, 8 Nov 2026): one saved run.
+    const withSaved = () => {
+      const p = createPinia();
+      setActivePinia(p);
+      useChainSearchStore().savedRuns = [{ id: 'r1', version: 2, label: 'Fast', savedAt: 1_800_000_000_000, currentTE: 200, finalTE: 490, effort: 'smart', seedChain: [200, 490], bestChain: [200, 490], bestDays: 30, chainsPriced: 10, complete: true } as never];
+      return p;
+    };
+    const phone = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [withSaved()]));
     expect(phone).toContain('Saved on this phone');
     // (The intro's "saved on this phone" went with the one-line intro, ux review 26 Oct, row 15.)
     expect(phone).not.toMatch(/this computer|this device/);
     vi.stubGlobal('navigator', { userAgent: WIN });
-    const pc = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [createPinia()]));
+    const pc = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [withSaved()]));
     expect(pc).toContain('Saved on this computer');
   });
 

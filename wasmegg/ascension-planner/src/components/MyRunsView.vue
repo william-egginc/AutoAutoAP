@@ -251,7 +251,10 @@
           </div>
         </details>
 
+        <!-- Empty parts are hidden, not "· none yet" (spec-uxpass item 7, 8 Nov 2026); their lists load on this page
+             (`loadKept`), so a part shows once it has something. -->
         <details
+          v-if="savedCount > 0"
           :open="open.saved"
           class="rounded-xl border border-slate-200 bg-white p-4"
           data-testid="my-runs-part-saved"
@@ -284,7 +287,7 @@
 
         <!-- Amber only with something unsent; "none yet" is the plain card (ux35-a, 28 Oct 2026). -->
         <details
-          v-if="hasBoard"
+          v-if="hasBoard && unsentCount > 0"
           :open="open.unsent"
           class="rounded-xl border p-4"
           :class="unsentCount > 0 ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'"
@@ -308,10 +311,11 @@
       </div>
 
       <!-- Next steps, folded under the list (lib/myRunsDashboard.ts): only what changes what to do. -->
-      <div class="space-y-2" data-testid="my-runs-summary">
+      <!-- Hidden with nothing to look at (spec-uxpass item 7, 8 Nov 2026). -->
+      <div v-if="steps.steps.length" class="space-y-2" data-testid="my-runs-summary">
         <details :open="open.steps" class="rounded-xl border border-slate-200 p-3" @toggle="sync('steps', $event)">
           <summary :class="SUMMARY">
-            Next steps<span :class="COUNT">{{ steps.steps.length ? ` (${steps.steps.length} to look at)` : ' · nothing to look at' }}</span>
+            Next steps<span :class="COUNT">{{ ` (${steps.steps.length} to look at)` }}</span>
           </summary>
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
         </details>
@@ -356,6 +360,7 @@ import LeaderboardPanel from './auto/LeaderboardPanel.vue';
 import SavedRuns from './auto/SavedRuns.vue';
 import SavedAnswers from './auto/SavedAnswers.vue';
 import UnsentResults from './auto/UnsentResults.vue';
+import { hashID } from '@/lib/storage/db';
 import LatestRunView from './auto/LatestRunView.vue';
 
 const props = withDefaults(defineProps<{ playerId: string; loading?: boolean }>(), { loading: false });
@@ -555,6 +560,24 @@ function showRuns(kind: Showing | null): void {
 onMounted(() => {
   if (takeYourRunsAsk()) showRuns(null);
 });
+
+/** The saved runs and answers and the unsent results, loaded here as their lists did on mount: those parts are only
+ *  shown once they have something (spec-uxpass item 7), so their lists aren't mounted to load them. */
+async function loadKept(): Promise<void> {
+  const id = props.playerId;
+  if (!id) return;
+  void store.refreshSavedRuns(id);
+  void store.refreshSavedAnswers(id);
+  if (!hasBoard) return;
+  try {
+    await store.refreshPendingSends(await hashID(id));
+    if (store.pendingSends.length) void store.loadMineRows();
+  } catch {
+    // nothing kept is shown
+  }
+}
+onMounted(() => void loadKept());
+watch(() => props.playerId, () => void loadKept());
 
 /**
  * Each part of All my runs is open when it has something in it, folded when it is empty (the board's stays open

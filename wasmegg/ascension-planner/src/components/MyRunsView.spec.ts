@@ -51,11 +51,13 @@ describe('MyRunsView', () => {
     const saved = html.indexOf('data-testid="my-runs-part-saved"');
     const unsent = html.indexOf('data-testid="my-runs-part-unsent"');
     expect(board).toBeGreaterThan(-1);
-    expect(board).toBeLessThan(saved);
-    expect(saved).toBeLessThan(unsent);
+    // Nothing saved and nothing unsent: those two parts are not shown at all (spec-uxpass item 7, 8 Nov 2026).
+    expect(saved).toBe(-1);
+    expect(unsent).toBe(-1);
     expect(t).toContain('Your runs on the Leaderboard');
-    expect(t).toContain('Saved on this computer');
-    expect(t).toContain('Not sent yet');
+    expect(t).not.toContain('Saved on this computer');
+    expect(t).not.toContain('Not sent yet');
+    expect(t).not.toContain('none yet');
     // Compare's board in its my-runs mode: no view tabs, no target picker; it asks for the save first.
     expect(html).toContain('data-testid="my-runs-board"');
     expect(html).not.toContain('aria-label="Leaderboard views"');
@@ -68,12 +70,10 @@ describe('MyRunsView', () => {
     const empty = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(empty, 'my-runs-part-board')).toContain(' open');
     expect(textOf(empty)).toContain('Your runs on the Leaderboard · loading');
-    expect(partTag(empty, 'my-runs-part-saved')).not.toContain(' open');
-    expect(partTag(empty, 'my-runs-part-unsent')).not.toContain(' open');
-    expect(textOf(empty)).toContain('Not sent yet · none yet');
-    // Nothing unsent: the plain, calm card, never the warning colour (ux35-a item 2).
-    expect(partTag(empty, 'my-runs-part-unsent')).not.toMatch(/amber|orange/);
-    expect(partTag(empty, 'my-runs-part-unsent')).toContain('border-slate-200 bg-white');
+    // Empty parts are hidden, not shown as "· none yet" (spec-uxpass item 7, 8 Nov 2026).
+    expect(empty).not.toContain('data-testid="my-runs-part-saved"');
+    expect(empty).not.toContain('data-testid="my-runs-part-unsent"');
+    expect(textOf(empty)).not.toContain('none yet');
 
     const store = useChainSearchStore();
     store.pendingSends = [
@@ -88,6 +88,7 @@ describe('MyRunsView', () => {
     ];
     const kept = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(kept, 'my-runs-part-unsent')).toContain(' open');
+    expect(kept.indexOf('data-testid="my-runs-part-board"')).toBeLessThan(kept.indexOf('data-testid="my-runs-part-unsent"'));
     expect(textOf(kept)).toContain('Not sent yet (1)');
     // Something unsent: the warning colour.
     expect(partTag(kept, 'my-runs-part-unsent')).toContain('border-amber-200 bg-amber-50/40');
@@ -105,17 +106,17 @@ describe('MyRunsView', () => {
 });
 
 describe('Next steps, folded under Your runs (17 Oct 2026; the six cards gone 24 Oct 2026)', () => {
-  it('come after the three parts, folded; no cards, nothing waits for the board', async () => {
+  it('come after the three parts, folded; no cards, nothing waits for the board; hidden with nothing to look at', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
-    const steps = html.indexOf('data-testid="my-runs-steps"');
-    expect(steps).toBeGreaterThan(html.indexOf('data-testid="my-runs-part-unsent"'));
     expect(html).not.toContain('data-testid="my-runs-cards"');
     expect(html).not.toContain('data-testid="my-runs-card-');
     const t = textOf(html);
-    expect(t).toContain('Next steps · nothing to look at');
+    // Nothing to look at: the fold is not shown at all (spec-uxpass item 7, 8 Nov 2026).
+    expect(t).not.toContain('Next steps');
+    expect(html).not.toContain('data-testid="my-runs-steps"');
     expect(t).not.toContain('Next steps · checking');
     expect(t).not.toContain('Six cards');
-    expect(t).toContain('Nothing to change: keep following your route.');
+    expect(t).not.toContain('Nothing to change: keep following your route.');
     expect(html).not.toContain('EI1234567890123456');
   });
 
@@ -273,7 +274,8 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const t = textOf(html);
     expect(html).toContain('data-testid="my-runs"');
-    expect(html).toContain('data-testid="my-runs-part-saved"');
+    // Nothing saved yet: the part is hidden (spec-uxpass item 7).
+    expect(html).not.toContain('data-testid="my-runs-part-saved"');
     expect(html).toContain('data-testid="my-runs-part-latest"');
     expect(t).toContain(NO_BOARD);
     expect(html).not.toContain('data-testid="my-runs-part-board"');
@@ -287,7 +289,7 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     expect(t).not.toContain('Next steps · checking');
     // The six cards are gone (24 Oct 2026); Next steps stay, with nothing to wait for.
     expect(t).not.toContain('Six cards');
-    expect(t).toContain('Next steps · nothing to look at');
+    expect(t).not.toContain('nothing to look at');
     expect(html).not.toContain('EI1234567890123456');
   });
 
@@ -300,7 +302,7 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     const src = read('MyRunsView.vue');
     expect(src).toContain('const hasBoard = !!store.submitUrl;');
     expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.board"/);
-    expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.unsent"/);
+    expect(src).toMatch(/<details\s+v-if="hasBoard && unsentCount > 0"\s+:open="open\.unsent"/);
     expect(src).toContain('const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);');
   });
 });
