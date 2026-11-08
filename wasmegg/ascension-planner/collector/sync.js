@@ -22,7 +22,7 @@
  * client adopts it, or for ticks merges and writes again with a fresh `at`. A tie is accepted. The same content again is
  * `unchanged` and writes nothing. No history: one row per record.
  *
- * LIMITS. override 512 bytes, ticks 16 KB (at most 300 ticked and 300 unticked line keys of 120 characters), plan 256 KB gzip.
+ * LIMITS. override 512 bytes, ticks 16 KB (at most 300 ticked and 300 unticked line keys of 120 characters), plan 96 KB gzip (a real kept plan: 57 KB of JSON, 8 KB gzipped; the app caps the JSON at 400,000 characters, about 60 KB gzipped at that ratio).
  * Per key: one override and at most 3 ascensions of ticks and plans (a 4th evicts the lowest). 60 writes an hour a key (`follow_rate`
  * under 'sync|<key>'), SYNC_PUTS_PER_DAY (6,000) writes and SYNC_NEW_KEYS_PER_DAY (100) new keys a day for the whole collector,
  * 3,000 keys and SYNC_MAX_TOTAL_BYTES (150 MB) in all, and the FOLLOW_LIMIT edge binding per address.
@@ -32,7 +32,7 @@ import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, 
 
 export const SYNC_MAX_OVERRIDE_BYTES = 512;
 export const SYNC_MAX_TICKS_BYTES = 16 * 1024;
-export const SYNC_MAX_PLAN_BYTES = 256 * 1024;
+export const SYNC_MAX_PLAN_BYTES = 96 * 1024;
 export const SYNC_MAX_SLOTS = 3;
 export const SYNC_WRITES_PER_HOUR = 60;
 export const SYNC_PUTS_PER_DAY = 6000;
