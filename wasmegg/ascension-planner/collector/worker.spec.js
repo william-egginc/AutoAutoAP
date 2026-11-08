@@ -3210,7 +3210,7 @@ describe('POST /instant (opt-in instant answer records)', () => {
   });
 
   it('keeps where the check started (start), and drops a bad block, never the record (22 Oct 2026)', async () => {
-    const start = { src: 'stored', claimed: [40, 40, 40, 40, 40], pending: [0, 1, 0, 0, 0], saveAt: T - 7200, saveHash: 'ffeeddcc', eggs: [1, 2, 3, 4, 5], plan: 'override', tabH: 0.4, buildH: 12 };
+    const start = { src: 'stored', claimed: [40, 40, 40, 40, 40], pending: [0, 1, 0, 0, 0], saveAt: T - 7200, saveHash: 'ffeeddcc', eggs: [1, 2, 3, 4, 5], plan: 'override', tabH: 0.4, buildH: 12, teSrc: 'typed', teTyped: 197 };
     const day = new Date().toISOString().slice(0, 10);
     const ok = await postOwned('/instant', { ...RECORD, start }, TOKEN_A);
     expect(ok.status).toBe(200);

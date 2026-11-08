@@ -561,10 +561,13 @@ function teByEgg(v) {
  *   saveHash 8 hex
  *   eggs     eggs delivered per virtue egg in the start state, five numbers 0-1e30
  *   plan     now | override | handoff (where the plan start came from)
+ *   teSrc    save | typed (R8: whether the run priced from the save's TE or from a starting-TE override typed in)
+ *   teTyped  the typed total TE, a whole number 0-490, kept only with teSrc 'typed'
  *   tabH     hours from the page being opened to the send; buildH from its build to the send (-24 to 87,600)
  */
 const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];
 const PLAN_START_SOURCES = ['now', 'override', 'handoff'];
+const TE_SOURCES = ['save', 'typed'];
 const START_MAX_BYTES = 400;
 const START_AGE_H = [-24, 24 * 3650];
 function startBlock(v) {
@@ -586,6 +589,8 @@ function startBlock(v) {
     saveHash: typeof v.saveHash === 'string' && /^[a-f0-9]{8}$/.test(v.saveHash) ? v.saveHash : undefined,
     eggs: five(v.eggs, 1e30, false),
     plan: PLAN_START_SOURCES.includes(v.plan) ? v.plan : undefined,
+    teSrc: TE_SOURCES.includes(v.teSrc) ? v.teSrc : undefined,
+    teTyped: v.teSrc === 'typed' && Number.isInteger(v.teTyped) && v.teTyped >= 0 && v.teTyped <= 490 ? v.teTyped : undefined,
     tabH: within(v.tabH, ...START_AGE_H),
     buildH: within(v.buildH, ...START_AGE_H),
   });
@@ -3278,6 +3283,9 @@ export default {
       if (env.RANK_NEEDS_EVIDENCE === '1' && !verifiable(record)) record.flags = [...(record.flags || []), UNVERIFIED];
       // A simulator stamp newer than this Worker knows (see "simulator stamps"): kept, and marked.
       if (simNewer(record.simVersion)) record.simNewer = true;
+      // R8: a run that priced from a typed starting-TE override, not the save's TE, is kept but unranked (the flagged board),
+      // so it cannot take a ranked place with a start the save does not have. Off until FLAG_TYPED_TE=1.
+      if (env.FLAG_TYPED_TE === '1' && record.start?.teSrc === 'typed') record.flags = [...(record.flags || []), 'typed-te'];
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';
