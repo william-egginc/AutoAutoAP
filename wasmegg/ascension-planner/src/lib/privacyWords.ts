@@ -12,7 +12,7 @@ export const NEVER_WITH_A_RUN = 'Your player ID and save are never sent with a s
 /** The "?" control: its label for screen readers and the tip's lines, one fact each. */
 export const PRIVACY_TIP_LABEL = 'What goes online, and what never does';
 export const PRIVACY_TIP_LINES = [
-  'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.',
+  'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them. You can switch all of it off with Save online in Setup.',
   'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',
   'On the Leaderboard: only what you tick. Never your player ID or your save.',
   "Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.",

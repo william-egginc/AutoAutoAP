@@ -3,12 +3,24 @@
  * design and wording on 7 Nov 2026: part of the existing "save online" setting, kept until deleted, one delete button
  * for everything saved online, the banner counting TE not yet claimed). Wording only (a *Words.ts file is out of the
  * result code hash, lib/resultCodeHash.ts `isWordingOnly`). UI imports these; the same words are in about.html #synced.
- * The facts: notes/sync-override-tracker-design-2026-11-07.md.
+ * The facts: notes/sync-override-tracker-design-2026-11-07.md. The master switch is `SAVE_ONLINE_*` below.
  */
 
-/** One clause added to the line under the existing "save online" setting. */
-export const SYNC_SETUP_CLAUSE =
-  'Also saved online: the starting TE you typed, your Build-up tracker ticks and its plan (what to buy and when), so every device shows the same. Anyone who knows your player ID can see them.';
+/**
+ * The master switch in Setup (Jordan, 7 Nov 2026): one "Save online" tick, on to start, for everything saved online
+ * under the account's code: followed routes, Setup and sharing choices, saved answers, and the starting TE with the
+ * tracker's ticks and plan. It is per device. Turning it off saves nothing new from this device; what is already
+ * saved stays until the delete button removes it. After the delete button it turns off on this device.
+ */
+export const SAVE_ONLINE_LABEL = 'Save online';
+/** The line under the tick, on. */
+export const SAVE_ONLINE_LINE_ON =
+  'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.';
+/** The line under the tick, off. */
+export const SAVE_ONLINE_LINE_OFF =
+  'Off: this device saves nothing new online. What is already saved online stays until you delete it.';
+/** After the delete button, in place of the on line. */
+export const SAVE_ONLINE_OFF_AFTER_DELETE = 'Save online is off on this device. Turn it on to start saving again.';
 /** How long it is kept. */
 export const SYNC_KEPT = 'Kept until you delete it.';
 
@@ -34,5 +46,5 @@ export const SYNC_DELETE_CONFIRM =
   "This deletes your followed routes, Setup and sharing choices, instant answers, starting TE, tracker ticks and plan from the planner's server. Your save and what is kept in this browser stay. It cannot be undone.";
 export const SYNC_DELETE_YES = 'Delete';
 export const SYNC_DELETE_NO = 'Keep it';
-export const SYNC_DELETED = 'Deleted. Nothing is saved online for this account now.';
+export const SYNC_DELETED = 'Deleted. Nothing is saved online for this account now, and Save online is off on this device.';
 export const SYNC_DELETED_OTHER_DEVICES = 'Other devices will stop showing it once they reload.';
