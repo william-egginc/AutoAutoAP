@@ -35,6 +35,7 @@ import {
   firstStepKind,
   firstStepLine,
 } from '@/lib/instantWords';
+import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
@@ -125,6 +126,9 @@ function ctxOf(s: State): Record<string, unknown> {
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
     firstStepWarn: false,
+    nightBuyNote: false,
+    NIGHT_BUY_NOTE_SHORT,
+    NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
     FIRST_STEP_BUILDUP_MISSING_REST,
     INSTANT_ESTIMATE_LINE,
@@ -1040,5 +1044,70 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
 
   it('the page warns exactly when First step is the warning line', () => {
     expect(script).toContain('const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);');
+  });
+});
+
+describe('The night-buy note under First step (spec-nightbuynote; Jordan option b, until Joo\'s fix after #729)', () => {
+  // With awake hours set, a build-up's research buys can fall outside them, so the finish First step gives for "continue
+  // your build-up" is a best case. Said once under First step (NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP behind a "?"), only
+  // when the first ascension continues the build-up and the hours limit the answer (lib/nightBuyNote.ts); never for a
+  // fresh start or the ascension you are in continued.
+  const script = source.slice(source.indexOf('<script setup'));
+  const BUILD_STEP = 'continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
+  const words = { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP };
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: true,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  const count = (s: string, sub: string) => s.split(sub).length - 1;
+  for (const [name, answer, deadline] of [
+    ['By a date', 'date', true],
+    ['Fastest', 'fastest', false],
+  ] as const) {
+    it(`${name}: shown once, from the shared words, right under First step`, async () => {
+      const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: true });
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      expect(count(box, 'data-testid="box-night-buy"')).toBe(1);
+      expect(count(textOf(box), NIGHT_BUY_NOTE_SHORT)).toBe(1);
+      expect(textOf(box)).toContain(NIGHT_BUY_TIP);
+      const step = box.indexOf('data-testid="box-first-step"');
+      const note = box.indexOf('data-testid="box-night-buy"');
+      expect(note).toBeGreaterThan(step);
+      expect(note).toBeLessThan(box.indexOf('<InstantSteps'));
+    });
+    it(`${name}: not shown when the page says no (no hours, a fresh start, the ascension you are in)`, async () => {
+      const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: false });
+      expect(html).not.toContain('data-testid="box-night-buy"');
+      expect(html).not.toContain(NIGHT_BUY_NOTE_SHORT);
+    });
+  }
+  it('the page: shown with the hours that limit the answer and a first ascension that continues the build-up', () => {
+    expect(script).toMatch(/import \{[^}]*NIGHT_BUY_NOTE_SHORT[^}]*\} from '@\/lib\/nightBuyWords'/);
+    expect(script).toMatch(
+      /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(hoursLimited\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
+    );
+  });
+  it('the kind it keys on: buildup only, never a fresh start or the ascension you are in', () => {
+    expect(firstStepKind('buildup')).toBe('buildup');
+    for (const l of ['2-sale', '0-sale', '3-sale-tier13', 'continue', null]) expect(firstStepKind(l)).not.toBe('buildup');
+  });
+  it('type: text-small slate, the "?" tip, no px sizes, caps, medium/semibold or mono; one per box', () => {
+    const t = source.slice(0, source.indexOf('<script'));
+    const tags = [...t.matchAll(/<p[^>]*data-testid="box-night-buy"[^>]*>[\s\S]*?<\/p>/g)].map(m => m[0]);
+    expect(tags).toHaveLength(2);
+    for (const tag of tags) {
+      expect(tag).toContain('text-small');
+      expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
+      expect(tag).toMatch(/\{\{ NIGHT_BUY_NOTE_SHORT \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
+    }
   });
 });

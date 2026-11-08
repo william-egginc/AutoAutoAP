@@ -366,6 +366,12 @@
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
               ><template v-else>{{ firstStep }}</template>
             </p>
+            <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
+                 the first ascension continues the build-up with the hours limiting the answer, so its research buys can
+                 fall outside them and the finish above is a best case. Once, under First step. -->
+            <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
+              {{ NIGHT_BUY_NOTE_SHORT }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+            </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
                  own first prestige is timed by the hours only (search/prestigeBy.ts), so with no-prestige days set it is
@@ -573,6 +579,10 @@
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
             ><template v-else>{{ firstStep }}</template>
+          </p>
+          <!-- The night-buy note, as in By a date's box above. -->
+          <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
+            {{ NIGHT_BUY_NOTE_SHORT }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1047,6 +1057,9 @@ import {
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
+import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { nightBuyNoteShown } from '@/lib/nightBuyNote';
+import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
 import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
@@ -1674,6 +1687,18 @@ const firstStep = computed(() => {
 });
 /** First step is the build-up-could-not-be-worked-out line: drawn smaller and amber (spec-buildupmissing-words). */
 const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);
+/** The legs First step reads: the box's route's. */
+const firstLegs = computed(() => (props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null)));
+/**
+ * The night-buy note under First step (spec-nightbuynote; NIGHT_BUY_NOTE_SHORT): the first ascension continues the
+ * build-up and the awake hours limit the answer (`hoursLimited`, as First step's hours clause), so the build-up's research
+ * buys may fall outside them. Never for a fresh start, the ascension you are in continued, or the warning line.
+ */
+const nightBuyNote = computed(() =>
+  !!firstStep.value &&
+  !firstStepWarn.value &&
+  nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
+);
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
