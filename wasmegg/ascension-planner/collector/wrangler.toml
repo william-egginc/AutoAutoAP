@@ -101,6 +101,13 @@ RANK_NEEDS_EVIDENCE = "1"
 # and README "Old builds". An ISO time; delete the line to turn it off, raise it to refuse more.
 MIN_BUILD_STAMP = "2026-10-23T00:13:48.000Z"
 
+# Release 8 (8 Nov 2026). RANK_SIMS: a row from a simulator not listed here is kept but unranked (flag other-simulator, the
+# flagged board). The live site runs sim3 from R8 and R7 tabs still send egg-beta2 until they reload, so both are listed for the
+# changeover; drop the egg-beta2 stamp once the reload is done. FLAG_TYPED_TE: a run that started from a typed starting-TE
+# override (start.teSrc 'typed') is unranked too (flag typed-te); the page sends teSrc from R8, older pages send none and rank as before.
+RANK_SIMS = "2026-10-21-egg-beta2,2026-11-03-sim3"
+FLAG_TYPED_TE = "1"
+
 # "Follow in the cloud" (follow.js): per-address, counted at the edge, no D1 or KV spent. 60 a minute for GET and
 # PUT each (the app reads once when an ID is entered and writes only when Follow is pressed). The per-key
 # budget (30 writes an hour) is in D1 and needs no binding. A missing binding means no per-address limit.

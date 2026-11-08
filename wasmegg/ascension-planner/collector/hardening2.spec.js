@@ -301,6 +301,11 @@ describe('simulator stamps', () => {
       simVersion: '2026-10-21-egg-beta2',
       simNewer: undefined,
     });
+    // R8: the simulator the live site runs from Release 8.
+    expect(await stampOf('2026-11-03-sim3', '4.0.0.7')).toEqual({
+      simVersion: '2026-11-03-sim3',
+      simNewer: undefined,
+    });
   });
   it('keeps an older unknown stamp, unmarked (old rows are history)', async () => {
     expect(await stampOf('2026-09-30-first', '4.0.0.3')).toEqual({
@@ -309,8 +314,8 @@ describe('simulator stamps', () => {
     });
   });
   it('marks a stamp newer than this Worker knows, or an unknown one claiming to be current', async () => {
-    expect(await stampOf('2026-11-02-next', '4.0.0.4')).toEqual({ simVersion: '2026-11-02-next', simNewer: true });
-    expect(await stampOf('2026-10-21-forged', '4.0.0.5')).toEqual({ simVersion: '2026-10-21-forged', simNewer: true });
+    expect(await stampOf('2026-11-09-next', '4.0.0.4')).toEqual({ simVersion: '2026-11-09-next', simNewer: true });
+    expect(await stampOf('2026-11-03-forged', '4.0.0.5')).toEqual({ simVersion: '2026-11-03-forged', simNewer: true });
   });
   it('drops anything not a date and words, or too long, without refusing the row', async () => {
     for (const [v, ip] of [
