@@ -185,6 +185,17 @@ describe('YourEggs: the toggle', () => {
     expect(textOf(goal)).toContain(goalLines.curiosity);
     expect(textOf(goal)).not.toContain('next TE in ~2d after you shift here');
   });
+  it('the same line for every egg (a By a date goal): said once for the block, not under each egg (spec-uxpass item 5)', async () => {
+    const goalLines = lines({ kind: 'date', endTE: 412, finish: NOW + 5 * D + 3 * 3600, zone: 'America/Los_Angeles' });
+    const goal = await renderHtml(YourEggs, { ...props, goalLines, view: 'goal' });
+    expect(textOf(goal).split(goalLines.kindness).length - 1).toBe(1);
+    expect(goal).toContain('data-testid="now-eggs-goal-once"');
+    expect(goal).not.toContain('data-testid="now-egg-to-goal"');
+    // Eggs that differ keep their own line each.
+    const own = await renderHtml(YourEggs, { ...props, goalLines: lines({ kind: 'te', teLeft: 2 }), view: 'goal' });
+    expect(own).not.toContain('data-testid="now-eggs-goal-once"');
+    expect(own.match(/data-testid="now-egg-to-goal"/g)).toHaveLength(5);
+  });
   it('no goal lines: no toggle', async () => {
     expect(await renderHtml(YourEggs, { ...props, goalLines: {} })).not.toContain('data-testid="now-eggs-view"');
   });

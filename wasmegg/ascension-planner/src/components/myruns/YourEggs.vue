@@ -39,6 +39,9 @@
         </button>
       </div>
     </div>
+    <!-- The same goal line for every egg (a By a date goal: the plan's finish): once for the block, not five times
+         (spec-uxpass item 5, 8 Nov 2026). -->
+    <p v-if="goalOnce" class="mt-1.5 text-body tabular-nums text-slate-600 break-words" data-testid="now-eggs-goal-once">{{ goalOnce }}</p>
     <div class="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2.5">
       <div v-for="e in eggs" :key="e.egg" data-testid="now-egg">
         <p class="text-body" :class="e.current ? 'font-bold text-slate-900' : 'text-slate-700'">
@@ -47,9 +50,11 @@
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <p v-if="view === 'goal' && hasGoal" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
-          {{ goalLines?.[e.egg] || nextLine(e) }}
-        </p>
+        <template v-if="view === 'goal' && hasGoal">
+          <p v-if="!goalOnce" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
+            {{ goalLines?.[e.egg] || nextLine(e) }}
+          </p>
+        </template>
         <p v-else-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
         <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
         <p v-if="clockLine(e.egg)" class="text-body tabular-nums text-slate-500 break-words" data-testid="now-egg-when">{{ clockLine(e.egg) }}</p>
@@ -113,6 +118,12 @@ const VIEWS: { value: EggsView; label: string }[] = [
 ];
 const view = ref<EggsView>(props.view ?? readEggsView());
 const hasGoal = computed(() => !!props.goalLines && Object.keys(props.goalLines).length > 0);
+/** Every egg's goal line when they are all the same (a By a date goal), said once above the eggs; '' otherwise. */
+const goalOnce = computed(() => {
+  if (view.value !== 'goal' || !hasGoal.value || !props.eggs.length) return '';
+  const first = props.goalLines?.[props.eggs[0].egg] ?? '';
+  return first && props.eggs.every(e => props.goalLines?.[e.egg] === first) ? first : '';
+});
 function pick(v: EggsView): void {
   view.value = v;
   writeEggsView(v);
