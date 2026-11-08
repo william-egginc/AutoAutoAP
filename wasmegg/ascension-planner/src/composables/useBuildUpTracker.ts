@@ -57,6 +57,7 @@ import {
   type OffPlanItem,
   type SaveFarm,
 } from '@/lib/buildUpBought';
+import { notePlanKept, noteTicksChange, trackerSyncVersion } from './useTrackerSync';
 
 /**
  * The switch useNowPage hands to useCurrentSim as `wantBuildUp`: on while a tracker on screen wants a plan. One for
@@ -162,9 +163,11 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /** Re-plan: asked for and not in yet; why the last one failed. */
   const replanning = ref(false);
   const replanError = ref('');
+  // spec-syncclient-b: a plan taken from online (composables/useTrackerSync.ts) is read again too.
   watch(
-    i.account,
-    a => {
+    [i.account, trackerSyncVersion],
+    () => {
+      const a = i.account.value;
       const read = a ? perfStep('readAnchoredPlan', () => readAnchoredPlan(a)) : null;
       // A kept plan with no buys, or no usable ascension start, reads as none (spec-buildcache: an old, corrupt or empty
       // record must never read as "plan present"; spec-noemptybuild: nor one whose list buys nothing, a build-up kept
@@ -223,6 +226,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       if (stored) dropSimPlanCopy();
       buildUpLog(`tracker plan kept (${p.actions.length} actions, ${stored ? 'stored' : 'not stored'})`);
       anchored.value = keep(a);
+      // spec-syncclient-b: the first plan of the ascension, saved online (or the cloud's earlier one taken).
+      if (stored) void notePlanKept(acct, 'first');
     },
     { immediate: true }
   );
@@ -340,6 +345,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /** The player's own ticks (`on`) and unticks (`off`) for this ascension. */
   const overrides = computed(() => {
     void tickVersion.value;
+    void trackerSyncVersion.value;
     const acct = i.account.value;
     const k = ascKey.value;
     return acct && k !== null ? { on: readTicks(acct, k), off: readUnticks(acct, k) } : { on: new Set<string>(), off: new Set<string>() };
@@ -385,6 +391,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (!acct || k === null) return;
     writeTicks(acct, k, on);
     writeUnticks(acct, k, off);
+    noteTicksChange(acct, k, on, off);
     tickVersion.value++;
   }
   /** The player's checkbox: an override, unless it says what the save says (then the save's again). */
@@ -474,10 +481,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       .filter(l => l.tickable)
       .map(l => l.key);
     const kept = carryTicks(overrides.value, keys);
-    if (perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a))) dropSimPlanCopy();
+    const stored = perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a));
+    if (stored) dropSimPlanCopy();
     else dropAnchoredPlan(acct);
     anchored.value = keep(a);
     saveOverrides(kept.on, kept.off);
+    // spec-syncclient-b: the player's re-plan, saved online.
+    if (stored) void notePlanKept(acct, 'replan');
     replanning.value = false;
     replanError.value = '';
   }

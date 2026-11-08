@@ -12,13 +12,19 @@ const ID = /EI\d{16}/i;
 export interface FakeRecord {
   at: number;
   updated: number;
-  data: string;
+  /** JSON text (override, ticks), or the plan's gzip bytes. */
+  data: string | Uint8Array;
 }
 export interface FakeCall {
   method: string;
   url: string;
   body?: string;
+  /** A binary body (the plan's gzip). */
+  bytes?: Uint8Array;
+  keepalive?: boolean;
 }
+const sameData = (a: string | Uint8Array, b: string | Uint8Array) =>
+  typeof a === 'string' || typeof b === 'string' ? a === b : a.length === b.length && a.every((x, i) => x === b[i]);
 
 export function fakeSyncCollector(base = 'https://collector.example') {
   const records = new Map<string, Map<string, FakeRecord>>();
@@ -33,13 +39,15 @@ export function fakeSyncCollector(base = 'https://collector.example') {
     ok: status >= 200 && status < 300,
     status,
     headers: { get: (n: string) => headers[n.toLowerCase()] ?? null },
-    json: async () => (typeof body === 'string' ? JSON.parse(body) : body),
+    json: async () => (body instanceof Uint8Array ? JSON.parse('x') : typeof body === 'string' ? JSON.parse(body) : body),
     text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
+    arrayBuffer: async () => (body instanceof Uint8Array ? body.slice().buffer : new TextEncoder().encode(typeof body === 'string' ? body : JSON.stringify(body)).buffer),
   });
-  async function f(url: string, init?: { method?: string; body?: unknown; headers?: Record<string, string> }) {
+  async function f(url: string, init?: { method?: string; body?: unknown; headers?: Record<string, string>; keepalive?: boolean }) {
     const method = init?.method ?? 'GET';
     const body = typeof init?.body === 'string' ? init.body : undefined;
-    calls.push({ method, url, ...(body !== undefined ? { body } : {}) });
+    const bytes = init?.body instanceof Uint8Array ? init.body : undefined;
+    calls.push({ method, url, ...(body !== undefined ? { body } : {}), ...(bytes ? { bytes } : {}), ...(init?.keepalive ? { keepalive: true } : {}) });
     const u = new URL(url);
     const isForget = u.pathname === '/forget';
     const mode = isForget ? state.forgetMode : state.mode;
@@ -77,14 +85,25 @@ export function fakeSyncCollector(base = 'https://collector.example') {
       const slot = u.searchParams.get('slot')!;
       const at = Number(u.searchParams.get('at'));
       if (at > now + 600_000) return reply(400, { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"] });
-      const data = JSON.stringify(JSON.parse(body!));
+      if (kind === 'plan' ? !bytes || bytes[0] !== 0x1f || bytes[1] !== 0x8b : !body)
+        return reply(400, { error: 'rejected', problems: ['body'] });
+      if (kind === 'plan' && bytes!.length > 96 * 1024) return reply(413, { error: 'too big' });
+      if (kind === 'ticks' && new TextEncoder().encode(body!).length > 16 * 1024) return reply(413, { error: 'too big' });
+      const data: string | Uint8Array = kind === 'plan' ? bytes!.slice() : JSON.stringify(JSON.parse(body!));
       const have = of(k).get(`${kind}|${slot}`);
       if (have) {
-        if (have.data === data) return reply(200, { ok: true, unchanged: true, updatedAt: have.updated });
+        if (sameData(have.data, data)) return reply(200, { ok: true, unchanged: true, updatedAt: have.updated });
         if (have.at > at)
           return reply(409, {
             error: 'a newer record is stored',
-            latest: { kind, slot, at: have.at, bytes: have.data.length, updatedAt: have.updated, value: JSON.parse(have.data) },
+            latest: {
+              kind,
+              slot,
+              at: have.at,
+              bytes: have.data.length,
+              updatedAt: have.updated,
+              ...(typeof have.data === 'string' ? { value: JSON.parse(have.data) } : {}),
+            },
           });
       }
       of(k).set(`${kind}|${slot}`, { at, updated: now, data });
@@ -105,7 +124,7 @@ export function fakeSyncCollector(base = 'https://collector.example') {
     submitUrl: `${base}/submit`,
     record: (k: string, kind: string, slot = '0') => {
       const r = records.get(k)?.get(`${kind}|${slot}`);
-      return r ? { at: r.at, value: JSON.parse(r.data) as Record<string, unknown> } : null;
+      return r ? { at: r.at, value: (typeof r.data === 'string' ? JSON.parse(r.data) : r.data) as Record<string, unknown> } : null;
     },
     put: (k: string, kind: string, slot: string, at: number, value: unknown) =>
       void of(k).set(`${kind}|${slot}`, { at, updated: Date.now(), data: JSON.stringify(value) }),

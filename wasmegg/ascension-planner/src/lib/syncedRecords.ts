@@ -139,11 +139,12 @@ export interface SyncResponse {
   status: number;
   json(): Promise<unknown>;
   text?(): Promise<string>;
+  arrayBuffer?(): Promise<ArrayBuffer>;
   headers?: { get(name: string): string | null };
 }
 export type SyncFetch = (
   url: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal; keepalive?: boolean }
+  init?: { method?: string; headers?: Record<string, string>; body?: string | Uint8Array; signal?: AbortSignal; keepalive?: boolean }
 ) => Promise<SyncResponse>;
 
 /**
@@ -267,7 +268,8 @@ export async function putSynced(
   at: number,
   value: object,
   f: SyncFetch | null = defaultFetch(),
-  now: () => number = Date.now
+  now: () => number = Date.now,
+  opts: { keepalive?: boolean } = {}
 ): Promise<PutSyncedResult> {
   if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
   let body: string;
@@ -277,13 +279,48 @@ export async function putSynced(
     return { ok: false, why: 'rejected' };
   }
   if (hasPlayerId(body) || hasPlayerId(slot)) return { ok: false, why: 'id' };
+  return putBody(url, k, kind, slot, at, body, 'application/json', f, now, opts);
+}
+
+/**
+ * PUT /sync of the plan: its gzip bytes (`gzipText`), `application/octet-stream`. The bytes can't be scanned here: the
+ * caller checks the JSON with `hasPlayerId` before compressing it (useTrackerSync.ts).
+ */
+export async function putSyncedBytes(
+  url: string,
+  k: string,
+  slot: string,
+  at: number,
+  bytes: Uint8Array,
+  f: SyncFetch | null = defaultFetch(),
+  now: () => number = Date.now
+): Promise<PutSyncedResult> {
+  if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
+  if (hasPlayerId(slot)) return { ok: false, why: 'id' };
+  if (bytes.length > PLAN_MAX_GZIP_BYTES) return { ok: false, why: 'big' };
+  return putBody(url, k, 'plan', slot, at, bytes, 'application/octet-stream', f, now, {});
+}
+
+async function putBody(
+  url: string,
+  k: string,
+  kind: SyncKind,
+  slot: string,
+  at: number,
+  body: string | Uint8Array,
+  contentType: string,
+  f: SyncFetch,
+  now: () => number,
+  opts: { keepalive?: boolean }
+): Promise<PutSyncedResult> {
   const send = (stamp: number) =>
     timed<PutSyncedResult | { ok: false; why: 'ahead' }>(
       async signal => {
         const res = await f(`${url}?k=${k}&kind=${kind}&slot=${encodeURIComponent(slot)}&at=${Math.round(stamp)}`, {
           method: 'PUT',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': contentType },
           body,
+          ...(opts.keepalive ? { keepalive: true } : {}),
           ...(signal ? { signal } : {}),
         });
         const j = await bodyOf(res);
@@ -315,6 +352,95 @@ export async function putSynced(
   if (first.ok || first.why !== 'ahead') return first;
   const again = Math.round(now());
   return { ...(await send(again)), resentAt: again };
+}
+
+/** GET /sync/get of the plan: its gzip bytes and `at`. 404 'absent'. */
+export async function getSyncedBytes(
+  url: string,
+  k: string,
+  slot: string,
+  f: SyncFetch | null = defaultFetch()
+): Promise<{ ok: true; bytes: Uint8Array; at: number } | SyncFailure> {
+  if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
+  return timed<{ ok: true; bytes: Uint8Array; at: number } | SyncFailure>(
+    async signal => {
+      const res = await f(`${url}/get?k=${k}&kind=plan&slot=${encodeURIComponent(slot)}`, { method: 'GET', ...(signal ? { signal } : {}) });
+      if (!res.ok) return res.status === 404 ? { ok: false, why: 'absent' } : failure(res.status, await bodyOf(res));
+      if (!res.arrayBuffer) return { ok: false, why: 'error' };
+      return { ok: true, bytes: new Uint8Array(await res.arrayBuffer()), at: Number(res.headers?.get('x-sync-at')) || 0 };
+    },
+    { ok: false, why: 'offline' }
+  );
+}
+
+// ----------------------------------------------------------------------------------------- ticks and plan values
+
+/** The collector's caps (collector/sync.js). */
+export const TICKS_MAX_KEYS = 300;
+export const TICKS_KEY_MAX = 120;
+export const TICKS_MAX_BYTES = 16 * 1024;
+export const PLAN_MAX_GZIP_BYTES = 96 * 1024;
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHAR = /[\u0000-\u001f\u007f]/;
+
+export interface TicksValue {
+  ticked: string[];
+  unticked: string[];
+}
+const okLine = (x: unknown): x is string => typeof x === 'string' && x.length >= 1 && x.length <= TICKS_KEY_MAX && !CONTROL_CHAR.test(x) && !hasPlayerId(x);
+
+/**
+ * The ticks record for this browser's overrides, inside the collector's caps: line keys of 1 to 120 characters with no
+ * control characters (others left out), at most 300 each way, the whole at most 16 KB (the last keys dropped until it
+ * fits). Never throws.
+ */
+export function buildTicksValue(on: Iterable<string>, off: Iterable<string>): TicksValue {
+  const ticked = [...new Set([...on].filter(okLine))].slice(0, TICKS_MAX_KEYS);
+  const unticked = [...new Set([...off].filter(okLine))].slice(0, TICKS_MAX_KEYS);
+  const size = () => new TextEncoder().encode(JSON.stringify({ ticked, unticked })).length;
+  while (size() > TICKS_MAX_BYTES && (ticked.length || unticked.length)) (unticked.length > ticked.length ? unticked : ticked).pop();
+  return { ticked, unticked };
+}
+/** A ticks record read back; anything else null. */
+export function readTicksValue(v: unknown): TicksValue | null {
+  const x = v as { ticked?: unknown; unticked?: unknown } | null;
+  if (!x || typeof x !== 'object' || !Array.isArray(x.ticked)) return null;
+  return { ticked: x.ticked.filter(okLine), unticked: Array.isArray(x.unticked) ? x.unticked.filter(okLine) : [] };
+}
+
+/**
+ * THE TICKS MERGE (brief section 3): sets, not text. `newer` is the side with the higher `at` (a tie: `b`).
+ * ticked = (a.ticked ∪ b.ticked) minus newer.unticked; unticked = newer.unticked ∪ (older.unticked minus newer.ticked).
+ * Sorted, so both orders give the same record.
+ */
+export function mergeTicks(a: TicksValue & { at: number }, b: TicksValue & { at: number }): TicksValue {
+  const [newer, older] = a.at > b.at ? [a, b] : [b, a];
+  const off = new Set(newer.unticked);
+  const ticked = [...new Set([...a.ticked, ...b.ticked])].filter(x => !off.has(x));
+  const newerOn = new Set(newer.ticked);
+  const unticked = [...new Set([...newer.unticked, ...older.unticked.filter(x => !newerOn.has(x))])];
+  return { ticked: ticked.sort(), unticked: unticked.sort() };
+}
+
+/** Gzip of a text (CompressionStream), or null where the browser has none. Never throws. */
+export async function gzipText(text: string): Promise<Uint8Array | null> {
+  try {
+    if (typeof CompressionStream === 'undefined') return null;
+    const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+/** The text of gzip bytes (DecompressionStream), or null. Never throws. */
+export async function gunzipText(bytes: Uint8Array): Promise<string | null> {
+  try {
+    if (typeof DecompressionStream === 'undefined') return null;
+    const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(stream).text();
+  } catch {
+    return null;
+  }
 }
 
 // ----------------------------------------------------------------------------------------- Delete everything

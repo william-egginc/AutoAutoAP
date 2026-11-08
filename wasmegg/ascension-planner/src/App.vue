@@ -894,6 +894,7 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
+import { installTrackerSync } from '@/composables/useTrackerSync';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import RunAnnouncer from '@/components/auto/RunAnnouncer.vue';
@@ -1038,6 +1039,8 @@ usePlanStartForm();
 useTablePrefetch();
 // The starting-TE override saved online: read when the account is set up (composables/useOverrideSync.ts).
 useOverrideSync();
+// The Build-up tracker's ticks and kept plan saved online: the same read pass, and pagehide (composables/useTrackerSync.ts).
+installTrackerSync();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
 /** A save file loaded with no account on screen (SaveFileBar under the ID box): the Auto Planner shows it, Fastest only. */

@@ -53,6 +53,7 @@ import {
   type LocalOverride,
   type OverrideRecord,
   type OverrideResolution,
+  type SyncMeta,
   type TEByEgg,
 } from '@/lib/syncedRecords';
 
@@ -345,20 +346,53 @@ export async function syncOverrideFromCloud(): Promise<void> {
     const list = await listSynced(w.url, w.k);
     if (!list.ok) {
       if (list.why === 'missing') offFor.add(w.url);
-      else if (list.why === 'limit') pausedUntil = Date.now() + Math.max(1, list.retryAfter ?? 60) * 1000;
+      else if (list.why === 'limit') pauseSync(list.retryAfter ?? 60);
       return;
     }
-    const meta = list.records.find(r => r.kind === 'override' && r.slot === OVERRIDE_SLOT);
-    if (!meta) return;
-    const local = readLocalOverride(playerId);
-    if (!(meta.at > Math.max(local.at, local.removedAt))) return;
-    const got = await getSynced(w.url, w.k, 'override', OVERRIDE_SLOT);
-    if (!got.ok || initial.playerId !== playerId) return;
-    const record = readOverrideValue(got.value);
-    if (record) weigh(playerId, record, got.at || meta.at);
+    await readOverride(list.records, w, playerId);
+    // The same list for the other records (composables/useTrackerSync.ts): one GET /sync a pass.
+    for (const l of listListeners) {
+      try {
+        await l(list.records, w);
+      } catch {
+        // quiet
+      }
+    }
   } catch {
     // quiet
   }
+}
+async function readOverride(records: SyncMeta[], w: { url: string; k: string }, playerId: string): Promise<void> {
+  const meta = records.find(r => r.kind === 'override' && r.slot === OVERRIDE_SLOT);
+  if (!meta) return;
+  const local = readLocalOverride(playerId);
+  if (!(meta.at > Math.max(local.at, local.removedAt))) return;
+  const got = await getSynced(w.url, w.k, 'override', OVERRIDE_SLOT);
+  if (!got.ok || useInitialStateStore().playerId !== playerId) return;
+  const record = readOverrideValue(got.value);
+  if (record) weigh(playerId, record, got.at || meta.at);
+}
+
+/** The read pass's list, handed on (composables/useTrackerSync.ts registers one). */
+type ListListener = (records: SyncMeta[], w: { url: string; k: string }) => Promise<void> | void;
+const listListeners = new Set<ListListener>();
+export function onSyncList(l: ListListener): void {
+  listListeners.add(l);
+}
+/** Where the synced records go now (null: the sync may not run). Shared with useTrackerSync. */
+export function syncWhere(): { url: string; k: string } | null {
+  return where();
+}
+/** A 404 from this collector: nothing more asked of it on this page load. */
+export function markSyncOff(url: string): void {
+  offFor.add(url);
+}
+/** A 429: no read and no write before `seconds` from now. */
+export function pauseSync(seconds: number): void {
+  pausedUntil = Math.max(pausedUntil, Date.now() + Math.max(1, seconds) * 1000);
+}
+export function syncPausedFor(): number {
+  return Math.max(0, pausedUntil - Date.now());
 }
 
 // ----------------------------------------------------------------------------------------- the question's answers
