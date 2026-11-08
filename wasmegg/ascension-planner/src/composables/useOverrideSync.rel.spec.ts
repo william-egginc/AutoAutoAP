@@ -153,10 +153,9 @@ describe('Save online off', () => {
 });
 
 describe('Delete everything saved online', () => {
-  // DESIGN (left to UI / Jordan): the switch goes off only once /forget has answered, so a change whose 2 s end while
-  // the DELETE is out (here the starting TE; a Setup change or an answer the same) is written straight back after the
-  // delete. One way: turn Save online off before sending /forget and back on if it fails. Flip to `it` once fixed.
-  it.fails('a change waiting while the DELETE is out is not written back', async () => {
+  // DECIDED (the orchestrator, 8 Nov 2026, decision b): Save online goes off BEFORE /forget is sent, and stays off even
+  // if it fails, so a change whose 2 s end while the DELETE is out is never written back after it.
+  it('a change waiting while the DELETE is out is not written back', async () => {
     const A = browser();
     await A.load();
     A.type(TE197);
@@ -171,6 +170,8 @@ describe('Delete everything saved online', () => {
     (answer as (() => void) | null)?.();
     await done;
     expect(d.phase.value).toBe('done');
-    expect(c.record(KEY, 'override')).toBeUndefined();
+    // The fake collector's `record` is null for none (it was `toBeUndefined` while this was expected to fail).
+    expect(c.record(KEY, 'override')).toBeNull();
+    expect(c.calls.filter(x => x.method === 'PUT' && x.url.includes('/sync'))).toEqual([]);
   });
 });

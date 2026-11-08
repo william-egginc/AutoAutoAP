@@ -125,6 +125,8 @@ describe('Delete everything: the flow', () => {
     d.ask();
     const done = d.confirm();
     expect(d.phase.value).toBe('running');
+    // Decision b: off before the DELETE goes, so nothing is written back while it is out.
+    expect(saveOnlineOn()).toBe(false);
     expect(d.busy.value).toBe(true);
     // A second press while it runs sends nothing more.
     void d.confirm();
@@ -156,7 +158,7 @@ describe('Delete everything: the flow', () => {
     ['limit', 'limit', 'Too many deletions this hour. Try again in 2 minutes.'],
     ['offline', 'offline', "Couldn't reach the planner's server. Nothing was deleted."],
   ] as const)
-    it(`${mode}: says so, the switch stays on, nothing here changes${mode === 'offline' ? ', Try again offered' : ''}`, async () => {
+    it(`${mode}: says so, Save online off (turned off before the call) and said, nothing else here changes${mode === 'offline' ? ', Try again offered' : ''}`, async () => {
       await page();
       mem.set('aap-follow:somehash', 'x');
       const before = new Map(mem);
@@ -165,11 +167,14 @@ describe('Delete everything: the flow', () => {
       d.ask();
       await d.confirm();
       expect(d.phase.value).toBe('failed');
-      expect(d.lines.value).toEqual([forgetFailWords(why, 120)]);
+      // Decision b (8 Nov 2026): Save online went off before the call and stays off; said so.
+      expect(d.lines.value).toEqual([forgetFailWords(why, 120), SAVE_ONLINE_OFF_AFTER_DELETE]);
       expect(forgetFailWords(why, 120)).toBe(words);
       expect(d.canRetry.value).toBe(why === 'offline');
-      expect(saveOnlineOn()).toBe(true);
-      expect(new Map(mem)).toEqual(before);
+      expect(saveOnlineOn()).toBe(false);
+      // Nothing else here changed: only the switch.
+      for (const [k, v] of before) expect(mem.get(k), k).toBe(v);
+      expect([...mem.keys()].filter(k => !before.has(k))).toEqual([SAVE_ONLINE_KEY]);
     });
 });
 
