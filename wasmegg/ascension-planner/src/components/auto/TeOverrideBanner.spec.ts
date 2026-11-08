@@ -21,8 +21,10 @@ import { accountOf } from '@/search/runSaves';
 import { plannerStartTEOf } from '@/lib/teOverrideAccount';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import { saveTEOf } from '@/lib/saveFreshness';
-import { teOverrideBannerOf, removeTEOverride } from '@/composables/useTEOverrideBanner';
+import { keepTypedTE, resetKept, teOverrideBannerOf, removeTEOverride } from '@/composables/useTEOverrideBanner';
 import { TE_OVERRIDE_REMOVE, teOverrideBannerLine } from '@/lib/teOverrideWords';
+import { START_TE_KEEP, START_TE_USE_CLOUD, cloudStartTeWords } from '@/lib/saveOnlineWords';
+import { startTeBannerWords } from '@/lib/syncWords';
 
 const applyAutoStartingTE = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('@/auto/startingTE', async orig => ({
@@ -34,6 +36,12 @@ vi.mock('@/lib/autoPlannerFormCache', async orig => ({
   ...(await orig<typeof import('@/lib/autoPlannerFormCache')>()),
   saveAutoPlannerTEInputs,
 }));
+
+const noteTEOverrideChange = vi.hoisted(() => vi.fn());
+const useCloudOverride = vi.hoisted(() => vi.fn(async () => {}));
+const rejectCloudOverride = vi.hoisted(() => vi.fn(async () => {}));
+const cloudOverrideOffer = vi.hoisted(() => vi.fn((): unknown => null));
+vi.mock('@/composables/useOverrideSync', () => ({ noteTEOverrideChange, useCloudOverride, rejectCloudOverride, cloudOverrideOffer }));
 
 const ID = 'EI' + '1234567890123456';
 const OTHER = 'EI' + '0000000000000000';
@@ -65,13 +73,25 @@ function overrideFor(id: string, te: Record<string, number> | null = CLAIMED_197
   p.teOverrideAccount = id ? accountOf({ eiUserId: id }) : '';
 }
 let pinia: Pinia;
+let mem: Map<string, string>;
 const html = async () => renderHtml(TeOverrideBanner, {}, {}, [pinia]);
+const html_ = html;
 
 beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   applyAutoStartingTE.mockClear();
   saveAutoPlannerTEInputs.mockClear();
+  noteTEOverrideChange.mockClear();
+  cloudOverrideOffer.mockReset();
+  cloudOverrideOffer.mockReturnValue(null);
+  mem = new Map();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, v),
+    removeItem: (k: string) => void mem.delete(k),
+  });
+  resetKept();
 });
 
 describe('the words (DRAFT from Words, Jordan to OK)', () => {
@@ -113,29 +133,29 @@ describe('when the banner shows', () => {
     load(save(ID));
     overrideFor(ID);
     expect(saveTEOf(save(ID))).toBe(198);
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: 198, pendingTE: 1 });
+    expect(teOverrideBannerOf()).toMatchObject({ overrideTE: 197, saveTE: 198, pendingTE: 1, tone: 'lower', kept: false });
     const text = textOf(await html());
     expect(text).toBe(
-      "Your typed starting TE (197) is lower than your save's TE (198, counting 1 not yet claimed), so the answers here start behind where you are. Use my save's TE"
+      "Your typed starting TE (197) is lower than your save's TE (198, counting 1 not yet claimed), so the answers here start behind where you are. Use my save's TE Keep my typed TE"
     );
   });
   it('higher than the save (a what-if): the neutral line with both numbers', async () => {
     load(save(ID));
     overrideFor(ID, { ...CLAIMED_197, kindness: 39 });
     expect(textOf(await html())).toBe(
-      "Your answers start from a typed TE (199), not your save's (198, counting 1 not yet claimed). Use my save's TE"
+      "Your answers start from a typed TE (199), not your save's (198, counting 1 not yet claimed). Use my save's TE Keep my typed TE"
     );
   });
   it('the save at the same TE: no comparison', async () => {
     load(save(ID, { pendingOne: false }));
     overrideFor(ID);
-    expect(textOf(await html())).toBe("Your answers start from a typed TE (197). Use my save's TE");
+    expect(textOf(await html())).toBe("Your answers start from a typed TE (197). Use my save's TE Keep my typed TE");
   });
   it("the save's TE unknown (no virtue progress in it): no comparison", async () => {
     load(save(ID, { virtue: false }));
     overrideFor(ID);
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: null, pendingTE: 0 });
-    expect(textOf(await html())).toBe("Your answers start from a typed TE (197). Use my save's TE");
+    expect(teOverrideBannerOf()).toMatchObject({ overrideTE: 197, saveTE: null, pendingTE: 0, tone: 'info' });
+    expect(textOf(await html())).toBe("Your answers start from a typed TE (197). Use my save's TE Keep my typed TE");
   });
   it('no typed TE: nothing', async () => {
     load(save(ID));
@@ -158,17 +178,17 @@ describe('TE not yet claimed (spec-overridebanner3)', () => {
     load(raw);
     overrideFor(ID);
     expect(saveTEOf(raw)).toBe(199);
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 197, saveTE: 199, pendingTE: 2 });
+    expect(teOverrideBannerOf()).toMatchObject({ overrideTE: 197, saveTE: 199, pendingTE: 2 });
     expect(textOf(await html())).toBe(
-      "Your typed starting TE (197) is lower than your save's TE (199, counting 2 not yet claimed), so the answers here start behind where you are. Use my save's TE"
+      "Your typed starting TE (197) is lower than your save's TE (199, counting 2 not yet claimed), so the answers here start behind where you are. Use my save's TE Keep my typed TE"
     );
   });
   it('nothing pending: no clause', async () => {
     load(save(ID, { pendingOne: false }));
     overrideFor(ID, { ...CLAIMED_197, kindness: 36 });
-    expect(teOverrideBannerOf()).toEqual({ overrideTE: 196, saveTE: 197, pendingTE: 0 });
+    expect(teOverrideBannerOf()).toMatchObject({ overrideTE: 196, saveTE: 197, pendingTE: 0 });
     expect(textOf(await html())).toBe(
-      "Your typed starting TE (196) is lower than your save's TE (197), so the answers here start behind where you are. Use my save's TE"
+      "Your typed starting TE (196) is lower than your save's TE (197), so the answers here start behind where you are. Use my save's TE Keep my typed TE"
     );
   });
   it("lower or higher is against the save's total INCLUDING pending, not its claimed TE", async () => {
@@ -180,7 +200,7 @@ describe('TE not yet claimed (spec-overridebanner3)', () => {
     );
     // Typed 198 = the save's total: the same, no comparison, though it is above the claimed 197.
     overrideFor(ID, { ...CLAIMED_197, kindness: 38 });
-    expect(textOf(await html())).toBe("Your answers start from a typed TE (198). Use my save's TE");
+    expect(textOf(await html())).toBe("Your answers start from a typed TE (198). Use my save's TE Keep my typed TE");
   });
 });
 
@@ -210,6 +230,8 @@ describe("Use my save's TE (Remove in the code)", () => {
     expect(applyAutoStartingTE).toHaveBeenCalledTimes(1);
     expect(applyAutoStartingTE).toHaveBeenCalledWith();
     expect(saveAutoPlannerTEInputs).toHaveBeenCalledWith(ID, null);
+    // spec-syncclient-a: the removal's time kept, and the tombstone saved online (useOverrideSync).
+    expect(noteTEOverrideChange).toHaveBeenCalledWith(ID, null);
     expect(teOverrideBannerOf()).toBeNull();
     expect(await html()).not.toContain('data-testid="te-override-banner"');
     expect(plannerStartTEOf(useInitialStateStore().rawBackup)).toBe(198);
@@ -222,16 +244,22 @@ describe("Use my save's TE (Remove in the code)", () => {
       .split('\n')
       .map(l => l.trim());
     expect(body).toEqual(['autoPlannerStore.teOverride = null;', 'applyAutoStartingTE();', 'cacheTEOverride();']);
+    // spec-syncclient-a: the cache write, then the sync's note (its time, the save's TE, saved online).
     expect(vp).toMatch(
-      /function cacheTEOverride\(\) \{\s*const override = autoPlannerStore\.teOverride;\s*saveAutoPlannerTEInputs\(initialStateStore\.playerId, override \? \{ teEarned: \{ \.\.\.override \} \} : null\);\s*\}/
+      /function cacheTEOverride\(\) \{\s*const override = autoPlannerStore\.teOverride;\s*saveAutoPlannerTEInputs\(initialStateStore\.playerId, override \? \{ teEarned: \{ \.\.\.override \} \} : null\);\s*\/\/[^\n]*\n\s*noteTEOverrideChange\(initialStateStore\.playerId, override\);\s*\}/
     );
   });
   it('a real button, 44 px tall at every width, with an amber notice round it', () => {
     const src = read('TeOverrideBanner.vue');
-    const button = src.match(/<button[^>]*data-testid="te-override-remove"[^>]*>/)?.[0] ?? '';
-    expect(button).toContain('type="button"');
-    expect(button).toContain('min-h-[44px]');
-    expect(button).not.toContain('sm:min-h-0');
+    // spec-syncclient-a: every button shares BUTTON (44 px at every width).
+    const BUTTON = src.match(/const BUTTON =\s*'([^']*)'/)?.[1] ?? '';
+    expect(BUTTON).toContain('min-h-[44px]');
+    expect(BUTTON).not.toContain('sm:min-h-0');
+    for (const id of ['te-override-remove', 'te-override-keep', 'te-override-use-cloud', 'te-override-reject-cloud']) {
+      const button = src.match(new RegExp(`<button[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
+      expect(button, id).toContain('type="button"');
+      expect(button, id).toMatch(/:class="(?:\[BUTTON, tint\]|BUTTON)"/);
+    }
     expect(src).toContain('bg-amber-50 border border-amber-200');
   });
 });
@@ -257,5 +285,80 @@ describe('on each of the four screens, at the top', () => {
     expect(at).toBeGreaterThan(-1);
     expect(at).toBeLessThan(classic.indexOf('<AutomaticPlanner'));
     expect(app).toMatch(/import TeOverrideBanner from '@\/components\/auto\/TeOverrideBanner\.vue'/);
+  });
+});
+
+describe('spec-syncclient-a: Keep, the higher variant, the stale case, and the question from another device', () => {
+  it("lower: Words' line (syncWords startTeBannerWords), amber, with Use my save's TE and Keep my typed TE", async () => {
+    load(save(ID));
+    overrideFor(ID);
+    expect(teOverrideBannerLine(197, 198, 1)).toBe(startTeBannerWords(197, 198, 1));
+    const html = await html_();
+    expect(html).toContain('data-testid="te-override-keep"');
+    expect(html).toContain('bg-amber-50');
+    expect(textOf(html)).toContain(START_TE_KEEP);
+  });
+  it('higher (a what-if): the info variant, not the warning, with the same two buttons', async () => {
+    load(save(ID));
+    overrideFor(ID, { ...CLAIMED_197, kindness: 39 });
+    expect(teOverrideBannerOf()).toMatchObject({ tone: 'info' });
+    const html = await html_();
+    expect(html).not.toContain('bg-amber-50');
+    expect(html).toContain('data-te-tone="info"');
+    expect(html).toContain('data-testid="te-override-remove"');
+    expect(html).toContain('data-testid="te-override-keep"');
+  });
+  it('equal to the save: info too', async () => {
+    load(save(ID, { pendingOne: false }));
+    overrideFor(ID);
+    expect(teOverrideBannerOf()).toMatchObject({ tone: 'info' });
+  });
+  it('Keep: gone for this save (kept in this browser), the plan still starting from the typed TE; back for the next save', async () => {
+    load(save(ID));
+    useInitialStateStore().lastBackupTime = 1_800_000_000;
+    overrideFor(ID);
+    keepTypedTE();
+    expect(teOverrideBannerOf()).toMatchObject({ kept: true });
+    expect(await html_()).not.toContain('data-testid="te-override-banner"');
+    expect(plannerStartTEOf(useInitialStateStore().rawBackup)).toBe(197);
+    expect([...mem.values()].join(' ')).not.toMatch(/EI\d{16}/);
+    // A reload keeps it.
+    resetKept();
+    expect(teOverrideBannerOf()).toMatchObject({ kept: true });
+    // A newer save of the same TE: shown again.
+    useInitialStateStore().lastBackupTime = 1_800_003_600;
+    expect(teOverrideBannerOf()).toMatchObject({ kept: false });
+  });
+  it("stale: kept, then the save's TE moved (199): shown again", async () => {
+    load(save(ID));
+    useInitialStateStore().lastBackupTime = 1_800_000_000;
+    overrideFor(ID);
+    keepTypedTE();
+    const raw = save(ID);
+    raw.virtue!.eggsDelivered[3] = getThresholdForTE(41);
+    load(raw);
+    useInitialStateStore().lastBackupTime = 1_800_000_000;
+    expect(teOverrideBannerOf()).toMatchObject({ saveTE: 199, kept: false });
+    expect(await html_()).toContain('data-testid="te-override-banner"');
+  });
+  it('a different typed TE after Keep: shown again', async () => {
+    load(save(ID));
+    overrideFor(ID);
+    keepTypedTE();
+    overrideFor(ID, { ...CLAIMED_197, kindness: 36 });
+    expect(teOverrideBannerOf()).toMatchObject({ kept: false });
+  });
+  it('another device set a starting TE: the question, Use it and Use my save\'s TE, never applied by itself', async () => {
+    load(save(ID));
+    overrideFor(ID, null);
+    cloudOverrideOffer.mockReturnValue({ account: accountOf(save(ID)), teEarned: CLAIMED_197, at: 1, typed: 197, saveNow: 198 });
+    const html = await html_();
+    expect(html).toContain('data-testid="te-override-offer"');
+    expect(textOf(html)).toBe(`${cloudStartTeWords(197, 198)} ${START_TE_USE_CLOUD} Use my save's TE`);
+    expect(cloudStartTeWords(197, 198)).toBe('Another device set a starting TE of 197. Your save says 198.');
+    expect(useAutoPlannerStore().teOverride).toBeNull();
+    const src = read('TeOverrideBanner.vue');
+    expect(src).toMatch(/data-testid="te-override-use-cloud"[\s\S]*?@click="takeCloud"/);
+    expect(src).toMatch(/data-testid="te-override-reject-cloud"[\s\S]*?@click="dropCloud"/);
   });
 });

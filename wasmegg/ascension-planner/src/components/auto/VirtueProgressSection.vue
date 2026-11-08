@@ -159,6 +159,7 @@ import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { computeSnapshot } from '@/engine/compute';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
+import { noteTEOverrideChange } from '@/composables/useOverrideSync';
 import { applyAutoStartingTE, eggsSinceLastSync } from '@/auto/startingTE';
 import type { VirtueEgg } from '@/types';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -300,6 +301,8 @@ const sinceSync = computed(() => {
 function cacheTEOverride() {
   const override = autoPlannerStore.teOverride;
   saveAutoPlannerTEInputs(initialStateStore.playerId, override ? { teEarned: { ...override } } : null);
+  // spec-syncclient-a: its time and the save's TE kept beside it, and saved online (composables/useOverrideSync.ts).
+  noteTEOverrideChange(initialStateStore.playerId, override);
 }
 
 function addOverride() {

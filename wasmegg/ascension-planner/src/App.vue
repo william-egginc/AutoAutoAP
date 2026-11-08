@@ -893,6 +893,7 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
+import { useOverrideSync } from '@/composables/useOverrideSync';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import RunAnnouncer from '@/components/auto/RunAnnouncer.vue';
@@ -1035,6 +1036,8 @@ const initialStateStore = useInitialStateStore();
 usePlanStartForm();
 // Precompute: the instant answer's tables fetched in the background once a save is loaded.
 useTablePrefetch();
+// The starting-TE override saved online: read when the account is set up (composables/useOverrideSync.ts).
+useOverrideSync();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
 /** A save file loaded with no account on screen (SaveFileBar under the ID box): the Auto Planner shows it, Fastest only. */

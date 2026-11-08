@@ -4,6 +4,7 @@
  * Players never read the word "override" (Words): the setting is "a typed starting TE" to them.
  * Wording only, so never part of the result code hash (lib/resultCodeHash.ts `isWordingOnly`).
  */
+import { startTeBannerWords } from './syncWords';
 
 /**
  * The banner's line. `typedTE` is the typed starting TE (the five eggs' claimed TE summed); `saveTE` the save's own TE
@@ -13,8 +14,8 @@
 export function teOverrideBannerLine(typedTE: number, saveTE: number | null, pendingTE = 0): string {
   // The save's TE is the TE claimed plus the ones not yet claimed (Jordan, 7 Nov 2026: say so).
   const counting = pendingTE > 0 ? `, counting ${pendingTE} not yet claimed` : '';
-  if (saveTE !== null && typedTE < saveTE)
-    return `Your typed starting TE (${typedTE}) is lower than your save's TE (${saveTE}${counting}), so the answers here start behind where you are.`;
+  // Lower: Words' own line (lib/syncWords.ts, the same words).
+  if (saveTE !== null && typedTE < saveTE) return startTeBannerWords(typedTE, saveTE, pendingTE);
   if (saveTE !== null && typedTE > saveTE)
     return `Your answers start from a typed TE (${typedTE}), not your save's (${saveTE}${counting}).`;
   return `Your answers start from a typed TE (${typedTE}).`;
