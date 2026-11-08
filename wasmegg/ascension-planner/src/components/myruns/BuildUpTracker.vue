@@ -11,6 +11,13 @@
   that also has other buys, once at the end of a line that is all sweep (R7, lib `sweepMarked`). Days collapse to their bold and event lines plus the
   first line not ticked yet; today and the next day with check-ins start open.
 
+  spec-trackercompact (8 Nov 2026; Jordan: "all suggested", design ~/code/aaap-tools/notes/tracker-compact-design.md):
+  a List / Compact toggle (remembered in this browser, lib/panelFold.ts `buildUpCompact`); Compact is a day at a glance
+  with no boxes; done work is folded into green lines that say what was bought (BuildUpDoneLine.vue): a done day in one
+  line (more than 3 in a row from the top: the older ones under one line), an open day's leading done run in one line;
+  an open day's cap counts only lines still to do. The day summaries come from the lines (lib/buildUpDays.ts, not a
+  result code input).
+
   Phase 2 (lib/buildUpBought.ts): lines tick themselves from the save ("bought", "3 of 5 bought" in amber with the
   bought names struck through); the player's checkbox overrides both ways and "use save" clears it back; where a tick
   came from is in the checkbox's label and title ("from your save" / "ticked by you"). "Re-plan from this save" shows
@@ -160,15 +167,44 @@
             The silo trick does not fit this plan {{ siloWarnings === 1 ? 'once' : `${siloWarnings} times` }}: see the amber lines.
           </p>
 
+          <!-- DONE WORK FOLDED (spec-trackercompact; Jordan: "fold completed research INTO a summary line that says what was
+               done"): a done day is one green line (`row.kind === 'done'`, its full list under it when opened); more than 3
+               in a row from the top, the older ones under one group line; an open day's leading done run is one green line. -->
           <template v-if="view === 'list'">
-            <section v-for="d in result.days" :key="d.ymd" class="border-t border-slate-200 pt-2" :data-testid="`buildup-day-${d.ymd}`">
+            <template v-for="row in rows" :key="`${row.kind}-${row.ymd}`">
+            <div v-if="row.kind === 'group'" class="border-t border-slate-200 pt-1">
+              <BuildUpDoneLine
+                :words="earlierDoneWords(groupedDays.size)"
+                :expanded="groupOpen"
+                data-testid="buildup-donegroup"
+                @toggle="toggleDoneGroup()"
+              />
+            </div>
+            <div v-else-if="row.kind === 'done'" class="border-t border-slate-200 pt-1">
+              <BuildUpDoneLine
+                :title="row.day.title"
+                :words="doneDayWords(row.day)"
+                :sr="DONE_DAY_SR"
+                :expanded="!!doneOpen[row.ymd]"
+                :controls="doneOpen[row.ymd] ? `buildup-daysec-${row.ymd}` : ''"
+                :data-testid="`buildup-doneday-${row.ymd}`"
+                @toggle="toggleDoneDay(row.ymd)"
+              />
+            </div>
+            <section
+              v-else
+              :id="`buildup-daysec-${row.ymd}`"
+              class="border-t border-slate-200 pt-2"
+              :data-testid="`buildup-day-${row.ymd}`"
+            >
+              <template v-for="d in [row.day]" :key="d.ymd">
               <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <h3 class="label text-slate-700" :id="`buildup-dayhead-${d.ymd}`" tabindex="-1">{{ d.title }}</h3>
                 <span class="text-small text-slate-500 tabular-nums">
                   {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
                 </span>
                 <button
-                  v-if="dayView(d, false, ticked).hidden > 0"
+                  v-if="!row.full && dayView(d, false, ticked).hidden > 0"
                   type="button"
                   class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
                   :aria-expanded="isOpen(d)"
@@ -179,9 +215,17 @@
                 </button>
               </div>
               <ul class="mt-1 space-y-0.5">
+                <template v-for="(l, i) in model(d, row.full).lines" :key="l.key">
+                <li v-if="model(d, row.full).runSlot === i">
+                  <BuildUpDoneLine
+                    :lead="runLead(model(d, row.full).run)"
+                    :words="runWords(model(d, row.full).run)"
+                    :expanded="!!runOpen[d.ymd]"
+                    :data-testid="`buildup-run-${d.ymd}`"
+                    @toggle="toggleRun(d.ymd)"
+                  />
+                </li>
                 <li
-                  v-for="l in shownLines(d)"
-                  :key="l.key"
                   class="flex items-start gap-x-1 rounded-md pr-1.5"
                   :class="lineClass(l)"
                   :data-testid="`buildup-line-${l.kind}`"
@@ -244,19 +288,29 @@
                     use save
                   </button>
                 </li>
-                <!-- An open day stops at its first 8 lines (UX fluff review 2, 5 Nov 2026, item R12: the next sale day opened
-                     with 112). -->
-                <li v-if="capped(d)">
+                </template>
+                <li v-if="model(d, row.full).run.length && model(d, row.full).runSlot === model(d, row.full).lines.length">
+                  <BuildUpDoneLine
+                    :lead="runLead(model(d, row.full).run)"
+                    :words="runWords(model(d, row.full).run)"
+                    :expanded="!!runOpen[d.ymd]"
+                    :data-testid="`buildup-run-${d.ymd}`"
+                    @toggle="toggleRun(d.ymd)"
+                  />
+                </li>
+                <!-- An open day stops at its first 8 lines still to do (UX fluff review 2, 5 Nov 2026, item R12: the next sale
+                     day opened with 112; spec-trackercompact: done lines don't count, so the line due now is in view). -->
+                <li v-if="model(d, row.full).hidden > 0">
                   <button
                     type="button"
                     class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
                     :data-testid="`buildup-cap-${d.ymd}`"
                     @click="showAll(d)"
                   >
-                    Show all {{ d.lines.length }}
+                    {{ showAllToDoWords(toDoCount(d, ticked)) }}
                   </button>
                 </li>
-                <li v-if="!isOpen(d) && hiddenCount(d) > 0">
+                <li v-if="!row.full && !isOpen(d) && hiddenCount(d) > 0">
                   <button
                     type="button"
                     class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
@@ -267,18 +321,39 @@
                   </button>
                 </li>
               </ul>
+              </template>
             </section>
+            </template>
           </template>
           <!-- COMPACT (spec-trackercompact): a day at a glance, no boxes (ticking is List's). The header is a button in the
                heading: it jumps to List with the day open. Bold kinds as chips in the lines' words without "buy", sale on and
                off as quiet chips, one range per research over the day (lib/buildUpDays.ts), notes and warnings in full. -->
           <template v-else>
+            <template v-for="row in rows" :key="`${row.kind}-${row.ymd}`">
+            <div v-if="row.kind === 'group'" class="border-t border-slate-200 pt-1">
+              <BuildUpDoneLine
+                :words="earlierDoneWords(groupedDays.size)"
+                :expanded="groupOpen"
+                data-testid="buildup-donegroup"
+                @toggle="toggleDoneGroup()"
+              />
+            </div>
+            <div v-else-if="row.kind === 'done'" class="border-t border-slate-200 pt-1">
+              <BuildUpDoneLine
+                :title="row.day.title"
+                :words="doneDayWords(row.day)"
+                :sr="DONE_DAY_SR"
+                :expanded="false"
+                :data-testid="`buildup-doneday-${row.ymd}`"
+                @toggle="openDoneDay(row.ymd)"
+              />
+            </div>
             <section
-              v-for="d in result.days"
-              :key="d.ymd"
+              v-else-if="!row.full"
               class="border-t border-slate-200 pt-1"
-              :data-testid="`buildup-cday-${d.ymd}`"
+              :data-testid="`buildup-cday-${row.ymd}`"
             >
+              <template v-for="d in [row.day]" :key="d.ymd">
               <h3><button
                   type="button"
                   class="flex min-h-[44px] w-full flex-wrap items-center gap-x-3 gap-y-0.5 text-left"
@@ -292,6 +367,17 @@
                     ><span class="sr-only">{{ ' ' }}{{ COMPACT_JUMP }}</span></span
                   >
                 </button></h3>
+              <template v-if="compactRun(d).length">
+                <BuildUpDoneLine
+                  class="mt-1"
+                  :lead="BOUGHT_SO_FAR"
+                  :words="runWords(compactRun(d))"
+                  :expanded="false"
+                  :data-testid="`buildup-crun-${d.ymd}`"
+                  @toggle="openRun(d.ymd)"
+                />
+                <p class="label mt-2 text-slate-500">{{ STILL_TO_BUY }}</p>
+              </template>
               <ul v-if="compactChips(d).length" class="mt-1 flex flex-wrap gap-1.5">
                 <li
                   v-for="c in compactChips(d)"
@@ -325,7 +411,9 @@
               >
                 {{ w.text }}
               </p>
+              </template>
             </section>
+            </template>
           </template>
           <p class="text-small text-slate-500" data-testid="buildup-foot">
             Times are in your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
@@ -340,6 +428,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
+import BuildUpDoneLine from './BuildUpDoneLine.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
@@ -351,6 +440,14 @@ import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import {
+  BOUGHT_SO_FAR,
+  DONE_DAY_SR,
+  STILL_TO_BUY,
+  boughtRunLead,
+  boughtWords,
+  doneListWords,
+  earlierDoneWords,
+  showAllToDoWords,
   COMPACT_ALL_DONE,
   COMPACT_BOUGHT_SR,
   COMPACT_DONE_SR,
@@ -362,7 +459,7 @@ import {
   compactNextWords,
   compactSaleWords,
 } from '@/lib/buildUpWords';
-import { chipWords, dayDone, researchRanges, type RangeItem } from '@/lib/buildUpDays';
+import { chipWords, dayDone, doneRun, groupedDoneDays, listLines, researchRanges, toDoCount, whatLinesDo, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
 const props = withDefaults(
@@ -481,19 +578,43 @@ function setOpen(d: TrackerDay, o: boolean): void {
 const OPEN_DAY_CAP = 8;
 /** Days whose every line the player asked for. */
 const dayFull = ref<Record<string, boolean>>({});
-/** The day is open, longer than the cap, and not asked for in full. */
-function capped(d: TrackerDay): boolean {
-  return isOpen(d) && !dayFull.value[d.ymd] && d.lines.length > OPEN_DAY_CAP;
-}
 function showAll(d: TrackerDay): void {
   dayFull.value = { ...dayFull.value, [d.ymd]: true };
   setOpen(d, true);
 }
-/** A collapsed day: its bold, event and warning lines and the first line not ticked yet (lib `dayView`); an open one
- *  up to the cap. */
-function shownLines(d: TrackerDay): TrackerLine[] {
-  const lines = dayView(d, isOpen(d), ticked.value).lines;
-  return capped(d) ? lines.slice(0, OPEN_DAY_CAP) : lines;
+/** A day as List draws it: its lines, the done run (lib/buildUpDays.ts `doneRun`) and where its green line goes
+ *  (`runSlot`: before line `runSlot`, or after the last when it equals their count; -1 none), and how many lines still
+ *  to do are past the cap. */
+interface DayModel {
+  lines: TrackerLine[];
+  run: TrackerLine[];
+  runSlot: number;
+  hidden: number;
+}
+/** A collapsed day: its bold, event and warning lines and the first line not ticked yet (lib `dayView`). An open one: its
+ *  done run folded into one line (its lines back in place when opened), then up to the cap, which counts only lines
+ *  still to do (spec-trackercompact); a line ticked after a gap stays where it is. */
+function buildModel(d: TrackerDay): DayModel {
+  if (!isOpen(d)) return { lines: dayView(d, false, ticked.value).lines, run: [], runSlot: -1, hidden: 0 };
+  const { entries, hidden } = listLines(d, ticked.value, dayFull.value[d.ymd] ? null : OPEN_DAY_CAP);
+  const lines: TrackerLine[] = [];
+  let run: TrackerLine[] = [];
+  let runSlot = -1;
+  for (const e of entries) {
+    if ('run' in e) {
+      run = e.run;
+      runSlot = lines.length;
+      if (runOpen.value[d.ymd]) lines.push(...e.run);
+    } else lines.push(e.line);
+  }
+  return { lines, run, runSlot, hidden };
+}
+/** Every day's model once per change (a sale day has over 100 lines). */
+const models = computed(() => new Map((props.result?.days ?? []).map(d => [d.ymd, buildModel(d)])));
+/** `full`: a done day opened from its green line: every line, nothing folded or capped. */
+function model(d: TrackerDay, full: boolean): DayModel {
+  if (full) return { lines: d.lines, run: [], runSlot: -1, hidden: 0 };
+  return models.value.get(d.ymd) ?? buildModel(d);
 }
 function hiddenCount(d: TrackerDay): number {
   return dayView(d, isOpen(d), ticked.value).hidden;
@@ -507,6 +628,66 @@ function dayWords(d: TrackerDay): string {
 }
 /** The first check-in not fully ticked: its lines are "next". */
 const nextKeys = computed(() => new Set(props.summary?.next?.keys ?? []));
+// ------------------------------------------------------------------ done work folded (spec-trackercompact)
+/** Done days opened from their green line, today's done runs opened, the group over the older done days opened. */
+const doneOpen = ref<Record<string, boolean>>({});
+const runOpen = ref<Record<string, boolean>>({});
+const groupOpen = ref(false);
+function toggleDoneDay(ymd: string): void {
+  doneOpen.value = { ...doneOpen.value, [ymd]: !doneOpen.value[ymd] };
+}
+function toggleRun(ymd: string): void {
+  runOpen.value = { ...runOpen.value, [ymd]: !runOpen.value[ymd] };
+}
+function toggleDoneGroup(): void {
+  groupOpen.value = !groupOpen.value;
+}
+/** The done days under the group line (lib/buildUpDays.ts: more than 3 in a row from the top, all but the last 3). */
+const groupedDays = computed(() => (props.result ? groupedDoneDays(props.result.days, ticked.value) : new Set<string>()));
+/** What List and Compact draw, in order: the group line (where its first day was), a done day's green line (and, opened,
+ *  its full list: `full`), or a day. */
+interface Row {
+  kind: 'group' | 'done' | 'day';
+  ymd: string;
+  day: TrackerDay;
+  full: boolean;
+}
+const rows = computed(() => {
+  const out: Row[] = [];
+  let grouped = false;
+  for (const d of props.result?.days ?? []) {
+    if (groupedDays.value.has(d.ymd)) {
+      if (!grouped) out.push({ kind: 'group', ymd: d.ymd, day: d, full: false });
+      grouped = true;
+      if (!groupOpen.value) continue;
+    }
+    if (dayDone(d, ticked.value)) {
+      out.push({ kind: 'done', ymd: d.ymd, day: d, full: false });
+      if (doneOpen.value[d.ymd]) out.push({ kind: 'day', ymd: d.ymd, day: d, full: true });
+    } else out.push({ kind: 'day', ymd: d.ymd, day: d, full: false });
+  }
+  return out;
+});
+/** A done day's words: "bought A (1 → 2), B (3 → max); shift to Kindness". */
+function doneDayWords(d: TrackerDay): string {
+  const w = whatLinesDo(d.lines, ticked.value);
+  return boughtWords(
+    w.research.map(r => r.words),
+    w.other.map(chipWords)
+  );
+}
+/** A run's lead and words: "Bought 8:41 am to 9:01 am:" "A (1 → 2); shift to Kindness". */
+function runLead(run: readonly TrackerLine[]): string {
+  return run.length ? boughtRunLead(run[0].time, run[run.length - 1].time) : '';
+}
+function runWords(run: readonly TrackerLine[]): string {
+  const w = whatLinesDo(run, ticked.value);
+  return doneListWords(
+    w.research.map(r => r.words),
+    w.other.map(chipWords)
+  );
+}
+
 // ------------------------------------------------------------------ Compact
 /** "18 check-ins · 8:41 am to 10:52 pm" (the first and last boxed lines' times); a day with none: as List says it. */
 function compactMeta(d: TrackerDay): string {
@@ -524,16 +705,25 @@ function compactStatus(d: TrackerDay): string {
   return done ? `${done} of ${tick.length} lines done` : '';
 }
 /** The day's chips, in line order: its bold kinds (boxed lines that aren't research) and sale on / off. */
+/** Today's done run in Compact ("Bought so far"): an open day not all done. */
+function compactRun(d: TrackerDay): TrackerLine[] {
+  return dayDone(d, ticked.value) ? [] : doneRun(d, ticked.value);
+}
+/** The day's lines less its done run (said in its own line). */
+function compactRest(d: TrackerDay): TrackerLine[] {
+  const run = new Set(compactRun(d).map(l => l.key));
+  return run.size ? d.lines.filter(l => !run.has(l.key)) : d.lines;
+}
 function compactChips(d: TrackerDay): { key: string; text: string; done: boolean; event: boolean }[] {
   const out: { key: string; text: string; done: boolean; event: boolean }[] = [];
-  for (const l of d.lines) {
+  for (const l of compactRest(d)) {
     if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
     else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
   }
   return out;
 }
 function compactRanges(d: TrackerDay): RangeItem[] {
-  return researchRanges(d.lines, ticked.value);
+  return researchRanges(compactRest(d), ticked.value);
 }
 function compactKind(d: TrackerDay, kind: 'note' | 'warning'): TrackerLine[] {
   return d.lines.filter(l => l.kind === kind);
@@ -543,7 +733,21 @@ function compactKind(d: TrackerDay, kind: 'note' | 'warning'): TrackerLine[] {
 function jumpToDay(ymd: string): void {
   view.value = 'list';
   const d = props.result?.days.find(x => x.ymd === ymd);
-  if (d) setOpen(d, true);
+  if (d && dayDone(d, ticked.value)) {
+    // A done day: its green line opened, under the group line opened if it is there.
+    doneOpen.value = { ...doneOpen.value, [ymd]: true };
+    if (groupedDays.value.has(ymd)) groupOpen.value = true;
+  } else if (d) setOpen(d, true);
+  focusDay(ymd);
+}
+/** A done day's green line in Compact: List, the day opened under it. */
+const openDoneDay = jumpToDay;
+/** Compact's "Bought so far": List, the day open with its done run opened. */
+function openRun(ymd: string): void {
+  runOpen.value = { ...runOpen.value, [ymd]: true };
+  jumpToDay(ymd);
+}
+function focusDay(ymd: string): void {
   void nextTick(() => {
     if (typeof document === 'undefined') return;
     const h = document.getElementById(`buildup-dayhead-${ymd}`);

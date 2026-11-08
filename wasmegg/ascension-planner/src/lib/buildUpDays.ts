@@ -110,3 +110,54 @@ export function doneRun(d: Pick<TrackerDay, 'lines'>, ticks: ReadonlySet<string>
   }
   return run;
 }
+
+/** At most this many done days drawn one line each; the older ones go under one group line. */
+export const DONE_DAYS_SHOWN = 3;
+
+/**
+ * Which done days are folded into the group line: the leading done days (every day before the first one with something
+ * still to do; a day with nothing to tick neither stops them nor counts) but the last DONE_DAYS_SHOWN of them. Keys are
+ * `ymd`.
+ */
+export function groupedDoneDays(days: readonly TrackerDay[], ticks: ReadonlySet<string>): Set<string> {
+  const lead: string[] = [];
+  for (const d of days) {
+    if (!d.lines.some(l => l.tickable)) continue;
+    if (!dayDone(d, ticks)) break;
+    lead.push(d.ymd);
+  }
+  return new Set(lead.length > DONE_DAYS_SHOWN ? lead.slice(0, lead.length - DONE_DAYS_SHOWN) : []);
+}
+
+/**
+ * An open day's lines in List, with its done work folded and the cap counting only lines still to do: the lines before
+ * the done run's first, one `{ run }` entry where the run was (its lines out), then the rest, cut after the `cap`-th
+ * line still to do (`cap` null: no cut). `hidden`: lines still to do past the cut.
+ */
+export function listLines(
+  d: Pick<TrackerDay, 'lines'>,
+  ticks: ReadonlySet<string>,
+  cap: number | null
+): { entries: ({ line: TrackerLine } | { run: TrackerLine[] })[]; hidden: number } {
+  const run = doneRun(d, ticks);
+  const inRun = new Set(run.map(l => l.key));
+  const entries: ({ line: TrackerLine } | { run: TrackerLine[] })[] = [];
+  let todo = 0;
+  let hidden = 0;
+  let placed = false;
+  for (const l of d.lines) {
+    if (inRun.has(l.key)) {
+      if (!placed) entries.push({ run });
+      placed = true;
+      continue;
+    }
+    const isToDo = l.tickable && !ticks.has(l.key);
+    if (cap !== null && todo >= cap) {
+      if (isToDo) hidden++;
+      continue;
+    }
+    entries.push({ line: l });
+    if (isToDo) todo++;
+  }
+  return { entries, hidden };
+}

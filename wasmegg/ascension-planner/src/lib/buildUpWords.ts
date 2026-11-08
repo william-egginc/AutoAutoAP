@@ -85,3 +85,27 @@ export const COMPACT_JUMP = 'show this day in the list';
 /** After a done chip / a done range, for a screen reader (the ✓ is hidden from it). */
 export const COMPACT_DONE_SR = '(done)';
 export const COMPACT_BOUGHT_SR = '(bought)';
+
+/** Done work folded into one line that says what was bought (spec-trackercompact; DRAFT words). `ranges`: the research
+ *  ranges; `others`: the other things done, in the lines' words without "buy". "bought A (1 → 2), B (3 → max); shift to
+ *  Kindness"; with no research, the others alone. */
+export function boughtWords(ranges: readonly string[], others: readonly string[]): string {
+  return ranges.length ? `bought ${doneListWords(ranges, others)}` : doneListWords(ranges, others);
+}
+/** The same without "bought", after a lead that says it ("Bought 8:41 am to 9:01 am: A (1 → 2); shift to Kindness"). */
+export function doneListWords(ranges: readonly string[], others: readonly string[]): string {
+  return [ranges.join(', '), others.join(', ')].filter(Boolean).join('; ');
+}
+/** A done run's lead: "Bought 8:41 am to 9:01 am:", "Bought 10:00 am:". */
+export function boughtRunLead(first: string, last: string): string {
+  return `Bought ${!last || first === last ? first : `${first} to ${last}`}:`;
+}
+/** Compact's done run inside today, and the label of what is left. */
+export const BOUGHT_SO_FAR = 'Bought so far:';
+export const STILL_TO_BUY = 'Still to buy';
+/** The group line over the older done days: "Earlier: 2 days, all bought". */
+export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n === 1 ? '' : 's'}, all bought`;
+/** The cap's button when an open day has more lines to do than it shows: "Show all 101 still to do". */
+export const showAllToDoWords = (n: number): string => `Show all ${n} still to do`;
+/** Said after a done day's line for a screen reader. */
+export const DONE_DAY_SR = 'all done';

@@ -245,3 +245,25 @@ describe('the result code hash: buildUpWords.ts is wording only', () => {
     expect(resultCodeHash(edited).hash).toBe(before);
   });
 });
+
+describe('the Compact view and the done lines (spec-trackercompact, DRAFT words)', () => {
+  it('done work in words', async () => {
+    const w = await import('./buildUpWords');
+    expect(w.boughtWords(['A (1 → 2)', 'B (3 → max)'], ['shift to Kindness'])).toBe('bought A (1 → 2), B (3 → max); shift to Kindness');
+    expect(w.boughtWords([], ['shift to Humility', 'set swap: equip the ELR set'])).toBe('shift to Humility, set swap: equip the ELR set');
+    expect(w.doneListWords(['A (1 → 2)'], [])).toBe('A (1 → 2)');
+    expect(w.boughtRunLead('8:41 am', '9:01 am')).toBe('Bought 8:41 am to 9:01 am:');
+    expect(w.boughtRunLead('10:00 am', '10:00 am')).toBe('Bought 10:00 am:');
+    expect(w.earlierDoneWords(2)).toBe('Earlier: 2 days, all bought');
+    expect(w.earlierDoneWords(1)).toBe('Earlier: 1 day, all bought');
+    expect(w.showAllToDoWords(101)).toBe('Show all 101 still to do');
+  });
+  it('Compact headers and chips', async () => {
+    const w = await import('./buildUpWords');
+    expect(w.checkInSpanWords(4, '8:00 am', '9:46 am')).toBe('4 check-ins · 8:00 am to 9:46 am');
+    expect(w.checkInSpanWords(1, '9:52 am', '9:52 am')).toBe('1 check-in · 9:52 am');
+    expect(w.compactSaleWords(true, '10:00 am')).toBe('sale on 10:00 am');
+    expect(w.compactSaleWords(false, '10:00 am')).toBe('sale off 10:00 am');
+    expect(w.compactNextWords('8:41 am')).toBe('next 8:41 am');
+  });
+});

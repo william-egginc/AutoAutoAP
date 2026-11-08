@@ -117,9 +117,9 @@ describe('Compact: a day at a glance', () => {
     expect(chips(b)).toContain('✓ shift to Kindness (done)');
     expect(b).toMatch(/<li[^>]*class="[^"]*text-slate-500[^"]*"[^>]*data-testid="buildup-range"[^>]*>\s*<span aria-hidden="true"[^>]*>✓<\/span>/);
   });
-  it('a day all done says so in its header', async () => {
-    const all = new Set(result.days[2].lines.filter(l => l.tickable).map(l => l.key));
-    expect(textOf(block(await render(all), '2026-11-01').match(/<h3[\s\S]*?<\/h3>/)![0])).toContain('all done');
+  it('a day partly done says how far in its header (a day all done is one green line: BuildUpTracker.done.spec)', async () => {
+    const second = result.days[1].lines.filter(l => l.tickable)[1].key;
+    expect(textOf(block(await render(new Set([second])), '2026-10-31').match(/<h3[\s\S]*?<\/h3>/)![0])).toContain('1 of 3 lines done');
   });
 });
 

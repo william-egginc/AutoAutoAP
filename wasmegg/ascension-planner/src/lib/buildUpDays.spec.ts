@@ -9,7 +9,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildUpTracker, type TrackerLine } from './buildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from './buildUpTracker.fixture';
-import { chipWords, dayDone, doneRun, lineDone, researchRanges, toDoCount, whatLinesDo } from './buildUpDays';
+import { DONE_DAYS_SHOWN, chipWords, dayDone, doneRun, groupedDoneDays, lineDone, listLines, researchRanges, toDoCount, whatLinesDo } from './buildUpDays';
 import { effectiveTicks } from './buildUpBought';
 import { resultCodeInputs } from './resultCodeHash';
 
@@ -118,5 +118,35 @@ describe('not a result code input', () => {
     expect(inputs).toContain('src/lib/buildUpTracker.ts');
     expect(inputs).not.toContain('src/lib/buildUpDays.ts');
     expect(inputs).not.toContain('src/lib/panelFold.ts');
+  });
+});
+
+describe('done days grouped after 3, and an open day\'s list with its done run folded and the cap on lines to do', () => {
+  const boxedOf = (i: number) => result.days[i].lines.filter(l => l.tickable).map(l => l.key);
+  it('the leading done days but the last 3 are grouped; a day with nothing to tick neither stops nor counts', () => {
+    // Fri Oct 30, Sat Oct 31, Sun Nov 1, Mon Nov 2, Fri Nov 6 all done; Sat Nov 7 has nothing to tick.
+    const ticks = new Set([0, 1, 2, 3, 4].flatMap(boxedOf));
+    expect([...groupedDoneDays(result.days, ticks)]).toEqual(['2026-10-30', '2026-10-31']);
+    expect(DONE_DAYS_SHOWN).toBe(3);
+    expect([...groupedDoneDays(result.days, new Set([0, 1, 2].flatMap(boxedOf)))]).toEqual([]);
+    // A day not done stops the lead: what follows it is never grouped.
+    expect([...groupedDoneDays(result.days, new Set([0, 2, 3, 4, 5].flatMap(boxedOf)))]).toEqual([]);
+  });
+  it('listLines: the run as one entry where it was, the rest in place, cut after the 8th line still to do', () => {
+    const boxed = fri.lines.filter(l => l.tickable);
+    const ticks = new Set([boxed[0].key, boxed[1].key, boxed[6].key]);
+    const { entries, hidden } = listLines(fri, ticks, 8);
+    const firstRun = entries.findIndex(e => 'run' in e);
+    expect(firstRun).toBe(0);
+    expect((entries[0] as { run: TrackerLine[] }).run.map(l => l.key)).toEqual([boxed[0].key, boxed[1].key]);
+    const shown = entries.filter((e): e is { line: TrackerLine } => 'line' in e).map(e => e.line);
+    // The one ticked after the gap stays in place.
+    expect(shown.map(l => l.key)).toContain(boxed[6].key);
+    // 8 lines still to do: boxed[2..5] and boxed[7..10]; boxed[11] is past the cut.
+    const todo = shown.filter(l => l.tickable && !ticks.has(l.key));
+    expect(todo.map(l => l.key)).toEqual([2, 3, 4, 5, 7, 8, 9, 10].map(i => boxed[i].key));
+    expect(hidden).toBe(toDoCount(fri, ticks) - 8);
+    // No cap: every line.
+    expect(listLines(fri, ticks, null).hidden).toBe(0);
   });
 });
