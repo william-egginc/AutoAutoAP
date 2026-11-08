@@ -37,7 +37,7 @@ import { saveTEOf } from '@/lib/saveFreshness';
 import { sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { applyAutoStartingTE } from '@/auto/startingTE';
-import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
+import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import {
   OVERRIDE_SLOT,
   SYNC_RECORDS,
@@ -53,6 +53,7 @@ import {
   type LocalOverride,
   type OverrideRecord,
   type OverrideResolution,
+  type SyncFetch,
   type TEByEgg,
 } from '@/lib/syncedRecords';
 
@@ -319,7 +320,8 @@ export async function flushOverrideSync(): Promise<void> {
       timer = setTimeout(() => void flushOverrideSync(), wait);
       return;
     }
-    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value);
+    // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
+    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value, onlineFetch<SyncFetch>());
     if (r.resentAt !== undefined) {
       if ('removed' in p.value) writeRemovedAt(p.playerId, r.resentAt);
       else if (readLocalOverride(p.playerId).at === p.at) stampLocal(p.playerId, r.resentAt, (p.value as { saveTE?: number }).saveTE);
