@@ -4,7 +4,7 @@
  * ~/code/aaap-tools/notes/tracker-compact-design.md, "all suggested"):
  *   - a day whose every boxed line is ticked (the save's ticks count) is one green line, "✓ Fri Oct 30 · bought …", a
  *     button (aria-expanded) that opens its full list in place; in Compact it jumps to List with it open;
- *   - more than 3 such days in a row from the top: the older ones under one "Earlier: N days, all bought" line;
+ *   - more than 3 such days in a row from the top: the older ones under one "Earlier: N days, all done" line;
  *   - an open day's leading run of done lines is one green line, "✓ Bought 8:41 am to 9:01 am: …", which opens them in
  *     place; a line ticked after a gap stays where it is, dimmed;
  *   - the 8-line cap counts only lines still to do: "Show all N still to do".
@@ -109,12 +109,12 @@ describe('a done day: one green line that says what was bought', () => {
 describe('more than 3 done days: the older ones under one line', () => {
   // Fri Oct 30, Sat Oct 31, Sun Nov 1, Mon Nov 2, Fri Nov 6 done (Sat Nov 7 has nothing to tick).
   const five = new Set([0, 1, 2, 3, 4].flatMap(boxedOf));
-  it('"Earlier: 2 days, all bought", a 44 px button with aria-expanded; the last 3 one line each', async () => {
+  it('"Earlier: 2 days, all done", a 44 px button with aria-expanded; the last 3 one line each', async () => {
     const html = await render(five);
     const g = button(html, 'buildup-donegroup');
     expect(g).toMatch(/min-h-\[44px\]/);
     expect(g).toContain('aria-expanded="false"');
-    expect(textOf(g)).toBe('✓ Earlier: 2 days, all bought ›');
+    expect(textOf(g)).toBe('✓ Earlier: 2 days, all done ›');
     expect(button(html, 'buildup-doneday-2026-10-30')).toBe('');
     expect(button(html, 'buildup-doneday-2026-10-31')).toBe('');
     for (const ymd of ['2026-11-01', '2026-11-02', '2026-11-06']) expect(button(html, `buildup-doneday-${ymd}`), ymd).not.toBe('');

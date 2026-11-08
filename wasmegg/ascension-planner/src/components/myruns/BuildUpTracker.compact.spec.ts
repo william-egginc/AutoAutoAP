@@ -83,11 +83,11 @@ describe('Compact: a day at a glance', () => {
         'Planet Portal in hab slot 1',
         'train cars: all 17 trains to 8',
         'silos #2-5',
-        'sale on 10:00 am',
+        'sale starts 10:00 am',
       ])
     );
     expect(fri.some(c => c.startsWith('buy '))).toBe(false);
-    expect(chips(block(html, '2026-10-31'))).toContain('sale off 10:00 am');
+    expect(chips(block(html, '2026-10-31'))).toContain('sale ends 10:00 am');
     expect(chips(block(html, '2026-11-01'))).toEqual(['last Sunday check-in: collect, then go offline until Mon 10:01 am (26 h 15 min)']);
   });
   it('research: one range per research over the whole day, in a grid (1 column on a phone, 3 wider)', async () => {
