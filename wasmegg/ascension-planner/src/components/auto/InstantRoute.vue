@@ -36,9 +36,21 @@
           >your gear</span
         >
       </h3>
-      <span v-if="ms !== null" class="text-small text-slate-500"
-        >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
-      >
+      <span v-if="ms !== null || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
+        <span v-if="ms !== null" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
+        <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
+             2026: it was a lone pill above the card). 44 px on a phone. -->
+        <button
+          v-if="sectionHide"
+          type="button"
+          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-body text-slate-500 underline hover:text-slate-800 sm:min-h-0 sm:min-w-0 sm:px-0"
+          aria-expanded="true"
+          data-testid="hide-instant"
+          @click="sectionHide()"
+        >
+          Hide
+        </button>
+      </span>
     </div>
     <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save, at the top,
          whether the instant answer is here, still working or missing. The only thing on this card a search changes. -->
@@ -860,7 +872,8 @@ import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
-import { computed, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
+import { computed, inject, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
+import { SECTION_HIDE } from './sectionHide';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
@@ -1077,6 +1090,8 @@ const props = defineProps<{
    *  this answer without one. */
   shareTo?: string;
 }>();
+/** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
+const sectionHide = inject(SECTION_HIDE, null);
 const emit = defineEmits<{
   check: [chain: number[]];
   /** By a date: the route for each number of ascensions, and the ascensions filter's upper and lower ends (null

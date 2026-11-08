@@ -2,7 +2,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { h } from 'vue';
+import { defineComponent, h, inject } from 'vue';
+import { SECTION_HIDE } from './sectionHide';
 import CollapsibleSection from './CollapsibleSection.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 
@@ -27,6 +28,35 @@ describe('CollapsibleSection', () => {
     );
     expect(textOf(html)).toMatch(/^Exhaustive Reaches 490 on Feb 17 · 9 ascensions Show/);
     expect(html).toContain('display:none');
+  });
+});
+
+describe('Hide in the heading row (spec-uxpass items 8 and 13, 8 Nov 2026: a lone HIDE pill sat above the card)', () => {
+  it('hide-in-heading: no pill of its own; the card gets the hide through SECTION_HIDE and draws it in its heading row', async () => {
+    const Card = defineComponent({
+      setup() {
+        const hide = inject(SECTION_HIDE, null);
+        return () => h('div', [h('h3', ['Instant answer', hide ? h('button', { 'data-testid': 'card-hide', onClick: hide }, 'Hide') : null])]);
+      },
+    });
+    const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer', hideInHeading: true }, { default: () => h(Card) });
+    expect(html).not.toContain('data-testid="hide-instant"');
+    expect(html).toContain('data-testid="card-hide"');
+    // Without it, as before: the pill, and nothing handed down.
+    const plain = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer' }, { default: () => h(Card) });
+    expect(plain).toContain('data-testid="hide-instant"');
+    expect(plain).not.toContain('data-testid="card-hide"');
+  });
+  it('both screens pass hide-in-heading, and the instant card draws Hide in its heading row (44 px on a phone)', () => {
+    for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
+      const t = fs.readFileSync(path.join(__dirname, f), 'utf8');
+      expect(t).toMatch(/<CollapsibleSection[^>]*id="instant"[^>]*hide-in-heading/);
+    }
+    const card = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
+    const head = card.slice(card.indexOf('<h3 class="text-title font-bold text-slate-900">'), card.indexOf('<InstantPointer'));
+    expect(head).toMatch(/<button[^>]*v-if="sectionHide"[^>]*>/);
+    expect(head).toMatch(/min-h-\[44px\]/);
+    expect(head).toContain('data-testid="hide-instant"');
   });
 });
 

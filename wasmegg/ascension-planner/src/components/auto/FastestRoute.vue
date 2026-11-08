@@ -33,7 +33,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
-    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy">
+    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy" hide-in-heading>
       <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). Never nothing:
            a card that can't be drawn says so (InstantGuard.ts). -->
       <InstantGuard>

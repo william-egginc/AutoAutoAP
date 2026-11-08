@@ -124,7 +124,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
-    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy">
+    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy" hide-in-heading>
       <!-- Never nothing: a card that can't be drawn says so (InstantGuard.ts, lib/renderGuard.ts). -->
       <InstantGuard>
       <InstantRoute

@@ -211,6 +211,7 @@ function ctxOf(s: State): Record<string, unknown> {
     optimistic: null,
     own: false,
     ownChanged: '',
+    sectionHide: null,
     plural: (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`,
     pointer: null,
     preferCopy: { chip: '', what: '', line: '', muted: '' },

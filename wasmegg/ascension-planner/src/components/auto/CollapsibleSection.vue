@@ -13,8 +13,9 @@
     <!-- Hide: a small pill on the section's edge. On a phone the button itself is 44 px round the pill, centred where
          the pill was (UX review 26 Oct 2026, item 12: the pill measured 45×20; was an invisible before: area since
          23 Oct). From sm up the button is the pill's own size, as it was. -->
+    <!-- `hideInHeading`: the card draws Hide in its own heading row (SECTION_HIDE), no pill here (spec-uxpass 8, 13). -->
     <button
-      v-if="open"
+      v-if="open && !hideInHeading"
       type="button"
       class="group absolute -top-[22px] right-2 z-20 inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-2 sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0"
       :aria-expanded="true"
@@ -45,8 +46,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { provide, ref } from 'vue';
 import AnimatedDots from './AnimatedDots.vue';
+import { SECTION_HIDE } from './sectionHide';
 
 const props = defineProps<{
   /** Remembered under this name: 'instant', 'stronger', 'exhaustive'. */
@@ -56,6 +58,8 @@ const props = defineProps<{
   summary?: string;
   /** The one line is a "still working" one ("working out"): the moving dots after it (AnimatedDots.vue, spec-dots). */
   summaryBusy?: boolean;
+  /** The card draws Hide in its heading row (it injects SECTION_HIDE); no pill on the section's edge. */
+  hideInHeading?: boolean;
 }>();
 
 const KEY = `aap-section-hidden-${props.id}`;
@@ -75,4 +79,5 @@ function set(v: boolean): void {
     /* this visit only */
   }
 }
+if (props.hideInHeading) provide(SECTION_HIDE, () => set(false));
 </script>
