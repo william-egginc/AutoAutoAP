@@ -82,3 +82,15 @@ export const TYPED_TE_NOT_RANKED_SHORT = "Not ranked: this run started from a TE
 export function typedTeNoted(message: string): boolean {
   return message.toLowerCase().includes(TYPED_TE_NOT_RANKED_SHORT.toLowerCase());
 }
+
+// ------------------------------------------------------------------- Setup › Sharing: the saved-online fold's title
+
+/**
+ * The fold in Setup › Sharing that holds the "saved online" notices, beside the master Save online switch
+ * (components/auto/YourSetup.vue; spec-uxpass item 11, 8 Nov 2026: it was titled "Saved online: your followed route
+ * and your Setup", while the switch covers routes, Setup and sharing choices and saved answers). DRAFT (Words).
+ */
+export const SAVE_ONLINE_FOLD_TITLE = 'Save online';
+/** After the title, from the switch: "Save online · on" / "Save online · off". DRAFT (Words). */
+export const SAVE_ONLINE_FOLD_ON = 'on';
+export const SAVE_ONLINE_FOLD_OFF = 'off';

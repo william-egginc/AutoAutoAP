@@ -18,6 +18,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { resetTabPrefsForTest } from '@/composables/useTabPrefs';
 import YourSetup from './YourSetup.vue';
+import { resetSaveOnline, setSaveOnline } from '@/lib/saveOnline';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 
@@ -176,6 +177,20 @@ describe('Sharing: the consent text folded in place, word for word', () => {
     expect(words).toContain(
       'Each run you send to the Leaderboard also carries your instant answer for it: the route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.'
     );
+  });
+
+  it('the fold is titled "Save online" with the switch\'s on or off in its summary (spec-uxpass item 11, 8 Nov 2026)', async () => {
+    withCollector();
+    resetSaveOnline();
+    const btnText = (html: string) => {
+      const at = html.indexOf('data-testid="setup-saved-online"');
+      return textOf(html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9)).replace(/\s+/g, ' ').trim();
+    };
+    expect(btnText(await docked())).toBe('› Save online · on');
+    setSaveOnline(false);
+    expect(btnText(await docked())).toBe('› Save online · off');
+    resetSaveOnline();
+    expect(src).not.toContain('Saved online: your followed route and your Setup');
   });
 
   it('the three "saved online" notices and the Before you send line share one fold; "Couldn\'t read" stays outside it', async () => {

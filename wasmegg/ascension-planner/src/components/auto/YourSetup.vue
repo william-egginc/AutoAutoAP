@@ -436,7 +436,12 @@
             @click="savedOnlineOpen = !savedOnlineOpen"
           >
             <span aria-hidden="true" class="inline-block transition-transform" :class="savedOnlineOpen ? 'rotate-90' : ''">›</span>
-            Saved online: your followed route and your Setup
+            <!-- Titled for the switch it sits by, with its on or off (spec-uxpass item 11, 8 Nov 2026). DRAFT. -->
+            <span
+              >{{ SAVE_ONLINE_FOLD_TITLE }}<span data-testid="setup-saved-online-state"
+                >{{ ' · ' }}{{ saveOnlineState ? SAVE_ONLINE_FOLD_ON : SAVE_ONLINE_FOLD_OFF }}</span
+              ></span
+            >
           </button>
           <div
             id="setup-saved-online-body"
@@ -814,6 +819,8 @@ import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
+import { saveOnlineOn } from '@/lib/saveOnline';
+import { SAVE_ONLINE_FOLD_OFF, SAVE_ONLINE_FOLD_ON, SAVE_ONLINE_FOLD_TITLE } from '@/lib/saveOnlineWords';
 
 /** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
 const REMEMBERED_TITLE =
@@ -881,6 +888,8 @@ defineExpose({ reveal });
 /** Sharing's folds, closed on each visit: what each tick sends, and the "saved online" notices. */
 const whatOpen = reactive({ instant: false, baseline: false });
 const savedOnlineOpen = ref(false);
+/** The master Save online switch (lib/saveOnline.ts, shared with SaveOnlineSetup.vue): the fold's title says on or off. */
+const saveOnlineState = computed(() => saveOnlineOn());
 const WHAT_IS_SENT =
   'ml-7 inline-flex min-h-[44px] items-center gap-1 rounded text-body font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 /** When the remembered setup was last written, for the "Remembered for this account" line. */
