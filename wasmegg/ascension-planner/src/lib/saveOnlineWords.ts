@@ -90,7 +90,7 @@ export function typedTeNoted(message: string): boolean {
  * (components/auto/YourSetup.vue; spec-uxpass item 11, 8 Nov 2026: it was titled "Saved online: your followed route
  * and your Setup", while the switch covers routes, Setup and sharing choices and saved answers). DRAFT (Words).
  */
-export const SAVE_ONLINE_FOLD_TITLE = 'Save online';
-/** After the title, from the switch: "Save online · on" / "Save online · off". DRAFT (Words). */
+export const SAVE_ONLINE_FOLD_TITLE = 'What is saved online';
+/** After the title, from the switch: "What is saved online · on" / "· off" (not "Save online", which is the switch's own label right under it). */
 export const SAVE_ONLINE_FOLD_ON = 'on';
 export const SAVE_ONLINE_FOLD_OFF = 'off';

@@ -186,9 +186,9 @@ describe('Sharing: the consent text folded in place, word for word', () => {
       const at = html.indexOf('data-testid="setup-saved-online"');
       return textOf(html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9)).replace(/\s+/g, ' ').trim();
     };
-    expect(btnText(await docked())).toBe('› Save online · on');
+    expect(btnText(await docked())).toBe('› What is saved online · on');
     setSaveOnline(false);
-    expect(btnText(await docked())).toBe('› Save online · off');
+    expect(btnText(await docked())).toBe('› What is saved online · off');
     resetSaveOnline();
     expect(src).not.toContain('Saved online: your followed route and your Setup');
   });
