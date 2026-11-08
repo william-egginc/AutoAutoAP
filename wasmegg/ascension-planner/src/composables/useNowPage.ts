@@ -2262,6 +2262,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     buildUpSimWorker,
     buildUpSave,
     retryBuildUp,
+    /** A search running, or its result being sent: what useCurrentSim waits on, handed to the Build-up tracker as its
+     *  `searchRunning` so the two agree (QA review 7 Nov 2026 #3). */
+    searchBusy,
     a1Choice,
     a1Finish,
     pickA1,

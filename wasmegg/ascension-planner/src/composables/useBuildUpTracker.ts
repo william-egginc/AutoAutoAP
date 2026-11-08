@@ -105,9 +105,10 @@ export interface BuildUpTrackerInputs {
   /** The simulation's run going and whether its worker has said anything (useCurrentSim `worker`); null when no run
    *  is going. Absent: the stall counts only the waits below, never a run going. */
   simWorker?: Ref<{ since: number; heard: boolean } | null>;
-  /** A search is really running in this tab (the store's `isRunning || deadlineRunning`; never `resultSending`, which
-   *  has its own 10-minute cap). 'waiting' with no reason while this is false waits for nothing: the stall counts it.
-   *  Absent: such a wait is taken as a search's, as before. */
+  /** A search is really running in this tab: useNowPage's `searchBusy` (the store's `isRunning || deadlineRunning ||
+   *  resultSending`), the same busy useCurrentSim waits on (QA review 7 Nov 2026 #3: a result being sent, up to 10
+   *  minutes, read as a wait for nothing and the tracker said failed). 'waiting' with no reason while this is false
+   *  waits for nothing: the stall counts it. Absent: such a wait is taken as a search's, as before. */
   searchRunning?: Ref<boolean>;
   /** Phase 2: the loaded save as the tracker ticks from it (useNowPage `buildUpSave`); null without one. */
   saveFarm?: Ref<SaveFarm | null>;
@@ -142,7 +143,8 @@ export const TRACKER_STALL_REASON = 'nothing came back for it';
  * a request whose key keeps changing restarts useCurrentSim's 3-second wait before its run every time, so no run ever
  * starts and no bound is ever reached. This one is measured from when the tracker FIRST said "working it out" for this
  * account and save, and nothing but Try again, another save or account, the plan coming in, or a search really running
- * in this tab (`searchRunning`: the wait is the search's) starts it again: past it
+ * in this tab (`searchRunning`: the wait is the search's), or a run going whose worker answered (QA review #3: that run is
+ * bounded by `runMs`) starts it again: past it
  * the tracker says failed, with Try again and why. 8 minutes: past the run's own 6-minute bound (useCurrentSim
  * `runMs`) plus its 3-second wait, so a run that started gets its full time first.
  */
@@ -588,9 +590,10 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const s = i.sim.value;
     return s?.status === 'waiting' && !s.reason && !!i.searchRunning?.value;
   });
-  /** The clock started, if the tracker is working it out and it is not going yet (a Try again starts it afresh). */
+  /** The clock started, if the tracker is working it out and it is not going yet (a Try again starts it afresh). Not
+   *  while a run is going whose worker answered: that run is bounded by useCurrentSim's own `runMs` (QA review #3). */
   function armCap(): void {
-    if (beforeCap.value !== 'working' || capSince || searchWait.value) return;
+    if (beforeCap.value !== 'working' || capSince || searchWait.value || workerAnswered.value) return;
     capSince = Date.now();
     capTimer = setTimeout(() => {
       capTimer = null;
@@ -606,10 +609,15 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       capped.value = true;
     }, CAP.ms);
   }
+  /**
+   * Started again (QA review 7 Nov 2026): on another account or save, the plan in, a search's wait; a run going whose
+   * worker answered (#3: a cap that fired is let go, and a run started by useCurrentSim's own retry after its bound
+   * gets its full time).
+   */
   watch(
-    [beforeCap, capKey, plan, searchWait],
-    ([, key, p, forSearch]) => {
-      if (key !== capFor || p || forSearch) {
+    [beforeCap, capKey, plan, searchWait, workerAnswered],
+    ([, key, p, forSearch, heard]) => {
+      if (key !== capFor || p || forSearch || heard) {
         clearCap();
         capFor = key;
       }

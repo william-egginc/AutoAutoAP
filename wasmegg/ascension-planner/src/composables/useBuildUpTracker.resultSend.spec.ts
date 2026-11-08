@@ -169,6 +169,8 @@ describe('My runs and useCurrentSim agree on what a search is', () => {
   it("the tracker's searchRunning is the page's searchBusy, which has resultSending", () => {
     expect(view).toMatch(/searchRunning: page\.searchBusy,/);
     expect(page).toMatch(/const searchBusy = computed\(\(\) => store\.isRunning \|\| store\.deadlineRunning \|\| store\.resultSending\);/);
-    expect(page.slice(page.lastIndexOf('  return {'))).toMatch(/\n    searchBusy,/);
+    const at = page.indexOf('export function useNowPage(');
+    const body = page.slice(at, page.indexOf('\n}\n', at));
+    expect(body.slice(body.lastIndexOf('\n  return {'))).toMatch(/\n    searchBusy,/);
   });
 });
