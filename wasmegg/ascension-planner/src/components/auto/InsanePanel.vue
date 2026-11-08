@@ -911,6 +911,12 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- With awake hours, a route carrying on the build-up: its finish is a best case (spec-nightbuy-results). -->
+              <ResultNightBuyNote
+                v-if="!store.isRunning"
+                :hours="store.runSettingsUsed?.availability ?? null"
+                :build-up-clause="store.buildUpClause"
+              />
               <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
               <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
               <p v-if="!store.isRunning && resultExplain" class="text-body text-emerald-900/80">
@@ -1184,6 +1190,7 @@ import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
 import HelpTip from './HelpTip.vue';
+import ResultNightBuyNote from './ResultNightBuyNote.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
 import { showDateTime } from '@/lib/displayTime';

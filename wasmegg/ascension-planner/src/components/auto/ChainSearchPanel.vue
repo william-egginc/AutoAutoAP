@@ -576,6 +576,12 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- With awake hours, a route carrying on the build-up: its finish is a best case (spec-nightbuy-results). -->
+              <ResultNightBuyNote
+                v-if="!store.isRunning"
+                :hours="store.runSettingsUsed?.availability ?? null"
+                :build-up-clause="store.buildUpClause"
+              />
               <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
               <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
               <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check
@@ -1099,6 +1105,7 @@ import { goFurtherBands } from '@/search/goFurther';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import HelpTip from './HelpTip.vue';
+import ResultNightBuyNote from './ResultNightBuyNote.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
