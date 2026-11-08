@@ -32,6 +32,17 @@ vi.mock('@/composables/useStepAway', async () => {
     },
   };
 });
+const watchEnded = vi.hoisted(() => vi.fn());
+vi.mock('@/composables/useWatchLink', async () => {
+  const real = await vi.importActual<typeof import('@/composables/useWatchLink')>('@/composables/useWatchLink');
+  return {
+    ...real,
+    watchLinkRunEnded: (how: Parameters<typeof real.watchLinkRunEnded>[0]) => {
+      watchEnded(how);
+      real.watchLinkRunEnded(how);
+    },
+  };
+});
 const evaluated = vi.fn();
 vi.mock('@/search/pool', async () => {
   const real = await vi.importActual<typeof import('@/search/pool')>('@/search/pool');
@@ -98,6 +109,7 @@ beforeEach(() => {
   hangHash = false;
   for (const f of Object.values(beacon)) f.mockClear();
   stepAwayEnded.mockClear();
+  watchEnded.mockClear();
   evaluated.mockClear();
   backing = new Map<string, string>();
   vi.stubGlobal('localStorage', {
@@ -140,6 +152,19 @@ describe('a run whose storage timed out at its start (review 7 Nov, finding 9)',
     expect(stepAwayEnded).not.toHaveBeenCalledWith('stopped');
     // And no crash for the watcher to carry on into the same wait: the mark is gone.
     expect(backing.has(RUN_KEY)).toBe(false);
+  });
+
+  // Jordan, 8 Nov 2026: no phone warning for it ("nobody is using it"). The phone page hears it ended, quietly
+  // ('stopped' sends no notification, useWatchLink.ts), never 'failed' (a warning).
+  it('sends the phone no warning', async () => {
+    backing.set(RUN_KEY, mark({}));
+    hangHash = true;
+    const store = useChainSearchStore();
+    void store.startExhaustive('P', SPACE);
+    await vi.advanceTimersByTimeAsync(41_000);
+    expect(store.isRunning).toBe(false);
+    expect(watchEnded).toHaveBeenCalled();
+    expect(watchEnded).not.toHaveBeenCalledWith('failed');
   });
 
   it('a run the player stops still ends stopped', async () => {
