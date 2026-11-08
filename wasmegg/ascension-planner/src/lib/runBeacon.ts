@@ -105,13 +105,19 @@ function readSwitch(): boolean {
 }
 
 let shared: Ref<boolean> | null = null;
-/** Setup's switch: this browser's one value (created on first use). */
+const listeningOn = new WeakSet<object>();
+/** Taking another tab's value in: not written back. */
+let fromOtherTab = false;
+/** Setup's switch: this browser's one value (created on first use). Follows the other tabs (QA review 7 Nov 2026,
+ *  finding 8: off in one tab, another still announced its runs): the `storage` event of RUN_BEACON_KEY. A start or
+ *  stop re-checks the switch when it would send (`canSend`). */
 export function runBeaconSwitch(): Ref<boolean> {
   if (shared) return shared;
   const on = ref(readSwitch());
   watch(
     on,
     v => {
+      if (fromOtherTab) return;
       try {
         storage()?.setItem(RUN_BEACON_KEY, v ? '1' : '0');
       } catch {
@@ -120,6 +126,26 @@ export function runBeaconSwitch(): Ref<boolean> {
     },
     { flush: 'sync' }
   );
+  try {
+    const w = typeof window === 'undefined' ? null : (window as unknown as EventTarget | null);
+    if (w && typeof w.addEventListener === 'function' && !listeningOn.has(w)) {
+      listeningOn.add(w);
+      w.addEventListener('storage', e => {
+        try {
+          const ev = e as unknown as { key: string | null; storageArea: unknown };
+          if (!shared || ev.storageArea !== storage() || (ev.key !== RUN_BEACON_KEY && ev.key !== null)) return;
+          fromOtherTab = true;
+          shared.value = readSwitch();
+        } catch {
+          /* keep this tab's value */
+        } finally {
+          fromOtherTab = false;
+        }
+      });
+    }
+  } catch {
+    /* no events: this tab keeps its own value */
+  }
   return (shared = on);
 }
 
@@ -257,21 +283,36 @@ export function runBeaconRunEnded(how: RunEnd): void {
   }
 }
 
-/** pagehide (the tab closing or reloading): 'closed' for a run still going, with sendBeacon. */
+/**
+ * A keepalive POST that omits credentials (spec-review-ui, QA 7 Nov 2026: sendBeacon cannot omit the collector site's
+ * cookies). False when this browser has no keepalive fetch, or the call throws at once: the caller then uses sendBeacon.
+ */
+function postKeepalive(url: string, body: string): boolean {
+  try {
+    if (typeof fetch !== 'function' || typeof Request === 'undefined' || !('keepalive' in Request.prototype)) return false;
+    const p = fetch(url, { method: 'POST', body, keepalive: true, credentials: 'omit' });
+    if (p && typeof (p as Promise<unknown>).catch === 'function') (p as Promise<unknown>).catch(() => undefined);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** pagehide (the tab closing or reloading): 'closed' for a run still going, with a keepalive fetch (sendBeacon only
+ *  where that isn't available). */
 export function runBeaconPageClosing(): void {
   try {
     const c = current;
     forget();
     if (!c || !canSend()) return;
     const body = JSON.stringify({ t: 'stop', run: c.run, reason: 'closed' });
-    let queued = false;
+    if (postKeepalive(c.url, body)) return;
     try {
       const nav = typeof navigator === 'undefined' ? undefined : navigator;
-      queued = typeof nav?.sendBeacon === 'function' ? nav.sendBeacon(c.url, body) : false;
+      if (typeof nav?.sendBeacon === 'function') nav.sendBeacon(c.url, body);
     } catch {
-      queued = false;
+      /* nothing more to try */
     }
-    if (!queued) post(c.url, body);
   } catch {
     /* nothing */
   }

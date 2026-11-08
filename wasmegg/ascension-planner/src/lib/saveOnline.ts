@@ -40,11 +40,40 @@ function readSwitch(): boolean {
 }
 
 let shared: Ref<boolean> | null = null;
+/** The value under the switch, for the other tabs' `storage` event. */
+let sharedOn: Ref<boolean> | null = null;
+const listeningOn = new WeakSet<object>();
+/**
+ * EVERY TAB AT ONCE (QA review 7 Nov 2026, finding 1, HIGH): turned off, or by Delete everything, in one tab, the
+ * other tabs kept saving online, so deleted data came back. A browser tells the other tabs of a write with the
+ * `storage` event: this tab's switch takes the new value (no write back). Writes already waiting re-check the switch
+ * when they would send (the stores' flushes, `onlineFetch`).
+ */
+function followOtherTabs(): void {
+  try {
+    const w = typeof window === 'undefined' ? null : (window as unknown as EventTarget | null);
+    if (!w || typeof w.addEventListener !== 'function' || listeningOn.has(w)) return;
+    listeningOn.add(w);
+    w.addEventListener('storage', e => {
+      try {
+        const ev = e as unknown as { key: string | null; storageArea: unknown };
+        if (ev.storageArea !== storage() || (ev.key !== SAVE_ONLINE_KEY && ev.key !== null)) return;
+        if (sharedOn) sharedOn.value = readSwitch();
+      } catch {
+        // keep the value this tab has
+      }
+    });
+  } catch {
+    // no events: this tab keeps its own value
+  }
+}
 
 /** The switch (Setup binds it). Writing it keeps it in this browser. */
 export function saveOnlineSwitch(): Ref<boolean> {
   if (shared) return shared;
   const on = ref(readSwitch());
+  sharedOn = on;
+  followOtherTabs();
   // A setter, not a watch: a spec or a store reads the value back at once, and it holds with storage that throws.
   return (shared = {
     get value() {
@@ -92,4 +121,5 @@ export function onlineFetch<F>(): F | null {
 /** Specs: read the switch from storage again (a new page load). */
 export function resetSaveOnline(): void {
   shared = null;
+  sharedOn = null;
 }

@@ -214,31 +214,56 @@ describe('stop', () => {
 });
 
 describe('the tab closing (pagehide)', () => {
-  it("sends 'closed' once with sendBeacon while a run is going", () => {
+  // spec-review-ui (QA 7 Nov 2026): a keepalive fetch with credentials 'omit' first (sendBeacon cannot omit cookies);
+  // sendBeacon only when keepalive fetch isn't available or throws at once.
+  it("sends 'closed' once with a keepalive fetch, credentials omitted, no sendBeacon, while a run is going", () => {
     startLong();
     runBeaconPageClosing();
     runBeaconPageClosing();
     runBeaconRunEnded('failed');
-    expect(beaconMock).toHaveBeenCalledTimes(1);
-    expect(beaconMock.mock.calls[0][0]).toBe(RUNS);
-    expect(typeof beaconMock.mock.calls[0][1]).toBe('string');
-    expect(beaconed()).toEqual([{ t: 'stop', run: fetched()[0].run, reason: 'closed' }]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe(RUNS);
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(init).toMatchObject({ method: 'POST', keepalive: true, credentials: 'omit' });
+    expect(typeof init.body).toBe('string');
+    expect(fetched()[1]).toEqual({ t: 'stop', run: fetched()[0].run, reason: 'closed' });
+    expect(beaconMock).not.toHaveBeenCalled();
   });
 
   it('sends no closed after the run already stopped', () => {
     startLong();
     runBeaconRunEnded('finished');
     runBeaconPageClosing();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(beaconMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to a keepalive fetch when sendBeacon is missing or refuses', () => {
-    nav.sendBeacon = undefined;
+  it('falls back to sendBeacon, once, where keepalive fetch is not available', () => {
+    vi.stubGlobal('Request', class {});
     startLong();
     runBeaconPageClosing();
-    expect(fetched()[1]).toEqual({ t: 'stop', run: fetched()[0].run, reason: 'closed' });
-    expect((fetchMock.mock.calls[1][1] as RequestInit).keepalive).toBe(true);
+    runBeaconPageClosing();
+    expect(beaconMock).toHaveBeenCalledTimes(1);
+    expect(beaconed()).toEqual([{ t: 'stop', run: fetched()[0].run, reason: 'closed' }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to sendBeacon when fetch throws at once', () => {
+    startLong();
+    fetchMock.mockImplementation(() => {
+      throw new TypeError('no');
+    });
+    runBeaconPageClosing();
+    expect(beaconMock).toHaveBeenCalledTimes(1);
+    expect(beaconed()[0]).toMatchObject({ t: 'stop', reason: 'closed' });
+  });
+
+  it('no send when the switch is off', () => {
+    startLong();
+    runBeaconSwitch().value = false;
+    runBeaconPageClosing();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(beaconMock).not.toHaveBeenCalled();
   });
 });
 
