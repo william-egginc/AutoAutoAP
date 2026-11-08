@@ -42,7 +42,12 @@ describe('BuildUpTracker: failed, with Try again', () => {
 
   it('My runs wires Try again to the page (useNowPage retryBuildUp) and says when it was a stop', () => {
     const src = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(src).toContain('@retry="tracker.retry(); page.retryBuildUp()"'); // the stall bound forgotten too (spec-buildup-stuck)
+    // The stall bound forgotten too (spec-buildup-stuck), and the set-up asked again while the stores are not this
+    // save's (QA review 7 Nov 2026 #5).
+    expect(src).toContain('@retry="retryTracker"');
+    const retry = src.slice(src.indexOf('function retryTracker(): void {'), src.indexOf('\n}\n', src.indexOf('function retryTracker(): void {')));
+    expect(retry).toContain('tracker.retry();');
+    expect(retry).toContain('page.retryBuildUp();');
     expect(src).toContain(':fail-stopped="tracker.failStopped.value"');
   });
 });
