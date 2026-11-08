@@ -65,3 +65,12 @@ export function cloudStartTeWords(typed: number, saveTE: number | null): string 
 }
 /** Its first button: use the other device's starting TE. */
 export const START_TE_USE_CLOUD = 'Use it';
+
+// ---------------------------------------------------------------------------------------- R8: a typed start, unranked
+
+/**
+ * PLACEHOLDER (UI, spec-syncclient-c, the orchestrator's text): a /submit reply flagged 'typed-te' (collector
+ * spec-tesrc, FLAG_TYPED_TE=1): the run is on the flagged board because it priced from a starting TE the player typed.
+ * Said in place of the plain "sent" (stores/chainSearch.ts `sendSubmission`).
+ */
+export const TYPED_TE_NOT_RANKED = "Sent, but not ranked: this run started from a TE you typed, not your save's.";

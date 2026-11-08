@@ -57,7 +57,8 @@ import {
   targetWorkerCount,
   workersForBatch,
 } from '@/search/batch';
-import { describeRunError } from '@/utils/errors';
+import { describeRunError, sentence } from '@/utils/errors';
+import { TYPED_TE_NOT_RANKED } from '@/lib/saveOnlineWords';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
@@ -2310,7 +2311,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       rawBackup: init.rawBackup,
       eggs: init.initialEggsDelivered,
       plan: planStartSource(),
+      typedTE: typedStartTE(init.rawBackup),
     });
+  }
+  /**
+   * R8 (client brief section 6): the typed starting TE's total when the planner prices from it for the account priced,
+   * else null. The same test as lib/teOverrideAccount.ts `plannerStartTEOf` and the banner (useTEOverrideBanner.ts):
+   * an override, a loaded account, and the override set up for that account (chainSearch.teSrc.spec.ts compares them).
+   */
+  function typedStartTE(raw: unknown): number | null {
+    const planner = useAutoPlannerStore();
+    const override = planner.teOverride;
+    const account = accountOf(raw);
+    if (!(override && account && planner.teOverrideAccount === account)) return null;
+    return (['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const).reduce((sum, egg) => sum + (override[egg] ?? 0), 0);
   }
 
   /** The Auto Planner's own start, or null when it has none (the plan is then timed from now). */
@@ -5170,10 +5184,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       : reply.replaceRefused
         ? ` The best so far you sent earlier is still on the Leaderboard (${reply.replaceRefused}).`
         : '';
+    // R8 (spec-syncclient-c): a typed starting TE ('typed-te') is said in its own words, in place of "sent"; any other
+    // flag keeps the flagged Leaderboard note, naming only those.
+    const typedTe = !!flagged?.includes('typed-te');
+    const otherFlags = (flagged ?? []).filter(f => f !== 'typed-te');
     const note =
-      (flagged?.length
-        ? ` It went to the flagged Leaderboard (${flagged.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
-        : '') + replacedNote;
+      (otherFlags.length
+        ? ` It went to the flagged Leaderboard (${otherFlags.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
+        : '') +
+      // A copy already on the board keeps its own lead: the typed start is said after it.
+      (typedTe && duplicate ? ` ${TYPED_TE_NOT_RANKED.replace(/^Sent, but not/, 'Not')}` : '') +
+      replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
     const exactNote = {
@@ -5182,7 +5203,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       sent: payload.nickname ?? '',
       stored: typeof reply.nickname === 'string' ? reply.nickname : undefined,
     };
-    const lead = duplicate ? duplicateMessage(duplicate, exactNote) : 'sent';
+    const typedLead = `${TYPED_TE_NOT_RANKED.charAt(0).toLowerCase()}${TYPED_TE_NOT_RANKED.slice(1)}`;
+    const lead = duplicate ? duplicateMessage(duplicate, exactNote) : typedTe ? typedLead : 'sent';
     const done = (message: string) => ({
       ok: true,
       message,
@@ -5204,7 +5226,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // missing table ("its missing CSV was added"), never "nothing new stored - sent, with the CSV".
     const withTable = (t: { message: string; landed?: 'new' | 'already' | null; size?: string }): string => {
       if (duplicate === 'result') return t.message.replace(/^sent/, lead);
-      if (duplicate !== 'exact') return t.message;
+      if (duplicate !== 'exact') return typedTe ? `${lead} ${sentence(t.message).replace(/\.$/, '')}` : t.message;
       if (t.landed) return duplicateMessage('exact', { ...exactNote, table: { landed: t.landed, size: t.size } });
       return `${lead}, but ${t.message.replace(/^sent,?\s*(but\s+)?/, '')}`;
     };
@@ -5562,7 +5584,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
         return say(false, `${res.message}${evidence}`, { quarantined: true });
       }
-      const flaggedNote = /flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '';
+      const typedNote = res.message.includes(TYPED_TE_NOT_RANKED.slice(10)) ? ` ${TYPED_TE_NOT_RANKED.replace(/^Sent, but not/, 'Not')}` : '';
+      const flaggedNote = (/flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '') + typedNote;
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [
         csv.kind === 'sent' ? `the CSV so far (${sizeLabel(csv.bytes)})` : '',
