@@ -69,8 +69,10 @@ export const START_TE_USE_CLOUD = 'Use it';
 // ---------------------------------------------------------------------------------------- R8: a typed start, unranked
 
 /**
- * PLACEHOLDER (UI, spec-syncclient-c, the orchestrator's text): a /submit reply flagged 'typed-te' (collector
- * spec-tesrc, FLAG_TYPED_TE=1): the run is on the flagged board because it priced from a starting TE the player typed.
- * Said in place of the plain "sent" (stores/chainSearch.ts `sendSubmission`).
+ * A /submit reply flagged 'typed-te' (collector spec-tesrc, FLAG_TYPED_TE=1): the run is on the flagged board because it
+ * priced from a starting TE the player typed. Said in place of the plain "sent" (stores/chainSearch.ts `sendSubmission`).
+ * Final (Words, 8 Nov 2026; Jordan approved typed-TE runs going unranked): says it was sent, that it is not ranked, and why.
  */
 export const TYPED_TE_NOT_RANKED = "Sent, but not ranked: this run started from a TE you typed, not your save's.";
+/** The same after a duplicate's own message, and for a best-so-far send (the "Sent" is already said). */
+export const TYPED_TE_NOT_RANKED_SHORT = "Not ranked: this run started from a TE you typed, not your save's.";

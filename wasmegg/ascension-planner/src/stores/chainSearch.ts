@@ -58,7 +58,7 @@ import {
   workersForBatch,
 } from '@/search/batch';
 import { describeRunError, sentence } from '@/utils/errors';
-import { TYPED_TE_NOT_RANKED } from '@/lib/saveOnlineWords';
+import { TYPED_TE_NOT_RANKED, TYPED_TE_NOT_RANKED_SHORT } from '@/lib/saveOnlineWords';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
@@ -5188,13 +5188,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // flag keeps the flagged Leaderboard note, naming only those.
     const typedTe = !!flagged?.includes('typed-te');
     const otherFlags = (flagged ?? []).filter(f => f !== 'typed-te');
-    const note =
-      (otherFlags.length
-        ? ` It went to the flagged Leaderboard (${otherFlags.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
-        : '') +
-      // A copy already on the board keeps its own lead: the typed start is said after it.
-      (typedTe && duplicate ? ` ${TYPED_TE_NOT_RANKED.replace(/^Sent, but not/, 'Not')}` : '') +
-      replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
     const exactNote = {
@@ -5205,6 +5198,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
     const typedLead = `${TYPED_TE_NOT_RANKED.charAt(0).toLowerCase()}${TYPED_TE_NOT_RANKED.slice(1)}`;
     const lead = duplicate ? duplicateMessage(duplicate, exactNote) : typedTe ? typedLead : 'sent';
+    // The flagged note follows the lead as its own sentence: "sent. It went to ..." (it read "sent It went to ..." before).
+    const flaggedSep = /[.!?]$/.test(lead) ? ' ' : '. ';
+    const note =
+      (otherFlags.length
+        ? `${flaggedSep}It went to the flagged Leaderboard (${otherFlags.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
+        : '') +
+      // A copy already on the board keeps its own lead: the typed start is said after it.
+      (typedTe && duplicate ? ` ${TYPED_TE_NOT_RANKED_SHORT}` : '') +
+      replacedNote;
     const done = (message: string) => ({
       ok: true,
       message,
@@ -5584,7 +5586,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
         return say(false, `${res.message}${evidence}`, { quarantined: true });
       }
-      const typedNote = res.message.includes(TYPED_TE_NOT_RANKED.slice(10)) ? ` ${TYPED_TE_NOT_RANKED.replace(/^Sent, but not/, 'Not')}` : '';
+      const typedNote = res.message.includes(TYPED_TE_NOT_RANKED.slice(10)) ? ` ${TYPED_TE_NOT_RANKED_SHORT}` : '';
       const flaggedNote = (/flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '') + typedNote;
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [

@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createPinia, setActivePinia } from 'pinia';
 import type { Submission } from '@/search/submission';
 import { sentence } from '@/utils/errors';
-import { TYPED_TE_NOT_RANKED } from '@/lib/saveOnlineWords';
+import { TYPED_TE_NOT_RANKED, TYPED_TE_NOT_RANKED_SHORT } from '@/lib/saveOnlineWords';
 
 const A = 'EI0000000000000000';
 const B = 'EI1234567890123456';
@@ -104,6 +104,7 @@ describe("a send flagged 'typed-te'", () => {
     expect(res.ok).toBe(true);
     expect(sentence(res.message)).toBe(TYPED_TE_NOT_RANKED);
     expect(TYPED_TE_NOT_RANKED).toBe("Sent, but not ranked: this run started from a TE you typed, not your save's.");
+    expect(TYPED_TE_NOT_RANKED_SHORT).toBe("Not ranked: this run started from a TE you typed, not your save's.");
     expect(res.message).not.toMatch(/typed-te/);
   }, 60_000);
 
@@ -121,7 +122,7 @@ describe("a send flagged 'typed-te'", () => {
     collector(json({ ok: true, id: 'feed1234', flagged: ['stalled'] }));
     const other = await cs.sendSubmission(PAYLOAD);
     expect(other.message).toBe(
-      'sent It went to the flagged Leaderboard (stalled), shown anonymously; Insights shows it to you as yours in this browser.'
+      'sent. It went to the flagged Leaderboard (stalled), shown anonymously; Insights shows it to you as yours in this browser.'
     );
     const { cs: cs2 } = await stores();
     collector(json({ ok: true, id: 'feed1235', flagged: ['typed-te', 'stalled'] }));
