@@ -78,6 +78,17 @@ export function cloudSubmitUrl(submitUrl: string | null | undefined): string {
   return saveOnlineOn() ? (submitUrl ?? '').trim() : '';
 }
 
+/**
+ * The browser's fetch for a write that may go a second time (the collector's "ahead" 400 is answered by one more send,
+ * stamped now: lib/followCloud.ts `putOnceMore`): while Save online is off it sends nothing and fails as offline does,
+ * so a write under way when the switch goes off never goes again after it. Null without a fetch.
+ */
+export function onlineFetch<F>(): F | null {
+  if (typeof fetch !== 'function') return null;
+  return ((url: string, init?: object) =>
+    saveOnlineOn() ? fetch(url, init as RequestInit) : Promise.reject(new TypeError('Save online is off'))) as unknown as F;
+}
+
 /** Specs: read the switch from storage again (a new page load). */
 export function resetSaveOnline(): void {
   shared = null;

@@ -54,10 +54,11 @@ import {
   type CloudEntry,
   type CloudFail,
   type CloudValue,
+  type FetchLike,
   type FollowSource,
 } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
-import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
+import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import { AUTO_FOLLOW_FIRST, autoFollowsGoal, type AutoFollow } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
@@ -302,7 +303,8 @@ export const useFollowStore = defineStore('follow', () => {
       return s;
     }
     if (!retry) saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
-    const r = await putFollow(url, cloudKey.value, goalKey, built.value);
+    // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
+    const r = await putFollow(url, cloudKey.value, goalKey, built.value, onlineFetch<FetchLike>());
     // Sent again stamped now (red team C4: the collector refused an `at` over 10 minutes ahead of its clock): the
     // follow here takes that `at`, so it and the saved one agree. Counted as tried, so a read this visit never sends
     // it a third time.

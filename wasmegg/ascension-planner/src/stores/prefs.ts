@@ -31,7 +31,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
-import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
+import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
 import { stepAwayOptions } from '@/composables/useStepAway';
 import { readAutoEveryMin } from '@/search/stepAway';
@@ -57,6 +57,7 @@ import {
   type CloudSetup,
   type ConsentNow,
   type PrefsFail,
+  type PrefsFetch,
   type PrefsKind,
   type SetupNow,
   type SyncedConsent,
@@ -556,7 +557,8 @@ export const usePrefsStore = defineStore('prefs', () => {
         saves.value = { ...saves.value, [kind]: { state: 'waiting', why: 'limit' } };
         return;
       }
-      const r = await putPrefs(p.url, p.key, kind, p.value);
+      // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
+      const r = await putPrefs(p.url, p.key, kind, p.value, onlineFetch<PrefsFetch>());
       // Sent again stamped now (the collector refused an `at` over 10 minutes ahead of its clock): kept here with it.
       let at = p.value.at;
       if (r.resentAt !== undefined) {
