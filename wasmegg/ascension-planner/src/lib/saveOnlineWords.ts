@@ -76,3 +76,9 @@ export const START_TE_USE_CLOUD = 'Use it';
 export const TYPED_TE_NOT_RANKED = "Sent, but not ranked: this run started from a TE you typed, not your save's.";
 /** The same after a duplicate's own message, and for a best-so-far send (the "Sent" is already said). */
 export const TYPED_TE_NOT_RANKED_SHORT = "Not ranked: this run started from a TE you typed, not your save's.";
+
+/** Whether a send's message carries the typed-TE line, in either form (the long lead or the short note): the
+ *  best-so-far send adds its own note then (stores/chainSearch.ts). Case does not matter. */
+export function typedTeNoted(message: string): boolean {
+  return message.toLowerCase().includes(TYPED_TE_NOT_RANKED_SHORT.toLowerCase());
+}

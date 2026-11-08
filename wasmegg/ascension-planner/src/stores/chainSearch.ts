@@ -58,7 +58,7 @@ import {
   workersForBatch,
 } from '@/search/batch';
 import { describeRunError, sentence } from '@/utils/errors';
-import { TYPED_TE_NOT_RANKED, TYPED_TE_NOT_RANKED_SHORT } from '@/lib/saveOnlineWords';
+import { TYPED_TE_NOT_RANKED, TYPED_TE_NOT_RANKED_SHORT, typedTeNoted } from '@/lib/saveOnlineWords';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
@@ -5228,7 +5228,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // missing table ("its missing CSV was added"), never "nothing new stored - sent, with the CSV".
     const withTable = (t: { message: string; landed?: 'new' | 'already' | null; size?: string }): string => {
       if (duplicate === 'result') return t.message.replace(/^sent/, lead);
-      if (duplicate !== 'exact') return typedTe ? `${lead} ${sentence(t.message).replace(/\.$/, '')}` : t.message;
+      // A typed start: its own lead, then the table's outcome without a second "sent" (QA 7 Nov 2026, finding 12).
+      if (duplicate !== 'exact') return typedTe ? `${lead} ${sentence(t.message.replace(/^sent,?\s*/, '')).replace(/\.$/, '')}` : t.message;
       if (t.landed) return duplicateMessage('exact', { ...exactNote, table: { landed: t.landed, size: t.size } });
       return `${lead}, but ${t.message.replace(/^sent,?\s*(but\s+)?/, '')}`;
     };
@@ -5586,7 +5587,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
         return say(false, `${res.message}${evidence}`, { quarantined: true });
       }
-      const typedNote = res.message.includes(TYPED_TE_NOT_RANKED.slice(10)) ? ` ${TYPED_TE_NOT_RANKED_SHORT}` : '';
+      const typedNote = typedTeNoted(res.message) ? ` ${TYPED_TE_NOT_RANKED_SHORT}` : '';
       const flaggedNote = (/flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '') + typedNote;
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [
