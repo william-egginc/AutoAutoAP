@@ -84,7 +84,7 @@ export function fakeSyncCollector(base = 'https://collector.example') {
       const kind = u.searchParams.get('kind')!;
       const slot = u.searchParams.get('slot')!;
       const at = Number(u.searchParams.get('at'));
-      if (at > now + 600_000) return reply(400, { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check this device's clock"] });
+      if (at > now + 600_000) return reply(400, { error: 'rejected', problems: ["at is more than 10 minutes ahead of the collector clock: check the clock"] });
       if (kind === 'plan' ? !bytes || bytes[0] !== 0x1f || bytes[1] !== 0x8b : !body)
         return reply(400, { error: 'rejected', problems: ['body'] });
       if (kind === 'plan' && bytes!.length > 96 * 1024) return reply(413, { error: 'too big' });

@@ -92,9 +92,9 @@ import { SYNC_RECORDS } from '@/lib/syncedRecords';
 import { deletedThisVisit, useForgetEverything } from '@/composables/useForgetEverything';
 import {
   SAVE_ONLINE_LABEL,
-  SAVE_ONLINE_LINE_OFF,
+  saveOnlineLineOff,
   SAVE_ONLINE_LINE_ON,
-  SAVE_ONLINE_OFF_AFTER_DELETE,
+  saveOnlineOffAfterDelete,
   SYNC_DELETE_LABEL,
   SYNC_DELETE_NO,
   SYNC_DELETE_YES,
@@ -114,7 +114,7 @@ const line = computed(() =>
       ? SAVE_ONLINE_LINE_ON
       : SAVE_ONLINE_LINE_ON_NO_SYNC
     : deletedThisVisit()
-      ? SAVE_ONLINE_OFF_AFTER_DELETE
-      : SAVE_ONLINE_LINE_OFF
+      ? saveOnlineOffAfterDelete()
+      : saveOnlineLineOff()
 );
 </script>

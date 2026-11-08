@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   START_TE_USE_SAVE,
-  SYNC_DELETED,
+  syncDeleted,
   SYNC_DELETE_CONFIRM,
   SYNC_DELETE_LABEL,
   SYNC_DELETE_NO,
@@ -10,13 +10,14 @@ import {
   SYNC_KEPT,
   SAVE_ONLINE_FOLLOW_OFF,
   SAVE_ONLINE_LABEL,
-  SAVE_ONLINE_LINE_OFF,
+  saveOnlineLineOff,
   SAVE_ONLINE_LINE_ON,
-  SAVE_ONLINE_OFF_AFTER_DELETE,
+  saveOnlineOffAfterDelete,
   startTeBannerShort,
   startTeBannerWords,
 } from './syncWords';
 import { isWordingOnly } from './resultCodeHash';
+import { thisDevice } from '@/search/device';
 
 describe('sync words', () => {
   it('the master Save online switch: label, on and off lines, and after a delete', () => {
@@ -24,9 +25,9 @@ describe('sync words', () => {
     expect(SAVE_ONLINE_LINE_ON).toBe(
       'Saved online, under a code made from your player ID, so every device shows the same: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. Anyone who knows your player ID can see them.'
     );
-    expect(SAVE_ONLINE_LINE_OFF).toBe('Off: this device does not save anything online, and shows nothing from online. What is already saved online stays until you delete it.');
+    expect(saveOnlineLineOff()).toBe(`Off: ${thisDevice()} does not save anything online, and shows nothing from online. What is already saved online stays until you delete it.`);
     expect(SAVE_ONLINE_FOLLOW_OFF).toBe('Save online is off in Setup, so this route is not saved online. Turn it on to save it.');
-    expect(SAVE_ONLINE_OFF_AFTER_DELETE).toBe('Save online is off on this device. Turn it on to start saving again.');
+    expect(saveOnlineOffAfterDelete()).toBe(`Save online is off on ${thisDevice()}. Turn it on to start saving again.`);
     expect(SYNC_KEPT).toBe('Kept until you delete it.');
   });
   it('the banner counts the TE not yet claimed, and says nothing about it when there is none', () => {
@@ -46,7 +47,8 @@ describe('sync words', () => {
       "This deletes your followed routes, Setup and sharing choices, instant answers, starting TE, tracker ticks and plan from the planner's server. Your save and what is kept in this browser stay. It cannot be undone."
     );
     expect([SYNC_DELETE_YES, SYNC_DELETE_NO]).toEqual(['Delete', 'Keep it']);
-    expect(SYNC_DELETED).toBe('Deleted. Nothing is saved online for this account now, and Save online is off on this device.');
+    expect(syncDeleted()).toBe(`Deleted. Nothing is saved online for this account now, and Save online is off on ${thisDevice()}.`);
+    expect(syncDeleted()).toMatch(/off on this (computer|phone|tablet)\./);
   });
   it('no player ID, and a wording-only file (out of the result code hash)', () => {
     expect(JSON.stringify([SAVE_ONLINE_LINE_ON, SYNC_DELETE_CONFIRM])).not.toMatch(/EI\d{16}/);

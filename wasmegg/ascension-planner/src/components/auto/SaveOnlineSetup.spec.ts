@@ -24,10 +24,10 @@ import { SAVE_ONLINE_KEY, resetSaveOnline, saveOnlineOn, setSaveOnline } from '@
 import { fakeSyncCollector, type FakeSyncCollector } from '@/test/fakeSyncCollector';
 import {
   SAVE_ONLINE_LABEL,
-  SAVE_ONLINE_LINE_OFF,
+  saveOnlineLineOff,
   SAVE_ONLINE_LINE_ON,
-  SAVE_ONLINE_OFF_AFTER_DELETE,
-  SYNC_DELETED,
+  saveOnlineOffAfterDelete,
+  syncDeleted,
   SYNC_DELETE_CONFIRM,
   SYNC_DELETE_LABEL,
 } from '@/lib/syncWords';
@@ -84,7 +84,7 @@ describe('the switch', () => {
     setSaveOnline(false);
     await page();
     const html = await renderHtml(SaveOnlineSetup, {}, {}, [pinia]);
-    expect(textOf(html)).toContain(SAVE_ONLINE_LINE_OFF);
+    expect(textOf(html)).toContain(saveOnlineLineOff());
     expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*data-testid="save-online-switch"/);
   });
 });
@@ -133,13 +133,13 @@ describe('Delete everything: the flow', () => {
     await done;
     expect(c.calls.filter(x => x.method === 'DELETE')).toEqual([{ method: 'DELETE', url: `https://collector.example/forget?k=${KEY}&all=1` }]);
     expect(d.phase.value).toBe('done');
-    expect(d.lines.value).toEqual([forgetCountsWords({ follows: 3, prefs: 2, answers: 2, synced: 1 }), SYNC_DELETED]);
+    expect(d.lines.value).toEqual([forgetCountsWords({ follows: 3, prefs: 2, answers: 2, synced: 1 }), syncDeleted()]);
     expect(saveOnlineOn()).toBe(false);
     expect(mem.get(SAVE_ONLINE_KEY)).toBe('0');
     for (const [k, v] of before) expect(mem.get(k), k).toBe(v);
     expect([...mem.keys()].filter(k => !before.has(k))).toEqual([SAVE_ONLINE_KEY]);
     // The switch line then says what Delete did.
-    expect(textOf(await renderHtml(SaveOnlineSetup, {}, {}, [pinia]))).toContain(SAVE_ONLINE_OFF_AFTER_DELETE);
+    expect(textOf(await renderHtml(SaveOnlineSetup, {}, {}, [pinia]))).toContain(saveOnlineOffAfterDelete());
   });
 
   it('works with Save online already off (it is not gated by the switch)', async () => {
@@ -168,7 +168,7 @@ describe('Delete everything: the flow', () => {
       await d.confirm();
       expect(d.phase.value).toBe('failed');
       // Decision b (8 Nov 2026): Save online went off before the call and stays off; said so.
-      expect(d.lines.value).toEqual([forgetFailWords(why, 120), SAVE_ONLINE_OFF_AFTER_DELETE]);
+      expect(d.lines.value).toEqual([forgetFailWords(why, 120), saveOnlineOffAfterDelete()]);
       expect(forgetFailWords(why, 120)).toBe(words);
       expect(d.canRetry.value).toBe(why === 'offline');
       expect(saveOnlineOn()).toBe(false);

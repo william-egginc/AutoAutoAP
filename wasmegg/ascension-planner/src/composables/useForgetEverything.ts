@@ -14,10 +14,10 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
 import { SYNC_RECORDS, forgetEverything, forgetUrlOf, type ForgetResult } from '@/lib/syncedRecords';
 import { setSaveOnline } from '@/lib/saveOnline';
-import { SAVE_ONLINE_OFF_AFTER_DELETE, SYNC_DELETED, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
+import { saveOnlineOffAfterDelete, syncDeleted, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
 import { SYNC_DELETE_STAYS, forgetCountsWords, forgetFailWords } from '@/lib/saveOnlineWords';
 
-/** Delete went through on this page: the switch's line says what it did (SAVE_ONLINE_OFF_AFTER_DELETE). */
+/** Delete went through on this page: the switch's line says what it did (saveOnlineOffAfterDelete()). */
 const deletedHere = ref(false);
 export function deletedThisVisit(): boolean {
   return deletedHere.value;
@@ -76,7 +76,7 @@ export function useForgetEverything() {
     const r = result.value;
     if (!r || (phase.value !== 'done' && phase.value !== 'failed')) return [];
     // A failure says Save online is off on this device now (it went off before the call), beside why.
-    return r.ok ? [forgetCountsWords(r.deleted), SYNC_DELETED] : [forgetFailWords(r.why, r.retryAfter), SAVE_ONLINE_OFF_AFTER_DELETE];
+    return r.ok ? [forgetCountsWords(r.deleted), syncDeleted()] : [forgetFailWords(r.why, r.retryAfter), saveOnlineOffAfterDelete()];
   });
   const canRetry = computed(() => phase.value === 'failed' && !!result.value && !result.value.ok && result.value.why === 'offline');
 
