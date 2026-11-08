@@ -94,6 +94,7 @@ export class RoutePool {
         const p = this.pending.get(e.data.id);
         if (!p) return;
         this.pending.delete(e.data.id);
+        this.announce();
         if (e.data.kind === 'error') p.reject(new Error(e.data.message));
         else p.resolve(e.data);
       };
@@ -143,6 +144,27 @@ export class RoutePool {
     return this.pending.size === 0;
   }
 
+  /** Who hears when requests start or stop (`watchBusy`), and the state last told. */
+  private busyWatchers = new Set<(state: 'busy' | 'idle' | 'closed') => void>();
+  private lastBusy: 'busy' | 'idle' = 'idle';
+
+  /**
+   * Hear when a request starts ('busy', the first one in flight), when the last one is answered or cut off ('idle'),
+   * and when the pool is closed (`terminate`, 'closed': nothing follows). The idle sleep (search/routePoolIdle.ts)
+   * keeps its clocks from these. Returns the way to stop listening.
+   */
+  watchBusy(fn: (state: 'busy' | 'idle' | 'closed') => void): () => void {
+    this.busyWatchers.add(fn);
+    return () => this.busyWatchers.delete(fn);
+  }
+
+  private announce(): void {
+    const now = this.pending.size === 0 ? 'idle' : 'busy';
+    if (now === this.lastBusy) return;
+    this.lastBusy = now;
+    for (const fn of [...this.busyWatchers]) fn(now);
+  }
+
   /**
    * Give the workers' memory back while nothing is asked of them: each holds a decoded table, and a
    * chain search wants every MB of the browser's shared heap for its own workers. Only when idle --
@@ -170,6 +192,7 @@ export class RoutePool {
     this.workers = null;
     for (const p of this.pending.values()) p.reject(new Error('paused'));
     this.pending.clear();
+    this.announce();
     return cut;
   }
 
@@ -206,6 +229,7 @@ export class RoutePool {
     this.workers = null;
     for (const p of this.pending.values()) p.reject(new Error(why));
     this.pending.clear();
+    this.announce();
   }
 
   get asleep(): boolean {
@@ -219,6 +243,7 @@ export class RoutePool {
     const target = this.workers[worker % this.physical];
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
+      this.announce();
       this.watchStart(target);
       target.postMessage({ ...message, id });
     });
@@ -285,5 +310,7 @@ export class RoutePool {
     this.workers = null;
     for (const p of this.pending.values()) p.reject(new Error('stopped'));
     this.pending.clear();
+    for (const fn of [...this.busyWatchers]) fn('closed');
+    this.busyWatchers.clear();
   }
 }
