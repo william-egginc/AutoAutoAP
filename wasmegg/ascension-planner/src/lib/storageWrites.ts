@@ -37,6 +37,29 @@ export function resetStorageWrites(): void {
   storageWriteFailed.value = false;
 }
 
+/**
+ * ONE WRAPPER ON Storage.prototype (spec-observerfix, 7 Nov 2026: egg-beta 93907cf10 rolled back). Anything else that
+ * wants to see writes registers here (`onStorageWrite`) instead of wrapping setItem / removeItem again: a second
+ * wrapper assigned through this one's accessor made every write recurse until the stack ran out
+ * (composables/useOverrideSync.ts `installTECacheObserver` did). Each listener is called after a write that worked
+ * (`value` null for a removal), with the storage written to; a listener that throws is ignored.
+ */
+export type StorageWriteListener = (area: Storage, key: string, value: string | null) => void;
+const listeners = new Set<StorageWriteListener>();
+export function onStorageWrite(l: StorageWriteListener): () => void {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+function tell(area: Storage, key: string, value: string | null): void {
+  for (const l of listeners) {
+    try {
+      l(area, key, value);
+    } catch {
+      // a listener never breaks a write
+    }
+  }
+}
+
 const WATCHED = Symbol.for('aap.storageWritesWatched');
 
 type SetItem = (this: Storage, key: string, value: string) => void;
@@ -61,20 +84,38 @@ export function watchStorageWrites(win: object = globalThis): boolean {
       }
     };
 
-    let innerSet = proto.setItem as SetItem;
+    const nativeSet = proto.setItem as SetItem;
+    const nativeRemove = proto.removeItem as RemoveItem;
+    let innerSet = nativeSet;
+    let innerRemove = nativeRemove;
+    // A replacement that calls this wrapper back (it read setItem, then assigned its own through the setter below)
+    // would recurse for ever: while inside the replacement, this wrapper goes straight to the browser's own.
+    let inSet = 0;
+    let inRemove = 0;
     const setItem: SetItem = function (this: Storage, key: string, value: string) {
+      if (inSet) return nativeSet.call(this, key, value);
+      inSet++;
       try {
         innerSet.call(this, key, value);
       } catch (e) {
         if (isLocal(this)) noteStorageWrite(String(key), false);
         throw e;
+      } finally {
+        inSet--;
       }
       if (isLocal(this)) noteStorageWrite(String(key), true);
+      tell(this, String(key), String(value));
     };
-    let innerRemove = proto.removeItem as RemoveItem;
     const removeItem: RemoveItem = function (this: Storage, key: string) {
-      innerRemove.call(this, key);
+      if (inRemove) return nativeRemove.call(this, key);
+      inRemove++;
+      try {
+        innerRemove.call(this, key);
+      } finally {
+        inRemove--;
+      }
       if (isLocal(this)) noteStorageWrite(String(key), true);
+      tell(this, String(key), null);
     };
 
     Object.defineProperty(proto, 'setItem', {

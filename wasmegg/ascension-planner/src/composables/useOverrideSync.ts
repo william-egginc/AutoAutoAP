@@ -38,6 +38,7 @@ import { saveTEOf } from '@/lib/saveFreshness';
 import { sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { applyAutoStartingTE } from '@/auto/startingTE';
+import { onStorageWrite, watchStorageWrites } from '@/lib/storageWrites';
 import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import {
   OVERRIDE_SLOT,
@@ -167,25 +168,44 @@ function cacheWritten(area: unknown, key: unknown, value: string | null): void {
 }
 const observedTargets = new WeakSet<object>();
 let listening = false;
-/** Wrap this browser's localStorage writes once (idempotent), and listen to other tabs. */
+let registered = false;
+/**
+ * See this browser's localStorage writes (idempotent), and listen to other tabs. NEVER assigns Storage.prototype's
+ * methods (spec-observerfix: egg-beta 93907cf10 recursed on every write): a real Storage is seen through
+ * lib/storageWrites.ts's one wrapper (`onStorageWrite`, installed by storageGuard.install.ts, again here if not yet);
+ * only a stand-in that is no Storage (a spec's plain object, or storageGuard's memory one, whose methods are its own)
+ * has its own methods wrapped.
+ */
 export function installTECacheObserver(): void {
   try {
     const st = storage();
-    if (st) {
-      const target = (typeof Storage !== 'undefined' && st instanceof Storage ? Storage.prototype : st) as StorageLike;
-      if (!observedTargets.has(target)) {
-        observedTargets.add(target);
-        const set = target.setItem;
-        const remove = target.removeItem;
-        target.setItem = function (this: unknown, key: string, value: string) {
-          set.call(this, key, value);
-          cacheWritten(this, key, value);
-        };
-        target.removeItem = function (this: unknown, key: string) {
-          remove.call(this, key);
-          cacheWritten(this, key, null);
-        };
+    if (st && typeof Storage !== 'undefined' && st instanceof Storage) {
+      watchStorageWrites(globalThis);
+      if (!registered) {
+        registered = true;
+        onStorageWrite((area, key, value) => cacheWritten(area, key, value));
       }
+    } else if (st && !observedTargets.has(st)) {
+      observedTargets.add(st);
+      const own = st as StorageLike;
+      const set = own.setItem.bind(own);
+      const remove = own.removeItem.bind(own);
+      Object.defineProperty(own, 'setItem', {
+        configurable: true,
+        writable: true,
+        value: (key: string, value: string) => {
+          set(key, value);
+          cacheWritten(own, key, value);
+        },
+      });
+      Object.defineProperty(own, 'removeItem', {
+        configurable: true,
+        writable: true,
+        value: (key: string) => {
+          remove(key);
+          cacheWritten(own, key, null);
+        },
+      });
     }
   } catch {
     // no observer: the banner's buttons still note their own changes
