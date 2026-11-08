@@ -436,6 +436,8 @@ export const usePrefsStore = defineStore('prefs', () => {
     partition.value = h;
     cloudKey.value = k;
     readyIdRef.value = id;
+    // No collector (Save online off): the read kept for the minute is from before, so turning it on reads as a load.
+    if (!url) lastRead = null;
     if (!h || !k || !url) {
       cloudStatus.value = 'idle';
       return;
