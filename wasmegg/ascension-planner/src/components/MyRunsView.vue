@@ -109,6 +109,7 @@
             :replan="trackerReplan"
             :finish-chosen="tracker.finishChosen.value"
             :followed-for="trackerFollowedFor"
+            :awake-hours="store.availability"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"

@@ -87,6 +87,11 @@
               ></HelpTip
             >
           </p>
+          <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
+               with awake hours set, this plan's research buys can fall outside them, so its finish is a best case. Once. -->
+          <p v-if="nightBuy" class="text-small text-slate-500" data-testid="buildup-night-buy">
+            {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+          </p>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"
@@ -252,6 +257,9 @@ import { getNextSaleEnd } from '@/lib/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import { a1TrackerWords } from '@/lib/a1Choice';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';
+import type { Availability } from '@/search/availabilitySchedule';
+import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 
 const props = withDefaults(
   defineProps<{
@@ -295,8 +303,11 @@ const props = withDefaults(
       /** The player has ticks of their own (some may not survive the new plan). */
       keepsTicks: boolean;
     } | null;
+    /** Setup's awake hours (the store's `availability`; null: none): with hours that rule something out, the
+     *  night-buy note under the save line (spec-nightbuynote). */
+    awakeHours?: Availability | null;
   }>(),
-  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
+  { awakeHours: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -335,6 +346,8 @@ const hint = computed(() => {
   return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}`;
 });
 
+/** The night-buy note: a plan shown (this branch of the template) with awake hours set (lib/nightBuyNote.ts). */
+const nightBuy = computed(() => nightBuyNoteShown(props.awakeHours, !!props.result));
 const saveAge = computed(() => gapWords(Math.max(0, props.now - props.saveSeconds)));
 const saveOld = computed(() => props.now - props.saveSeconds > 3600);
 const saleEndWords = computed(() => {
