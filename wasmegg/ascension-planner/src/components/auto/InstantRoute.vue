@@ -916,6 +916,7 @@ import {
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
+import { sleepWhenIdle } from '@/search/routePoolIdle';
 import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSafari, isSmallDevice, releaseRouteWorkers, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
@@ -1809,9 +1810,15 @@ function getPool(): RoutePool {
     small ? Math.min(2, poolSize()) : poolSize(),
     () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
   );
+  // On every browser the idle workers are let go after a while (search/routePoolIdle.ts); the next ask spawns them.
+  stopIdleSleep = sleepWhenIdle(pool);
   return pool;
 }
-onUnmounted(() => pool?.terminate());
+let stopIdleSleep: (() => void) | null = null;
+onUnmounted(() => {
+  stopIdleSleep?.();
+  pool?.terminate();
+});
 // A chain search (Smart search, Full sweep, By a date) gets the route workers' memory: each holds a
 // decoded table, and the browser's heap is shared with every chain worker. The pool sleeps once it
 // is idle and the instant answer is not mid-run (never cutting off a request: until then this

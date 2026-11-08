@@ -35,11 +35,16 @@ const MIN = 60_000;
 
 function setup() {
   const made: FakeWorker[] = [];
-  const p = new RoutePool(2, () => {
-    const w = new FakeWorker();
-    made.push(w);
-    return w as unknown as Worker;
-  });
+  // The start limit is out of the way: these specs move the clock minutes, with workers that never say ready.
+  const p = new RoutePool(
+    2,
+    () => {
+      const w = new FakeWorker();
+      made.push(w);
+      return w as unknown as Worker;
+    },
+    1e9
+  );
   const doc = new FakeDoc();
   const stop = sleepWhenIdle(p, { doc });
   return { p, made, doc, stop };
