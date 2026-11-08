@@ -82,6 +82,14 @@ describe('the words (DRAFT from Words, Jordan to OK)', () => {
     expect(teOverrideBannerLine(199, 198)).toBe("Your answers start from a typed TE (199), not your save's (198).");
     expect(teOverrideBannerLine(197, 197)).toBe('Your answers start from a typed TE (197).');
     expect(teOverrideBannerLine(197, null)).toBe('Your answers start from a typed TE (197).');
+    // The save's TE counts the ones not yet claimed, and the line says so (Jordan, 7 Nov 2026).
+    expect(teOverrideBannerLine(197, 198, 1)).toBe(
+      "Your typed starting TE (197) is lower than your save's TE (198, counting 1 not yet claimed), so the answers here start behind where you are."
+    );
+    expect(teOverrideBannerLine(199, 198, 2)).toBe(
+      "Your answers start from a typed TE (199), not your save's (198, counting 2 not yet claimed)."
+    );
+    expect(teOverrideBannerLine(197, 198, 0)).toBe(teOverrideBannerLine(197, 198));
     expect(TE_OVERRIDE_REMOVE).toBe("Use my save's TE");
   });
   it('never says "override" to the player', () => {
