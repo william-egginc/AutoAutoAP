@@ -199,10 +199,10 @@ describe('a Setup change made while off', () => {
     expect(search.finalTE).toBe(400);
   });
 
-  // DESIGN (left to UI / Jordan): a change made while off, or one still waiting when it went off, is kept here as
-  // pending but is not sent when Save online comes back on (as a failed save, it waits for the next change). Flip to
-  // `it` once the turn-on load sends a pending change that is newer than the saved one.
-  it.fails('goes online when it is turned on again', async () => {
+  // DECIDED (the orchestrator, 8 Nov 2026, decision a): a change made while off, or one still waiting when it went
+  // off, is kept here stamped and pending, and is NOT sent when Save online comes back on: it goes up with the next
+  // change, as a failed save does. Pinned.
+  it('is not sent when it is turned on again; it goes up with the next change', async () => {
     const { search, prefs } = await page(true);
     await vi.waitFor(() => expect(prefs.following).toBe(true));
     setSaveOnline(false);
@@ -211,6 +211,9 @@ describe('a Setup change made while off', () => {
     vi.setSystemTime(T0 + 5 * 60_000);
     setSaveOnline(true);
     await vi.waitFor(() => expect(prefs.following).toBe(true));
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 2);
+    expect(puts('/prefs')).toHaveLength(0);
+    search.finalTE = 380;
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 2);
     expect(puts('/prefs')).toHaveLength(1);
   });
