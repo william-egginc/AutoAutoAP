@@ -437,6 +437,12 @@ export function useCurrentSim(
     const req = request.value;
     buildUpLog(`retry${req ? '' : ': no request'}`);
     if (!req) return;
+    // A run going for this request whose worker answered is healthy (it simulates, bounded by `runMs`): left alone,
+    // never terminated by a press (QA review 7 Nov 2026 #3).
+    if (runningKey === req.key && !startTimer && worker.value?.heard) {
+      buildUpLog('retry: the run going was heard from, left alone');
+      return;
+    }
     failed.delete(req.key);
     guarded.delete(req.key);
     const st = state.value;

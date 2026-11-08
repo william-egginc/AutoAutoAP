@@ -2262,6 +2262,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     buildUpSimWorker,
     buildUpSave,
     retryBuildUp,
+    /** A search running, or its result being sent: what useCurrentSim waits on, handed to the Build-up tracker as its
+     *  `searchRunning` so the two agree (QA review 7 Nov 2026 #3). */
+    searchBusy,
+    /** The stores hold this save set up the Auto Planner's way: without it no simulation is asked, and the Build-up
+     *  tracker's Try again asks App to set the save up again (QA review 7 Nov 2026 #5). */
+    storeReady,
     a1Choice,
     a1Finish,
     pickA1,
