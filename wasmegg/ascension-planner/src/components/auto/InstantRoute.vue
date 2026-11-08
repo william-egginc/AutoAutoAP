@@ -363,7 +363,7 @@
               data-testid="box-first-step"
             >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
-                ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
+                ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
               ><template v-else>{{ firstStep }}</template>
             </p>
             <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
@@ -577,7 +577,7 @@
             data-testid="box-first-step"
           >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
-              ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ FIRST_STEP_BUILDUP_MISSING_REST }}</template
+              ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
             ><template v-else>{{ firstStep }}</template>
           </p>
           <!-- The night-buy note, as in By a date's box above. -->
@@ -1047,11 +1047,10 @@ import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
 import {
-  FIRST_STEP_BUILDUP_MISSING,
   FIRST_STEP_BUILDUP_MISSING_LEAD,
-  FIRST_STEP_BUILDUP_MISSING_REST,
   FIRST_STEP_LABEL,
   INSTANT_ESTIMATE_LINE,
+  buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
   instantHeaderLine,
@@ -1154,7 +1153,8 @@ const result = ref<FoundRoutes | null>(null);
  * its first ascension is only fresh or continue. Such an answer is shown but never kept: no snapshot, no answer
  * offered online, no pricing record for My runs (`saveSnapshot`, `run`), and one that somehow carries the flag is not
  * put back (search/instantTables.ts `savedAnswerFits`), so a reload or the next visit works it out again. A fresh
- * First step says so instead of "prestige now" (`firstStep`, lib/instantWords.ts FIRST_STEP_BUILDUP_MISSING).
+ * or continue First step says so instead of "prestige now" or "continue your current ascension" (`firstStep`,
+ * lib/instantWords.ts FIRST_STEP_BUILDUP_MISSING, FIRST_STEP_BUILDUP_MISSING_CONTINUE).
  */
 const answerBuildUpMissing = ref(false);
 /** The instant answer's state, for the screen reader's status line. */
@@ -1685,8 +1685,9 @@ const firstStep = computed(() => {
   });
   return line.slice(FIRST_STEP_LABEL.length + 1);
 });
-/** First step is the build-up-could-not-be-worked-out line: drawn smaller and amber (spec-buildupmissing-words). */
-const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);
+/** First step is a build-up-could-not-be-worked-out line (a fresh start or, spec-buildupmissing-continue, the ascension
+ *  you are in): its part after the bold lead, drawn amber (spec-buildupmissing-words); '' otherwise. */
+const firstStepWarn = computed(() => buildUpMissingRestOf(firstStep.value));
 /** The legs First step reads: the box's route's. */
 const firstLegs = computed(() => (props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null)));
 /**

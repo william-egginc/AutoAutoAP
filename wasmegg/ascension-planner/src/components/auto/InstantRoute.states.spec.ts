@@ -29,9 +29,12 @@ import { headlineGap, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';
 import {
   FIRST_STEP_BUILDUP_MISSING,
+  FIRST_STEP_BUILDUP_MISSING_CONTINUE,
+  FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST,
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_BUILDUP_MISSING_REST,
   INSTANT_ESTIMATE_LINE,
+  buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
 } from '@/lib/instantWords';
@@ -125,12 +128,11 @@ function ctxOf(s: State): Record<string, unknown> {
     FIRST_STEP_LABEL: 'First step:',
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
-    firstStepWarn: false,
+    firstStepWarn: '',
     nightBuyNote: false,
     NIGHT_BUY_NOTE_SHORT,
     NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
-    FIRST_STEP_BUILDUP_MISSING_REST,
     INSTANT_ESTIMATE_LINE,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
@@ -1007,12 +1009,15 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
     saved: false,
   });
 
-  it('the first leg: a fresh start with buildUpMissing says so; a build-up or continue first leg never does', () => {
+  it('the first leg: a fresh start or the ascension you are in with buildUpMissing says so; a build-up first leg never does', () => {
     for (const fresh of ['2-sale', '0-sale', '3-sale-tier13'])
       expect(lineFor(fresh, true)).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
     expect(lineFor('2-sale', false)).toBe('First step: prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).');
     expect(lineFor('buildup', true)).toBe('First step: continue your build-up to 220 TE (Jan 1, 2027 at 2:11 AM).');
-    expect(lineFor('continue', true)).toBe('First step: continue your current ascension to 220 TE (Jan 1, 2027 at 2:11 AM).');
+    // spec-buildupmissing-continue (QA, 7 Nov 2026): continue warns too; an unknown label reads as continue.
+    for (const cont of ['continue', ''])
+      expect(lineFor(cont, true)).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`);
+    expect(lineFor('continue', false)).toBe('First step: continue your current ascension to 220 TE (Jan 1, 2027 at 2:11 AM).');
   });
 
   it('the page: First step reads the kind from the first leg and the answer\'s buildUpMissing', () => {
@@ -1030,7 +1035,7 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
         const i = box.indexOf('data-testid="box-first-step"');
         return box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
       };
-      const warned = step(await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING, firstStepWarn: true }));
+      const warned = step(await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING, firstStepWarn: FIRST_STEP_BUILDUP_MISSING_REST }));
       expect(textOf(warned)).toContain(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
       expect(warned).toMatch(/class="[^"]*text-body text-amber-800/);
       expect(warned).not.toContain('text-small');
@@ -1040,10 +1045,20 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
       expect(plain).toMatch(/class="[^"]*text-body text-slate-800/);
       expect(plain).not.toContain('amber');
     });
+    it(`${name}: the continue warning is drawn the same way, its own rest after the bold lead (spec-buildupmissing-continue)`, async () => {
+      const box = (await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING_CONTINUE, firstStepWarn: FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST })).replace(/<!--[\s\S]*?-->/g, '');
+      const i = box.indexOf('data-testid="box-first-step"', box.indexOf('data-testid="instant-box"'));
+      const warned = box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
+      expect(warned).toMatch(/class="[^"]*text-body text-amber-800/);
+      expect(warned).toContain(`<b>First step:</b> <b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST}`);
+      expect(textOf(warned)).not.toContain('then prestige');
+    });
   }
 
-  it('the page warns exactly when First step is the warning line', () => {
-    expect(script).toContain('const firstStepWarn = computed(() => firstStep.value === FIRST_STEP_BUILDUP_MISSING);');
+  it('the page warns exactly when First step is a warning line, drawing that warning\'s own rest', () => {
+    expect(script).toContain('const firstStepWarn = computed(() => buildUpMissingRestOf(firstStep.value));');
+    expect(source).not.toContain('{{ FIRST_STEP_BUILDUP_MISSING_REST }}');
+    expect(source.match(/<b>\{\{ FIRST_STEP_BUILDUP_MISSING_LEAD \}\}<\/b>\{\{ ' ' \}\}\{\{ firstStepWarn \}\}/g)).toHaveLength(2);
   });
 });
 
@@ -1095,6 +1110,12 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     expect(script).toMatch(
       /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(hoursLimited\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
     );
+  });
+  it('never with the build-up-missing warning, fresh or continue (spec-buildupmissing-continue)', () => {
+    // The page's rule: !firstStepWarn, and the build-up kind only. A continue warning is a warning line and not the build-up.
+    expect(buildUpMissingRestOf(FIRST_STEP_BUILDUP_MISSING_CONTINUE)).not.toBe('');
+    expect(buildUpMissingRestOf(FIRST_STEP_BUILDUP_MISSING)).not.toBe('');
+    expect(firstStepKind('continue')).not.toBe('buildup');
   });
   it('the kind it keys on: buildup only, never a fresh start or the ascension you are in', () => {
     expect(firstStepKind('buildup')).toBe('buildup');

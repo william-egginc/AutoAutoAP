@@ -57,6 +57,23 @@ export const FIRST_STEP_BUILDUP_MISSING_REST =
   'The planner could not work out your build-up, so this answer starts with a fresh prestige. Reload this page to try again.';
 /** The two together, as plain text (`firstStepLine`). */
 export const FIRST_STEP_BUILDUP_MISSING = `${FIRST_STEP_BUILDUP_MISSING_LEAD} ${FIRST_STEP_BUILDUP_MISSING_REST}`;
+/**
+ * The same when the route's first ascension carries on the one you are in ('continue'), not a fresh start
+ * (spec-buildupmissing-continue; QA, 7 Nov 2026: with the build-up job failing, First step read "continue your current
+ * ascension to 198 TE (…), then prestige at 2:00 AM" with no warning). Same bold lead (`_LEAD`).
+ * PLACEHOLDER / DRAFT (the orchestrator's suggestion; Words has not written it yet): Words may overwrite this string.
+ */
+export const FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST =
+  'The planner could not work out your build-up, so this answer carries on your current ascension without it. Reload this page to try again.';
+export const FIRST_STEP_BUILDUP_MISSING_CONTINUE = `${FIRST_STEP_BUILDUP_MISSING_LEAD} ${FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST}`;
+
+/** The part after the bold lead of a build-up-missing First step (fresh or continue), from the line's plain text
+ *  (after "First step: "); '' for any other line. The page draws `_LEAD` bold, then this. */
+export function buildUpMissingRestOf(text: string): string {
+  if (text === FIRST_STEP_BUILDUP_MISSING) return FIRST_STEP_BUILDUP_MISSING_REST;
+  if (text === FIRST_STEP_BUILDUP_MISSING_CONTINUE) return FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST;
+  return '';
+}
 
 /** What the route's first ascension is, from its first leg's label (search/routeFinder.ts `firstLegOptions`): your
  *  build-up continued ('buildup'), a fresh start ('2-sale', '3-sale-tier13', ...), else the one you are in continued. */
@@ -70,8 +87,9 @@ export function firstStepKind(label: string | null | undefined): 'continue' | 'b
  * lists them (lib/instantSteps.ts): what the first ascension is (`kind`: the one you are in continued, your build-up
  * continued, or a fresh start, now or at `start`), the TE it reaches and when, then the prestige after it, at the time
  * alone when it is the same day (`sameDay`). Times come formatted (" at " between date and time). The hours clause only
- * when the answer keeps awake hours and the line names a prestige time. A fresh first step there only because the
- * build-up could not be worked out (`buildUpMissing`) is FIRST_STEP_BUILDUP_MISSING instead.
+ * when the answer keeps awake hours and the line names a prestige time. With the build-up not worked out
+ * (`buildUpMissing`), any first step but the build-up itself says so instead: FIRST_STEP_BUILDUP_MISSING for a fresh
+ * start, FIRST_STEP_BUILDUP_MISSING_CONTINUE for the ascension you are in (no prestige time named in either).
  */
 export function firstStepLine(o: {
   kind: 'continue' | 'buildup' | 'fresh';
@@ -83,11 +101,12 @@ export function firstStepLine(o: {
   prestigeTime: string | null;
   sameDay: boolean;
   hours: boolean;
-  /** The build-up could not be worked out (the first-legs request's `buildUpMissing`): a fresh first step says so
-   *  instead. */
+  /** The build-up could not be worked out (the first-legs request's `buildUpMissing`): a fresh or continue first step
+   *  says so instead (a build-up first step is the build-up, so needs none). */
   buildUpMissing?: boolean;
 }): string {
-  if (o.kind === 'fresh' && o.buildUpMissing) return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`;
+  if (o.buildUpMissing && o.kind === 'fresh') return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`;
+  if (o.buildUpMissing && o.kind === 'continue') return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`;
   const first =
     o.kind === 'buildup'
       ? `continue your build-up to ${o.stopTE} TE`
