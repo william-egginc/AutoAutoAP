@@ -166,7 +166,40 @@ describe('every ascension and its shifts (AscensionList.vue, lib/instantSteps.ts
     expect(t).toContain('A1 ends · Prestige at 226 TE');
     expect(t).toContain('A3 ends · Prestige at 317 TE');
     expect(t).toContain('A2 ends · Prestige at 277 TE');
-    expect(t).toMatch(/Waits for your hours: prestige [^·]*at around 9:00 (am|AM)/i);
+    // The held time in When, the reached time in the note (spec-uxpass item 10).
+    expect(t).toMatch(/Reached [^·]*, waits for your hours [^·]*at around 9:00 (am|AM)/i);
+  });
+
+  it('EventsTable: a prestige that waits for the hours shows the held time in When and How far, the reached time in the note (spec-uxpass item 10)', async () => {
+    const p = plan();
+    const events = markPrestigeWaits(planEvents(p, T0 + H), instantSteps(stepLegsOf(p), HOURS, null));
+    const held = events.find(e => e.kind === 'prestige' && e.wait === 'hours')!;
+    expect(held.prestigeAt).toBeGreaterThan(held.at);
+    const html = await renderHtml(EventsTable, {
+      events: tableEvents(events),
+      goal: 'fastest',
+      goalName: 'Fastest to 490 TE',
+      now: T0 + H,
+      zone: ZONE,
+      saveWhen: 'x',
+      calculatedWhen: 'y',
+      rounded: true,
+    });
+    const rows = html.split('<tr').slice(1);
+    const row = rows.find(r => r.includes('data-testid="now-event-wait"'))!;
+    const cells = row.split('<td').slice(1).map(c => textOf('<td' + c));
+    // When: the time the prestige happens (the hours start at 9 AM), not the time the stop is reached.
+    expect(cells[2]).toMatch(/at around 9:00 AM$/);
+    const at = row.indexOf('data-testid="now-event-wait"');
+    const note = textOf(row.slice(row.indexOf('>', at) + 1, row.indexOf('</p>', at))).trim();
+    expect(note).toMatch(/^Reached .+, waits for your hours$/);
+    expect(note).not.toMatch(/9:00 AM/);
+    // A prestige that doesn't wait: When as before, no note.
+    const plain = rows.find(r => r.includes('A1 ends'))!;
+    const pe = events.find(e => e.kind === 'prestige' && e.asc === 1)!;
+    expect(pe.wait).toBeUndefined();
+    expect(plain).not.toContain('now-event-wait');
+    expect(textOf('<td' + plain.split('<td')[3])).not.toBe('');
   });
 
   it('EventsTable: a passed prestige or one that does not wait has no wait line', async () => {

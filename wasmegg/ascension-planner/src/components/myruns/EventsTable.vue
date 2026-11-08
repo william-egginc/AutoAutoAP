@@ -45,10 +45,11 @@
           <td class="py-2 pr-2">
             <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
             ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
-            <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
-            <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-small text-amber-800" data-testid="now-event-wait">
-              {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
-              {{ whenAt(e, e.prestigeAt) }}
+            <!-- Every ascension's prestige is listed (26 Oct 2026). One that waits: When and How far are the time it
+                 happens; the note gives the time its stop is reached and why it waits (spec-uxpass item 10, 8 Nov
+                 2026: the reached time in When read as the prestige time). DRAFT words. -->
+            <p v-if="heldAt(e) != null" class="text-small text-amber-800" data-testid="now-event-wait">
+              Reached {{ whenAt(e, e.at) }}, {{ e.wait === 'days' ? 'waits past your no-prestige days' : 'waits for your hours' }}
             </p>
             <!-- What the instant estimate doesn't price (lib/instantSteps.ts): said in amber, Fast prices it. -->
             <p v-if="e.kind === 'prestige' && !e.past && e.cutByTimeOff" class="text-small text-amber-800" data-testid="now-event-cut">
@@ -150,8 +151,16 @@ const hereText = computed(() =>
 );
 /** Rounded to the hour: the instant answer's times, never the ascension you are in simulated on the save (`exact`). */
 const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
-const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, roundedFor(e));
-const far = (e: PlanEvent) => howFar(e, props.now, props.zone, roundedFor(e), props.goal);
+/** A prestige that waits (for the hours or past the no-prestige days, lib/instantSteps.ts `markPrestigeWaits`): when it
+ *  happens, `prestigeAt`, already worked out; null for every other row. */
+const heldAt = (e: PlanEvent): number | null => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past ? e.prestigeAt : null);
+/** The row as it happens: a waiting prestige at its held time (When, How far, the calendar). */
+const shown = (e: PlanEvent): PlanEvent => {
+  const h = heldAt(e);
+  return h == null ? e : { ...e, at: h };
+};
+const when = (e: PlanEvent) => whenWords(shown(e), props.goal, props.now, props.zone, roundedFor(e));
+const far = (e: PlanEvent) => howFar(shown(e), props.now, props.zone, roundedFor(e), props.goal);
 /** When a waiting prestige happens, in the row's own words (rounded like the row). */
 const whenAt = (e: PlanEvent, at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, roundedFor(e));
 
@@ -161,7 +170,7 @@ const title = (e: PlanEvent) =>
 const addable = (e: PlanEvent) => !props.rounded && !e.past && !e.notDone && e.kind !== 'goal';
 const upcoming = computed(() => props.events.filter(addable));
 function calOf(e: PlanEvent) {
-  return planCalEvent(e, {
+  return planCalEvent(shown(e), {
     eggName: virtueEggName,
     saveWhen: props.saveWhen,
     calculatedWhen: props.calculatedWhen,
