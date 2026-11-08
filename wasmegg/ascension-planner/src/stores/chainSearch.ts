@@ -222,6 +222,7 @@ import {
   stepAwayOptions,
   stepAwayPageClosing,
   stepAwayRunEnded,
+  stepAwayRunNeverStarted,
   stepAwayDropRunMark,
   stepAwayRunStarted,
   stepAwayStopPressed,
@@ -6543,12 +6544,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       },
     });
   }
+  /** Set by `abandonRunStart`, read (and cleared) by the run watcher when the running flags go. */
+  let startAbandoned = false;
   /** A run's start whose storage did not answer: no run, the flags cleared, and the screen says why. */
   function abandonRunStart(kind: 'fastest' | 'deadline'): void {
     error.value = RUN_STORAGE_STUCK;
     errorBeforeStart.value = true;
     // Never a crash to carry on (the black box and the watcher read a failed run as one): it never started.
     runEnd = 'stopped';
+    // Nor the player's Stop (review 7 Nov 2026, finding 9): the run watcher reports it as a run that never started.
+    startAbandoned = true;
     stage.value = 'idle';
     if (kind === 'fastest') isRunning.value = false;
     else deadlineRunning.value = false;
@@ -8826,6 +8831,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (blackBoxTimer) clearInterval(blackBoxTimer);
       blackBoxTimer = null;
       if (running) {
+        startAbandoned = false;
         lastRunKind = deadlineRunning.value ? 'by-date' : searchSpace.value ? 'full' : 'smart';
         void stepAwayRunStarted(deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart').then(
           blackBoxBeat
@@ -8843,14 +8849,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       } else {
         // A progress send still building its CSV so far gives way to the run's final send.
         supersedeProgressSend();
+        // A start whose storage did not answer (abandonRunStart) never ran (review 7 Nov 2026, finding 9): not the
+        // player's Stop, and not a crash to carry on. The phone and the long-run alert hear 'failed' (the alert's
+        // start may already have gone); the step-away mark is removed, not ended; the black box closes.
+        const abandoned = startAbandoned;
+        startAbandoned = false;
         // Stop pressed reads stopped whatever came after; otherwise as the run itself said (`runEnd`).
-        const how = stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
-        lastRunFailed = how === 'failed';
-        stepAwayRunEnded(how);
+        const how = abandoned ? 'failed' : stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
+        lastRunFailed = how === 'failed' && !abandoned;
+        if (abandoned) stepAwayRunNeverStarted("the run's storage did not answer at its start");
+        else stepAwayRunEnded(how);
         watchLinkRunEnded(how);
         // A failed run keeps its open beat: the black box then reads it as the crash it is, and the
         // next page (the watcher's reopen) carries it on.
-        if (how !== 'failed') {
+        if (how !== 'failed' || abandoned) {
           blackBox.end('search');
           blackBox.end('deadline search');
         }

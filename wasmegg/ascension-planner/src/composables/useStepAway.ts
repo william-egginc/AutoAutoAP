@@ -252,6 +252,20 @@ export function stepAwayRunEnded(how: 'finished' | 'stopped' | 'failed'): void {
     sa.writeRunMark({ ...m, status, endedAt: m.endedAt ?? Date.now() });
     post({ type: 'ended', status });
   }
+  runOver();
+}
+
+/**
+ * The run on this page never started: its storage did not answer at its start (stores/chainSearch.ts
+ * `abandonRunStart`; review 7 Nov 2026, finding 9). Not the player's Stop, and not a crash to carry on into the same
+ * wait: its mark goes (if the start's limit has not already removed it) and nothing is marked ended.
+ */
+export function stepAwayRunNeverStarted(why: string): void {
+  if (ownMark()) stepAwayDropRunMark(why);
+  runOver();
+}
+
+function runOver(): void {
   ownStartedAt = 0;
   stopPressed = false;
   restoreBudget();
