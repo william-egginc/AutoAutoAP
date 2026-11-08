@@ -8875,8 +8875,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // A progress send still building its CSV so far gives way to the run's final send.
         supersedeProgressSend();
         // A start whose storage did not answer (abandonRunStart) never ran (review 7 Nov 2026, finding 9): not the
-        // player's Stop, and not a crash to carry on. The phone and the long-run alert hear 'failed' (the alert's
-        // start may already have gone); the step-away mark is removed, not ended; the black box closes.
+        // player's Stop, and not a crash to carry on. The long-run alert hears 'failed' (its start may already have
+        // gone); the phone hears it ended quietly ('stopped' sends no warning: Jordan, 8 Nov 2026); the step-away mark
+        // is removed, not ended; the black box closes.
         const abandoned = startAbandoned;
         startAbandoned = false;
         // Stop pressed reads stopped whatever came after; otherwise as the run itself said (`runEnd`).
@@ -8884,7 +8885,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         lastRunFailed = how === 'failed' && !abandoned;
         if (abandoned) stepAwayRunNeverStarted("the run's storage did not answer at its start");
         else stepAwayRunEnded(how);
-        watchLinkRunEnded(how);
+        watchLinkRunEnded(abandoned ? 'stopped' : how);
         // A failed run keeps its open beat: the black box then reads it as the crash it is, and the
         // next page (the watcher's reopen) carries it on.
         if (how !== 'failed' || abandoned) {
