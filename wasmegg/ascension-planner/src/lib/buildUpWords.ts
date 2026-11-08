@@ -18,15 +18,15 @@
  * one-level research keeps "(0 → 1)": "Bigger Eggs (0 → max)" says no more and reads as if there were levels to buy
  * out. Without an id (or one the data doesn't know) the range keeps its numbers.
  *
- * Player-facing words here are DRAFT (Words reviews them; ~/code/aaap-tools/notes/spec-rangewords.md,
+ * Player-facing words here are final (Words, 8 Nov 2026;  ~/code/aaap-tools/notes/spec-rangewords.md,
  * ~/code/aaap-tools/notes/spec-maxlevel.md).
  */
 import { allResearches } from 'lib';
 
-/** The range arrow (DRAFT): U+2192. The Manual Planner's summary writes ' -> '. */
+/** The range arrow (final): U+2192. The Manual Planner's summary writes ' -> '. */
 export const RANGE_ARROW = '→';
 
-/** The word for a research's max level (DRAFT). */
+/** The word for a research's max level (final). */
 export const MAX_LEVEL_WORD = 'max';
 
 /** The fewest levels a research has for its max to read MAX_LEVEL_WORD: a one-level research keeps "1". */
@@ -52,7 +52,7 @@ export function researchRangeWords(name: string, before: number, after: number, 
   return `${name} (${before} ${RANGE_ARROW} ${levelWords(after, researchMaxLevel(id))})`;
 }
 
-/** The cheap sweep mark (DRAFT words): after a sweep name on a mixed line, or once at the end of an all-sweep line. */
+/** The cheap sweep mark (final words): after a sweep name on a mixed line, or once at the end of an all-sweep line. */
 export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
 
 /** Why the Build-up tracker gave up when its plan took longer than its overall cap (spec-stuck3; Jordan's OK, 7 Nov 2026):
@@ -61,15 +61,15 @@ export function trackerCapReason(minutes: number): string {
   return `it took over ${minutes} minutes`;
 }
 
-/** The tracker's List / Compact toggle (spec-trackercompact, 8 Nov 2026; DRAFT words): the group's name and its two
+/** The tracker's List / Compact toggle (spec-trackercompact, 8 Nov 2026; final words): the group's name and its two
  *  buttons. */
 export const TRACKER_VIEW_LABEL = 'Show the build-up as';
 export const TRACKER_VIEW_LIST = 'List';
 export const TRACKER_VIEW_COMPACT = 'Compact';
 
-/** Compact (spec-trackercompact; DRAFT words). A sale line as a chip: "sale on 10:00 am", "sale off 10:00 am". */
+/** Compact (spec-trackercompact; final words). A sale line as a chip: "sale starts 10:00 am", "sale ends 10:00 am". */
 export function compactSaleWords(on: boolean, time: string): string {
-  return `${on ? 'sale on' : 'sale off'}${time ? ` ${time}` : ''}`;
+  return `${on ? 'sale starts' : 'sale ends'}${time ? ` ${time}` : ''}`;
 }
 /** A day's check-ins and when: "4 check-ins · 8:00 am to 9:46 am", "1 check-in · 9:52 am". */
 export function checkInSpanWords(n: number, first: string, last: string): string {
@@ -86,7 +86,7 @@ export const COMPACT_JUMP = 'show this day in the list';
 export const COMPACT_DONE_SR = '(done)';
 export const COMPACT_BOUGHT_SR = '(bought)';
 
-/** Done work folded into one line that says what was bought (spec-trackercompact; DRAFT words). `ranges`: the research
+/** Done work folded into one line that says what was bought (spec-trackercompact; final words). `ranges`: the research
  *  ranges; `others`: the other things done, in the lines' words without "buy". "bought A (1 → 2), B (3 → max); shift to
  *  Kindness"; with no research, the others alone. */
 export function boughtWords(ranges: readonly string[], others: readonly string[]): string {
@@ -103,8 +103,8 @@ export function boughtRunLead(first: string, last: string): string {
 /** Compact's done run inside today, and the label of what is left. */
 export const BOUGHT_SO_FAR = 'Bought so far:';
 export const STILL_TO_BUY = 'Still to buy';
-/** The group line over the older done days: "Earlier: 2 days, all bought". */
-export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n === 1 ? '' : 's'}, all bought`;
+/** The group line over the older done days: "Earlier: 2 days, all done" (a done day can hold shifts, not only buys). */
+export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n === 1 ? '' : 's'}, all done`;
 /** The cap's button when an open day has more lines to do than it shows: "Show all 101 still to do". */
 export const showAllToDoWords = (n: number): string => `Show all ${n} still to do`;
 /** Said after a done day's line for a screen reader. */

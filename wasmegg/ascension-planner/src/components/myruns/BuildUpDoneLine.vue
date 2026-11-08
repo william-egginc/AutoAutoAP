@@ -2,7 +2,7 @@
   The Build-up tracker's green "done" line (spec-trackercompact, 8 Nov 2026): done work folded into one line that says
   what was bought, a button that opens (or goes to) the lines it stands for. One for a done day ("✓ Fri Oct 30 · bought
   …"), one for an open day's leading run of done lines ("✓ Bought 8:41 am to 9:01 am: …"), one for the group over the
-  older done days ("✓ Earlier: 2 days, all bought"). The ✓ and the chevron are hidden from screen readers; the words say
+  older done days ("✓ Earlier: 2 days, all done"). The ✓ and the chevron are hidden from screen readers; the words say
   it, and aria-expanded says whether it is open. 44 px high, the whole line the target. Words: lib/buildUpWords.ts (DRAFT).
 -->
 <template>
