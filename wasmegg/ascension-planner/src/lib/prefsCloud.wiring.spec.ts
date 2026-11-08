@@ -57,8 +57,8 @@ describe('your choices and Setup saved online: wiring', () => {
     expect(loading).not.toMatch(/putPrefs|changed\(/);
   });
 
-  it('the collector URL is the chain-search store\'s submit URL, and the page makes the store', () => {
-    expect(read('stores/prefs.ts')).toContain('prefsUrlOf(searchStore()?.submitUrl)');
+  it('the collector URL is the chain-search store\'s submit URL (through the Save online gate), and the page makes the store', () => {
+    expect(read('stores/prefs.ts')).toContain('prefsUrlOf(cloudSubmitUrl(searchStore()?.submitUrl))');
     expect(read('App.vue')).toMatch(/\nusePrefsStore\(\);\n/);
   });
 });

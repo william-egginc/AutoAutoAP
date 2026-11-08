@@ -59,7 +59,7 @@ describe('the followed route saved online: wiring', () => {
   });
 
   it('the collector URL is the chain-search store\'s submit URL', () => {
-    expect(read('stores/follow.ts')).toContain('followUrlOf(searchStore()?.submitUrl)');
+    expect(read('stores/follow.ts')).toContain('followUrlOf(cloudSubmitUrl(searchStore()?.submitUrl))');
   });
 
   it('every Follow button passes the finish, except another player\'s board row (their account, not comparable)', () => {
