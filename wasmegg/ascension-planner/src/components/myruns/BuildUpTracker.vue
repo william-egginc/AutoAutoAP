@@ -272,9 +272,9 @@
                       ></span
                     >
                     <span v-else-if="statusOf(l) === 'bought'"
-                      >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></span
+                      >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">{{ isBuy(l) ? 'bought' : 'done' }}</span></span
                     >
-                    <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}to buy</span>
+                    <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}{{ isBuy(l) ? 'to buy' : 'to do' }}</span>
                   </component>
                   <button
                     v-if="l.tickable && canClear(l)"
@@ -764,6 +764,12 @@ function statusOf(l: TrackerLine): 'bought' | 'partial' | 'toBuy' | null {
   const b = boughtOf(l);
   if (!b || b.auto === null || props.tickSource?.get(l.key) === 'you') return null;
   return b.auto ? 'bought' : b.bought > 0 ? 'partial' : 'toBuy';
+}
+/** A line that buys something (research, vehicles, habs, silos): "to buy"; a shift, a prestige or a set swap the save
+ *  hasn't done is "to do" (spec-uxpass item 3, 8 Nov 2026: "· to buy" read under the shift and set-swap lines). */
+const BUY_KINDS: ReadonlySet<TrackerLine['kind']> = new Set(['research', 'trains', 'trainCars', 'vehicle', 'hab', 'silo']);
+function isBuy(l: TrackerLine): boolean {
+  return BUY_KINDS.has(l.kind);
 }
 /** A partly bought research line: its bought names struck through. */
 function struck(l: TrackerLine): boolean {

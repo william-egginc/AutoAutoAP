@@ -225,6 +225,26 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     expect(html).not.toMatch(new RegExp(`data-testid="buildup-status-${first.key.replace(':', '\\:')}"`));
   });
 
+  it('"to buy" only on buy lines; a shift or a set swap the save has not done is "to do" (spec-uxpass item 3, 8 Nov 2026)', async () => {
+    const html = await renderHtml(BuildUpTracker, fromSave(save(PART)));
+    /** Each rendered line of `kind`, its whole <li>. */
+    const lis = (kind: string) => html.split('<li').filter(x => x.includes(`data-testid="buildup-line-${kind}"`));
+    const shifts = lis('shift');
+    const swaps = lis('setSwap');
+    expect(shifts.length).toBeGreaterThan(0);
+    expect(swaps.length).toBeGreaterThan(0);
+    for (const li of [...shifts, ...swaps]) {
+      expect(li).not.toContain('to buy');
+      expect(li).toMatch(/<span class="sr-only"> · to do<\/span>/);
+    }
+    // A research line with nothing bought keeps "to buy".
+    const research = lis('research').filter(li => !li.includes('bought'));
+    expect(research.length).toBeGreaterThan(0);
+    expect(research[0]).toMatch(/<span class="sr-only"> · to buy<\/span>/);
+    // Done from the save: "bought" on a buy line, "done" on the others (the same rule, read from the template).
+    expect(fs.readFileSync(path.join(__dirname, 'BuildUpTracker.vue'), 'utf8')).toContain(`{{ isBuy(l) ? 'bought' : 'done' }}`);
+  });
+
   it('a save older than the plan, or from before its prestige: said, nothing ticked', async () => {
     const older = await renderHtml(BuildUpTracker, fromSave(save({}, { siloCount: 0 })));
     expect(textOf(older)).toContain("This save is older than the plan's start, so nothing is ticked from it.");
