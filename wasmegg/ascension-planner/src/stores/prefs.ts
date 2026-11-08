@@ -31,7 +31,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
-import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
+import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
 import { stepAwayOptions } from '@/composables/useStepAway';
 import { readAutoEveryMin } from '@/search/stepAway';
@@ -57,6 +57,7 @@ import {
   type CloudSetup,
   type ConsentNow,
   type PrefsFail,
+  type PrefsFetch,
   type PrefsKind,
   type SetupNow,
   type SyncedConsent,
@@ -475,6 +476,8 @@ export const usePrefsStore = defineStore('prefs', () => {
       readyIdRef.value = '';
       const id = sig.slice(0, sig.lastIndexOf('|'));
       const url = sig.slice(sig.lastIndexOf('|') + 1);
+      // No collector (Save online off): the read kept for the minute is from before, so turning it on reads as a load.
+      if (!url) lastRead = null;
       void load(id, url, g).catch(() => {
         if (g === gen) cloudStatus.value = 'idle';
       });
@@ -487,6 +490,10 @@ export const usePrefsStore = defineStore('prefs', () => {
   /** A change of the player's: saved online 2 s after the last one, unless it came back to the value last synced. */
   function changed(kind: PrefsKind): void {
     if (applying > 0) return;
+    if (!saveOnlineOn()) {
+      keepWhileOff(kind);
+      return;
+    }
     if (!ready.value[kind]) {
       if (kind === 'consent' && readyIdRef.value) missed.consent = true;
       return;
@@ -512,6 +519,23 @@ export const usePrefsStore = defineStore('prefs', () => {
     }
   }
 
+  /**
+   * Save online off (lib/saveOnline.ts): nothing is read, so the kind is never ready, but a change of the player's is
+   * still kept here with its time (pending), as a change that couldn't be sent is: the load when it comes back on then
+   * weighs it against what is saved online, and an older saved value doesn't undo it.
+   */
+  function keepWhileOff(kind: PrefsKind): void {
+    try {
+      const hash = partition.value;
+      if (!hash || !readyIdRef.value) return;
+      const at = Date.now();
+      const value = valueNow(kind, at);
+      if (value) writeLocalAt(hash, kind, { at, sig: prefsSig(value), pending: true });
+    } catch {
+      // quiet: this browser keeps the change itself
+    }
+  }
+
   async function flush(kind: PrefsKind): Promise<void> {
     if (timers[kind]) clearTimeout(timers[kind]);
     timers[kind] = undefined;
@@ -533,7 +557,8 @@ export const usePrefsStore = defineStore('prefs', () => {
         saves.value = { ...saves.value, [kind]: { state: 'waiting', why: 'limit' } };
         return;
       }
-      const r = await putPrefs(p.url, p.key, kind, p.value);
+      // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
+      const r = await putPrefs(p.url, p.key, kind, p.value, onlineFetch<PrefsFetch>());
       // Sent again stamped now (the collector refused an `at` over 10 minutes ahead of its clock): kept here with it.
       let at = p.value.at;
       if (r.resentAt !== undefined) {

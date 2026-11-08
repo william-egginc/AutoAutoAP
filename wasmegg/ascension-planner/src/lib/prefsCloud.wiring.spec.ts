@@ -39,7 +39,7 @@ describe('your choices and Setup saved online: wiring', () => {
   it('the store hands the calls the key, never the ID; the ID goes only into the hashes and the name store', () => {
     const store = read('stores/prefs.ts');
     expect(store).toContain('getPrefs(url, k)');
-    expect(store).toContain('putPrefs(p.url, p.key, kind, p.value)');
+    expect(store).toContain('putPrefs(p.url, p.key, kind, p.value, onlineFetch<PrefsFetch>())');
     const takes = [...store.matchAll(/(\w+)\(id\)/g)].map(m => m[1]);
     // `knownName`: the "Credit me as" name for the credit (the name store, else the header's name; useStudy.ts).
     expect([...new Set(takes)].sort()).toEqual(['accountHash', 'anonymousFor', 'knownName', 'load', 'nameFor', 'prefsKey']);
@@ -57,8 +57,8 @@ describe('your choices and Setup saved online: wiring', () => {
     expect(loading).not.toMatch(/putPrefs|changed\(/);
   });
 
-  it('the collector URL is the chain-search store\'s submit URL, and the page makes the store', () => {
-    expect(read('stores/prefs.ts')).toContain('prefsUrlOf(searchStore()?.submitUrl)');
+  it('the collector URL is the chain-search store\'s submit URL (through the Save online gate), and the page makes the store', () => {
+    expect(read('stores/prefs.ts')).toContain('prefsUrlOf(cloudSubmitUrl(searchStore()?.submitUrl))');
     expect(read('App.vue')).toMatch(/\nusePrefsStore\(\);\n/);
   });
 });

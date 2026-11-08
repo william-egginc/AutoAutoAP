@@ -37,7 +37,7 @@ describe('the followed route saved online: wiring', () => {
   it('the store hands the calls the key, never the ID; the ID goes only into the two hashes', () => {
     const store = read('stores/follow.ts');
     expect(store).toContain('getFollows(url, k)');
-    expect(store).toContain('putFollow(url, cloudKey.value, goalKey, built.value)');
+    expect(store).toContain('putFollow(url, cloudKey.value, goalKey, built.value, onlineFetch<FetchLike>())');
     expect(store).toContain('getFollowHistory(url, cloudKey.value, goalKey)');
     expect(store).toContain("const k = id ? await followKey(id).catch(() => '') : '';");
     // Every call that takes the ID: the two hashes only.
@@ -59,7 +59,7 @@ describe('the followed route saved online: wiring', () => {
   });
 
   it('the collector URL is the chain-search store\'s submit URL', () => {
-    expect(read('stores/follow.ts')).toContain('followUrlOf(searchStore()?.submitUrl)');
+    expect(read('stores/follow.ts')).toContain('followUrlOf(cloudSubmitUrl(searchStore()?.submitUrl))');
   });
 
   it('every Follow button passes the finish, except another player\'s board row (their account, not comparable)', () => {

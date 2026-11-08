@@ -37,7 +37,7 @@ import { saveTEOf } from '@/lib/saveFreshness';
 import { sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { applyAutoStartingTE } from '@/auto/startingTE';
-import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
+import { cloudSubmitUrl, onlineFetch, saveOnlineOn } from '@/lib/saveOnline';
 import {
   OVERRIDE_SLOT,
   SYNC_RECORDS,
@@ -53,6 +53,7 @@ import {
   type LocalOverride,
   type OverrideRecord,
   type OverrideResolution,
+  type SyncFetch,
   type SyncMeta,
   type TEByEgg,
 } from '@/lib/syncedRecords';
@@ -176,6 +177,8 @@ let pausedUntil = 0;
 let pending: { playerId: string; url: string; k: string; at: number; value: OverrideRecord } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastReadAt = 0;
+/** A record left unweighed because a search was running: read again when it ends. */
+let deferred = false;
 
 /** Specs: a new page load. */
 export function resetOverrideSync(): void {
@@ -186,6 +189,7 @@ export function resetOverrideSync(): void {
   if (timer) clearTimeout(timer);
   timer = null;
   lastReadAt = 0;
+  deferred = false;
 }
 
 function searchStore() {
@@ -207,6 +211,11 @@ function where(): { url: string; k: string } | null {
   } catch {
     return null;
   }
+}
+/** A search running or starting: the starting TE is what it reads, so nothing changes it under it. */
+function searchBusy(): boolean {
+  const s = searchStore() as { isRunning?: boolean; deadlineRunning?: boolean } | null;
+  return !!s && (!!s.isRunning || !!s.deadlineRunning);
 }
 function saveTENow(): number | null {
   const raw = useInitialStateStore().rawBackup as { virtue?: unknown } | null;
@@ -241,6 +250,11 @@ function removeHere(playerId: string, account: string, at: number): void {
   if (offer.value?.account === account) offer.value = null;
 }
 function apply(res: OverrideResolution, playerId: string, account: string): void {
+  // Never under a running search (as stores/prefs.ts leaves a newer Setup): read again when it ends (`useOverrideSync`).
+  if ((res.act === 'adopt' || res.act === 'remove') && searchBusy()) {
+    deferred = true;
+    return;
+  }
   if (res.act === 'adopt') adopt(playerId, account, res.teEarned, res.at, res.saveTE);
   else if (res.act === 'remove') removeHere(playerId, account, res.at);
   else if (res.act === 'ask')
@@ -297,16 +311,18 @@ export async function flushOverrideSync(): Promise<void> {
   pending = null;
   if (!p) return;
   try {
-    // Save online turned off (or the sync, or a 404 since): the change stays in this browser.
+    // Save online turned off (or the sync, or a 404 since): the change stays in this browser. Another account loaded
+    // since: it still goes, under its own account's key (as stores/prefs.ts sends a change waiting at a switch).
     const w = where();
-    if (!w || w.url !== p.url || w.k !== p.k) return;
+    if (!w || w.url !== p.url) return;
     const wait = pausedUntil - Date.now();
     if (wait > 0) {
       pending = p;
       timer = setTimeout(() => void flushOverrideSync(), wait);
       return;
     }
-    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value);
+    // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
+    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value, onlineFetch<SyncFetch>());
     if (r.resentAt !== undefined) {
       if ('removed' in p.value) writeRemovedAt(p.playerId, r.resentAt);
       else if (readLocalOverride(p.playerId).at === p.at) stampLocal(p.playerId, r.resentAt, (p.value as { saveTE?: number }).saveTE);
@@ -435,6 +451,11 @@ export function useOverrideSync(): void {
     () => void syncOverrideFromCloud(),
     { immediate: true }
   );
+  watch(searchBusy, busy => {
+    if (busy || !deferred) return;
+    deferred = false;
+    void syncOverrideFromCloud();
+  });
   if (typeof document === 'undefined') return;
   const onVisible = () => {
     if (document.visibilityState === 'visible' && Date.now() - lastReadAt >= OVERRIDE_REREAD_MS) void syncOverrideFromCloud();

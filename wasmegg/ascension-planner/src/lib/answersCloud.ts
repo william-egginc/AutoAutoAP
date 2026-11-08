@@ -421,6 +421,10 @@ export class AnswersClient {
       return 'skipped';
     }
     const body = await encodeAnswer({ v: 1, goal: o.goal, at: o.at, snap: o.snap, pricing: o.pricing });
+    // Save online turned off (lib/saveOnline.ts), or another account, while the list was read or the answer compressed:
+    // not sent, the offer left waiting.
+    const still = this.ready();
+    if (!still || still.url !== r.url || still.k !== r.k) return 'skipped';
     // An offer made while this one was being compressed is still wanted (its own timer sends it): clear only our own.
     if (this.pending === o) this.pending = null;
     if (!body) return 'skipped';
