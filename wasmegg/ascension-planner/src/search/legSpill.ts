@@ -208,13 +208,15 @@ export class LegSpill implements LegTailSource {
    */
   async restore(size: number): Promise<{ routes: number; bytes: number }> {
     await this.pending;
+    // The file's size first: a backend that cannot answer (a dead spill worker) throws here and leaves the index as it
+    // was, not emptied (review 7 Nov 2026, finding 11).
+    const have = await this.backend.size();
     this.index.clear();
     this.records = 0;
     this.buffer = [];
     this.buffered = 0;
     this.bufferedKeys = [];
     this.stoppedText = null;
-    const have = await this.backend.size();
     let keep = Math.max(0, Math.min(size, have));
     // Only whole records: a cut inside one (a checkpoint length from a file that lost its tail) drops it.
     let pos = 0;

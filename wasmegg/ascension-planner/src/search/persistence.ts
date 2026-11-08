@@ -444,8 +444,15 @@ export async function saveCheckpoint(
     }
   } catch (e) {
     if ((e as { setAside?: boolean }).setAside) throw e;
-    // A read failure must not stop the write. Losing the merge is survivable; losing the
-    // checkpoint entirely is what this whole module exists to prevent.
+    // The database did not answer the read (db.ts's open or transaction bound, review 7 Nov 2026 finding 2): the slot
+    // may hold an unfinished run that could neither be merged nor set aside, and the write could go through once the
+    // other tab lets go, replacing it. Skip this write; the caller tries again at its next checkpoint, when the read
+    // can answer. (Setting the prior aside first is not possible: it is the record that could not be read.)
+    if ((e as { noAnswer?: boolean }).noAnswer) {
+      throw Object.assign(new Error('the checkpoint was not written: the saved one could not be read'), { cause: e, noAnswer: true });
+    }
+    // A read that ANSWERED with an error must not stop the write. Losing the merge is survivable;
+    // losing the checkpoint entirely is what this whole module exists to prevent.
   }
   await saveMetadata(partitionHash, METADATA_KEY, merged);
 }

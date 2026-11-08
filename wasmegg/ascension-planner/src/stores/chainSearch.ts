@@ -222,12 +222,14 @@ import {
   stepAwayOptions,
   stepAwayPageClosing,
   stepAwayRunEnded,
+  stepAwayRunNeverStarted,
   stepAwayDropRunMark,
   stepAwayRunStarted,
   stepAwayStopPressed,
 } from '@/composables/useStepAway';
 import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
 import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
+import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 import {
   currentWatchLink,
@@ -3803,19 +3805,43 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function restoreLegSpill(kind: 'fastest' | 'deadline', bytes: number | undefined): Promise<void> {
     if (kind === 'fastest') spilled = new WeakSet();
     // The page's: the account's own file, opened at its first run (the CLI sets its spill itself).
-    if (openLegSpill && !legSpillSet[kind] && partitionHash && legSpillFor[kind] !== partitionHash) {
+    const opener = openLegSpill && !legSpillSet[kind] ? openLegSpill : null;
+    const open = async (): Promise<void> => {
+      if (!opener || !partitionHash) return;
       await legSpills[kind]?.close().catch(() => {});
-      legSpills[kind] = await openLegSpill(kind, partitionHash, planTimezone()).catch(() => null);
-      legSpillFor[kind] = partitionHash;
+      legSpills[kind] = await opener(kind, partitionHash, planTimezone()).catch(() => null);
+      // Only an open spill is kept for the account: with none, the next run asks again (review 7 Nov 2026,
+      // finding 11), the other tab may have let go of the file by then.
+      legSpillFor[kind] = legSpills[kind] ? partitionHash : '';
       // No spill here: Setup > Memory says why (no OPFS, another tab holds the file).
       if (!legSpills[kind]) legSpillInfo.value = { routes: 0, bytes: 0, stopped: null, unavailable: lastSpillOpenFailure() ?? 'error' };
+    };
+    let fresh = false;
+    if (opener && partitionHash && legSpillFor[kind] !== partitionHash) {
+      await open();
+      fresh = true;
     }
-    const spill = legSpills[kind];
-    if (!spill) return;
-    try {
-      await spill.restore(bytes ?? 0);
-    } catch (e) {
-      console.warn('chain search: could not reopen the leg spill', e);
+    for (;;) {
+      const spill = legSpills[kind];
+      if (!spill) return;
+      try {
+        await spill.restore(bytes ?? 0);
+        return;
+      } catch (e) {
+        console.warn('chain search: could not reopen the leg spill', e);
+      }
+      // One spill-worker failure must not turn the spill off for the page (review 7 Nov 2026, finding 11): a spill
+      // that cannot be read is let go, and one kept from an earlier run is opened afresh once (a new worker).
+      if (!opener || fresh) {
+        if (opener) {
+          await spill.close().catch(() => {});
+          legSpills[kind] = null;
+          legSpillFor[kind] = '';
+        }
+        return;
+      }
+      await open();
+      fresh = true;
     }
   }
 
@@ -6534,19 +6560,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function runStorageLimit(what: string): StorageLimit {
     return storageLimit(what, {
-      progress: lastSpillAnswerAt,
+      // The spill worker's messages and IndexedDB's answers both count (review 7 Nov 2026, finding 7).
+      progress: () => Math.max(lastSpillAnswerAt(), lastDbAnswerAt()),
       onExpire: e => {
         console.warn(`chain search: ${e.message}. The page goes on without it.`);
         stepAwayDropRunMark(`${what} did not answer`);
       },
     });
   }
+  /** Set by `abandonRunStart`, read (and cleared) by the run watcher when the running flags go. */
+  let startAbandoned = false;
   /** A run's start whose storage did not answer: no run, the flags cleared, and the screen says why. */
   function abandonRunStart(kind: 'fastest' | 'deadline'): void {
     error.value = RUN_STORAGE_STUCK;
     errorBeforeStart.value = true;
     // Never a crash to carry on (the black box and the watcher read a failed run as one): it never started.
     runEnd = 'stopped';
+    // Nor the player's Stop (review 7 Nov 2026, finding 9): the run watcher reports it as a run that never started.
+    startAbandoned = true;
     stage.value = 'idle';
     if (kind === 'fastest') isRunning.value = false;
     else deadlineRunning.value = false;
@@ -8824,6 +8855,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (blackBoxTimer) clearInterval(blackBoxTimer);
       blackBoxTimer = null;
       if (running) {
+        startAbandoned = false;
         lastRunKind = deadlineRunning.value ? 'by-date' : searchSpace.value ? 'full' : 'smart';
         void stepAwayRunStarted(deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart').then(
           blackBoxBeat
@@ -8841,14 +8873,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       } else {
         // A progress send still building its CSV so far gives way to the run's final send.
         supersedeProgressSend();
+        // A start whose storage did not answer (abandonRunStart) never ran (review 7 Nov 2026, finding 9): not the
+        // player's Stop, and not a crash to carry on. The phone and the long-run alert hear 'failed' (the alert's
+        // start may already have gone); the step-away mark is removed, not ended; the black box closes.
+        const abandoned = startAbandoned;
+        startAbandoned = false;
         // Stop pressed reads stopped whatever came after; otherwise as the run itself said (`runEnd`).
-        const how = stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
-        lastRunFailed = how === 'failed';
-        stepAwayRunEnded(how);
+        const how = abandoned ? 'failed' : stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
+        lastRunFailed = how === 'failed' && !abandoned;
+        if (abandoned) stepAwayRunNeverStarted("the run's storage did not answer at its start");
+        else stepAwayRunEnded(how);
         watchLinkRunEnded(how);
         // A failed run keeps its open beat: the black box then reads it as the crash it is, and the
         // next page (the watcher's reopen) carries it on.
-        if (how !== 'failed') {
+        if (how !== 'failed' || abandoned) {
           blackBox.end('search');
           blackBox.end('deadline search');
         }
