@@ -7,7 +7,8 @@
  * WHY HERE, not in lib/autoPlannerFormCache.ts or lib/teOverrideAccount.ts: both are result code hash inputs
  * (lib/resultCodeHash.ts), and this must not move the hash. So the v2 value is EXTENDED here, in place, to
  * `{ teEarned, at, saveTE }` after the cache has written it (`noteTEOverrideChange`, called right after
- * `saveAutoPlannerTEInputs` by Virtue Progress's `cacheTEOverride` and the banner's buttons); the cache reads only
+ * `saveAutoPlannerTEInputs` by the banner's buttons, and for Virtue Progress's own `cacheTEOverride` by the cache
+ * observer below, so Joo's card carries no hook: spec-syncclient-nohook); the cache reads only
  * `teEarned`, and a value it rewrites without `at` counts as at 0 (the oldest: a newer cloud record is weighed). A
  * removal keeps its time beside it (`aap.teOverride.removedAt.<account>`). The read runs from App.vue
  * (`useOverrideSync`) when the account is set up, after lib/teOverrideAccount.ts `syncTEOverrideToAccount` has put this
@@ -125,6 +126,96 @@ function writeRemovedAt(playerId: string, at: number): void {
     // this visit only
   }
 }
+// ----------------------------------------------------------------------------------------- the cache observer
+
+/**
+ * THE PLAYER'S CHANGE, NOTICED FROM OUTSIDE THE CARD (spec-syncclient-nohook). lib/autoPlannerFormCache.ts
+ * `saveAutoPlannerTEInputs` is, by its own contract, called only from the player's actions (Virtue Progress's add, edit
+ * and remove, the banner's buttons), never from a load or a watcher: so a write of its key IS a user action, at the
+ * moment it happens. `installTECacheObserver` wraps this browser's localStorage `setItem` / `removeItem` (the Storage
+ * prototype in a browser, so no own property lands on localStorage; the object itself for a spec's stand-in) and, for
+ * a write to `auto_planner_te_inputs_v2:<id>`, calls `noteTEOverrideChange` there and then, so `at` is the action's time.
+ *
+ * Why not watch the planner store's `teOverride`: a load (lib/teOverrideAccount.ts), a restored plan
+ * (stores/autoPlanner.ts `setPlan`) and a cloud adoption set it too, and nothing on the store tells those apart from the
+ * player; none of them writes the cache. This module's own writes (the stamp, a cloud adoption, a removal from online)
+ * run `quietly`, so they are never taken for the player's. Every step is guarded: a failure leaves the write done.
+ *
+ * Other tabs: the `storage` event. A value that tab stamped (`at`) is its own to send; an unstamped one (a tab without
+ * this code) is noted here. A removal is the other tab's own when it kept its removal time in the last 5 seconds.
+ */
+const CACHE_PREFIX = `${TE_INPUTS_V2_PREFIX}:`;
+let quiet = 0;
+function quietly<T>(run: () => T): T {
+  quiet++;
+  try {
+    return run();
+  } finally {
+    quiet--;
+  }
+}
+function cacheWritten(area: unknown, key: unknown, value: string | null): void {
+  if (quiet || typeof key !== 'string' || !key.startsWith(CACHE_PREFIX) || area !== storage()) return;
+  try {
+    const playerId = key.slice(CACHE_PREFIX.length);
+    if (value === null) return noteTEOverrideChange(playerId, null);
+    const te = sanitizeTEOverride((JSON.parse(value) as { teEarned?: unknown } | null)?.teEarned);
+    if (te) noteTEOverrideChange(playerId, te);
+  } catch {
+    // not ours to read: the write itself stands
+  }
+}
+const observedTargets = new WeakSet<object>();
+let listening = false;
+/** Wrap this browser's localStorage writes once (idempotent), and listen to other tabs. */
+export function installTECacheObserver(): void {
+  try {
+    const st = storage();
+    if (st) {
+      const target = (typeof Storage !== 'undefined' && st instanceof Storage ? Storage.prototype : st) as StorageLike;
+      if (!observedTargets.has(target)) {
+        observedTargets.add(target);
+        const set = target.setItem;
+        const remove = target.removeItem;
+        target.setItem = function (this: unknown, key: string, value: string) {
+          set.call(this, key, value);
+          cacheWritten(this, key, value);
+        };
+        target.removeItem = function (this: unknown, key: string) {
+          remove.call(this, key);
+          cacheWritten(this, key, null);
+        };
+      }
+    }
+  } catch {
+    // no observer: the banner's buttons still note their own changes
+  }
+  if (!listening && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    listening = true;
+    window.addEventListener('storage', e => onTECacheStorageEvent(e));
+  }
+}
+/** Another tab wrote the cache (exported for the spec). */
+export function onTECacheStorageEvent(e: Pick<StorageEvent, 'key' | 'storageArea'>): void {
+  try {
+    if (!e.key || !e.key.startsWith(CACHE_PREFIX) || e.storageArea !== storage()) return;
+    const playerId = e.key.slice(CACHE_PREFIX.length);
+    // What is there now (the other tab's stamp may already have followed its write).
+    const now = storage()?.getItem(e.key) ?? null;
+    if (now === null) {
+      const removedAt = readLocalOverride(playerId).removedAt;
+      if (removedAt && Date.now() - removedAt < 5000) return;
+      return noteTEOverrideChange(playerId, null);
+    }
+    const v = JSON.parse(now) as { teEarned?: unknown; at?: unknown } | null;
+    if (typeof v?.at === 'number') return;
+    const te = sanitizeTEOverride(v?.teEarned);
+    if (te) noteTEOverrideChange(playerId, te);
+  } catch {
+    // quiet
+  }
+}
+
 // ----------------------------------------------------------------------------------------- page state
 
 /** The question to ask (TeOverrideBanner.vue), or null. */
@@ -208,8 +299,10 @@ function plannerFor(account: string) {
   return p.teOverrideAccount === account ? p : null;
 }
 function adopt(playerId: string, account: string, te: TEByEgg, at: number, saveTE?: number): void {
-  saveAutoPlannerTEInputs(playerId, { teEarned: { ...te } });
-  stampLocal(playerId, at, saveTE);
+  quietly(() => {
+    saveAutoPlannerTEInputs(playerId, { teEarned: { ...te } });
+    stampLocal(playerId, at, saveTE);
+  });
   const p = plannerFor(account);
   if (p) {
     p.teOverride = { ...te };
@@ -218,8 +311,10 @@ function adopt(playerId: string, account: string, te: TEByEgg, at: number, saveT
   if (offer.value?.account === account) offer.value = null;
 }
 function removeHere(playerId: string, account: string, at: number): void {
-  saveAutoPlannerTEInputs(playerId, null);
-  writeRemovedAt(playerId, at);
+  quietly(() => {
+    saveAutoPlannerTEInputs(playerId, null);
+    writeRemovedAt(playerId, at);
+  });
   const p = plannerFor(account);
   if (p && p.teOverride) {
     p.teOverride = null;
@@ -259,6 +354,9 @@ function weigh(playerId: string, record: OverrideRecord, at: number): void {
  * (`saveAutoPlannerTEInputs`) wrote it: stamp it here and save it online 2 s after the last change. `te` null: removed.
  */
 export function noteTEOverrideChange(playerId: string, te: Partial<Record<string, number>> | null): void {
+  quietly(() => noteChange(playerId, te));
+}
+function noteChange(playerId: string, te: Partial<Record<string, number>> | null): void {
   try {
     if (!playerId) return;
     const at = Date.now();
@@ -407,7 +505,7 @@ export async function rejectCloudOverride(): Promise<void> {
   const p = plannerFor(o.account);
   if (p) p.teOverride = null;
   const applied = p ? applyAutoStartingTE().catch(() => undefined) : Promise.resolve();
-  saveAutoPlannerTEInputs(playerId, null);
+  quietly(() => saveAutoPlannerTEInputs(playerId, null));
   noteTEOverrideChange(playerId, null);
   await applied;
 }
@@ -415,10 +513,12 @@ export async function rejectCloudOverride(): Promise<void> {
 // ----------------------------------------------------------------------------------------- the page
 
 /**
- * App.vue: read when the account (or the collector, or the switch) changes, and when the tab becomes visible again,
+ * App.vue: install the cache observer; read when the account (or the collector, or the switch) changes, and when the tab becomes visible again,
  * at most every 5 minutes. No polling timer.
  */
 export function useOverrideSync(): void {
+  // Virtue Progress's own writes (no hook in Joo's card), and other tabs'.
+  installTECacheObserver();
   const follows = useFollowStore();
   const initial = useInitialStateStore();
   const planner = useAutoPlannerStore();
