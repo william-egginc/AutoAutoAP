@@ -215,22 +215,18 @@ export function installTECacheObserver(): void {
     window.addEventListener('storage', e => onTECacheStorageEvent(e));
   }
 }
-/** Another tab wrote the cache (exported for the spec). */
+/**
+ * Another tab wrote the cache (exported for the spec). NEVER sent from here (QA review 7 Nov 2026, finding 4): only the
+ * tab where the player acted sends, with the action's own time; a tab that adopted a record from online writes the
+ * cache quietly and sends nothing, so the event it causes here must not either (a fresh stamp here could beat a real
+ * newer override, or land after Delete everything). What it does here: a question still open for the account is
+ * answered by that change (the player acted in the other tab).
+ */
 export function onTECacheStorageEvent(e: Pick<StorageEvent, 'key' | 'storageArea'>): void {
   try {
     if (!e.key || !e.key.startsWith(CACHE_PREFIX) || e.storageArea !== storage()) return;
-    const playerId = e.key.slice(CACHE_PREFIX.length);
-    // What is there now (the other tab's stamp may already have followed its write).
-    const now = storage()?.getItem(e.key) ?? null;
-    if (now === null) {
-      const removedAt = readLocalOverride(playerId).removedAt;
-      if (removedAt && Date.now() - removedAt < 5000) return;
-      return noteTEOverrideChange(playerId, null);
-    }
-    const v = JSON.parse(now) as { teEarned?: unknown; at?: unknown } | null;
-    if (typeof v?.at === 'number') return;
-    const te = sanitizeTEOverride(v?.teEarned);
-    if (te) noteTEOverrideChange(playerId, te);
+    const account = accountOfId(e.key.slice(CACHE_PREFIX.length));
+    if (offer.value?.account === account) offer.value = null;
   } catch {
     // quiet
   }
@@ -269,8 +265,28 @@ let lastReadAt = 0;
 /** A record left unweighed because a search was running: read again when it ends. */
 let deferred = false;
 
+/**
+ * THE COLLECTOR'S CLOCK (QA review 7 Nov 2026, finding 6): `at` stamps are compared with other devices' on the
+ * collector, so a device whose clock is behind lost every edit (409) and an older removal from elsewhere undid it.
+ * GET /sync answers its `now`; a difference of a minute to a day becomes an offset for the stamps (`syncClock`).
+ * Under a minute: none (the request's own time); over a day: not believed, this clock kept.
+ */
+let clockOffset = 0;
+export const CLOCK_SKEW_MIN_MS = 60_000;
+export const CLOCK_SKEW_MAX_MS = 86_400_000;
+function noteServerNow(serverNow: number): void {
+  if (!Number.isFinite(serverNow) || serverNow <= 0) return;
+  const skew = serverNow - Date.now();
+  clockOffset = Math.abs(skew) < CLOCK_SKEW_MIN_MS || Math.abs(skew) > CLOCK_SKEW_MAX_MS ? 0 : skew;
+}
+/** Now, by the collector's clock when this device's is known to be off (ms). */
+export function syncClock(): number {
+  return Date.now() + clockOffset;
+}
+
 /** Specs: a new page load. */
 export function resetOverrideSync(): void {
+  clockOffset = 0;
   offer.value = null;
   offFor.clear();
   pausedUntil = 0;
@@ -379,7 +395,7 @@ export function noteTEOverrideChange(playerId: string, te: Partial<Record<string
 function noteChange(playerId: string, te: Partial<Record<string, number>> | null): void {
   try {
     if (!playerId) return;
-    const at = Date.now();
+    const at = syncClock();
     const saveTE = saveTENow();
     const account = accountOfId(playerId);
     if (te) {
@@ -417,7 +433,7 @@ export async function flushOverrideSync(): Promise<void> {
       return;
     }
     // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
-    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value, onlineFetch<SyncFetch>());
+    const r = await putSynced(p.url, p.k, 'override', OVERRIDE_SLOT, p.at, p.value, onlineFetch<SyncFetch>(), syncClock);
     if (r.resentAt !== undefined) {
       if ('removed' in p.value) writeRemovedAt(p.playerId, r.resentAt);
       else if (readLocalOverride(p.playerId).at === p.at) stampLocal(p.playerId, r.resentAt, (p.value as { saveTE?: number }).saveTE);
@@ -455,6 +471,7 @@ export async function syncOverrideFromCloud(): Promise<void> {
     if (!playerId || !accountOf(initial.rawBackup)) return;
     lastReadAt = Date.now();
     const list = await listSynced(w.url, w.k);
+    if (list.ok) noteServerNow(list.now);
     if (!list.ok) {
       if (list.why === 'missing') offFor.add(w.url);
       else if (list.why === 'limit') pauseSync(list.retryAfter ?? 60);

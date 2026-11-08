@@ -50,7 +50,7 @@ import {
   type TicksValue,
 } from '@/lib/syncedRecords';
 import { onlineFetch } from '@/lib/saveOnline';
-import { markSyncOff, onSyncList, pauseSync, syncPausedFor, syncWhere } from './useOverrideSync';
+import { markSyncOff, onSyncList, pauseSync, syncClock, syncPausedFor, syncWhere } from './useOverrideSync';
 
 export const TICKS_DEBOUNCE_MS = 10_000;
 export const TICKS_MAX_SLOTS = 3;
@@ -137,7 +137,7 @@ export function noteTicksChange(account: string, slot: number, _on?: ReadonlySet
   try {
     if (!account || !Number.isInteger(slot) || !SLOT.test(String(slot))) return;
     const m = ticksMeta(account, slot);
-    writeJson(ticksMetaKey(account, slot), { ...m, at: Math.max(Date.now(), m.at + 1) });
+    writeJson(ticksMetaKey(account, slot), { ...m, at: Math.max(syncClock(), m.at + 1) });
     if (!loaded(account) || !takeSlot(account, slot)) return;
     if (!syncWhere()) return;
     pending.set(`${account}|${slot}`, { account, slot });
@@ -170,7 +170,7 @@ async function sendTicks(account: string, slot: number, opts: { keepalive?: bool
     const m = ticksMeta(account, slot);
     const value = localTicks(account, slot);
     // Through the switch (lib/saveOnline.ts onlineFetch, Reliability): off during this PUT, its "ahead" resend never goes.
-    const r = await putSynced(w.url, w.k, 'ticks', String(slot), m.at, value, onlineFetch<SyncFetch>(), Date.now, opts);
+    const r = await putSynced(w.url, w.k, 'ticks', String(slot), m.at, value, onlineFetch<SyncFetch>(), syncClock, opts);
     if (r.ok) {
       const at = r.resentAt ?? m.at;
       writeJson(ticksMetaKey(account, slot), { at, synced: at });
@@ -182,7 +182,7 @@ async function sendTicks(account: string, slot: number, opts: { keepalive?: bool
       const merged = mergeTicks({ ...value, at: m.at }, { ...cloud, at: r.latest.at });
       writeLocalTicks(account, slot, merged);
       // Sent again ONCE with a fresh `at`, after the newer one's.
-      writeJson(ticksMetaKey(account, slot), { at: Math.max(Date.now(), r.latest.at + 1), synced: m.synced });
+      writeJson(ticksMetaKey(account, slot), { at: Math.max(syncClock(), r.latest.at + 1), synced: m.synced });
       trackerSyncVersion.value++;
       await sendTicks(account, slot, opts, false);
     } else if (r.why === 'missing') markSyncOff(w.url);
@@ -229,7 +229,7 @@ export async function notePlanKept(account: string, reason: 'first' | 'replan'):
     const kept = readAnchoredPlan(account);
     const slot = kept ? Math.floor(kept.ascensionStart) : NaN;
     if (!kept || !SLOT.test(String(slot))) return;
-    const at = Date.now();
+    const at = syncClock();
     const there = await getSyncedBytes(w.url, w.k, String(slot));
     if (!there.ok && there.why !== 'absent') {
       if (there.why === 'missing') markSyncOff(w.url);
@@ -279,7 +279,7 @@ async function fromList(records: SyncMeta[], w: { url: string; k: string }): Pro
     if (m.at > m.synced) {
       // A change here not sent yet: merged, and the merge sent.
       writeLocalTicks(account, slot, mergeTicks({ ...localTicks(account, slot), at: m.at }, { ...cloud, at }));
-      writeJson(ticksMetaKey(account, slot), { at: Math.max(Date.now(), at + 1), synced: m.synced });
+      writeJson(ticksMetaKey(account, slot), { at: Math.max(syncClock(), at + 1), synced: m.synced });
       pending.set(`${account}|${slot}`, { account, slot });
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void flushTrackerSync(), TICKS_DEBOUNCE_MS);

@@ -142,13 +142,11 @@ for (const order of ['watch, then the observer (the page: storageGuard.install.t
       expect(stamped(ss)?.at).toBeUndefined();
     });
 
-    it("another tab's write (the storage event) is still noted here", () => {
+    it("another tab's write (the storage event): read, never stamped or sent from here (QA finding 4), no throw", () => {
       const { localStorage: ls, nativeSet } = install();
-      // An unstamped value (a tab without this code) lands in storage, then the event: noted here, so stamped.
       nativeSet.call(ls as never, KEY, JSON.stringify({ teEarned: TE197 }));
+      expect(() => onTECacheStorageEvent({ key: KEY, storageArea: ls } as never)).not.toThrow();
       expect(stamped(ls)?.at).toBeUndefined();
-      onTECacheStorageEvent({ key: KEY, storageArea: ls } as never);
-      expect(typeof stamped(ls)?.at).toBe('number');
       expect(() => onTECacheStorageEvent({ key: 'other', storageArea: ls } as never)).not.toThrow();
     });
   });

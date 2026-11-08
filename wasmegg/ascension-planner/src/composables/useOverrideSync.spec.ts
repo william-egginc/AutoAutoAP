@@ -404,24 +404,17 @@ describe('spec-syncclient-nohook: the hook-less path', () => {
     expect(c.record(KEY, 'override')?.at).toBe(at);
   });
 
-  it("another tab's write (the storage event): an unstamped value (a tab without this code) is noted here; a stamped one is left to its tab", async () => {
+  it("another tab's write (the storage event): never sent from here, stamped or not (QA review 7 Nov 2026, finding 4)", async () => {
     const A = browser(mode);
     await A.load();
     const key = `${TE_INPUTS_V2_PREFIX}:${ID}`;
-    // The other tab, this build: it stamped its own write and sends it itself.
     A.mem.set(key, JSON.stringify({ teEarned: TE198, at: Date.now() - 10, saveTE: 198 }));
     onTECacheStorageEvent({ key, newValue: A.mem.get(key)!, storageArea: localStorage } as never);
+    A.mem.set(key, JSON.stringify({ teEarned: TE197 }));
+    onTECacheStorageEvent({ key, newValue: A.mem.get(key)!, storageArea: localStorage } as never);
+    onTECacheStorageEvent({ key: 'something.else', newValue: '1', storageArea: localStorage } as never);
     await vi.advanceTimersByTimeAsync(5_000);
     expect(syncPuts()).toEqual([]);
-    // An older tab: unstamped.
-    A.mem.set(key, JSON.stringify({ teEarned: TE197 }));
-    const at = Date.now();
-    onTECacheStorageEvent({ key, newValue: A.mem.get(key)!, storageArea: localStorage } as never);
-    await vi.advanceTimersByTimeAsync(5_000);
-    expect(c.record(KEY, 'override')).toEqual({ at, value: { ...TE197, saveTE: 198 } });
-    // Another key: nothing.
-    onTECacheStorageEvent({ key: 'something.else', newValue: '1', storageArea: localStorage } as never);
-    expect(syncPuts()).toHaveLength(1);
   });
 
   it('installing twice observes once', async () => {

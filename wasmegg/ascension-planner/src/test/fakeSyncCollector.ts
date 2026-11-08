@@ -30,7 +30,7 @@ export function fakeSyncCollector(base = 'https://collector.example') {
   const records = new Map<string, Map<string, FakeRecord>>();
   const other = new Map<string, { follows: number; prefs: number; answers: number }>();
   const calls: FakeCall[] = [];
-  const state = { mode: 'ok' as 'ok' | 'old' | 'limit' | 'off' | 'offline', retryAfter: 120, forgetMode: 'ok' as 'ok' | 'old' | '405' | 'limit' | 'offline' };
+  const state = { skewMs: 0, mode: 'ok' as 'ok' | 'old' | 'limit' | 'off' | 'offline', retryAfter: 120, forgetMode: 'ok' as 'ok' | 'old' | '405' | 'limit' | 'offline' };
   const of = (k: string) => {
     if (!records.has(k)) records.set(k, new Map());
     return records.get(k)!;
@@ -67,7 +67,8 @@ export function fakeSyncCollector(base = 'https://collector.example') {
       other.delete(k);
       return reply(200, { ok: true, deleted: { ...o, synced } });
     }
-    const now = Date.now();
+    // The collector's own clock (`skewMs` ahead of this device's: a device whose clock is behind).
+    const now = Date.now() + state.skewMs;
     if (u.pathname === '/sync/get') {
       const r = of(k).get(`${u.searchParams.get('kind')}|${u.searchParams.get('slot')}`);
       if (!r) return reply(404, { error: 'not found' });
