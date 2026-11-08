@@ -233,6 +233,8 @@ export const useFollowStore = defineStore('follow', () => {
       }
       // Nothing online for the goal: only a follow that never got there (marked saved or read back: left alone).
       if (!there && (f.cloud || f.sync === 'synced')) continue;
+      // Save online went off while the read was out: nothing is tried, so the try is still owed when it comes back on.
+      if (!followUrl()) return;
       const once = `${p}|${g}|${f.at}`;
       if (tried.has(once)) continue;
       tried.add(once);

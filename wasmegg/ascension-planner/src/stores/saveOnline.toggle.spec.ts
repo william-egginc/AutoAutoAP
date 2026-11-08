@@ -163,6 +163,8 @@ describe('turned on again within the minute', () => {
     };
     setSaveOnline(true);
     await vi.advanceTimersByTimeAsync(5_000);
+    // The store has taken the switch-off in (its account watch hashes first: real time, not the fake clock).
+    await vi.waitFor(() => expect(follows.autoReady).toBe(true));
     expect(puts('/follow')).toEqual([]);
     vi.setSystemTime(T0 + 120_000);
     setSaveOnline(true);
