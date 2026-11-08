@@ -16,6 +16,7 @@ import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { SYNC_RECORDS } from '@/lib/syncedRecords';
 import { resetSaveOnline, setSaveOnline } from '@/lib/saveOnline';
 import { fakeSyncCollector, type FakeSyncCollector } from '@/test/fakeSyncCollector';
+import { useForgetEverything } from '@/composables/useForgetEverything';
 import {
   OVERRIDE_SYNC_DEBOUNCE_MS,
   cloudOverrideOffer,
@@ -148,5 +149,28 @@ describe('Save online off', () => {
     });
     await flushOverrideSync();
     expect(syncPuts()).toHaveLength(1);
+  });
+});
+
+describe('Delete everything saved online', () => {
+  // DESIGN (left to UI / Jordan): the switch goes off only once /forget has answered, so a change whose 2 s end while
+  // the DELETE is out (here the starting TE; a Setup change or an answer the same) is written straight back after the
+  // delete. One way: turn Save online off before sending /forget and back on if it fails. Flip to `it` once fixed.
+  it.fails('a change waiting while the DELETE is out is not written back', async () => {
+    const A = browser();
+    await A.load();
+    A.type(TE197);
+    let answer: (() => void) | null = null;
+    vi.stubGlobal('fetch', (url: string, init?: { method?: string }) => {
+      const r = c.f(url, init as never);
+      return init?.method === 'DELETE' ? new Promise(res => (answer = () => res(r))) : r;
+    });
+    const d = useForgetEverything();
+    const done = d.confirm();
+    await vi.advanceTimersByTimeAsync(OVERRIDE_SYNC_DEBOUNCE_MS);
+    (answer as (() => void) | null)?.();
+    await done;
+    expect(d.phase.value).toBe('done');
+    expect(c.record(KEY, 'override')).toBeUndefined();
   });
 });
