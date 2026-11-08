@@ -67,6 +67,7 @@ import { calendarOf } from './clock';
 import { getResearchById } from '@/calculations/commonResearch';
 import { resultCode, sameResultCode } from './resultCode';
 import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';
+import { SALE_END_WORDS, SALE_START_WORDS } from './trackerSaleWords';
 
 export { CHEAP_SWEEP_MARK };
 
@@ -788,7 +789,7 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
       kind: e.kind,
       at: e.at,
       time: clock12(e.at, zone),
-      text: e.kind === 'saleStart' ? 'research sale starts (Manual Planner: sale on)' : 'research sale ends (Manual Planner: sale off)',
+      text: e.kind === 'saleStart' ? SALE_START_WORDS : SALE_END_WORDS,
       tail: '',
       bold: false,
       granular: false,
