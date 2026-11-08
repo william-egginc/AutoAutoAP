@@ -37,6 +37,9 @@ import {
   buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
+  FIRST_STEP_HOURS,
+  FIRST_STEP_HOURS_NIGHT_BUY,
+  mergeFirstStepCaveats,
 } from '@/lib/instantWords';
 import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import CollapsibleSection from './CollapsibleSection.vue';
@@ -130,6 +133,7 @@ function ctxOf(s: State): Record<string, unknown> {
     firstStep: '',
     firstStepWarn: '',
     nightBuyNote: false,
+    stepCaveat: { step: '', note: null },
     NIGHT_BUY_NOTE_SHORT,
     NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
@@ -267,6 +271,8 @@ function ctxOf(s: State): Record<string, unknown> {
 
 async function draw(s: State, over: Record<string, unknown> = {}, real: Record<string, Vue.Component> = {}): Promise<string> {
   const ctx = { ...ctxOf(s), ...over };
+  // First step and its one caveat line, as the page works them out (lib/instantWords.ts mergeFirstStepCaveats).
+  if (!('stepCaveat' in over)) ctx.stepCaveat = mergeFirstStepCaveats(String(ctx.firstStep ?? ''), !!ctx.nightBuyNote);
   const cache: unknown[] = [];
   const app = createSSRApp({ render: () => h(defineComponent({ render: () => render(ctx, cache) })) });
   // `real`: a part drawn as itself, not a stand-in (the Prestige by line below).
@@ -1100,6 +1106,15 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       expect(note).toBeGreaterThan(step);
       expect(note).toBeLessThan(box.indexOf('<InstantSteps'));
     });
+    it(`${name}: with the hours clause too, ONE merged line under First step (spec-uxpass item 9)`, async () => {
+      const html = await draw(at(answer, deadline), { ...words, firstStep: `${BUILD_STEP} ${FIRST_STEP_HOURS}`, nightBuyNote: true });
+      const box = textOf(html.slice(html.indexOf('data-testid="instant-box"')));
+      expect(count(box, FIRST_STEP_HOURS_NIGHT_BUY)).toBe(1);
+      expect(box).not.toContain(FIRST_STEP_HOURS);
+      expect(box).not.toContain(NIGHT_BUY_NOTE_SHORT);
+      expect(box).toContain(BUILD_STEP);
+      expect(count(html, 'data-testid="box-night-buy"')).toBe(1);
+    });
     it(`${name}: not shown when the page says no (no hours, a fresh start, the ascension you are in)`, async () => {
       const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: false });
       expect(html).not.toContain('data-testid="box-night-buy"');
@@ -1107,7 +1122,9 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     });
   }
   it('the page: shown with the hours that limit the answer and a first ascension that continues the build-up', () => {
-    expect(script).toMatch(/import \{[^}]*NIGHT_BUY_NOTE_SHORT[^}]*\} from '@\/lib\/nightBuyWords'/);
+    // The note's words come through lib/instantWords.ts mergeFirstStepCaveats (NIGHT_BUY_NOTE_SHORT, or the merged line).
+    expect(script).toMatch(/import \{[^}]*mergeFirstStepCaveats[^}]*\} from '@\/lib\/instantWords'/);
+    expect(script).toContain('const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));');
     expect(script).toMatch(
       /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(hoursLimited\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
     );
@@ -1129,7 +1146,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     for (const tag of tags) {
       expect(tag).toContain('text-small');
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
-      expect(tag).toMatch(/\{\{ NIGHT_BUY_NOTE_SHORT \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
+      expect(tag).toMatch(/\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
     }
   });
 });

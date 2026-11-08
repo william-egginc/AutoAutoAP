@@ -376,13 +376,13 @@
             >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-              ><template v-else>{{ firstStep }}</template>
+              ><template v-else>{{ stepCaveat.step }}</template>
             </p>
             <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
                  the first ascension continues the build-up with the hours limiting the answer, so its research buys can
                  fall outside them and the finish above is a best case. Once, under First step. -->
             <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-              {{ NIGHT_BUY_NOTE_SHORT }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+              {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -590,11 +590,11 @@
           >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-            ><template v-else>{{ firstStep }}</template>
+            ><template v-else>{{ stepCaveat.step }}</template>
           </p>
           <!-- The night-buy note, as in By a date's box above. -->
           <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-            {{ NIGHT_BUY_NOTE_SHORT }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+            {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1063,6 +1063,7 @@ import { pointerOf } from '@/lib/searchPointer';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
+  mergeFirstStepCaveats,
   INSTANT_ESTIMATE_LINE,
   buildUpMissingRestOf,
   firstStepKind,
@@ -1070,7 +1071,7 @@ import {
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
-import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
@@ -1716,6 +1717,10 @@ const nightBuyNote = computed(() =>
   !firstStepWarn.value &&
   nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
 );
+/** First step and its one caveat line: the hours clause and the night-buy note merged into one line when both would
+ *  show (lib/instantWords.ts `mergeFirstStepCaveats`, spec-uxpass item 9, 8 Nov 2026); the note's show rule is
+ *  `nightBuyNote`'s, unchanged. */
+const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked

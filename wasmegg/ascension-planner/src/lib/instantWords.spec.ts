@@ -5,7 +5,8 @@
  * the awake-hours clause that was the HOURS_NOTE paragraph under it). Wording only: never a result code input.
  */
 import { describe, expect, it } from 'vitest';
-import { FIRST_STEP_HOURS, firstStepLine, instantHeaderLine, noPrestigeDayCount } from './instantWords';
+import { FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, firstStepLine, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
+import { NIGHT_BUY_NOTE_SHORT } from './nightBuyWords';
 import { isWordingOnly } from './resultCodeHash';
 
 describe('the line under the title (DRAFT)', () => {
@@ -65,5 +66,20 @@ describe('First step (DRAFT)', () => {
   });
   it('wording only: out of the result code hash', () => {
     expect(isWordingOnly('src/lib/instantWords.ts')).toBe(true);
+  });
+});
+
+describe('First step: the hours clause and the night-buy note as ONE line (spec-uxpass item 9, 8 Nov 2026)', () => {
+  const STEP = 'continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
+  it('both would show: the step without its hours clause, the note is the merged line (both meanings kept)', () => {
+    const r = mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, true);
+    expect(r).toEqual({ step: STEP, note: FIRST_STEP_HOURS_NIGHT_BUY });
+    expect(FIRST_STEP_HOURS_NIGHT_BUY).toMatch(/prestige at the time shown/i);
+    expect(FIRST_STEP_HOURS_NIGHT_BUY).toMatch(/best case/);
+  });
+  it('only one would show: that one, unchanged', () => {
+    expect(mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, false)).toEqual({ step: `${STEP} ${FIRST_STEP_HOURS}`, note: null });
+    expect(mergeFirstStepCaveats(STEP, true)).toEqual({ step: STEP, note: NIGHT_BUY_NOTE_SHORT });
+    expect(mergeFirstStepCaveats(STEP, false)).toEqual({ step: STEP, note: null });
   });
 });
