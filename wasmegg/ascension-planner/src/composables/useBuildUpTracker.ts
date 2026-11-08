@@ -612,12 +612,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /**
    * Started again (QA review 7 Nov 2026): on another account or save, the plan in, a search's wait; a run going whose
    * worker answered (#3: a cap that fired is let go, and a run started by useCurrentSim's own retry after its bound
-   * gets its full time).
+   * gets its full time); and the tracker leaving "working it out" for anything but failed (#11: hidden, not building
+   * or ready a moment, then working again, is a new start). Failed keeps it: a stall's failure is the same attempt.
    */
   watch(
     [beforeCap, capKey, plan, searchWait, workerAnswered],
-    ([, key, p, forSearch, heard]) => {
-      if (key !== capFor || p || forSearch || heard) {
+    ([s, key, p, forSearch, heard]) => {
+      if (key !== capFor || p || forSearch || heard || (s !== 'working' && s !== 'failed')) {
         clearCap();
         capFor = key;
       }
