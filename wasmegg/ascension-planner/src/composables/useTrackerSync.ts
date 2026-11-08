@@ -45,9 +45,11 @@ import {
   putSynced,
   putSyncedBytes,
   readTicksValue,
+  type SyncFetch,
   type SyncMeta,
   type TicksValue,
 } from '@/lib/syncedRecords';
+import { onlineFetch } from '@/lib/saveOnline';
 import { markSyncOff, onSyncList, pauseSync, syncPausedFor, syncWhere } from './useOverrideSync';
 
 export const TICKS_DEBOUNCE_MS = 10_000;
@@ -167,7 +169,8 @@ async function sendTicks(account: string, slot: number, opts: { keepalive?: bool
     }
     const m = ticksMeta(account, slot);
     const value = localTicks(account, slot);
-    const r = await putSynced(w.url, w.k, 'ticks', String(slot), m.at, value, undefined, Date.now, opts);
+    // Through the switch (lib/saveOnline.ts onlineFetch, Reliability): off during this PUT, its "ahead" resend never goes.
+    const r = await putSynced(w.url, w.k, 'ticks', String(slot), m.at, value, onlineFetch<SyncFetch>(), Date.now, opts);
     if (r.ok) {
       const at = r.resentAt ?? m.at;
       writeJson(ticksMetaKey(account, slot), { at, synced: at });
@@ -248,7 +251,7 @@ export async function notePlanKept(account: string, reason: 'first' | 'replan'):
     if (hasPlayerId(json)) return;
     const gz = await gzipText(json);
     if (!gz || gz.length > PLAN_MAX_GZIP_BYTES) return;
-    const r = await putSyncedBytes(w.url, w.k, String(slot), at, gz);
+    const r = await putSyncedBytes(w.url, w.k, String(slot), at, gz, onlineFetch<SyncFetch>());
     if (r.ok) writeJson(planMetaKey(account), { slot, at: r.resentAt ?? at });
     else if (r.why === 'missing') markSyncOff(w.url);
     else if (r.why === 'limit') pauseSync(r.retryAfter ?? 60);

@@ -22,7 +22,7 @@ import { accountOf } from '@/search/runSaves';
 import { readAnchoredPlan, readTicks, readUnticks, writeAnchoredPlan, writeTicks, writeUnticks, type AnchoredPlan } from '@/lib/buildUpTracker';
 import { setResultCode } from '@/lib/resultCode';
 import { PLAN_MAX_GZIP_BYTES, SYNC_RECORDS, gunzipText, mergeTicks } from '@/lib/syncedRecords';
-import { resetSaveOnline } from '@/lib/saveOnline';
+import { resetSaveOnline, setSaveOnline } from '@/lib/saveOnline';
 import { resetOverrideSync, syncOverrideFromCloud } from './useOverrideSync';
 import {
   TICKS_DEBOUNCE_MS,
@@ -361,6 +361,23 @@ describe('failures and switches', () => {
     const A = browser();
     await A.load();
     expect(c.calls.filter(x => x.method === 'GET' && /\/sync\?k=/.test(x.url))).toHaveLength(1);
+  });
+});
+
+describe("Reliability's onlineFetch, on the tracker's writes too (merged with spec-syncclient-a-rel)", () => {
+  it('Save online turned off during a ticks PUT refused as "ahead": the resend never goes', async () => {
+    const A = browser();
+    await A.load();
+    vi.setSystemTime(T0 + 3_600_000);
+    A.tick(S, ['l1']);
+    vi.setSystemTime(T0);
+    vi.stubGlobal('fetch', (url: string, init?: { method?: string }) => {
+      const r = c.f(url, init as never);
+      if (init?.method === 'PUT') setSaveOnline(false);
+      return r;
+    });
+    await flushTrackerSync();
+    expect(puts('ticks')).toHaveLength(1);
   });
 });
 
