@@ -20,6 +20,8 @@
       </p>
     </div>
 
+    <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
+    <TeOverrideBanner />
     <!-- The save's age, a newer save on the server and Load latest save (ux29 item 4; quiet when it is fresh). -->
     <AutoSaveStrip screen="fastest" />
 
@@ -116,6 +118,7 @@ import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';

@@ -18,6 +18,8 @@
         simulated.
       </p>
     </div>
+    <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
+    <TeOverrideBanner />
     <!-- The save's age, a newer save on the server and Load latest save (ux29 item 4; quiet when it is fresh). -->
     <AutoSaveStrip screen="by-date" />
     <!-- Folded under the title, like Fastest's explainer (the user, 12 Oct: it sat in the middle of the page). -->
@@ -45,6 +47,7 @@ import { NAMES } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import YourSetup from './YourSetup.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{ goal: [goal: 'fastest' | 'deadline'] }>();

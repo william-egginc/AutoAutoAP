@@ -31,6 +31,8 @@
       </p>
     </div>
 
+    <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
+    <TeOverrideBanner />
     <SaveAgeStrip :state="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
     <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
@@ -340,6 +342,7 @@ import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { isConstrained } from '@/search/availability';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';

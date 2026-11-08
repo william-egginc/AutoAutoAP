@@ -642,6 +642,9 @@
               2× earnings boost in it. To have the stops found for you, use
               {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
             </p>
+            <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): said above the planner too, as on
+                 the other screens. -->
+            <TeOverrideBanner class="max-w-4xl mx-auto" />
             <AutomaticPlanner />
           </template>
           <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
@@ -890,6 +893,7 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import RunAnnouncer from '@/components/auto/RunAnnouncer.vue';
 import { setupSummary } from '@/lib/nowWords';
