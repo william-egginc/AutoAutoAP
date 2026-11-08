@@ -33,6 +33,8 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-08T01:38:34Z', note: 'A banner tells you when your answers start from a TE you typed instead of your save’s, with Use my save’s TE; Setup › Sharing has one Save online switch for everything kept online' },
+  { at: '2026-11-08T01:38:33Z', note: 'The Build-up tracker no longer waits for ever when a typed starting TE is on, says Try again after 3 minutes, and gives up after 8 with the reason' },
   { at: '2026-11-07T18:41:52Z', note: 'Release 8 (beta): plans and the Build-up tracker use your real TE again, so no more wrong “prestige now” or “shift now”; a stuck tracker fix for Safari; long searches can tell the maintainer', level: 'big' },
   { at: '2026-11-07T18:41:51Z', note: 'Fixed: a TE you haven’t claimed yet was counted, so your current ascension looked about 10% richer; plans, buy times and the tracker now use your claimed TE' },
   { at: '2026-11-07T18:41:50Z', note: 'Build-up tracker: no longer stuck “working it out” in Safari; says “max” for maxed research; cheap buys are grouped; a Tight warning when a sale buy is due minutes before the sale ends' },
