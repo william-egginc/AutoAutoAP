@@ -26,8 +26,10 @@ export const TOUR_REMIND_CAP = 3;
 export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { kind: 'off' } | { kind: 'done' };
 
 /** The steps, in order. */
-export type TourStepId = 'load' | 'goal' | 'answer' | 'follow' | 'myruns' | 'setup';
-export const TOUR_STEPS: readonly TourStepId[] = ['load', 'goal', 'answer', 'follow', 'myruns', 'setup'];
+/** Simulate this plan after the answer, and Setup as two (where it is, then what is inside) since spec-simpler2
+ *  (Jordan, 9 Nov 2026): eight on the full path. */
+export type TourStepId = 'load' | 'goal' | 'answer' | 'simulate' | 'follow' | 'myruns' | 'setupWhere' | 'setup';
+export const TOUR_STEPS: readonly TourStepId[] = ['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup'];
 
 
 /** The stored string as a state; anything else reads as never seen. */
@@ -77,9 +79,10 @@ export function isNewVisitor(p: { savedPlayerId: string | null | undefined; last
   return !p.savedPlayerId && !p.lastRoute;
 }
 
-/** The steps for what is loaded: a save file with no player ID has no My runs or Setup pill, so it ends at Follow. */
+/** The steps for what is loaded: a save file with no player ID has no My runs or Setup pill, so it ends at Follow
+ *  (after Simulate this plan, which is on the same answer: five steps). */
 export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
-  return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.slice(0, 4) : [...TOUR_STEPS];
+  return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.slice(0, TOUR_STEPS.indexOf('follow') + 1) : [...TOUR_STEPS];
 }
 
 type TourStorage = Pick<Storage, 'getItem' | 'setItem'>;

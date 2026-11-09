@@ -60,7 +60,7 @@ describe('the welcome box', () => {
     expect(t.state.phase).toBe('slides');
     expect(t.step.value).toBe('load');
     expect(t.state.wantFocus).toBe('title');
-    expect(t.state.announce).toBe(`Tour, step 1 of 6: ${FIRST_TOUR_STEPS.load.title}`);
+    expect(t.state.announce).toBe(`Tour, step 1 of 8: ${FIRST_TOUR_STEPS.load.title}`);
   });
 
   it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
@@ -105,7 +105,7 @@ describe('the slideshow', () => {
     t.begin({ ...ENV, hasAccount: true });
     t.take();
     const seen: string[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       seen.push(t.step.value);
       t.focused();
       if (!t.isLast.value) {
@@ -113,10 +113,10 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['load', 'goal', 'answer', 'follow', 'myruns', 'setup']);
+    expect(seen).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup']);
     t.focused();
     t.back();
-    expect(t.step.value).toBe('myruns');
+    expect(t.step.value).toBe('setupWhere');
     expect(t.state.wantFocus).toBe('title');
     t.next();
     t.done();
@@ -145,12 +145,14 @@ describe('the slideshow', () => {
     expect(w.state.phase).toBe('closed');
   });
 
-  it('a save file with no player ID: four slides, Follow this route is the last (Done)', () => {
+  it('a save file with no player ID: five slides (Simulate this plan included), Follow this route is the last (Done)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasSaveFile: true });
-    expect(t.total.value).toBe(4);
+    expect(t.total.value).toBe(5);
     t.next();
     t.next();
+    t.next();
+    expect(t.step.value).toBe('simulate');
     t.next();
     expect(t.step.value).toBe('follow');
     expect(t.isLast.value).toBe(true);

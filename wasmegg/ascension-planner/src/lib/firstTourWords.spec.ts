@@ -27,6 +27,16 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.myruns.body).toBe(
       'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.'
     );
+    // DRAFT (spec-simpler2, 9 Nov 2026), for Words: Simulate this plan after the answer, and Setup as two slides.
+    expect(FIRST_TOUR_STEPS.simulate).toEqual({
+      title: 'Simulate this plan',
+      body: 'Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
+    });
+    expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
+      title: 'Where Setup is',
+      body: 'Setup is the button at the bottom of the screen, on the Auto Planner and My runs. Tap it any time.',
+    });
+    expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
       'Setup is where you set your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
