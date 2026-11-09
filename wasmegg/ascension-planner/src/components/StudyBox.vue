@@ -113,13 +113,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onUnmounted, ref, watchEffect } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import {
   answerNo,
   closeThanks,
   notThisAccount,
   studyState,
+  studyBoxOpen,
   studyStep as step,
   useForThisAccount,
 } from '@/composables/useStudy';
@@ -133,4 +134,9 @@ const props = withDefaults(
 );
 /** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */
 const open = ref(props.startOpen);
+// The first-visit tour waits while this box asks with its form open (composables/useStudy.ts `studyBoxOpen`).
+watchEffect(() => {
+  studyBoxOpen.value = step.value === 'ask-box' && open.value;
+});
+onUnmounted(() => (studyBoxOpen.value = false));
 </script>

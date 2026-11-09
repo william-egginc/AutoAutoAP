@@ -28,6 +28,30 @@ export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { k
 export type TourStepId = 'load' | 'goal' | 'answer' | 'follow' | 'myruns' | 'setup';
 export const TOUR_STEPS: readonly TourStepId[] = ['load', 'goal', 'answer', 'follow', 'myruns', 'setup'];
 
+/**
+ * Where each step points, best first (FirstTour.vue takes the first one on screen). `up`: ring the element's ancestor
+ * matching it. `ringMax`: ring only the top that many px of a tall target. `notYet`: the step's "not there yet" words.
+ * The step `load` rings the union of its anchors. Existing test ids where there are some; three new attributes:
+ * App.vue's `data-tour="goal-tabs"`, InstantRoute.vue's `data-tour="instant-answer"`, SiteTabs.vue's `site-tab-<id>` ids
+ * and `data-tour="site-tabs"`. Nothing inside Joo's code (src/auto, Single run) and nothing in shared ui/.
+ */
+export interface TourAnchor {
+  sel: string;
+  up?: string;
+  ringMax?: number;
+  notYet?: boolean;
+}
+export const TOUR_ANCHORS: Record<TourStepId, TourAnchor[]> = {
+  load: [{ sel: '#playerId', up: 'form' }, { sel: '[data-testid="no-account-save-file"] > *' }],
+  goal: [{ sel: '[data-tour="goal-tabs"]' }],
+  answer: [{ sel: '[data-tour="instant-answer"] [data-testid="instant-box"]' }, { sel: '[data-tour="instant-answer"]', ringMax: 320 }],
+  follow: [{ sel: '[data-tour="instant-answer"] [data-testid="instant-box"] [data-testid="follow-route"]' }],
+  myruns: [{ sel: '[data-testid="buildup-tracker"]', ringMax: 64 }, { sel: '#site-tab-myruns' }, { sel: '[data-tour="site-tabs"]', notYet: true }],
+  setup: [{ sel: '[data-testid="setup-dock-pill"]' }],
+};
+/** Steps whose ring takes in every anchor on screen (the ID box and the save-file bar). */
+export const TOUR_UNION: readonly TourStepId[] = ['load'];
+
 /** The stored string as a state; anything else reads as never seen. */
 export function parseTour(v: string | null | undefined): TourStored {
   if (v === 'off' || v === 'done') return { kind: v };

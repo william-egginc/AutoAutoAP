@@ -13,7 +13,7 @@
  *    the actions that set it must run with Pinia active (they do, from the screens).
  *  - Storage in try/catch: blocked, the answer holds for this visit.
  */
-import { computed, reactive, readonly, watch } from 'vue';
+import { computed, reactive, readonly, ref, watch } from 'vue';
 import { consentAgreed, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
 import { useShareExtras } from './useShareExtras';
 import { useAccountName } from './useShareResult';
@@ -69,6 +69,10 @@ const state = reactive<{ rec: StudyRecord; thanked: boolean }>({ rec: read(), th
 
 /** The record and whether Yes was pressed this visit, read only. */
 export const studyState = readonly(state);
+
+/** "Help improve the planner"'s box is on screen with its form open (StudyBox.vue keeps it): the first-visit tour waits
+ *  behind it (spec-firsttour, 8 Nov 2026); Hide or an answer lets the tour go on. Read only anywhere else. */
+export const studyBoxOpen = ref(false);
 
 /**
  * Two tabs (21 Oct 2026, prelive; Jordan: "one Yes is enough", across tabs, reloads and restarts). Every
