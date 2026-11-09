@@ -123,6 +123,7 @@ import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
 import { plural } from '@/lib/format';
+import { typicalHowLongLine } from '@/lib/fastEstimateWords';
 
 const props = defineProps<{
   playerId: string;
@@ -173,11 +174,15 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
   for (const l of ['quick', 'normal', 'thorough'] as const) {
     const e = store.smartEstimate(l);
     const t = formatHours(e.seconds / 3600);
+    const workers = plural(store.workerBudget, 'worker');
+    const speed = e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed';
     out[l] = {
       short: `~${t}`,
-      line: `Up to about ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${
-        e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed'
-      }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
+      // With this device's finished runs to go on, what the level really prices here (lib/fastTypical.ts); else the bound.
+      line:
+        e.typical !== null
+          ? typicalHowLongLine({ time: t, device: thisDevice(), workers, speed, typical: e.typical, bound: e.chains })
+          : `Up to about ${t} on ${thisDevice()} (${workers}, ${speed}): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }
   return out;
