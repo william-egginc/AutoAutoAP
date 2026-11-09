@@ -337,7 +337,31 @@
         </fieldset>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- SHARING AND PRIVACY (the simpler page, Jordan 9 Nov 2026, Q3): Help improve the planner and Sharing, with What
+           is saved online and the Save online switch, under one closed fold whose line names every setting that sends and
+           its state (sharingSummaryWords), so nothing that sends is hidden without being named. The words inside are
+           unchanged (lib/aboutPage.spec.ts). A real button over a region hidden until found, as More options. -->
+      <button
+        v-if="store.submitUrl"
+        type="button"
+        class="flex w-full min-h-[44px] items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/50 px-4 py-2 text-left hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        :aria-expanded="sharingOpen"
+        aria-controls="setup-sharing-body"
+        data-testid="setup-sharing"
+        @click="toggleSharing"
+      >
+        <span aria-hidden="true" class="inline-block text-body text-indigo-700 transition-transform" :class="sharingOpen ? 'rotate-90' : ''">›</span>
+        <span class="min-w-0">
+          <span class="block text-body font-bold text-indigo-900">{{ SHARING_FOLD_TITLE }}</span>
+          <span class="block text-small text-slate-600 break-words" data-testid="setup-sharing-hint">{{ sharingLine }}</span>
+        </span>
+      </button>
+      <div
+        id="setup-sharing-body"
+        class="grid grid-cols-1 md:grid-cols-2 gap-4"
+        :hidden.attr="sharingOpen || !store.submitUrl ? undefined : 'until-found'"
+        @beforematch="sharingOpen = true"
+      >
         <!-- Help improve the planner (Q13): the study box's answer, changed or withdrawn here once the box above the
              tabs is gone (StudySetup.vue). Only with a collector, as the box. -->
         <StudySetup v-if="store.submitUrl" />
@@ -784,6 +808,19 @@
               <h3 class="text-slate-500 label">How the site shows things</h3>
               <DateStyleToggle />
               <TabsToggle />
+              <!-- Show everything (the simpler page, Jordan 9 Nov 2026, Q7): every screen's More starts open, as the page
+                   was before; this browser's (composables/useShowEverything.ts). Nothing on the default view. -->
+              <label class="flex min-h-[44px] items-start gap-3 py-1.5 cursor-pointer" data-testid="setup-show-everything">
+                <input
+                  type="checkbox"
+                  class="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-indigo-600"
+                  :checked="showEverything"
+                  @change="setShowEverything(($event.target as HTMLInputElement).checked)"
+                />
+                <span class="text-body text-slate-600">
+                  <span class="font-bold text-slate-800">{{ SHOW_EVERYTHING_LABEL }}</span>{{ ' ' }}· {{ SHOW_EVERYTHING_LINE }}
+                </span>
+              </label>
               <!-- The first-visit tour again (spec-firsttour): Setup closes first, as the tour waits while it is open. -->
               <button
                 type="button"
@@ -803,12 +840,15 @@
 </template>
 
 <script setup lang="ts">
-import { useConsent } from '@/composables/useConsent';
+import { consentState, useConsent } from '@/composables/useConsent';
 import { ThisDevice, thisDevice } from '@/search/device';
 import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
+import { useShowEverything } from '@/composables/useShowEverything';
+import { SHARING_FOLD_TITLE, SHOW_EVERYTHING_LABEL, SHOW_EVERYTHING_LINE, sharingSummaryWords } from '@/lib/layoutWords';
+import { studyState } from '@/composables/useStudy';
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { DEFAULT_LEG_DETAIL_BUDGET, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -984,8 +1024,24 @@ const moreSummary = computed(() =>
     prestigeBy: prestigeBy.stored.value,
     prestigeByDefault: prestigeBy.beta,
     prestigeByRecord: canShareInstant && prestigeBy.record.value,
-  })
+  }) + (showEverything.value ? ` · ${SHOW_EVERYTHING_LABEL}` : '')
 );
+/** Show everything (Setup › More options; the simpler page): named in More options' line when on. */
+const { on: showEverything, set: setShowEverything } = useShowEverything();
+/** Sharing and privacy: closed by default, this browser's own toggle remembered (lib/panelFold.ts 'setupSharing'). */
+const sharingOpen = ref(foldOpen('setupSharing', { remembered: readFoldToggle('setupSharing') }));
+function toggleSharing(): void {
+  sharingOpen.value = !sharingOpen.value;
+  rememberFoldToggle('setupSharing', sharingOpen.value);
+}
+/** Its line: every setting in it that sends, and its state (Words' sharingSummaryWords, plus the two share ticks). */
+const sharingLine = computed(() => {
+  const rec = studyState.rec;
+  const help = rec.answer === null ? 'none' : rec.answer === 'yes' && rec.accounts[consentState.hash] === 'yes' ? 'yes' : 'no';
+  const base = sharingSummaryWords({ help, longSearches: !!runBeaconOn.value, saveOnline: !!saveOnlineState.value });
+  if (!canShareInstant) return base;
+  return `${base} · Search results: ${shareInstantOn.value ? 'on' : 'off'} · Instant answer with runs: ${shareBaselineOn.value ? 'on' : 'off'}`;
+});
 const startTooFar = computed(
   () => store.firstAscension !== 'fresh' && store.firstAscensionFor(store.planStart) === 'fresh'
 );
