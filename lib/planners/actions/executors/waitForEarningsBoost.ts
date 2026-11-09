@@ -1,0 +1,21 @@
+import type { PayloadExecutor, BaseExecutorContext } from '../executorTypes';
+import type { WaitForEarningsBoostPayload } from '../../types/actions/wait';
+import { formatDuration } from '../../format';
+
+/**
+ * Executor for waiting for 2x earnings.
+ */
+export const waitForEarningsBoostExecutor: PayloadExecutor<WaitForEarningsBoostPayload> = {
+  execute() {
+    // This action only progresses time, which is handled by the simulation engine.
+    return 0;
+  },
+
+  getDisplayName() {
+    return 'Wait: 2x Earnings (Mon 9:00 am PT)';
+  },
+
+  getEffectDescription(payload: WaitForEarningsBoostPayload) {
+    return `Wait for ${formatDuration(payload.totalTimeSeconds)} until next Monday 9:00 am PT`;
+  },
+};

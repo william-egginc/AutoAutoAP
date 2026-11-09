@@ -24,7 +24,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
 import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
 import type { BoardRow } from '@/lib/leaderboardRank';

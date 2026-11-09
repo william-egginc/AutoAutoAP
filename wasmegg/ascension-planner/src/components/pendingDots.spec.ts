@@ -66,7 +66,7 @@ const ALLOWED: { file: string; text: string; why: string }[] = [
   { file: 'App.vue', text: 'One Moment...', why: "Manual Planner's loading overlay (Joo's)" },
   { file: 'App.vue', text: 'Fetching your data and crunching the numbers to set up your plan...', why: "Manual Planner's loading overlay (Joo's)" },
   { file: 'components/RecalculationOverlay.vue', text: 'Recalculating...', why: "Manual Planner's recalculation (Joo's)" },
-  { file: 'components/LoadingOverlay.vue', text: 'Simulating research sales and 2x earnings windows across thousands of purchase orders to chart your fastest path...', why: "Manual Planner's loading overlay (Joo's)" },
+  { file: '../../../ui/components/planners/LoadingOverlay.vue', text: 'Simulating research sales and 2x earnings windows across thousands of purchase orders to chart your fastest path...', why: "Manual Planner's loading overlay (Joo's)" },
   { file: 'components/auto/AutomaticPlanner.vue', text: 'Form locked while calculating...', why: "Classic (Single run), Joo's planner" },
   { file: 'components/auto/AutomaticPlanner.vue', text: 'Calculating...', why: "Classic (Single run), Joo's planner" },
   { file: 'components/auto/AutomaticPlanner.vue', text: 'Generating Plan...', why: "Classic (Single run), Joo's planner" },
@@ -77,7 +77,7 @@ const ALLOWED: { file: string; text: string; why: string }[] = [
   { file: 'components/actions/SmartBuyView.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
   { file: 'components/actions/QuickBuy.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
   { file: 'components/auto/CustomHowItWorks.vue', text: 'on a space with long routes "Stopping…" can sit', why: 'a sentence in How it works that quotes the label (drawn by SendingText, moving)' },
-  { file: 'components/CustomEggWatcher.vue', text: 'Checking GitHub for custom egg updates…', why: 'shown on a dev build only' },
+  { file: '../../../ui/components/planners/CustomEggWatcher.vue', text: 'Checking GitHub for custom egg updates…', why: 'shown on a dev build only' },
   // Not a label at all: the run's own aria-label (FindBar draws the dots after the words beside it).
   { file: 'components/auto/FindBar.vue', text: 'running...', why: 'aria-label text, read by a screen reader (the dots are drawn in the label)' },
   { file: 'components/auto/FindBar.vue', text: 'Searching...', why: "the prop's default; FindBar strips the dots and draws AnimatedDots (`runningWords`)" },

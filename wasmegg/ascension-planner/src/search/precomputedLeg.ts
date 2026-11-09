@@ -17,7 +17,7 @@
 import { distributeTargetTE } from '@/auto/shifts/te-wait';
 import { computeTEEarned, timeToEarnTE } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed, TE_BREAKPOINTS } from '@/lib/truthEggs';
-import { getTimezoneOffsetAt, PACIFIC_TIMEZONE } from '@/lib/events';
+import { getTimezoneOffsetAt, PACIFIC_TIMEZONE } from 'lib/planners/events';
 import type { VirtueEgg } from '@/types';
 
 /** The five eggs in table order; also the order `delivered` is stored in. */

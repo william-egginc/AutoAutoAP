@@ -7,7 +7,7 @@
  * runner's.
  */
 import { describe, expect, it } from 'vitest';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import {
   buildChainsCsv,
   buildDeadlineCsv,

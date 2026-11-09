@@ -102,13 +102,15 @@ import { useVirtueStore } from '@/stores/virtue';
 import { useActionsStore } from '@/stores/actions';
 import { formatNumber, formatDuration, parseNumber, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId } from '@/types';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { getTimeToSave } from '@/engine/apply/math';
+import { useEventCrossingWaits } from '@/composables/useEventCrossingWaits';
+import { getBoostAwareTimeToSave } from '@/engine/apply';
+import { getSimulationContext } from '@/engine/adapter';
 import { computeDependencies } from '@/lib/actions/executor';
 
 const virtueStore = useVirtueStore();
 const actionsStore = useActionsStore();
-const { prepareExecution, completeExecution } = useActionExecutor();
+const { prepareExecution, completeExecution, batch, isEditingPastGroup, settled, insertBoostCrossingWaits } =
+  useEventCrossingWaits();
 
 const targetInput = ref('');
 
@@ -130,8 +132,8 @@ const earningsPerSecond = computed(() => {
 const timeToSaveSeconds = computed(() => {
   if (parsedTarget.value === null || parsedTarget.value <= virtueStore.bankValue) return 0;
   
-  // Use the robust getTimeToSave from engine which accounts for population growth
-  const time = getTimeToSave(parsedTarget.value, actionsStore.effectiveSnapshot);
+  // Accounts for population growth and 2x earnings, as the wait itself does
+  const time = getBoostAwareTimeToSave(parsedTarget.value, actionsStore.effectiveSnapshot, getSimulationContext());
   return isFinite(time) ? time : Infinity;
 });
 
@@ -153,15 +155,28 @@ const canWait = computed(
 
 function handleWaitForGems() {
   if (!canWait.value || parsedTarget.value === null) return;
+  const targetGems = parsedTarget.value;
 
+  batch(async () => {
+    prepareExecution();
+    insertBoostCrossingWaits(targetGems);
+    if (isEditingPastGroup.value) await settled();
+    addGemsWait(targetGems);
+  });
+
+  targetInput.value = '';
+}
+
+// After any 2x waits, so everything is measured from where those leave the plan.
+function addGemsWait(targetGems: number) {
   const beforeSnapshot = prepareExecution();
 
   const payload = {
-    targetGems: parsedTarget.value,
-    currentGems: virtueStore.bankValue,
-    requiredGems: requiredToEarn.value,
-    earningsPerSecond: earningsPerSecond.value,
-    timeSeconds: timeToSaveSeconds.value,
+    targetGems,
+    currentGems: beforeSnapshot.bankValue,
+    requiredGems: Math.max(0, targetGems - beforeSnapshot.bankValue),
+    earningsPerSecond: beforeSnapshot.offlineEarnings,
+    timeSeconds: getBoostAwareTimeToSave(targetGems, beforeSnapshot, getSimulationContext()),
   };
 
   const dependencies = computeDependencies(
@@ -177,7 +192,7 @@ function handleWaitForGems() {
   // We'll use applyTime logic here to update the store state.
   
   // Update bank value manually in virtue store
-  virtueStore.setBankValue(parsedTarget.value);
+  virtueStore.setBankValue(targetGems);
   // Also need to update population if we want to be accurate, but usually 
   // executors handle store updates. 
   // Wait, wait. Action executors' `execute` method should handle this.
@@ -195,7 +210,5 @@ function handleWaitForGems() {
     },
     beforeSnapshot
   );
-
-  targetInput.value = '';
 }
 </script>

@@ -1,5 +1,4 @@
 import type { VirtueEgg } from './virtue';
-import type { ArtifactSlotPayload, ArtifactSetName } from './artifacts';
 
 /**
  * Payload for starting an ascension (initial state).
@@ -26,27 +25,6 @@ export interface ShiftPayload {
   peakELR?: number;
 }
 
-/**
- * Payload for generic notifications or markers in history.
- */
-export interface NotificationPayload {
-  message: string;
-  submessage?: string;
-  icon?: string;
-}
-
-/**
- * Payload for manually overriding the bank value.
- * `mode: 'set'` replaces the bank value outright (amount is the new total);
- * `mode: 'delta'` adds/subtracts a fixed amount (amount is the +/- adjustment).
- */
-export interface ModifyBankPayload {
-  mode: 'set' | 'delta';
-  amount: number;
-  previousValue: number;
-  delta: number;
-}
-
 import type {
   BuyVehiclePayload,
   BuyHabPayload,
@@ -55,7 +33,7 @@ import type {
   StoreFuelPayload,
   RemoveFuelPayload,
 } from './infrastructure';
-import type { BuyResearchPayload, ToggleSalePayload, ToggleEarningsBoostPayload } from './research';
+import type { BuyResearchPayload, ToggleSalePayload, ToggleEarningsBoostPayload } from 'lib/planners/types/actions/research';
 import type { LaunchMissionsPayload, WaitForMissionsPayload } from './missions';
 import type { WaitForTEPayload, WaitForTimePayload, WaitForFullHabsPayload, WaitForGemsPayload } from './wait';
 import type {
@@ -67,6 +45,8 @@ import type {
   EarningsOutput,
   IHROutput,
 } from '../index';
+import type { BaseCalculationsSnapshot, ModifyBankPayload, NotificationPayload } from 'lib/planners/types/actions/core';
+export type { BaseCalculationsSnapshot, ModifyBankPayload, NotificationPayload } from 'lib/planners/types/actions/core';
 
 /**
  * Union of all action types.
@@ -110,15 +90,15 @@ export interface ActionPayloadMap {
   buy_research: BuyResearchPayload;
   shift: ShiftPayload;
   buy_train_car: BuyTrainCarPayload;
-  change_artifacts: import('./artifacts').ChangeArtifactsPayload;
+  change_artifacts: import('lib/planners/types/actions/artifacts').ChangeArtifactsPayload;
   buy_silo: BuySiloPayload;
   store_fuel: StoreFuelPayload;
   remove_fuel: RemoveFuelPayload;
   wait_for_te: WaitForTEPayload;
   launch_missions: LaunchMissionsPayload;
   toggle_sale: ToggleSalePayload;
-  equip_artifact_set: import('./artifacts').EquipArtifactSetPayload;
-  update_artifact_set: import('./artifacts').UpdateArtifactSetPayload;
+  equip_artifact_set: import('lib/planners/types/actions/artifacts').EquipArtifactSetPayload;
+  update_artifact_set: import('lib/planners/types/actions/artifacts').UpdateArtifactSetPayload;
   wait_for_missions: WaitForMissionsPayload;
   wait_for_time: WaitForTimePayload;
   wait_for_full_habs: WaitForFullHabsPayload;
@@ -136,45 +116,12 @@ export interface ActionPayloadMap {
 /**
  * Snapshot of all calculation outputs at a point in time.
  */
-export interface CalculationsSnapshot {
-  eggValue: number;
-  habCapacity: number;
-  elr: number;
-  shippingCapacity: number;
-  layRate: number;
-  onlineEarnings: number;
-  offlineEarnings: number;
-  onlineIHR: number;
-  offlineIHR: number;
-  ratePerChickenPerSecond: number;
-  bankValue: number;
+export interface CalculationsSnapshot extends BaseCalculationsSnapshot {
   currentEgg: VirtueEgg;
   shiftCount: number;
-  te: number;
-  soulEggs: number;
-  siloCount: number;
-  siloTimeMinutes: number;
-  tankLevel: number;
   fuelTankAmounts: Record<VirtueEgg, number>;
   eggsDelivered: Record<VirtueEgg, number>;
   teEarned: Record<VirtueEgg, number>;
-  population: number;
-  lastStepTime: number;
-  vehicles: import('../index').VehicleSlot[];
-  habIds: (number | null)[];
-  researchLevels: import('../index').ResearchLevels;
-  artifactLoadout: ArtifactSlotPayload[];
-  activeArtifactSet: ArtifactSetName | null;
-  artifactSets: Record<ArtifactSetName, ArtifactSlotPayload[] | null>;
-  activeSales: {
-    research: boolean;
-    hab: boolean;
-    vehicle: boolean;
-  };
-  earningsBoost: {
-    active: boolean;
-    multiplier: number;
-  };
   fullOutputs?: CalculationsFullOutputs;
 }
 

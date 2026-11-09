@@ -62,7 +62,7 @@ import {
   getTimezoneOffsetAt,
   isEarningsBoostActive,
   isResearchSaleActive,
-} from './events';
+} from 'lib/planners/events';
 import { calendarOf } from './clock';
 import { getResearchById } from '@/calculations/commonResearch';
 import { resultCode, sameResultCode } from './resultCode';

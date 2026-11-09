@@ -3,12 +3,12 @@
  * @description Import/Export logic for Ascension Plans.
  */
 
-import { downloadFile } from '@/utils/export';
+import { downloadGzipped } from '@/utils/export';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
 import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
-import { useNotesStore } from '@/stores/notes';
+import { useNotesStore } from 'lib/planners/stores/notes';
 import { useSilosStore } from '@/stores/silos';
 import { createEmptySnapshot, generateActionId, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
 import { isKnownActionType } from '@/lib/actions/executor';
@@ -59,6 +59,7 @@ export function exportPlanData(actions: Action[], initialSnapshot?: Calculations
       activeArtifactSet: baseActiveSet,
       currentFarmState: initialStateStore.currentFarmState,
       assumeDoubleEarnings: initialStateStore.assumeDoubleEarnings,
+      proPermit: initialStateStore.proPermit,
       initialSiloCount: baseSiloCount,
       initialTankLevel: baseTankLevel,
       initialFuelAmounts: baseFuelAmounts,
@@ -89,7 +90,7 @@ export function exportPlanData(actions: Action[], initialSnapshot?: Calculations
   };
 }
 
-export function exportPlanLogic(actions: Action[], initialSnapshot?: CalculationsSnapshot) {
+export async function exportPlanLogic(actions: Action[], initialSnapshot?: CalculationsSnapshot) {
   const exportData = exportPlanData(actions, initialSnapshot);
 
   // Sanitization: Ensure any internal mapping IDs or partitions are NOT in the export
@@ -98,7 +99,7 @@ export function exportPlanLogic(actions: Action[], initialSnapshot?: Calculation
   const jsonString = JSON.stringify(exportData, null, 2);
   const now = new Date();
   const filename = `ascension-plan-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.json`;
-  downloadFile(filename, jsonString, 'application/json');
+  await downloadGzipped(filename, jsonString);
 }
 
 const LOOSE = { maxDepth: 64, maxString: Infinity, maxArray: Infinity, maxKeys: Infinity };
@@ -216,7 +217,7 @@ export function importPlanLogic(jsonString: string) {
 
   // Merge simple wait_for_time actions into subsequent purchases to reduce clutter
   if (data.actions && data.actions.length > 0) {
-    const mergedActions: any[] = [];
+    const mergedActions: Action[] = [];
     for (let i = 0; i < data.actions.length; i++) {
       const action = data.actions[i];
       if (action.type === 'wait_for_time') {
@@ -255,7 +256,7 @@ export function importPlanLogic(jsonString: string) {
   }
 
   if (data.actions) {
-    data.actions.forEach((a: any, i: number) => a.index = i);
+    data.actions.forEach((a: Action, i: number) => a.index = i);
     // Every plan read in (a file import, a Plan Library load or restore, a reconcile, the saved draft) keeps
     // Wait for TE within 98 per egg, as the Wait for TE box does (prelive, 21 Oct 2026).
     data.actions.forEach(capWaitForTE);

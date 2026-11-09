@@ -15,7 +15,7 @@ import { computeSnapshot } from '@/engine/compute';
 import { useInitialStateStore } from '@/stores/initialState';
 import { habTypes } from '@/lib/habs';
 import { vehicleTypes } from '@/lib/vehicles';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { getOptimalEarningsSet } from '@/lib/artifacts/virtue';
 import { guardEpicLevels, guardFarm, saveGuardNote } from './saveGuard';
 

@@ -35,7 +35,7 @@
  * persistence.ts) and there is none by default. Chains scored with and without one are not
  * comparable, and every accuracy figure on record was measured without one.
  */
-import { getTimezoneOffsetAt } from '@/lib/events';
+import { getTimezoneOffsetAt } from 'lib/planners/events';
 import { isConstrained, validDays, type Availability } from './availabilitySchedule';
 
 // The schedule's shape lives in availabilitySchedule.ts, which does not import lib/events (and so

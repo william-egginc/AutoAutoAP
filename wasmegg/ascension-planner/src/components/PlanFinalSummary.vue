@@ -95,7 +95,7 @@
            </button>
          </div>
 
-        <input ref="fileInput" type="file" accept=".json" class="hidden" @change="handleImport" />
+        <input ref="fileInput" type="file" accept=".gz,.json" class="hidden" @change="handleImport" />
 
         <div class="w-px h-8 bg-slate-100 mx-1"></div>
 

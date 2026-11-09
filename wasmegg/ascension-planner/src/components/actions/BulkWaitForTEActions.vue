@@ -171,9 +171,9 @@ import { useActionsStore } from '@/stores/actions';
 import { useActionExecutor } from '@/composables/useActionExecutor';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
-import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg } from '@/types';
+import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg, type DraftAction } from '@/types';
 import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE, isTEWaitReachable, clampTECount } from '@/lib/truthEggs';
-import { integrateRate } from '@/engine/apply/math';
+import { integrateRate } from 'lib/planners/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
 const virtueStore = useVirtueStore();
@@ -193,7 +193,7 @@ const manualGains = ref<Record<VirtueEgg, number | null>>({
 
 // Current starting stats per egg (accounts for pending TE in the plan)
 const eggStartStates = computed(() => {
-  const stats: Record<VirtueEgg, { te: number; delivered: number }> = {} as any;
+  const stats: Record<VirtueEgg, { te: number; delivered: number }> = {} as Record<VirtueEgg, { te: number; delivered: number }>;
   const snapshot = actionsStore.effectiveSnapshot;
   
   for (const egg of VIRTUE_EGGS) {
@@ -218,7 +218,7 @@ const finalTotalTE = computed(() => currentTotalTE.value + totalTEToGain.value);
  * The Greedy Allocation Algorithm
  */
 function calculateGreedyGains(total: number) {
-  const gains: Record<VirtueEgg, number> = {} as any;
+  const gains: Record<VirtueEgg, number> = {} as Record<VirtueEgg, number>;
   VIRTUE_EGGS.forEach(e => gains[e] = 0);
 
   const working = VIRTUE_EGGS.map(egg => ({
@@ -262,7 +262,7 @@ const distributedGains = computed(() => {
   // But the plan says Rebalance button resets everything to greedy.
   const anyManual = Object.values(manualGains.value).some(v => v !== null);
   if (anyManual) {
-    const gains: Record<VirtueEgg, number> = {} as any;
+    const gains: Record<VirtueEgg, number> = {} as Record<VirtueEgg, number>;
     VIRTUE_EGGS.forEach(e => gains[e] = manualGains.value[e] ?? 0);
     return gains;
   }
@@ -457,7 +457,7 @@ function moveEgg(index: number, delta: number) {
  * Generates all actions in a single batch.
  */
 async function handleApply() {
-  const execute = async (action: any) => {
+  const execute = async (action: DraftAction) => {
     if (actionsStore.editingGroupId) {
       await actionsStore.insertAction(action);
     } else {

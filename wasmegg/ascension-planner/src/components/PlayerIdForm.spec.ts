@@ -59,7 +59,7 @@ describe('PlayerIdForm', () => {
   });
 
   it('the planner no longer hides the Load button', () => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../styles/components.css'), 'utf8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../../../../ui/styles/planners/components.css'), 'utf8');
     expect(css).not.toMatch(/button\[type="submit"\][^}]*display:\s*none/);
   });
 

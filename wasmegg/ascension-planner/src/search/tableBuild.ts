@@ -4,7 +4,7 @@
  * against the table's (components/auto/InstantRoute.vue), the way the table's own cells are made.
  */
 import { sanitizeLongs } from '@/lib/artifacts/utils';
-import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from '@/lib/events';
+import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from 'lib/planners/events';
 import { deriveNextStartState, runUntilShift } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
 import { runH1 } from '@/auto/shifts/h1';

@@ -12,7 +12,7 @@ import {
   type PolishOptions,
 } from './routeFinder';
 import { isAvailable, nextAvailable, type Availability } from './availability';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 
 // "Works inside my hours". Since 14 Oct (Allan's report: a 4-ascension route ~20 days slower with
 // hours 7 am-11 pm) each prestige whose start falls outside the player's hours WAITS for the next

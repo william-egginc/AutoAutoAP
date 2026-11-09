@@ -18,20 +18,20 @@ import {
 } from 'lib/artifacts/virtue_effects';
 import { EquippedArtifact } from './types';
 import { libArtifactToEquippedArtifact, equippedArtifactsToLibArtifacts } from './utils';
-import { calculateArtifactModifiers, createEmptyLoadout } from './calculator';
-import { calculateLayRate } from '@/calculations/layRate';
+import { calculateArtifactModifiers, createEmptyLoadout, artifactSlotCount, activeSlots } from './calculator';
+import { calculateLayRate } from 'lib/planners/calculations/layRate';
 import {
   calculateShippingCapacity,
   calculateMaxVehicleSlots,
   calculateMaxTrainLength,
-} from '@/calculations/shippingCapacity';
-import { calculateEffectiveLayRate } from '@/calculations/effectiveLayRate';
-import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
+} from 'lib/planners/calculations/shippingCapacity';
+import { calculateEffectiveLayRate } from 'lib/planners/calculations/effectiveLayRate';
+import { calculateHabCapacity_Full } from 'lib/planners/calculations/habCapacity';
 import { getArtifact, getStone, artifactOptions } from './data';
 import { InventoryItem } from 'lib/artifacts';
 import { VehicleSlot, type CurrentFarmState } from '@/types';
 import { guardEpicLevels, guardFarm } from '@/lib/saveGuard';
-import { DEBUG_ELR_STRUCTURE_CACHE, DEBUG_ELR_STRUCTURE_VERIFY } from '@/lib/debugFlags';
+import { DEBUG_ELR_STRUCTURE_CACHE, DEBUG_ELR_STRUCTURE_VERIFY } from 'lib/planners/debugFlags';
 
 // ---------------------------------------------------------------------------------------------
 // Artifact-structure cache for getOptimalELRSet.
@@ -72,8 +72,9 @@ const STRUCTURE_CACHE_ENABLED = true;
 
 const structureCache = new WeakMap<ei.IBackup, Map<string, (string | null)[]>>();
 
-function structureCacheKey(assumeMax: boolean, excludeGusset: boolean): string {
-  return `${assumeMax ? 1 : 0}${excludeGusset ? 1 : 0}`;
+function structureCacheKey(assumeMax: boolean, excludeGusset: boolean, proPermit?: boolean): string {
+  // The permit is part of the key since Joo's standard permit support (PR #729): Standard fills 2 slots.
+  return `${assumeMax ? 1 : 0}${excludeGusset ? 1 : 0}${proPermit === false ? 0 : 1}`;
 }
 
 /** Every `console.log`/`console.warn` below runs inside a Web Worker during a real search, same as
@@ -116,9 +117,13 @@ export function resetELRStructureCacheStats(): void {
 
 
 /**
- * Get the optimal artifact set for earnings (Clothed TE).
+ * Get the optimal artifact set for earnings (Clothed TE). With Standard permit only 2 artifacts
+ * are picked. `proPermit` defaults to the backup's own permit.
  */
-export function getOptimalEarningsSet(backup: ei.IBackup): EquippedArtifact[] {
+export function getOptimalEarningsSet(
+  backup: ei.IBackup,
+  proPermit: boolean = backup.game?.permitLevel === 1
+): EquippedArtifact[] {
   if (!backup.artifactsDb) {
     return createEmptyLoadout();
   }
@@ -145,13 +150,15 @@ export function getOptimalEarningsSet(backup: ei.IBackup): EquippedArtifact[] {
   }
   const equipped = new ArtifactSet(libArtifacts, false);
 
-  const strategy =
-    backup.game?.permitLevel === 1 ? Strategy.PRO_PERMIT_VIRTUE_CTE : Strategy.STANDARD_PERMIT_VIRTUE_CTE;
+  const strategy = proPermit ? Strategy.PRO_PERMIT_VIRTUE_CTE : Strategy.STANDARD_PERMIT_VIRTUE_CTE;
 
   const contender = recommendArtifactSet(backup, strategy);
   const { artifactSet } = contenderToArtifactSet(contender, equipped, inventory);
 
-  return artifactSet.artifacts.map(libArtifactToEquippedArtifact);
+  // Standard permit's strategy returns 2 artifacts; pad so every loadout has 4 slots.
+  const loadout = artifactSet.artifacts.map(libArtifactToEquippedArtifact);
+  while (loadout.length < 4) loadout.push({ artifactId: null, stones: [] });
+  return loadout;
 }
 
 /**
@@ -166,12 +173,13 @@ export function calculateClothedTEForSet(
     truthEggs: number;
     colleggtibleModifiers: Modifiers;
     labUpgradeLevel: number;
-    permitLevel?: number | null;
+    proPermit: boolean;
   }
 ): number {
-  const artifacts = equippedArtifactsToLibArtifacts(loadout);
-  // Standard permit halves offline earnings; Pro permit (permitLevel === 1) does not.
-  const permitPenalty = options.permitLevel === 1 ? 0 : multiplierToTE(0.5);
+  // Standard permit only counts the first 2 slots.
+  const artifacts = equippedArtifactsToLibArtifacts(activeSlots(loadout, options.proPermit));
+  // Standard permit halves offline earnings; Pro permit does not.
+  const permitPenalty = options.proPermit ? 0 : multiplierToTE(0.5);
 
   return (
     options.truthEggs +
@@ -316,6 +324,11 @@ export interface OptimalELRSetOptions {
   commonResearch?: Record<string, number>;
   epicResearchLevels?: Record<string, number>;
   colleggtibleModifiers?: Modifiers;
+  /** false = Standard permit: structures of at most 2 artifacts. undefined = Pro (4). */
+  proPermit?: boolean;
+  /** The farm to optimize for when not assuming maxed habs/vehicles. Defaults to the backup's. */
+  habIds?: (number | null)[];
+  vehicles?: VehicleSlot[];
   /**
    * Skip the up-to-495-combo artifact STRUCTURE search entirely and evaluate stone placement for
    * exactly this structure instead — one `artifactId` per slot (`null` for an empty slot), same
@@ -356,7 +369,7 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
   // this is safe and what it does not cover.
   if (STRUCTURE_CACHE_ENABLED && !options.forcedArtifacts && !options.bypassStructureCache) {
     const perBackup = structureCache.get(backup);
-    const cached = perBackup?.get(structureCacheKey(assumeMax, excludeGusset));
+    const cached = perBackup?.get(structureCacheKey(assumeMax, excludeGusset, options.proPermit));
     if (cached) {
       const t0 = DEBUG_ELR_STRUCTURE_CACHE || DEBUG_ELR_STRUCTURE_VERIFY ? performance.now() : 0;
       const result = getOptimalELRSet(backup, { ...options, forcedArtifacts: cached });
@@ -413,20 +426,22 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
     Object.assign(epicResearchLevels, guardEpicLevels(saved));
   }
 
-  // Current farm habs/vehicles, used only when not assuming maxed ones. A backup with no farm
-  // at all falls back to a single trike even under `assumeMaxHabsVehicles`, as it always has.
-  const farm = backup.farms?.[0];
-  let habIds: (number | null)[] | undefined;
-  let vehicles: VehicleSlot[] | undefined;
+  // Habs/vehicles are only needed when not assuming maxed ones: the caller's, else the backup's
+  // farm. Maxed ones come from research alone, so they work on a redacted backup, which has no farm.
+  let habIds = options.habIds;
+  let vehicles = options.vehicles;
   if (!assumeMax) {
-    habIds = (farm?.habs || []).map(h => (h === 19 ? null : h));
-    while (habIds.length < 4) habIds.push(null);
-  }
-  if (!farm) {
-    vehicles = [{ vehicleId: 0, trainLength: 1 }];
-  } else if (!assumeMax) {
-    const trainLengths = farm.trainLength || [];
-    vehicles = (farm.vehicles || []).map((type, i) => ({ vehicleId: type, trainLength: trainLengths[i] || 1 }));
+    const farm = backup.farms?.[0];
+    if (!habIds) {
+      habIds = (farm?.habs || []).map(h => (h === 19 ? null : h));
+      while (habIds.length < 4) habIds.push(null);
+    }
+    if (!vehicles) {
+      const trainLengths = farm?.trainLength || [];
+      vehicles = farm
+        ? (farm.vehicles || []).map((type, i) => ({ vehicleId: type, trainLength: trainLengths[i] || 1 }))
+        : [{ vehicleId: 0, trainLength: 1 }];
+    }
   }
   // Habs and vehicles newer than this planner's data are held to the last known (lib/saveGuard.ts).
   if (habIds || vehicles) {
@@ -461,7 +476,7 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
         structureCache.set(backup, perBackup);
       }
       perBackup.set(
-        structureCacheKey(assumeMax, excludeGusset),
+        structureCacheKey(assumeMax, excludeGusset, options.proPermit),
         result.map(slot => slot.artifactId)
       );
     }
@@ -503,7 +518,7 @@ export function getOptimalELRSetFromSource(
     // a fresh object on every call (loadout/resolve.ts `deliverySearchFromInputs`): keyed by the
     // pool's contents instead of by object. Only an unforced (`auto` mode) search is cached.
     if (STRUCTURE_CACHE_ENABLED && !forcedArtifacts && !options.bypassStructureCache) {
-      const key = `${structureCacheKey(options.assumeMaxHabsVehicles ?? false, options.excludeGusset ?? false)}|${JSON.stringify(source.pool)}`;
+      const key = `${structureCacheKey(options.assumeMaxHabsVehicles ?? false, options.excludeGusset ?? false, options.proPermit)}|${JSON.stringify(source.pool)}`;
       const cached = poolStructureCache.get(key);
       if (cached) return getOptimalELRSetFromPool(source.pool, { ...options, forcedArtifacts: cached });
       const result = getOptimalELRSetFromPool(source.pool, options);
@@ -526,8 +541,8 @@ const POOL_STRUCTURE_CACHE_MAX = 64;
 
 /**
  * The ELR search itself, over an explicit candidate/stone pool. Under `assumeMaxHabsVehicles`,
- * habs/vehicles are maxed for the given research unless `habIds`/`vehicles` are passed; otherwise
- * `habIds`/`vehicles` describe the current farm.
+ * habs/vehicles are maxed for the given research; otherwise `habIds`/`vehicles` describe the
+ * current farm.
  */
 export function getOptimalELRSetFromPool(
   pool: DeliveryPool,
@@ -535,8 +550,6 @@ export function getOptimalELRSetFromPool(
     commonResearch: Record<string, number>;
     epicResearchLevels: Record<string, number>;
     colleggtibleModifiers: Modifiers;
-    habIds?: (number | null)[];
-    vehicles?: VehicleSlot[];
   }
 ): EquippedArtifact[] {
   const assumeMax = options.assumeMaxHabsVehicles ?? false;
@@ -544,6 +557,7 @@ export function getOptimalELRSetFromPool(
   const colleggtibles = options.colleggtibleModifiers;
   const commonResearch = options.commonResearch;
   const epicResearchLevels = options.epicResearchLevels;
+  const slotCount = artifactSlotCount(options.proPermit);
 
   // 1. Identify candidate artifact STRUCTURES to search over — skipped entirely when
   // `forcedArtifacts` is given (see that option's own doc comment): the search collapses to the
@@ -557,14 +571,14 @@ export function getOptimalELRSetFromPool(
       stones: new Array(artifactId ? getArtifact(artifactId)?.slots ?? 0 : 0).fill(null),
     }));
     while (forcedLoadout.length < 4) forcedLoadout.push({ artifactId: null, stones: [] });
-    candidateLoadouts = [forcedLoadout];
+    candidateLoadouts = [activeSlots(forcedLoadout, options.proPermit)];
   } else {
     const topCandidates = pool.candidates
       .map(id => getArtifact(id))
       .filter((a): a is NonNullable<typeof a> => !!a)
       .filter(a => !(excludeGusset && a.afxId === ei.ArtifactSpec.Name.ORNATE_GUSSET));
 
-    // Search through combinations of 1 to 4 artifacts
+    // Search through combinations of 1 to `slotCount` artifacts (4 with Pro permit, 2 with Standard)
     // 12C4 = 495, which is small enough.
     function combinations<T>(array: T[], r: number): T[][] {
       const result: T[][] = [];
@@ -581,12 +595,8 @@ export function getOptimalELRSetFromPool(
       return result;
     }
 
-    const combos = [
-      ...combinations(topCandidates, 1),
-      ...combinations(topCandidates, 2),
-      ...combinations(topCandidates, 3),
-      ...combinations(topCandidates, 4),
-    ];
+    const combos: (typeof topCandidates)[] = [];
+    for (let r = 1; r <= slotCount; r++) combos.push(...combinations(topCandidates, r));
 
     candidateLoadouts = combos
       .filter(combo => {
@@ -611,14 +621,12 @@ export function getOptimalELRSetFromPool(
 
   const habIds: (number | null)[] = assumeMax ? [18, 18, 18, 18] : options.habIds ?? [null, null, null, null];
   let vehicles: VehicleSlot[];
-  if (options.vehicles) {
-    vehicles = options.vehicles;
-  } else if (assumeMax) {
+  if (assumeMax) {
     const totalSlots = calculateMaxVehicleSlots(commonResearch);
     const maxTrainLen = calculateMaxTrainLength(commonResearch);
     vehicles = new Array(totalSlots).fill(null).map(() => ({ vehicleId: 11, trainLength: maxTrainLen }));
   } else {
-    vehicles = [{ vehicleId: 0, trainLength: 1 }];
+    vehicles = options.vehicles ?? [{ vehicleId: 0, trainLength: 1 }];
   }
 
   // What one stone placement achieves; the search compares placements by `elr`, then `layRate`.

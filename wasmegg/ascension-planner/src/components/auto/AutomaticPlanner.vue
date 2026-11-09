@@ -36,6 +36,7 @@
             <!-- Start time, timezone and the rest: one setup shared by every Auto Planner screen
                  (YourSetup.vue), here where the start time used to be. -->
             <YourSetup screen="classic" />
+            <ProPermitToggle :model-value="initialStateStore.proPermit" @update:model-value="setProPermit" />
             <VirtueProgressSection />
 
             <!-- Ascension Targets -->
@@ -391,6 +392,10 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
 import { useTruthEggsStore } from '@/stores/truthEggs';
+import { useInitialStateStore } from '@/stores/initialState';
+import { useActionsStore } from '@/stores/actions';
+import { computeSnapshot } from '@/engine/compute';
+import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
@@ -402,6 +407,7 @@ import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlan
 import { planStartOwner } from '@/composables/useBackupPlanStart';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
+import ProPermitToggle from 'ui/components/planners/ProPermitToggle.vue';
 import VirtueProgressSection from './VirtueProgressSection.vue';
 import YourSetup from './YourSetup.vue';
 import ChainSummaryBar from './ChainSummaryBar.vue';
@@ -410,11 +416,19 @@ import AscensionOverview from './AscensionOverview.vue';
 import ForcedAscensionPreview from './ForcedAscensionPreview.vue';
 import ValidationDialog from './ValidationDialog.vue';
 import LoadoutOverrideScopeDialog from './LoadoutOverrideScopeDialog.vue';
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import ConfirmationDialog from 'ui/components/planners/ConfirmationDialog.vue';
 import type { AutoLoadoutInputs } from '@/auto/loadout';
 
 const autoPlannerStore = useAutoPlannerStore();
 const truthEggsStore = useTruthEggsStore();
+const initialStateStore = useInitialStateStore();
+const actionsStore = useActionsStore();
+
+/** Same switch as the manual planner's Initial State: also re-runs the manual plan on the new permit. */
+function setProPermit(enabled: boolean) {
+  initialStateStore.setProPermit(enabled);
+  actionsStore.setInitialSnapshot(computeSnapshot(createBaseEngineState(null), getSimulationContext()));
+}
 
 const { ascensionChain, timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarningsMode } =
   storeToRefs(autoPlannerStore);

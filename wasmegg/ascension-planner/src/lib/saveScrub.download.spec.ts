@@ -13,7 +13,13 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticSaveWithId } from '@/test/syntheticSave';
 import { backupText } from '@/search/keptSaves';
-import { downloadCsv, downloadFile, downloadParts } from '@/utils/export';
+import { downloadCsv, downloadFile, downloadGzipped, downloadParts } from '@/utils/export';
+
+// Joo's gzipped plan download (lib/planners/utils/export.ts, 50a26c77) writes the bytes as given; ours scrubs first.
+const gz = vi.hoisted(() => ({ sent: [] as string[] }));
+vi.mock('lib/planners/utils/export', () => ({
+  downloadGzipped: async (_name: string, content: string) => void gz.sent.push(content),
+}));
 import { PLACEHOLDER_ID, scrubParts, scrubPlayerIds } from './saveScrub';
 
 const FAKE = 'EI9876543210987654';
@@ -93,8 +99,20 @@ describe('downloads carry no player ID', () => {
       expect(src, p).not.toContain('createObjectURL');
     }
     // Joo's exports reach the browser only through the same wrapper (his files unchanged).
-    expect(read('stores/actions/io.ts')).toContain("downloadFile(filename, jsonString, 'application/json')");
+    // Joo's plan files are gzipped since PR #729: every caller goes through our scrubbing downloadGzipped.
+    for (const p of ['stores/actions/io.ts', 'auto/export.ts', 'components/PlanLibrary.vue']) {
+      const src = read(p);
+      expect(src, p).toContain("import { downloadGzipped } from '@/utils/export'");
+      expect(src, p).not.toMatch(/downloadGzipped[^;]*from 'lib\/planners\/utils\/export'/);
+    }
     expect(read('components/PlanLibrary.vue')).not.toContain('createObjectURL');
-    expect(read('auto/export.ts')).toContain("downloadFile(filename, content, 'application/json')");
+  });
+
+  it('a gzipped plan file is scrubbed before the shared helper gzips it', async () => {
+    gz.sent.length = 0;
+    await downloadGzipped('plan.json', JSON.stringify({ eiUserId: FAKE, note: `a ${FAKE} b` }));
+    expect(gz.sent).toHaveLength(1);
+    expect(gz.sent[0]).not.toContain(FAKE);
+    expect(gz.sent[0]).toContain(PLACEHOLDER_ID);
   });
 });

@@ -14,7 +14,7 @@
  * shrinks as the TE grows. Above 360 no route continues (routeFinder.ts USEFUL_STOP_MAX) and the opening was under an
  * hour and a quarter on every account measured (main, the alt and a weaker one, every 10 TE): 1.2 h.
  */
-import { getNextSaleEnd, getNextSaleStart, isResearchSaleActive } from '@/lib/events';
+import { getNextSaleEnd, getNextSaleStart, isResearchSaleActive } from 'lib/planners/events';
 
 const FROM = 55;
 // prettier-ignore

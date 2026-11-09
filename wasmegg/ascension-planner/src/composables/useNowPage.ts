@@ -1961,7 +1961,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         truthEggs: teByEgg.value.reduce((a, b) => a + b, 0),
         colleggtibleModifiers: ctx.colleggtibleModifiers,
         labUpgradeLevel: ctx.epicResearchLevels['cheaper_research'] ?? 0,
-        permitLevel: (raw.value as { game?: { permitLevel?: number | null } }).game?.permitLevel ?? null,
+        proPermit: (raw.value as { game?: { permitLevel?: number | null } }).game?.permitLevel === 1,
       });
     } catch {
       return null;

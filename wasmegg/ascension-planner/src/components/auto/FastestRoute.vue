@@ -100,7 +100,7 @@ import { thisDevice } from '@/search/device';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
-import { safeAsyncComponent } from '@/lib/import';
+import { safeAsyncComponent } from 'lib/planners/import';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantGuard from './InstantGuard';

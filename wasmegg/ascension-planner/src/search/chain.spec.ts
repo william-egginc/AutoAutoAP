@@ -32,7 +32,7 @@ import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
 import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
 import { computeSnapshot } from '@/engine/compute';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, lastWaitEgg, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
 import { findRoutes, polishFound, type BuildLookup, type FirstLeg, type FoundRoutes, type Route } from './routeFinder';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import {
   candidatesOf,
   describeCutoff,

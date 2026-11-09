@@ -3,7 +3,7 @@ import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './preco
 import * as routeFinder from './routeFinder';
 import { findRoutes, polishFound, type BuildLookup, type PolishOptions } from './routeFinder';
 import { isAvailable, type Availability } from './availability';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 
 // By a date with the player's hours: the last stop counts when it is REACHED by the deadline, as By a date's search
 // does (Jordan, 5 Nov 2026, removing "I need to ascend at the last stop before the deadline": a night-time last stop

@@ -14,8 +14,8 @@
  *  4. A verdict (`verdictOf`): PASS / CLOSE / FAIL / STALE.
  *  5. Still current (`currentChanges`): does the stamp still match a save, or today's maxed account?
  */
-import { getBuildPhaseEndForSaleCount } from '@/lib/events';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { getBuildPhaseEndForSaleCount } from 'lib/planners/events';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { colleggtibleDefs, modifiersFromColleggtibleTiers, type Modifiers } from 'lib/collegtibles';
 import { canonicalDelivered, EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import { fieldsPerBuild, type TableHeader } from './precomputedTable';

@@ -8,7 +8,7 @@
 import { habTypes } from '@/lib/habs';
 import { vehicleTypes } from '@/lib/vehicles';
 import { MAX_TRAIN_LENGTH } from '@/lib/vehicles';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { getResearchById } from '@/calculations/commonResearch';
 import type { CurrentFarmState, ResearchLevels, VehicleSlot } from '@/types';
 

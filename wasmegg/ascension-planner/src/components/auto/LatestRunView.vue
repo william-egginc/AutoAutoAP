@@ -417,7 +417,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { NAMES, fastestName, hashFor } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
-import { safeAsyncComponent } from '@/lib/import';
+import { safeAsyncComponent } from 'lib/planners/import';
 import { VIEWS } from '@/search/views';
 import type { ShortlistRow } from '@/search/shortlist';
 import { spareLabel } from '@/search/deadlineSummary';

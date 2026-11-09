@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBuildPhaseEndForSaleCount } from '@/lib/events';
+import { getBuildPhaseEndForSaleCount } from 'lib/planners/events';
 import { canonicalDelivered, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import { packTable, type TableHeader } from './precomputedTable';
 import { REFERENCE_WEEK } from './tableBuild';

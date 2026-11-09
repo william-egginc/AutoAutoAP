@@ -30,10 +30,21 @@ export const SIM_VERSION = '2026-11-03-sim3';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
-export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
+export const SIM_SOURCES = [
+  'src/engine',
+  'src/auto',
+  'src/search/tableBuild.ts',
+  'src/search/precomputedLeg.ts',
+  // Joo's shared planner code (PR #729) moved the engine math and the hab/vehicle/silo planners here.
+  '../../lib/planners/engine',
+  '../../lib/planners/calculations',
+];
 
-/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = '3d7162a9f5a00d5cc200110e50bc0240a6e8363f2579c87cecf8d121019d0f73';
+/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
+ *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
+ *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
+ *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge. */
+export const SIM_SOURCE_HASH = '453f166495b1a195cc6f56fd5891beeb59b81c31f55ad09802d5ad84d53cb730';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

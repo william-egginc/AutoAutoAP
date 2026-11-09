@@ -24,7 +24,7 @@ import { artifactOptions, stoneOptions } from '@/lib/artifacts/data';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade } from 'lib/virtue';
 import type { Modifiers } from 'lib/collegtibles';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
 import type { InventoryCount, LoadoutSlot } from '@/search/csv';
 import { summariseEpicResearch } from '@/search/progression';

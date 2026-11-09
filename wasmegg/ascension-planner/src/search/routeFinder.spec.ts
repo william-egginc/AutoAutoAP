@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
 import { findRoutes, firstLegOptions, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
 import type { FirstAscension } from './firstAscension';
-import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
+import { getNextSaleEnd, isResearchSaleActive } from 'lib/planners/events';
 
 const TE = 300;
 const WEEK = 7 * 86400;

@@ -14,7 +14,7 @@ import { LABEL_PX, X_GAPS, Y_GAPS, heatLayout, labelWidth } from '../components/
 
 const SRC = path.resolve(__dirname, '..');
 const read = (f: string) => fs.readFileSync(path.resolve(SRC, f), 'utf8');
-const css = read('styles/components.css');
+const css = read('../../../ui/styles/planners/components.css');
 
 /** Every .vue file under src (Joo's simulator folders hold none, but skip them anyway) and the shared ui/. */
 function vueFiles(dir: string, out: string[] = []): string[] {

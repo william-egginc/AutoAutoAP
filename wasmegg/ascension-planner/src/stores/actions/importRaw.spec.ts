@@ -13,7 +13,7 @@ import { resetAllStores } from '@/lib/modes/reset';
 import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
 import { computeSnapshot } from '@/engine/compute';
 import { useActionsStore } from '@/stores/actions';
-import { useNotesStore } from '@/stores/notes';
+import { useNotesStore } from 'lib/planners/stores/notes';
 import { useInitialStateStore } from '@/stores/initialState';
 import { exportPlanData, PlanImportError } from './io';
 

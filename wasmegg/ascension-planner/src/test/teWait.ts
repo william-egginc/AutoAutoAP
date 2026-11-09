@@ -6,7 +6,7 @@ import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { countTEThresholdsPassed, eggsNeededForTE } from '@/lib/truthEggs';
-import { solveForTime } from '@/engine/apply/math';
+import { solveForTime } from 'lib/planners/engine/apply/math';
 
 /** The app registers vue-tippy in main.ts; a no-op directive is enough for server rendering. */
 export const tippyStub: Plugin = { install: app => void app.directive('tippy', {}) };

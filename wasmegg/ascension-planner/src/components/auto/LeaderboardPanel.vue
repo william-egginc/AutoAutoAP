@@ -992,7 +992,7 @@ import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
-import { safeAsyncComponent } from '@/lib/import';
+import { safeAsyncComponent } from 'lib/planners/import';
 import { plainError } from '@/lib/plainError';
 import { computed, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';

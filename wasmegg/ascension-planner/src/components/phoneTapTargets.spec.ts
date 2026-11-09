@@ -118,7 +118,7 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     expect(tagWith(app, ":aria-label=\"isHeaderCollapsed ? 'Open the top menu'")).toContain('h-11 sm:h-7');
   });
   it('the name pencil (in the shared PlayerIdForm) is 44 px square below sm, from this app’s stylesheet', () => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../styles/components.css'), 'utf8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../../../../ui/styles/planners/components.css'), 'utf8');
     const rule = css.slice(css.indexOf('@media (max-width: 639.98px)'));
     expect(rule).toContain('form:has(#playerId) button[aria-label="Edit name"]');
     expect(rule).toContain('min-width: 44px;');
@@ -183,7 +183,7 @@ describe('nothing floating covers the end of the page on a phone', () => {
     expect(room).toBeGreaterThanOrEqual(pillTop + 16);
   });
   it('Manual: the notes and stats bubbles (7rem up below md, about 70 px tall) sit inside the 12rem under the page', () => {
-    for (const f of ['FloatingNotes.vue', 'FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
+    for (const f of ['../../../../ui/components/planners/FloatingNotes.vue', 'FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
     expect(app).toContain("? 'pb-48 md:pb-8'");
     expect(app).toContain(": 'pb-48 md:pb-24'");
     const bubbleTop = 7 * rem + 6 + 16 + 4 + 36 + 6; // bottom-28, p-1.5, chevron, mb-1, 36 px icon, p-1.5
