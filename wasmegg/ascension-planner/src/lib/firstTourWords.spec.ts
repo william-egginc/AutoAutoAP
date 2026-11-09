@@ -34,11 +34,11 @@ describe('first tour words', () => {
     });
     expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
       title: 'Where Setup is',
-      body: 'Setup is the button at the bottom of the screen, on the Auto Planner and My runs. Tap it any time.',
+      body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
     });
     expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Setup is where you set your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
+      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });

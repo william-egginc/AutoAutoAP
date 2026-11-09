@@ -20,10 +20,10 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'The instant answer',
     body: "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More.",
   },
-  // DRAFT (spec-simpler2, 9 Nov 2026), for Words: the button beside Follow this route on the answer.
+  // The button beside Follow this route on the answer (spec-simpler2).
   simulate: {
     title: 'Simulate this plan',
-    body: 'Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
+    body: "Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
   },
   follow: {
     title: 'Follow this route',
@@ -33,14 +33,14 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'My runs and the tracker',
     body: 'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.',
   },
-  // DRAFT (spec-simpler2): Setup as two slides, where it is, then what is inside.
+  // Setup as two slides, where it is, then what is inside (spec-simpler2).
   setupWhere: {
     title: 'Where Setup is',
-    body: 'Setup is the button at the bottom of the screen, on the Auto Planner and My runs. Tap it any time.',
+    body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
   },
   setup: {
     title: 'Inside Setup',
-    body: 'Setup is where you set your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.',
+    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.',
   },
 };
 
@@ -80,11 +80,9 @@ export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
   goal: 'The goal tabs, highlighted: Fastest to 490 TE, Highest TE by a date and Single run.',
   answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the first step.',
-  // DRAFT (spec-simpler2), for Words.
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
   follow: 'The Follow this route button under the instant answer, highlighted.',
   myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
-  // DRAFT (spec-simpler2), for Words.
   setupWhere: 'The Setup button at the bottom of the screen, highlighted.',
   setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
 };
