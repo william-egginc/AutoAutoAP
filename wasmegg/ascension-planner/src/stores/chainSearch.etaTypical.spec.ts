@@ -6,7 +6,8 @@
  * read about twice the real time, and the time left ended a run with ~15 min still showing.
  *
  * The typical count: what this device's finished runs at this level really priced, as a share of their bound,
- * applied to this run's bound. The bound alone only when nothing better is known (a device's first run).
+ * applied to this run's bound. On a device's first Fast run, a built-in share measured from real Fast runs
+ * (`DEFAULT_FAST_SHARE`, lib/fastTypical.ts), not the bound.
  *
  * The pool is a stub on fake time: nothing runs, nothing is sent.
  */
@@ -58,6 +59,7 @@ const { useChainSearchStore } = await import('./chainSearch');
 const { useInitialStateStore } = await import('./initialState');
 const { useActionsStore } = await import('./actions');
 const { loadChainBenchmark } = await import('@/lib/chainBenchmarkCache');
+const { DEFAULT_FAST_SHARE } = (await import('@/lib/fastTypical')) as unknown as { DEFAULT_FAST_SHARE: number };
 const { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } = await import('@/search/speed');
 
 function installStubs(): void {
@@ -134,12 +136,14 @@ function nextVisit() {
 }
 
 describe("Fast's How long before Start", () => {
-  it('a first run on a device: the bound, as nothing better is known', () => {
+  it("a first run on a device: Fast's built-in typical share of the bound, not the bound", () => {
     const store = useChainSearchStore();
     const e = store.smartEstimate('quick');
     expect(e.measured).toBe(false);
+    const typical = Math.round(e.chains * DEFAULT_FAST_SHARE);
+    expect(e.typical).toBe(typical);
     expect(e.seconds).toBeCloseTo(
-      sweepSeconds(e.chains, store.workerBudget, workerSecondsPerChain(store.seedChain.length)),
+      sweepSeconds(typical, store.workerBudget, workerSecondsPerChain(store.seedChain.length)),
       6
     );
   });
