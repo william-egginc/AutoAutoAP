@@ -30,7 +30,9 @@ import type { BuildUpAction } from './buildUpActions';
 
 /** leg.shiftTE.spec.ts `BEFORE`: the route's numbers recorded before the build-up list existed. */
 // sim3 (3 Nov 2026): recorded again with the simulator.
-const BEFORE = { seconds: 1421633.5813481808, endTime: 1792281233.5813482, key: '1-sale', endTE: 192 };
+// sim4 (9 Nov 2026, SIM_VERSION 2026-11-09-sim4): recorded again with leg.shiftTE.spec's; Joo's 799a6502 (delivery
+// research as a set) moved the route 3.08 h sooner. The build-up list still changes nothing (this spec's subject).
+const BEFORE = { seconds: 1410546.6424200535, endTime: 1792270146.64242, key: '1-sale', endTE: 192 };
 
 let inputs: SearchInputs;
 /** The first leg's start state, as chain.ts builds it. */

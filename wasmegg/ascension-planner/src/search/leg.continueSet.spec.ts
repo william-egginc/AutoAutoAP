@@ -35,9 +35,11 @@ import type { SearchInputs } from './types';
  *  Humility the build-up and continue. Plan start Oct 1, 2026, 7:00 am Mountain; target 192 TE. */
 // sim3 (3 Nov 2026): recorded again. Under the own-egg rule (auto/buildUp.ts) a farm on Kindness and
 // one on Humility no longer end the build-up at the same instant (sim3 check-ins: 0.04 s apart).
+// sim4 (9 Nov 2026, SIM_VERSION 2026-11-09-sim4): recorded again. Joo's 799a6502 (delivery research as a set) ends
+// both build-ups 5,047 s (1.4 h) later; the two farms still end 0.04 s apart, and Humility's continue is unchanged.
 const BEFORE = {
-  buildUpEarnings: 1791553811.6697195,
-  buildUpHumility: 1791553811.707495,
+  buildUpEarnings: 1791558858.6412263,
+  buildUpHumility: 1791558858.6788359,
   humilityContinue: 39027924345.62065,
 };
 

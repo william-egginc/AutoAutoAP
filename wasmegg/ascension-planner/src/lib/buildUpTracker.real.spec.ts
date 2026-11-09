@@ -95,8 +95,9 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const w = r.lines.filter(l => l.kind === 'saleWait');
     expect(w.length).toBeGreaterThan(0);
     for (const l of w) expect(l.text).toMatch(/^wait for the sale: offline until (Fri|Thu|Sat) [A-Z][a-z]{2} \d+ 10:00 am \(/);
-    // 7 silos at 3 h each hold 21 h; the wait is 22 h 13 min (sim3 check-ins): open the farm before they run out.
-    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 13 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
+    // 7 silos at 3 h each hold 21 h; the wait is 22 h 15 min (sim4, 9 Nov 2026: Joo's delivery research as a set
+    // starts it 2 min sooner; sim3 had 22 h 13 min): open the farm before they run out.
+    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 15 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
     expect(r.lines.some(l => l.kind === 'saleStart' && l.time === '10:00 am')).toBe(true);
   });
 
@@ -198,7 +199,9 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     expect(section.match(/type="checkbox"/g)).toHaveLength(8);
     expect(section).toMatch(new RegExp(`data-testid="buildup-cap-${day0.ymd}"[^>]*>\\s*Show all ${day0.lines.filter(l => l.tickable).length} still to do\\s*</button>`));
     expect(day0.lines.some(l => l.bold && l.text === 'shift to Kindness')).toBe(true);
-    expect(html).not.toContain('<span class="font-bold">shift to Kindness</span>');
+    // Bold wherever it renders. sim3's plan put the shift past the first 8 lines (so it was not rendered here); sim4's
+    // (9 Nov 2026, Joo's delivery research as a set: shorter first-day buys) can bring it into them.
+    expect(html.includes('<span class="font-bold">shift to Kindness</span>')).toBe(section.includes('shift to Kindness'));
     if (process.env.BUILDUP_SHOT_DIR) {
       fs.writeFileSync(
         `${process.env.BUILDUP_SHOT_DIR}/real.html`,
