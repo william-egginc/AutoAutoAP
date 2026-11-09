@@ -1,25 +1,27 @@
 /**
- * The first-visit tour's controller (spec-firsttour, 8 Nov 2026; design ~/code/aaap-tools/notes/tutorial-design.md).
- * No DOM here: when the tour opens, which step it is on, what it waits behind, Skip / Esc / Done and when the card
- * should take focus. components/FirstTour.vue wires the page to it (targets, the ring, the card's place, keys).
+ * The first-visit tour's controller, v2 (spec-firsttour2, 9 Nov 2026; Jordan: "can we have a dummy site or pictures and
+ * grey out everything but what's in focus … make it a more prominent alert box, welcoming them and saying to take a tour
+ * or to skip the tour"; design ~/code/aaap-tools/notes/tutorial-v2-design.md). No DOM here; TourModal.vue makes it a
+ * modal on the page. v1's ring and card beside the real page are gone; its rules stay (lib/firstTour.ts).
  *
- *  - Opens by itself on a page load when lib/firstTour.ts `tourShouldStart` says so and no search runs; the first show
- *    keeps later:0. With a save already in it starts on step 2.
- *  - One thing at a time: while the consent box ("Help improve the planner") is open, an update box or the egg-beta
- *    reload banner shows, the planned-update banner shows, a modal dialog or the Setup panel is open, or the page is
- *    loading, the card hides and keeps its step (`visible`). A search starting mid-tour puts it away for this page load,
- *    nothing written: it shows again on the next load.
- *  - Focus moves to the card when it opens and on Back / Next (`wantFocus`), not when a step moves on because the player
- *    did the thing (a save loaded, Follow pressed): that is only announced.
- *  - The replay links (the footer, Setup) start it whatever is stored, Remind me later UNticked (Jordan, 8 Nov 2026).
- *
- * One controller per page (`useFirstTour`), so the links and the card share it. Never imported by a file the result
- * hash covers.
+ *  - A new visitor (lib/firstTour.ts `tourShouldStart`, no search running) gets the WELCOME box: Take the tour (the
+ *    slideshow, same box), Skip (later:N+1 with Remind me later ticked, off unticked; the third Skip is the last), and
+ *    Load my save (done: they chose to start; focus to the ID box). The first show keeps later:0.
+ *  - The SLIDESHOW: one picture per step (lib/tourSlides.ts), Back / Next, Done on the last (done), Skip on every slide.
+ *    A save file with no player ID has four slides.
+ *  - One thing at a time: hidden, keeping its place, while the consent box is open, an update box or the egg-beta reload
+ *    banner or the planned-update banner shows, another modal dialog or the Setup panel is open, or the page loads. A
+ *    search starting puts it away for this page load, nothing written.
+ *  - Focus: Take the tour when the box opens, the slide's title on each slide; after it closes, the ID box when no save
+ *    is in (the save-file button for a save file with no player ID after Load my save), else where it was.
+ *  - The replay links (footer, Setup) open slide 1 at once, Remind me later UNticked.
+ * One controller per page (`useFirstTour`). Never imported by a file the result hash covers.
  */
 import { computed, reactive, ref } from 'vue';
 import {
   TOUR_STEPS,
   afterDone,
+  afterLoadMySave,
   afterSkip,
   readTour,
   shownFirst,
@@ -55,6 +57,10 @@ export function tourWaitReason(w: TourWait): keyof TourWait | null {
   return WAIT_ORDER.find(k => w[k]) ?? null;
 }
 
+export type TourPhase = 'closed' | 'welcome' | 'slides';
+/** Where focus goes after the box closes: the ID box, the save-file button, or back where it was. */
+export type TourRestore = 'id' | 'file' | 'back';
+
 type TourStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export function createTourController(opts: { storage?: TourStorage | null; blocked: boolean; newVisitor: boolean }) {
@@ -63,13 +69,13 @@ export function createTourController(opts: { storage?: TourStorage | null; block
   const write = (s: TourStored): boolean => (st === undefined ? writeTour(s) : writeTour(s, st));
 
   const state = reactive({
-    open: false,
+    phase: 'closed' as TourPhase,
     index: 0,
     remind: true,
-    /** The card should take focus when it next shows (FirstTour.vue calls `focused()`). */
-    wantFocus: false,
-    /** Focus should go back to where it was (Skip, Done). */
-    restoreFocus: false,
+    /** What should take focus when the box next shows (TourModal.vue calls `focused()`). */
+    wantFocus: null as 'take' | 'title' | null,
+    /** Set when the box closes: where focus goes (TourModal.vue calls `focusRestored()`). */
+    restore: null as TourRestore | null,
     announce: '',
   });
   const env = ref<TourEnv>({ hasAccount: false, hasSaveFile: false, running: false });
@@ -80,26 +86,28 @@ export function createTourController(opts: { storage?: TourStorage | null; block
   const total = computed(() => steps.value.length);
   const isLast = computed(() => state.index >= steps.value.length - 1);
   const isFirst = computed(() => state.index === 0);
-  const hasSave = () => env.value.hasAccount || env.value.hasSaveFile;
+  const noAccount = () => !env.value.hasAccount;
 
   function say(): void {
     state.announce = firstTourAnnounce(state.index + 1, total.value, FIRST_TOUR_STEPS[step.value].title);
   }
-  function openAt(remind: boolean): void {
-    state.index = hasSave() ? 1 : 0;
+  function showSlides(remind: boolean): void {
+    state.phase = 'slides';
+    state.index = 0;
     state.remind = remind;
-    state.open = true;
-    state.wantFocus = true;
-    state.restoreFocus = false;
+    state.wantFocus = 'title';
+    state.restore = null;
     say();
   }
-  function close(): void {
-    state.open = false;
-    state.wantFocus = false;
-    state.restoreFocus = true;
+  function close(restore: TourRestore): void {
+    state.phase = 'closed';
+    state.wantFocus = null;
+    state.restore = restore;
   }
+  /** After Skip or Done: the ID box with no player ID in (the next thing to do), else where focus was. */
+  const after = (): TourRestore => (noAccount() ? 'id' : 'back');
 
-  return {
+  const api = {
     state,
     steps,
     step,
@@ -110,94 +118,105 @@ export function createTourController(opts: { storage?: TourStorage | null; block
       env.value = { ...e };
       if (state.index > steps.value.length - 1) state.index = steps.value.length - 1;
     },
-    /** On page load. */
+    /** On page load: the welcome box for a new visitor. */
     begin(e: TourEnv): void {
       env.value = { ...e };
       if (e.running) return;
       const s = read();
-      if (!tourShouldStart({ stored: s, newVisitor: opts.newVisitor, blocked: opts.blocked }) || !s) return;
+      if (!s || !tourShouldStart({ stored: s, newVisitor: opts.newVisitor, blocked: opts.blocked })) return;
       stored = shownFirst(s);
       if (s.kind === 'absent') write(stored);
-      openAt(true);
+      state.phase = 'welcome';
+      state.index = 0;
+      state.remind = true;
+      state.wantFocus = 'take';
+      state.restore = null;
+      state.announce = '';
     },
-    /** The footer's or Setup's "Show the tour again". Not while a search runs. */
+    /** The footer's or Setup's "Show the tour again": slide 1 at once, the box unticked. Not while a search runs. */
     replay(e: TourEnv): void {
       env.value = { ...e };
       if (e.running) return;
       stored = read() ?? { kind: 'absent' };
-      openAt(false);
+      showSlides(false);
     },
     /** Shown on the page now: open and nothing to wait behind. */
     visible(w: TourWait): boolean {
-      return state.open && tourWaitReason(w) === null;
+      return state.phase !== 'closed' && tourWaitReason(w) === null;
+    },
+    /** The welcome box's Take the tour. */
+    take(): void {
+      if (state.phase === 'welcome') showSlides(state.remind);
+    },
+    /** The welcome box's Load my save: done, and on to the ID box (the save-file button with a save file, no ID). */
+    loadMySave(): void {
+      if (state.phase === 'closed') return;
+      stored = afterLoadMySave();
+      write(stored);
+      close(env.value.hasSaveFile && noAccount() ? 'file' : 'id');
     },
     next(): void {
-      if (isLast.value) return;
+      if (state.phase !== 'slides' || isLast.value) return;
       state.index++;
-      state.wantFocus = true;
+      state.wantFocus = 'title';
       say();
     },
     back(): void {
-      if (isFirst.value) return;
+      if (state.phase !== 'slides' || isFirst.value) return;
       state.index--;
-      state.wantFocus = true;
+      state.wantFocus = 'title';
       say();
     },
     skip(): void {
-      if (!state.open) return;
+      if (state.phase === 'closed') return;
       stored = afterSkip(stored, state.remind);
       write(stored);
-      close();
+      close(after());
     },
     done(): void {
-      if (!state.open) return;
+      if (state.phase !== 'slides') return;
       stored = afterDone();
       write(stored);
-      close();
+      close(after());
     },
-    /** A key pressed on the page: Esc is Skip while the card shows. True when the tour took it. */
+    /** A key on the page: Esc = Skip; ← / → move slides. True when the tour took it. Nothing while hidden. */
     key(k: string, w: TourWait): boolean {
-      if (k !== 'Escape' || !state.open || tourWaitReason(w) !== null) return false;
-      this.skip();
-      return true;
+      if (!api.visible(w)) return false;
+      if (k === 'Escape') {
+        api.skip();
+        return true;
+      }
+      if (state.phase === 'slides' && (k === 'ArrowRight' || k === 'ArrowLeft')) {
+        if (k === 'ArrowRight') api.next();
+        else api.back();
+        return true;
+      }
+      return false;
     },
-    /** A save loaded: step 1 moves on by itself (announced, focus left where it is). */
-    saveLoaded(): void {
-      if (!state.open || step.value !== 'load' || !hasSave()) return;
-      state.index = 1;
-      state.wantFocus = false;
-      say();
-    },
-    /** Follow this route pressed on step 4: on to step 5 by itself (not when step 4 is the last). */
-    followed(): void {
-      if (!state.open || step.value !== 'follow' || isLast.value) return;
-      state.index++;
-      state.wantFocus = false;
-      say();
-    },
-    /** A search started: put away for this page load, nothing written. */
+    /** A search started: put away for this page load, nothing written, focus left alone. */
     searchStarted(): void {
-      if (!state.open) return;
-      state.open = false;
-      state.wantFocus = false;
-      state.restoreFocus = false;
+      if (state.phase === 'closed') return;
+      state.phase = 'closed';
+      state.wantFocus = null;
+      state.restore = null;
     },
     focused(): void {
-      state.wantFocus = false;
+      state.wantFocus = null;
     },
     focusRestored(): void {
-      state.restoreFocus = false;
+      state.restore = null;
     },
   };
+  return api;
 }
 
 export type TourController = ReturnType<typeof createTourController>;
 
 let shared: TourController | null = null;
-/** Bumped by the replay links; FirstTour.vue answers with `replay` and the page's own state. */
+/** Bumped by the replay links; TourModal.vue answers with `replay` and the page's own state. */
 export const tourReplayAsked = ref(0);
 
-/** The page's one controller (FirstTour.vue makes it on mount). */
+/** The page's one controller (TourModal.vue makes it on mount). */
 export function useFirstTour(make?: () => TourController): TourController | null {
   if (!shared && make) shared = make();
   return shared;

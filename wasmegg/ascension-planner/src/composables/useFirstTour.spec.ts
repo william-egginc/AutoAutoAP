@@ -1,6 +1,8 @@
 /**
- * spec-firsttour (8 Nov 2026): the first-visit tour's controller (composables/useFirstTour.ts), the part with no DOM:
- * when it opens, waits, moves on, skips, ends and asks for focus. FirstTour.vue only wires the page to it.
+ * spec-firsttour2 (9 Nov 2026): the first-visit tour v2's controller (composables/useFirstTour.ts), with no DOM: the
+ * welcome box (Take the tour / Skip / Load my save), the slideshow, what it waits behind, Skip / Esc / Done, focus. v1's
+ * aap.tour rules stand (lib/firstTour.spec.ts): new visitors only, later:N under 3, off, done, replay unticked.
+ * TourModal.vue wires the page to it (inert page, focus trap, keys).
  */
 import { describe, expect, it } from 'vitest';
 import { createTourController, tourWaitReason, type TourEnv } from './useFirstTour';
@@ -13,268 +15,206 @@ const mem = (v: string | null = null) => {
 };
 const ENV: TourEnv = { hasAccount: false, hasSaveFile: false, running: false };
 const NO_WAIT = {};
+const make = (v: string | null = null, newVisitor = true, blocked = false) => {
+  const { m, st } = mem(v);
+  return { m, t: createTourController({ storage: st, blocked, newVisitor }) };
+};
 
-describe('starting', () => {
-  it('a new visitor with nothing stored: opens on step 1, writes later:0, asks for focus, Remind me later ticked', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
+describe('the welcome box', () => {
+  it('a new visitor: the welcome box, Remind me later ticked, focus on Take the tour; the first show keeps later:0', () => {
+    const { m, t } = make();
     t.begin(ENV);
-    expect(t.state.open).toBe(true);
-    expect(t.step.value).toBe('load');
-    expect(m.get('aap.tour')).toBe('later:0');
-    expect(t.state.wantFocus).toBe(true);
+    expect(t.state.phase).toBe('welcome');
     expect(t.state.remind).toBe(true);
+    expect(t.state.wantFocus).toBe('take');
+    expect(m.get('aap.tour')).toBe('later:0');
     expect(t.visible(NO_WAIT)).toBe(true);
+  });
+
+  it('v1 rules: not new, done, off or later:3: no box, nothing written; later:2 shows it; blocked or unreadable: none', () => {
+    for (const [v, nv] of [[null, false], ['done', true], ['off', true], ['later:3', true]] as const) {
+      const { m, t } = make(v, nv);
+      t.begin(ENV);
+      expect(t.state.phase).toBe('closed');
+      expect(m.get('aap.tour') ?? null).toBe(v);
+    }
+    const again = make('later:2', false).t;
+    again.begin(ENV);
+    expect(again.state.phase).toBe('welcome');
+    const blocked = make(null, true, true).t;
+    blocked.begin(ENV);
+    expect(blocked.state.phase).toBe('closed');
+    const throwing = createTourController({
+      storage: { getItem: () => { throw new Error('SecurityError'); }, setItem: () => { throw new Error('SecurityError'); } },
+      blocked: false,
+      newVisitor: true,
+    });
+    expect(() => throwing.begin(ENV)).not.toThrow();
+    expect(throwing.state.phase).toBe('closed');
+  });
+
+  it('Take the tour: slide 1 in the same box, focus on its title, announced', () => {
+    const { t } = make();
+    t.begin(ENV);
+    t.take();
+    expect(t.state.phase).toBe('slides');
+    expect(t.step.value).toBe('load');
+    expect(t.state.wantFocus).toBe('title');
     expect(t.state.announce).toBe(`Tour, step 1 of 6: ${FIRST_TOUR_STEPS.load.title}`);
   });
 
-  it('not a new visitor, or done, off, later:3: nothing opens and nothing is written', () => {
-    for (const [v, nv] of [
-      [null, false],
-      ['done', true],
-      ['off', true],
-      ['later:3', true],
-    ] as const) {
-      const { m, st } = mem(v);
-      const t = createTourController({ storage: st, blocked: false, newVisitor: nv });
-      t.begin(ENV);
-      expect(t.state.open).toBe(false);
-      expect(m.get('aap.tour') ?? null).toBe(v);
-    }
+  it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
+    const a = make('later:1', false);
+    a.t.begin(ENV);
+    a.t.skip();
+    expect(a.m.get('aap.tour')).toBe('later:2');
+    expect(a.t.state.phase).toBe('closed');
+    expect(a.t.state.restore).toBe('id');
+    const b = make('later:2', false);
+    b.t.begin(ENV);
+    b.t.skip();
+    expect(b.m.get('aap.tour')).toBe('later:3');
+    const c = make();
+    c.t.begin(ENV);
+    c.t.state.remind = false;
+    c.t.skip();
+    expect(c.m.get('aap.tour')).toBe('off');
   });
 
-  it('later:2 opens again (under the cap), with the box ticked', () => {
-    const { st } = mem('later:2');
-    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
-    t.begin({ ...ENV, hasAccount: true });
-    expect(t.state.open).toBe(true);
-    // A save already in: it starts on step 2.
-    expect(t.step.value).toBe('goal');
-  });
-
-  it('blocked storage, unreadable storage, or a search running: nothing opens, no crash', () => {
-    const blocked = createTourController({ storage: mem().st, blocked: true, newVisitor: true });
-    blocked.begin(ENV);
-    expect(blocked.state.open).toBe(false);
-    const throwing = {
-      getItem: () => {
-        throw new Error('SecurityError');
-      },
-      setItem: () => {
-        throw new Error('SecurityError');
-      },
-    };
-    const t = createTourController({ storage: throwing, blocked: false, newVisitor: true });
-    expect(() => t.begin(ENV)).not.toThrow();
-    expect(t.state.open).toBe(false);
-    const run = createTourController({ storage: mem().st, blocked: false, newVisitor: true });
-    run.begin({ ...ENV, running: true });
-    expect(run.state.open).toBe(false);
-  });
-
-  it('setItem throwing on the first show: the tour still runs this visit, no throw', () => {
-    const st = {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error('QuotaExceededError');
-      },
-    };
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
-    expect(() => t.begin(ENV)).not.toThrow();
-    expect(t.state.open).toBe(true);
-    expect(() => t.skip()).not.toThrow();
-    expect(t.state.open).toBe(false);
-  });
-});
-
-describe('Skip, Esc and Done', () => {
-  it('Skip with the box ticked adds 1 and hides it for this page load', () => {
-    const { m, st } = mem('later:1');
-    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
+  it('Load my save: done (no reminder, no skip count), focus on the ID box', () => {
+    const { m, t } = make('later:1', false);
     t.begin(ENV);
-    t.skip();
-    expect(m.get('aap.tour')).toBe('later:2');
-    expect(t.state.open).toBe(false);
-    expect(t.visible(NO_WAIT)).toBe(false);
-    expect(t.state.restoreFocus).toBe(true);
-  });
-
-  it('Skip with the box unticked writes off', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
-    t.begin(ENV);
-    t.state.remind = false;
-    t.skip();
-    expect(m.get('aap.tour')).toBe('off');
-  });
-
-  it('the third Skip with the box ticked is the last (later:3 reads as off)', () => {
-    const { m, st } = mem('later:2');
-    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
-    t.begin(ENV);
-    t.skip();
-    expect(m.get('aap.tour')).toBe('later:3');
-    const again = createTourController({ storage: st, blocked: false, newVisitor: false });
-    again.begin(ENV);
-    expect(again.state.open).toBe(false);
-  });
-
-  it('Esc is Skip, with the box as it is; other keys do nothing; nothing while hidden', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
-    t.begin(ENV);
-    expect(t.key('Enter', NO_WAIT)).toBe(false);
-    expect(t.state.open).toBe(true);
-    // Waiting behind the consent box: Esc belongs to the page.
-    expect(t.key('Escape', { consentOpen: true })).toBe(false);
-    expect(t.state.open).toBe(true);
-    expect(t.key('Escape', NO_WAIT)).toBe(true);
-    expect(t.state.open).toBe(false);
-    expect(m.get('aap.tour')).toBe('later:1');
-  });
-
-  it('Next through every step; Done on the last writes done', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
-    t.begin({ ...ENV, hasAccount: true });
-    const seen: string[] = [];
-    for (let i = 0; i < 6 && t.state.open; i++) {
-      seen.push(t.step.value);
-      if (t.isLast.value) t.done();
-      else t.next();
-    }
-    expect(seen).toEqual(['goal', 'answer', 'follow', 'myruns', 'setup']);
+    t.loadMySave();
     expect(m.get('aap.tour')).toBe('done');
-    expect(t.state.open).toBe(false);
-  });
-});
-
-describe('focus: to the card on open and on Back / Next, not when the player did the thing', () => {
-  it('Next and Back ask for focus; a loaded save or a Follow press moves on without it', () => {
-    const t = createTourController({ storage: mem().st, blocked: false, newVisitor: true });
-    t.begin(ENV);
-    t.focused();
-    expect(t.state.wantFocus).toBe(false);
-    // The save loads: step 2, announced, focus left in the ID box.
-    t.setEnv({ ...ENV, hasAccount: true });
-    t.saveLoaded();
-    expect(t.step.value).toBe('goal');
-    expect(t.state.wantFocus).toBe(false);
-    expect(t.state.announce).toContain(FIRST_TOUR_STEPS.goal.title);
-    t.next();
-    expect(t.state.wantFocus).toBe(true);
-    t.focused();
-    t.next();
-    t.focused();
-    expect(t.step.value).toBe('follow');
-    t.followed();
-    expect(t.step.value).toBe('myruns');
-    expect(t.state.wantFocus).toBe(false);
-    t.back();
-    expect(t.step.value).toBe('follow');
-    expect(t.state.wantFocus).toBe(true);
-  });
-});
-
-describe('waiting: one thing at a time', () => {
-  it('names what it waits behind, in order', () => {
-    expect(tourWaitReason({})).toBeNull();
-    expect(tourWaitReason({ consentOpen: true })).toBe('consentOpen');
-    expect(tourWaitReason({ updateBox: true })).toBe('updateBox');
-    expect(tourWaitReason({ eggBetaReload: true })).toBe('eggBetaReload');
-    expect(tourWaitReason({ plannedUpdate: true })).toBe('plannedUpdate');
-    expect(tourWaitReason({ modal: true })).toBe('modal');
-    expect(tourWaitReason({ setupOpen: true })).toBe('setupOpen');
-    expect(tourWaitReason({ loading: true })).toBe('loading');
+    expect(t.state.phase).toBe('closed');
+    expect(t.state.restore).toBe('id');
   });
 
-  it('stays open but hidden while waiting, and shows again after', () => {
-    const t = createTourController({ storage: mem().st, blocked: false, newVisitor: true });
-    t.begin({ ...ENV, hasAccount: true });
-    for (const w of [{ consentOpen: true }, { updateBox: true }, { eggBetaReload: true }, { plannedUpdate: true }, { modal: true }, { setupOpen: true }]) {
-      expect(t.visible(w)).toBe(false);
-      expect(t.state.open).toBe(true);
-    }
-    expect(t.visible(NO_WAIT)).toBe(true);
-  });
-
-  it('a search starting mid-tour puts it away until the next page load, nothing written', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
-    t.begin({ ...ENV, hasAccount: true });
-    t.searchStarted();
-    expect(t.visible(NO_WAIT)).toBe(false);
-    expect(t.state.open).toBe(false);
-    expect(m.get('aap.tour')).toBe('later:0');
-    // The next page load shows it again.
-    const next = createTourController({ storage: st, blocked: false, newVisitor: false });
-    next.begin({ ...ENV, hasAccount: true });
-    expect(next.state.open).toBe(true);
-  });
-});
-
-describe('a save file with no player ID: the tour ends at step 4', () => {
-  it('four steps; Follow this route is the last, its button Done', () => {
-    const { m, st } = mem();
-    const t = createTourController({ storage: st, blocked: false, newVisitor: true });
+  it('Load my save with a save file and no player ID: focus on the save-file button instead', () => {
+    const { t } = make();
     t.begin(ENV);
     t.setEnv({ ...ENV, hasSaveFile: true });
-    t.saveLoaded();
-    expect(t.steps.value).toEqual(['load', 'goal', 'answer', 'follow']);
+    t.loadMySave();
+    expect(t.state.restore).toBe('file');
+  });
+});
+
+describe('the slideshow', () => {
+  it('Next to the last slide, Done there writes done; Back and Next move focus to the title', () => {
+    const { m, t } = make();
+    t.begin({ ...ENV, hasAccount: true });
+    t.take();
+    const seen: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      seen.push(t.step.value);
+      t.focused();
+      if (!t.isLast.value) {
+        t.next();
+        expect(t.state.wantFocus).toBe('title');
+      }
+    }
+    expect(seen).toEqual(['load', 'goal', 'answer', 'follow', 'myruns', 'setup']);
+    t.focused();
+    t.back();
+    expect(t.step.value).toBe('myruns');
+    expect(t.state.wantFocus).toBe('title');
+    t.next();
+    t.done();
+    expect(m.get('aap.tour')).toBe('done');
+    // A save is in: focus goes back where it was.
+    expect(t.state.restore).toBe('back');
+  });
+
+  it('keys: Esc = Skip (welcome or slides), arrows move slides; nothing while hidden behind something', () => {
+    const { m, t } = make();
+    t.begin(ENV);
+    expect(t.key('ArrowRight', NO_WAIT)).toBe(false);
+    t.take();
+    expect(t.key('ArrowRight', NO_WAIT)).toBe(true);
+    expect(t.step.value).toBe('goal');
+    expect(t.key('ArrowLeft', NO_WAIT)).toBe(true);
+    expect(t.step.value).toBe('load');
+    expect(t.key('Escape', { updateBox: true })).toBe(false);
+    expect(t.state.phase).toBe('slides');
+    expect(t.key('Escape', NO_WAIT)).toBe(true);
+    expect(t.state.phase).toBe('closed');
+    expect(m.get('aap.tour')).toBe('later:1');
+    const w = make().t;
+    w.begin(ENV);
+    expect(w.key('Escape', NO_WAIT)).toBe(true);
+    expect(w.state.phase).toBe('closed');
+  });
+
+  it('a save file with no player ID: four slides, Follow this route is the last (Done)', () => {
+    const { m, t } = make('done', false);
+    t.replay({ ...ENV, hasSaveFile: true });
+    expect(t.total.value).toBe(4);
+    t.next();
     t.next();
     t.next();
     expect(t.step.value).toBe('follow');
     expect(t.isLast.value).toBe(true);
-    expect(t.total.value).toBe(4);
-    // A Follow press on the last step doesn't end it: Done does.
-    t.followed();
-    expect(t.state.open).toBe(true);
     t.done();
     expect(m.get('aap.tour')).toBe('done');
   });
 });
 
-describe('replay (the footer and Setup links)', () => {
-  it('starts whatever is stored, with Remind me later UNticked, from step 2 with a save; writes only on Skip or Done', () => {
-    const { m, st } = mem('done');
-    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
-    t.begin({ ...ENV, hasAccount: true });
-    expect(t.state.open).toBe(false);
+describe('waits: one modal at a time', () => {
+  it('names what it waits behind', () => {
+    expect(tourWaitReason({})).toBeNull();
+    for (const k of ['consentOpen', 'updateBox', 'eggBetaReload', 'plannedUpdate', 'modal', 'setupOpen', 'loading'] as const)
+      expect(tourWaitReason({ [k]: true })).toBe(k);
+  });
+
+  it('hidden behind each, its place kept, and back after', () => {
+    const { t } = make();
+    t.begin(ENV);
+    for (const w of [{ consentOpen: true }, { updateBox: true }, { eggBetaReload: true }, { plannedUpdate: true }, { modal: true }, { setupOpen: true }, { loading: true }]) {
+      expect(t.visible(w)).toBe(false);
+      expect(t.state.phase).toBe('welcome');
+    }
+    expect(t.visible(NO_WAIT)).toBe(true);
+  });
+
+  it('never starts while a search runs; one starting puts it away until the next page load, nothing written', () => {
+    const run = make();
+    run.t.begin({ ...ENV, running: true });
+    expect(run.t.state.phase).toBe('closed');
+    expect(run.m.get('aap.tour')).toBeUndefined();
+    const { m, t } = make();
+    t.begin(ENV);
+    t.searchStarted();
+    expect(t.state.phase).toBe('closed');
+    expect(m.get('aap.tour')).toBe('later:0');
+  });
+
+  it('a replay waits behind the open consent box (it is not stacked on it)', () => {
+    const { t } = make('done', false);
     t.replay({ ...ENV, hasAccount: true });
-    expect(t.state.open).toBe(true);
-    expect(t.step.value).toBe('goal');
+    expect(t.visible({ consentOpen: true })).toBe(false);
+    expect(t.visible(NO_WAIT)).toBe(true);
+  });
+});
+
+describe('replay (footer and Setup)', () => {
+  it('no welcome box: slide 1 at once, Remind me later UNticked, focus on the title; writes only on Skip or Done', () => {
+    const { m, t } = make('done', false);
+    t.replay({ ...ENV, hasAccount: true });
+    expect(t.state.phase).toBe('slides');
+    expect(t.step.value).toBe('load');
     expect(t.state.remind).toBe(false);
-    expect(t.state.wantFocus).toBe(true);
+    expect(t.state.wantFocus).toBe('title');
     expect(m.get('aap.tour')).toBe('done');
     t.skip();
     expect(m.get('aap.tour')).toBe('off');
   });
 
-  it('works with storage blocked too, and after a search put it away', () => {
-    const t = createTourController({ storage: mem().st, blocked: true, newVisitor: true });
-    t.begin(ENV);
-    t.replay(ENV);
-    expect(t.state.open).toBe(true);
-    expect(t.step.value).toBe('load');
-    t.searchStarted();
-    t.replay(ENV);
-    expect(t.visible(NO_WAIT)).toBe(true);
-  });
-
-  it('never while a search runs', () => {
-    const t = createTourController({ storage: mem().st, blocked: false, newVisitor: false });
-    t.replay({ ...ENV, hasAccount: true, running: true });
-    expect(t.state.open).toBe(false);
-  });
-});
-
-describe('the consent wait reads one read-only flag from useStudy (StudyBox.vue sets it)', () => {
-  it('studyBoxOpen: the box on screen with its form open; Hide or an answer clears it', async () => {
-    const { readFileSync } = await import('node:fs');
-    const box = readFileSync(new URL('../components/StudyBox.vue', import.meta.url), 'utf8');
-    const study = readFileSync(new URL('./useStudy.ts', import.meta.url), 'utf8');
-    expect(study).toContain('export const studyBoxOpen = ref(false);');
-    expect(box).toContain("studyBoxOpen.value = step.value === 'ask-box' && open.value;");
-    expect(box).toContain('onUnmounted(() => (studyBoxOpen.value = false));');
+  it('works with storage blocked; never while a search runs', () => {
+    const b = make(null, true, true).t;
+    b.replay(ENV);
+    expect(b.state.phase).toBe('slides');
+    const r = make().t;
+    r.replay({ ...ENV, running: true });
+    expect(r.state.phase).toBe('closed');
   });
 });

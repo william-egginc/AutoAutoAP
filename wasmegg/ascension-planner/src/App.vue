@@ -831,9 +831,10 @@
         </button>
       </footer>
 
-      <!-- The first-visit tour (spec-firsttour, 8 Nov 2026): six steps on the real page for a new visitor, with Skip and
-           Remind me later; it waits behind the consent box, the update banners, dialogs, Setup and a running search. -->
-      <FirstTour
+      <!-- The first-visit tour (spec-firsttour, 8 Nov 2026; v2 spec-firsttour2, 9 Nov 2026): a welcome box for a new
+           visitor (Take the tour / Skip / Load my save), then a slideshow of pictures, in a modal; it waits behind the
+           consent box, the update banners, other dialogs, Setup and a running search. -->
+      <TourModal
         :has-account="!!playerId"
         :has-save-file="fileOnlySave"
         :running="myRunsRunning"
@@ -849,7 +850,7 @@
 import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { isNewVisitor } from '@/lib/firstTour';
-import FirstTour from '@/components/FirstTour.vue';
+import TourModal from '@/components/TourModal.vue';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';

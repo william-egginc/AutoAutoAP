@@ -14,10 +14,12 @@ const script = app.slice(app.indexOf('<script setup'));
 const siteTabs = read('./components/SiteTabs.vue');
 const instant = read('./components/auto/InstantRoute.vue');
 
-describe('App.vue mounts the tour', () => {
-  it('once, with the account, the save file, a running search, the egg-beta banner, loading and the new-visitor test', () => {
-    expect(template.match(/<FirstTour\b/g)?.length).toBe(1);
-    const at = template.indexOf('<FirstTour');
+describe('App.vue mounts the tour (v2: the modal, TourModal.vue)', () => {
+  it('v1\'s ring and card are gone: no FirstTour, and TourModal once, with the account, the save file, a running search, the egg-beta banner, loading and the new-visitor test', () => {
+    expect(template).not.toMatch(/<FirstTour\b/);
+    expect(script).not.toContain('FirstTour.vue');
+    expect(template.match(/<TourModal\b/g)?.length).toBe(1);
+    const at = template.indexOf('<TourModal');
     const tag = template.slice(at, template.indexOf('/>', at));
     for (const p of [
       ':has-account="!!playerId"',
