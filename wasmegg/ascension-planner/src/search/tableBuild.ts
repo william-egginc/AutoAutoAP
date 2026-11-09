@@ -46,8 +46,22 @@ export function startStateAt(inputs: SearchInputs, te: number): EngineState {
   );
 }
 
-/** One start's build: the shared C1..R1 run and every C3 variant still possible. */
-export function buildAt(inputs: SearchInputs, state: EngineState, start: number, te: number) {
+/** A build's C1..R1 run, as `buildAt` returns it. */
+export type PreC3 = { actions: ReturnType<typeof runUntilShift>['actions']; state: EngineState; elapsedSeconds: number };
+
+/**
+ * One start's build: the shared C1..R1 run and every C3 variant still possible. `reuse`: another
+ * hour's C1..R1 run standing in for this one's (the generator's prefix reuse, scripts/precompute.ts;
+ * a copy is taken, so the one passed stays as it was); `keepPrefix`: also return an untouched copy of
+ * this build's own C1..R1 run, for reuse.
+ */
+export function buildAt(
+  inputs: SearchInputs,
+  state: EngineState,
+  start: number,
+  te: number,
+  opts: { reuse?: PreC3; keepPrefix?: boolean } = {}
+) {
   // Each cell on its own copy of the save. getOptimalELRSet caches the first artifact structure it
   // finds per backup object for the rest of the process (lib/artifacts/virtue.ts), so in a
   // long-running generator worker a cell's delivery set depended on which cells that worker built
@@ -61,10 +75,11 @@ export function buildAt(inputs: SearchInputs, state: EngineState, start: number,
     ascensionStartTime: start,
     planStartOffset: 0,
   };
-  const pre = runUntilShift(state, ctx, 'C3');
-  const preC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
+  const pre: PreC3 = opts.reuse ? structuredClone(opts.reuse) : runUntilShift(state, ctx, 'C3');
+  const preC3: PreC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
+  const prefix = opts.keepPrefix ? structuredClone(preC3) : undefined;
   const variants = runC3Variants(pre.state, ctx, 3, te < TIER_13_MIN_STARTING_TE).filter(v => !v.impossible);
-  return { ctx, preC3, variants };
+  return { ctx, preC3, variants, prefix };
 }
 
 /**

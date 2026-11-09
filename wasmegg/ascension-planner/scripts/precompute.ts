@@ -137,7 +137,15 @@ function tableFileExists(file: string): boolean {
   return existsSync(file) || existsSync(`${file}.gz`);
 }
 import { fork } from 'node:child_process';
-import { getNextSaleEnd } from 'lib/planners/events';
+import {
+  BOUNDARY_EPSILON_SECONDS,
+  getNextEarningsBoostEnd,
+  getNextEarningsBoostStart,
+  getNextSaleEnd,
+  getNextSaleStart,
+  isEarningsBoostActive,
+  isResearchSaleActive,
+} from 'lib/planners/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { initPlanFuture } from '@/lib/modes/planFuture';
@@ -522,20 +530,87 @@ const TABLE_TO = 489;
 
 /** One start TE's 168 hours, as JSON lines: {te, h, builds}. With --v2 each build also carries its
  *  `extras` (search/tableV2.ts), read off the same simulation (search/tableV2Build.ts). */
-function generateStartTE(inputs: SearchInputs, te: number): string {
+/**
+ * --reuse-prefix (sim4, 9 Nov 2026; Joo's src/buildTable/prefixReuse.ts, PR #729, ported to this generator): an hour
+ * reuses its event class's seed C1..R1 run instead of simulating its own. A class is the sale/boost state at the start
+ * (none / sale / boost); the seeds are Tue 9:00, Fri 9:00 and Mon 9:00 Pacific of the reference week. An hour reuses
+ * its seed's run only when no sale or boost starts or ends from its start to the seed run's length + 4 h, and the
+ * seed's own run crosses none either (C2's and I1's 4 h budgets look ahead to a coming sale). Joo measured 141-149 of
+ * 168 hours reusing and 30-81% less work. A measured rule, not a proof: --verify-reuse builds every reused hour fresh
+ * too, writes the fresh cell, and counts any difference (te-NNN.verify.json beside the cell file).
+ */
+const PREFIX_SEED_HOURS = { none: 24 + 9, sale: 4 * 24 + 9, boost: 9 } as const;
+const PREFIX_LOOKAHEAD_SECONDS = 4 * 3600;
+type PrefixClass = keyof typeof PREFIX_SEED_HOURS;
+
+function prefixClassAt(t: number): PrefixClass {
+  const sale = isResearchSaleActive(t);
+  const boost = isEarningsBoostActive(t);
+  if (sale && boost) throw new Error(`sale and boost both active at ${t}`);
+  return sale ? 'sale' : boost ? 'boost' : 'none';
+}
+
+function crossesEvent(start: number, seconds: number): boolean {
+  const next = Math.min(getNextSaleStart(start), getNextSaleEnd(start), getNextEarningsBoostStart(start), getNextEarningsBoostEnd(start));
+  return next <= start + seconds + BOUNDARY_EPSILON_SECONDS;
+}
+
+/** One start TE's 168 hours, as JSON lines; `stats` counts reuse when --reuse-prefix / --verify-reuse is on. */
+function generateStartTE(
+  inputs: SearchInputs,
+  te: number,
+  stats?: { reused: number; fresh: number; mismatches: number[] }
+): string {
   const lines: string[] = [];
   const v2 = has('v2');
-  for (let h = 0; h < WEEK_HOURS; h++) {
-    const start = REFERENCE_WEEK + h * 3600;
-    const state = startStateAt(inputs, te);
-    const build = buildAt(inputs, state, start, te);
+  const verify = has('verify-reuse');
+  const reuse = verify || has('reuse-prefix');
+  const cell = (build: ReturnType<typeof buildAt>, h: number, start: number) => {
     const builds = v2
       ? build.variants.map(v => {
           const { params, extras } = paramsAndExtrasOf(build, v, start);
           return { ...params, extras };
         })
       : build.variants.map(v => paramsOf(build, v, start));
-    lines.push(JSON.stringify({ te, h, builds }));
+    return JSON.stringify({ te, h, builds });
+  };
+  const seeds = new Map<PrefixClass, ReturnType<typeof buildAt>>();
+  const seedOf = (cls: PrefixClass) => {
+    let b = seeds.get(cls);
+    if (!b) {
+      const seedStart = REFERENCE_WEEK + PREFIX_SEED_HOURS[cls] * 3600;
+      if (prefixClassAt(seedStart) !== cls) throw new Error(`the ${cls} seed hour is not in its class`);
+      b = buildAt(inputs, startStateAt(inputs, te), seedStart, te, { keepPrefix: true });
+      seeds.set(cls, b);
+    }
+    return b;
+  };
+  for (let h = 0; h < WEEK_HOURS; h++) {
+    const start = REFERENCE_WEEK + h * 3600;
+    if (!reuse) {
+      lines.push(cell(buildAt(inputs, startStateAt(inputs, te), start, te), h, start));
+      continue;
+    }
+    const cls = prefixClassAt(start);
+    const seedHour = PREFIX_SEED_HOURS[cls];
+    const seed = seedOf(cls);
+    if (h === seedHour) {
+      lines.push(cell(seed, h, start));
+      continue;
+    }
+    const horizon = seed.preC3.elapsedSeconds + PREFIX_LOOKAHEAD_SECONDS;
+    if (crossesEvent(REFERENCE_WEEK + seedHour * 3600, horizon) || crossesEvent(start, horizon)) {
+      lines.push(cell(buildAt(inputs, startStateAt(inputs, te), start, te), h, start));
+      if (stats) stats.fresh++;
+      continue;
+    }
+    const reused = cell(buildAt(inputs, startStateAt(inputs, te), start, te, { reuse: seed.prefix }), h, start);
+    if (stats) stats.reused++;
+    if (verify) {
+      const fresh = cell(buildAt(inputs, startStateAt(inputs, te), start, te), h, start);
+      if (fresh !== reused) stats?.mismatches.push(h);
+      lines.push(fresh);
+    } else lines.push(reused);
   }
   return lines.join('\n') + '\n';
 }
@@ -549,8 +624,11 @@ async function generateWorker(file: string, out: string): Promise<void> {
     if (m.te === undefined) return;
     const t0 = Date.now();
     const path = `${out}/te-${String(m.te).padStart(3, '0')}.jsonl`;
-    writeFileSync(path + '.tmp', generateStartTE(inputs, m.te));
+    const stats = { reused: 0, fresh: 0, mismatches: [] as number[] };
+    writeFileSync(path + '.tmp', generateStartTE(inputs, m.te, stats));
     renameSync(path + '.tmp', path);
+    if (has('reuse-prefix') || has('verify-reuse'))
+      writeFileSync(path.replace(/\.jsonl$/, '.verify.json'), JSON.stringify({ te: m.te, ...stats, verified: has('verify-reuse') }) + '\n');
     process.send!({ done: m.te, ms: Date.now() - t0 });
   });
 }

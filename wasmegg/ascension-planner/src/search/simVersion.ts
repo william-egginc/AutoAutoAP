@@ -49,7 +49,7 @@ export const SIM_SOURCES = [
  *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
  *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
  *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge. */
-export const SIM_SOURCE_HASH = '453f166495b1a195cc6f56fd5891beeb59b81c31f55ad09802d5ad84d53cb730';
+export const SIM_SOURCE_HASH = 'aa0e7b9fad29b6993629551c6169bd6b364e6706cad6e802537cc508b3df8795';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
