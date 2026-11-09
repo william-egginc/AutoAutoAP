@@ -102,7 +102,7 @@ import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { computeSnapshot } from '@/engine/compute';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
          type Availability } from '@/search/availability';

@@ -15,7 +15,7 @@ import {
   getNextSaleStart,
   getNextTimeInTimezone,
   PACIFIC_TIMEZONE,
-} from './events';
+} from 'lib/planners/events';
 import { REFERENCE_WEEK } from '@/search/tableBuild';
 import { eggDaySeconds } from './eggDay';
 

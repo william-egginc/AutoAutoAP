@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { loadAutoPlannerSchedule } from './autoPlannerFormCache';
-import { getLocalTimestampInTimezone } from './events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { usePlanStartForm, resetPlanStartForm } from '@/composables/usePlanStartForm';
 import { resetBackupPlanStart } from '@/composables/useBackupPlanStart';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

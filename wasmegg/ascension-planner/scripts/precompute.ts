@@ -137,7 +137,7 @@ function tableFileExists(file: string): boolean {
   return existsSync(file) || existsSync(`${file}.gz`);
 }
 import { fork } from 'node:child_process';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { initPlanFuture } from '@/lib/modes/planFuture';
