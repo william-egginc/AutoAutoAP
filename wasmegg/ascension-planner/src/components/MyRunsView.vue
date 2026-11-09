@@ -117,6 +117,7 @@
             @replan="tracker.replan"
             @retry="retryTracker"
             @show-goal="page.selectGoal"
+            @pick-route="pickRouteToFollow"
           />
         </template>
       </RightNowCard>
@@ -333,6 +334,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import type { BoardReadKind } from '@/search/myBoardRows';
 import { buildSteps, openFor, type DashAction, type MyRunsOpen } from '@/lib/myRunsDashboard';
+import { pickRouteOpen, scrollToInstantAnswer } from '@/lib/pickRoute';
 import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
@@ -628,6 +630,13 @@ watch(
   },
   { immediate: true }
 );
+
+/** The Build-up tracker's "Pick a route to follow" (nothing followed; Kenzie, 9 Nov 2026): the goal Right now shows,
+ *  on its screen (Fastest, or By a date for a dated goal), scrolled to its instant answer and Follow this route. */
+function pickRouteToFollow(): void {
+  emit('open', pickRouteOpen(page.goalChoices.value, page.selectedGoal.value));
+  scrollToInstantAnswer();
+}
 
 /** A step's button: a part here (opened, then scrolled to), Right now on a goal, a fresh save, or a screen, set up. */
 function act(to: DashAction): void {

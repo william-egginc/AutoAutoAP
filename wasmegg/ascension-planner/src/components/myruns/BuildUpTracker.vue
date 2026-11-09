@@ -24,7 +24,7 @@
   when the save is over 1 h behind the plan or has bought things off-plan, or is newer than the plan's and does not hold
   its start. While a newer save is still coming in ('checking'), the card says "reading your save" instead.
 
-  Plain data in, events out (`toggle`, `tick`, `clear`, `replan`, `retry`): the composable owns the storage. Player words are
+  Plain data in, events out (`toggle`, `tick`, `clear`, `replan`, `retry`, `showGoal`, `pickRoute`): the composable owns the storage. Player words are
   DRAFT (Words).
 -->
 <template>
@@ -53,7 +53,19 @@
             Show {{ followedFor.name }}
           </button>
         </div>
-        <p v-else-if="state === 'noRoute'" data-testid="buildup-noroute">Follow a route on Right now and its build-up shows here.</p>
+        <!-- Nothing followed: a way to pick a route (Kenzie, 9 Nov 2026: "follow a route first" had none). The page opens
+             the shown goal's screen at its instant answer, where Follow this route is (lib/pickRoute.ts). -->
+        <div v-else-if="state === 'noRoute'" class="space-y-1">
+          <p data-testid="buildup-noroute">Follow a route on Right now and its build-up shows here.</p>
+          <button
+            type="button"
+            class="min-h-[44px] rounded-lg border border-indigo-300 bg-white px-3 text-small font-bold text-indigo-700 hover:bg-indigo-50"
+            data-testid="buildup-pick-route"
+            @click="emit('pickRoute')"
+          >
+            {{ PICK_ROUTE_WORDS }}
+          </button>
+        </div>
         <p v-else-if="state === 'notBuilding' && finishChosen" data-testid="buildup-finish-chosen" :data-why="finishChosen">
           {{ a1TrackerWords(finishChosen === 'picked') }}
         </p>
@@ -435,6 +447,7 @@ import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type Tracker
 import { getNextSaleEnd } from '@/lib/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import { a1TrackerWords } from '@/lib/a1Choice';
+import { PICK_ROUTE_WORDS } from '@/lib/pickRoute';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
@@ -517,6 +530,7 @@ const emit = defineEmits<{
   replan: [];
   retry: [];
   showGoal: [key: string];
+  pickRoute: [];
 }>();
 
 const ticked = computed(() => (props.ticks instanceof Set ? props.ticks : new Set(props.ticks as readonly string[])));
