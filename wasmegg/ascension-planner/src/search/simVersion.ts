@@ -26,7 +26,12 @@
 // 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
 // (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 24 h,
 // and the 60 s rule (no sub-minute waits: a non-instant wait is at least a minute, offline).
-export const SIM_VERSION = '2026-11-03-sim3';
+// 2026-11-09-sim4: Joo's PR #729 merged (Carpet's main c36a25cf + joo/main 595aa573). The mover is 799a6502
+// (hr/% at the charged price; delivery research planned as a set, calculations/deliveryLevelSearch.ts) with
+// b2ce0b99 and d180ce708 (lookahead pairs); also standard permit (60cf8977) and the research sale on sim time
+// (8a5892b6, b8c6cb8e). Joo's planners refactor moved engine/apply/math.ts and most calculations into lib/planners
+// (hashed below). Tables are rebuilt for it (Jordan, 9 Nov: Option B).
+export const SIM_VERSION = '2026-11-09-sim4';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */

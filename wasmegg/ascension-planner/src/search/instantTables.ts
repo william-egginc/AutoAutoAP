@@ -27,7 +27,9 @@ import type { TableEntry } from './tableBracket';
 // saved with that route; answers saved with a line for the best route are worked out again once.
 // 3 Nov 2026 (sim3): the simulator moved (SIM_VERSION 2026-11-03-sim3); answers saved under the old one are worked
 // out again once.
-export const INSTANT_RULES = '2026-11-03-sim3';
+// 9 Nov 2026 (sim4): the simulator moved again (SIM_VERSION 2026-11-09-sim4, Joo's PR #729); answers saved under sim3
+// are worked out again once.
+export const INSTANT_RULES = '2026-11-09-sim4';
 
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {
