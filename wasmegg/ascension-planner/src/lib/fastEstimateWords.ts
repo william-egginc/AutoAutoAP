@@ -1,7 +1,7 @@
 /**
  * The How long line for Fast and Exact before Start (FastestRoute.vue `levelEstimates`), when this device has finished
- * runs at the level to go on (lib/fastTypical.ts): the time at what the level typically prices here, with the bound
- * beside it. With nothing kept the line is the old one, at the bound.
+ * runs at the level to go on, or for Fast on a first run its built-in share (lib/fastTypical.ts): the time at what the
+ * level typically prices, with the bound beside it. Exact with nothing kept keeps the old line, at the bound.
  * DRAFT wording, Words owns it; wording only, so not part of the result code hash (lib/resultCodeHash.ts isWordingOnly).
  */
 export function typicalHowLongLine(o: {
@@ -11,6 +11,9 @@ export function typicalHowLongLine(o: {
   speed: string;
   typical: number;
   bound: number;
+  /** This device's finished runs, or the built-in share from players' Fast runs (a first run here). */
+  from: 'here' | 'default';
 }): string {
-  return `About ${o.time} on ${o.device} (${o.workers}, ${o.speed}): about ${o.typical.toLocaleString()} routes, as its runs here have priced; at most ~${o.bound.toLocaleString()}.`;
+  const why = o.from === 'here' ? 'as its runs here have priced' : 'what Fast runs typically price';
+  return `About ${o.time} on ${o.device} (${o.workers}, ${o.speed}): about ${o.typical.toLocaleString()} routes, ${why}; at most ~${o.bound.toLocaleString()}.`;
 }

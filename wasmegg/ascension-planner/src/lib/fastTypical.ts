@@ -11,7 +11,8 @@
  * Kept like the measured speed (lib/chainBenchmarkCache.ts): per player, in this browser, per level. Each finished run
  * (not stopped, nothing replayed) adds its routes priced over its bound; the last `KEEP` are kept. A SHARE, not a
  * count, so it carries over to a route of another length or other counts (another bound). Nothing kept (a device's
- * first run, or a level never finished here): the bound.
+ * first run, or a level never finished here): Fast's built-in share (`DEFAULT_FAST_SHARE`); Exact and Exact (wider)
+ * have no measured share, so theirs is the bound.
  *
  * In src/lib, not src/search: it decides no result, so it stays out of the result code hash (lib/resultCodeHash.ts).
  */
@@ -19,6 +20,19 @@
 const STORAGE_KEY_PREFIX = 'chain_typical_v1';
 /** Runs kept per level. */
 export const KEEP = 5;
+
+/**
+ * Fast's routes priced over its bound when this device has finished no Fast run yet: the median of real Fast runs,
+ * 9 Nov 2026, routes priced over the bound the run started from, in the browser (phone-like Chromium, 4 workers, one
+ * scrubbed TE 197 save, Fastest to 490, the instant answer's 5-ascension seed, a 915 bound): 499, 602 and 492 of 915
+ * (0.545, 0.658, 0.538). The median of those three. Three runs on ONE account: a small sample, replaced by this
+ * device's own runs as soon as it has one. More saves in Node (scripts/fastsearch.ts) were not cheap, about an hour a
+ * save, so not done (aaap-tools/notes/eta-swing-2026-11-09.md).
+ */
+export const DEFAULT_FAST_SHARE = 0.545;
+
+/** The built-in share per level when nothing is kept: Fast only (the others have no measured share). */
+export const DEFAULT_SHARES: Partial<Record<string, number>> = { quick: DEFAULT_FAST_SHARE };
 
 export type TypicalShares = Record<string, number[]>;
 
@@ -69,18 +83,25 @@ function median(xs: readonly number[]): number {
   return s.length % 2 ? s[Math.floor(m)] : (s[m - 1] + s[m]) / 2;
 }
 
-/** Routes this search typically prices against `bound`: the kept runs' median share of it; the bound with none. */
-export function typicalCount(bound: number, shares: readonly number[] | undefined): number {
-  if (!shares?.length || !(bound > 0)) return bound;
-  return Math.min(bound, Math.max(1, Math.round(bound * median(shares))));
+/** Routes this search typically prices against `bound`: the kept runs' median share of it; with none kept, the
+ *  built-in share (`fallback`, `DEFAULT_SHARES`), else the bound. */
+export function typicalCount(bound: number, shares: readonly number[] | undefined, fallback?: number): number {
+  const share = shares?.length ? median(shares) : fallback;
+  if (!share || !(bound > 0)) return bound;
+  return Math.min(bound, Math.max(1, Math.round(bound * share)));
 }
 
 /**
  * The count a running search's time left counts down to: the typical count while the run is under it, then the most
  * any kept run priced (a longer run than usual), then the bound.
  */
-export function typicalTotal(bound: number, shares: readonly number[] | undefined, done: number): number {
-  const steps = [typicalCount(bound, shares)];
+export function typicalTotal(
+  bound: number,
+  shares: readonly number[] | undefined,
+  done: number,
+  fallback?: number
+): number {
+  const steps = [typicalCount(bound, shares, fallback)];
   if (shares?.length) steps.push(Math.min(bound, Math.round(bound * Math.max(...shares))));
   steps.push(bound);
   // At the typical count itself, nothing left (the run usually ends there); one route past it, the next step.

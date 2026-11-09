@@ -178,10 +178,19 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
     const speed = e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed';
     out[l] = {
       short: `~${t}`,
-      // With this device's finished runs to go on, what the level really prices here (lib/fastTypical.ts); else the bound.
+      // What the level really prices (lib/fastTypical.ts): this device's runs, or Fast's built-in share on a first run.
+      // Only Exact with nothing kept is priced at the bound.
       line:
-        e.typical !== null
-          ? typicalHowLongLine({ time: t, device: thisDevice(), workers, speed, typical: e.typical, bound: e.chains })
+        e.typical !== null && e.typicalFrom
+          ? typicalHowLongLine({
+              time: t,
+              device: thisDevice(),
+              workers,
+              speed,
+              typical: e.typical,
+              bound: e.chains,
+              from: e.typicalFrom,
+            })
           : `Up to about ${t} on ${thisDevice()} (${workers}, ${speed}): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }

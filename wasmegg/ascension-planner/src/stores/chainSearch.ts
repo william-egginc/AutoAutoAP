@@ -48,7 +48,14 @@ import type { BuildUpTailsResult } from '@/search/instantFirstLegs';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { smartTimeLeft } from '@/lib/smartTimeLeft';
-import { loadTypicalShares, noteTypicalShare, typicalCount, typicalTotal, type TypicalShares } from '@/lib/fastTypical';
+import {
+  DEFAULT_SHARES,
+  loadTypicalShares,
+  noteTypicalShare,
+  typicalCount,
+  typicalTotal,
+  type TypicalShares,
+} from '@/lib/fastTypical';
 import { PAUSE_GAP_MS, RATE_BEAT_MS, spansPause } from '@/lib/ratePause';
 import { createStickyDealer } from '@/search/stickyDealer';
 import {
@@ -2248,7 +2255,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       samples: sweepChainSamples.value,
       done: chainsDone.value,
       // What this level typically prices here, not the upper bound (lib/fastTypical.ts): the bound only with nothing kept.
-      total: typicalTotal(chainsEstimated.value, runTypicalShares, chainsDone.value),
+      total: typicalTotal(chainsEstimated.value, runTypicalShares, chainsDone.value, DEFAULT_SHARES[runKindLevel]),
       // Until 2 minutes are measured (a run's start, or after a pause): this run's own s/chain when it has one,
       // else the typical speed on these workers.
       plannedSecondsPerChain:
@@ -3155,6 +3162,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function smartEstimate(tier: EffortTier): {
     chains: number;
     typical: number | null;
+    /** Where `typical` came from: this device's finished runs, or the level's built-in share (Fast's). */
+    typicalFrom: 'here' | 'default' | null;
     seconds: number;
     measured: boolean;
   } {
@@ -3162,19 +3171,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const cfg = EFFORT[tier];
     const counts = cfg.otherCounts ? plannedCountsFor(seedChain.value.length) : [];
     const chains = estimateChains(n, cfg, counts);
-    // Priced at what this level really prices on this device (lib/fastTypical.ts), the bound when nothing is kept.
+    // Priced at what this level really prices on this device (lib/fastTypical.ts); with nothing kept, the level's
+    // built-in share (Fast's); the bound only for a level with neither.
     const shares = typicalShares.value[tier];
-    const typical = shares?.length ? typicalCount(chains, shares) : null;
+    const fallback = DEFAULT_SHARES[tier];
+    const typicalFrom = shares?.length ? 'here' : fallback ? 'default' : null;
+    const typical = typicalFrom ? typicalCount(chains, shares, fallback) : null;
     const measured = secondsPerChain.value > 0 && rateWorkers.value > 0;
     const ws = measured
       ? workerSecondsFromRate(secondsPerChain.value, rateWorkers.value)
       : workerSecondsPerChain(seedChain.value.length);
-    return { chains, typical, seconds: sweepSeconds(typical ?? chains, workerBudget.value, ws), measured };
+    return { chains, typical, typicalFrom, seconds: sweepSeconds(typical ?? chains, workerBudget.value, ws), measured };
   }
   /** Each level's routes priced over its bound in this device's last finished runs (lib/fastTypical.ts). */
   const typicalShares = ref<TypicalShares>({});
-  /** The running Smart search's kept shares, read as it started. */
+  /** The running Smart search's kept shares and level, read as it started. */
   let runTypicalShares: number[] | undefined;
+  let runKindLevel: EffortTier = 'quick';
 
   /**
    * Fast's check of the other ascension counts (driver.ts stage 4c) as the run will plan it: which
@@ -9289,6 +9302,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     sweepChainSamples.value = [];
     typicalShares.value = loadTypicalShares(playerId);
     runTypicalShares = typicalShares.value[effort.value];
+    runKindLevel = effort.value;
     // A fresh run's export must not carry the previous run's rows: the settings that give every
     // duration its meaning (plan start, excluded hours, final target) may all have changed.
     liveCache = [];

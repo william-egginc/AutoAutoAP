@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { KEEP, loadTypicalShares, noteTypicalShare, typicalCount, typicalTotal } from './fastTypical';
+import {
+  DEFAULT_FAST_SHARE,
+  DEFAULT_SHARES,
+  KEEP,
+  loadTypicalShares,
+  noteTypicalShare,
+  typicalCount,
+  typicalTotal,
+} from './fastTypical';
 
 beforeEach(() => {
   const mem = new Map<string, string>();
@@ -11,10 +19,13 @@ beforeEach(() => {
 });
 
 describe('what a Smart search typically prices here', () => {
-  it('is the bound with nothing kept (a first run on a device)', () => {
-    expect(typicalCount(915, undefined)).toBe(915);
-    expect(typicalCount(915, [])).toBe(915);
-    expect(typicalTotal(915, undefined, 400)).toBe(915);
+  it("with nothing kept (a first run on a device): Fast's built-in share; the bound for a level without one", () => {
+    expect(DEFAULT_SHARES.quick).toBe(DEFAULT_FAST_SHARE);
+    expect(typicalCount(915, undefined, DEFAULT_FAST_SHARE)).toBe(Math.round(915 * DEFAULT_FAST_SHARE));
+    expect(typicalCount(915, [], DEFAULT_SHARES.normal)).toBe(915);
+    // Counts down to the built-in share, then past it to the bound (no kept runs to step through).
+    expect(typicalTotal(915, undefined, 400, DEFAULT_FAST_SHARE)).toBe(499);
+    expect(typicalTotal(915, undefined, 500, DEFAULT_FAST_SHARE)).toBe(915);
   });
 
   it("is the kept runs' median share of this bound, kept per player and level, the last few only", () => {
