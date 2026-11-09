@@ -10,7 +10,8 @@
  * inventory), so one account's rate is not necessarily another's.
  */
 
-const STORAGE_KEY_PREFIX = 'chain_benchmark_v1';
+// v2 (9 Nov 2026): v1 speeds could count a phone's pause as routes being slow (lib/ratePause.ts), so none is read.
+const STORAGE_KEY_PREFIX = 'chain_benchmark_v2';
 
 export interface ChainBenchmarkCache {
   /** Seconds per chain, in the same units `secondsPerChain` uses everywhere else. */
