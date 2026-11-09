@@ -207,7 +207,9 @@
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
            first), above every tab's own content, at the page level so it is the same place on every tab. Once an
            account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
-      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-3" />
+      <!-- On Fastest and By a date it sits below the answer since the simpler page (Jordan, 9 Nov 2026, Q2: the first
+           load shows the answer first; words unchanged): those screens draw it under What to do now (`studyBelowAnswer`). -->
+      <StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer" class="mt-3" />
 
       <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
       <div
@@ -1451,6 +1453,8 @@ const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
+/** Help improve the planner below the answer, on the two answer screens (FastestRoute.vue, DeadlinePanel.vue). */
+const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && autoView.value !== 'classic');
 /** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
  *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
 const saveLineShown = computed(

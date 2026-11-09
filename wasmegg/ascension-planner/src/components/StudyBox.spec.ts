@@ -338,9 +338,9 @@ describe('Setup › Help improve the planner', () => {
 describe('wiring', () => {
   const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector', () => {
+  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector (on Fastest and By a date it is below the answer since the simpler page, 9 Nov 2026: layoutContract.consent.spec.ts)', () => {
     const app = read('../App.vue');
-    const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl"');
+    const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer"');
     expect(at).toBeGreaterThan(0);
     expect(app.match(/<StudyBox\b/g)).toHaveLength(1);
     // Page level (6-space indent, like SiteTabs), not inside a tab's own block.

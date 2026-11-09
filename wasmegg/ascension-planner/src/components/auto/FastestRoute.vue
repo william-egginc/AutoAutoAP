@@ -52,6 +52,10 @@
 
     <NowLine screen="fastest" :goal-key="goalKey" @show-search="showSearch" />
 
+    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2; App.vue draws it at the top of
+         the other screens), until answered. Its words are unchanged (StudyBox.vue, lib/aboutPage.spec.ts). -->
+    <StudyBox v-if="store.submitUrl" />
+
     <MoreFold
       ref="more"
       section="moreFastest"
@@ -121,6 +125,7 @@ import { safeAsyncComponent } from '@/lib/import';
 import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
+import StudyBox from '@/components/StudyBox.vue';
 import { FASTEST_LINE, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';

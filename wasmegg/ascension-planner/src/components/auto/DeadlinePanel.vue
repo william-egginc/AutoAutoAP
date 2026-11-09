@@ -201,6 +201,10 @@
 
     <NowLine screen="by-date" :goal-key="goalKey" @show-search="showSearch" />
 
+    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2: a new player lands here; App.vue
+         draws it at the top of the other screens), until answered. Its words are unchanged (StudyBox.vue). -->
+    <StudyBox v-if="store.submitUrl" />
+
     <MoreFold
       ref="more"
       section="moreByDate"
@@ -1179,6 +1183,7 @@ import {
 } from '@/search/byDateKinds';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
+import StudyBox from '@/components/StudyBox.vue';
 import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
