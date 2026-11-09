@@ -199,9 +199,10 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     expect(section.match(/type="checkbox"/g)).toHaveLength(8);
     expect(section).toMatch(new RegExp(`data-testid="buildup-cap-${day0.ymd}"[^>]*>\\s*Show all ${day0.lines.filter(l => l.tickable).length} still to do\\s*</button>`));
     expect(day0.lines.some(l => l.bold && l.text === 'shift to Kindness')).toBe(true);
-    // Bold wherever it renders. sim3's plan put the shift past the first 8 lines (so it was not rendered here); sim4's
-    // (9 Nov 2026, Joo's delivery research as a set: shorter first-day buys) can bring it into them.
-    expect(html.includes('<span class="font-bold">shift to Kindness</span>')).toBe(section.includes('shift to Kindness'));
+    // The first day's shift to Kindness is past its first 8 lines, so not rendered in that day's section. Scoped to the
+    // section since sim4 (9 Nov 2026): Joo's delivery research as a set moves the Humility swap's own bold "shift to
+    // Kindness" onto a later day that renders open, so the whole page now has one.
+    expect(section).not.toContain('<span class="font-bold">shift to Kindness</span>');
     if (process.env.BUILDUP_SHOT_DIR) {
       fs.writeFileSync(
         `${process.env.BUILDUP_SHOT_DIR}/real.html`,
