@@ -773,6 +773,16 @@
               <h3 class="text-slate-500 label">How the site shows things</h3>
               <DateStyleToggle />
               <TabsToggle />
+              <!-- The first-visit tour again (spec-firsttour): Setup closes first, as the tour waits while it is open. -->
+              <button
+                type="button"
+                class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+                :disabled="store.isRunning"
+                data-testid="setup-tour-replay"
+                @click="replayTour"
+              >
+                {{ FIRST_TOUR_REPLAY }}
+              </button>
             </div>
           </div>
         </div>
@@ -820,6 +830,8 @@ import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
 import { saveOnlineOn } from '@/lib/saveOnline';
+import { askTourReplay } from '@/composables/useFirstTour';
+import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { SAVE_ONLINE_FOLD_OFF, SAVE_ONLINE_FOLD_ON, SAVE_ONLINE_FOLD_TITLE } from '@/lib/saveOnlineWords';
 
 /** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
@@ -861,6 +873,11 @@ watch(
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
+/** Setup's "Show the tour again": Setup closes, then the first-visit tour starts (it waits while Setup is open). */
+function replayTour(): void {
+  ui.setupOpen = false;
+  askTourReplay();
+}
 
 const locked = computed(() => store.busy);
 

@@ -64,3 +64,30 @@ describe('the steps point at real parts of the page', () => {
     expect(TOUR_ANCHORS.load[0]).toEqual({ sel: '#playerId', up: 'form' });
   });
 });
+
+describe('replay: "Show the tour again" in the footer and in Setup', () => {
+  const setup = read('./components/auto/YourSetup.vue');
+  it('the footer, beside About and privacy, on every screen (the first visit too): 44 px, not while a search runs', () => {
+    const foot = template.slice(template.indexOf('data-testid="site-footer"'), template.indexOf('</footer>'));
+    const at = foot.indexOf('data-testid="tour-replay"');
+    expect(at).toBeGreaterThan(foot.indexOf('data-testid="about-link"'));
+    const tag = foot.slice(foot.lastIndexOf('<button', at), foot.indexOf('</button>', at));
+    expect(tag).toContain('@click="askTourReplay()"');
+    expect(tag).toContain(':disabled="myRunsRunning"');
+    expect(tag).toContain('min-h-[44px]');
+    expect(tag).toContain('{{ FIRST_TOUR_REPLAY }}');
+    const open = template.slice(template.lastIndexOf('<footer', template.indexOf('data-testid="site-footer"')), template.indexOf('data-testid="site-footer"'));
+    expect(open).not.toMatch(/v-if=|v-show=/);
+  });
+
+  it('Setup, under How the site shows things: closes Setup, then the tour starts (it waits while Setup is open)', () => {
+    const card = setup.slice(setup.indexOf('How the site shows things</h3>'));
+    const at = card.indexOf('data-testid="setup-tour-replay"');
+    expect(at).toBeGreaterThan(-1);
+    const tag = card.slice(card.lastIndexOf('<button', at), card.indexOf('</button>', at));
+    expect(tag).toContain('@click="replayTour"');
+    expect(tag).toContain(':disabled="store.isRunning"');
+    expect(tag).toContain('min-h-[44px]');
+    expect(setup).toMatch(/function replayTour\(\): void \{\s*ui\.setupOpen = false;\s*askTourReplay\(\);\s*\}/);
+  });
+});

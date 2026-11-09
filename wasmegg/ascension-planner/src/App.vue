@@ -819,7 +819,16 @@
           class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
           data-testid="about-link"
           >About and privacy</a
+        >{{ ' ' }}<span aria-hidden="true">·</span>{{ ' ' }}<!-- The first-visit tour again (spec-firsttour): from step 1, or
+        step 2 with a save in; Remind me later starts unticked. Not while a search runs (the tour never shows then). --><button
+          type="button"
+          class="inline-flex min-h-[44px] items-center px-3 underline decoration-dotted underline-offset-2 hover:text-slate-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded"
+          :disabled="myRunsRunning"
+          data-testid="tour-replay"
+          @click="askTourReplay()"
         >
+          {{ FIRST_TOUR_REPLAY }}
+        </button>
       </footer>
 
       <!-- The first-visit tour (spec-firsttour, 8 Nov 2026): six steps on the real page for a new visitor, with Skip and
@@ -841,6 +850,8 @@ import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { isNewVisitor } from '@/lib/firstTour';
 import FirstTour from '@/components/FirstTour.vue';
+import { askTourReplay } from '@/composables/useFirstTour';
+import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
