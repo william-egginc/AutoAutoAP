@@ -3,7 +3,7 @@
  * notes/continue-set-2026-10-31.md, "Reconcile"): a Kindness farm at 210 TE wearing its Gusset delivery set,
  * gear maxed. Continue and the build-up keep that set until H1 (search/leg.ts), and the route
  * 237 260 290 328 490 is pinned where Reliability measured it with the set held: A1 Dec 18, 2026, 7:59 am,
- * the route's end Jul 17, 2028, 5:05 pm (Mountain). Before the fix the build-up was priced on the earnings set
+ * the route's end Jul 17, 2028, 5:38 am (Mountain; 5:05 pm until 9 Nov 2026, see PINNED). Before the fix the build-up was priced on the earnings set
  * and the same route ended Jul 12, 2028, 3:09 pm.
  *
  * The fixture is built in memory, as Reliability's `contset/mk.cjs` (EGG=54, variant 2, CATCHUP_H 0.02) and
@@ -52,8 +52,17 @@ const ROUTE = [237, 260, 290, 328, 490];
 const PINNED = {
   /** Dec 18, 2026, 7:59 am Mountain: continue and the build-up end together. */
   a1: 1797605990,
-  /** Jul 17, 2028, 5:05 pm Mountain. */
-  routeEnd: 1847487917,
+  /**
+   * Jul 17, 2028, 5:38 am Mountain. Re-recorded 9 Nov 2026 (was 1847487917, Jul 17, 2028, 5:05 pm): the sim3 rule changes
+   * moved this route on purpose, and the pin was not re-recorded with them. Bisected on this spec: it held through sim3 2
+   * and first moved at sim3 4 (5369f47a3, Continue my build-up buys only on each purchase's own egg, Jordan 3 Nov:
+   * 1847446581), moved again at sim3 6 (the 60 s rule: 1847450824) and at sim3 11 (the 60 s rule as Jordan ruled it:
+   * 1847488750, within 14 minutes of the old pin by chance) and landed here at sim3 12 (check-ins, everything affordable
+   * at a check-in is bought there). a1 above did not move. Not verified against the game, only against those commits
+   * (aaap-tools notes/slow-spec-fails-2026-11-09.md). The PC gate skips this spec (it needs AAP_SLOW_SPECS and a private
+   * save): run the slow-spec round on the Mac after a sim change (aaap-tools/slow-spec-round.sh).
+   */
+  routeEnd: 1847446716,
 };
 
 /** Variant 2's farm at K3 on a fresh build from 210 TE (Reliability's afh/k3states-210.json). Simulator
@@ -262,7 +271,7 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)('Allan-like: the Gusset
     expect(b).toBeNull();
   }, 600_000);
 
-  it('the route 237 260 290 328 490 ends Jul 17, 2028, 5:05 pm', () => {
+  it('the route 237 260 290 328 490 ends Jul 17, 2028, 5:38 am', () => {
     const r = createChainEvaluator(inputs).evaluate(ROUTE, { handoff: 'hour' })!;
     expect(r).not.toBeNull();
     expect(Math.floor(r.legs[0].endTime)).toBe(PINNED.a1);
