@@ -56,9 +56,11 @@ describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
     expect(between(deadline, 'async function widenAndRun', '\n}')).toContain('openInAdvanced();');
   });
   it('the address #/auto/fastest/full opens Custom (Exhaustive), and an option picked by hand sets the address', () => {
-    expect(between(fastest, 'watch(\n  () => props.depth', '{ immediate: true }')).toContain(
-      "if (d === 'full') selectSearchTab('fastest', 'exhaustive');"
-    );
+    // Custom is inside the screen's More since the simpler page (9 Nov 2026): the link opens it first.
+    const depth = between(fastest, 'watch(\n  () => props.depth', '{ immediate: true }');
+    expect(depth).toContain("if (d === 'full') {");
+    expect(depth.indexOf("revealMore('fastest');")).toBeGreaterThan(0);
+    expect(depth.indexOf("revealMore('fastest');")).toBeLessThan(depth.indexOf("selectSearchTab('fastest', 'exhaustive');"));
     expect(fastest).toContain(`@pick="o => emit('update:depth', o === 'custom' ? 'full' : 'smart')"`);
   });
   it('a run starting or going shows its own tab, on both screens', () => {

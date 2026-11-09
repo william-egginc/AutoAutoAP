@@ -73,7 +73,7 @@ describe('and the screens use them', () => {
     // The counts lists' column names (rows that open on tap since spec-slimcard, no table header row).
     expect(src.match(/class="grid items-end gap-x-[^ ]+ (?:md:gap-x-2 )?px-1 pb-1 label text-slate-500 /g)).toHaveLength(2);
     expect(src).not.toMatch(/<tr class="[^"]*text-\[9px\][^"]*text-slate-400/);
-    expect(src).toContain('<span v-if="ms !== null" class="text-small text-slate-500"');
+    expect(src).toContain('<span v-if="ms !== null && !moreTo" class="text-small text-slate-500"');
     expect(src).toMatch(/<p v-if="bracketStatus === 'running'[^"]*" class="text-body text-slate-500 max-w-prose"/);
   });
   it('SearchPanel.vue: Fast / Exact / Custom in slate-600, indigo-600 when picked', () => {

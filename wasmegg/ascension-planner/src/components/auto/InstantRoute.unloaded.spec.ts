@@ -47,13 +47,13 @@ describe('a missing file', () => {
     expect(instant).toContain('noTable.value = tableLoadFailed(message);');
   });
 
-  it("the section's folded line says so too, on Fastest and By a date", () => {
+  it("the screens still hear it (the section's folded line went with Hide on the simpler page, 9 Nov 2026: the card says it)", () => {
     expect(UNLOADED_INSTANT_SUMMARY).toBe('couldn’t be loaded');
     expect(instant).toContain("watch(noTable, u => emit('unloaded', u));");
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const src = read(f);
       expect(src, f).toContain('@unloaded="u => (instantUnloaded = u)"');
-      expect(src, f).toMatch(/instantUnloaded\.value\s*\?\s*UNLOADED_INSTANT_SUMMARY\s*:\s*NO_INSTANT_SUMMARY/);
+      expect(src, f).not.toContain('<CollapsibleSection');
     }
   });
 });

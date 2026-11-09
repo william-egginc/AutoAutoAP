@@ -10,9 +10,8 @@ import { describe, expect, it } from 'vitest';
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 
 describe('My runs, slim', () => {
-  it('M1: the intro is one clause', () => {
-    const intro = read('../MyRunsView.vue').match(/<p([^>]*)data-testid="my-runs-intro">([\s\S]*?)<\/p>/)!;
-    expect(intro[2].replace(/\s+/g, ' ').trim()).toBe('From your save: where you are now, your next steps and your runs.');
+  it('M1: no intro line since the simpler page (9 Nov 2026): the save line says it', () => {
+    expect(read('../MyRunsView.vue')).not.toContain('data-testid="my-runs-intro"');
   });
   it('M4: "Fastest is not always best" is behind a ? next to the heading', () => {
     const src = read('LatestRunView.vue').replace(/\s+/g, ' ');

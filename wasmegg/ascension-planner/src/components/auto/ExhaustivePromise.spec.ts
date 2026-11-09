@@ -28,12 +28,11 @@ describe('ExhaustivePromise', () => {
     expect(t).not.toContain('exact TE');
   });
 
-  it('is on both screens, and the By a date explainer is under the title', () => {
+  it('is on both screens; the By a date explainer is inside More since the simpler page (9 Nov 2026), in How this is worked out', () => {
     expect(read('FastestRoute.vue')).toMatch(/<ExhaustivePromise goal="fastest">\s*<CustomHowItWorks \/>\s*<\/ExhaustivePromise>/);
     expect(read('DeadlinePanel.vue')).toContain('<ExhaustivePromise goal="deadline" />');
-    const screen = read('ByDateScreen.vue');
-    expect(screen.indexOf('data-testid="by-date-how"')).toBeGreaterThan(screen.indexOf('{{ NAMES.byDate }}</h2>'));
-    expect(screen.indexOf('data-testid="by-date-how"')).toBeLessThan(screen.indexOf('<YourSetup'));
+    expect(read('ByDateScreen.vue')).not.toContain('data-testid="by-date-how"');
+    expect(read('InstantRoute.vue')).toContain('data-testid="by-date-how-text"');
     expect(read('DeadlinePanel.vue')).not.toContain('How {{ NAMES.byDate }} works');
   });
 });

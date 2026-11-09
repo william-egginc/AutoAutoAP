@@ -53,18 +53,12 @@ function shown(id = ID) {
 const settled = async (c: { value: string }) => vi.waitFor(() => expect(c.value).not.toBe('unknown'));
 
 describe('the tab rule (myRunsTab)', () => {
-  it('empty account: hidden, and a player on it is taken away; something there: shown', () => {
-    expect(myRunsTab({ content: 'none', running: false, onIt: false })).toEqual({ shown: false, leave: false });
-    expect(myRunsTab({ content: 'none', running: false, onIt: true })).toEqual({ shown: false, leave: true });
-    expect(myRunsTab({ content: 'some', running: false, onIt: false })).toEqual({ shown: true, leave: false });
-  });
-  it('running: shown, empty or not, and never left', () => {
-    expect(myRunsTab({ content: 'none', running: true, onIt: false })).toEqual({ shown: true, leave: false });
-    expect(myRunsTab({ content: 'none', running: true, onIt: true })).toEqual({ shown: true, leave: false });
-  });
-  it('still being worked out: kept for a player already on it (a reload of #/myruns), not offered otherwise', () => {
-    expect(myRunsTab({ content: 'unknown', running: false, onIt: true })).toEqual({ shown: true, leave: false });
-    expect(myRunsTab({ content: 'unknown', running: false, onIt: false })).toEqual({ shown: false, leave: false });
+  // Always shown once an account is in since the simpler page (Jordan, 9 Nov 2026, Q5): the row never changes under the
+  // player; an empty My runs shows its empty Right now and "Pick a route to follow ›".
+  it('shown for every account, empty, unknown, running or not, and never left', () => {
+    for (const content of ['none', 'some', 'unknown'] as const)
+      for (const running of [false, true])
+        for (const onIt of [false, true]) expect(myRunsTab({ content, running, onIt })).toEqual({ shown: true, leave: false });
   });
 });
 

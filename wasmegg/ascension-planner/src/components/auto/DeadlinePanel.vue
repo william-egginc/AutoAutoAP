@@ -54,7 +54,7 @@
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The date">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The date" data-region="date">
       <button
         type="button"
         role="radio"
@@ -124,12 +124,18 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
-    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy" hide-in-heading>
+    <!-- The simpler default page (9 Nov 2026, notes/simpler-design.md): the answer always shown (no Hide; the section's
+         old test id kept for the tracker's "Pick a route to follow", lib/pickRoute.ts), then What to do now, then the one
+         closed More with everything else in its old order (its line, filters and table, the search, How this is worked
+         out, the one How it works link). -->
+    <div v-if="deadline" data-testid="section-instant" data-region="answer">
       <!-- Never nothing: a card that can't be drawn says so (InstantGuard.ts, lib/renderGuard.ts). -->
       <InstantGuard>
       <InstantRoute
         :deadline="deadline"
         share-to="#search-share-by-date"
+        more-to="more-bydate-answer"
+        @more-changes="c => (moreChanges = c)"
         @check="checkByDate"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
@@ -191,7 +197,22 @@
         </template>
       </InstantRoute>
       </InstantGuard>
-    </CollapsibleSection>
+    </div>
+
+    <NowLine screen="by-date" :goal-key="goalKey" @show-search="showSearch" />
+
+    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2: a new player lands here; App.vue
+         draws it at the top of the other screens), until answered. Its words are unchanged (StudyBox.vue). -->
+    <StudyBox v-if="store.submitUrl" />
+
+    <MoreFold
+      ref="more"
+      section="moreByDate"
+      :line="moreLineWithChanges(MORE_LINE_AUTO, moreChanges)"
+      :running="!!runKind"
+      :unfinished="!!store.deadlineUnfinished"
+    >
+    <div id="more-bydate-answer" class="space-y-3"></div>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
@@ -513,6 +534,9 @@
     </section>
     </template>
     </SearchPanel>
+    <div id="more-bydate-answer-how"></div>
+    <a href="#/science/how" class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900" data-testid="how-it-works-link">{{ HOW_IT_WORKS_LINK }}</a>
+    </MoreFold>
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <!-- The run controls (RunControls.vue), one set in each box, as on Fastest: Nearby routes' in the
@@ -1089,8 +1113,6 @@ import {
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
   INSTANT_SETTLE_MS,
-  NO_INSTANT_SUMMARY,
-  UNLOADED_INSTANT_SUMMARY,
   QUICK_ESTIMATE_LABEL,
   QUICK_SCAN_STATUS,
   afterScanStatus,
@@ -1159,13 +1181,16 @@ import {
   showsControls,
   type ByDateKind,
 } from '@/search/byDateKinds';
-import CollapsibleSection from './CollapsibleSection.vue';
+import MoreFold from '@/components/layout/MoreFold.vue';
+import NowLine from '@/components/layout/NowLine.vue';
+import StudyBox from '@/components/StudyBox.vue';
+import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { choiceForEffort, type SearchChoice } from '@/lib/searchOption';
 import { scrollToShownId, selectSearchTab } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
-import { routeLine } from '@/search/sectionSummary';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -1510,20 +1535,17 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
 }
 // Each search's latest answer (stores/stronger.ts lastSearch), for the comparison block.
 useSearchSnapshots('date');
-const lines = computed(() => ({
-  instant: routeLine(
-    'date',
-    stronger.instant.date,
-    inPlannerZone,
-    instantLoad.value === 'none'
-      ? instantUnloaded.value
-        ? UNLOADED_INSTANT_SUMMARY
-        : NO_INSTANT_SUMMARY
-      : 'working out'
-  ),
-  // Still being worked out: the moving dots after "working out" (CollapsibleSection `summaryBusy`, spec-dots).
-  instantBusy: !stronger.instant.date && instantLoad.value !== 'none',
-}));
+/** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
+const moreChanges = ref<string[]>([]);
+const more = ref<InstanceType<typeof MoreFold> | null>(null);
+/** The goal this screen follows for (Follow this route, the What to do now line). */
+const goalKey = computed(() => screenGoalKey(deadline.value ?? null, store.finalTE));
+/** What to do now's "Show search ›": More open, at the search. */
+function showSearch(): void {
+  revealMore('by-date');
+  void more.value?.show();
+  void nextTick(() => document.querySelector('[data-testid="search-panel-by-date"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
 const fallbackSeconds = ref<number | null>(null);
 /** The routes near the instant answer at a level (simpleByDate.ts BY_DATE_LEVELS), sized on a typical
@@ -1715,7 +1737,8 @@ function openInAdvanced(): void {
 }
 /** Scroll to the Exhaustive box (its boxes were just filled in, from Nearby routes or Check exactly). */
 function showExhaustive(): void {
-  // Its tab first: a hidden tab has no place on the page to scroll to.
+  // Its tab first: a hidden tab has no place on the page to scroll to. The search is inside More (9 Nov 2026): open it.
+  revealMore('by-date');
   selectSearchTab('by-date', 'exhaustive');
   void nextTick(() => {
     if (typeof document !== 'undefined')
@@ -2656,6 +2679,7 @@ const quickBest = computed(() => {
 });
 /** The Nearby routes tab, at its run or its answer. */
 function showQuickRun(): void {
+  revealMore('by-date');
   selectSearchTab('by-date', 'nearby');
   void nextTick(() => scrollToShownId(quickRunning.value ? 'bd-around-controls' : 'bd-around-results'));
 }

@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { renderHtml } from '@/test/renderComponent';
 import SetupDock from './SetupDock.vue';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const g = globalThis as { window?: unknown };
 let had: unknown;
@@ -28,6 +29,8 @@ const pillTag = (html: string) => html.match(/<div[^>]*data-testid="setup-dock-p
 async function render(summary?: string): Promise<string> {
   const p = createPinia();
   setActivePinia(p);
+  // The workers show only while a search runs (the simpler page, 9 Nov 2026): the pill with them.
+  useChainSearchStore().isRunning = true;
   return renderHtml(SetupDock, summary ? { screen: 'fastest', summary } : { screen: 'fastest' }, {}, [p]);
 }
 
@@ -88,6 +91,8 @@ describe('the Setup pill fits a 300 px screen, drag handle and all', () => {
   it('the open panel stays on screen with larger text too (the pill is 1rem from the right, so 94vw passed the left edge)', async () => {
     const p = createPinia();
     setActivePinia(p);
+    // The workers show only while a search runs (the simpler page, 9 Nov 2026): these cases are about the pill with them.
+    useChainSearchStore().isRunning = true;
     const { useUIStore } = await import('@/stores/ui');
     useUIStore().setupOpen = true;
     const html = await renderHtml(SetupDock, { screen: 'fastest' }, {}, [p]);

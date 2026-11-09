@@ -154,7 +154,7 @@ describe('Right now: a better result with and without a followed route', () => {
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     // No goal in brackets on the route line since 5 Nov 2026 (UX fluff review 2, item R3): the goal switch names it.
     expect(text).not.toContain('(Egg Day 2027 · from your Fast run)'.replace('2027', String(nextEggDayYear())));
-    expect(text).toContain("From your Fast run Stop following: use the planner's route");
+    expect(text).toContain("From your Fast run Stop following");
     expect(text).not.toContain('your pick');
     expect(text).not.toContain('This is a better route');
     // "Use the planner's route": not followed again for the same result.
@@ -185,7 +185,7 @@ describe('Right now: a better result with and without a followed route', () => {
     // Said once (spec-uxpass item 1): the follow line doesn't say "From the instant answer" again under the pill.
     expect(text).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
     expect(text).not.toContain('From the instant answer');
-    expect(text).toContain("Stop following: use the planner's route");
+    expect(text).toContain("Stop following");
     expect(text).not.toContain('your pick');
     // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
     // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).

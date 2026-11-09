@@ -124,9 +124,13 @@ describe('My runs on a cold load', () => {
 
   it('renders "No save loaded", then the save’s age with the page waiting, then the card with the save’s egg', async () => {
     const { default: MyRunsView } = await import('../MyRunsView.vue');
+    // The save's age is the save line at the top of the page since the simpler page (9 Nov 2026; App.vue draws it over
+    // My runs): drawn here with the page, as the player sees them.
+    const { default: SaveLine } = await import('../layout/SaveLine.vue');
     const pinia = getActivePinia()!;
     const render = async () => {
-      const html = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
+      const html =
+        (await renderHtml(SaveLine, {}, {}, [pinia])) + (await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]));
       expect(html).not.toMatch(/EI\d{16}/);
       return { html, t: textOf(html) };
     };

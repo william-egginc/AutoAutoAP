@@ -1,4 +1,5 @@
-/** The soul-egg line: one plain amber line under a quarter left, nothing otherwise, never a button (lib/soulEggs.ts). */
+/** The soul-egg line: one short amber line under a quarter left and the details behind a closed "?" (Jordan, 9 Nov 2026;
+ *  lib/soulEggs.ts soulEggWarningParts, words in lib/soulEggWords.ts), nothing otherwise, never a button that does anything. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -7,6 +8,7 @@ import SoulEggWarning from './SoulEggWarning.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
+import { SOUL_EGG_TIP_LABEL } from '@/lib/soulEggWords';
 
 const LINE = 'data-testid="soul-egg-warning"';
 /** `n` legs of 12 shifts each. */
@@ -19,13 +21,18 @@ describe('SoulEggWarning', () => {
     setActivePinia(pinia);
   });
 
-  it('shown under a quarter: one amber line, no box and no button', async () => {
+  it('shown under a quarter: one short amber line, and the details behind a closed "?" fold with its own name', async () => {
     const html = await renderHtml(SoulEggWarning, { shifts: 120, done: 60 });
-    expect(html.match(/<p /g)).toHaveLength(1);
     expect(html).toContain(LINE);
     expect(html).toContain('text-amber-800');
-    expect(html).not.toMatch(/<button|disabled|border|bg-amber/);
-    expect(textOf(html)).toContain('This plan has about 180 shifts since your last Path reset (60 in your save, 120 in the plan)');
+    expect(html).not.toMatch(/<button|disabled|bg-amber/);
+    const line = html.match(/data-testid="soul-egg-line"[^>]*>([^<]*)</)?.[1];
+    expect(line).toMatch(/^This plan would leave (about \d+%|under 1%) of your soul eggs\.$/);
+    // The "?": a closed <details> named for a screen reader, the details inside it.
+    expect(html).toMatch(/<details[^>]*data-testid="soul-egg-tip"/);
+    expect(html).not.toMatch(/<details[^>]*\sopen/);
+    expect(html).toMatch(new RegExp(`<summary[^>]*aria-label="${SOUL_EGG_TIP_LABEL}"`));
+    expect(textOf(html)).toContain('About 180 shifts since your last Path reset (60 in your save, 120 in the plan)');
   });
 
   it('hidden at a quarter or more, and when the shifts are not known', async () => {
@@ -43,13 +50,13 @@ describe('SoulEggWarning', () => {
 
   it("planner: the Auto Planner's loaded save, or the plan alone without one", async () => {
     const none = textOf(await renderHtml(SoulEggWarning, { shifts: 200, planner: true }, {}, [pinia]));
-    expect(none).toContain('in this plan alone');
+    expect(none).toContain('This plan alone would leave');
     const save = useInitialStateStore();
     save.hasData = true;
     save.soulEggs = 1e22;
     useVirtueStore().initialShiftCount = 90;
     const loaded = textOf(await renderHtml(SoulEggWarning, { shifts: 90, planner: true }, {}, [pinia]));
-    expect(loaded).toContain('about 180 shifts since your last Path reset (90 in your save, 90 in the plan)');
+    expect(loaded).toContain('About 180 shifts since your last Path reset (90 in your save, 90 in the plan)');
   });
 
   it('mounted on the Fastest result cards, By a date\'s result and My runs, never in place of anything', () => {
