@@ -1,7 +1,7 @@
 /** The soul-egg warning in two parts (9 Nov 2026): one line and a fold, pinned word for word. */
 import { describe, expect, it } from 'vitest';
 import { soulEggFold, soulEggLine, soulEggPercentWords } from './soulEggWords';
-import { QUARTER_SHIFTS, SE_WARN_BELOW, soulEggWarning, soulEggWarningParts } from './soulEggs';
+import { QUARTER_SHIFTS, SE_WARN_BELOW, soulEggWarningParts } from './soulEggs';
 import { isWordingOnly } from './resultCodeHash';
 
 describe('soul egg words', () => {
@@ -22,10 +22,9 @@ describe('soul egg words', () => {
     expect(soulEggPercentWords(0.004)).toBe('under 1%');
     expect(soulEggPercentWords(0.249)).toBe('about 24%');
   });
-  it('shows only under a quarter, and agrees with the old warning on when', () => {
-    for (const [planShifts, done] of [[53, 212], [10, 0], [41, null], [200, 0], [null, 5]] as const) {
-      const parts = soulEggWarningParts({ planShifts, done });
-      expect(parts === null).toBe(soulEggWarning({ planShifts, done }) === '');
+  it('shows only under a quarter (the old one-line warning\'s rule, at QUARTER_SHIFTS from 0)', () => {
+    for (const [planShifts, done, shown] of [[53, 212, true], [10, 0, false], [41, null, false], [200, 0, true], [null, 5, false]] as const) {
+      expect(soulEggWarningParts({ planShifts, done }) !== null, `${planShifts} ${done}`).toBe(shown);
     }
     expect(soulEggWarningParts({ planShifts: 53, done: 212 })?.line).toBe('This plan would leave under 1% of your soul eggs.');
     expect(SE_WARN_BELOW).toBe(0.25);

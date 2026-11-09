@@ -1,7 +1,8 @@
 /** Soul eggs a plan's shifts would leave, and the amber line under a quarter (the math review's second check, 24 Oct
  *  2026, finding 15). */
 import { describe, expect, it } from 'vitest';
-import { NOMINAL_SOUL_EGGS, QUARTER_SHIFTS, SE_WARN_BELOW, soulEggWarning, soulEggsLeft } from './soulEggs';
+import * as soulEggs from './soulEggs';
+import { NOMINAL_SOUL_EGGS, QUARTER_SHIFTS, SE_WARN_BELOW, soulEggWarningParts, soulEggsLeft } from './soulEggs';
 
 describe('soul eggs left after N shifts from a Path reset', () => {
   it("the review's points: 97% at 60, 69% at 120, 24% at 168, 6% at 200, 0.2% at 240", () => {
@@ -35,35 +36,41 @@ describe('soul eggs left after N shifts from a Path reset', () => {
   });
 });
 
-describe('the line', () => {
+describe('the line and its "?" (soulEggWarningParts; was one long line, soulEggWarning, until 9 Nov 2026)', () => {
   it('shown at 168 shifts, hidden at 167 (the 25% boundary)', () => {
-    expect(soulEggWarning({ planShifts: 167, done: 0 })).toBe('');
-    expect(soulEggWarning({ planShifts: 168, done: 0 })).toBe(
-      'This plan has about 168 shifts since your last Path reset (0 in your save, 168 in the plan), which would leave about 24% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.'
-    );
+    expect(soulEggWarningParts({ planShifts: 167, done: 0 })).toBe(null);
+    expect(soulEggWarningParts({ planShifts: 168, done: 0 })).toEqual({
+      line: 'This plan would leave about 24% of your soul eggs.',
+      fold: 'About 168 shifts since your last Path reset (0 in your save, 168 in the plan) would leave about 24% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.',
+    });
   });
 
   it("adds the save's shifts since its last Path reset", () => {
-    expect(soulEggWarning({ planShifts: 100, done: 0 })).toBe('');
+    expect(soulEggWarningParts({ planShifts: 100, done: 0 })).toBe(null);
     // 5.9% of the reset's soul eggs left at 200, out of the 83.7% left after the first 100: about 7% of today's.
-    expect(soulEggWarning({ planShifts: 100, done: 100 })).toBe(
-      'This plan has about 200 shifts since your last Path reset (100 in your save, 100 in the plan), which would leave about 7% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.'
+    expect(soulEggWarningParts({ planShifts: 100, done: 100 })?.fold).toBe(
+      'About 200 shifts since your last Path reset (100 in your save, 100 in the plan) would leave about 7% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.'
     );
   });
 
   it("the save's count unknown: the plan's shifts only, and it says so", () => {
-    expect(soulEggWarning({ planShifts: 167, done: null })).toBe('');
-    expect(soulEggWarning({ planShifts: 200, done: null })).toBe(
-      "This plan has 200 shifts, which in this plan alone would leave about 5% of your soul eggs (counted from 0 shifts: your save's shifts since your last Path reset aren't known here). Past about 168 shifts since a Path reset, less than a quarter is left."
-    );
+    expect(soulEggWarningParts({ planShifts: 167, done: null })).toBe(null);
+    expect(soulEggWarningParts({ planShifts: 200, done: null })).toEqual({
+      line: 'This plan alone would leave about 5% of your soul eggs.',
+      fold: "This plan has 200 shifts, counted from 0 shifts: your save's shifts since your last Path reset aren't known here. Past about 168 shifts since a Path reset, less than a quarter is left.",
+    });
   });
 
   it('under 1% reads "under 1%"; the save\'s own soul eggs are used', () => {
-    expect(soulEggWarning({ planShifts: 240, done: 0, soulEggs: 1e20 })).toContain('would leave under 1% of the soul eggs');
+    expect(soulEggWarningParts({ planShifts: 240, done: 0, soulEggs: 1e20 })?.line).toBe('This plan would leave under 1% of your soul eggs.');
   });
 
   it('nothing when the plan keeps no shifts', () => {
-    expect(soulEggWarning({ planShifts: null, done: 150 })).toBe('');
-    expect(soulEggWarning({ planShifts: 0, done: 300 })).toBe('');
+    expect(soulEggWarningParts({ planShifts: null, done: 150 })).toBe(null);
+    expect(soulEggWarningParts({ planShifts: 0, done: 300 })).toBe(null);
+  });
+
+  it('the one long line is gone', () => {
+    expect(Object.keys(soulEggs)).not.toContain('soulEggWarning');
   });
 });
