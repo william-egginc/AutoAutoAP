@@ -190,3 +190,39 @@ describe("a Fast run's time left", () => {
     for (const s of late) expect(s.left ?? 0).toBeLessThan(2 * ((end - s.at) / 1000) + 60);
   });
 });
+
+describe('Exact and Exact (wider): the same, learned per level, with no built-in share', () => {
+  it("nothing kept for Exact: the bound, even after Fast runs here (Fast's share is not Exact's)", async () => {
+    await fastRun();
+    const next = nextVisit();
+    for (const level of ['normal', 'thorough'] as const) {
+      const e = next.smartEstimate(level);
+      expect(e.typical).toBeNull();
+      expect(e.typicalFrom).toBeNull();
+      const ws = e.measured
+        ? workerSecondsFromRate(next.secondsPerChain, next.rateWorkers)
+        : workerSecondsPerChain(next.seedChain.length);
+      expect(e.seconds).toBeCloseTo(sweepSeconds(e.chains, next.workerBudget, ws), 6);
+    }
+  });
+
+  it('after a finished Exact run: Exact is priced at its own learned share of the bound', async () => {
+    const store = useChainSearchStore();
+    store.effort = 'normal';
+    await store.start('P');
+    expect(store.error).toBeNull();
+    expect(store.finishedCleanly).toBe(true);
+    const share = store.chainsDone / store.chainsEstimated;
+    expect(share).toBeLessThan(1);
+    const next = nextVisit();
+    const e = next.smartEstimate('normal');
+    expect(e.typicalFrom).toBe('here');
+    expect(e.typical).toBe(Math.round(e.chains * share));
+    const ws = e.measured
+      ? workerSecondsFromRate(next.secondsPerChain, next.rateWorkers)
+      : workerSecondsPerChain(next.seedChain.length);
+    expect(e.seconds).toBeCloseTo(sweepSeconds(e.typical!, next.workerBudget, ws), 6);
+    // Fast learned nothing from it: still the built-in share.
+    expect(next.smartEstimate('quick').typicalFrom).toBe('default');
+  });
+});
