@@ -30,16 +30,10 @@
         data-testid="search-panel-running"
         >{{ stopping ? 'Stopping' : 'Running' }}</span
       >
-      <a
-        href="#/science/how"
-        class="ml-auto inline-flex min-h-[44px] items-center text-small font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
-        data-testid="search-panel-how"
-        >How it works ›</a
-      >
+      <!-- Its own "How it works ›" went with the simpler default page (9 Nov 2026): the screen's More ends with the one
+           How it works link (lib/layoutWords.ts HOW_IT_WORKS_LINK). -->
     </div>
-    <p class="text-body text-slate-600 max-w-prose" data-testid="search-panel-intro">
-      Check the instant answer on your save:
-    </p>
+    <p class="text-body text-slate-600 max-w-prose" data-testid="search-panel-intro">{{ SEARCH_CARD_LINE }}</p>
 
     <div
       class="grid grid-cols-3 gap-1 sm:gap-2 rounded-2xl bg-slate-100 p-1 sm:p-1.5"
@@ -100,6 +94,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { SEARCH_CARD_LINE } from '@/lib/layoutWords';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { searchTabs, selectSearchTab, type SearchTabId, type SearchTabScreen } from '@/lib/searchTab';
 import {

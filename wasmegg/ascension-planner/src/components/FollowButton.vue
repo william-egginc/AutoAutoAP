@@ -1,7 +1,7 @@
 <!--
   "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
-  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `primary` makes it a 44 px tap
+  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `main` fills it (the answer's own, the screen's one main button); `primary` makes it a 44 px tap
   target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):
   the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
@@ -10,7 +10,11 @@
     type="button"
     class="inline-flex items-center rounded-lg border font-bold disabled:opacity-60 disabled:cursor-default"
     :class="[
-      on ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
+      on
+        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+        : main
+          ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1'
+          : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
       primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body',
     ]"
     :aria-label="ariaLabel"
@@ -39,6 +43,8 @@ const props = defineProps<{
   from: FollowFrom;
   label?: string;
   primary?: boolean;
+  /** The answer's own button: the screen's one main (filled) button (the simpler default page, 9 Nov 2026). */
+  main?: boolean;
   /** Saved online with the route (lib/followCloud.ts): where it came from (default: from `from`), when it reaches its
    *  last stop (unix seconds), the TE it ends at, its plan start, and By a date's deadline (for the spare). */
   source?: FollowSource;

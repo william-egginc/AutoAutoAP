@@ -36,6 +36,8 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { MORE_TITLE } from '@/lib/layoutWords';
 import { foldOpen, readFoldToggle, rememberFoldToggle, type FoldSection } from '@/lib/panelFold';
 import { useShowEverything } from '@/composables/useShowEverything';
+import { searchTabs } from '@/lib/searchTab';
+import { moreReveals } from '@/composables/useMoreReveal';
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +66,15 @@ const wanted = computed(() =>
 );
 const open = ref(wanted.value);
 watch(wanted, w => (open.value = w));
+
+/** The search inside shown by the page (a result's See it, Check exactly, a link, a run starting): open, not remembered. */
+const searchScreen = computed(() => (props.section === 'moreFastest' ? 'fastest' : props.section === 'moreByDate' ? 'by-date' : null));
+watch(
+  () => (searchScreen.value ? `${moreReveals[searchScreen.value]}:${searchTabs[searchScreen.value]}` : ''),
+  (n, before) => {
+    if (n !== before) open.value = true;
+  }
+);
 
 /** The player's press: remembered for this screen in this browser. */
 function toggle(): void {

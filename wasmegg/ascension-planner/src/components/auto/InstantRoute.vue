@@ -36,8 +36,8 @@
           >your gear</span
         >
       </h3>
-      <span v-if="ms !== null || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
-        <span v-if="ms !== null" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
+      <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
+        <span v-if="ms !== null && !moreTo" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
         <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
              2026: it was a lone pill above the card). 44 px on a phone. -->
         <button
@@ -227,6 +227,11 @@
 
       <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
       <div v-if="result" class="space-y-1">
+        <!-- With a More on the screen (`moreTo`, the simpler default page, 9 Nov 2026): the line under the title, its
+             Why?, the awake-hours tick and the ascensions range go into More, above the table (moreEl). They change the
+             answer above, so More's line names any that isn't at its default (`moreChanges`). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
+        <div class="space-y-1" data-testid="instant-filters">
         <!-- THE ONE LINE UNDER THE TITLE (spec-slimcard; wireframes/instant-slim-v1, Jordan 5 Nov 2026; DRAFT words in
              lib/instantWords.ts): in place of the estimate line in the box, "These are instant answers…" (lib/searchPointer.ts
              INSTANT_ONE_LINE, no longer drawn), "Each prestige waits for your awake hours…" and "Your no-prestige days are
@@ -294,6 +299,8 @@
         <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
+        </div>
+        </Teleport>
         <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
           its first hours, and started that late some would fall after your awake hours end, which the instant answer can't
@@ -401,7 +408,14 @@
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
                  returns, under both boxes (this one and Fastest's below). -->
+            <!-- Follow this route first, the one main button (the simpler default page, 9 Nov 2026), then Simulate. -->
             <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
+              <FollowButton v-if="boxFollowable" primary main :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
+                :finish="dateBoxOf(result.byDate).end"
+                :end-te="dateBoxOf(result.byDate).endTE"
+                :plan-start="answerStart"
+                :deadline="deadline"
+              />
               <button
                 type="button"
                 :class="SECONDARY_BUTTON"
@@ -411,12 +425,6 @@
               >
                 Simulate this plan
               </button>
-              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
-                :finish="dateBoxOf(result.byDate).end"
-                :end-te="dateBoxOf(result.byDate).endTE"
-                :plan-start="answerStart"
-                :deadline="deadline"
-              />
             </div>
             <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
@@ -453,6 +461,7 @@
              route wraps onto a second line inside the row; from md up it has its own column. The column names are for
              the eye (aria-hidden); each head says them to a screen reader itself. No rem min/max variant (Tailwind 3
              "mixed units" drops them all: countsPhone.spec.ts). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
@@ -550,7 +559,9 @@
             :at-least="filters.minAscensions"
             :deadline="deadline"
           />
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
+        </Teleport>
       </template>
 
       <template v-if="result && !deadline">
@@ -609,7 +620,13 @@
           />
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
+          <!-- Follow this route first, the one main button (the simpler default page, 9 Nov 2026), then Simulate. -->
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
+            <FollowButton primary main :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
+              :finish="boxLead.end"
+              :end-te="boxLead.chain[boxLead.chain.length - 1]"
+              :plan-start="answerStart"
+            />
             <button
               type="button"
               :class="SECONDARY_BUTTON"
@@ -619,11 +636,6 @@
             >
               Simulate this plan
             </button>
-            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
-              :finish="boxLead.end"
-              :end-te="boxLead.chain[boxLead.chain.length - 1]"
-              :plan-start="answerStart"
-            />
           </div>
           <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
           <BetterRoutePrompt
@@ -655,6 +667,7 @@
           }}.
         </p>
         <!-- Every number of ascensions, instant numbers only: rows that open on tap, as By a date's above. -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
@@ -765,7 +778,9 @@
             :at-most="filters.maxAscensions"
             :at-least="filters.minAscensions"
           />
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
+        </Teleport>
       </template>
 
       <!-- What the answer above does not account for, on both screens, where it says more than the one line. -->
@@ -788,8 +803,19 @@
           Not in the instant answer's routes: your {{ leftOut.join(', ') }}. Fast, Exact and Custom include them.
         </p>
 
-        <!-- Folded (lib/panelFold.ts `howWorkedOut`). -->
+        <!-- Folded (lib/panelFold.ts `howWorkedOut`). With a More on the screen it sits at More's foot (moreHowEl), with
+             the timing that was in the heading row. -->
+        <Teleport :to="moreHowEl ?? 'body'" :disabled="!moreHowEl">
         <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-body text-slate-500" summary-class="text-slate-600">
+          <p v-if="moreTo && ms !== null" class="mt-1 text-small" data-testid="instant-how-timing">every route checked in {{ (ms / 1000).toFixed(1) }} s</p>
+          <!-- By a date's own explainer (it was a fold under the screen's title, "How Highest TE by a date works", until the
+               simpler page, 9 Nov 2026), word for word. -->
+          <p v-if="moreTo && deadline" class="mt-1 leading-relaxed" data-testid="by-date-how-text">
+            Fast and Exact pick the early stops for you: the instant answer's route for each number of ascensions and a few
+            TE either side of each stop. In Custom you set the early stops and it tries every route in them. Either way the
+            last stop is found to the exact TE. Like any run, it uses the plan start, awake hours, time off and computer
+            settings in Setup.
+          </p>
           <p class="mt-1 leading-relaxed">
             Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
             was simulated ahead of time, from every TE at every hour of the week, so
@@ -833,6 +859,7 @@
             >.
           </p>
         </PanelFold>
+        </Teleport>
       </template>
     </template>
   </section>
@@ -1083,6 +1110,10 @@ import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapS
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 import { instantLiveText } from '@/lib/liveStatus';
 import { useShareTarget } from '@/composables/useShareTarget';
+import { useTeleportTarget } from '@/composables/useTeleportTarget';
+import { revealMore } from '@/composables/useMoreReveal';
+import { instantMoreChanges } from '@/lib/moreChanges';
+import { ROW_HINT } from '@/lib/layoutWords';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -1090,6 +1121,10 @@ const props = defineProps<{
   /** Where "Share this result" goes (a selector in the search panel, SearchPanel.vue `#search-share-…`); under
    *  this answer without one. */
   shareTo?: string;
+  /** The screen's More (the simpler default page, 9 Nov 2026; layout/MoreFold.vue): the id of the element in it that
+   *  takes the line under the title and its filters, Prefer fewer and Every number of ascensions, and the maxed-gear
+   *  what-if; `<moreTo>-how` takes How this is worked out. Without one, all of it stays on this card, as before. */
+  moreTo?: string;
 }>();
 /** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
 const sectionHide = inject(SECTION_HIDE, null);
@@ -1106,6 +1141,8 @@ const emit = defineEmits<{
   unloaded: [unloaded: boolean];
   /** Fastest, with no instant answer: open By a date for its quick estimate (NoInstantAnswer.vue). */
   'by-date': [];
+  /** The values inside More that aren't at their default, said in its line (lib/moreChanges.ts). */
+  'more-changes': [changes: string[]];
 }>();
 /** By a date: hand the panel this answer's route for each number of ascensions, so its chain boxes can be
  *  suggested around them. */
@@ -2564,11 +2601,16 @@ watch(result, () => {
 function countLit(r: Route): boolean {
   return props.deadline ? dateRowLit(r) : r === boxLead.value;
 }
+/** With a More (the simpler default page, 9 Nov 2026) no row starts open: the box's own row repeated the box's Follow
+ *  this route and Simulate this plan right under them. It is still lit, and opens on a tap as any row. */
+function countStartsOpen(r: Route): boolean {
+  return props.moreTo ? false : countLit(r);
+}
 function countOpen(r: Route): boolean {
-  return countRowOpen(openCounts.value, r.legs.length, countLit(r));
+  return countRowOpen(openCounts.value, r.legs.length, countStartsOpen(r));
 }
 function toggleCount(r: Route): void {
-  openCounts.value = toggleCountRow(openCounts.value, r.legs.length, countLit(r));
+  openCounts.value = toggleCountRow(openCounts.value, r.legs.length, countStartsOpen(r));
 }
 /** The rows' ids (a head's aria-controls names its panel), unique on the page. */
 const countIds = `counts-${useId()}`;
@@ -3231,12 +3273,31 @@ const shareShown = computed(
   () => !!(pointer.value && result.value && !noTable.value && !integrityHold.value && !staleAt.value)
 );
 const shareEl = useShareTarget(() => props.shareTo, shareShown);
+/** Where the More parts go (`moreTo`), looked up as the share line's target is (composables/useTeleportTarget.ts):
+ *  after mount and each time an answer is in; none found, and they stay on this card. */
+const moreEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}` : undefined), () => !!result.value);
+const moreHowEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}-how` : undefined), () => !!result.value);
+/** More's line names these when they aren't at their default (lib/moreChanges.ts, DRAFT words). */
+watch(
+  () =>
+    instantMoreChanges({
+      goal: preferGoal.value,
+      margin: preferMargin.value,
+      minAscensions: filters.value.minAscensions ?? null,
+      maxAscensions: filters.value.maxAscensions ?? null,
+      hoursOn: hoursOn.value,
+      inHours: filters.value.inHours,
+    }),
+  c => emit('more-changes', c),
+  { immediate: true }
+);
 /** "See it ↓": the part of the search panel that holds the result, shown, then scrolled to its result card. */
 function seeResult(): void {
   const f = searchFound.value;
   if (!f) return;
   const screen: SearchTabScreen = props.deadline ? 'by-date' : 'fastest';
   const tab = f.level === 'Custom' ? 'exhaustive' : 'nearby';
+  revealMore(screen);
   selectSearchTab(screen, tab);
   void nextTick(() => {
     const panel = document.getElementById(`search-panel-${screen}-${tab}`);

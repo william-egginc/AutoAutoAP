@@ -144,7 +144,7 @@ describe('the card', () => {
   it('one card: Search, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
     const t = textOf(await render());
     expect(t).toMatch(
-      /^Search How it works › Check the instant answer on your save: Fast/
+      /^Search Checks the instant answer on your save\. Fast/
     );
     expect(t).toContain(
       "Fast ~18 min here usually close to the best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"

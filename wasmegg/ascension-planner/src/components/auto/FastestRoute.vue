@@ -10,20 +10,18 @@
   one would show the other's progress as its own.
 -->
 <template>
+  <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line and the
+       goal tabs above (App.vue), then here, always in this order: the title and its one line, the answer with Follow this
+       route as its one main button, what to do now, then the one closed More (everything else, in its old order), then
+       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. -->
   <div class="max-w-4xl mx-auto space-y-4">
-    <div>
+    <div data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
-      <p class="text-body text-slate-600 max-w-prose">
-        Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and Setup. Plans
-        include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
-        simulated.
-      </p>
+      <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
     <TeOverrideBanner />
-    <!-- The save's age, a newer save on the server and Load latest save (ux29 item 4; quiet when it is fresh). -->
-    <AutoSaveStrip screen="fastest" />
 
     <!-- One order on both search screens: the instant answer, then the two ways to search, one shown at a
          time (SearchPanel.vue: Fast | Exact | Custom, 22 Oct; was two tabs, Allan, 14 Oct). Your setup is the
@@ -33,19 +31,35 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
-    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy" hide-in-heading>
+    <!-- The answer, always shown: no Hide since the simpler page (the section's old id kept for the tracker's "Pick a route
+         to follow", lib/pickRoute.ts). Its filters, every number of ascensions and How this is worked out go into More
+         (`more-to`). -->
+    <div data-testid="section-instant" data-region="answer">
       <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). Never nothing:
            a card that can't be drawn says so (InstantGuard.ts). -->
       <InstantGuard>
         <InstantRoute
           share-to="#search-share-fastest"
+          more-to="more-fastest-answer"
           @check="checkExactly"
           @state="st => (instantLoad = st)"
           @unloaded="u => (instantUnloaded = u)"
           @by-date="emit('by-date')"
+          @more-changes="c => (moreChanges = c)"
         />
       </InstantGuard>
-    </CollapsibleSection>
+    </div>
+
+    <NowLine screen="fastest" :goal-key="goalKey" @show-search="showSearch" />
+
+    <MoreFold
+      ref="more"
+      section="moreFastest"
+      :line="moreLineWithChanges(MORE_LINE_AUTO, moreChanges)"
+      :running="smartRunning || fullRunning"
+      :unfinished="!!store.crashedRun"
+    >
+    <div id="more-fastest-answer" class="space-y-3"></div>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
@@ -92,6 +106,9 @@
         </template>
       </SearchPanel>
     </div>
+    <div id="more-fastest-answer-how"></div>
+    <a href="#/science/how" class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900" data-testid="how-it-works-link">{{ HOW_IT_WORKS_LINK }}</a>
+    </MoreFold>
   </div>
 </template>
 
@@ -99,25 +116,25 @@
 import { thisDevice } from '@/search/device';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
+import { fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import StrongerBox from './StrongerBox.vue';
-import CollapsibleSection from './CollapsibleSection.vue';
+import MoreFold from '@/components/layout/MoreFold.vue';
+import NowLine from '@/components/layout/NowLine.vue';
+import { FASTEST_LINE, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { screenGoalKey } from '@/lib/follow';
+import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
-import { routeLine } from '@/search/sectionSummary';
-import { NO_INSTANT_SUMMARY, UNLOADED_INSTANT_SUMMARY, type InstantState } from '@/search/autoWiden';
-import { showDateTime } from '@/lib/displayTime';
-import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import type { InstantState } from '@/search/autoWiden';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
-import AutoSaveStrip from './AutoSaveStrip.vue';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
@@ -147,26 +164,24 @@ const stronger = useStrongerStore();
 
 // The hidden sections' one-line results (CollapsibleSection.vue).
 useSearchSnapshots('fastest');
-const planner = useAutoPlannerStore();
-const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+/** FASTEST_LINE says 490: the player's own target when it isn't (DRAFT; Words may want it as a function). */
+const fastestLine = computed(() => FASTEST_LINE.replace('490 TE', `${store.finalTE} TE`));
+/** The goal this screen follows for (Follow this route, the What to do now line). */
+const goalKey = computed(() => screenGoalKey(null, store.finalTE));
+/** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
+const moreChanges = ref<string[]>([]);
+const more = ref<InstanceType<typeof MoreFold> | null>(null);
+/** What to do now's "Show search ›": More open, at the search. */
+function showSearch(): void {
+  revealMore('fastest');
+  void more.value?.show();
+  void nextTick(() => document.querySelector('[data-testid="search-panel-fastest"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
 /** InstantRoute's `state`: still being worked out, in, or settled with none (then the summary says so). */
 const instantLoad = ref<InstantState>('loading');
 /** InstantRoute's `unloaded`: its file couldn't be loaded. */
 const instantUnloaded = ref(false);
-const lines = computed(() => ({
-  instant: routeLine(
-    'fastest',
-    stronger.instant.fastest,
-    show,
-    instantLoad.value === 'none'
-      ? instantUnloaded.value
-        ? UNLOADED_INSTANT_SUMMARY
-        : NO_INSTANT_SUMMARY
-      : 'working out'
-  ),
-  // Still being worked out: the moving dots after "working out" (CollapsibleSection `summaryBusy`, spec-dots).
-  instantBusy: !stronger.instant.fastest && instantLoad.value !== 'none',
-}));
+
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
   const out: Partial<Record<StrongerLevel, LevelEstimate>> = {};
@@ -204,6 +219,7 @@ function checkExactly(chain: number[]): void {
  *  nothing starts until the player presses Find. */
 function openCustom(bands: string): void {
   ui.fullSweepBands = bands;
+  revealMore('fastest');
   emit('update:depth', 'full');
   // Custom (the Exhaustive tab) first: a hidden part has no place on the page to scroll to.
   selectSearchTab('fastest', 'exhaustive');
@@ -229,7 +245,11 @@ const CUSTOM_LEAD =
 watch(
   () => props.depth,
   (d, before) => {
-    if (d === 'full') selectSearchTab('fastest', 'exhaustive');
+    if (d === 'full') {
+      // Custom is inside More: a link to #/auto/fastest/full opens it.
+      revealMore('fastest');
+      selectSearchTab('fastest', 'exhaustive');
+    }
     else if (before !== undefined) selectSearchTab('fastest', 'nearby');
   },
   { immediate: true }
