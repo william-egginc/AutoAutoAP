@@ -1,12 +1,12 @@
 /**
  * Every word of the first-visit tour (spec-firsttour, 8 Nov 2026), final (Words, 9 Nov 2026); v2 (spec-firsttour2, 9 Nov
  * 2026: the welcome box and the slideshow of pictures) adds the welcome words and the pictures' alt text, and rewords two
- * captions for pictures; those are DRAFT, for Words. Edit here, the components only read these names. Wording only, so never part of the result hash (src/lib/resultCodeHash.ts `isWordingOnly`).
+ * captions for pictures; final (Words, 9 Nov 2026). Edit here, the components only read these names. Wording only, so never part of the result hash (src/lib/resultCodeHash.ts `isWordingOnly`).
  */
 import type { TourStepId } from './firstTour';
 
 /** Each slide's title (read first on each slide) and caption, which says everything without the picture. load and answer
- *  reworded for the slideshow (DRAFT, v2): the pictures show a sample account, not the visitor's. */
+ *  reworded for the slideshow (v2): the pictures show a sample account, not the visitor's. */
 export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string }> = {
   load: {
     title: 'Load your save',
@@ -18,7 +18,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   answer: {
     title: 'The instant answer',
-    body: 'Your answer shows in a second or two, worked out ahead of time: when you finish, your TE stops and your first step.',
+    body: "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step.",
   },
   follow: {
     title: 'Follow this route',
@@ -54,18 +54,18 @@ export function firstTourAnnounce(n: number, of: number, title: string): string 
   return `Tour, step ${n} of ${of}: ${title}`;
 }
 
-/** The welcome box on a first visit (v2). DRAFT. */
+/** The welcome box on a first visit (v2). */
 export const FIRST_TOUR_WELCOME = {
   label: 'First visit',
   title: 'Welcome to the Ascension Planner',
-  body: 'It plans your virtue ascensions: the fastest route to 490 TE, or the most TE by a date such as Egg Day. Take a one-minute tour of how it works?',
+  body: 'It plans your virtue ascensions: the fastest route to 490 TE, or the most TE by a date such as Egg Day. Want a short tour of how it works?',
   take: 'Take the tour',
   skip: 'Skip',
   /** Closes the box (the tour counts as done) and goes to the player ID box. */
   load: 'Load my save',
 };
 
-/** Each picture's alt text: what is highlighted, on the sample account (v2). DRAFT. */
+/** Each picture's alt text: what is highlighted, on the sample account; no numbers from the sample (v2). */
 export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
   goal: 'The goal tabs, highlighted: Fastest to 490 TE, Highest TE by a date and Single run.',

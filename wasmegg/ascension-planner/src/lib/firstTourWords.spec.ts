@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   FIRST_TOUR_CLOSING,
+  FIRST_TOUR_ALT,
   FIRST_TOUR_STEPS,
+  FIRST_TOUR_WELCOME,
 } from './firstTourWords';
 
 describe('first tour words', () => {
@@ -15,9 +17,9 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
       'Highest TE by a date plans for the most TE by a date such as Egg Day. Fastest to 490 TE finds the quickest way to 490 TE. You can switch any time.'
     );
-    // v2 DRAFT: the picture is a sample account's answer, so not "This is your answer".
+    // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      'Your answer shows in a second or two, worked out ahead of time: when you finish, your TE stops and your first step.'
+      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step."
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'
@@ -39,6 +41,22 @@ describe('first tour words', () => {
       expect(t.length).toBeLessThan(170);
       expect(t.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(3);
       expect(t).not.toMatch(/simulator|collector|baseline|checkpoint/i);
+    }
+  });
+  it('the welcome box and its buttons, word for word', () => {
+    expect(FIRST_TOUR_WELCOME).toEqual({
+      label: 'First visit',
+      title: 'Welcome to the Ascension Planner',
+      body: 'It plans your virtue ascensions: the fastest route to 490 TE, or the most TE by a date such as Egg Day. Want a short tour of how it works?',
+      take: 'Take the tour',
+      skip: 'Skip',
+      load: 'Load my save',
+    });
+  });
+  it("the pictures' alt text names what is highlighted and holds no digits from the sample", () => {
+    for (const alt of Object.values(FIRST_TOUR_ALT)) {
+      expect(alt.length).toBeGreaterThan(30);
+      expect(alt.replace(/490/g, '')).not.toMatch(/\d/);
     }
   });
 });
