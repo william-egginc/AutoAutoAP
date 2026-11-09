@@ -171,9 +171,11 @@
         @select="selectSection"
       />
 
-      <!-- The chevron: one fixed place, just under the tabs, whatever the screen (it used to jump between above and
-           below the Auto Planner). -->
-      <div v-if="playerId" class="flex justify-center mt-2" data-testid="header-toggle">
+      <!-- The chevron: one fixed place, just under the tabs (it used to jump between above and below the Auto Planner).
+           Gone from Fastest, By a date and My runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
+           its place there, and Setup's Change player opens the ID box. It stays on the Manual Planner (it folds Joo's plan
+           library and action cards), Single run, the Leaderboard and Science. -->
+      <div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">
         <button
           class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
@@ -191,6 +193,8 @@
           </svg>
         </button>
       </div>
+      <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
+      <SaveLine v-if="saveLineShown" />
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->
@@ -918,6 +922,7 @@ import { useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
+import SaveLine from '@/components/layout/SaveLine.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';
@@ -1445,6 +1450,11 @@ const eggBetaBusy = computed(() => myRunsRunning.value || chainSearchStore.resul
 const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
+);
+/** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
+ *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
+const saveLineShown = computed(
+  () => !!playerId.value && (plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))
 );
 /** The last tab shown that is always there or still allowed: where a tab that has just gone falls back to. */
 let lastShownTab: typeof plannerTab.value = 'myruns';

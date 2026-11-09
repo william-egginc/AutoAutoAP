@@ -61,11 +61,12 @@ export function myRunsHasSomething(h: MyRunsHas): boolean {
 export type MyRunsContent = 'unknown' | 'some' | 'none';
 
 /**
- * The tab: shown while a search runs, when the account has something, and while that is still being worked out for a
- * player already on it (a reload of #/myruns isn't sent away before the answer is in). `leave`: the player is on My
- * runs and it is hidden: App takes them to the Auto Planner.
+ * The tab: ALWAYS shown once an account is in (the simpler default page, Jordan 9 Nov 2026, Q5: the tab row no longer
+ * changes under the player). It used to show only while a search ran, once the account had something, or while that
+ * was being worked out; with nothing there yet My runs shows its empty Right now and the tracker's "Pick a route to
+ * follow ›" (lib/pickRoute.ts). `content` and `running` are kept for the callers; `leave` is never true now.
  */
 export function myRunsTab(o: { content: MyRunsContent; running: boolean; onIt: boolean }): { shown: boolean; leave: boolean } {
-  const shown = o.running || o.content === 'some' || (o.content === 'unknown' && o.onIt);
-  return { shown, leave: o.onIt && !shown };
+  void o;
+  return { shown: true, leave: false };
 }

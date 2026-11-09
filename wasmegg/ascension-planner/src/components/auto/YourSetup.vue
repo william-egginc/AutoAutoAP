@@ -149,6 +149,17 @@
           >
             Load latest save
           </button>
+          <!-- Change player (the simpler page, Jordan 9 Nov 2026, Q6): the chevron that hid the ID box is gone from the
+               Auto Planner and My runs; this opens the box at the top and puts the cursor in it. -->
+          <button
+            type="button"
+            :disabled="store.busy || ui.loading"
+            class="min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            data-testid="setup-change-player"
+            @click="changePlayer"
+          >
+            Change player
+          </button>
         </div>
         <p
           v-for="(issue, k) in saveCardIssues"
@@ -873,6 +884,17 @@ watch(
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
+/** Change player: Setup closes, the player ID box at the top opens (the save line's Close folds it again), focused. */
+function changePlayer(): void {
+  ui.setupOpen = false;
+  ui.isHeaderCollapsed = false;
+  void nextTick(() => {
+    const box = document.getElementById('playerId') as HTMLInputElement | null;
+    box?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    box?.focus();
+    box?.select?.();
+  });
+}
 /** Setup's "Show the tour again": Setup closes, then the first-visit tour starts (it waits while Setup is open). */
 function replayTour(): void {
   ui.setupOpen = false;
