@@ -12,7 +12,8 @@ import { renderHtml } from '@/test/renderComponent';
 import FollowButton from '@/components/FollowButton.vue';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', f), 'utf8');
-const template = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>'));
+/** The template without its comments (they name the regions too). */
+const template = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
 /** Where each marker first appears, in order; -1 for one missing. */
 const order = (src: string, marks: string[]) => marks.map(m => src.indexOf(m));
 

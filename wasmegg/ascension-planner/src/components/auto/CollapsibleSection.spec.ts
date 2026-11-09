@@ -49,10 +49,10 @@ describe('Hide in the heading row (spec-uxpass items 8 and 13, 8 Nov 2026: a lon
     expect(plain).toContain('data-testid="hide-instant"');
     expect(plain).not.toContain('data-testid="card-hide"');
   });
-  it('both screens pass hide-in-heading, and the instant card draws Hide in its heading row (44 px on a phone)', () => {
+  it('the instant card still draws Hide in its heading row when a screen gives it one (44 px on a phone); neither search screen does since the simpler page (9 Nov 2026)', () => {
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const t = fs.readFileSync(path.join(__dirname, f), 'utf8');
-      expect(t).toMatch(/<CollapsibleSection[^>]*id="instant"[^>]*hide-in-heading/);
+      expect(t).not.toMatch(/<CollapsibleSection[^>]*id="instant"/);
     }
     const card = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
     const head = card.slice(card.indexOf('<h3 class="text-title font-bold text-slate-900">'), card.indexOf('<InstantPointer'));
@@ -63,15 +63,14 @@ describe('Hide in the heading row (spec-uxpass items 8 and 13, 8 Nov 2026: a lon
 });
 
 describe('both screens (22 Oct: one search panel, SearchPanel.vue; was two tabs, 14 Oct)', () => {
-  it('only the instant answer is a section that can be hidden; Stronger check and Custom (Exhaustive) are in the panel', () => {
+  it('no section can be hidden since the simpler page (9 Nov 2026): the answer always shows, and the one search panel is inside More, under it', () => {
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const t = fs.readFileSync(path.join(__dirname, f), 'utf8');
-      expect(t.match(/<CollapsibleSection/g)).toHaveLength(1);
-      expect(t).toMatch(/<CollapsibleSection[^>]*id="instant"/);
-      expect(t).not.toMatch(/<CollapsibleSection[^>]*id="(stronger|exhaustive)"/);
+      expect(t).not.toContain('<CollapsibleSection');
       expect(t.match(/<SearchPanel\b/g)).toHaveLength(1);
-      // The instant answer stays above the panel.
-      expect(t.indexOf('<CollapsibleSection')).toBeLessThan(t.indexOf('<SearchPanel'));
+      // The instant answer stays above the panel, which is inside More.
+      expect(t.indexOf('data-testid="section-instant"')).toBeLessThan(t.indexOf('<MoreFold'));
+      expect(t.indexOf('<MoreFold')).toBeLessThan(t.indexOf('<SearchPanel'));
     }
   });
 });

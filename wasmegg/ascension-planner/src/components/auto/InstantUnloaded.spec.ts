@@ -123,10 +123,11 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
     const fastest = read('FastestRoute.vue');
     const byDate = read('DeadlinePanel.vue');
     // In the guard that says so when the card can't be drawn (InstantGuard.ts), and nothing else.
-    expect(fastest).toMatch(/<CollapsibleSection id="instant"[^>]*>\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/);
+    // The answer's own region since the simpler page (9 Nov 2026; was a CollapsibleSection, never hidden now).
+    expect(fastest).toMatch(/<div data-testid="section-instant" data-region="answer">\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/);
     // By a date: only without a date (then it says "Pick a date and time.").
     expect(byDate).toMatch(
-      /<CollapsibleSection v-if="deadline" id="instant"[^>]*>\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/
+      /<div v-if="deadline" data-testid="section-instant" data-region="answer">\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/
     );
     expect(byDate).toContain('<template v-else>Pick a date and time.</template>');
   });

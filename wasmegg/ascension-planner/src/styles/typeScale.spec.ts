@@ -201,8 +201,8 @@ describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
 
 describe('line length (step 4): reading paragraphs stop at about 65 characters (max-w-prose)', () => {
   it('the screen intros, the Help box intro, My runs and Setup paragraphs', () => {
-    expect(read('components/auto/ByDateScreen.vue')).toContain('<p class="text-body text-slate-600 max-w-prose">');
-    expect(read('components/auto/FastestRoute.vue')).toContain('<p class="text-body text-slate-600 max-w-prose">');
+    expect(read('components/auto/ByDateScreen.vue')).toContain('<p class="text-body text-slate-600 max-w-prose" data-testid="bydate-line">');
+    expect(read('components/auto/FastestRoute.vue')).toContain('<p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">');
     expect(read('components/StudyForm.vue')).toContain('class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro"');
     expect(read('components/MyRunsView.vue')).toContain('<span class="block max-w-prose text-body text-slate-500"');
     expect(read('components/auto/YourSetup.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(10);

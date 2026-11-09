@@ -236,9 +236,10 @@ describe('Follow this route buttons', () => {
   it('sits beside the existing buttons, each with its goal', () => {
     // The box's button follows the route the box shows (Q6: the fewest-ascensions pick when Prefer fewer is on).
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer"');
+    // The answer's own is the screen's one main button (`main`, the simpler page, 9 Nov 2026).
+    expect(route).toContain('<FollowButton primary main :chain="boxLead.chain" :goal-key="followGoal" from="answer"');
     expect(route).toContain(
-      '<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"'
+      '<FollowButton v-if="boxFollowable" primary main :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"'
     );
     // The count rows' one, in the open row since spec-slimcard.
     expect(route).toContain('<FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count"');

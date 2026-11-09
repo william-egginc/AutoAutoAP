@@ -169,8 +169,8 @@ describe('InstantRoute wiring', () => {
     // Follow, auto-follow and the better-route prompt read the route the box shows.
     expect(route).toMatch(/: boxLead\.value\s+\? \{ chain: boxLead\.value\.chain, end: boxLead\.value\.end,/);
     expect(route).toContain('? dateBoxOf(found.byDate)');
-    expect(route).toContain('<FollowButton primary :chain="boxLead.chain"');
-    expect(route).toContain('<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain"');
+    expect(route).toContain('<FollowButton primary main :chain="boxLead.chain"');
+    expect(route).toContain('<FollowButton v-if="boxFollowable" primary main :chain="dateBoxOf(result.byDate).chain"');
   });
 
   it('Prestige by on the box’s route: worked out on it, saved with it, again (debounced) when the box changes', () => {

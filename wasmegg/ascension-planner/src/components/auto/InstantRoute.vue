@@ -3283,10 +3283,10 @@ watch(
     instantMoreChanges({
       goal: preferGoal.value,
       margin: preferMargin.value,
-      minAscensions: filters.value.minAscensions ?? null,
-      maxAscensions: filters.value.maxAscensions ?? null,
-      hoursOn: hoursOn.value,
-      inHours: filters.value.inHours,
+      minAscensions: filters.value?.minAscensions ?? null,
+      maxAscensions: filters.value?.maxAscensions ?? null,
+      hoursOn: !!hoursOn.value,
+      inHours: filters.value?.inHours ?? true,
     }),
   c => emit('more-changes', c),
   { immediate: true }

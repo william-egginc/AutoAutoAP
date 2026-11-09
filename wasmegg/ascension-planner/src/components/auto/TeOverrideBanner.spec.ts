@@ -269,7 +269,7 @@ describe('on each of the four screens, at the top', () => {
   it('Fastest, By a date and My runs: above the save strip (Fastest: above the answer; its save strip is the save line at the top since the simpler page, 9 Nov 2026)', () => {
     for (const [file, after] of [
       ['FastestRoute.vue', 'data-region="answer"'],
-      ['ByDateScreen.vue', '<AutoSaveStrip'],
+      ['ByDateScreen.vue', '<InsanePanel'],
       ['../MyRunsView.vue', '<SaveAgeStrip'],
     ] as const) {
       const src = read(file);

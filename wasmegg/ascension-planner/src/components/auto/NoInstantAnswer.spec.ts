@@ -180,11 +180,10 @@ describe('notes say one thing', () => {
     expect(quickEstimateNote(false)).toBe('This is a quick estimate: Custom looks further, in boxes you set.');
   });
 
-  it('the folded Instant answer line says none, not "working out" (with its moving dots) forever', () => {
+  it('no folded Instant answer line on the search screens since the simpler page (9 Nov 2026): the answer is never hidden', () => {
     expect(NO_INSTANT_SUMMARY).toBe('none for your TE');
-    // (Or that it couldn't be loaded: InstantRoute.unloaded.spec.ts.)
-    for (const src of [panelScript, fastest])
-      expect(src).toMatch(/instantLoad\.value === 'none'\s*\?[^:]*\?\s*UNLOADED_INSTANT_SUMMARY\s*:\s*NO_INSTANT_SUMMARY\s*:\s*'working out'\s*\),[\s\S]{0,200}instantBusy: !stronger\.instant\.\w+ && instantLoad\.value !== 'none'/);
+    // (The card itself says none, or that it couldn't be loaded: InstantRoute.unloaded.spec.ts.)
+    for (const src of [panelScript, fastest]) expect(src).not.toContain('instantBusy:');
   });
 
   it('no "table" in the player’s words', () => {
