@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-09T00:00:00Z', note: 'A short tour for first-time visitors: six steps from loading your save to Setup, with Skip, a Remind me later tick, and Show the tour again at the foot of the page and in Setup' },
   { at: '2026-11-08T23:00:00Z', note: 'Tidier: the instant-answer note is said once, dates read “on Nov 14 at 9:52 AM”, simpler tracker sale lines, the goal shown once, empty footers hidden, a held prestige shows the time you press it' },
   { at: '2026-11-08T01:38:34Z', note: 'A banner tells you when your answers start from a TE you typed instead of your save’s, with Use my save’s TE; Setup › Sharing has one Save online switch for everything kept online' },
   { at: '2026-11-08T01:38:33Z', note: 'The Build-up tracker no longer waits for ever when a typed starting TE is on, says Try again after 3 minutes, and gives up after 8 with the reason' },
