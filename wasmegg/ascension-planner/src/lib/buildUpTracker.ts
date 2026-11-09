@@ -390,8 +390,10 @@ function dueActions(actions: readonly BuildUpAction[]): Due[] {
 
 /** A sweep buy of research the earnings maths gives no value (internal hatchery rate, running chicken bonus, hatchery
  *  capacity and refill: the categories `calculations/researchRanking.ts` ROI_EXCLUDED_CATEGORIES leaves out) that falls
- *  within this long before a research sale starts is held to the sale (6 Nov 2026, Jordan: "the random small
- *  IHR/enlightened chickens"). Three hours: the 53 minutes of 6 Nov were one case. */
+ *  while no sale is on is held to the next sale's start when (a) the sale starts within this long (6 Nov 2026, Jordan:
+ *  "the random small IHR/enlightened chickens": three hours, the 53 minutes of 6 Nov were one case), or (b) nothing else
+ *  is bought between the two, however far the sale is (9 Nov 2026: a tester told to buy Enlightened Chickens 68 to 72
+ *  four days before the sale). */
 export const HOLD_BEFORE_SALE_SECONDS = 3 * 3600;
 const NO_EARNINGS_CATEGORIES = new Set(['hatchery_capacity', 'internal_hatchery_rate', 'running_chicken_bonus', 'hatchery_refill_rate']);
 
@@ -402,19 +404,35 @@ function isPointlessSweep(a: BuildUpAction): boolean {
 }
 
 /**
- * Holds each pointless sweep buy that comes under `HOLD_BEFORE_SALE_SECONDS` before a sale starts, with no sale on, to
- * that sale's start, where it is bought at the sale price in the check-in that is there anyway. Every other buy keeps its
+ * Holds each pointless sweep buy that falls with no sale on, when the next sale starts within HOLD_BEFORE_SALE_SECONDS or no
+ * other player action (a purchase, a shift, a set swap, the prestige) is due between it and that sale's start, to the
+ * sale's start, where it is bought at the sale price in the check-in that is there anyway. Another sweep that is held too is not "something else". Every other buy keeps its
  * time and order; the held ones are put back in at the sale start, ahead of what is due then. The simulation is not
- * touched: these levels only count toward a tier unlock, and the unlock comes after the sale starts (spec
- * buildUpTracker.holdsweep.spec.ts).
+ * touched: these levels only count toward a tier unlock, and with nothing bought in between the purchase count at the
+ * sale's first check-in is the same either way (spec buildUpTracker.holdsweep.spec.ts and holdsweepfar.spec.ts).
  */
 function holdSweepToSale(dues: Due[]): Due[] {
+  const sweeps = new Set<Due>();
+  for (const d of dues) if (isPointlessSweep(d.a) && !isResearchSaleActive(d.due)) sweeps.add(d);
+  if (!sweeps.size) return dues;
+  // The times of every other player action, ascending, so "is anything due between the sweep and the sale" is one search.
+  const others = dues.filter(o => !sweeps.has(o) && PLAYER_KINDS.has(o.a.kind)).map(o => o.due).sort((x, y) => x - y);
+  const firstOtherFrom = (t: number): number => {
+    let lo = 0;
+    let hi = others.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (others[mid] < t) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo < others.length ? others[lo] : Infinity;
+  };
   const held: Due[] = [];
   const rest: Due[] = [];
   for (const d of dues) {
-    if (isPointlessSweep(d.a) && !isResearchSaleActive(d.due)) {
+    if (sweeps.has(d)) {
       const start = getNextSaleStart(d.due);
-      if (start - d.due <= HOLD_BEFORE_SALE_SECONDS) {
+      if (start - d.due <= HOLD_BEFORE_SALE_SECONDS || firstOtherFrom(d.due) >= start) {
         held.push({ a: d.a, due: start });
         continue;
       }

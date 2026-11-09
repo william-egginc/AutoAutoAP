@@ -12,9 +12,10 @@
  *
  * buildUpTracker.holdsweep.spec.ts holds such a buy only when the sale starts within 3 hours (HOLD_BEFORE_SALE_SECONDS);
  * this is the case beyond it: no other purchase between the sweep and the sale start, the sale days away.
- * The rule asked for: hold the pointless sweep to the sale start whenever no other research, vehicle, hab, silo or
- * train purchase lies between the buy and the sale start (any distance). A different buy in between keeps today's
- * behaviour (the 22-hour control of buildUpTracker.holdsweep.spec.ts has none in between and is changed with this).
+ * The rule: hold the pointless sweep to the sale start whenever no other player action (research, vehicle, hab, silo,
+ * train, shift, set swap) lies between the buy and the sale start, at any distance. A different action in between, with
+ * the sale more than 3 hours away, keeps the buy at its time (the 22-hour control in buildUpTracker.holdsweep.spec.ts
+ * now has one in between; it had none and expected "not held").
  */
 import { describe, expect, it } from 'vitest';
 import { buildUpTracker, lineText } from './buildUpTracker';

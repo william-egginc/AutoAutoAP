@@ -9,8 +9,10 @@
  * number 60, 2:19 pm that day) is not moved by buying them at 10:00 instead of 9:07.
  *
  * The rule: a `cheap` research buy in an excluded category (internal hatchery rate, running chicken bonus, hatchery
- * capacity, hatchery refill) that falls when no sale is on and a sale starts within HOLD_BEFORE_SALE_SECONDS
- * (3 hours) is held to the sale's first check-in (priced there at the sale price). It opens no check-in of its own.
+ * capacity, hatchery refill) that falls when no sale is on, and a sale starts within HOLD_BEFORE_SALE_SECONDS (3 hours),
+ * is held to the sale's first check-in (priced there at the sale price). It opens no check-in of its own. (9 Nov 2026,
+ * spec-holdsweepfar: also when nothing else is bought between it and the next sale, however far; see
+ * buildUpTracker.holdsweepfar.spec.ts.)
  * Any other buy keeps its time.
  */
 import { describe, expect, it } from 'vitest';
@@ -72,10 +74,15 @@ describe('a pointless sweep buy just before a research sale', () => {
     expect(r.checkIns[0].at).toBe(mt(11, 6, 9, 7));
   });
 
-  it('is NOT held when the sale is more than 3 hours away (a control: 22 hours)', () => {
+  // Changed 9 Nov 2026 (spec-holdsweepfar). This control used to say "NOT held when the sale is more than 3 hours away
+  // (22 hours)", with nothing bought in between. A sweep with nothing bought before the sale is now held however far the
+  // sale is (buildUpTracker.holdsweepfar.spec.ts); outside the 3 hours, what still keeps a sweep at its time is another
+  // purchase between it and the sale, so this control has one (Eggsistor at 6:00 pm).
+  it('is NOT held when another purchase lies between it and the sale, 22 hours away (a control)', () => {
     const r = run(
       [
         research(mt(11, 5, 12, 0), 'neural_linking', 'Neural Linking', 24, 25, 1.5e41),
+        research(mt(11, 5, 18, 0), 'eggsistor', 'Eggsistor Miniturization', 39, 40, 1e43, false),
         ...sale(mt(11, 6, 10, 0)),
         research(mt(11, 6, 10, 0), 'eggsistor', 'Eggsistor Miniturization', 40, 46, 3e44, false),
       ],
