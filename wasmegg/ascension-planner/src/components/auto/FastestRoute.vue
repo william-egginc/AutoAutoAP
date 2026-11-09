@@ -126,7 +126,7 @@ import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
 import StudyBox from '@/components/StudyBox.vue';
-import { FASTEST_LINE, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { fastestLine as fastestLineWords, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
@@ -170,8 +170,8 @@ const stronger = useStrongerStore();
 
 // The hidden sections' one-line results (CollapsibleSection.vue).
 useSearchSnapshots('fastest');
-/** FASTEST_LINE says 490: the player's own target when it isn't (DRAFT; Words may want it as a function). */
-const fastestLine = computed(() => FASTEST_LINE.replace('490 TE', `${store.finalTE} TE`));
+/** The line under the tabs, for the player's own target (490 or another). */
+const fastestLine = computed(() => fastestLineWords(store.finalTE));
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */

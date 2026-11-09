@@ -1034,13 +1034,16 @@ function toggleSharing(): void {
   sharingOpen.value = !sharingOpen.value;
   rememberFoldToggle('setupSharing', sharingOpen.value);
 }
-/** Its line: every setting in it that sends, and its state (Words' sharingSummaryWords, plus the two share ticks). */
+/** Its line: every setting in it that sends, and its state (Words' sharingSummaryWords, with the two share ticks when the account can share). */
 const sharingLine = computed(() => {
   const rec = studyState.rec;
   const help = rec.answer === null ? 'none' : rec.answer === 'yes' && rec.accounts[consentState.hash] === 'yes' ? 'yes' : 'no';
-  const base = sharingSummaryWords({ help, longSearches: !!runBeaconOn.value, saveOnline: !!saveOnlineState.value });
-  if (!canShareInstant) return base;
-  return `${base} · Search results: ${shareInstantOn.value ? 'on' : 'off'} · Instant answer with runs: ${shareBaselineOn.value ? 'on' : 'off'}`;
+  return sharingSummaryWords({
+    help,
+    longSearches: !!runBeaconOn.value,
+    saveOnline: !!saveOnlineState.value,
+    ...(canShareInstant ? { searchResults: !!shareInstantOn.value, instantWithRuns: !!shareBaselineOn.value } : {}),
+  });
 });
 const startTooFar = computed(
   () => store.firstAscension !== 'fresh' && store.firstAscensionFor(store.planStart) === 'fresh'

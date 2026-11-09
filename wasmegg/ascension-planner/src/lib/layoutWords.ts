@@ -1,16 +1,15 @@
 /**
  * The words of the simpler default page (design note notes/simpler-design.md, 9 Nov 2026): the same regions in the same
- * order on every screen, the primary path first and the rest under one closed "More" fold. DRAFT for Jordan's OK
- * (Words, 9 Nov 2026): nothing here is decided until the orchestrator shows him. Plain section names; the explanations
+ * order on every screen, the primary path first and the rest under one closed "More" fold. Final (Words, 10 Nov 2026;
+ * Jordan approved the design). Plain section names; the explanations
  * that used to sit on the first screen are the "?" texts below. Wording only (a *Words.ts file is out of the result code
  * hash, lib/resultCodeHash.ts `isWordingOnly`). Names come from lib/siteNav.ts NAMES where they exist.
  */
 
 // ---------------------------------------------------------------------------------------- the fold and its line
 
-/** The one closed fold at the foot of each screen (Setup keeps "More options"). */
+/** The one closed fold at the foot of each screen (Setup keeps its own "More options"). */
 export const MORE_TITLE = 'More';
-export const MORE_OPTIONS_TITLE = 'More options';
 
 /** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default. */
 export const MORE_LINE_AUTO =
@@ -34,9 +33,9 @@ export const NOW_SHOW_SEARCH = 'Show search ›';
 
 // ---------------------------------------------------------------------------------------- the lines under the tabs
 
-/** Fastest to 490 TE. "Simulated" is not a player word: other events are not counted. */
-export const FASTEST_LINE =
-  'The soonest you can reach 490 TE from your save and Setup. It counts the weekly Research Sale and the Monday boost, not other events.';
+/** Fastest to N TE (490, or the player's own target). "Simulated" is not a player word: other events are not counted. */
+export const fastestLine = (target: number): string =>
+  `The soonest you can reach ${target} TE from your save and Setup. It counts the weekly Research Sale and the Monday boost, not other events.`;
 /** Highest TE by a date. */
 export const BYDATE_LINE = 'The most TE you can reach by a date (Egg Day by default), from your save and Setup.';
 
@@ -53,32 +52,37 @@ export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 
 export const STOP_FOLLOWING = 'Stop following';
 export const CHANGE_ROUTE = 'Change route';
-/** The line under the next step: "Then Kindness Nov 27 at 8:00 am, Curiosity Dec 7 at 9:53 pm, and 26 more." */
-export function thenWords(next: readonly string[], more: number): string {
-  const list = next.join(', ');
-  return more > 0 ? `Then ${list}, and ${more} more.` : `Then ${list}.`;
-}
-
 // ---------------------------------------------------------------------------------------- Setup
 
 export const SHARING_FOLD_TITLE = 'Sharing and privacy';
 /** The fold's line: every setting that sends, with its state, so nothing is hidden without being named. */
-export function sharingSummaryWords(o: { help: 'yes' | 'no' | 'none'; longSearches: boolean; saveOnline: boolean }): string {
+export function sharingSummaryWords(o: {
+  help: 'yes' | 'no' | 'none';
+  longSearches: boolean;
+  saveOnline: boolean;
+  /** The two share ticks, when the account can share (omit them otherwise). */
+  searchResults?: boolean;
+  instantWithRuns?: boolean;
+}): string {
   const help = o.help === 'yes' ? 'yes' : o.help === 'no' ? 'no thanks' : 'not answered';
-  return `Help improve: ${help} · Long searches: ${o.longSearches ? 'on' : 'off'} · Save online: ${o.saveOnline ? 'on' : 'off'}`;
+  const onOff = (b: boolean) => (b ? 'on' : 'off');
+  const base = `Help improve: ${help} · Long searches: ${onOff(o.longSearches)} · Save online: ${onOff(o.saveOnline)}`;
+  if (o.searchResults === undefined || o.instantWithRuns === undefined) return base;
+  return `${base} · Search results: ${onOff(o.searchResults)} · Instant answer with runs: ${onOff(o.instantWithRuns)}`;
 }
 export const SHOW_EVERYTHING_LABEL = 'Show everything';
 export const SHOW_EVERYTHING_LINE = 'Every More fold starts open, like the old page.';
 
+// ---------------------------------------------------------------------------------------- the save line
+
+/** The save line's button while Setup's Change player has the player ID box open: it folds the box again. */
+export const SAVE_LINE_CLOSE = 'Close player box';
+/** Setup's button that opens the player ID box. */
+export const CHANGE_PLAYER = 'Change player';
+
 // ---------------------------------------------------------------------------------------- the "?" texts
 
-/** The save line's tip. */
-export const SAVE_LINE_TIP =
-  'The planner works from the save you loaded. Load latest save fetches the newest one from the game. Change player is in Setup.';
-/** "Simulate this plan" (its own hover text said this; now one tip, not a long title). */
-export const SIMULATE_TIP =
-  'Opens this route in Single run and simulates every shift: when each TE arrives, and each ascension\'s dates and purchases.';
-/** The workers control, shown only while a search runs. */
+/** The workers control, shown only while a search runs. The other "?" texts (Prefer fewer, the awake-hours tick, the ascension range, maxed gear) are today's words, moved behind the "?" unchanged. */
 export const WORKERS_TIP = 'Workers are the parts of your computer a search uses at once. More is faster, and slows what else you do.';
 
 // ---------------------------------------------------------------------------------------- the release note

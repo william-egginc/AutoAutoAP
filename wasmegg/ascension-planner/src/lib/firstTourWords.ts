@@ -18,7 +18,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   answer: {
     title: 'The instant answer',
-    body: "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step.",
+    body: "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More.",
   },
   follow: {
     title: 'Follow this route',
