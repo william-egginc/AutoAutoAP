@@ -41,6 +41,17 @@ describe('the starting chain from the instant answer', () => {
     expect(store.instantSeed).toBe('');
   });
 
+  // Kenzie (9 Nov 2026): the starting-route boxes now open the full keyboard on a phone, so commas and arrows can be
+  // typed; split on whitespace alone, "210, 310" lost its 210 without a word.
+  it('a typed starting chain split by commas, arrows or a trailing comma keeps every stop', () => {
+    const { store } = stores();
+    store.finalTE = 490;
+    for (const typed of ['210, 310', '210,310,', '210 → 310', '210，310']) {
+      store.seedOverride = typed;
+      expect(store.seedChain, typed).toEqual([210, 310, 490]);
+    }
+  });
+
   it('ignores routes to another target', () => {
     const { store } = stores();
     store.finalTE = 400;

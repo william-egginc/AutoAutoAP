@@ -2513,10 +2513,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     (instantRoutes.value ?? []).filter(r => r.length > 1 && r[r.length - 1] === finalTE.value).map(r => [...r])
   );
 
+  /** A typed starting route's stops split by anything not a digit: spaces, commas (also full-width), arrows, a
+   *  trailing comma (Kenzie, 9 Nov 2026: the boxes open the full keyboard on a phone now). */
+  const SEED_SPLIT = /[^0-9.]+/;
+
   const seedChain = computed(() => {
     const raw = (seedOverride.value.trim() || instantSeed.value || useAutoPlannerStore().targetTE || '')
       .trim()
-      .split(/\s+/)
+      .split(SEED_SPLIT)
       .map(Number)
       .filter(n => Number.isFinite(n) && n > 0);
     // A checkpoint at or below current TE is not an ascension anyone can perform, and asking the
@@ -2545,7 +2549,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const singleAscensionAsked = computed(() => {
     const raw = (seedOverride.value.trim() || useAutoPlannerStore().targetTE || '')
       .trim()
-      .split(/\s+/)
+      .split(SEED_SPLIT)
       .map(Number)
       .filter(n => Number.isFinite(n) && n > 0);
     // "Find a starting chain for me" ignores what was typed, so there is nothing to refuse then.
@@ -2558,7 +2562,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (findSeedFirst.value) return '';
     const raw = (seedOverride.value.trim() || useAutoPlannerStore().targetTE || '')
       .trim()
-      .split(/\s+/)
+      .split(SEED_SPLIT)
       .map(Number)
       .filter(n => Number.isFinite(n) && n > 0);
     if (!seedTidied(raw, currentTE.value, finalTE.value)) return '';
