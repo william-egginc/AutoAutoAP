@@ -208,6 +208,9 @@
       :stale="betterRoute.stale ?? null"
       :zone="zone"
     />
+    <!-- Change route (the simpler page, Jordan 9 Nov 2026): Earlier versions, Stop following and Follow another route go
+         into My runs' More with `changeRouteTo` (a looked-up element, never deferred; on this card without one). -->
+    <Teleport :to="changeRouteEl ?? 'body'" :disabled="!changeRouteEl">
     <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
     <FollowHistory
       v-if="follow && selectedGoal"
@@ -220,7 +223,7 @@
     <!-- The only way to stop following (25 Oct 2026: off the follow line, quiet, under Earlier versions). -->
     <p v-if="follow" class="text-body text-slate-500" data-testid="now-follow-back-line">
       <button type="button" class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
-        Stop following: use the planner's route
+        {{ STOP_FOLLOWING }}
       </button>
     </p>
 
@@ -249,6 +252,7 @@
         <span v-else class="w-full text-slate-500">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
       </form>
     </details>
+    </Teleport>
 
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
     <p v-if="card?.secondary" class="text-body text-slate-500" data-testid="now-secondary">
@@ -593,8 +597,13 @@ import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { FollowCard } from '@/composables/useNowPage';
+import { useTeleportTarget } from '@/composables/useTeleportTarget';
+import { STOP_FOLLOWING } from '@/lib/layoutWords';
 
 const props = defineProps<{
+  /** My runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
+   *  following and Follow another route; without one they stay on this card. */
+  changeRouteTo?: string;
   card: CardPlan | null;
   onVirtue: boolean | null;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
@@ -675,6 +684,8 @@ const props = defineProps<{
   /** Fastest is followed for this ascension (useNowPage `fastestFollowed`): the line with Undo. */
   fastestFollowed?: boolean;
 }>();
+/** Where Change route goes (`changeRouteTo`): looked up after mount and each time the card draws again. */
+const changeRouteEl = useTeleportTarget(() => (props.changeRouteTo ? `#${props.changeRouteTo}` : undefined), () => true);
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
   select: [key: GoalKey];

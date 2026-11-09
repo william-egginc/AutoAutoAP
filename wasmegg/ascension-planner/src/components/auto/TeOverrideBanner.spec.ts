@@ -270,7 +270,7 @@ describe('on each of the four screens, at the top', () => {
     for (const [file, after] of [
       ['FastestRoute.vue', 'data-region="answer"'],
       ['ByDateScreen.vue', '<InsanePanel'],
-      ['../MyRunsView.vue', '<SaveAgeStrip'],
+      ['../MyRunsView.vue', '<RightNowCard'],
     ] as const) {
       const src = read(file);
       const at = src.indexOf('<TeOverrideBanner');
