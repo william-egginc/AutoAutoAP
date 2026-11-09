@@ -23,7 +23,9 @@ import {
   isPurchase,
 } from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
-import { runBuildUpUntilC3 } from '@/auto/buildUp';
+import { runBuildUpUntilC3, type BuildUpPre } from '@/auto/buildUp';
+import { calculateMaxVehicleSlots } from '@/calculations/shippingCapacity';
+import { getResearchById } from '@/calculations/commonResearch';
 // LOW-TE OPENING (auto/lowTeOpening.ts)
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
 import { isResearchSaleActive } from '@/lib/events';
@@ -780,6 +782,28 @@ function buildUpBuys(preC3: { actions: Action[] }, v: C3Variant): boolean {
   return preC3.actions.some(isPurchase) || (v.result?.actions ?? []).some(isPurchase);
 }
 
+/**
+ * Joo's rule for continuing a build-up (Discord, pinned), the Curiosity branch that matters here: a farm on Curiosity with
+ * Autonomous Vehicles finished and every vehicle slot bought is part-way through C3. The steps before C3 buy toward a
+ * target, not a stage, so run from such a farm they buy Graviton Coupling 3, shift to Kindness for the cars that
+ * lengthens the trains by, and shift back (spec-midc3, 9 Nov 2026): two shifts for nothing. Such a farm is planned from the
+ * start of C3 instead.
+ */
+function isMidC3(state: EngineState): boolean {
+  if (state.currentEgg !== 'curiosity') return false;
+  const av = getResearchById('autonomous_vehicles');
+  if (!av || (state.researchLevels?.autonomous_vehicles || 0) < av.levels) return false;
+  const bought = (state.vehicles ?? []).filter(v => v && v.vehicleId !== null && v.vehicleId !== undefined).length;
+  return bought >= calculateMaxVehicleSlots(state.researchLevels);
+}
+
+/** The build-up to C3 for a farm already in C3: nothing before it, no shift (C3 stays on Curiosity). */
+function midC3Pre(start: EngineState): BuildUpPre {
+  const state = JSON.parse(JSON.stringify(start)) as EngineState;
+  state.lastStepTime = 0;
+  return { actions: [], state, elapsedSeconds: 0, shifted: [], stayOnCuriosity: true };
+}
+
 /** Per run (its inputs) and plan start: leg 1 is priced to many checkpoints from the same farm, and
  *  the build-up to C3 is the same for every one of them. A couple of starts at most per run (the
  *  plan start, and the hour after it for the instant answer's exact check). */
@@ -793,7 +817,7 @@ function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: n
   const start = buildUpState(inputs, baseState, startTime);
   if (start) {
     const ctx = legContext(inputs, startTime);
-    const pre = runBuildUpUntilC3(start, ctx);
+    const pre = isMidC3(start) ? midC3Pre(start) : runBuildUpUntilC3(start, ctx);
     let { actions, state, elapsedSeconds } = pre;
     if (!pre.stayOnCuriosity) {
       // C3 shifts to Curiosity: it waits for the player, as a fresh build's does (runLeg).
