@@ -83,6 +83,12 @@ export function afterDone(): TourStored {
   return { kind: 'done' };
 }
 
+/** "Load my save" on the welcome box (v2, Jordan 9 Nov 2026): the visitor chose to start, so no reminder and no skip
+ *  count. */
+export function afterLoadMySave(): TourStored {
+  return { kind: 'done' };
+}
+
 /** What the first show of a never-seen tour keeps (later:0); anything else as it is. */
 export function shownFirst(stored: TourStored): TourStored {
   return stored.kind === 'absent' ? { kind: 'later', n: 0 } : stored;

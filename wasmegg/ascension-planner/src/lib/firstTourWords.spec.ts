@@ -10,13 +10,15 @@ describe('first tour words', () => {
   it('each card, word for word', () => {
     expect(FIRST_TOUR_STEPS.load).toEqual({
       title: 'Load your save',
-      body: 'Type your player ID and press Load Player Data, or load a save file. The tour goes on once your save is in.',
+      // v2 (spec-firsttour2, DRAFT for Words): the slideshow's pictures are a sample account's, so no "the tour goes on".
+      body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
       'Highest TE by a date plans for the most TE by a date such as Egg Day. Fastest to 490 TE finds the quickest way to 490 TE. You can switch any time.'
     );
+    // v2 DRAFT: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      'This is your answer, worked out ahead of time: when you finish, your TE stops and your first step. The searches under it check it on your save.'
+      'Your answer shows in a second or two, worked out ahead of time: when you finish, your TE stops and your first step.'
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'

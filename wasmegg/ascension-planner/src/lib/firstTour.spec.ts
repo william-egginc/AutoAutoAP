@@ -11,6 +11,7 @@ import {
   TOUR_KEY,
   TOUR_REMIND_CAP,
   afterDone,
+  afterLoadMySave,
   afterSkip,
   formatTour,
   isNewVisitor,
@@ -74,6 +75,8 @@ describe('aap.tour values', () => {
     expect(afterSkip({ kind: 'done' }, true)).toEqual({ kind: 'later', n: 1 });
     expect(afterSkip({ kind: 'done' }, false)).toEqual({ kind: 'off' });
     expect(afterDone()).toEqual({ kind: 'done' });
+    // v2 (Jordan, 9 Nov 2026): "Load my save" on the welcome box is a choice to start: done, no reminder, no skip count.
+    expect(afterLoadMySave()).toEqual({ kind: 'done' });
     expect(shownFirst({ kind: 'absent' })).toEqual({ kind: 'later', n: 0 });
     expect(shownFirst({ kind: 'later', n: 2 })).toEqual({ kind: 'later', n: 2 });
     // The third skip with the box ticked is the last: later:3 reads as off.
@@ -180,7 +183,7 @@ describe('never sent, never synced, never in the result hash', () => {
   };
   walk('src');
   files.set('release.ts', readFileSync(path.join(appRoot, 'release.ts'), 'utf8'));
-  const tourFile = (p: string) => /(^|\/)(firstTour|useFirstTour|firstTourWords)[^/]*\.ts$/.test(p);
+  const tourFile = (p: string) => /(^|\/)(firstTour|useFirstTour|firstTourWords|tourSlides)[^/]*\.ts$/.test(p);
 
   it('no tour file is a hash input, and the hash is the same without them', () => {
     const r = resultCodeHash(files);
@@ -197,17 +200,26 @@ describe('never sent, never synced, never in the result hash', () => {
   });
 });
 
-describe('words (DRAFT, lib/firstTourWords.ts, for Words)', () => {
-  it('has a title and body for every step, and the controls', () => {
+describe('words (lib/firstTourWords.ts; v2 additions DRAFT, for Words)', () => {
+  it('has a title and body for every step, the welcome box, alt text, and the controls', () => {
     for (const id of ['load', 'goal', 'answer', 'follow', 'myruns', 'setup'] as const) {
       expect(WORDS.FIRST_TOUR_STEPS[id].title.length).toBeGreaterThan(3);
       expect(WORDS.FIRST_TOUR_STEPS[id].body.length).toBeGreaterThan(20);
+      expect(WORDS.FIRST_TOUR_ALT[id].length).toBeGreaterThan(20);
     }
+    expect(WORDS.FIRST_TOUR_WELCOME.title).toBe('Welcome to the Ascension Planner');
+    expect(WORDS.FIRST_TOUR_WELCOME.take).toBe('Take the tour');
+    expect(WORDS.FIRST_TOUR_WELCOME.skip).toBe('Skip');
+    expect(WORDS.FIRST_TOUR_WELCOME.load).toBe('Load my save');
     expect(WORDS.FIRST_TOUR_REMIND).toBe('Remind me later');
     expect(WORDS.FIRST_TOUR_SKIP).toBe('Skip tour');
     expect(WORDS.FIRST_TOUR_REPLAY).toBe('Show the tour again');
-    expect(WORDS.firstTourLabel(2, 6, false)).toBe('Step 2 of 6');
-    expect(WORDS.firstTourLabel(2, 6, true)).toBe('Step 2 of 6 · after your save loads');
+    expect(WORDS.firstTourLabel(2, 6)).toBe('Step 2 of 6');
     expect(WORDS.firstTourAnnounce(2, 6, 'Pick a goal')).toBe('Tour, step 2 of 6: Pick a goal');
+  });
+
+  it('the pictures show a sample account: no real name and no player ID in any word', () => {
+    const all = JSON.stringify(WORDS);
+    expect(all).not.toMatch(/Williamthe5thc|EI\d{16}/);
   });
 });

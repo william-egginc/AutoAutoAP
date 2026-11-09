@@ -1,14 +1,16 @@
 /**
- * Every word of the first-visit tour (spec-firsttour, 8 Nov 2026), final (Words, 9 Nov 2026): edit here, the components
- * only read these names. Wording only, so never part of the result hash (src/lib/resultCodeHash.ts `isWordingOnly`).
+ * Every word of the first-visit tour (spec-firsttour, 8 Nov 2026), final (Words, 9 Nov 2026); v2 (spec-firsttour2, 9 Nov
+ * 2026: the welcome box and the slideshow of pictures) adds the welcome words and the pictures' alt text, and rewords two
+ * captions for pictures; those are DRAFT, for Words. Edit here, the components only read these names. Wording only, so never part of the result hash (src/lib/resultCodeHash.ts `isWordingOnly`).
  */
 import type { TourStepId } from './firstTour';
 
-/** Each step's card: its title (the dialog's name) and one or two plain sentences. */
+/** Each slide's title (read first on each slide) and caption, which says everything without the picture. load and answer
+ *  reworded for the slideshow (DRAFT, v2): the pictures show a sample account, not the visitor's. */
 export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string }> = {
   load: {
     title: 'Load your save',
-    body: 'Type your player ID and press Load Player Data, or load a save file. The tour goes on once your save is in.',
+    body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
   },
   goal: {
     title: 'Pick a goal',
@@ -16,7 +18,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   answer: {
     title: 'The instant answer',
-    body: 'This is your answer, worked out ahead of time: when you finish, your TE stops and your first step. The searches under it check it on your save.',
+    body: 'Your answer shows in a second or two, worked out ahead of time: when you finish, your TE stops and your first step.',
   },
   follow: {
     title: 'Follow this route',
@@ -45,11 +47,32 @@ export const FIRST_TOUR_REMIND = 'Remind me later';
 /** The footer's and Setup's link. */
 export const FIRST_TOUR_REPLAY = 'Show the tour again';
 
-/** The card's step line: "Step 2 of 6", and without a save "Step 2 of 6 · after your save loads". */
-export function firstTourLabel(n: number, of: number, beforeSave: boolean): string {
+/** The step line: "Step 2 of 6" (v1's "· after your save loads" goes with v1's card). */
+export function firstTourLabel(n: number, of: number, beforeSave = false): string {
   return `Step ${n} of ${of}${beforeSave ? ' · after your save loads' : ''}`;
 }
 /** Said to a screen reader on each step. */
 export function firstTourAnnounce(n: number, of: number, title: string): string {
   return `Tour, step ${n} of ${of}: ${title}`;
 }
+
+/** The welcome box on a first visit (v2). DRAFT. */
+export const FIRST_TOUR_WELCOME = {
+  label: 'First visit',
+  title: 'Welcome to the Ascension Planner',
+  body: 'It plans your virtue ascensions: the fastest route to 490 TE, or the most TE by a date such as Egg Day. Take a one-minute tour of how it works?',
+  take: 'Take the tour',
+  skip: 'Skip',
+  /** Closes the box (the tour counts as done) and goes to the player ID box. */
+  load: 'Load my save',
+};
+
+/** Each picture's alt text: what is highlighted, on the sample account (v2). DRAFT. */
+export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
+  load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
+  goal: 'The goal tabs, highlighted: Fastest to 490 TE, Highest TE by a date and Single run.',
+  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the first step.',
+  follow: 'The Follow this route button under the instant answer, highlighted.',
+  myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
+  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
+};
