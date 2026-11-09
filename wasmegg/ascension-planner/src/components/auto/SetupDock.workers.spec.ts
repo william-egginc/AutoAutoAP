@@ -14,7 +14,15 @@ const g = globalThis as { window?: unknown };
 let had: unknown;
 beforeEach(() => {
   had = g.window;
-  g.window = { innerWidth: 390, innerHeight: 844, addEventListener: () => {}, removeEventListener: () => {} };
+  // A location too: these cases set a search running (the pill's workers show only then, 9 Nov 2026), and a run start
+  // marks the run with the page's address (composables/useStepAway.ts `stepAwayRunStarted`: window.location.href).
+  g.window = {
+    innerWidth: 390,
+    innerHeight: 844,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    location: { href: 'http://localhost/ascension-planner/#/auto/fastest', hash: '#/auto/fastest', search: '', pathname: '/ascension-planner/', origin: 'http://localhost' },
+  };
 });
 afterEach(() => {
   g.window = had;
