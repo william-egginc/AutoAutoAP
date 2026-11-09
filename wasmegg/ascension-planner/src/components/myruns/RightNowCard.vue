@@ -527,11 +527,17 @@
         :rounded="rounded"
         :here="hereRow"
       />
-      <Teleport :to="detailEl ?? 'body'" :disabled="!detailEl">
-      <details class="mt-2" data-testid="now-timeline">
-        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
-          Full timeline (every ascension, each egg's first and last shift)
-        </summary>
+      <!-- The Full timeline (Jordan, 9 Nov 2026): above My runs' More with `timelineTo` (a looked-up element, never
+           deferred; on this card without one), closed by default, the player's own open or close remembered
+           (lib/panelFold.ts myRunsTimeline). -->
+      <Teleport :to="timelineEl ?? 'body'" :disabled="!timelineEl">
+      <PanelFold
+        section="myRunsTimeline"
+        title="Full timeline (every ascension, each egg's first and last shift)"
+        testid="now-timeline"
+        class="mt-2"
+        summary-class="text-body text-indigo-700"
+      >
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
           <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" />
@@ -544,7 +550,7 @@
             :here-at="hereRow ? now : undefined"
           />
         </div>
-      </details>
+      </PanelFold>
       </Teleport>
     </template>
   </section>
@@ -562,6 +568,7 @@ import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 import type { StaleReason } from '@/lib/followStale';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
+import PanelFold from '../auto/PanelFold.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
 import A1Choice from './A1Choice.vue';
@@ -610,8 +617,10 @@ const props = defineProps<{
   /** My runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
    *  following and Follow another route; without one they stay on this card. */
   changeRouteTo?: string;
-  /** The same for the gear and the full timeline. */
+  /** The same for the gear (into More). */
   detailTo?: string;
+  /** The same for the Full timeline (above More). */
+  timelineTo?: string;
   card: CardPlan | null;
   onVirtue: boolean | null;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
@@ -695,6 +704,7 @@ const props = defineProps<{
 /** Where Change route goes (`changeRouteTo`): looked up after mount and each time the card draws again. */
 const changeRouteEl = useTeleportTarget(() => (props.changeRouteTo ? `#${props.changeRouteTo}` : undefined), () => true);
 const detailEl = useTeleportTarget(() => (props.detailTo ? `#${props.detailTo}` : undefined), () => true);
+const timelineEl = useTeleportTarget(() => (props.timelineTo ? `#${props.timelineTo}` : undefined), () => true);
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
   select: [key: GoalKey];

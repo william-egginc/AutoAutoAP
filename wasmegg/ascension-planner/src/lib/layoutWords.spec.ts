@@ -10,7 +10,7 @@ describe('layout words', () => {
       'Every number of ascensions, run a search (Fast, Exact or Custom), maxed gear, how it works · Prefer fewer: within 12 h'
     );
     expect(W.moreLineWithChanges(W.MORE_LINE_AUTO, [])).toBe(W.MORE_LINE_AUTO);
-    expect(W.MORE_LINE_MYRUNS).toBe('Change route, your eggs, gear, timeline, saved answer, try next, your runs');
+    expect(W.MORE_LINE_MYRUNS).toBe('Change route, gear, saved answer, try next, your runs');
   });
   it('what to do now', () => {
     expect(W.NOW_BEFORE_FOLLOW).toBe('Press Follow this route: My runs then shows what to buy and when.');

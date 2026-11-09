@@ -28,7 +28,8 @@ export type FoldSection =
   | 'moreFastest' // Fastest to 490 TE's More
   | 'moreByDate' // Highest TE by a date's More
   | 'moreMyRuns' // My runs' More
-  | 'setupSharing'; // Setup's Sharing and privacy
+  | 'setupSharing' // Setup's Sharing and privacy
+  | 'myRunsTimeline'; // My runs' Full timeline (myruns/RightNowCard.vue), above More since 9 Nov 2026 (Jordan)
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -63,6 +64,8 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   moreMyRuns: 'folded',
   // Closed; its line names every setting in it that sends and its state (lib/layoutWords.ts sharingSummaryWords).
   setupSharing: 'folded',
+  // Closed; the player's own open or close is remembered (Jordan, 9 Nov 2026: Your eggs and the timeline above More).
+  myRunsTimeline: 'folded',
 };
 
 /** The screens' "More" folds: the ones Show everything opens. */

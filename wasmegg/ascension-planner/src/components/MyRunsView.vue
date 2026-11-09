@@ -44,6 +44,7 @@
         data-region="right-now"
         change-route-to="more-myruns-route"
         detail-to="more-myruns-detail"
+        timeline-to="myruns-timeline"
         :card="page.cardPlan.value"
         :soul-eggs-after="page.soulEggsAfter.value"
         :on-virtue="page.onVirtue.value"
@@ -127,18 +128,8 @@
       </RightNowCard>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
-    </template>
-
-    <MoreFold ref="more" section="moreMyRuns" :line="MORE_LINE_MYRUNS">
-    <!-- Change route: Right now's Earlier versions, Stop following and Follow another route (RightNowCard
-         `changeRouteTo`, moved here by Teleports to this looked-up element). -->
-    <section v-if="page.hasSave.value" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-1" data-testid="more-myruns-change-route">
-      <h2 class="text-body font-bold text-slate-900">{{ CHANGE_ROUTE }}</h2>
-      <div id="more-myruns-route" class="space-y-1"></div>
-    </section>
-    <!-- Right now's gear and full timeline (RightNowCard `detailTo`). -->
-    <div v-if="page.hasSave.value" id="more-myruns-detail" class="space-y-2" data-testid="more-myruns-detail"></div>
-    <template v-if="page.hasSave.value">
+      <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
+           (RightNowCard `timelineTo`), closed by default and remembered. -->
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
@@ -154,6 +145,20 @@
         :save-seconds="page.saveSeconds.value"
         :zone="page.zone.value"
       />
+      <div id="myruns-timeline" data-testid="myruns-timeline"></div>
+    </template>
+
+    <MoreFold ref="more" section="moreMyRuns" :line="MORE_LINE_MYRUNS">
+    <!-- Change route: Right now's Earlier versions, Stop following and Follow another route (RightNowCard
+         `changeRouteTo`, moved here by Teleports to this looked-up element). -->
+    <section v-if="page.hasSave.value" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-1" data-testid="more-myruns-change-route">
+      <h2 class="text-body font-bold text-slate-900">{{ CHANGE_ROUTE }}</h2>
+      <div id="more-myruns-route" class="space-y-1"></div>
+    </section>
+    <!-- Right now's gear (RightNowCard `detailTo`). -->
+    <div v-if="page.hasSave.value" id="more-myruns-detail" class="space-y-2" data-testid="more-myruns-detail"></div>
+    <template v-if="page.hasSave.value">
+
 
       <!-- The saved answer for the goal picked on Right now's switch only (24 Oct 2026): the pill switches it. -->
       <div class="grid grid-cols-1 gap-3" data-testid="now-tiles" :data-goal="page.shownTile.value.key ?? ''">

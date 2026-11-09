@@ -29,6 +29,8 @@ const SECTIONS: FoldSection[] = [
   'moreByDate',
   'moreMyRuns',
   'setupSharing',
+  // My runs' Full timeline, above More (9 Nov 2026), closed.
+  'myRunsTimeline',
 ];
 
 let mem: Map<string, string>;

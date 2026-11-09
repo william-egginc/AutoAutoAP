@@ -15,7 +15,8 @@ export const MORE_TITLE = 'More';
 export const MORE_LINE_AUTO =
   'Every number of ascensions, run a search (Fast, Exact or Custom), maxed gear, how it works';
 /** My runs. */
-export const MORE_LINE_MYRUNS = 'Change route, your eggs, gear, timeline, saved answer, try next, your runs';
+/** DRAFT (spec-simpler2, 9 Nov 2026): Your eggs and the timeline left More for above it; Words to confirm. */
+export const MORE_LINE_MYRUNS = 'Change route, gear, saved answer, try next, your runs';
 /** "Every number of ascensions, ... · Prefer fewer: within 12 h". */
 export function moreLineWithChanges(line: string, changed: readonly string[]): string {
   return changed.length ? `${line} · ${changed.join(' · ')}` : line;

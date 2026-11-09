@@ -224,6 +224,7 @@ describe('every foldable part reads lib/panelFold.ts', () => {
       countTable: ['InstantRoute.vue'],
       howWorkedOut: ['InstantRoute.vue'],
       buildUpTracker: ['../myruns/BuildUpTracker.vue'],
+      myRunsTimeline: ['../myruns/RightNowCard.vue'],
     };
     // Setup's More options (5 Nov 2026) is the one fold with its own button (aria-expanded / aria-controls over a
     // region hidden until found) rather than a <details>: it reads the same table and toggle.
