@@ -1460,6 +1460,15 @@ const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && auto
 const saveLineShown = computed(
   () => !!playerId.value && (plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))
 );
+/** On the save-line screens the player box folds once a save is in (My runs too, which had no automatic fold: Jordan's
+ *  iPhone showed it open there, 9 Nov 2026), unless the player opened it (Change player keeps it open). */
+watch(
+  () => [saveLineShown.value, !!initialStateStore.rawBackup],
+  ([shown]) => {
+    if (shown) collapseHeaderIfPlayerLoaded();
+  },
+  { immediate: true }
+);
 /** The last tab shown that is always there or still allowed: where a tab that has just gone falls back to. */
 let lastShownTab: typeof plannerTab.value = 'myruns';
 function tabHidden(tab: typeof plannerTab.value): boolean {

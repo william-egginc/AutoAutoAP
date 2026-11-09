@@ -44,7 +44,7 @@ describe('App: the regions in their fixed order', () => {
 
 describe('the save line', () => {
   beforeEach(() => setActivePinia(createPinia()));
-  it('whose save and its TE, the save age with Load latest save; Close only while the ID box is open', async () => {
+  it('whose save and its TE, the save age with Load latest save; the switch-account button always on it (Change player, Close player box while the box is open: layoutContract.saveline.spec.ts)', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     useInitialStateStore().nickname = 'Williamthe5thc';
@@ -53,8 +53,8 @@ describe('the save line', () => {
     expect(html).toContain('data-region="save-line"');
     expect(textOf(html)).toContain('Williamthe5thc ·');
     expect(html).toContain('data-testid="save-line-age"');
-    expect(html).not.toContain('data-testid="save-line-close"');
+    expect(html).toContain('data-testid="save-line-switch"');
     useUIStore().isHeaderCollapsed = false;
-    expect(await renderHtml(SaveLine, {}, {}, [pinia])).toContain('data-testid="save-line-close"');
+    expect(await renderHtml(SaveLine, {}, {}, [pinia])).toContain('aria-expanded="true"');
   });
 });

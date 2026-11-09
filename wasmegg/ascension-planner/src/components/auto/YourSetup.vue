@@ -928,6 +928,8 @@ const ui = useUIStore();
 function changePlayer(): void {
   ui.setupOpen = false;
   ui.isHeaderCollapsed = false;
+  // Kept open through the page's own folds until the save line's Close player box (or a new save) folds it.
+  ui.setHeaderKeptOpen(true);
   void nextTick(() => {
     const box = document.getElementById('playerId') as HTMLInputElement | null;
     box?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
