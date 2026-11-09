@@ -47,6 +47,16 @@ import type { BuildParams } from '@/search/precomputedLeg';
 import type { BuildUpTailsResult } from '@/search/instantFirstLegs';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
+import { smartTimeLeft } from '@/lib/smartTimeLeft';
+import {
+  DEFAULT_SHARES,
+  loadTypicalShares,
+  noteTypicalShare,
+  typicalCount,
+  typicalTotal,
+  type TypicalShares,
+} from '@/lib/fastTypical';
+import { PAUSE_GAP_MS, RATE_BEAT_MS, spansPause } from '@/lib/ratePause';
 import { createStickyDealer } from '@/search/stickyDealer';
 import {
   DEFAULT_WORKER_CAP,
@@ -1835,6 +1845,32 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let lastCheckpointAt = 0;
   let lastRateAt = 0;
   let lastRateChains = 0;
+  /** The rate's heartbeat (lib/ratePause.ts): `Date.now()` of its last beat, and whether a pause was
+   *  seen since the last sample (a gap in the beats, or the tab hidden). */
+  let rateBeatAt = 0;
+  let ratePaused = false;
+  let rateBeat: ReturnType<typeof setInterval> | null = null;
+  /** The time left's samples (`noteSweepSample`) start again too, at once rather than when the batch ends. */
+  let samplesPaused = false;
+  function markRatePaused(): void {
+    ratePaused = true;
+    samplesPaused = true;
+  }
+  function startRateBeat(): void {
+    rateBeatAt = Date.now();
+    ratePaused = false;
+    if (rateBeat) return;
+    rateBeat = setInterval(() => {
+      if (!isRunning.value) {
+        if (rateBeat) clearInterval(rateBeat);
+        rateBeat = null;
+        return;
+      }
+      const t = Date.now();
+      if (t - rateBeatAt > PAUSE_GAP_MS) markRatePaused();
+      rateBeatAt = t;
+    }, RATE_BEAT_MS);
+  }
   let partitionHash = '';
 
   /** Seconds a fresh ascension sat on its first Integrity shift, measured as the last run started
@@ -2069,10 +2105,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (reset) {
       lastRateAt = now;
       lastRateChains = done;
+      startRateBeat();
       return;
     }
     const d = done - lastRateChains;
     if (d <= 0) return;
+    // A sample across a pause (a phone in the background) is no speed: start the clock again from here,
+    // for the kept s/chain and the time left's samples alike (lib/ratePause.ts).
+    if (spansPause({ now, lastBeatAt: rateBeatAt, lastSampleAt: lastRateAt, paused: ratePaused })) {
+      ratePaused = false;
+      lastRateAt = now;
+      lastRateChains = done;
+      rateBeatAt = now;
+      sweepChainSamples.value = [];
+      noteSweepSample();
+      return;
+    }
     const observed = (now - lastRateAt) / 1000 / d;
     const wasUnset = !secondsPerChain.value;
     secondsPerChain.value = secondsPerChain.value
@@ -2082,6 +2130,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastRateAt = now;
     // The rate is wall-clock per chain WITH this many workers running; the estimate needs both.
     rateWorkers.value = workersInPool.value;
+    noteSweepSample();
 
     // The first real measurement for this run beats whatever a pre-run benchmark guessed — record
     // where it came from, and persist it the same way `benchmarkMachine` does, so a live-measured
@@ -2140,16 +2189,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     noteSweepSample();
   }
 
-  /** `[unix ms, fresh chains priced]` for a Full sweep's time left (search/sweepEstimate.ts): fresh is
-   *  priced this session, not replayed from a checkpoint, so a carry-on's rate starts from nothing. */
+  /** `[unix ms, fresh chains priced]` for a Full sweep's or a Smart search's time left (search/sweepEstimate.ts):
+   *  fresh is priced this session, not replayed from a checkpoint, so a carry-on's rate starts from nothing.
+   *  A Smart search's count is the driver's, which never includes what it replayed. */
   const sweepChainSamples = ref<[number, number][]>([]);
   function noteSweepSample(): void {
-    if (!isRunning.value || !searchSpace.value) return;
+    if (!isRunning.value) return;
+    // After a pause, the time left's rate starts again from here: a sample across it read "21 h left" until
+    // the batch in flight came back (lib/ratePause.ts).
+    const list = sweepChainSamples.value;
+    const lastAt = list.length ? list[list.length - 1][0] : 0;
+    if (lastAt && spansPause({ now: Date.now(), lastBeatAt: rateBeatAt, lastSampleAt: lastAt, paused: samplesPaused }))
+      sweepChainSamples.value = [];
+    samplesPaused = false;
+    const full = !!searchSpace.value;
     const next = addChainSample(
       sweepChainSamples.value,
       Date.now(),
-      chainsDone.value + batchDone.value,
-      chainsReplayed.value
+      full ? chainsDone.value + batchDone.value : chainsDone.value,
+      full ? chainsReplayed.value : 0
     );
     if (next !== sweepChainSamples.value) sweepChainSamples.value = next;
   }
@@ -2187,12 +2245,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return Math.min(1, chainsDone.value / chainsEstimated.value);
   });
 
-  /** Live remaining-time estimate, seconds. Zero until at least one batch has been timed — an
-   *  estimate with no measurement behind it is worse than no estimate. */
-  const secondsRemaining = computed(() => {
-    if (!secondsPerChain.value) return 0;
-    return Math.max(0, chainsEstimated.value - chainsDone.value) * secondsPerChain.value;
+  /** A Smart search's time left (lib/smartTimeLeft.ts): the routes left to its upper bound
+   *  over the windowed rate of the routes priced this session, not the per-batch `secondsPerChain`, which
+   *  swings with each batch's cost. Null when no Smart search is running. */
+  const smartLeft = computed<{ seconds: number | null; measuring: boolean } | null>(() => {
+    if (!isRunning.value || searchSpace.value) return null;
+    const length = bestChain.value.length || seedChain.value.length;
+    return smartTimeLeft({
+      samples: sweepChainSamples.value,
+      done: chainsDone.value,
+      // What this level typically prices here, not the upper bound (lib/fastTypical.ts): the bound only with nothing kept.
+      total: typicalTotal(chainsEstimated.value, runTypicalShares, chainsDone.value, DEFAULT_SHARES[runKindLevel]),
+      // Until 2 minutes are measured (a run's start, or after a pause): this run's own s/chain when it has one,
+      // else the typical speed on these workers.
+      plannedSecondsPerChain:
+        secondsPerChain.value || sweepSeconds(1, workersInPool.value, workerSecondsPerChain(length)),
+    });
   });
+  /** Live remaining-time estimate for a Smart search, seconds. Zero until real work has been timed. */
+  const secondsRemaining = computed(() => (smartLeft.value?.measuring ? 0 : (smartLeft.value?.seconds ?? 0)));
 
   /**
    * The TE every search starts from: the TE of the state the workers PRICE.
@@ -3088,17 +3159,35 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * (a run or a benchmark), else the board's typical speed for routes this long, on the worker count
    * set now. An upper bound, like the chains: the search stops as soon as nothing moves.
    */
-  function smartEstimate(tier: EffortTier): { chains: number; seconds: number; measured: boolean } {
+  function smartEstimate(tier: EffortTier): {
+    chains: number;
+    typical: number | null;
+    /** Where `typical` came from: this device's finished runs, or the level's built-in share (Fast's). */
+    typicalFrom: 'here' | 'default' | null;
+    seconds: number;
+    measured: boolean;
+  } {
     const n = Math.max(1, seedChain.value.length - 1);
     const cfg = EFFORT[tier];
     const counts = cfg.otherCounts ? plannedCountsFor(seedChain.value.length) : [];
     const chains = estimateChains(n, cfg, counts);
+    // Priced at what this level really prices on this device (lib/fastTypical.ts); with nothing kept, the level's
+    // built-in share (Fast's); the bound only for a level with neither.
+    const shares = typicalShares.value[tier];
+    const fallback = DEFAULT_SHARES[tier];
+    const typicalFrom = shares?.length ? 'here' : fallback ? 'default' : null;
+    const typical = typicalFrom ? typicalCount(chains, shares, fallback) : null;
     const measured = secondsPerChain.value > 0 && rateWorkers.value > 0;
     const ws = measured
       ? workerSecondsFromRate(secondsPerChain.value, rateWorkers.value)
       : workerSecondsPerChain(seedChain.value.length);
-    return { chains, seconds: sweepSeconds(chains, workerBudget.value, ws), measured };
+    return { chains, typical, typicalFrom, seconds: sweepSeconds(typical ?? chains, workerBudget.value, ws), measured };
   }
+  /** Each level's routes priced over its bound in this device's last finished runs (lib/fastTypical.ts). */
+  const typicalShares = ref<TypicalShares>({});
+  /** The running Smart search's kept shares and level, read as it started. */
+  let runTypicalShares: number[] | undefined;
+  let runKindLevel: EffortTier = 'quick';
 
   /**
    * Fast's check of the other ascension counts (driver.ts stage 4c) as the run will plan it: which
@@ -6976,6 +7065,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
+          markRatePaused();
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);
           runLog.value.push(`--- the browser suspended this tab for ${Math.round(gap / 60)} minutes`);
         },
@@ -9021,6 +9111,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * session has already established, live or benchmarked, is never overwritten by a stale one.
    */
   function restoreBenchmark(playerId: string): void {
+    if (!isRunning.value) typicalShares.value = loadTypicalShares(playerId);
     if (isRunning.value || secondsPerChain.value) return;
     const cached = loadChainBenchmark(playerId);
     if (!cached) return;
@@ -9148,6 +9239,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function onVisibilityChange(): void {
     // Read by `targetWorkers`, so the background setting slows a deadline run as well as the others.
     tabHidden.value = document.visibilityState === 'hidden';
+    // Hidden, a phone may freeze the page: the sample this falls in is not the routes' speed.
+    if (tabHidden.value) markRatePaused();
     if (!isRunning.value && !deadlineRunning.value) return;
     if (document.visibilityState === 'hidden') {
       if (isRunning.value) void persist(liveCache, true);
@@ -9206,6 +9299,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNoteUsed.value = cleanNote(runNote.value);
     secondsPerChain.value = 0;
     rateSource.value = null;
+    sweepChainSamples.value = [];
+    typicalShares.value = loadTypicalShares(playerId);
+    runTypicalShares = typicalShares.value[effort.value];
+    runKindLevel = effort.value;
     // A fresh run's export must not carry the previous run's rows: the settings that give every
     // duration its meaning (plan start, excluded hours, final target) may all have changed.
     liveCache = [];
@@ -9328,6 +9425,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
+          markRatePaused();
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);
           runLog.value.push(
             `--- the browser suspended this tab for ${Math.round(gap / 60)} minutes; nothing ran in that time`
@@ -9395,6 +9493,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // The rate is measured from here: start-up (workers, the integrity check) is behind us and is
       // not what the rest of the run costs per chain. The first sample used to include it.
       noteRate(chainsBase, true);
+      // The time left's samples too (`smartLeft`), as a Full sweep's start from its first batch.
+      sweepChainSamples.value = [];
+      noteSweepSample();
       // Chains the driver has had priced, batch by batch, so the count moves WITHIN a batch (the
       // workers' heartbeats) instead of only when the driver next reports: the bar sat on "1 of
       // ~606" through the whole first sweep (9 Oct). Driver-relative, like `p.chainsDone`.
@@ -9469,6 +9570,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stoppedEarly.value = outcome.stoppedEarly;
       if (runCounts.value) runCounts.value = { ...runCounts.value, counts: [...outcome.countsProbed] };
       chainsDone.value = outcome.chainsEvaluated;
+      // What it really priced against its bound, kept for the next How long and time left (lib/fastTypical.ts):
+      // a finished run only, and one that replayed nothing (its count would leave out what it replayed).
+      if (!outcome.stoppedEarly && !chainsReplayed.value && !findSeedFirst.value)
+        typicalShares.value = noteTypicalShare(
+          playerId,
+          typicalShares.value,
+          effort.value,
+          outcome.chainsEvaluated,
+          chainsEstimated.value
+        );
       // A run that evaluated nothing did not fail - it replayed a checkpoint that already
       // covered its whole trajectory, which is exactly what the resume banner promises. Saying
       // plain "done" next to "0 / ~404 chains" reads as a crash, so say what happened.
@@ -9813,10 +9924,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         unit: 'routes',
         // A Full sweep: the one time left its panel shows too, the whole queue's, over fresh chains
         // only (`sweepLeft`); the count stays the chain running's, with "chain 1 of 3" beside it.
-        secondsLeft: full ? (sweepLeft.value?.seconds ?? null) : secondsRemaining.value || null,
-        // No rate until the first batch is back: say so rather than guess from the first chains,
+        // A Smart search's 0 is real (it has reached what it typically prices here): no time shown, not the bar's
+        // own guess from the bound.
+        secondsLeft: full
+          ? (sweepLeft.value?.seconds ?? null)
+          : smartLeft.value && !smartLeft.value.measuring
+            ? smartLeft.value.seconds
+            : null,
+        // No rate until real work is back: say so rather than guess from the first chains,
         // which carry each worker's start (its shared early legs) and read hours too long.
-        measuring: full ? !!sweepLeft.value?.measuring : !secondsPerChain.value,
+        measuring: full ? !!sweepLeft.value?.measuring : smartLeft.value?.measuring !== false,
         chain: full ? (sweepLeft.value?.chain ?? null) : null,
         queueTotal: full && sweepLeft.value?.chain ? (sweepLeft.value.chainsTotal ?? null) : null,
         startedAt: startedAt.value,

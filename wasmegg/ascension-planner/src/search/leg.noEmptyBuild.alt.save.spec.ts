@@ -78,7 +78,9 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)("Jordan's alt: the buil
   it('the build-up is no option: no variant, and no tails for the instant answer', () => {
     expect(buildUpVariantForCheck(base, state(), base.planStart, GOAL, 0, Math.floor(base.currentTE))).toBeNull();
     expect(buildUpTailParams(base, base.planStart)).toEqual([]);
-  });
+    // 600 s: it took about 20 s alone, so the default 20 s timed out whenever the Mac was busy (9 Nov 2026, the slow-spec
+    // round: "Test timed out in 20000ms" twice before it passed alone).
+  }, 600_000);
 
   it("A1 is continue (3 shifts, Dec 12, 10:50 am) under Fastest, Continue my build-up and My runs' unfinished build", () => {
     const settings = [

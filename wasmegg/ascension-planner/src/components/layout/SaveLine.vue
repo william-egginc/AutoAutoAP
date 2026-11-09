@@ -28,13 +28,14 @@
       data-testid="save-line-close"
       @click="close"
     >
-      Close
+      {{ SAVE_LINE_CLOSE }}
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import SaveAgeStrip from '@/components/myruns/SaveAgeStrip.vue';
+import { SAVE_LINE_CLOSE } from '@/lib/layoutWords';
 import { useMinuteClock } from '@/composables/useMinuteClock';
 import { LOAD_LATEST_SAVE, useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 import { useChainSearchStore } from '@/stores/chainSearch';

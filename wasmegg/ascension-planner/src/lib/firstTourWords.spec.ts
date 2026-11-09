@@ -19,7 +19,7 @@ describe('first tour words', () => {
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step."
+      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More."
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'

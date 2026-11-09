@@ -126,7 +126,7 @@ import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
 import StudyBox from '@/components/StudyBox.vue';
-import { FASTEST_LINE, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { fastestLine as fastestLineWords, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
@@ -145,6 +145,7 @@ import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
 import { plural } from '@/lib/format';
+import { typicalHowLongLine } from '@/lib/fastEstimateWords';
 
 const props = defineProps<{
   playerId: string;
@@ -169,8 +170,8 @@ const stronger = useStrongerStore();
 
 // The hidden sections' one-line results (CollapsibleSection.vue).
 useSearchSnapshots('fastest');
-/** FASTEST_LINE says 490: the player's own target when it isn't (DRAFT; Words may want it as a function). */
-const fastestLine = computed(() => FASTEST_LINE.replace('490 TE', `${store.finalTE} TE`));
+/** The line under the tabs, for the player's own target (490 or another). */
+const fastestLine = computed(() => fastestLineWords(store.finalTE));
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
@@ -193,11 +194,24 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
   for (const l of ['quick', 'normal', 'thorough'] as const) {
     const e = store.smartEstimate(l);
     const t = formatHours(e.seconds / 3600);
+    const workers = plural(store.workerBudget, 'worker');
+    const speed = e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed';
     out[l] = {
       short: `~${t}`,
-      line: `Up to about ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${
-        e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed'
-      }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
+      // What the level really prices (lib/fastTypical.ts): this device's runs, or Fast's built-in share on a first run.
+      // Only Exact with nothing kept is priced at the bound.
+      line:
+        e.typical !== null && e.typicalFrom
+          ? typicalHowLongLine({
+              time: t,
+              device: thisDevice(),
+              workers,
+              speed,
+              typical: e.typical,
+              bound: e.chains,
+              from: e.typicalFrom,
+            })
+          : `Up to about ${t} on ${thisDevice()} (${workers}, ${speed}): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }
   return out;

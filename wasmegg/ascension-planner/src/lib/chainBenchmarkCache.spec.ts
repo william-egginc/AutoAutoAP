@@ -58,7 +58,7 @@ describe('chainBenchmarkCache', () => {
   });
 
   it('treats a corrupted entry as absent rather than throwing', () => {
-    localStorage.setItem('chain_benchmark_v1:player-1', '{not json');
+    localStorage.setItem('chain_benchmark_v2:player-1', '{not json');
     expect(loadChainBenchmark('player-1')).toBeNull();
   });
 });

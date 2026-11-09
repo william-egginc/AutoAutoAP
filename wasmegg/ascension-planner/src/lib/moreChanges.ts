@@ -3,7 +3,7 @@
  * inside a screen's More that change the answer above it and aren't at their default, so nothing changed is hidden by
  * the closed fold (as Setup's More options line, lib/setupMore.ts). The instant answer's three: Prefer fewer
  * ascensions, the ascensions range and Works inside my awake hours. Joined after MORE_LINE_AUTO by
- * lib/layoutWords.ts `moreLineWithChanges`. Words DRAFT (Words owns them).
+ * lib/layoutWords.ts `moreLineWithChanges`. Words final (Words, 10 Nov 2026).
  *
  * Not a result code input: only the instant card imports it, and nothing that works results out does.
  */
