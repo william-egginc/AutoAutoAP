@@ -21,7 +21,7 @@ describe('My runs: the regions in their fixed order', () => {
   });
   it('everything else inside More, in its old order; the save strip and the intro line are gone', () => {
     const more = view.slice(view.indexOf('<MoreFold'), view.indexOf('</MoreFold>'));
-    const at = ['id="more-myruns-route"', '<YourEggs', '<SavedTile', '<TryNext', '<RouteScatter', 'id="my-runs-your-runs"'].map(m => more.indexOf(m));
+    const at = ['id="more-myruns-route"', 'id="more-myruns-detail"', '<YourEggs', '<SavedTile', '<TryNext', '<RouteScatter', 'id="my-runs-your-runs"'].map(m => more.indexOf(m));
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
     expect(more).toContain('<b>Share my instant answer with my runs</b>');
@@ -35,6 +35,9 @@ describe('My runs: the regions in their fixed order', () => {
     for (const part of ['<FollowHistory', 'data-testid="now-follow-back"', 'data-testid="now-follow-typed"']) expect(tp, part).toContain(part);
     expect(tp).toContain('{{ STOP_FOLLOWING }}');
     expect(view).toContain('change-route-to="more-myruns-route"');
+    // The gear and the full timeline too.
+    expect(view).toContain('detail-to="more-myruns-detail"');
+    expect(card.match(/<Teleport :to="detailEl \?\? 'body'" :disabled="!detailEl">/g)).toHaveLength(2);
   });
   it('the links into Your runs open More first (See the routes ›, Dig deeper, Next steps\' unsent)', () => {
     const src = read('MyRunsView.vue');

@@ -496,6 +496,9 @@
     <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
     <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
 
+    <!-- The gear and the full timeline go into My runs' More with `detailTo` (the simpler page, 9 Nov 2026): a looked-up
+         element, never deferred; on this card without one. -->
+    <Teleport :to="detailEl ?? 'body'" :disabled="!detailEl">
     <GearBlock
       v-if="gear"
       :equipped="gear.equipped"
@@ -507,6 +510,7 @@
       :goal="card?.goal.goal ?? 'fastest'"
       :match="gear.match ?? null"
     />
+    </Teleport>
 
     <template v-if="card">
       <EventsTable
@@ -523,6 +527,7 @@
         :rounded="rounded"
         :here="hereRow"
       />
+      <Teleport :to="detailEl ?? 'body'" :disabled="!detailEl">
       <details class="mt-2" data-testid="now-timeline">
         <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
           Full timeline (every ascension, each egg's first and last shift)
@@ -540,6 +545,7 @@
           />
         </div>
       </details>
+      </Teleport>
     </template>
   </section>
 </template>
@@ -604,6 +610,8 @@ const props = defineProps<{
   /** My runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
    *  following and Follow another route; without one they stay on this card. */
   changeRouteTo?: string;
+  /** The same for the gear and the full timeline. */
+  detailTo?: string;
   card: CardPlan | null;
   onVirtue: boolean | null;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
@@ -686,6 +694,7 @@ const props = defineProps<{
 }>();
 /** Where Change route goes (`changeRouteTo`): looked up after mount and each time the card draws again. */
 const changeRouteEl = useTeleportTarget(() => (props.changeRouteTo ? `#${props.changeRouteTo}` : undefined), () => true);
+const detailEl = useTeleportTarget(() => (props.detailTo ? `#${props.detailTo}` : undefined), () => true);
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
   select: [key: GoalKey];

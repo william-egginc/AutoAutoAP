@@ -43,6 +43,7 @@
       <RightNowCard
         data-region="right-now"
         change-route-to="more-myruns-route"
+        detail-to="more-myruns-detail"
         :card="page.cardPlan.value"
         :soul-eggs-after="page.soulEggsAfter.value"
         :on-virtue="page.onVirtue.value"
@@ -135,6 +136,8 @@
       <h2 class="text-body font-bold text-slate-900">{{ CHANGE_ROUTE }}</h2>
       <div id="more-myruns-route" class="space-y-1"></div>
     </section>
+    <!-- Right now's gear and full timeline (RightNowCard `detailTo`). -->
+    <div v-if="page.hasSave.value" id="more-myruns-detail" class="space-y-2" data-testid="more-myruns-detail"></div>
     <template v-if="page.hasSave.value">
       <YourEggs
         :eggs="page.eggs.value"
