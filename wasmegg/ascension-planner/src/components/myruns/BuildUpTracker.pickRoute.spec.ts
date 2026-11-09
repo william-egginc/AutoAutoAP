@@ -65,7 +65,11 @@ describe('pickRouteOpen: the screen the press opens', () => {
 });
 
 describe('scrollToInstantAnswer: once the screen is drawn', () => {
-  const el = (shown: boolean) => ({ getClientRects: () => (shown ? [{}] : []), scrollIntoView: vi.fn() });
+  const el = (shown: boolean, inside: ReturnType<typeof vi.fn>[] = []) => ({
+    getClientRects: () => (shown ? [{}] : []),
+    scrollIntoView: vi.fn(),
+    querySelectorAll: vi.fn(() => inside),
+  });
   it('waits for a laid-out instant answer (the other screen’s is hidden), then scrolls it into view', () => {
     vi.useFakeTimers();
     const hidden = el(false);
@@ -81,8 +85,39 @@ describe('scrollToInstantAnswer: once the screen is drawn', () => {
     expect(hidden.scrollIntoView).not.toHaveBeenCalled();
     expect(shown.scrollIntoView).toHaveBeenCalledTimes(1);
     expect(shown.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(20_000);
     expect(shown.scrollIntoView).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+  it('with its Follow this route drawn, that button is centred instead', () => {
+    vi.useFakeTimers();
+    const button = el(true);
+    const section = el(true, [button as never]);
+    const doc = { querySelectorAll: vi.fn(() => [section]) };
+    scrollToInstantAnswer(doc as never);
+    vi.advanceTimersByTime(250);
+    expect(section.querySelectorAll).toHaveBeenCalledWith('[data-testid="follow-route"]');
+    expect(button.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it('the answer still being worked out: its section first, then its Follow this route once drawn', () => {
+    vi.useFakeTimers();
+    const button = el(true);
+    const inside: never[] = [];
+    const section = el(true, inside);
+    section.querySelectorAll.mockImplementation(() => inside);
+    const doc = { querySelectorAll: vi.fn(() => [section]) };
+    scrollToInstantAnswer(doc as never);
+    vi.advanceTimersByTime(250);
+    expect(section.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    inside.push(button as never);
+    vi.advanceTimersByTime(1000);
+    expect(button.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(button.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(section.scrollIntoView).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(20_000);
+    expect(button.scrollIntoView).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
   it('gives up after a few seconds without one', () => {

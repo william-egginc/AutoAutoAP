@@ -17,19 +17,30 @@ export function pickRouteOpen(goals: readonly { key: string; open: MyRunsOpen }[
 /** The instant answer's section on Fastest and on By a date (CollapsibleSection id="instant"). Both screens can be in
  *  the page, one hidden, so the one laid out is the one shown. */
 const INSTANT = '[data-testid="section-instant"]';
+/** Its Follow this route (FollowButton.vue). */
+const FOLLOW = '[data-testid="follow-route"]';
 const EVERY_MS = 200;
 const TRIES = 25;
 
 /** Scroll the shown instant answer into view once the opened screen has drawn it (its chunk may still be loading):
- *  tried every 200 ms for 5 seconds, then given up. */
+ *  tried every 200 ms for 5 seconds, then given up. Its Follow this route is centred once drawn (the route box is above
+ *  it, and a phone's Setup dock no longer covers it, as it did with the section's top at the top); until then the
+ *  section's top is shown. */
 export function scrollToInstantAnswer(doc: Pick<Document, 'querySelectorAll'> | undefined = typeof document === 'undefined' ? undefined : document): void {
   if (!doc) return;
   let left = TRIES;
+  let atSection = false;
   const tick = () => {
     const el = [...doc.querySelectorAll(INSTANT)].find(e => e.getClientRects().length > 0);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const follow = el ? [...el.querySelectorAll(FOLLOW)].find(e => e.getClientRects().length > 0) : undefined;
+    if (follow) {
+      follow.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
+    }
+    // The answer still being worked out: its section now, its button once it is drawn (within the same 5 seconds).
+    if (el && !atSection) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      atSection = true;
     }
     if (--left > 0) setTimeout(tick, EVERY_MS);
   };
