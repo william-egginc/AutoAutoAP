@@ -66,7 +66,11 @@
           <input
             :value="stops"
             type="text"
-            inputmode="numeric"
+            inputmode="text"
+            autocapitalize="off"
+            autocorrect="off"
+            autocomplete="off"
+            spellcheck="false"
             placeholder="200 250"
             class="min-h-[44px] sm:min-h-[32px] w-32 rounded-lg border-slate-300 py-1 text-body tabular-nums"
             data-testid="runs-explore-stops"
