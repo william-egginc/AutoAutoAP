@@ -58,6 +58,11 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       buildUpTracker: 'folded',
       setupMore: 'folded', // Setup's More options (5 Nov 2026)
       buildUpCompact: 'folded', // the Build-up tracker starts on List (spec-trackercompact, 8 Nov 2026)
+      // the simpler default page (9 Nov 2026): each screen's More and Setup's Sharing and privacy start closed
+      moreFastest: 'folded',
+      moreByDate: 'folded',
+      moreMyRuns: 'folded',
+      setupSharing: 'folded',
     });
   });
 

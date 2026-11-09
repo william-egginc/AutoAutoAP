@@ -22,7 +22,13 @@ export type FoldSection =
   | 'howWorkedOut' // the instant answer's "How this is worked out" (InstantRoute.vue)
   | 'buildUpTracker' // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
   | 'setupMore' // Setup's More options (auto/YourSetup.vue, docked; UX fluff review 2, 5 Nov 2026): its own button, same table and toggle
-  | 'buildUpCompact'; // the Build-up tracker's List / Compact toggle (myruns/BuildUpTracker.vue; open = Compact, spec-trackercompact)
+  | 'buildUpCompact' // the Build-up tracker's List / Compact toggle (myruns/BuildUpTracker.vue; open = Compact, spec-trackercompact)
+  // The simpler default page (notes/simpler-design.md, Jordan 9 Nov 2026): the one closed "More" fold at the foot of each
+  // screen (MoreFold.vue), and Setup's "Sharing and privacy" fold (YourSetup.vue).
+  | 'moreFastest' // Fastest to 490 TE's More
+  | 'moreByDate' // Highest TE by a date's More
+  | 'moreMyRuns' // My runs' More
+  | 'setupSharing'; // Setup's Sharing and privacy
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -50,7 +56,17 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   // Not a fold: the Build-up tracker's view, "open" being Compact (spec-trackercompact, 8 Nov 2026, Jordan: "all
   // suggested"). Starts on List; the player's press is remembered in this browser like a fold's toggle.
   buildUpCompact: 'folded',
+  // The simpler default page (Jordan, 9 Nov 2026): every More starts closed; the player's own toggle is remembered per
+  // screen in this browser (rule 2), and Setup › More options › Show everything opens them all (`showEverything`).
+  moreFastest: 'folded',
+  moreByDate: 'folded',
+  moreMyRuns: 'folded',
+  // Closed; its line names every setting in it that sends and its state (lib/layoutWords.ts sharingSummaryWords).
+  setupSharing: 'folded',
 };
+
+/** The screens' "More" folds: the ones Show everything opens. */
+export const MORE_SECTIONS: readonly FoldSection[] = ['moreFastest', 'moreByDate', 'moreMyRuns'];
 
 /** What the screen is doing, for the triggers. */
 export interface FoldState {
@@ -63,17 +79,23 @@ export interface FoldState {
   longRun?: boolean;
   /** The player's own last toggle of this section (true open, false closed), or null / undefined if never. */
   remembered?: boolean | null;
+  /** Setup › More options › Show everything is on (this browser): every More starts open, whatever was remembered. */
+  showEverything?: boolean;
 }
 
 /** Sections that open by themselves while a condition holds, whatever the table or the player's toggle says. Stepping
  *  away? opened for any run going until 28 Oct 2026; now only for a long one (`longRun`). */
 export const FOLD_OPENS_WHEN: Partial<Record<FoldSection, ('running' | 'unfinished' | 'longRun')[]>> = {
   steppingAway: ['longRun'],
+  // The search lives inside More: a run going, or one to carry on, keeps it open (not remembered as the player's).
+  moreFastest: ['running', 'unfinished'],
+  moreByDate: ['running', 'unfinished'],
 };
 
 /** Whether `section` starts open in `state`. Pure. */
 export function foldOpen(section: FoldSection, state: FoldState = {}): boolean {
   if ((FOLD_OPENS_WHEN[section] ?? []).some(k => state[k])) return true;
+  if (state.showEverything && MORE_SECTIONS.includes(section)) return true;
   if (typeof state.remembered === 'boolean') return state.remembered;
   return PANEL_FOLD[section] === 'open';
 }
@@ -109,6 +131,25 @@ export function readFoldToggle(section: FoldSection): boolean | null {
 export function rememberFoldToggle(section: FoldSection, open: boolean): void {
   try {
     localStorage.setItem(foldKey(section), open ? '1' : '0');
+  } catch {
+    /* this visit only */
+  }
+}
+
+/** Setup › More options › Show everything (the simpler default page, Jordan 9 Nov 2026): remembered in this browser. */
+export const SHOW_EVERYTHING_KEY = 'aap.showEverything';
+/** Whether Show everything is on in this browser. Never throws; off when unknown. */
+export function readShowEverything(): boolean {
+  try {
+    return localStorage.getItem(SHOW_EVERYTHING_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+/** Remember Show everything. Never throws. */
+export function rememberShowEverything(on: boolean): void {
+  try {
+    localStorage.setItem(SHOW_EVERYTHING_KEY, on ? '1' : '0');
   } catch {
     /* this visit only */
   }
