@@ -397,8 +397,10 @@
                  44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
                  My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
                  appeared after the first answer). -->
+            <!-- data-tour: the first-visit tour's step 2 points here (FirstTour.vue, lib/firstTour.ts TOUR_ANCHORS). -->
             <div
               class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              data-tour="goal-tabs"
             >
               <button
                 v-for="v in autoTabs"
@@ -819,6 +821,17 @@
           >About and privacy</a
         >
       </footer>
+
+      <!-- The first-visit tour (spec-firsttour, 8 Nov 2026): six steps on the real page for a new visitor, with Skip and
+           Remind me later; it waits behind the consent box, the update banners, dialogs, Setup and a running search. -->
+      <FirstTour
+        :has-account="!!playerId"
+        :has-save-file="fileOnlySave"
+        :running="myRunsRunning"
+        :egg-beta-active="eggBetaActive"
+        :loading="loading"
+        :new-visitor="tourNewVisitor"
+      />
     </div>
   </div>
 </template>
@@ -826,6 +839,8 @@
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
+import { isNewVisitor } from '@/lib/firstTour';
+import FirstTour from '@/components/FirstTour.vue';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
@@ -1100,6 +1115,9 @@ function readLastRoute(): string | null {
  * wins, then the last tab this browser remembers; a new player (neither, and no saved ID) is taken to
  * FIRST_LOAD_ROUTE when their first save loads (submitPlayerId).
  */
+/** The first-visit tour starts by itself for a new visitor only (lib/firstTour.ts): no saved player ID and no remembered
+ *  tab when the page loaded. */
+const tourNewVisitor = isNewVisitor({ savedPlayerId: getSavedPlayerID(), lastRoute: readLastRoute() });
 const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
 let newPlayerLanding = opening.newPlayer;
 /**
