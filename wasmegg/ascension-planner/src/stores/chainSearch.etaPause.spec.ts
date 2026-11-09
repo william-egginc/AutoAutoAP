@@ -210,4 +210,26 @@ describe("a Smart search's time left", () => {
     for (let i = 1; i < settled.length; i++) worstRise = Math.max(worstRise, settled[i].left / settled[i - 1].left);
     expect(worstRise).toBeLessThan(1.25);
   });
+  it('right after a pause, says about what it said before it, not hours', async () => {
+    const store = useChainSearchStore();
+    let before: number | null = null;
+    let paused = false;
+    const after: number[] = [];
+    onChain = n => {
+      const p = store.runProgress;
+      if (!p || p.kind !== 'smart') return;
+      if (batches === 6 && n === 2 && !paused) {
+        before = p.secondsLeft;
+        paused = true;
+        vi.setSystemTime(Date.now() + PAUSE_MS);
+        return;
+      }
+      if (paused && batches === 6 && p.secondsLeft !== null) after.push(p.secondsLeft);
+    };
+    await store.start('P');
+    expect(store.error).toBeNull();
+    expect(before).not.toBeNull();
+    expect(after.length).toBeGreaterThan(0);
+    for (const a of after) expect(a).toBeLessThan(before! * 2);
+  });
 });

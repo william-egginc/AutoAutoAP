@@ -1842,6 +1842,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let rateBeatAt = 0;
   let ratePaused = false;
   let rateBeat: ReturnType<typeof setInterval> | null = null;
+  /** The time left's samples (`noteSweepSample`) start again too, at once rather than when the batch ends. */
+  let samplesPaused = false;
+  function markRatePaused(): void {
+    ratePaused = true;
+    samplesPaused = true;
+  }
   function startRateBeat(): void {
     rateBeatAt = Date.now();
     ratePaused = false;
@@ -1853,7 +1859,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return;
       }
       const t = Date.now();
-      if (t - rateBeatAt > PAUSE_GAP_MS) ratePaused = true;
+      if (t - rateBeatAt > PAUSE_GAP_MS) markRatePaused();
       rateBeatAt = t;
     }, RATE_BEAT_MS);
   }
@@ -2181,6 +2187,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const sweepChainSamples = ref<[number, number][]>([]);
   function noteSweepSample(): void {
     if (!isRunning.value) return;
+    // After a pause, the time left's rate starts again from here: a sample across it read "21 h left" until
+    // the batch in flight came back (lib/ratePause.ts).
+    const list = sweepChainSamples.value;
+    const lastAt = list.length ? list[list.length - 1][0] : 0;
+    if (lastAt && spansPause({ now: Date.now(), lastBeatAt: rateBeatAt, lastSampleAt: lastAt, paused: samplesPaused }))
+      sweepChainSamples.value = [];
+    samplesPaused = false;
     const full = !!searchSpace.value;
     const next = addChainSample(
       sweepChainSamples.value,
@@ -2234,7 +2247,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       samples: sweepChainSamples.value,
       done: chainsDone.value,
       total: chainsEstimated.value,
-      plannedSecondsPerChain: sweepSeconds(1, workersInPool.value, workerSecondsPerChain(length)),
+      // Until 2 minutes are measured (a run's start, or after a pause): this run's own s/chain when it has one,
+      // else the typical speed on these workers.
+      plannedSecondsPerChain:
+        secondsPerChain.value || sweepSeconds(1, workersInPool.value, workerSecondsPerChain(length)),
     });
   });
   /** Live remaining-time estimate for a Smart search, seconds. Zero until real work has been timed. */
@@ -7018,7 +7034,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
-          ratePaused = true;
+          markRatePaused();
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);
           runLog.value.push(`--- the browser suspended this tab for ${Math.round(gap / 60)} minutes`);
         },
@@ -9192,7 +9208,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Read by `targetWorkers`, so the background setting slows a deadline run as well as the others.
     tabHidden.value = document.visibilityState === 'hidden';
     // Hidden, a phone may freeze the page: the sample this falls in is not the routes' speed.
-    if (tabHidden.value) ratePaused = true;
+    if (tabHidden.value) markRatePaused();
     if (!isRunning.value && !deadlineRunning.value) return;
     if (document.visibilityState === 'hidden') {
       if (isRunning.value) void persist(liveCache, true);
@@ -9374,7 +9390,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
-          ratePaused = true;
+          markRatePaused();
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);
           runLog.value.push(
             `--- the browser suspended this tab for ${Math.round(gap / 60)} minutes; nothing ran in that time`
