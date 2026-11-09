@@ -34,8 +34,6 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
 };
 
-/** Step 5 while the My runs tab isn't there yet (nothing followed): said instead of its body. */
-export const FIRST_TOUR_MYRUNS_NOT_YET = 'My runs appears up here once you follow a route. It shows where you are now and what to do next.';
 /** The last card's closing line. */
 export const FIRST_TOUR_CLOSING = "That's the tour. You can show it again from the foot of the page or from Setup.";
 
@@ -47,9 +45,9 @@ export const FIRST_TOUR_REMIND = 'Remind me later';
 /** The footer's and Setup's link. */
 export const FIRST_TOUR_REPLAY = 'Show the tour again';
 
-/** The step line: "Step 2 of 6" (v1's "· after your save loads" goes with v1's card). */
-export function firstTourLabel(n: number, of: number, beforeSave = false): string {
-  return `Step ${n} of ${of}${beforeSave ? ' · after your save loads' : ''}`;
+/** The slide's step line: "Step 2 of 6". */
+export function firstTourLabel(n: number, of: number): string {
+  return `Step ${n} of ${of}`;
 }
 /** Said to a screen reader on each step. */
 export function firstTourAnnounce(n: number, of: number, title: string): string {

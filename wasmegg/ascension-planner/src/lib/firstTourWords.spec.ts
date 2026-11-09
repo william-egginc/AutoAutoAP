@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   FIRST_TOUR_CLOSING,
-  FIRST_TOUR_MYRUNS_NOT_YET,
   FIRST_TOUR_STEPS,
 } from './firstTourWords';
 
@@ -29,13 +28,13 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
       'Setup is where you set your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
-    expect(FIRST_TOUR_MYRUNS_NOT_YET).toBe(
-      'My runs appears up here once you follow a route. It shows where you are now and what to do next.'
-    );
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
+  it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {
+    expect('FIRST_TOUR_MYRUNS_NOT_YET' in (await import('./firstTourWords'))).toBe(false);
+  });
   it('plain: at most two or three short sentences a card, no jargon words', () => {
-    const all = [...Object.values(FIRST_TOUR_STEPS).map(s => s.body), FIRST_TOUR_MYRUNS_NOT_YET, FIRST_TOUR_CLOSING];
+    const all = [...Object.values(FIRST_TOUR_STEPS).map(s => s.body), FIRST_TOUR_CLOSING];
     for (const t of all) {
       expect(t.length).toBeLessThan(170);
       expect(t.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(3);

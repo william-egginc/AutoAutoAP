@@ -24,8 +24,7 @@
   (wireframes/price-route-v2, Jordan 23 Oct 2026: nothing prices it here, the instant numbers never change by themselves).
 -->
 <template>
-  <section v-if="!noTable" data-tour="instant-answer" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
-    <!-- data-tour: the first-visit tour's steps 3 and 4 point at this card's answer box and its Follow this route. -->
+  <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
     <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">

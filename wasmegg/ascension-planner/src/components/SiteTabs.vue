@@ -13,14 +13,11 @@
            so each label fits its cell at 375. From lg up, one row. The second row's tabs share its six columns
            (SECOND_ROW), however many are shown: My runs always, Leaderboard and Science when turned on in Setup.
            Each tab is at least 44 px tall below sm (Jordan, 21 Oct 2026); from sm up, the old size. -->
-      <!-- data-tour and the ids: the first-visit tour's step 5 points at My runs here (lib/firstTour.ts TOUR_ANCHORS). -->
       <div
-        data-tour="site-tabs"
         class="bg-slate-50 p-1 sm:p-1.5 rounded-2xl border border-slate-200/50 shadow-sm grid grid-cols-6 w-full lg:flex lg:w-auto lg:justify-center gap-1"
       >
         <button
           v-for="(t, i) in tabs"
-          :id="`site-tab-${t.id}`"
           :key="t.id"
           type="button"
           :class="[

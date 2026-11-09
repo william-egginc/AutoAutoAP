@@ -397,10 +397,8 @@
                  44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
                  My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
                  appeared after the first answer). -->
-            <!-- data-tour: the first-visit tour's step 2 points here (FirstTour.vue, lib/firstTour.ts TOUR_ANCHORS). -->
             <div
               class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
-              data-tour="goal-tabs"
             >
               <button
                 v-for="v in autoTabs"
