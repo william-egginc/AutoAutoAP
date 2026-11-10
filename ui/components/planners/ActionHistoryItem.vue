@@ -163,10 +163,10 @@
     <div v-if="!compact" class="flex items-start justify-between gap-2 ml-[2rem] sm:ml-[2.25rem]">
       <div class="flex-1 min-w-0">
         <!-- Description -->
-        <div
-          class="text-[9px] uppercase tracking-widest font-black opacity-60 text-slate-500 mt-0.5"
-          v-html="effectDescription"
-        ></div>
+        <!-- Text, never HTML: a plan file can carry any payload (red team 21 Oct 2026, data-inputs #6). -->
+        <div class="text-[9px] uppercase tracking-widest font-black opacity-60 text-slate-500 mt-0.5">
+          {{ effectDescription }}
+        </div>
 
         <!-- Deltas -->
         <div

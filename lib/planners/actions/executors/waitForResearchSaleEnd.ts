@@ -16,6 +16,6 @@ export const waitForResearchSaleEndExecutor: PayloadExecutor<WaitForResearchSale
   },
 
   getEffectDescription(payload: WaitForResearchSaleEndPayload) {
-    return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until the sale ends Saturday 9AM PT`;
+    return `Wait for ${formatDuration(payload.totalTimeSeconds)} until the sale ends Saturday 9AM PT`;
   },
 };

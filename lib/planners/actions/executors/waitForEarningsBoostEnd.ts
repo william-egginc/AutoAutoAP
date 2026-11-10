@@ -16,6 +16,6 @@ export const waitForEarningsBoostEndExecutor: PayloadExecutor<WaitForEarningsBoo
   },
 
   getEffectDescription(payload: WaitForEarningsBoostEndPayload) {
-    return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until 2x earnings ends Tuesday 9AM PT`;
+    return `Wait for ${formatDuration(payload.totalTimeSeconds)} until 2x earnings ends Tuesday 9AM PT`;
   },
 };

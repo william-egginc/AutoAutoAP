@@ -1,7 +1,8 @@
 /**
  * An imported plan cannot inject HTML (red team 21 Oct 2026, data-inputs #6): the Action History drew
  * each step's effect with v-html from payload fields a file sets (saleType, newShiftCount, multiplier),
- * and two real <img> elements reached the page. It is text now, and the chart tooltips escape too.
+ * and two real <img> elements reached the page. It is text now, and the chart tooltips escape too. Since Joo's PR 731
+ * the row is the shared ui/components/planners/ActionHistoryItem.vue (and the two event-end waits are his).
  */
 import '../../scripts/node-shims';
 
@@ -12,7 +13,7 @@ import { syntheticInputs } from '@/test/syntheticSave';
 import { renderHtml } from '@/test/renderComponent';
 import { useActionsStore } from '@/stores/actions';
 import { tippyStub } from '@/test/teWait';
-import ActionHistoryItem from './ActionHistoryItem.vue';
+import ActionHistoryItem from 'ui/components/planners/ActionHistoryItem.vue';
 
 const HOSTILE = '<img src=x onerror="alert(1)">';
 
@@ -35,9 +36,9 @@ describe('effect text from a file', () => {
   });
 
   it('no v-html left in the Action History, and no markup in the effect strings', () => {
-    const item = readFileSync(new URL('./ActionHistoryItem.vue', import.meta.url), 'utf8');
+    const item = readFileSync(new URL('../../../../ui/components/planners/ActionHistoryItem.vue', import.meta.url), 'utf8');
     expect(item).not.toMatch(/v-html/);
-    for (const f of ['waitForResearchSale', 'waitForEarningsBoost']) {
+    for (const f of ['waitForResearchSale', 'waitForEarningsBoost', 'waitForResearchSaleEnd', 'waitForEarningsBoostEnd']) {
       const src = readFileSync(new URL(`../../../../lib/planners/actions/executors/${f}.ts`, import.meta.url), 'utf8');
       expect(src).not.toContain('<b>');
     }
