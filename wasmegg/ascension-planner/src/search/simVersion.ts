@@ -61,7 +61,7 @@ export const SIM_SOURCES = [
  *  simulate.ts, Continue from mid-build, files moved into lib/planners) and egg-beta2-int's uncapped save
  *  catch-up. Not a SIM_VERSION bump: the merged build's start-TE files are byte-identical to the sim4
  *  tables (11 of 11 on the Mac; the PC sweep over every finished table is in aaap-tools notes). */
-export const SIM_SOURCE_HASH = '10397a0fb5397000414dd6392a54017a121c2832cb61ec4f607df2bad6309d0b';
+export const SIM_SOURCE_HASH = '4aa5d35e19f871e22585b10aa22bbba1fb3a6f8da79c99a8c9513a49b7d91633';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

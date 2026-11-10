@@ -492,6 +492,14 @@ export function useAscensionGenerator() {
               optimalEarnings
             );
 
+            // The farm as the player has it right now, kept for the build step (below): the swap to the delivery set
+            // reads as "build done" to `detectBuildStep` (auto/buildStep.ts: a delivery set on means the build is
+            // finished), which hid a part-built farm's step (spec-continuestep, 10 Nov 2026). Joo's flow has no swap:
+            // `detectBuildStep` and `runContinueBuild` read this state, and the player's own gear is what
+            // `continueBuildPrefix` files as the earnings set.
+            const buildStepState = JSON.parse(JSON.stringify(continueState)) as typeof continueState;
+            buildStepState.lastStepTime = 0;
+
             // The delivery-rate loadout the player would field on continuing - NOT whatever
             // happens to be equipped this instant (which is what makeContinueState files under
             // `elr`). `activeArtifactSet: 'elr'` declares that continue runs on the ELR set, but
@@ -541,12 +549,12 @@ export function useAscensionGenerator() {
             // A finished build, or one that can't finish before an end-time override (e.g. a Chain
             // Finder route that ends this ascension at a later prestige), just waits out TE at the
             // farm's current rate.
-            const buildStep = detectBuildStep(continueState);
+            const buildStep = detectBuildStep(buildStepState);
             if (buildStep) {
               generateProgress.value = `Simulating A${i + 1} of ${loops} (Continue from ${buildStep})...`;
               await new Promise(resolve => setTimeout(resolve, 15));
               const continued = runContinueBuild(
-                continueState, continueContext, buildStep, currentStartTime, `asc_${i}_continue`,
+                buildStepState, continueContext, buildStep, currentStartTime, `asc_${i}_continue`,
                 stepTargetTE, stepEndTime, ascensionStartTE < TIER_13_MIN_STARTING_TE
               );
               if (continued) variants.continue = continued;
