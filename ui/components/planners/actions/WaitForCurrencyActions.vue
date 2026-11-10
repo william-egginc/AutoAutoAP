@@ -142,8 +142,8 @@ const earningsPerSecond = computed(() => {
 const timeToSaveSeconds = computed(() => {
   if (parsedTarget.value === null || parsedTarget.value <= planStore.bankValue) return 0;
   
-  // Use the robust getTimeToSave from engine which accounts for population growth
-  const time = getTimeToSave(parsedTarget.value, actionsStore.effectiveSnapshot);
+  // Accounts for population growth and 2x earnings, as the wait itself does
+  const time = getBoostAwareTimeToSave(parsedTarget.value, actionsStore.effectiveSnapshot, getSimulationContext());
   return isFinite(time) ? time : Infinity;
 });
 
@@ -184,7 +184,7 @@ function addCurrencyWait(target: number) {
   const payload = createCurrencyWaitPayload(currency.waitActionType, {
     target,
     bankValue: beforeSnapshot.bankValue,
-    earningsPerSecond: earningsPerSecond.value,
+    earningsPerSecond: beforeSnapshot.offlineEarnings,
     timeSeconds: getBoostAwareTimeToSave(target, beforeSnapshot, getSimulationContext()),
   }) as never;
 
