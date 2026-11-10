@@ -810,7 +810,7 @@
       />
       <FloatingStats v-if="manualShown" />
       <FloatingNotes v-if="manualShown" />
-      <!-- The event waits' "Time automatically advanced ..." note (Joo's, PR 731). -->
+      <!-- The event waits' "Waited ... until the start of ..." note (Joo's, PR 731). -->
       <PlannerToast />
 
       </main>
@@ -1640,8 +1640,8 @@ watch(
 
 const earningsEventTooltip = computed(() =>
   isEarningsBoostActive.value
-    ? `2x Earnings ends Tuesday at +0. Click to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
-    : `Next 2x Earnings starts Monday at +0. Click to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
+    ? `2x Earnings ends Tuesday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
+    : `Next 2x Earnings starts Monday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
 );
 
 onMounted(async () => {

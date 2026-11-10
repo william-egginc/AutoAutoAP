@@ -128,7 +128,7 @@ export function useEventWaits<S extends EventSnapshot>(deps: EventWaitsDeps<S>) 
     await advance();
     const advanced = deps.snapshot().lastStepTime - before;
     if (advanced > 0) {
-      toastStore.show(`Time automatically advanced ${formatDuration(advanced).replace(/\s+/g, '')} to ${edge} of ${event}`);
+      toastStore.show(`Waited ${formatDuration(advanced).replace(/\s+/g, '')} until the ${edge} of ${event}.`);
     }
   }
 

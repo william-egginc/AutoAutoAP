@@ -625,7 +625,7 @@ const variantRows = computed(() => {
 
 const continueAvailable = computed(() => !!props.variants.continue);
 const continueButtonLabel = computed(() =>
-  continueLabel(props.variants.continue?.summary.continueFromStep, 'Continue Asc.')
+  continueLabel(props.variants.continue?.summary.continueFromStep, 'Continue ascension')
 );
 
 const continueDisabledTooltip = computed(() => {
@@ -633,7 +633,7 @@ const continueDisabledTooltip = computed(() => {
     return 'Start time must be within 1 hour of now to use Continue Ascension';
   }
   if (props.result3SkippedReason === 'notOnVirtueEgg') {
-    return 'Your farm is not on a virtue egg, so there is no ascension to continue';
+    return 'Your farm is not on a virtue egg, so there is nothing to continue.';
   }
   return 'No farm backup loaded — upload a backup to use Continue Ascension';
 });

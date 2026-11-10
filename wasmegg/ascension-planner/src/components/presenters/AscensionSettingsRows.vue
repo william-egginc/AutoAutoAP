@@ -3,7 +3,7 @@
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
     <div>
       <div class="text-body font-bold text-slate-700">Starting Egg</div>
-      <div class="hidden sm:block label text-slate-400">Where the plan begins</div>
+      <div class="hidden sm:block label text-slate-400">Starting egg</div>
     </div>
     <div class="flex gap-2 justify-between w-full sm:w-auto mt-1 sm:mt-0">
       <button

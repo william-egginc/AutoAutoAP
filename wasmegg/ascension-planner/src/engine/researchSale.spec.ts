@@ -158,12 +158,12 @@ describe('the planner timeline', () => {
     await toggleEarningsBoost();
     expect(absoluteNow(store)).toBeCloseTo(expectedStart, 3);
     expect(store.currentSnapshot.earningsBoost.active).toBe(true);
-    expect(useToastStore().message).toBe('Time automatically advanced 21h to start of 2x Earnings');
+    expect(useToastStore().message).toBe('Waited 21h until the start of 2x Earnings.');
 
     await toggleEarningsBoost();
     expect(absoluteNow(store)).toBeCloseTo(getNextEarningsBoostEnd(expectedStart), 3);
     expect(store.currentSnapshot.earningsBoost.active).toBe(false);
-    expect(useToastStore().message).toBe('Time automatically advanced 1d to end of 2x Earnings');
+    expect(useToastStore().message).toBe('Waited 1d until the end of 2x Earnings.');
     expect(store.actions.every(a => a.type !== 'toggle_earnings_boost')).toBe(true);
   });
 
@@ -171,7 +171,7 @@ describe('the planner timeline', () => {
     await startPlan('2026-11-01', '12:00'); // Sunday
     const { toggleResearchSale } = useEventWaits();
     await toggleResearchSale();
-    expect(useToastStore().message).toBe('Time automatically advanced 4d21h to start of Research Sale');
+    expect(useToastStore().message).toBe('Waited 4d21h until the start of Research Sale.');
   });
 
   test('a stored toggle cannot override the calendar', async () => {

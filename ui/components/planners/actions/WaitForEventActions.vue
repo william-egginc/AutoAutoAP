@@ -7,7 +7,7 @@
       icon="egginc-extras/icon_earnings_boost.png"
       icon-class="bg-orange-500"
       title="Wait for 2x Earnings"
-      subtitle="Monday at +0"
+      subtitle="Monday 9:00 am PT"
       :seconds="secondsUntilNextEarningsBoost"
       seconds-class="text-orange-600"
       @click="waitForNextEarningsBoost"

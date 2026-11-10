@@ -11,8 +11,8 @@
       :seconds-until-change="isResearchSaleActive ? secondsUntilSaleEnd : secondsUntilNextSale"
       :tooltip="
         isResearchSaleActive
-          ? `Sale ends Saturday at +0. Click to wait ${formatDuration(secondsUntilSaleEnd)} until it ends.`
-          : `Next sale starts Friday at +0. Click to wait ${formatDuration(secondsUntilNextSale)} until it starts.`
+          ? `Sale ends Saturday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilSaleEnd)} until it ends.`
+          : `Next sale starts Friday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilNextSale)} until it starts.`
       "
       @wait="handleToggleSale"
     />

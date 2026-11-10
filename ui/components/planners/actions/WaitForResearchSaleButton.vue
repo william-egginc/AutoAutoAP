@@ -5,7 +5,7 @@
     icon="egginc-extras/icon_research_sale.png"
     icon-class="bg-slate-900"
     title="Wait for Research Sale"
-    subtitle="Friday at +0"
+    subtitle="Friday 9:00 am PT"
     :seconds="secondsUntilNextSale"
     seconds-class="text-rose-500"
     @click="waitForNextSale"

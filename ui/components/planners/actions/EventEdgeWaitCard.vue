@@ -21,7 +21,7 @@
       @click="$emit('wait')"
     >
       <span class="text-small font-bold leading-tight">
-        Wait for {{ eventName }}{{ ' ' }}{{ isActive ? 'end' : 'start' }}
+        Wait for {{ eventName }}{{ ' ' }}{{ isActive ? 'to end' : 'to start' }}
       </span>
       <span class="text-small tabular-nums font-bold opacity-75 leading-tight">
         {{ formatDuration(secondsUntilChange) }}

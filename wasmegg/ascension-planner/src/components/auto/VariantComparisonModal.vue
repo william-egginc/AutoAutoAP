@@ -215,7 +215,7 @@ const rows = computed(() =>
     .filter((entry): entry is [VariantKey, VariantResult] => !!entry[1])
     .map(([key, result]) => ({
       key,
-      label: key === 'continue' ? continueLabel(result.summary.continueFromStep, 'Continue Asc.') : variantLabel(key),
+      label: key === 'continue' ? continueLabel(result.summary.continueFromStep, 'Continue ascension') : variantLabel(key),
       color: variantColor(key),
       summary: result.summary,
       tier13Unlocked: result.summary.tier13Unlocked,
