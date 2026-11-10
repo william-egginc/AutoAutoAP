@@ -735,7 +735,7 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
   const sync = cont.lastStepTime;
   const away =
     sync > 1e9 && startTime > sync
-      ? catchUpSeconds(sync, startTime, siloSeconds(cont.siloCount, ctx.epicResearchLevels?.['silo_capacity']))
+      ? catchUpSeconds(sync, startTime)
       : 0;
   const earnings = cont.currentEgg === 'humility' ? cont.artifactSets.earnings : null;
   const state: EngineState = {
@@ -920,7 +920,7 @@ export function continueTailParams(inputs: SearchInputs, startTime: number): Bui
     const egg = state.currentEgg as VirtueEgg;
     delivered[egg] =
       (delivered[egg] || 0) +
-      elr * catchUpSeconds(last, startTime, siloSeconds(state.siloCount, ctx.epicResearchLevels?.['silo_capacity']));
+      elr * catchUpSeconds(last, startTime);
   }
   return {
     sales: 0,

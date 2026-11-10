@@ -159,8 +159,8 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
   if (!note) return null;
   return {
     text: note.text,
-    // Past the silos is a plan-start fact (amber); whether the save is old is the save-age banner's (spec-saveage).
-    class: note.pastSilos || note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-600',
+    // Whether the save is old is the save-age banner's (spec-saveage); no amber "past the silos" note since 10 Nov 2026.
+    class: note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-600',
   };
 });
 

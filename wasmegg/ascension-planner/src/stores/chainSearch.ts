@@ -4057,8 +4057,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   /**
    * The save's last sync against the plan start (lib/saveAge.ts): the farm is caught up to the start at
-   * its current rate, up to what its silos hold. A plan-start fact: a warning only for a start before the
-   * sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
+   * its current rate, all the time since the sync (not capped at its silos since 10 Nov 2026, as Joo's engine). A warning
+   * only for a start before the sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
