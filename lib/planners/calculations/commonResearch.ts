@@ -163,9 +163,28 @@ export function isTierUnlocked(researchLevels: ResearchLevels, tier: number): bo
   const tierIndex = tier - 1;
   if (tierIndex >= TIER_UNLOCK_THRESHOLDS.length) return false;
 
+  // Count only the tiers below, and stop once the threshold is met (levels are never negative, so
+  // the running total only grows): the same answer as calculatePurchasesUpToTier >= required, for
+  // the table builder's hot loops (about a tenth of a sim4 build went here, PC profile 9 Nov).
   const requiredPurchases = TIER_UNLOCK_THRESHOLDS[tierIndex];
-  const currentPurchases = calculatePurchasesUpToTier(researchLevels, tier - 1);
+  const ids = idsUpToTier(tier - 1);
+  let currentPurchases = 0;
+  for (let i = 0; i < ids.length; i++) {
+    currentPurchases += researchLevels[ids[i]] || 0;
+    if (currentPurchases >= requiredPurchases) return true;
+  }
   return currentPurchases >= requiredPurchases;
+}
+
+/** Ids of the common researches in tiers 1 through `tierNum`, in `commonResearches` order; built once per tier. */
+const idsUpToTierCache = new Map<number, string[]>();
+function idsUpToTier(tierNum: number): string[] {
+  let ids = idsUpToTierCache.get(tierNum);
+  if (!ids) {
+    ids = commonResearches.filter(r => r.tier <= tierNum).map(r => r.id);
+    idsUpToTierCache.set(tierNum, ids);
+  }
+  return ids;
 }
 
 /**

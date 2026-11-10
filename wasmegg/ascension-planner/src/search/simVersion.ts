@@ -51,8 +51,10 @@ export const SIM_SOURCES = [
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
  *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
  *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
- *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge. */
-export const SIM_SOURCE_HASH = 'a0e8b474d5e4032ad826b76cb924e6fae039f67f34ea7936bb8905d55b757ff8';
+ *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge.
+ *  9 Nov 2026 (spec-sim4): re-pasted for isTierUnlocked's short count (commonResearch.ts), a speed-up
+ *  with the same answers: its spec checks it against the full count, and the tables bitcheck. */
+export const SIM_SOURCE_HASH = 'c15f813006b2b94244d16b649d73cbe5b47175e3ae71595b8e28b6c4ed2b4b56';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
