@@ -49,7 +49,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   moreInside: {
     title: 'Inside More',
-    body: 'Inside: every number of ascensions with its own route, the maxed-gear what-if, and the Search card to check the answer on your save.',
+    body: "Inside: the answer's filters, every number of ascensions with its own route, and the Search card to check the answer on your save.",
   },
   fast: {
     title: 'A Fast search',
@@ -104,7 +104,7 @@ export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
   // DRAFT (spec-tourmore), for Words.
   moreWhere: 'The closed More fold at the bottom of Fastest to 490 TE, highlighted.',
-  moreInside: 'More open, highlighted: the table of every number of ascensions at its top.',
+  moreInside: "More open, highlighted: the answer's filters and Prefer fewer ascensions at its top, then the table of every number of ascensions.",
   fast: 'The Fast choice in the Search card inside More, highlighted, with its time here.',
   custom: 'The Custom choice in the Search card inside More, highlighted.',
 };
