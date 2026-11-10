@@ -122,10 +122,24 @@
           />
         </div>
       </div>
-      <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
+      <!-- The same row as Fastest's card, in the same order: Follow this route, the main action (Simulate this plan, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
       <template v-if="simulate || canShare || canCsv || canSave || (follow && !running)" #actions>
+        <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online; the finished answer's
+             only. First, then Simulate this plan: one order wherever the pair is shown (Allan, 9 Nov 2026). -->
+        <FollowButton
+          v-if="follow && !running"
+          primary
+          :chain="route.chain"
+          :goal-key="follow.goalKey"
+          from="saved"
+          :source="follow.source"
+          :finish="follow.finish"
+          :end-t-e="follow.endTE"
+          :plan-start="follow.planStart"
+          :deadline="follow.deadline ?? null"
+        />
         <Tip v-if="simulate" :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
           <button
             :aria-describedby="describedby"
@@ -138,19 +152,6 @@
           </button>
         </Tip>
         <template v-if="!running">
-          <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
-          <FollowButton
-            v-if="follow"
-            primary
-            :chain="route.chain"
-            :goal-key="follow.goalKey"
-            from="saved"
-            :source="follow.source"
-            :finish="follow.finish"
-            :end-t-e="follow.endTE"
-            :plan-start="follow.planStart"
-            :deadline="follow.deadline ?? null"
-          />
           <button v-if="canShare" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-share" @click="toShare">
             Share ↓
           </button>

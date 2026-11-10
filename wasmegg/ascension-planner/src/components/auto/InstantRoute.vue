@@ -527,6 +527,12 @@
                   <template v-if="countOpen(r)">
                     <p class="text-small text-slate-600 tabular-nums">Reached {{ show(r.end) }}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
+                      <FollowButton v-if="rowFollowable(r)" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
+                        :finish="r.end"
+                        :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
+                        :plan-start="answerStart"
+                        :deadline="deadline"
+                      />
                       <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
                         <button
                           :aria-describedby="describedby"
@@ -538,12 +544,6 @@
                           Simulate this plan
                         </button>
                       </Tip>
-                      <FollowButton v-if="rowFollowable(r)" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
-                        :finish="r.end"
-                        :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
-                        :plan-start="answerStart"
-                        :deadline="deadline"
-                      />
                     </div>
                   </template>
                 </div>
@@ -738,6 +738,11 @@
                   data-testid="counts-row-panel"
                 >
                   <div v-if="countOpen(r)" class="flex flex-wrap items-center gap-2 pt-1">
+                    <FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
+                      :finish="r.end"
+                      :end-te="r.chain[r.chain.length - 1]"
+                      :plan-start="answerStart"
+                    />
                     <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
                       <button
                         :aria-describedby="describedby"
@@ -750,11 +755,6 @@
                         Simulate this plan
                       </button>
                     </Tip>
-                    <FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
-                      :finish="r.end"
-                      :end-te="r.chain[r.chain.length - 1]"
-                      :plan-start="answerStart"
-                    />
                   </div>
                 </div>
               </li>

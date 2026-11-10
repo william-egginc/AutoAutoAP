@@ -38,6 +38,20 @@
     <slot />
 
     <template v-if="!running && days > 0" #actions>
+      <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. First, then Simulate this
+           plan: one order wherever the pair is shown (Allan, 9 Nov 2026). -->
+      <FollowButton
+        v-if="follow"
+        primary
+        :chain="chain"
+        :goal-key="follow.goalKey"
+        from="saved"
+        :source="follow.source"
+        :finish="follow.finish"
+        :end-t-e="follow.endTE"
+        :plan-start="follow.planStart"
+        :deadline="follow.deadline ?? null"
+      />
       <!-- What it opens is the button's tip (Tip.vue, lib/tipWords.ts TIP_SIMULATE); the line under the row that said it is
            gone (C6). -->
       <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
@@ -51,19 +65,6 @@
           Simulate this plan
         </button>
       </Tip>
-      <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
-      <FollowButton
-        v-if="follow"
-        primary
-        :chain="chain"
-        :goal-key="follow.goalKey"
-        from="saved"
-        :source="follow.source"
-        :finish="follow.finish"
-        :end-t-e="follow.endTE"
-        :plan-start="follow.planStart"
-        :deadline="follow.deadline ?? null"
-      />
       <button
         v-if="canFill"
         type="button"

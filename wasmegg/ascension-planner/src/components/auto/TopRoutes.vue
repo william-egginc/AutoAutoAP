@@ -50,6 +50,18 @@
             <p class="break-words text-body font-bold text-slate-900 tabular-nums">{{ r.chain.join(' ') }}</p>
             <p class="break-words text-small text-slate-600 tabular-nums">{{ whenLine(r) }}</p>
             <div class="flex flex-wrap gap-2">
+              <FollowButton
+                v-if="canFollow(r)"
+                primary
+                :chain="r.chain"
+                :goal-key="follow!.goalKey"
+                from="saved"
+                :source="follow!.source"
+                :finish="r.finish"
+                :end-t-e="r.te"
+                :plan-start="follow!.planStart"
+                :deadline="deadline ?? null"
+              />
               <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
                 <button
                   :aria-describedby="describedby"
@@ -63,18 +75,6 @@
                   Simulate this plan
                 </button>
               </Tip>
-              <FollowButton
-                v-if="canFollow(r)"
-                primary
-                :chain="r.chain"
-                :goal-key="follow!.goalKey"
-                from="saved"
-                :source="follow!.source"
-                :finish="r.finish"
-                :end-t-e="r.te"
-                :plan-start="follow!.planStart"
-                :deadline="deadline ?? null"
-              />
             </div>
           </li>
         </ol>
@@ -128,6 +128,18 @@
             Its time for each ascension wasn't kept; Simulate this plan works it out again.
           </p>
           <div class="flex flex-wrap gap-2">
+            <FollowButton
+              v-if="canFollow(chosen)"
+              primary
+              :chain="chosen.chain"
+              :goal-key="follow!.goalKey"
+              from="saved"
+              :source="follow!.source"
+              :finish="chosen.finish"
+              :end-t-e="chosen.te"
+              :plan-start="follow!.planStart"
+              :deadline="deadline ?? null"
+            />
             <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
               <button
                 :aria-describedby="describedby"
@@ -141,18 +153,6 @@
                 Simulate this plan
               </button>
             </Tip>
-            <FollowButton
-              v-if="canFollow(chosen)"
-              primary
-              :chain="chosen.chain"
-              :goal-key="follow!.goalKey"
-              from="saved"
-              :source="follow!.source"
-              :finish="chosen.finish"
-              :end-t-e="chosen.te"
-              :plan-start="follow!.planStart"
-              :deadline="deadline ?? null"
-            />
           </div>
         </div>
       </section>

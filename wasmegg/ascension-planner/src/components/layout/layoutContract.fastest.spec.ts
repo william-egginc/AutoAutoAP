@@ -71,3 +71,33 @@ describe('the answer card (InstantRoute.vue) with a More', () => {
     expect(plain).not.toContain('bg-indigo-600');
   });
 });
+
+/** One order wherever the pair sits side by side (Allan, 9 Nov 2026: on the answer Follow was first, in Every number
+ *  of ascensions Simulate was): Follow this route first, Simulate this plan second. Source order is DOM order. */
+describe('Follow this route first, Simulate this plan second, everywhere the pair is shown', () => {
+  const simulateAt = (s: string, from = 0) => {
+    const m = /<Tip[^>]*:text="TIP_SIMULATE"/.exec(s.slice(from));
+    return m ? from + m.index : -1;
+  };
+  it('the answer (both boxes) and every table row (Every number of ascensions, on both screens)', () => {
+    const t = template(read('auto/InstantRoute.vue'));
+    const boxes = t.split('data-testid="box-actions"').slice(1);
+    const rows = t.split('data-testid="counts-row-panel"').slice(1);
+    expect(boxes).toHaveLength(2);
+    expect(rows).toHaveLength(2);
+    for (const [i, part] of [...boxes, ...rows].entries()) {
+      const follow = part.indexOf('<FollowButton');
+      const simulate = simulateAt(part);
+      expect(follow, `part ${i}`).toBeGreaterThanOrEqual(0);
+      expect(simulate, `part ${i}`).toBeGreaterThan(follow);
+    }
+  });
+  it('the result cards and More routes', () => {
+    for (const f of ['auto/RouteResultCard.vue', 'auto/ByDateRouteCard.vue', 'auto/TopRoutes.vue']) {
+      // Each button in source order: F for Follow, S for Simulate. Each pair is Follow then Simulate.
+      const seq = [...template(read(f)).matchAll(/<FollowButton|:text="TIP_SIMULATE"/g)].map(m => (m[0] === '<FollowButton' ? 'F' : 'S')).join('');
+      expect(seq, f).toMatch(/^(FS)+$/);
+    }
+  });
+
+});
