@@ -33,6 +33,9 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-10T20:00:02Z', note: 'Joo’s planner update: wait for 2x or sale start and end buttons, smart buys folded in the history, and Continue from the middle of a build in Single run' },
+  { at: '2026-11-10T20:00:01Z', note: 'Old saves are caught up all the way to now, with no cap at what your silos hold' },
+  { at: '2026-11-10T20:00:00Z', note: 'New instant answers for 12 artifact sets, built with the newest code; other sets use the maxed table for now' },
   { at: '2026-11-10T06:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans that use your real TE, and one Save online switch that now also keeps your starting TE and tracker ticks and plan', level: 'big' },
   { at: '2026-11-10T06:00:06Z', note: 'A simpler page: your answer and Follow come first; the rest is in one More box (Less at the bottom). Buttons have instant tips, with an “i” on phones. Show everything in Setup opens it all.' },
   { at: '2026-11-10T06:00:05Z', note: 'A first-visit tour with a welcome box and a picture on each step; Skip, Remind me later and Show the tour again are always there' },
