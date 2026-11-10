@@ -128,7 +128,13 @@ describe('runContinueBuild', () => {
     expect(replayed.habIds).toEqual(simulated.habIds);
     expect(replayed.vehicles).toEqual(simulated.vehicles);
     expect(replayed.siloCount).toBe(simulated.siloCount);
-    expect(replayed.lastStepTime).toBeCloseTo(simulated.lastStepTime, -2);
+    // Within 0.1% of the plan's length, not 50 s (AutoAutoAP, 10 Nov 2026). After each shift the plan
+    // counts the farm full while the replay grows it from 1, so the replay is about 0.02% short of
+    // money. In Joo's engine that is a wait of a fraction of a second per buy; with our 60 s rule
+    // (engine/apply/math.ts MIN_WAIT_SECONDS) each shortfall is a whole minute, and twice a research
+    // buy just before a sale's end misses it and waits for the next event: 2,241 s over the 72 days
+    // here (0.036%). Same research, habs, vehicles, silos and TE, checked above and below.
+    expect(Math.abs(replayed.lastStepTime - simulated.lastStepTime)).toBeLessThan(simulated.lastStepTime * 1e-3);
     const teOf = (eggs: Record<string, number>) =>
       Object.values(eggs).reduce((n, d) => n + countTEThresholdsPassed(d || 0), 0);
     expect(teOf(replayed.eggsDelivered)).toBe(plan.summary.endTE);

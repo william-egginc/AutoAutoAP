@@ -57,11 +57,12 @@ describe('importPlanLogic', () => {
   });
 
   it('import, Plan Library load and restore, reconcile and the saved draft all go through importPlanLogic', () => {
-    const src = (f: string) => fs.readFileSync(path.resolve(__dirname, '../..', f), 'utf8');
+    // Joo's PR 731 moved these four into the shared planner code (lib/planners).
+    const src = (f: string) => fs.readFileSync(path.resolve(__dirname, '../../../../../lib/planners', f), 'utf8');
     expect(src('stores/actions/index.ts')).toContain('const data = importPlanLogic(jsonString);');
     expect(src('stores/actions/index.ts')).toContain('await this.importPlan(JSON.stringify(plan.data));');
-    expect(src('lib/modes/reconcile.ts')).toContain('await actionsStore.loadPlanFromLibrary(plan);');
-    expect(src('lib/modes/loadPlan.ts')).toContain('await actionsStore.importPlan(');
+    expect(src('modes/reconcile.ts')).toContain('await actionsStore.loadPlanFromLibrary(plan);');
+    expect(src('modes/loadPlan.ts')).toContain('await actionsStore.importPlan(');
     expect(src('composables/usePersistence.ts')).toContain('await actionsStore.importPlan(');
   });
 });
