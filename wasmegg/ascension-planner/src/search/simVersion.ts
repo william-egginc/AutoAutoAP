@@ -54,8 +54,10 @@ export const SIM_SOURCES = [
  *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge.
  *  9 Nov 2026 (spec-sim4): re-pasted for isTierUnlocked's short count (commonResearch.ts), a speed-up
  *  with the same answers: its spec checks it against the full count, and the tables bitcheck. Then for
- *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). */
-export const SIM_SOURCE_HASH = '09925e0578f15d45603f37362366c34184ce72b121e6a3e81f478bdedf81c332';
+ *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). Then for
+ *  the player's hours for purchases (advanceTime.ts stretchToHours, game expert): only with context.holdUntil,
+ *  which the tables never set, so cells stay the same (tables bitcheck). */
+export const SIM_SOURCE_HASH = 'c1540c6bc7d314c1b047e84f83991803b994efd07664e6d08cd6283ce266a150';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
