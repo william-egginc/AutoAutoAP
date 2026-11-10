@@ -178,6 +178,12 @@ export interface TrackerResult {
   droppedSwaps: number;
   /** The header's Smart Buy line (`buyRuleWords`); '' for none. */
   buyRule: string;
+  /**
+   * The silo trick (the "go offline until Monday" line): null when the plan has no such line; otherwise whether the PLAN's cash
+   * counts it, i.e. it carries the 2x-event credit (a `modify_bank` action, set by Setup's silo trick, 10 Nov 2026). False means
+   * the advice is shown but the plan does not count the cash: UI hints "turn on Silo trick in Setup" (Words writes the text).
+   */
+  siloTrickCounted: boolean | null;
 }
 
 // ------------------------------------------------------------------------------------------------ words
@@ -909,6 +915,9 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
     lines,
     droppedSwaps: st.dropped,
     buyRule: buyRuleWords({ saleCount: input.saleCount, variantKey: input.variantKey }),
+    siloTrickCounted: lines.some(l => l.kind === 'siloTrick')
+      ? input.actions.some(a => a.kind === 'other' && a.id === 'modify_bank')
+      : null,
   };
 }
 
