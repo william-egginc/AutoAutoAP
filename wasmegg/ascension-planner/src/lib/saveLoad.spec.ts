@@ -121,7 +121,7 @@ describe('wiring', () => {
   });
 
   it("Joo's fetchPlayerBackup and Quick Continue go through requestSave too", () => {
-    const fb = readFileSync(new URL('./modes/fetchBackup.ts', import.meta.url), 'utf8');
+    const fb = readFileSync(new URL('../../../../lib/planners/modes/fetchBackup.ts', import.meta.url), 'utf8');
     expect(fb).toContain('await requestSave(playerId)');
     expect(fb).not.toContain('requestFirstContact');
     expect(app).not.toContain('requestFirstContact');
