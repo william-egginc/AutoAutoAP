@@ -323,6 +323,7 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
       useHours: useHoursFromStores(),
       maxAscensions: filters.maxAscensions,
       minAscensions: filters.minAscensions,
+      siloTrick: store.siloTrick,
     });
   } catch {
     return null;

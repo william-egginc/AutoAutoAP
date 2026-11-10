@@ -68,6 +68,10 @@
       <span v-if="noPrestigeCount" class="text-small text-slate-600" data-testid="setup-no-prestige"
         >No prestige days <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
       >
+      <!-- Named when on only, like No prestige days: it changes the plan's cash (spec-silotrick-ui; "on" DRAFT). -->
+      <span v-if="store.siloTrick" class="text-small text-slate-600" data-testid="setup-silo-trick-on"
+        >{{ SILO_TRICK_LABEL }}{{ ' ' }}<span class="font-bold text-slate-900">on</span></span
+      >
       <span class="text-small text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
         workers</span
@@ -307,6 +311,22 @@
               Make them wait too
             </button>
           </p>
+        </div>
+        <!-- SILO TRICK (Jordan, 10 Nov 2026: "a setting in Setup, off by default"; spec-silotrick): in view, with the hours
+             and the shifts they hold, not under More options. The store remembers it with the rest of Setup
+             (lib/setupMemory.ts); words lib/siloTrickWords.ts. A link into Setup can land on the box (SetupDock `openSetupAt`). -->
+        <div class="border-t border-slate-200 pt-2" data-testid="setup-silo-trick">
+          <label class="flex min-h-[44px] items-start gap-3 py-1.5 cursor-pointer">
+            <input
+              id="your-setup-silo-trick"
+              v-model="store.siloTrick"
+              type="checkbox"
+              class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-24 rounded border-slate-300 text-indigo-600"
+              aria-describedby="your-setup-silo-trick-help"
+            />
+            <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
+          </label>
+          <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-500 max-w-prose">{{ SILO_TRICK_HELP }}</p>
         </div>
       </fieldset>
 
@@ -884,6 +904,7 @@ import { saveOnlineOn } from '@/lib/saveOnline';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { SAVE_ONLINE_FOLD_OFF, SAVE_ONLINE_FOLD_ON, SAVE_ONLINE_FOLD_TITLE } from '@/lib/saveOnlineWords';
+import { SILO_TRICK_HELP, SILO_TRICK_LABEL } from '@/lib/siloTrickWords';
 
 /** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
 const REMEMBERED_TITLE =
@@ -964,6 +985,8 @@ async function reveal(id: string): Promise<void> {
     await nextTick();
   }
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // A box (the Silo trick) takes the focus too, so the keyboard lands on it; a section (Time off) does not.
+  if (el.tagName === 'INPUT') (el as HTMLInputElement).focus({ preventScroll: true });
 }
 defineExpose({ reveal });
 /** Sharing's folds, closed on each visit: what each tick sends, and the "saved online" notices. */

@@ -24,6 +24,9 @@ export interface RememberedSetup {
   v: 1;
   hours: { on: boolean; from: number; to: number; days: number[] };
   holdShifts: boolean;
+  /** The silo trick (10 Nov 2026): plans count the 2x-event credit for going offline into Monday. Off by default; absent in a
+   *  blob written before: off. */
+  siloTrick: boolean;
   timeOff: TimeOffDates[];
   /** No prestige on these days (search/noPrestige.ts), whole local dates like time off. Absent in a blob written
    *  before 24 Oct 2026: none. */
@@ -34,7 +37,7 @@ export interface RememberedSetup {
 }
 
 /** The parts the player edits, one group each: an edit writes only its own group. */
-export type SetupGroup = 'hours' | 'holdShifts' | 'timeOff' | 'noPrestige' | 'firstAscension';
+export type SetupGroup = 'hours' | 'holdShifts' | 'siloTrick' | 'timeOff' | 'noPrestige' | 'firstAscension';
 export type SetupValues = Omit<RememberedSetup, 'v' | 'at'>;
 
 /** The store's own defaults (stores/chainSearch.ts): any hour (7 am to 11 pm when picked, every day),
@@ -43,6 +46,7 @@ export function setupDefaults(): SetupValues {
   return {
     hours: { on: false, from: 7, to: 23, days: [0, 1, 2, 3, 4, 5, 6] },
     holdShifts: true,
+    siloTrick: false,
     timeOff: [],
     noPrestige: [],
     firstAscension: DEFAULT_FIRST_ASCENSION,
@@ -98,6 +102,7 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
       days,
     },
     holdShifts: typeof o.holdShifts === 'boolean' ? o.holdShifts : d.holdShifts,
+    siloTrick: typeof o.siloTrick === 'boolean' ? o.siloTrick : d.siloTrick,
     timeOff,
     noPrestige,
     firstAscension: isFirstAscension(o.firstAscension) ? o.firstAscension : d.firstAscension,
@@ -108,7 +113,7 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
 /** The same values (the time it was written aside). */
 export function sameSetup(a: SetupValues, b: SetupValues): boolean {
   const pick = (s: SetupValues) =>
-    JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension, s.noPrestige ?? []]);
+    JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension, s.noPrestige ?? [], !!s.siloTrick]);
   return pick(a) === pick(b);
 }
 
@@ -125,6 +130,7 @@ export function mergeSetup(base: SetupValues, edits: Partial<SetupValues>, at: n
       ? { ...edits.hours, days: [...edits.hours.days] }
       : { ...base.hours, days: [...base.hours.days] },
     holdShifts: edits.holdShifts ?? base.holdShifts,
+    siloTrick: edits.siloTrick ?? base.siloTrick ?? false,
     timeOff: (edits.timeOff ?? base.timeOff).map(w => ({ from: w.from, to: w.to })),
     noPrestige: (edits.noPrestige ?? base.noPrestige ?? []).map(w => ({ from: w.from, to: w.to })),
     firstAscension: edits.firstAscension ?? base.firstAscension,

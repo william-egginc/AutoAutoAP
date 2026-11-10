@@ -300,6 +300,20 @@
                     use save
                   </button>
                 </li>
+                <!-- SILO TRICK NOT COUNTED (spec-silotrick-ui): under the "go offline until Monday" line when the plan's cash
+                     does not count it (Setup's Silo trick off, TrackerResult.siloTrickCounted false), with a way to Setup's box. -->
+                <li v-if="siloTrickHintKey && l.key === siloTrickHintKey" class="pl-[48px] pr-1.5">
+                  <p class="text-small text-amber-800" data-testid="buildup-silo-trick-hint">
+                    {{ SILO_TRICK_NOT_COUNTED }}{{ ' ' }}<button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center rounded px-1 font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      data-testid="buildup-silo-trick-open"
+                      @click="openSiloTrickSetup"
+                    >
+                      {{ SILO_TRICK_OPEN }}
+                    </button>
+                  </p>
+                </li>
                 </template>
                 <li v-if="model(d, row.full).run.length && model(d, row.full).runSlot === model(d, row.full).lines.length">
                   <BuildUpDoneLine
@@ -415,6 +429,19 @@
                   ><span>{{ r.words }}<span v-if="r.done" class="sr-only">{{ ' ' }}{{ COMPACT_BOUGHT_SR }}</span></span>
                 </li>
               </ul>
+              <!-- The silo trick hint under the chips of the day with its first "go offline" line, as in List (spec-silotrick-ui). -->
+              <div v-if="siloTrickHintKey && d.lines.some(l => l.key === siloTrickHintKey)" class="mt-1">
+                  <p class="text-small text-amber-800" data-testid="buildup-silo-trick-hint">
+                    {{ SILO_TRICK_NOT_COUNTED }}{{ ' ' }}<button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center rounded px-1 font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      data-testid="buildup-silo-trick-open"
+                      @click="openSiloTrickSetup"
+                    >
+                      {{ SILO_TRICK_OPEN }}
+                    </button>
+                  </p>
+              </div>
               <p v-for="n in compactKind(d, 'note')" :key="n.key" class="mt-1 text-small text-slate-500">{{ n.text }}</p>
               <p
                 v-for="w in compactKind(d, 'warning')"
@@ -451,6 +478,8 @@ import { PICK_ROUTE_WORDS } from '@/lib/pickRoute';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { SILO_TRICK_NOT_COUNTED } from '@/lib/siloTrickWords';
+import { useUIStore } from '@/stores/ui';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import {
   BOUGHT_SO_FAR,
@@ -563,6 +592,21 @@ const hint = computed(() => {
 
 /** The night-buy note: a plan shown (this branch of the template) with awake hours set (lib/nightBuyNote.ts). */
 const nightBuy = computed(() => nightBuyNoteShown(props.awakeHours, !!props.result));
+/** The plan shows "go offline until Monday" but its cash does not count it (Setup's Silo trick off; lib/buildUpTracker.ts
+ *  `siloTrickCounted`, null when there is no such line): the hint under that line. Not for null or true. */
+const siloTrickNotCounted = computed(() => props.result?.siloTrickCounted === false);
+/** Said once, under the first such line (a plan over two weekends has two). */
+const siloTrickHintKey = computed(() =>
+  siloTrickNotCounted.value ? (props.result?.days ?? []).flatMap(d => d.lines).find(l => l.kind === 'siloTrick')?.key ?? '' : ''
+);
+/** The hint's button (DRAFT, Words): opens Setup on the Silo trick box (SetupDock `openSetupAt`; Setup focuses it). */
+const SILO_TRICK_OPEN = 'Open Setup';
+function openSiloTrickSetup(): void {
+  // The store at the press, not at setup: the tracker renders without one in its specs and in NowPage's.
+  const ui = useUIStore();
+  ui.openSetupAt = 'siloTrick';
+  ui.openSetupRequested++;
+}
 const saveAge = computed(() => gapWords(Math.max(0, props.now - props.saveSeconds)));
 const saveOld = computed(() => props.now - props.saveSeconds > 3600);
 const saleEndWords = computed(() => {
