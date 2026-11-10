@@ -33,12 +33,12 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-11-11T22:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans and the Build-up tracker that use your real TE, and a Save online switch in Setup', level: 'big' },
+  { at: '2026-11-11T22:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans that use your real TE, and one Save online switch that now also keeps your starting TE and tracker ticks and plan', level: 'big' },
   { at: '2026-11-11T22:00:06Z', note: 'A simpler page: each screen shows your answer and Follow first, and the rest is under More at the bottom. Setup › More options › Show everything opens it all again.' },
   { at: '2026-11-11T22:00:05Z', note: 'A first-visit tour with a welcome box and a picture on each step; Skip, Remind me later and Show the tour again are always there' },
   { at: '2026-11-11T22:00:04Z', note: 'Plans and the Build-up tracker use your real TE again, so no more wrong “prestige now” or “shift now”; a TE you haven’t claimed yet is no longer counted' },
   { at: '2026-11-11T22:00:03Z', note: 'Build-up tracker: no longer stuck “working it out”, says “max” for maxed research, groups cheap buys, warns when a sale buy is due just before the sale ends, and has a Compact view' },
-  { at: '2026-11-11T22:00:02Z', note: 'If your build-up can’t be worked out, the first step says not to prestige and to reload; a banner tells you when your answers start from a TE you typed instead of your save’s' },
+  { at: '2026-11-11T22:00:02Z', note: 'If your build-up can’t be worked out, the first step says not to prestige and to reload; a banner tells you when your answers start from a TE you typed instead of your save’s, and when another device set one' },
   { at: '2026-11-11T22:00:01Z', note: 'My runs: Your eggs and the full timeline sit above More (the timeline starts closed); a held prestige shows the time you would actually press it' },
   { at: '2026-11-11T22:00:00Z', note: 'Fast shows a more typical time and number of routes; the instant answer says it is an estimate; dates read “on Nov 14 at 9:52 AM”; empty footers are hidden' },
   { at: '2026-11-04T18:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
