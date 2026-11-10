@@ -299,8 +299,9 @@ describe('the template rules (Phase 2)', () => {
     const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
     // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026);
     // 9: List and Compact (spec-trackercompact, 8 Nov 2026); 10: a Compact day's header (jumps to List); 11: "Pick a
-    // route to follow" with nothing followed (spec-kenzie, 9 Nov 2026).
-    expect(buttons.length).toBe(11);
+    // route to follow" with nothing followed (spec-kenzie, 9 Nov 2026); 13: the silo trick hint's "Open Setup", in List
+    // and in Compact (spec-silotrick-ui, 10 Nov 2026).
+    expect(buttons.length).toBe(13);
     for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
   });
   it('meaningful spaces are explicit', () => {
