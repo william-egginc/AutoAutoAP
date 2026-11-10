@@ -226,6 +226,30 @@ export function isDeliveryTargetArtifact(artifactId: string): boolean {
 }
 
 /**
+ * `buildDeliveryPoolFromBackup`, remembered per artifacts DB object: the pool depends only on
+ * `backup.artifactsDb`, and Joo's delivery-set search (calculations/deliveryLevelSearch.ts) asks
+ * `getOptimalELRSet` for a rate thousands of times per table cell, each call rebuilding an
+ * `Inventory` of the whole DB (about a quarter of a sim4 table build, PC profile 9 Nov). Keyed on
+ * the DB object, so a replaced DB is a miss; the pool is frozen, so nothing can change it in place.
+ */
+const deliveryPoolCache = new WeakMap<object, DeliveryPool>();
+export function deliveryPoolOf(backup: ei.IBackup): DeliveryPool {
+  const db = backup.artifactsDb;
+  if (!db) return buildDeliveryPoolFromBackup(backup);
+  let pool = deliveryPoolCache.get(db);
+  if (!pool) {
+    const built = buildDeliveryPoolFromBackup(backup);
+    pool = Object.freeze({
+      candidates: Object.freeze(built.candidates),
+      tachyon: Object.freeze(built.tachyon.map(s => Object.freeze(s))),
+      quantum: Object.freeze(built.quantum.map(s => Object.freeze(s))),
+    }) as unknown as DeliveryPool;
+    deliveryPoolCache.set(db, pool);
+  }
+  return pool;
+}
+
+/**
  * Derive the delivery search's candidate artifacts and stone counts from a backup's virtue
  * inventory: the Pareto-optimal tier/rarity per target family plus the best four stone holders,
  * and every T2+ tachyon/quantum stone.
@@ -450,7 +474,7 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
     if (vehicles) vehicles = held.vehicles;
   }
 
-  const result = getOptimalELRSetFromPool(buildDeliveryPoolFromBackup(backup), {
+  const result = getOptimalELRSetFromPool(deliveryPoolOf(backup), {
     ...options,
     commonResearch,
     epicResearchLevels,
