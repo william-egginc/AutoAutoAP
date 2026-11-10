@@ -56,8 +56,12 @@ export const SIM_SOURCES = [
  *  with the same answers: its spec checks it against the full count, and the tables bitcheck. Then for
  *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). Then for
  *  the player's hours for purchases (advanceTime.ts stretchToHours, game expert): only with context.holdUntil,
- *  which the tables never set, so cells stay the same (tables bitcheck). */
-export const SIM_SOURCE_HASH = 'c1540c6bc7d314c1b047e84f83991803b994efd07664e6d08cd6283ce266a150';
+ *  which the tables never set, so cells stay the same (tables bitcheck).
+ *  10 Nov 2026 (spec-r9): re-pasted for Joo's refactor (joo/main 3cd91eff2: 2x earnings from sim time,
+ *  simulate.ts, Continue from mid-build, files moved into lib/planners) and egg-beta2-int's uncapped save
+ *  catch-up. Not a SIM_VERSION bump: the merged build's start-TE files are byte-identical to the sim4
+ *  tables (11 of 11 on the Mac; the PC sweep over every finished table is in aaap-tools notes). */
+export const SIM_SOURCE_HASH = '10397a0fb5397000414dd6392a54017a121c2832cb61ec4f607df2bad6309d0b';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

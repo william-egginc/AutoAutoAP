@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { planMaxVehicles } from 'lib/planners/calculations/plannerVehiclePurchasePlan';
 import { planSilosWithinBudget } from 'lib/planners/calculations/siloPurchasePlan';
 import { findSmartBuyCandidate } from 'lib/planners/calculations/smartBuyCandidate';
-import { getCommonResearches, getDiscountedVirtuePrice, isTierUnlocked } from './commonResearch';
+import { getCommonResearches, getDiscountedResearchPrice, isTierUnlocked } from './commonResearch';
 
 const rich = {
   bankValue: 0,
@@ -41,7 +41,7 @@ describe('one check-in buys everything affordable', () => {
   it("Smart Buy's 10 s sweep still finds a buy costing a few seconds of income (a price test, not a wait)", () => {
     const levels = Object.fromEntries(getCommonResearches().map(r => [r.id, 0]));
     const mods = { labUpgradeLevel: 0, researchCostMultiplier: 1, puzzleCubeMultiplier: 1 };
-    const cheapest = Math.min(...getCommonResearches().filter(r => isTierUnlocked(levels, r.tier)).map(r => getDiscountedVirtuePrice(r, 0, mods, false)));
+    const cheapest = Math.min(...getCommonResearches().filter(r => isTierUnlocked(levels, r.tier)).map(r => getDiscountedResearchPrice(r, 0, mods, false)));
     // The cheapest level costs 5 s of income: a 10 s sweep must take it.
     const c = findSmartBuyCandidate(levels, mods, false, { ...rich, offlineEarnings: cheapest / 5 } as never, 10, 1_790_000_000);
     expect(c).not.toBeNull();

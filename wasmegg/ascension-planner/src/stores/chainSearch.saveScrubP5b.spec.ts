@@ -405,7 +405,7 @@ async function loadAndRead(text: string) {
       fuel: is.initialFuelAmounts,
       tank: is.initialTankLevel,
       farm: is.currentFarmState,
-      missions: is.virtueMissions,
+      missions: is.plannerMissions,
       saveNote: is.saveNote,
       shifts: usePlanStore().initialShiftCount,
       permit: (is.rawBackup as any)?.game?.permitLevel,

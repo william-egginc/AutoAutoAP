@@ -6,7 +6,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
-import { computeSnapshot } from './compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { siloSeconds } from '@/lib/saveAge';
 import type { EngineState, SimulationContext } from '@/auto/types';
 

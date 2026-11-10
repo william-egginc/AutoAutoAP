@@ -29,7 +29,7 @@
  *   - `artifactsDb.virtueAfxDb`: its inventory and equipped set (lib Inventory with `virtue`, utils.ts
  *     `getArtifactLoadoutFromBackup`, virtue.ts, csv.ts `virtueInventory`) and its fueling mission;
  *     `artifactsDb.artifactStatus` (lib Inventory: crafted counts, discovered); `artifactsDb.missionInfos` (the
- *     missions shown: initialState.ts `virtueMissions`, lib Mission). Missions: the virtue ones only (the page shows
+ *     missions shown: initialState.ts `plannerMissions`, lib Mission). Missions: the virtue ones only (the page shows
  *     no other), with `MISSION`'s fields.
  * Not kept although something in lib reads it: what lib Farm, prophecy_eggs.ts and contract_seasons.ts read (the home
  * farm's sets and inventory, `game.eggMedalLevel`, `numDailyGiftsCollected`, `contracts.lastCpi`, a contract's

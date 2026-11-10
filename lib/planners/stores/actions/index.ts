@@ -25,6 +25,7 @@ import { useCommonResearchStore } from '../commonResearch';
 import { useHabCapacityStore } from '../habCapacity';
 import { useShippingCapacityStore } from '../shippingCapacity';
 import { useEventsStore } from '../events';
+import { useFuelTankStore } from '@planner/stores/fuelTank';
 import { useTruthEggsStore } from '@planner/stores/truthEggs';
 import { useNotesStore } from '../notes';
 
