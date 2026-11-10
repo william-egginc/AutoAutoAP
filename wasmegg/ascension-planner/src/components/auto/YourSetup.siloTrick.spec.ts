@@ -71,6 +71,12 @@ describe('Setup: the Silo trick checkbox', () => {
     expect(tag).not.toMatch(/@change|:checked/);
   });
 
+  it('a link that lands on it clears the docked panel\'s sticky header (Setup · Done, about 65 px): scroll-mt-24', () => {
+    // Measured in Chrome and WebKit at 390 px (spec-silotrick-ui): with scroll-mt-4 the box sat under the header.
+    const tag = template.match(/<input[^>]*id="your-setup-silo-trick"[^>]*>/)![0];
+    expect(tag).toMatch(/\bscroll-mt-24\b/);
+  });
+
   it('the words come from lib/siloTrickWords.ts, not typed in the page', () => {
     expect(src).toMatch(/import \{[^}]*SILO_TRICK_HELP[^}]*\} from '@\/lib\/siloTrickWords'/);
     expect(template).toContain('{{ SILO_TRICK_LABEL }}');

@@ -321,7 +321,7 @@
               id="your-setup-silo-trick"
               v-model="store.siloTrick"
               type="checkbox"
-              class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-4 rounded border-slate-300 text-indigo-600"
+              class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-24 rounded border-slate-300 text-indigo-600"
               aria-describedby="your-setup-silo-trick-help"
             />
             <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
