@@ -40,12 +40,21 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
       'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
-    // DRAFT (spec-tourmore, 9 Nov 2026), for Words: the four new slides. Pinned here so Words' rewrite shows in one place.
-    for (const id of ['moreWhere', 'moreInside', 'fast', 'custom'] as const) {
-      expect(FIRST_TOUR_STEPS[id].title.length, id).toBeGreaterThan(3);
-      expect(FIRST_TOUR_STEPS[id].body.length, id).toBeGreaterThan(20);
-    }
-    expect(FIRST_TOUR_STEPS.moreWhere.body).toContain('Show everything');
+    // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
+    expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(
+      'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.'
+    );
+    expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
+      "Inside More: the filters on the answer, every number of ascensions with its own route, and the Search card, which checks the answer on your save."
+    );
+    expect(FIRST_TOUR_STEPS.fast.body).toBe(
+      'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.'
+    );
+    expect(FIRST_TOUR_STEPS.custom.body).toBe(
+      'Custom tries every route in the boxes you set, so it proves the best one inside them. Big boxes can take hours.'
+    );
+    // No minutes anywhere: the time varies by device.
+    expect(FIRST_TOUR_STEPS.fast.body).not.toMatch(/\d/);
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {
