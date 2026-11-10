@@ -63,8 +63,12 @@ describe('the standard opening comes from the simulator (src/auto/ascension.ts, 
     for (const s of OPENING_SHIFTS) expect(s.egg).toBe(eggOfShift(s.name));
     const src = readFileSync(resolve(__dirname, '../auto/ascension.ts'), 'utf8');
     // A fresh ascension starts on Curiosity (C1 has no shift) and its first pass is C1 -> K1 -> I1.
+    // Since Joo's Continue (PR 731) the first pass is the visits from `from`, which is 'C' unless a
+    // part-built farm continues, so a fresh one is still 'CKI'.
     expect(src).toContain("currentEgg: 'curiosity'");
-    expect(src).toContain("continueOpening(empty, 'CKI', context, 'CKI')");
+    expect(src).toContain("from: 'C' | 'K' | 'I' = 'C',");
+    expect(src).toContain("const firstVisits = 'CKI'.slice('CKI'.indexOf(from));");
+    expect(src).toContain('continueOpening(empty, firstVisits, context, firstVisits, { equipEarningsSet })');
     // Then the listed shifts up to C3, in this order.
     const order = [...src.matchAll(/\{ name: '([A-Z]\d)', run: run[A-Z]\d \}/g)].map(m => m[1]);
     expect(order.slice(0, order.indexOf('C3') + 1)).toEqual(['C2', 'K2', 'R1', 'C3']);
