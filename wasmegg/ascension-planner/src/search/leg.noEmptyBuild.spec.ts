@@ -20,7 +20,7 @@ import '../../scripts/node-shims';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { nothingToBuyBackup, NOTHING_TO_BUY_RATE, syntheticInputs } from '@/test/syntheticSave';
 import { getArtifactLoadoutFromBackup } from '@/lib/artifacts';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { isPurchase } from '@/auto/ascension';
 import { buildUpTailParams, buildUpVariantForCheck, continueStateForCheck, runLeg } from './leg';
 import type { EquippedArtifact } from '@/lib/artifacts/types';

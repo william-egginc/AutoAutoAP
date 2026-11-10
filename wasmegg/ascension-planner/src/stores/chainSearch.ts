@@ -19,7 +19,7 @@ import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
 import { deadlineTableRows, fastestTableRows, xlsxRowCap } from '@/utils/xlsxRows';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { hashID } from '@/lib/storage/db';
 import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity';

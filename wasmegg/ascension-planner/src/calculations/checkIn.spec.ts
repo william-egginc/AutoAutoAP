@@ -7,9 +7,9 @@
  * (vehicles, habs, silos) used to drop that surplus (bank to 0 after any wait).
  */
 import { describe, expect, it } from 'vitest';
-import { planMaxVehicles } from './vehiclePurchasePlan';
+import { planMaxVehicles } from 'lib/planners/calculations/plannerVehiclePurchasePlan';
 import { planSilosWithinBudget } from 'lib/planners/calculations/siloPurchasePlan';
-import { findSmartBuyCandidate } from './smartBuyCandidate';
+import { findSmartBuyCandidate } from 'lib/planners/calculations/smartBuyCandidate';
 import { getCommonResearches, getDiscountedVirtuePrice, isTierUnlocked } from './commonResearch';
 
 const rich = {

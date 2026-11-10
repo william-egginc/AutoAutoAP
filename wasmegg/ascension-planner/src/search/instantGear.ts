@@ -27,8 +27,8 @@
  * The wrapper itself is precomputedTable.ts `gearShiftTable`; this works out its numbers.
  */
 import { calculateArtifactModifiers, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { computeRealisticELR } from '@/calculations/realisticELR';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
 import { getCommonResearches } from '@/calculations/commonResearch';
 import { FORM_G_DELIVERY } from './formG';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade } from 'lib/virtue';

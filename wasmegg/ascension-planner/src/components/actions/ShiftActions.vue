@@ -9,14 +9,14 @@
 
       <div class="flex justify-between items-start mb-6 relative z-10">
         <div>
-          <h4 class="text-slate-400 label mb-1">Shift Progress</h4>
-          <p class="text-body font-normal text-slate-500">Since {{ lastShiftLabel }}</p>
+          <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Shift Progress</h4>
+          <p class="text-[11px] font-medium text-slate-500">Since {{ lastShiftLabel }}</p>
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
-          <span class="text-slate-400 label">Shifts:</span>
-          <span class="text-body tabular-nums font-bold text-slate-900">{{ virtueStore.shiftCount }}</span>
-          <span v-if="virtueStore.plannedShifts > 0" class="text-small font-bold text-brand-primary">
-            +{{ virtueStore.plannedShifts }}
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shifts:</span>
+          <span class="text-sm font-mono-premium font-black text-slate-900">{{ planStore.shiftCount }}</span>
+          <span v-if="planStore.plannedShifts > 0" class="text-[10px] font-bold text-brand-primary">
+            +{{ planStore.plannedShifts }}
           </span>
         </div>
       </div>
@@ -24,12 +24,12 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
         <!-- Time spent this shift -->
         <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-indigo-50 shadow-inner">
-          <div class="text-slate-400 label leading-none mb-2">Duration</div>
+          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Duration</div>
           <div class="flex items-center gap-2">
-            <span class="text-title tabular-nums font-bold text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
+            <span class="text-lg font-mono-premium font-black text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
             <div class="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse"></div>
           </div>
-          <p class="text-slate-400 label mt-1 opacity-60">
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1 opacity-60">
             {{ actionsSinceLastShift }} action{{ actionsSinceLastShift !== 1 ? 's' : '' }} recorded
           </p>
         </div>
@@ -40,17 +40,17 @@
         >
           <div class="w-12 h-12 flex-shrink-0 bg-white rounded-2xl border border-slate-200/50 p-2 shadow-sm">
             <img
-              :src="iconURL(`egginc/egg_${virtueStore.currentEgg}.png`, 64)"
+              :src="iconURL(`egginc/egg_${planStore.currentEgg}.png`, 64)"
               class="w-full h-full object-contain"
-              :alt="virtueStore.currentEgg"
+              :alt="planStore.currentEgg"
             />
           </div>
           <div>
-            <div class="text-slate-400 label leading-none mb-1">
-              Current Egg
+            <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+              Active Phase
             </div>
-            <div class="text-body font-bold text-slate-900">
-              {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
+            <div class="text-sm font-black text-slate-900 uppercase tracking-tight">
+              {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}
             </div>
           </div>
         </div>
@@ -60,18 +60,18 @@
     <!-- Shift Options -->
     <div>
       <div class="flex justify-between items-center mb-4 px-2">
-        <h4 class="text-small font-bold text-slate-400">Select Target Egg</h4>
+        <h4 class="text-[10px] font-black text-slate-400 tracking-[0.2em]">Select Target Egg</h4>
         <div class="flex items-center gap-2">
-          <span class="text-slate-400 label">Next Cost:</span>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Next Cost:</span>
           <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
-            <span class="text-small tabular-nums font-bold text-slate-900">
+            <span class="text-xs font-mono-premium font-black text-slate-900">
               {{ formatNumber(nextShiftCostValue, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />
           </div>
           <span
-            v-tippy="'Shifts you can still afford'"
-            class="label"
+            v-tippy="'Shifts remaining before SE goes negative'"
+            class="text-[10px] font-bold uppercase tracking-tight"
             :class="shiftsUntilBroke <= 2 ? 'text-red-500' : 'text-slate-400'"
           >
             {{ shiftsUntilBroke }} left
@@ -96,9 +96,9 @@
           </svg>
         </div>
         <div class="flex-1">
-          <h5 class="text-red-800 label mb-0.5">Insufficient SE</h5>
-          <p class="text-body font-normal text-red-600/80">
-            The next shift costs more soul eggs than you have left.
+          <h5 class="text-[10px] font-black text-red-800 uppercase tracking-widest mb-0.5">Insufficient SE</h5>
+          <p class="text-[11px] font-medium text-red-600/80 leading-relaxed">
+            Shift cost exceeds remaining Soul Eggs. Further progression requires more Soul Eggs.
           </p>
         </div>
       </div>
@@ -109,16 +109,16 @@
           :key="egg"
           class="group relative flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 shadow-sm overflow-hidden"
           :class="
-            egg === virtueStore.currentEgg || !isAffordable
+            egg === planStore.currentEgg || !isAffordable
               ? 'border-slate-100 bg-slate-50/50 opacity-40 grayscale cursor-not-allowed'
               : 'border-slate-100 bg-white hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/5 hover:-translate-y-0.5'
           "
-          :disabled="egg === virtueStore.currentEgg || !isAffordable"
+          :disabled="egg === planStore.currentEgg || !isAffordable"
           @click="handleShift(egg)"
         >
           <!-- Hover background glow -->
           <div
-            v-if="egg !== virtueStore.currentEgg"
+            v-if="egg !== planStore.currentEgg"
             class="absolute -right-4 -bottom-4 w-12 h-12 bg-brand-primary/5 rounded-full blur-xl group-hover:scale-150 transition-transform"
           ></div>
 
@@ -129,7 +129,7 @@
           </div>
           <div class="text-left overflow-hidden relative z-10">
             <span
-              class="block text-body font-bold text-slate-900 group-hover:text-brand-primary transition-colors"
+              class="block text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-brand-primary transition-colors"
             >
               {{ VIRTUE_EGG_NAMES[egg] }}
             </span>
@@ -137,10 +137,10 @@
               v-tippy="'Claimed (+Pending) Truth Eggs'"
               class="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-100 bg-slate-50/50 shadow-sm mt-2"
             >
-              <span class="text-small font-bold text-slate-700 leading-none">
+              <span class="text-[10px] font-black text-slate-700 leading-none">
                 {{ truthEggsStore.teEarned[egg] }}
               </span>
-              <span class="text-small font-bold text-indigo-600 leading-none">
+              <span class="text-[9px] font-bold text-indigo-600 leading-none">
                 (+{{ truthEggsStore.pendingTEForEgg(egg) }})
               </span>
               <img :src="iconURL(getColleggtibleIconPath('truth'), 64)" class="w-3 h-3" alt="TE" />
@@ -155,18 +155,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg, generateActionId } from '@/types';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useTruthEggsStore } from '@/stores/truthEggs';
-import { computeDependencies } from '@/lib/actions/executor';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { resetResearchViewForCuriosityShift } from '@/composables/useResearchViews';
+import { computeDependencies } from 'lib/planners/actions/executor';
+import { useActionExecutor } from 'lib/planners/composables/useActionExecutor';
+import { resetResearchViewForCuriosityShift } from 'lib/planners/composables/useResearchViews';
 import { shiftCost, iconURL } from 'lib';
 import { getColleggtibleIconPath } from 'lib/planners/assets';
 import { formatNumber, formatDuration } from '@/lib/format';
 
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
 const truthEggsStore = useTruthEggsStore();
@@ -235,7 +235,7 @@ const timeSinceLastShiftFormatted = computed(() => {
 });
 
 const nextShiftCostValue = computed(() => {
-  return shiftCost(actionsStore.effectiveSnapshot.soulEggs, virtueStore.shiftCount);
+  return shiftCost(actionsStore.effectiveSnapshot.soulEggs, planStore.shiftCount);
 });
 
 const isAffordable = computed(() => {
@@ -244,7 +244,7 @@ const isAffordable = computed(() => {
 
 const shiftsUntilBroke = computed(() => {
   let se = actionsStore.effectiveSnapshot.soulEggs;
-  let count = virtueStore.shiftCount;
+  let count = planStore.shiftCount;
   let affordable = 0;
   while (affordable <= 1000) {
     const cost = shiftCost(se, count);
@@ -257,7 +257,7 @@ const shiftsUntilBroke = computed(() => {
 });
 
 function handleShift(toEgg: VirtueEgg) {
-  if (toEgg === virtueStore.currentEgg) return;
+  if (toEgg === planStore.currentEgg) return;
 
   // Prepare execution (restores stores if editing past group)
   const beforeSnapshot = prepareExecution();
@@ -281,7 +281,7 @@ function handleShift(toEgg: VirtueEgg) {
   );
 
   // Apply the shift to the store
-  virtueStore.shift(toEgg);
+  planStore.shift(toEgg);
 
   // Land on Smart Buy when they next open the research tab, instead of wherever they left it
   if (toEgg === 'curiosity') {

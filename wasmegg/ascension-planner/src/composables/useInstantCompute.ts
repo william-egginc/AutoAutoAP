@@ -28,7 +28,7 @@ import { ownTableNames } from '@/search/tableGear';
 import { chooseInstantTable, instantFirstLegs, instantPricingOptions, instantScaleOf } from '@/search/instantCompute';
 import type { Availability } from '@/search/availabilitySchedule';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { getSimulationContext } from '@/engine/adapter';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 
 export interface InstantComputeRequest {
   /** `${account}|${backupTime}|${setup}|${final}`. */

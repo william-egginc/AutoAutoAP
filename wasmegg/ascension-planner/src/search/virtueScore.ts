@@ -24,7 +24,7 @@
  */
 import { artifactOptions, getArtifact, getStone, stoneOptions } from '@/lib/artifacts/data';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { cteFromArtifacts } from 'lib/virtue';
 import type { LoadoutSlot } from './csv';

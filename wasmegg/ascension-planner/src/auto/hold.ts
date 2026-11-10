@@ -15,7 +15,7 @@ import type { Action } from '@/types/actions/meta';
 import { createSimAction } from '@/types/actions/meta';
 import type { VirtueEgg } from '@/types/actions/virtue';
 import type { EngineState, SimulationContext } from './types';
-import { computeSnapshot } from '../engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { applyAction } from '../engine/apply';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { computeTEEarned } from './te-thresholds';

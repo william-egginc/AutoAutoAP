@@ -11,7 +11,7 @@
  * laying, not shipping, is built, whatever its slots. Without the rates, vehicles never count. Silos are bought within
  * a budget, not to a count, so they never make a build unfinished. Pure.
  */
-import { CHICKEN_UNIVERSE_ID } from '@/calculations/habPurchasePlan';
+import { CHICKEN_UNIVERSE_ID } from 'lib/planners/calculations/plannerHabPurchasePlan';
 import type { CurrentFarmState } from '@/types';
 import type { ShiftRates } from './nextTeEgg';
 

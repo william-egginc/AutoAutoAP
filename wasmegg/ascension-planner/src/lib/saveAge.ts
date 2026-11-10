@@ -9,7 +9,7 @@
  * that is suspicious in itself: either the sync is stale, or the player has been playing since and
  * the save no longer describes the farm. That gets a warning, never a silent guess.
  */
-import { formatSiloTime, totalAwayTime } from '@/stores/silos';
+import { formatSiloTime, totalAwayTime } from 'lib/planners/stores/silos';
 import { compactDuration } from './duration';
 import { SAVE_AGE_WORDS } from './saveAgeWords';
 

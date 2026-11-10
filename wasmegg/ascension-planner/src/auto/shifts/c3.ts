@@ -11,15 +11,15 @@ import {
 import { applyShiftAction, syncResearchSale } from './helpers/actionHelpers';
 import { advanceTimeWithBoundaries } from './helpers/advanceTime';
 import { runWithEarningsEventDeferral, MULTI_LAYERING_ID } from './helpers/earningsEventDeferral';
-import { computeSnapshot } from '../../engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { calculateArtifactModifiers } from '../../lib/artifacts';
 import { contextDeliverySource } from '../loadout/resolve';
-import { simulateSaleAwareBuy, simulateSaleEndsBuy, simulateFinalSaleGapBuy } from '../../calculations/smartBuyPreview';
+import { simulateSaleAwareBuy, simulateSaleEndsBuy, simulateFinalSaleGapBuy } from 'lib/planners/calculations/smartBuyPreview';
 import {
   buildSaleAwareBuyNotePayload,
   buildSaleEndsBuyNotePayload,
   buildFinalSaleGapBuyNotePayload,
-} from '@/lib/actions/notes';
+} from 'lib/planners/actions/notes';
 import {
   isResearchSaleActive,
   getNextSaleStart,
@@ -228,11 +228,11 @@ export function runC3(
     researchIdsInOrder: string[],
     targetLevels: Record<string, number>,
     timeLimit: number,
-    buildNote?: (purchaseCount: number, totalGemsSpent: number, elapsedSeconds: number) => NotificationPayload | null
+    buildNote?: (purchaseCount: number, totalSpent: number, elapsedSeconds: number) => NotificationPayload | null
   ) => {
     const helpers = createMilestoneShiftHelpers(currentState, context);
 
-    const { executedCount: purchaseCount, totalGemsSpent } = runWithEarningsEventDeferral(
+    const { executedCount: purchaseCount, totalSpent } = runWithEarningsEventDeferral(
       researchIdsInOrder,
       id => id,
       (id, tl) => {
@@ -246,7 +246,7 @@ export function runC3(
     );
 
     if (buildNote && purchaseCount > 0) {
-      const notePayload = buildNote(purchaseCount, totalGemsSpent, helpers.getElapsedSeconds());
+      const notePayload = buildNote(purchaseCount, totalSpent, helpers.getElapsedSeconds());
       if (notePayload) helpers.addNotification(notePayload);
     }
 
@@ -297,8 +297,8 @@ export function runC3(
       plan.entries.map(e => e.researchId),
       plan.endLevels,
       Math.max(0, targetDeadline - absTime),
-      (purchaseCount, totalGemsSpent, elapsedSeconds) =>
-        buildSaleAwareBuyNotePayload(purchaseCount, saleCount, elapsedSeconds, totalGemsSpent)
+      (purchaseCount, totalSpent, elapsedSeconds) =>
+        buildSaleAwareBuyNotePayload(purchaseCount, saleCount, elapsedSeconds, totalSpent)
     );
   };
 
@@ -322,8 +322,8 @@ export function runC3(
       plan.researchIds,
       plan.endLevels,
       Math.max(0, deadline - absTime),
-      (purchaseCount, totalGemsSpent, elapsedSeconds) =>
-        buildSaleEndsBuyNotePayload(purchaseCount, elapsedSeconds, totalGemsSpent)
+      (purchaseCount, totalSpent, elapsedSeconds) =>
+        buildSaleEndsBuyNotePayload(purchaseCount, elapsedSeconds, totalSpent)
     );
   };
 
@@ -353,8 +353,8 @@ export function runC3(
       plan.purchases.map(p => p.researchId),
       plan.endLevels,
       Math.max(0, finalSaleStart - absTime),
-      (purchaseCount, totalGemsSpent, elapsedSeconds) =>
-        buildFinalSaleGapBuyNotePayload(purchaseCount, elapsedSeconds, totalGemsSpent)
+      (purchaseCount, totalSpent, elapsedSeconds) =>
+        buildFinalSaleGapBuyNotePayload(purchaseCount, elapsedSeconds, totalSpent)
     );
   };
 

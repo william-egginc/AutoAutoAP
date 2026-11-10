@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allModifiersFromColleggtibles } from 'lib/collegtibles';
 import { AfxName as N, AfxRarity as R, invArtifact, invStone, syntheticBackup } from '@/auto/loadout/testBackup';
-import { buildDeliveryPoolFromBackup, deliveryPoolOf, getOptimalELRSet } from './virtue';
+import { buildDeliveryPoolFromBackup, deliveryPoolOf, getOptimalELRSet } from 'lib/planners/artifacts/virtue';
 
 // getOptimalELRSet's delivery pool, remembered per artifacts DB (sim4 table speed-up #1, 9 Nov).
 const backup = () =>

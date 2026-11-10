@@ -18,7 +18,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
-import { redactBackupForStorage } from '@/lib/artifacts/utils';
+import { redactBackupForStorage } from 'lib/planners/artifacts/utils';
 import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import type { BoardRow } from '@/lib/leaderboardRank';

@@ -17,7 +17,7 @@ import '../../scripts/node-shims';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { syntheticInputs } from '@/test/syntheticSave';
-import { applyAction } from '@/engine/apply/actions';
+import { applyAction } from 'lib/planners/engine/apply/actions';
 import { createChainEvaluator } from './chain';
 import { eggTE } from './leg';
 import { VIRTUE_EGGS } from '@/types';

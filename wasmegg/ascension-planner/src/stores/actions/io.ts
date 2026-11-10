@@ -5,20 +5,20 @@
 
 import { downloadGzipped } from '@/utils/export';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useNotesStore } from 'lib/planners/stores/notes';
-import { useSilosStore } from '@/stores/silos';
+import { useSilosStore } from 'lib/planners/stores/silos';
 import { createEmptySnapshot, generateActionId, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
-import { isKnownActionType } from '@/lib/actions/executor';
+import { isKnownActionType } from 'lib/planners/actions/executor';
 import { parseJsonStrict } from '@/lib/uploadGuard';
 import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
 
 export function exportPlanData(actions: Action[], initialSnapshot?: CalculationsSnapshot, activePlanId: string | null = null) {
   const initialStateStore = useInitialStateStore();
-  const virtueStore = useVirtueStore();
+  const planStore = usePlanStore();
   const fuelTankStore = useFuelTankStore();
   const truthEggsStore = useTruthEggsStore();
   const notesStore = useNotesStore();
@@ -68,11 +68,11 @@ export function exportPlanData(actions: Action[], initialSnapshot?: Calculations
       rawBackup: redactedBackup,
     },
     virtueState: {
-      shiftCount: virtueStore.initialShiftCount,
-      initialTE: virtueStore.initialTE,
-      ascensionDate: virtueStore.ascensionDate,
-      ascensionTime: virtueStore.ascensionTime,
-      ascensionTimezone: virtueStore.ascensionTimezone,
+      shiftCount: planStore.initialShiftCount,
+      initialTE: planStore.initialTE,
+      ascensionDate: planStore.ascensionDate,
+      ascensionTime: planStore.ascensionTime,
+      ascensionTimezone: planStore.ascensionTimezone,
     },
     fuelTankState: {
       tankLevel: baseTankLevel,
@@ -179,7 +179,7 @@ export function importPlanLogic(jsonString: string) {
   }
 
   const initialStateStore = useInitialStateStore();
-  const virtueStore = useVirtueStore();
+  const planStore = usePlanStore();
   const fuelTankStore = useFuelTankStore();
   const truthEggsStore = useTruthEggsStore();
   const notesStore = useNotesStore();
@@ -187,10 +187,10 @@ export function importPlanLogic(jsonString: string) {
   initialStateStore.hydrate(data.initialState);
 
   if (data.virtueState) {
-    virtueStore.setInitialState(data.virtueState.shiftCount || 0, data.virtueState.initialTE || 0);
-    if (data.virtueState.ascensionDate) virtueStore.setAscensionDate(data.virtueState.ascensionDate);
-    if (data.virtueState.ascensionTime) virtueStore.setAscensionTime(data.virtueState.ascensionTime);
-    if (data.virtueState.ascensionTimezone) virtueStore.setAscensionTimezone(data.virtueState.ascensionTimezone);
+    planStore.setInitialState(data.virtueState.shiftCount || 0, data.virtueState.initialTE || 0);
+    if (data.virtueState.ascensionDate) planStore.setAscensionDate(data.virtueState.ascensionDate);
+    if (data.virtueState.ascensionTime) planStore.setAscensionTime(data.virtueState.ascensionTime);
+    if (data.virtueState.ascensionTimezone) planStore.setAscensionTimezone(data.virtueState.ascensionTimezone);
   }
 
   if (data.fuelTankState) {

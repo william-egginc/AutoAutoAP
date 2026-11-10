@@ -27,7 +27,7 @@
 import { watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { loadAutoPlannerSchedule, patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { planStartOwner, setPlanStartOwner, useBackupPlanStart } from '@/composables/useBackupPlanStart';
 
@@ -55,7 +55,7 @@ export function usePlanStartForm(): void {
     }
   }
   if (!timezone.value) {
-    timezone.value = useVirtueStore().ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    timezone.value = usePlanStore().ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
   useBackupPlanStart();
 

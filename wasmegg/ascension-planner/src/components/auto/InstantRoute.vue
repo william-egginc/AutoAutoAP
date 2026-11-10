@@ -908,7 +908,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, saveSiloSeconds } from '@/search/leg';
 import { cardDeliveryScale, readKept } from '@/search/instantScale';
-import { getSimulationContext } from '@/engine/adapter';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import type { SearchInputs, TimeOffWindow } from '@/search/types';
 import {
   chooseInstantTable,
@@ -927,7 +927,7 @@ import {
 import InstantUnloaded from './InstantUnloaded.vue';
 import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import {
   findRoutes,
   heldOpeningOf,

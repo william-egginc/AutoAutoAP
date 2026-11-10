@@ -8,7 +8,7 @@
  */
 import { dateAt } from './eventWhen';
 import { ageWords } from './saveAge';
-import { formatSiloTime } from '@/stores/silos';
+import { formatSiloTime } from 'lib/planners/stores/silos';
 
 export interface SiloNow {
   /** Seconds of time away the silos hold full. */

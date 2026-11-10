@@ -6,21 +6,23 @@ import { useActionsStore } from '@/stores/actions';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { formatNumber, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
 import { rollUpPendingTE } from '@/lib/modes';
 import { addEggsSinceLastSync, applyAutoStartingTE } from '@/auto/startingTE';
 import { getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
-import { getOptimalELRSetFromPool } from '@/lib/artifacts/virtue';
+import { getOptimalELRSetFromPool } from 'lib/planners/artifacts/virtue';
 import { makeContinueState, VIRTUE_EGGS_MAP } from '@/auto/continueState';
 import { deliverySearchFromInputs } from '@/auto/loadout/resolve';
+import { continueLabel, detectBuildStep } from '@/auto/buildStep';
+import { runContinueBuild } from '@/auto/continueBuild';
 import { triggerPlanExport, type ExportedPlan } from '@/auto/export';
 import { buildLibraryPlansFromExport } from '@/auto/buildLibraryPlans';
 import { savePlanToLibrary, type PlanData } from '@/lib/storage/db';
-import { usePersistence } from '@/composables/usePersistence';
+import { usePersistence } from 'lib/planners/composables/usePersistence';
 import type { AscensionSummary } from '@/auto/types';
 import type { ChainedAscension, VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { pickVariant } from '@/stores/autoPlanner';
@@ -217,11 +219,12 @@ export function useAscensionGenerator() {
         }
       }
 
-      const alternativeELRs = present.map(([key, v]) => ({
-        elr: v.summary.maxELR,
-        label: key === 'continue' ? 'Continue' : key,
-        isActive: key === bestKey,
-      }));
+      const alternativeELRs = present
+        .map(([key, v]) => ({
+          elr: v.summary.maxELR,
+          label: key === 'continue' ? continueLabel(v.summary.continueFromStep) : key,
+          isActive: key === bestKey,
+        }));
 
       return {
         ...best,
@@ -468,6 +471,9 @@ export function useAscensionGenerator() {
           const nowSecs = Date.now() / 1000;
           if (absStartTime > nowSecs + 3600) {
             result3SkippedReason = 'startTimeTooFar';
+          } else if (!VIRTUE_EGGS_MAP[initialStateStore.currentFarmState.eggType]) {
+            // Not in a virtue ascension at all: there's nothing to continue.
+            result3SkippedReason = 'notOnVirtueEgg';
           } else {
             generateProgress.value = `Simulating A${i + 1} of ${loops} (Continue Current)...`;
             await new Promise(resolve => setTimeout(resolve, 15));
@@ -531,19 +537,30 @@ export function useAscensionGenerator() {
             continueContext.ascensionStartTime = currentStartTime;
             continueContext.planStartOffset = 0;
             if (stepLoadoutInputs) continueContext.loadoutInputs = stepLoadoutInputs;
-            const continueSnapshot = computeSnapshot(continueState, continueContext, { skipGrowth: true });
-            const realELR = continueSnapshot.elr;
-
-            if (realELR > 0) {
-              variants.continue = runContinueCurrent(
-                continueState,
-                continueContext,
-                currentStartTime,
-                realELR,
-                stepTargetTE,
-                `asc_${i}_continue`,
-                stepEndTime
+            // Part-way through a build: plan the rest of it from the start of the step the farm is on.
+            // A finished build, or one that can't finish before an end-time override (e.g. a Chain
+            // Finder route that ends this ascension at a later prestige), just waits out TE at the
+            // farm's current rate.
+            const buildStep = detectBuildStep(continueState);
+            if (buildStep) {
+              generateProgress.value = `Simulating A${i + 1} of ${loops} (Continue from ${buildStep})...`;
+              await new Promise(resolve => setTimeout(resolve, 15));
+              const continued = runContinueBuild(
+                continueState, continueContext, buildStep, currentStartTime, `asc_${i}_continue`,
+                stepTargetTE, stepEndTime, ascensionStartTE < TIER_13_MIN_STARTING_TE
               );
+              if (continued) variants.continue = continued;
+            }
+            if (!variants.continue) {
+              const continueSnapshot = computeSnapshot(continueState, continueContext, { skipGrowth: true });
+              const realELR = continueSnapshot.elr;
+
+              if (realELR > 0) {
+                variants.continue = runContinueCurrent(
+                  continueState, continueContext, currentStartTime,
+                  realELR, stepTargetTE, `asc_${i}_continue`, stepEndTime
+                );
+              }
             }
           }
         }

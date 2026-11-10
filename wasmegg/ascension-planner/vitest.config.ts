@@ -16,6 +16,7 @@ export default defineConfig({
       // way vite.search.config.ts does for the Node harness.
       lib: new URL('../../lib', import.meta.url).pathname,
       ui: new URL('../../ui', import.meta.url).pathname,
+      '@planner': new URL('./src', import.meta.url).pathname,
     },
   },
   test: {

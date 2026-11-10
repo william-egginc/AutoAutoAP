@@ -28,7 +28,7 @@ import { SOUL_EGG_TIP_LABEL } from '@/lib/soulEggWords';
 import { shiftCount } from '@/search/preferFewer';
 import type { LegSummary } from '@/search/types';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 
 const props = withDefaults(
   defineProps<{
@@ -51,7 +51,7 @@ const parts = computed(() => {
     const save = useInitialStateStore();
     return soulEggWarningParts({
       planShifts,
-      done: save.hasData ? useVirtueStore().initialShiftCount : null,
+      done: save.hasData ? usePlanStore().initialShiftCount : null,
       soulEggs: save.hasData ? save.soulEggs : null,
     });
   }

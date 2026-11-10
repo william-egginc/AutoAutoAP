@@ -1,238 +1,141 @@
 <template>
-  <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
-  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>
+  <the-nav-bar active-entry-id="ascension-planner" />
 
-  <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
-       44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
-       scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
-       bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
-       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. On My runs
-       the pill is the full one-row pill (up to 27rem wide from xl) and the page keeps its full width: the pill floats
-       over the bottom right like any floating button, draggable, and this bottom room lets the last lines clear it. -->
   <div
     :class="[
       'min-h-screen bg-gray-100 transition-all duration-300',
-      setupDockShown
-        ? ''
-        : manualShown
-          ? isFooterCollapsed
-            ? 'pb-48 md:pb-8'
-            : 'pb-48 md:pb-24'
-          : plannerTab === 'automatic' || isFooterCollapsed
-            ? 'pb-8'
-            : 'pb-24',
+      plannerTab !== 'manual' || isFooterCollapsed ? 'pb-8' : 'pb-24',
     ]"
-    :style="setupDockShown ? { paddingBottom: pageBottomRoom } : undefined"
   >
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
 
-      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Hidden while the egg-beta
-           timed reload shows (same place on screen, and it says the same thing with a time). -->
-      <div v-show="!eggBetaActive">
-        <NewVersionBanner
-          page-url="./"
-          entry="index"
-          note="save your results first; a running search stops at the reload"
-          class="mb-4"
-        />
-      </div>
-      <!-- EGG-BETA ONLY (lib/eggBetaReload.ts): compiled in only when the build had AAP_EGG_BETA_RELOAD_AT, and then
-           shown only on the egg-beta host. -->
-      <component
-        :is="EggBetaReloadBanner"
-        v-if="EggBetaReloadBanner"
-        :busy="eggBetaBusy"
-        @active="(a: boolean) => (eggBetaActive = a)"
-      />
-      <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
-      <p
-        v-if="storageIsBlocked"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
-        role="status"
-        data-testid="storage-blocked"
-      >
-        This browser is blocking site storage, so your settings and plans won’t be remembered after you leave.
-      </p>
-      <!-- A storage write failed (full or refused; lib/storageWrites.ts): what was just set may not survive a reload. -->
-      <p
-        v-if="storageWontSave"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
-        role="status"
-        data-testid="storage-write-failed"
-      >
-        {{ STORAGE_WRITE_FAILED_WORDS }}
-      </p>
-      <!-- A save with a hab, vehicle or research level newer than this planner's data (lib/saveGuard.ts). -->
-      <p
-        v-if="initialStateStore.saveNote"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
-        role="status"
-        data-testid="save-note"
-      >
-        {{ initialStateStore.saveNote }}
-      </p>
-      <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
-      <IntegrityAlert />
-      <!-- Starting a box above 100,000 routes asks first (search/bigBox.ts): one dialog for every start. -->
-      <BigBoxConfirm />
-
-      <!-- The header, in three parts that always sit in this order (the user, 14 Oct): the title, backup and Player ID (folds
-           away), the site tabs and the chevron (never fold), then what folds on Manual: the plan library and the action
-           cards. The tabs are never inside a folding part (Allan, 14 Oct). -->
-      <div
-        class="rounded-2xl border transition-all duration-500"
-        :class="
-          isHeaderCollapsed
-            ? 'border-transparent'
-            : 'bg-white/95 backdrop-blur-xl border-slate-100 shadow-sm'
-        "
-      >
+      <!-- Collapsible Header Region -->
+      <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100 shadow-sm">
         <div
           class="grid transition-all duration-500 ease-in-out"
           :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
         >
           <div class="overflow-hidden">
-            <!-- The page's h1 until a screen shows its own title (`screenHasH1`); then the same words, not a heading. -->
-            <component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
+            <h1 class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
               {{ pageTitle }}
-            </component>
-            <!-- First visit (no account, nothing asked; lib/siteNav.ts firstVisitShows): what the planner does, in two lines. -->
-            <div v-if="firstVisit" class="mx-auto mb-3 max-w-xl px-4 space-y-1 text-center text-body text-slate-700" data-testid="first-visit-intro">
-              <p>{{ FIRST_VISIT_WORDS.what }}</p>
-              <p>{{ FIRST_VISIT_WORDS.id }}</p>
-            </div>
-            <!-- No name line here (UX fluff review 2, H3): the ID box just under shows the same name. The backup time
-                 on Manual only (H4): the other screens say the save's age in their save-age box and Setup. -->
+            </h1>
             <div
-              v-if="manualShown && initialStateStore.hasData && lastBackupFormatted"
-              class="text-center text-slate-500 label mb-4 -mt-1"
+              v-if="initialStateStore.hasData && lastBackupFormatted"
+              class="text-center text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-4 -mt-1"
             >
               Player Backup From: {{ lastBackupFormatted }}
             </div>
 
-            <!-- The shared form, keyed so a refused or failed load puts a fresh, editable one back (resetIdBox), with a
-                 lower-case "ei" upper-cased before it reads the box: the capture listeners fall through to its <form>
-                 and run before its own (lib/playerIdEntry.ts; R7 red team 4). -->
-            <the-player-id-form
-              :key="idFormKey"
-              :player-id="playerId"
-              load-on-paste
-              @input.capture="idInputUpperCase"
-              @paste.capture="onIdPaste"
-              @submit="submitPlayerId"
-            />
-          </div>
-        </div>
-      </div>
+            <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
 
-      <!-- Errors at the top, under the player ID box, where the player is looking (it used to sit below the three
-           big cards, about 1,250 px down on a phone); scrolled into view when it appears (`pageErrorEl`). -->
-      <div
-        v-if="error"
-        ref="pageErrorEl"
-        class="mx-4 text-center py-4 text-red-600"
-        role="alert"
-        data-testid="page-error"
-      >
-        {{ error }}
-        <button
-          v-if="loadRetry && loadRetry.message === error && !loading"
-          type="button"
-          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-body font-bold text-red-700 hover:bg-red-50"
-          data-testid="page-error-retry"
-          @click="submitPlayerId(loadRetry.id)"
-        >
-          Try again
-        </button>
-      </div>
+            <!-- Mode Tabs -->
+            <div
+              v-if="playerId && !loading"
+              class="mt-6 flex justify-center animate-in fade-in slide-in-from-top-4 duration-500"
+              :class="plannerTab !== 'manual' ? 'pb-8' : ''"
+            >
+              <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-200/50 shadow-sm flex gap-1">
+                <button
+                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
+                  :class="
+                    plannerTab === 'manual'
+                      ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  "
+                  @click="plannerTab = 'manual'"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Manual Planner
+                </button>
+                <button
+                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
+                  :class="
+                    plannerTab === 'automatic'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  "
+                  @click="handleAutoPlannerTabClick"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  Auto Planner
+                  <span class="bg-indigo-500 text-[8px] px-1.5 py-0.5 rounded-md ml-1 border border-indigo-400/30"
+                    >BETA</span
+                  >
+                </button>
+                <button
+                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
+                  :class="
+                    plannerTab === 'chainFinder'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  "
+                  @click="handleChainFinderTabClick"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  Chain Finder
+                </button>
+                <button
+                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
+                  :class="
+                    plannerTab === 'tableBuilder'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  "
+                  @click="handleTableBuilderTabClick"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 10h18M3 14h18M10 4v16M14 4v16M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"
+                    />
+                  </svg>
+                  Table Builder
+                </button>
+              </div>
+            </div>
 
-      <!-- Or a save file, with no account (spec-savescrub): the instant answer works from it; the line over Fastest and
-           RunSaveNotice say what is off without an account. Outside the folding header, under the error line. -->
-      <div v-if="!playerId" class="mx-4 mt-3 flex justify-center" data-testid="no-account-save-file">
-        <SaveFileBar player-id="" :compact="firstVisit" @loaded="onNoAccountSave" />
-      </div>
-      <!-- First visit: the Manual Planner one tap away (an address, so a reload or a shared link keeps it open), instead
-           of its empty cards and actions under the ID box. -->
-      <p v-if="firstVisit" class="mx-4 mt-3 text-center text-body text-slate-700" data-testid="first-visit-manual-line">
-        {{ FIRST_VISIT_WORDS.manualLead }}{{ ' ' }}<a
-          href="#/manual"
-          class="inline-flex items-center min-h-[44px] px-1 underline decoration-dotted underline-offset-2 text-indigo-700 hover:text-indigo-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded"
-          data-testid="first-visit-manual"
-          >{{ FIRST_VISIT_WORDS.manualLink }}</a
-        >
-      </p>
-
-      <SiteTabs
-        v-if="playerId"
-        class="mt-4"
-        :tabs="topTabs"
-        :current="plannerTab"
-        @select="selectSection"
-      />
-
-      <!-- The chevron: one fixed place, just under the tabs (it used to jump between above and below the Auto Planner).
-           Gone from Fastest, By a date and My runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
-           its place there, and Setup's Change player opens the ID box. It stays on the Manual Planner (it folds Joo's plan
-           library and action cards), Single run, the Leaderboard and Science. -->
-      <div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">
-        <button
-          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
-          :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
-          :aria-expanded="!isHeaderCollapsed"
-          @click="toggleHeader"
-        >
-          <svg
-            class="w-3.5 h-3.5 transition-transform duration-300"
-            :class="{ 'rotate-180': isHeaderCollapsed }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-          </svg>
-        </button>
-      </div>
-      <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
-      <SaveLine v-if="saveLineShown" />
-
-      <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
-           is its h1 (Manual's just below; the others' in their own components). -->
-      <main id="main-content">
-      <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
-      <RunAnnouncer />
-      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-headline font-black text-slate-900">
-        {{ NAMES.manual }}
-      </h1>
-      <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
-           first), above every tab's own content, at the page level so it is the same place on every tab. Once an
-           account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
-      <!-- On Fastest and By a date it sits below the answer since the simpler page (Jordan, 9 Nov 2026, Q2: the first
-           load shows the answer first; words unchanged): those screens draw it under What to do now (`studyBelowAnswer`). -->
-      <StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer" class="mt-3" />
-
-      <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
-      <div
-        v-if="manualShown"
-        class="mt-2 rounded-2xl border transition-all duration-500"
-        :class="
-          isHeaderCollapsed
-            ? 'border-transparent'
-            : 'bg-white/95 backdrop-blur-xl border-slate-100 shadow-sm'
-        "
-      >
-        <div
-          class="grid transition-all duration-500 ease-in-out"
-          :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
-        >
-          <div class="overflow-hidden">
             <!-- Plan Library Section -->
-            <div v-if="playerId" class="max-w-6xl mx-auto mt-6">
-              <PlanLibrary @plan-loaded="handlePlanLoaded" />
+            <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
+              <PlanLibrary :import-special-file="importAutoPlan" @plan-loaded="handlePlanLoaded">
+                <template #dialogs>
+                  <AutoPlanImportDialog
+                    v-if="showAutoPlanDialog"
+                    :plan-name="autoPlanName"
+                    :ascension-count="autoPlanAscensionCount"
+                    @resolve="resolveAutoPlan"
+                    @cancel="cancelAutoPlan"
+                  />
+                </template>
+              </PlanLibrary>
             </div>
 
             <!-- Ascension Action Buttons -->
             <div
+              v-if="plannerTab === 'manual'"
               class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-3 max-w-6xl mx-auto"
             >
               <!-- Start from Scratch -->
@@ -252,8 +155,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-body font-bold text-slate-800">Start from Scratch</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <div class="text-sm font-bold text-slate-800">Start from Scratch</div>
+                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Clear your entire plan, reset all settings, and begin with a clean slate
                     </p>
                   </div>
@@ -285,8 +188,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-body font-bold text-slate-800">Plan Future Ascension</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <div class="text-sm font-bold text-slate-800">Plan Future Ascension</div>
+                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Load your latest backup, include pending TE, reset the clock, and start planning fresh
                     </p>
                   </div>
@@ -317,8 +220,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-body font-bold text-slate-800">Continue Current Ascension</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <div class="text-sm font-bold text-slate-800">Continue Current Ascension</div>
+                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Resume from your current in-game farm with all events applied
                     </p>
                   </div>
@@ -349,8 +252,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-body font-bold text-slate-800">Reconcile Plan</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <div class="text-sm font-bold text-slate-800">Reconcile Plan</div>
+                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Load a plan and compare against your current farm to track progress
                     </p>
                   </div>
@@ -369,97 +272,27 @@
         </div>
       </div>
 
-
-      <!-- The site's tabs (lib/siteNav.ts has the names and addresses). Outside the header, which
-           folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
-      <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
-           the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
-      <RunProgressBar
-        v-if="showRunBar"
-        class="mt-4"
-        :here="runIsHere"
-        :elsewhere="blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null"
-        @show="showRun"
-      />
-      <!-- After a reload mid-run, "Your last run stopped: Resume / Dismiss" floats at the top of the Auto Planner too
-           (ResumeBanner.vue, ux29-d): Resume is the panel box's own Carry on; never while a run is going. -->
-      <ResumeBanner v-if="plannerTab === 'automatic' && !showRunBar && !myRunsRunning" class="mt-4" />
-      <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
-           Start sit where the sweep was clicked rather than on another screen. -->
-      <SweepRunner
-        v-if="uiStore.scienceSweep"
-        :key="sweepKey(uiStore.scienceSweep)"
-        :request="uiStore.scienceSweep"
-        :player-id="playerId"
-        :prepare="prepareAutoPlanner"
-        @show-result="showSweepResult"
-      />
-
-      <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <template v-if="plannerTab === 'automatic'">
-          <div class="flex justify-center">
-            <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
-                 cell, so the underline stays on one line; from sm up, a centred row. Each at least
-                 44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
-                 My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
-                 appeared after the first answer). -->
-            <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
-            >
-              <button
-                v-for="v in autoTabs"
-                :key="v.id"
-                type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
-                :class="
-                  autoView === v.id
-                    ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                "
-                @click="onAutoTab(v.id)"
-              >
-                {{ v.label }}
-                <span
-                  v-if="
-                    activeScreen &&
-                    chainSearchStore.runProgress?.kind !== 'start-times' &&
-                    (v.id === 'by-date'
-                      ? activeScreen === 'by-date'
-                      : v.id === 'fastest' && (activeScreen === 'smart' || activeScreen === 'full'))
-                  "
-                  class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
-                  title="A search is running here"
-                ></span>
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <div v-else-if="plannerTab === 'science'" class="flex justify-center">
-          <div
-            class="grid grid-cols-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+      <!-- Header Toggle Tab (PlanFinalSummary style) - normal flow, centered below card -->
+      <div v-if="playerId" class="flex justify-center -mt-px mb-2">
+        <button
+          class="bg-white/95 backdrop-blur-xl border border-t-0 border-slate-100 px-4 py-1 rounded-b-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-7 cursor-pointer"
+          @click="isHeaderCollapsed = !isHeaderCollapsed"
+        >
+          <svg
+            class="w-3.5 h-3.5 transition-transform duration-300"
+            :class="{ 'rotate-180': isHeaderCollapsed }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <button
-              v-for="v in scienceTabs"
-              :key="v.id"
-              type="button"
-              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
-              :class="
-                scienceView === v.id
-                  ? 'border-amber-600 text-amber-700'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              "
-              @click="scienceView = v.id"
-            >
-              {{ v.label }}
-            </button>
-          </div>
-        </div>
-      </nav>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      </div>
 
       <!-- Current Mode Label -->
-      <div v-if="manualShown && plannerModeLabel" class="mt-4 flex justify-center">
-        <span class="text-body font-bold text-slate-700">{{ plannerModeLabel }}</span>
+      <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
+        <span class="text-sm font-bold text-slate-700">{{ plannerModeLabel }}</span>
       </div>
 
       <!-- Reconciliation Status Banner -->
@@ -483,12 +316,12 @@
             </div>
 
             <div class="flex flex-col gap-0 text-left">
-              <span class="text-slate-400 label leading-none mb-0.5"
+              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
-              <span class="text-small font-bold text-emerald-600">
+              <span class="text-[10px] font-bold text-emerald-600 tracking-tight">
                 Backup from {{ lastBackupFormatted }}
-                <span class="text-emerald-400/80 font-normal">({{ lastBackupAge }})</span>
+                <span class="text-emerald-400/80 font-medium">({{ lastBackupAge }})</span>
               </span>
             </div>
           </div>
@@ -496,7 +329,7 @@
           <div class="flex items-center gap-4 relative z-10">
             <!-- Incomplete Only Toggle -->
             <div class="flex items-center gap-2">
-              <span class="text-slate-400 label">Incomplete Only</span>
+              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Incomplete Only</span>
               <button
                 class="relative inline-flex h-4 w-8 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
                 :class="actionsStore.showIncompleteOnly ? 'bg-emerald-500' : 'bg-slate-200'"
@@ -535,51 +368,37 @@
         </div>
       </div>
 
-      <!-- Active Event Slide Toggle (Earnings Boost) -->
-      <div v-if="manualShown" class="mt-4 flex flex-col items-center gap-2">
-        <div
-          class="w-full max-w-sm bg-gradient-to-r from-orange-50/80 via-white to-amber-50/80 rounded-2xl p-4 border border-orange-100/50 shadow-sm relative overflow-hidden flex items-center justify-between transition-all duration-300"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <div class="flex flex-col gap-0.5 text-left">
-              <div class="flex items-center gap-2">
-                <div class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></div>
-                <span class="text-slate-400 label leading-none"
-                  >Monday 2× Earnings Event</span
-                >
-              </div>
-              <span class="text-orange-600 label">
-                {{ isEarningsBoostActive ? 'Active' : 'Inactive' }}
-              </span>
-            </div>
-          </div>
-
-          <button
-            class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
-            :class="isEarningsBoostActive ? 'bg-orange-500' : 'bg-slate-200'"
-            @click="handleToggleEarningsEvent"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-all duration-300 shadow-sm"
-              :class="isEarningsBoostActive ? 'translate-x-[22px]' : 'translate-x-1'"
-            />
-          </button>
-        </div>
+      <!-- 2x Earnings Event: status plus a wait for its next start or end -->
+      <div v-if="plannerTab === 'manual'" class="mt-4 flex flex-col items-center gap-2">
+        <EventEdgeWaitCard
+          class="w-full max-w-sm"
+          label="Monday 2x Earnings Event"
+          event-name="2x Earnings"
+          active-text="Active"
+          tone="orange"
+          :is-active="isEarningsBoostActive"
+          :seconds-until-change="isEarningsBoostActive ? secondsUntilEarningsBoostEnd : secondsUntilNextEarningsBoost"
+          :tooltip="earningsEventTooltip"
+          @wait="handleEarningsEventWait"
+        />
       </div>
 
       <div v-if="loading" class="text-center py-4 text-gray-600">Loading player data...</div>
 
+      <div v-if="error" class="text-center py-4 text-red-600">
+        {{ error }}
+      </div>
 
-      <div v-if="manualShown">
+      <div v-if="plannerTab === 'manual'">
         <!-- Action History and Available Actions side-by-side -->
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Action History -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-title font-bold text-gray-800">Action History</h2>
+              <h2 class="text-lg font-semibold text-gray-800">Action History</h2>
               <div class="flex items-center gap-3">
                 <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                  <span class="text-gray-400 label">Compact</span>
+                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Compact</span>
                   <button
                     type="button"
                     role="switch"
@@ -610,7 +429,7 @@
           <!-- Available Actions -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-title font-bold text-gray-800">Available Actions</h2>
+              <h2 class="text-lg font-semibold text-gray-800">Available Actions</h2>
               <button
                 class="p-1 -mr-1 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
                 @click="expandedSections.availableActions = !expandedSections.availableActions"
@@ -625,139 +444,19 @@
         </div>
       </div>
 
-      <!-- The Auto Planner's three screens; each has Your setup where its settings used to be. -->
-      <div v-if="plannerTab === 'automatic' && (playerId || fileOnlySave) && !loading" class="mt-4 space-y-4">
-        <!-- A save file loaded with no account on screen: said once, over the instant answer (DRAFT words, lib/saveScrub.ts). -->
-        <p v-if="fileOnlySave" class="max-w-4xl mx-auto text-body font-bold text-violet-900" data-testid="no-account-line">
-          {{ NO_ACCOUNT_LINE }}
-        </p>
-        <!-- A search running on another Auto Planner screen: this one greyed out under a line saying
-             which, with Stop on the progress bar above. Fastest route greys only its panel, below its
-             depth cards (FastestRoute.vue). -->
-        <div
-          :class="
-            blockedBy && autoView !== 'fastest' ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'
-          "
-          :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
-        >
-          <template v-if="autoView === 'classic'">
-            <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
-            <p class="max-w-4xl mx-auto text-body text-slate-600">
-              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's original planner: type the TE you want
-              to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the stops found for you, use
-              {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
-            </p>
-            <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): said above the planner too, as on
-                 the other screens. -->
-            <TeOverrideBanner class="max-w-4xl mx-auto" />
-            <AutomaticPlanner />
-          </template>
-          <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
-          <FastestRoute
-            v-else-if="autoView === 'fastest'"
-            :player-id="playerId"
-            :depth="fastestDepth"
-            :locked-to="activeScreen"
-            :blocked-by="blockedBy"
-            @update:depth="onDepth"
-            @goal="onInsaneGoal"
-            @by-date="goAuto('by-date')"
-          />
-          <ByDateScreen v-else :player-id="playerId" @goal="onInsaneGoal" />
-        </div>
+      <div v-else-if="plannerTab === 'automatic' && playerId && !loading">
+        <AutomaticPlanner />
       </div>
 
-      <div v-else-if="plannerTab === 'leaderboard'" class="max-w-6xl mx-auto mt-6">
-        <!-- Reads the collector directly; the Worker serves the same data as its own page. `use`
-             drops a chain into the Auto Planner, which is the only way a number from someone
-             else's account becomes a claim about yours. The player id only picks which of this
-             browser's owner codes asks for "my" runs; it is hashed locally and never sent. -->
-        <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
+      <div v-else-if="plannerTab === 'chainFinder'">
+        <ChainFinder />
       </div>
 
-      <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
-           computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
-      <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
-        <MyRunsView
-          :player-id="playerId"
-          :loading="loading"
-          @use="useLeaderboardChain"
-          @open="openFromMyRuns"
-          @fresh="loadFreshSave"
-          @recalc="recalcFromMyRuns"
-          @setup="setUpAgainForMyRuns"
-        />
+      <div v-else-if="plannerTab === 'tableBuilder'">
+        <TableBuilder />
       </div>
 
-      <!-- Science: how the planner works (its default page), what the collected runs still can't tell
-           us, and a way to send a sweep in. The last two are the Chain Explorer's sections, moved here
-           from its page (it renders just them). -->
-      <div v-else-if="plannerTab === 'science'" class="max-w-6xl mx-auto mt-6 space-y-4">
-        <!-- How it works: the searches, the instant answer and how both were checked (a page of its own). -->
-        <HowItWorks v-if="scienceView === 'how'" />
-        <!-- When should I start? (StartTimeCard.vue): moved here from the top of Fastest (Allan, 14 Oct:
-             too many boxes there). A result's "Check start times for this route" opens it on that route. -->
-        <StartTimeCard v-else-if="scienceView === 'start'" />
-        <div v-else>
-          <h1 class="text-headline font-black text-slate-900">Help check the planner</h1>
-          <p class="text-body text-slate-600 max-w-3xl">
-            <template v-if="scienceView === 'check'">
-              These are the runs the Leaderboard still needs. Run one on your account and it fills a gap.
-            </template>
-            <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as a run started there.</template>
-            <!-- The cross-links went (fluff review 2, 5 Nov 2026, Sc10): How it works is the tab beside this one. -->
-          </p>
-        </div>
-        <ChainExplorer v-if="scienceView === 'check' || scienceView === 'submit'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />
-      </div>
-
-      <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. On Single run it
-           sits above Joo's fixed bar of totals (measured: it wraps on a phone and folds), not over it. -->
-      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" />
-      <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
-      <SetupDock
-        v-else-if="plannerTab === 'myruns' && playerId && !loading"
-        screen="fastest"
-        :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"
-      />
-
-      <!-- Undo Confirmation Dialog -->
-      <UndoConfirmationDialog
-        v-if="undoAction"
-        :action="undoAction"
-        :dependents-a="undoDependentsA"
-        :dependents-b="undoDependentsB"
-        @confirm="executeUndo"
-        @cancel="cancelUndo"
-      />
-
-      <!-- Clear All Confirmation Dialog -->
-      <ConfirmationDialog
-        v-if="showClearAllConfirmation"
-        title="Clear All Actions"
-        message="Are you sure you want to clear all actions? This cannot be undone."
-        confirm-label="Clear All"
-        @confirm="executeClearAll"
-        @cancel="showClearAllConfirmation = false"
-      />
-
-      <!-- Unsaved Changes Protection Dialog -->
-      <ConfirmationDialog
-        v-if="showUnsavedConfirm"
-        title="Unsaved Changes"
-        message="You have unsaved changes in your current plan. If you continue, they will be lost. Press Cancel to go back and save them first."
-        confirm-label="Continue Without Saving"
-        variant="danger"
-        @confirm="
-          showUnsavedConfirm = false;
-          pendingAction?.();
-        "
-        @cancel="
-          showUnsavedConfirm = false;
-          pendingAction = null;
-        "
-      />
+      <PlannerDialogs :dialogs="dialogs" />
 
       <!-- Plan Selection Dialog (for Reconcile) -->
       <PlanSelectionDialog
@@ -772,18 +471,18 @@
           class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           <div class="px-6 py-5 border-b border-slate-100">
-            <h3 class="text-title font-bold text-slate-800">Current Artifact Set</h3>
-            <p class="mt-2 text-body text-slate-500">Which artifact set do you currently have equipped in game?</p>
+            <h3 class="text-lg font-bold text-slate-800">Current Artifact Set</h3>
+            <p class="mt-2 text-sm text-slate-500">Which artifact set do you currently have equipped in game?</p>
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
             <button
-              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('elr')"
             >
               Delivery Rate Set
             </button>
             <button
-              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('earnings')"
             >
               Earnings Set
@@ -806,89 +505,32 @@
       />
 
       <PlanFinalSummary
-        v-if="manualShown"
+        v-if="plannerTab === 'manual'"
         @update:collapsed="isFooterCollapsed = $event"
         @save-plan="saveCurrentPlan"
         @save-plan-as="savePlanAs"
       />
-      <FloatingStats v-if="manualShown" />
-      <FloatingNotes v-if="manualShown" />
-
-      </main>
-
-      <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
-      <footer class="pt-8 text-center text-small text-slate-500" data-testid="site-footer">
-        <a
-          href="./about.html"
-          class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
-          data-testid="about-link"
-          >About and privacy</a
-        >{{ ' ' }}<span aria-hidden="true">·</span>{{ ' ' }}<!-- The first-visit tour again (spec-firsttour): from step 1, or
-        step 2 with a save in; Remind me later starts unticked. Not while a search runs (the tour never shows then). --><button
-          type="button"
-          class="inline-flex min-h-[44px] items-center px-3 underline decoration-dotted underline-offset-2 hover:text-slate-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded"
-          :disabled="myRunsRunning"
-          data-testid="tour-replay"
-          @click="askTourReplay()"
-        >
-          {{ FIRST_TOUR_REPLAY }}
-        </button>
-      </footer>
-
-      <!-- The first-visit tour (spec-firsttour, 8 Nov 2026; v2 spec-firsttour2, 9 Nov 2026): a welcome box for a new
-           visitor (Take the tour / Skip / Load my save), then a slideshow of pictures, in a modal; it waits behind the
-           consent box, the update banners, other dialogs, Setup and a running search. -->
-      <TourModal
-        :has-account="!!playerId"
-        :has-save-file="fileOnlySave"
-        :running="myRunsRunning"
-        :egg-beta-active="eggBetaActive"
-        :loading="loading"
-        :new-visitor="tourNewVisitor"
-      />
+      <FloatingStats v-if="plannerTab === 'manual'" />
+      <FloatingNotes v-if="plannerTab === 'manual'" />
+      <PlannerToast />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { formatMoment } from '@/lib/clock';
-import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
-import { isNewVisitor } from '@/lib/firstTour';
-import TourModal from '@/components/TourModal.vue';
-import { askTourReplay } from '@/composables/useFirstTour';
-import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
-import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
-import {
-  FIRST_LOAD_ROUTE,
-  LAST_ROUTE_KEY,
-  NAMES,
-  canonicalUrl,
-  fastestName,
-  hashFor,
-  firstVisitShows,
-  openingRoute,
-  routeFromLocation,
-  type AutoView,
-  type Depth,
-  type ScienceView,
-  type Section,
-  type SiteRoute,
-} from '@/lib/siteNav';
+import { usePlannerPageStatus } from 'lib/planners/composables/usePlannerPageStatus';
+import { usePlanDialogs } from 'lib/planners/composables/usePlanDialogs';
+import { usePlanSaving } from 'lib/planners/composables/usePlanSaving';
+import PlannerDialogs from 'ui/components/planners/PlannerDialogs.vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
-import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
-import { noteServerSave } from '@/lib/serverSave';
-import { errorAfterSaveLoaded, LATEST_SAVE_FAILED, requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
-import { isRawError, plainError } from '@/lib/plainError';
+import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
-import { offerStartTimes } from '@/lib/onVirtue';
-import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
-import { plannerStartTEOf } from '@/lib/teOverrideAccount';
-import { needsSaveSetUp } from '@/search/saveStart';
 import { useActionsStore } from '@/stores/actions';
-import { useVirtueStore } from '@/stores/virtue';
-import { useUIStore } from '@/stores/ui';
+import { usePlanStore } from '@/stores/plan';
+import { useUIStore, tabFromSearch, searchWithTab, type PlannerTab } from '@/stores/ui';
 import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useEventsStore } from 'lib/planners/stores/events';
@@ -897,76 +539,39 @@ import { useNotesStore } from 'lib/planners/stores/notes';
 import CustomEggWatcher from 'ui/components/planners/CustomEggWatcher.vue';
 import ActionHistory from '@/components/ActionHistory.vue';
 import AvailableActions from '@/components/AvailableActions.vue';
-import UndoConfirmationDialog from '@/components/UndoConfirmationDialog.vue';
-import PlanFinalSummary from '@/components/PlanFinalSummary.vue';
+import PlanFinalSummary from 'ui/components/planners/PlanFinalSummary.vue';
 import ContinuityDialog from '@/components/ContinuityDialog.vue';
-import ConfirmationDialog from 'ui/components/planners/ConfirmationDialog.vue';
-import FloatingStats from '@/components/FloatingStats.vue';
+import FloatingStats from 'ui/components/planners/FloatingStats.vue';
 import FloatingNotes from 'ui/components/planners/FloatingNotes.vue';
+import PlannerToast from 'ui/components/planners/PlannerToast.vue';
 import WarningDialog from 'ui/components/planners/WarningDialog.vue';
-import RecalculationOverlay from '@/components/RecalculationOverlay.vue';
+import RecalculationOverlay from 'ui/components/planners/RecalculationOverlay.vue';
 import LoadingOverlay from 'ui/components/planners/LoadingOverlay.vue';
-import PlanLibrary from '@/components/PlanLibrary.vue';
-import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
-import { useChainSearchStore } from '@/stores/chainSearch';
-import { usePrefsStore } from '@/stores/prefs';
-import { allowForVisit, useTabPrefs } from '@/composables/useTabPrefs';
-import { useMyRunsShown } from '@/composables/useMyRunsShown';
-import { myRunsTab } from '@/lib/myRunsShown';
-import { safeAsyncComponent } from 'lib/planners/import';
-import RunProgressBar from '@/components/auto/RunProgressBar.vue';
-import ResumeBanner from '@/components/auto/ResumeBanner.vue';
-import { scrollToRun } from '@/lib/runAnchor';
-import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
-import { usePlanStartForm } from '@/composables/usePlanStartForm';
-import { useTablePrefetch } from '@/composables/useTablePrefetch';
-import { useBottomBarRoom } from '@/composables/useBottomBarRoom';
-import { useGearCoverage } from '@/composables/useGearCoverage';
-import SiteTabs from '@/components/SiteTabs.vue';
-import StudyBox from '@/components/StudyBox.vue';
-import SaveLine from '@/components/layout/SaveLine.vue';
-import MyRunsView from '@/components/MyRunsView.vue';
-import { useOverrideSync } from '@/composables/useOverrideSync';
-import { installTrackerSync } from '@/composables/useTrackerSync';
-import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
-import SetupDock from '@/components/auto/SetupDock.vue';
-import RunAnnouncer from '@/components/auto/RunAnnouncer.vue';
-import { setupSummary } from '@/lib/nowWords';
-import SweepRunner from '@/components/science/SweepRunner.vue';
-import HowItWorks from '@/components/science/HowItWorks.vue';
-import StartTimeCard from '@/components/auto/StartTimeCard.vue';
-import { useStartTimesStore } from '@/stores/startTimes';
-import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
-import { choiceForEffort, openOn } from '@/lib/searchOption';
-import { presetByDate } from '@/lib/byDateForm';
-import type { MyRunsOpen } from '@/lib/myRunsDashboard';
-import { fastOpen, needsFreshSave, type RecalcRequest } from '@/lib/recalc';
-import { useStrongerStore } from '@/stores/stronger';
-import type { SweepRequest } from '@/search/sweepRequest';
-import { virtueInventory } from '@/search/csv';
-import type { ByDateRequest } from '@/search/byDateRequest';
-import { useSalesStore } from 'lib/planners/stores/sales';
+import PlanLibrary from 'ui/components/planners/PlanLibrary.vue';
+import AutoPlanImportDialog from '@/components/AutoPlanImportDialog.vue';
+import { useAutoPlanImport } from '@/composables/useAutoPlanImport';
+import PlanSelectionDialog from 'ui/components/planners/PlanSelectionDialog.vue';
+import AutomaticPlanner from '@/components/auto/AutomaticPlanner.vue';
+// The Table Builder lives in components/chainFinder/ and the Chain Finder in components/instantSearch/
+// (their names before the tabs were renamed).
+import TableBuilder from '@/components/chainFinder/ChainFinder.vue';
+import ChainFinder from '@/components/instantSearch/InstantSearch.vue';
+import { useInstantSearchStore } from '@/stores/instantSearch';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { readHandoff, searchWithoutHandoff } from '@/lib/instantSearch/autoPlannerHandoff';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { usePersistence } from '@/composables/usePersistence';
-import { compactActionHistory } from '@/composables/useCompactActionHistory';
-import { generateActionId } from '@/types';
-import { computeDependencies } from '@/lib/actions/executor';
-import { restoreFromSnapshot } from '@/lib/actions/snapshot';
-import { computeSnapshot } from '@/engine/compute';
-import NewVersionBanner from '@/components/NewVersionBanner.vue';
-import { storageBlocked } from '@/lib/storageGuard';
-import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
-import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
-import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
-import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
-import SaveFileBar from '@/components/auto/SaveFileBar.vue';
-import { isPlaceholderId, NO_ACCOUNT_LINE } from '@/lib/saveScrub';
-import { idInputUpperCase, idPasteUpperCase, upperCaseIdPrefix } from '@/lib/playerIdEntry';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { useEventWaits } from 'lib/planners/composables/usePlannerEventWaits';
+import EventEdgeWaitCard from 'ui/components/planners/actions/EventEdgeWaitCard.vue';
+import { formatDuration } from 'lib/planners/format';
+import { useTablePrefetch } from '@/composables/useTablePrefetch';
+import { usePersistence } from 'lib/planners/composables/usePersistence';
+import { compactActionHistory } from 'lib/planners/composables/useCompactActionHistory';
+import { computeSnapshot } from 'lib/planners/engine/compute';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
-import { setConsentAccount } from '@/composables/useConsent';
-import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { getArtifactLoadoutFromBackup } from '@/lib/artifacts';
+import { detectArtifactSet } from '@/lib/artifacts/detectSet';
 import {
   initStartFromScratch,
   initPlanFuture,
@@ -978,708 +583,49 @@ import {
   catchUpFarmState,
 } from '@/lib/modes';
 
-/** The browser refused site storage, so this visit runs on memory (lib/storageGuard.ts). Fixed for the visit. */
-const storageIsBlocked = storageBlocked();
-/** A storage write failed and that key hasn't been written since (lib/storageWrites.ts). Not with storage blocked:
- *  that has its own line. */
-const storageWontSave = computed(() => storageWriteFailed.value && !storageIsBlocked);
-
-// The four big tab panels load on first use: each sits behind a v-if (a tab, a loaded backup, or
-// `?insane=1`), and together they were a large share of the planner's first download that nobody
-// sees until they pick a tab. safeAsyncComponent retries and offers a reload if a deploy replaced
-// the files this tab was built against.
-const AutomaticPlanner = safeAsyncComponent(() => import('@/components/auto/AutomaticPlanner.vue'));
-const FastestRoute = safeAsyncComponent(() => import('@/components/auto/FastestRoute.vue'));
-const ByDateScreen = safeAsyncComponent(() => import('@/components/auto/ByDateScreen.vue'));
-const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
-const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
-
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
 const isDev = import.meta.env.DEV;
 
-// A link's `?playerId=` was read and taken out of the address before the app started (lib/urlPlayerId.ts).
-const playerId = ref(linkPlayerId() || getSavedPlayerID() || '');
-// Never the stand-in ID a downloaded save carries (lib/saveScrub.ts): that is no account.
-if (isPlaceholderId(playerId.value)) playerId.value = [getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '';
-
-// The Update button's cache-buster (PlanFinalSummary.vue) has done its job once the page is here;
-// left in, it rode along in every link copied afterwards.
-if (new URLSearchParams(window.location.search).has('_hardReload')) {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('_hardReload');
-  window.history.replaceState(window.history.state, '', url.toString());
-}
-
-const chainSearchStore = useChainSearchStore();
-const strongerStore = useStrongerStore();
-
-/** Take a chain off the board into the Auto Planner. It is someone else's ANSWER, not a result
- *  for this account -- their artifacts and starting TE produced it -- so this loads the shape and
- *  leaves the pricing to a run here. */
-function useLeaderboardChain(chain: number[]): void {
-  pinnedRoute = null;
-  chainSearchStore.applyChain(chain, false);
-  uiStore.autoView = 'classic';
-  plannerTab.value = 'automatic';
-}
-/** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
- *  the tab click's fresh save (that would set the planner up again under the opened entry). */
-function openFromMyRuns(to: MyRunsOpen): void {
-  pinnedRoute = null;
-  // A Next step's own setup (lib/myRunsDashboard.ts): the target, the level, the search tab and By a date's
-  // deadline (taken by DeadlinePanel when it mounts, lib/byDateForm.ts). Never under a running search, which
-  // owns them: the screen then opens as it is.
-  if (!searchActive.value) {
-    if (to.target != null) chainSearchStore.finalTE = to.target;
-    if (to.level) strongerStore.level = to.level;
-    if (to.byDate) presetByDate(to.byDate);
-    if (to.tab) selectSearchTab(to.auto === 'by-date' ? 'by-date' : 'fastest', to.tab);
-    // The search panel opens on it rather than on the option remembered there (SearchPanel.vue).
-    if (to.level || to.tab)
-      openOn(
-        to.auto === 'by-date' ? 'by-date' : 'fastest',
-        to.tab === 'exhaustive' ? { option: 'custom', veryHigh: false } : choiceForEffort(to.level ?? 'quick')
-      );
-  }
-  uiStore.autoView = to.auto;
-  if (to.depth) uiStore.fastestDepth = to.depth;
-  plannerTab.value = 'automatic';
-}
-/**
- * My runs' "Run Fast" (lib/recalc.ts; "Recalculate", which ran Check exactly, until 23 Oct 2026): a fresh save first
- * when the loaded one is 6 hours old or more (the same path as entering the Auto Planner; stops on its reason), then
- * the goal's screen with the Stronger check panel on Fast. Nothing starts: the player presses Find. Under a running
- * search the screen only opens, as Open does.
- */
-async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
-  if (searchActive.value) {
-    openFromMyRuns(req.open);
-    return;
-  }
-  if (needsFreshSave(backupSecondsOf(initialStateStore.rawBackup), Date.now() / 1000)) {
-    const why = await prepareAutoPlanner();
-    if (why) {
-      error.value = why;
-      return;
-    }
-  }
-  openFromMyRuns(fastOpen(req.open));
-}
+const playerId = ref(new URLSearchParams(window.location.search).get('playerId') || getSavedPlayerID() || '');
 const initialStateStore = useInitialStateStore();
-// The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.
-usePlanStartForm();
-// Precompute: the instant answer's tables fetched in the background once a save is loaded.
-useTablePrefetch();
-// The starting-TE override saved online: read when the account is set up (composables/useOverrideSync.ts).
-useOverrideSync();
-// The Build-up tracker's ticks and kept plan saved online: the same read pass, and pagehide (composables/useTrackerSync.ts).
-installTrackerSync();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
-/** A save file loaded with no account on screen (SaveFileBar under the ID box): the Auto Planner shows it, Fastest only. */
-const fileOnlySave = computed(() => !playerId.value && !!uiStore.runSaveLoaded?.noAccount);
-/** Its Fastest screen, where the instant answer is (no fetch: `goTo` leaves a save the player picked alone). */
-function onNoAccountSave(): void {
-  if (!playerId.value) goAuto('fastest', 'smart');
-}
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);
-/** The floating Setup pill shows (the two SetupDock mounts below): the page keeps room under its content for it. */
-const setupDockShown = computed(
-  () => (plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value
-);
-/**
- * A screen shows its own h1 (its title): every Auto Planner screen once the save is in, My runs, Science's three
- * pages, the Leaderboard, and Manual with an account. Until then the header's title is the page's h1.
- */
-const screenHasH1 = computed(
-  () =>
-    (plannerTab.value === 'automatic' && (!!playerId.value || fileOnlySave.value) && !loading.value) ||
-    plannerTab.value === 'myruns' ||
-    plannerTab.value === 'science' ||
-    plannerTab.value === 'leaderboard' ||
-    (plannerTab.value === 'manual' && !!playerId.value)
-);
-/** The pill's 1rem from the bottom, its height (56 px on a phone, about 45 px from sm up) and a margin, plus the safe area. */
-const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
-/** Below 320 px the pill wraps its workers to a second row (SetupDock.vue, ux32-b): 3rem more room, else none. */
-const NARROW_PILL_ROOM = 'clamp(0px, (320px - 100vw) * 1000, 3rem)';
-
-/**
- * Which tab is open, and its address (lib/siteNav.ts). The address follows every change, so a
- * reload or a copied link opens the same screen; old `?insane=1` / `#deadline` links are read once
- * and rewritten to the new address.
- */
-const initialRoute = routeFromLocation(window.location.search, window.location.hash);
-const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
-/** Single run's fixed bar of totals (ChainSummaryBar.vue) and its fold tab, px: the Setup pill sits above them. */
-const singleRunBarRoom = useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'));
-/** The room under the page for the pill; on Single run the bar's room on top, as the pill sits above the bar. */
-const pageBottomRoom = computed(() =>
-  singleRunBarRoom.value
-    ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`
-    : `calc(${SETUP_DOCK_CLEARANCE} + ${NARROW_PILL_ROOM})`
-);
-/** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
-function readLastRoute(): string | null {
-  try {
-    return localStorage.getItem(LAST_ROUTE_KEY);
-  } catch {
-    return null;
-  }
-}
-/**
- * The tab the page opens on, and whether this is a new player (lib/siteNav.ts openingRoute): the address
- * wins, then the last tab this browser remembers; a new player (neither, and no saved ID) is taken to
- * FIRST_LOAD_ROUTE when their first save loads (submitPlayerId).
- */
-/** The first-visit tour starts by itself for a new visitor only (lib/firstTour.ts): no saved player ID and no remembered
- *  tab when the page loaded. */
-const tourNewVisitor = isNewVisitor({ savedPlayerId: getSavedPlayerID(), lastRoute: readLastRoute() });
-const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
-let newPlayerLanding = opening.newPlayer;
-/**
- * First visit (spec-fluff3-chrome; lib/siteNav.ts firstVisitShows): the Manual Planner counts as asked for once a tab
- * came from the address or the browser's memory, or any route to it is applied later (the first-visit link is
- * `#/manual`). Until then, with no account and no save file, the page shows what the planner does instead of Joo's
- * empty Manual Planner; his components are untouched, only not shown.
- */
-const manualAsked = ref(opening.route !== null);
-const firstVisit = computed(() =>
-  firstVisitShows({
-    hasAccount: !!playerId.value,
-    hasSaveFile: fileOnlySave.value,
-    tab: plannerTab.value,
-    manualAsked: manualAsked.value,
-  })
-);
-/** The Manual Planner's pieces in this wrapper (cards, toggles, history and actions, the totals bar, the bubbles). */
-const manualShown = computed(() => plannerTab.value === 'manual' && !firstVisit.value);
-
-function currentRoute(): SiteRoute {
-  const section: Section =
-    plannerTab.value === 'automatic'
-      ? 'auto'
-      : plannerTab.value === 'leaderboard'
-        ? 'compare'
-        : plannerTab.value === 'myruns'
-          ? 'myruns'
-          : plannerTab.value === 'science'
-            ? 'science'
-            : 'manual';
-  return {
-    section,
-    auto: autoView.value,
-    depth: fastestDepth.value,
-    compare: compareView.value,
-    science: scienceView.value,
-  };
-}
-
-function applyRoute(r: SiteRoute): void {
-  if (r.section === 'manual') manualAsked.value = true;
-  // Only an address to the Auto Planner names its screen; one to another tab leaves the remembered one (lib/autoScreen.ts).
-  if (r.section === 'auto') {
-    autoView.value = r.auto;
-    fastestDepth.value = r.depth;
-  }
-  if (r.compare) compareView.value = r.compare;
-  if (r.science) scienceView.value = r.science;
-  plannerTab.value =
-    r.section === 'auto'
-      ? 'automatic'
-      : r.section === 'compare'
-        ? 'leaderboard'
-        : r.section === 'myruns'
-          ? 'myruns'
-          : r.section === 'science'
-            ? 'science'
-            : 'manual';
-}
-
-if (initialRoute) {
-  applyRoute(initialRoute);
-  window.history.replaceState(null, '', canonicalUrl(window.location.href, initialRoute));
-} else if (opening.route) {
-  applyRoute(opening.route);
-  window.history.replaceState(null, '', hashFor(opening.route));
-}
-
-// The address follows the tabs. Replaced, not pushed: Back leaves the site rather than stepping
-// through every tab clicked on the way.
-watch(
-  () => hashFor(currentRoute()),
-  hash => {
-    if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
-    try {
-      localStorage.setItem(LAST_ROUTE_KEY, hash);
-    } catch {
-      // a convenience, not a reason to fail
-    }
-  }
-);
-// A link inside the page (or an edited address) to another tab. Plain `#anchors` are not routes.
-function onHashChange(): void {
-  const r = routeFromLocation('', window.location.hash);
-  if (!r) return;
-  // Only the section the link names changes: a link to #/compare must not reset the Auto Planner's
-  // screen and depth to their defaults (review, 30 Sept), or the other way round.
-  const here = currentRoute();
-  if (r.section === 'auto') goTo({ ...here, section: 'auto', auto: r.auto, depth: r.depth });
-  else if (r.section === 'compare') goTo({ ...here, section: 'compare', compare: r.compare });
-  else if (r.section === 'science') goTo({ ...here, section: 'science', science: r.science });
-  else goTo({ ...here, section: r.section });
-}
-onMounted(() => window.addEventListener('hashchange', onHashChange));
-onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
-
-/**
- * The search screen a running search belongs to. The searches share one store, so while one runs
- * the other search screens are locked: Smart search's panel would otherwise show a full sweep's
- * progress as its own. Classic, Manual and Compare stay open, as the other tabs always did.
- */
-function searchScreenOf(r: SiteRoute): SearchScreen | null {
-  if (r.section !== 'auto' || r.auto === 'classic') return null;
-  return r.auto === 'by-date' ? 'by-date' : r.depth;
-}
-const runningScreen = ref<SearchScreen | null>(null);
-/** A search going, counting the gaps between a Full sweep queue's chains (saving one, starting the
- *  next): without them the lock dropped between chains and another screen could take the run over. */
-const searchActive = computed(() => chainSearchStore.busy || chainSearchStore.sweepQueue.at >= 0);
-watch(searchActive, active => {
-  runningScreen.value = active ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
-});
-// Once the run says what it is, its screen is that kind's (runScreenOf), so the gaps between a queue's
-// chains stay with it too.
-watch(
-  () => chainSearchStore.runProgress?.kind,
-  kind => {
-    // Not a sweep started from Science: Show it goes back to its window there (showRun).
-    const science = uiStore.scienceRun && uiStore.scienceRun.phase !== 'done';
-    if (searchActive.value && kind && kind !== 'start-times' && !science) runningScreen.value = kind;
-  }
-);
-
-/**
- * The screen the running search belongs to, for the progress bar: the one it was started from, or,
- * for a run that started elsewhere (a carry-on from another screen), the one its kind lives on.
- */
-const runScreen = computed<SearchScreen | null>(() =>
-  runScreenOf(chainSearchStore.runProgress?.kind, runningScreen.value, fastestDepth.value)
-);
-/** The screen a search is going on: the run's own, or between a queue's chains (no run for a moment)
- *  the one the queue was started from. */
-const activeScreen = computed<SearchScreen | null>(() => runScreen.value ?? runningScreen.value);
-/** The screen shown now, in the same terms. */
-const screenHere = computed<SearchScreen | 'classic'>(() =>
-  autoView.value === 'classic' ? 'classic' : autoView.value === 'by-date' ? 'by-date' : fastestDepth.value
-);
-function screenName(s: SearchScreen | 'classic'): string {
-  if (s === 'classic' || s === 'by-date') return s === 'classic' ? NAMES.classic : NAMES.byDate;
-  // "Fastest to 490 TE (Simple)": By a date has a Simple and an Advanced too.
-  return `${fastestName(chainSearchStore.finalTE)} (${s === 'full' ? NAMES.full : NAMES.smart})`;
-}
-/** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
-/** Fastest's two searches are on one page since 12 Oct 2026 (FastestRoute.vue): one screen here. */
-function sameScreen(a: SearchScreen | 'classic' | null, b: SearchScreen | 'classic' | null): boolean {
-  const fastest = (x: typeof a) => x === 'smart' || x === 'full';
-  return a === b || (fastest(a) && fastest(b));
-}
-const blockedBy = computed(() => {
-  const a = activeScreen.value;
-  if (plannerTab.value !== 'automatic' || !a) return '';
-  // A start-time sweep runs in Science › When should I start? (since 14 Oct): every search screen waits.
-  if (chainSearchStore.runProgress?.kind === 'start-times') return NAMES.start;
-  return sameScreen(a, screenHere.value) ? '' : screenName(a);
-});
-const hereLabel = computed(() => screenName(screenHere.value));
-
-/** Whenever any search is running, the run's own screen included (the panel there shows the detail;
- *  the bar's button then scrolls to it). */
-const showRunBar = computed(() => !!runScreen.value);
-const runIsHere = computed(() => {
-  // A start-time sweep's place is Science › When should I start? (StartTimeCard.vue).
-  if (chainSearchStore.runProgress?.kind === 'start-times') return plannerTab.value === 'science' && scienceView.value === 'start';
-  return !!runScreen.value && sameScreen(searchScreenOf(currentRoute()), runScreen.value);
-});
-/**
- * The bar's Jump to it / Show it: one click goes to the run's screen if it is not the one shown, then
- * waits for that screen's panels to mount and scrolls to the run's own progress block, found by its
- * kind (lib/runAnchor.ts). It used to switch tabs only, and land at the top of the page.
- */
-function showRun(): void {
-  const kind = chainSearchStore.runProgress?.kind;
-  const anchor = kind === 'smart' || kind === 'full' || kind === 'by-date' ? kind : null;
-  // A start-time sweep: Science › When should I start?, where it runs (moved from Fastest, 14 Oct).
-  if (kind === 'start-times') {
-    showStartTimes();
-    return;
-  }
-  // The search tab the run is in first (SearchPanel.vue): the other tab hides it, and a hidden block
-  // can't be scrolled to.
-  if (anchor) revealRunTab(anchor, !!chainSearchStore.deadlineRunSimple);
-  if (!runIsHere.value) {
-    // A sweep started from Science: back to its window there, which is where it was started from.
-    const science = uiStore.scienceRun;
-    if (science && science.phase !== 'done' && !runningScreen.value) {
-      goTo({ ...currentRoute(), section: 'science', science: 'check' });
-      uiStore.scienceSweep = science.request;
-      return;
-    }
-    const s = runScreen.value;
-    if (s === 'by-date') goAuto('by-date');
-    else if (s) goAuto('fastest', s);
-  }
-  if (anchor) void scrollToRun(anchor);
-}
-
-/** Science › When should I start?, scrolled to its card: the run bar's Show it for a start-time sweep,
- *  and a result's "Check start times for this route" (stores/startTimes.ts `show`). */
-function showStartTimes(): void {
-  goTo({ ...currentRoute(), section: 'science', science: 'start' });
-  setTimeout(() => document.getElementById('start-times')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
-}
-const startTimes = useStartTimesStore();
-watch(() => startTimes.asked, showStartTimes);
-
-/** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
-function goTo(r: SiteRoute): void {
-  // Every screen opens, running search or not: the ones it isn't on show greyed out under a line
-  // saying so (RunningElsewhere.vue), rather than refusing the click (the user, 30 Sept).
-  pinnedRoute = null;
-  // A link or a button that goes to the Leaderboard or Science opens it even when its tab is off (useTabPrefs).
-  allowForVisit(r.section);
-  const enteringAuto = r.section === 'auto' && plannerTab.value !== 'automatic';
-  applyRoute(r);
-  // Entering the Auto Planner fetches a fresh save and resets the planner around it -- never under a
-  // search that's running (the progress bar's "Show it" is exactly that way in): it keeps the save
-  // it started with, which is already set up. Nor over a save the player picked ("Use the save
-  // from…" on a saved entry, "Load a save file"): that stays until they press Load my latest save.
-  const pickedSave = uiStore.runSaveLoaded?.from === 'entry' || uiStore.runSaveLoaded?.from === 'file';
-  if (enteringAuto && !searchActive.value && !pickedSave) void handleAutoPlannerTabClick();
-}
-/** A top tab: that section, as it was last left. */
-function selectSection(section: Section): void {
-  goTo({ ...currentRoute(), section });
-}
-function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
-  goTo({ section: 'auto', auto, depth });
-}
-
-/** An Auto Planner sub-tab. "Fastest route" opens the depth that's running, if one is. */
-function onAutoTab(auto: AutoView): void {
-  const a = activeScreen.value;
-  if (auto === 'fastest' && (a === 'smart' || a === 'full')) goAuto('fastest', a);
-  else goAuto(auto);
-}
-
-/** A "How thorough" card on Fastest route. */
-function onDepth(d: Depth): void {
-  goAuto('fastest', d);
-}
-
-/** The Insane panel's own goal switch, when it asks (carrying on a fastest run from the date view). */
-function onInsaneGoal(g: 'fastest' | 'deadline'): void {
-  goAuto(g === 'deadline' ? 'by-date' : 'fastest', 'full');
-}
-
-// "Build this plan in the Auto Planner" from a search: Classic, in place, so the loaded save, the
-// chain and its time-off cuts all carry over.
-watch(
-  () => uiStore.openPlannerRequested,
-  () => {
-    pinnedRoute = null;
-    applyRoute({ section: 'auto', auto: 'classic', depth: fastestDepth.value });
-  }
-);
-
-/**
- * A link to a tab keeps the page there while the save loads.
- *
- * The tab defaults to Manual, and every path that finishes loading a backup or a plan sets it back
- * to Manual -- reasonable for the Manual Planner, and wrong for a link whose whole purpose is another
- * tab (every "Run this sweep" link). Driven off `loading` because those handlers run AFTER a backup
- * finishes and would undo a one-shot switch. Only until the player picks a tab themselves.
- */
-let pinnedRoute: SiteRoute | null = initialRoute && initialRoute.section !== 'manual' ? initialRoute : null;
-watch(loading, (now, before) => {
-  if (pinnedRoute && before && !now) applyRoute(pinnedRoute);
-});
-// Picking a leaderboard view or a Science view is picking a tab too (loads never change these).
-watch([compareView, scienceView], () => (pinnedRoute = null));
-// Another account loaded: a Full sweep queue started for the last one doesn't start its next chain
-// on this one's save (its panel used to stop it by closing, which the tabs now do all the time).
-watch(playerId, () => {
-  if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
-});
-// Your setup, remembered per account (lib/setupMemory.ts): this account's hours, hold shifts, time off and
-// first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
-// exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
-watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
-// The account on screen, for the instant answer: it runs only once this account's save is set up the Auto
-// Planner's way, never on a restored draft or an account switch's quick load (search/startProvenance.ts).
-watch(playerId, id => (uiStore.screenPlayerId = id), { immediate: true });
-// Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
-// nothing agreed. A switch never carries the last account's yes over.
-watch(playerId, id => void setConsentAccount(id), { immediate: true });
-// Your choices and Setup, saved online per account (stores/prefs.ts): read once as the account loads, written on
-// the player's own changes only.
-usePrefsStore();
-// Which of the Leaderboard and Science tabs show (composables/useTabPrefs.ts): off until turned on in Setup, never
-// with no collector. An address that asks for one opens it for this visit (allowForVisit, here and in goTo).
-const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);
-if (initialRoute) allowForVisit(initialRoute.section);
-/**
- * MY RUNS ONLY WITH SOMETHING TO SHOW (Jordan, 24 Oct 2026; lib/myRunsShown.ts): its tab (top and the Auto Planner's)
- * shows once the account has a followed route, a saved answer or snapshot, a kept result or a board run seen there,
- * and always while a search runs. On a reload of #/myruns it stays while that is worked out.
- */
-const { content: myRunsContent } = useMyRunsShown({
-  playerId: () => playerId.value,
-  rawBackup: () => initialStateStore.rawBackup,
-  library: () => chainSearchStore.savedRuns.length + chainSearchStore.savedAnswers.length,
-});
-const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);
-
-/** EGG-BETA ONLY: the timed reload (lib/eggBetaReload.ts). A build without AAP_EGG_BETA_RELOAD_AT (live, every other
- *  build) has __AAP_EGG_BETA_RELOAD__ replaced by `false` here (vite.config.ts; vitest.config.ts too), so the banner, its
- *  chunk and lib/eggBetaReload.ts are left out of the build. Used bare on purpose: a constant from another module is
- *  not folded, and left the chunk in. It waits while any search or run
- *  is going, or a finished one is still being sent. */
-const EggBetaReloadBanner = __AAP_EGG_BETA_RELOAD__
-  ? defineAsyncComponent(() => import('@/components/EggBetaReloadBanner.vue'))
-  : null;
-const eggBetaBusy = computed(() => myRunsRunning.value || chainSearchStore.resultSending);
-const eggBetaActive = ref(false);
-const myRunsTabShown = computed(
-  () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
-);
-/** Help improve the planner below the answer, on the two answer screens (FastestRoute.vue, DeadlinePanel.vue). */
-const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && autoView.value !== 'classic');
-/** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
- *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
-const saveLineShown = computed(
-  () => !!playerId.value && (plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))
-);
-/** On the save-line screens the player box folds once a save is in (My runs too, which had no automatic fold: Jordan's
- *  iPhone showed it open there, 9 Nov 2026), unless the player opened it (Change player keeps it open). */
-watch(
-  () => [saveLineShown.value, !!initialStateStore.rawBackup],
-  ([shown]) => {
-    if (shown) collapseHeaderIfPlayerLoaded();
-  },
-  { immediate: true }
-);
-/** The last tab shown that is always there or still allowed: where a tab that has just gone falls back to. */
-let lastShownTab: typeof plannerTab.value = 'myruns';
-function tabHidden(tab: typeof plannerTab.value): boolean {
-  return (
-    (tab === 'leaderboard' && !optionalShown.value.leaderboard) ||
-    (tab === 'science' && !optionalShown.value.science) ||
-    (tab === 'myruns' && !myRunsTabShown.value)
-  );
-}
-// On a tab that isn't shown (its box just turned off in Setup, an address for it in a copy with no collector, or My
-// runs with nothing to show): the tab it came from, else My runs, else the Auto Planner, never a blank page.
-watch(
-  [plannerTab, optionalShown, myRunsTabShown],
-  () => {
-    if (!tabHidden(plannerTab.value)) lastShownTab = plannerTab.value;
-    else plannerTab.value = !tabHidden(lastShownTab) ? lastShownTab : !tabHidden('myruns') ? 'myruns' : 'automatic';
-  },
-  { immediate: true, flush: 'sync' }
-);
-
-/**
- * On a link into the Auto Planner, set the account up the way clicking its tab does.
- *
- * That click runs `initPlanFuture`, which is what fills the planner's working state from the save:
- * the starting TE, the current virtue farm, the plan's start. A tab opened straight onto a search
- * never went through that click -- so a "Run this sweep" link planned from TE 0 with no farm, and
- * the pre-flight refused it as "your virtue farm had not finished loading". Once per player id, so
- * the loading watcher does not re-run it, and never over a load already in progress.
- */
-
-const topTabs = computed(() => [
-  {
-    id: 'manual' as const,
-    tab: 'manual',
-    label: NAMES.manual,
-    on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
-  },
-  {
-    id: 'auto' as const,
-    tab: 'automatic',
-    label: NAMES.auto,
-    on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
-  },
-  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
-  ...(optionalShown.value.leaderboard
-    ? [
-        {
-          id: 'compare' as const,
-          tab: 'leaderboard',
-          label: NAMES.compare,
-          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
-        },
-      ]
-    : []),
-  // My runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
-  // no collector.
-  ...(myRunsTabShown.value
-    ? [
-        {
-          id: 'myruns' as const,
-          tab: 'myruns',
-          label: NAMES.myRuns,
-          on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
-        },
-      ]
-    : []),
-  ...(optionalShown.value.science
-    ? [
-        {
-          id: 'science' as const,
-          tab: 'science',
-          label: NAMES.science,
-          on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
-        },
-      ]
-    : []),
-]);
-/** "Fastest to 490 TE", following the Final target TE when it isn't 490. In this order (Jordan, 26 Oct 2026):
- *  the two instant-answer screens first, Single run (Joo's planner) last. */
-const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
-  { id: 'fastest', label: fastestName(chainSearchStore.finalTE), screen: null },
-  { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
-  { id: 'classic', label: NAMES.classic, screen: null },
-]);
-/**
- * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when
- * it sets the save up (initialState + rollUpPendingTE: per egg, the claimed TE or the thresholds
- * passed, whichever is more, capped at 98). Science isn't a screen that sets the save up, and its
- * sweep ranges start from this.
- */
-/** The save's artifacts, for the Science tab's gear cards to say which ones you have. */
-const saveArtifacts = computed(() => virtueInventory(initialStateStore.rawBackup).artifacts);
-/** Whether the save's gear has an instant answer of its own, for the "Any other gear" card (worked out
- *  only once Science's gap list is open). */
-const gearCoverage = useGearCoverage(() => plannerTab.value === 'science' && scienceView.value === 'check');
-const saveTE = computed(() => saveTEOf(initialStateStore.rawBackup));
-/** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
- *  address still opens, with a short note, for a link from before. */
-const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
-  { id: 'how', label: NAMES.how },
-  { id: 'check', label: NAMES.check },
-  { id: 'submit', label: NAMES.submit },
-  ...(offerStartTimes(initialStateStore.rawBackup) ? [{ id: 'start' as const, label: NAMES.start }] : []),
-]);
-
-let autoInitFor = '';
-async function initAutoOnce(): Promise<void> {
-  if (plannerTab.value !== 'automatic' || !playerId.value || loading.value || autoInitFor === playerId.value) return;
-  autoInitFor = playerId.value;
-  await handleAutoPlannerTabClick();
-}
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const fuelTankStore = useFuelTankStore();
 const truthEggsStore = useTruthEggsStore();
 const eventsStore = useEventsStore();
-const salesStore = useSalesStore();
+const chainFinderStore = useInstantSearchStore();
+const autoPlannerStore = useAutoPlannerStore();
 
 const notesStore = useNotesStore();
-const { prepareExecution, completeExecution } = useActionExecutor();
+const {
+  toggleEarningsBoost: handleEarningsEventWait,
+  secondsUntilNextEarningsBoost,
+  secondsUntilEarningsBoostEnd,
+} = useEventWaits();
+const { showAutoPlanDialog, autoPlanName, autoPlanAscensionCount, importAutoPlan, resolveAutoPlan, cancelAutoPlan } =
+  useAutoPlanImport();
 const { partitionHash, saveActiveDraft, initPersistence, broadcastPresence } = usePersistence();
 
+// The Chain Finder's tables, fetched in the background once a save is loaded (composables/
+// useTablePrefetch.ts), so its answer is ready when the tab is opened.
+useTablePrefetch();
+
 const isEarningsBoostActive = computed(() => actionsStore.effectiveSnapshot?.earningsBoost?.active ?? false);
-
-const lastBackupFormatted = computed(() => {
-  const approxTime = initialStateStore.rawBackup?.approxTime;
-  if (approxTime == null) return 'Unknown';
-  const date = new Date(approxTime * 1000);
-
-  return formatMoment(date.getTime(), { weekday: true, year: 'never' });
-});
-
-const lastBackupAge = computed(() => {
-  const approxTime = initialStateStore.rawBackup?.approxTime;
-  if (approxTime == null) return '';
-  const now = Date.now() / 1000;
-  const diff = Math.max(0, now - approxTime);
-
-  if (diff < 60) return 'Just now';
-
-  const minutes = Math.floor(diff / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h${remainingMinutes}m ago`;
-});
-
-/** The header's title; the save's name (`playerName`) is in the browser tab's title only (the ID box shows it). */
-const pageTitle = 'Ascension Planner';
-const playerName = computed(() => initialStateStore.rawBackup?.userName ?? '');
-/** The browser tab keeps the name in the title. */
-const documentTitle = computed(() => (playerName.value ? `${pageTitle} ${playerName.value}` : pageTitle));
-
-watch(
-  documentTitle,
-  newTitle => {
-    document.title = newTitle;
-  },
-  { immediate: true }
+const earningsEventTooltip = computed(() =>
+  isEarningsBoostActive.value
+    ? `2x Earnings ends Tuesday at +0. Click to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
+    : `Next 2x Earnings starts Monday at +0. Click to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
 );
 
-function handleToggleEarningsEvent() {
-  const beforeSnapshot = prepareExecution();
-  const currentlyActive = beforeSnapshot.earningsBoost.active;
-
-  // Find the multiplier from the event store if turning ON
-  let multiplier = 2;
-  if (!currentlyActive) {
-    const event = eventsStore.getActiveEvents(initialStateStore.isUltra).find(e => e.type === 'earnings-boost');
-    if (event) multiplier = event.multiplier;
-  } else {
-    multiplier = 1;
-  }
-
-  const payload = {
-    active: !currentlyActive,
-    multiplier,
-  };
-
-  // Update store state
-  salesStore.setEarningsBoost(payload.active, payload.multiplier);
-
-  completeExecution(
-    {
-      id: generateActionId(),
-      timestamp: Date.now(),
-      type: 'toggle_earnings_boost',
-      payload,
-      cost: 0,
-      dependsOn: computeDependencies(
-        'toggle_earnings_boost',
-        payload,
-        actionsStore.actionsBeforeInsertion,
-        actionsStore.initialSnapshot.researchLevels
-      ),
-    },
-    beforeSnapshot
-  );
-}
+const { lastBackupFormatted, lastBackupAge, pageTitle } = usePlannerPageStatus();
 
 onMounted(async () => {
   eventsStore.fetchEvents();
 
   if (playerId.value) {
-    // Never the reason the rest of this doesn't run (red team 6 Nov 2026, R1): a draft this build can't open
-    // or a database that doesn't answer left myRunsReady false, so My runs and the Auto Planner never set up.
-    try {
-      await initPersistence(playerId.value);
-    } catch (e) {
-      console.error('Could not restore the draft:', e);
-    }
+    await initPersistence(playerId.value);
 
     try {
       const pHash = await hashID(playerId.value);
@@ -1707,13 +653,18 @@ onMounted(async () => {
     actionsStore.pushWaitForFullHabsAction();
   }
 
-  // A saved player id on a link into the Auto Planner: set it up now rather than waiting for a click.
-  await initAutoOnce();
-  // On My runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
-  myRunsReady = true;
-  loadSaveForMyRuns();
-  // On the Auto Planner with the stores still not set up from the save (setUpForInstantAnswer).
-  setUpForInstantAnswer();
+  // A Chain Finder route opened here (`?chain=`): the Auto Planner applies it once it's set up. Off
+  // the URL right away, so a refresh doesn't load it over the user's changes again.
+  const handoff = readHandoff(window.location.search);
+  if (handoff) {
+    autoPlannerStore.pendingChain = handoff;
+    const search = searchWithoutHandoff(window.location.search);
+    history.replaceState(history.state, '', `${window.location.pathname}${search}${window.location.hash}`);
+  }
+
+  // Reopen the tab the URL names, once the saved plan and backup are back.
+  const urlTab = tabFromSearch(window.location.search);
+  if (urlTab !== 'manual') openTab(urlTab);
 });
 
 // Auto-save logic
@@ -1729,54 +680,12 @@ function triggerAutoSave() {
 actionsStore.$subscribe(triggerAutoSave);
 notesStore.$subscribe(triggerAutoSave);
 
-// Re-init persistence when player ID changes. Kept, so an account switch can wait for the account's draft
-// before setting up its save (submitPlayerId).
-let persistenceInit: Promise<void> = Promise.resolve();
-watch(playerId, newId => {
+// Re-init persistence when player ID changes
+watch(playerId, async newId => {
   if (newId) {
-    persistenceInit = initPersistence(newId).catch(e => console.error('Could not restore the draft:', e));
+    await initPersistence(newId);
   }
 });
-/** The page's error line (under the player ID box): brought into view when an error appears, smoothly unless the
- *  player asked for reduced motion. */
-const pageErrorEl = ref<HTMLElement | null>(null);
-watch(error, async e => {
-  if (!e) return;
-  await nextTick();
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  pageErrorEl.value?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-});
-/** The save load that failed and what it said, for the error's Try again (shown while that message is). */
-const loadRetry = ref<{ id: string; message: string } | null>(null);
-/** The player ID form's key: a new one puts a fresh form back (`resetIdBox`). */
-const idFormKey = ref(0);
-function failLoad(id: string, message: string): void {
-  error.value = message;
-  loadRetry.value = { id, message };
-  // The box back as it was for the account on screen (Try again keeps the ID that failed).
-  resetIdBox(false);
-}
-
-/**
- * The player ID box after a load that did not happen (R7 red team 4): the shared form commits the ID before the page
- * answers, so it was left read-only with that ID in it until a reload. A fresh form (its key) for the account on
- * screen, focused when `focus` (the box is editable while focused) so the player can type their own ID straight away.
- */
-function resetIdBox(focus = true): void {
-  idFormKey.value++;
-  if (focus) void nextTick(() => document.getElementById('playerId')?.focus());
-}
-/** A whole lower-case ID pasted into the box loads as it would in upper case (lib/playerIdEntry.ts). */
-function onIdPaste(e: ClipboardEvent): void {
-  const id = idPasteUpperCase(e);
-  if (id) void submitPlayerId(id);
-}
-/** The account whose save is being fetched now (an older load that answers late is dropped). */
-let loadingSaveFor = '';
-/** The stand-in ID from a downloaded save typed in (DRAFT words). */
-const PLACEHOLDER_ID_ENTERED = "That's the stand-in ID a downloaded save carries, not an account. Enter your own player ID.";
-/** The save came in but setting the planner up from it failed. */
-const SAVE_SET_UP_FAILED = "Couldn't set up the planner from your save. Try again.";
 
 // Section expansion state
 const expandedSections = ref({
@@ -1813,73 +722,15 @@ const totalCost = computed(() => actionsStore.totalCost);
 const actionCount = computed(() => actionsStore.actionCount);
 
 // Modal state
-const undoAction = ref<Action | null>(null);
-const undoDependentsA = ref<Action[]>([]);
-const undoDependentsB = ref<Action[]>([]);
-const showClearAllConfirmation = ref(false);
 
 const showReconcileLibraryModal = ref(false);
-const showUnsavedConfirm = ref(false);
 const showArtifactSetConfirm = ref(false);
-const pendingAction = ref<(() => void) | null>(null);
 
-/**
- * Confirm unsaved changes before potentially destructive actions.
- */
-function confirmUnsavedChanges(action: () => void) {
-  if (actionsStore.isDirty) {
-    pendingAction.value = action;
-    showUnsavedConfirm.value = true;
-  } else {
-    action();
-  }
-}
+const dialogs = usePlanDialogs();
+const { confirmUnsavedChanges, showUndoConfirmation, handleClearAll } = dialogs;
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function showUndoConfirmation(action: Action, options?: { skipConfirmation: boolean }) {
-  const validationA = actionsStore.prepareUndo(action.id);
-  const validationB = actionsStore.prepareUndoUntilShift(action.id);
-
-  undoAction.value = action;
-  undoDependentsA.value = validationA.dependentActions;
-  undoDependentsB.value = validationB.dependentActions;
-
-  if (options?.skipConfirmation) {
-    executeUndo('truncate');
-  }
-}
-
-function cancelUndo() {
-  undoAction.value = null;
-  undoDependentsA.value = [];
-  undoDependentsB.value = [];
-}
-
-function executeUndo(mode: 'dependents' | 'truncate' = 'dependents') {
-  if (!undoAction.value) return;
-
-  actionsStore.executeUndo(undoAction.value.id, mode, snapshot => {
-    // Restore stores to the snapshot of the last remaining action
-    restoreFromSnapshot(snapshot);
-  });
-
-  cancelUndo();
-}
-
-function handleClearAll(options?: { skipConfirmation: boolean }) {
-  if (options?.skipConfirmation) {
-    executeClearAll();
-  } else {
-    showClearAllConfirmation.value = true;
-  }
-}
-
-function executeClearAll() {
-  actionsStore.clearAll();
-  showClearAllConfirmation.value = false;
 }
 
 /**
@@ -1894,7 +745,7 @@ async function startFromScratch() {
     await initStartFromScratch();
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = plainError(e, "Couldn't reset. Try again.");
+    error.value = e instanceof Error ? e.message : 'Reset failed';
     console.error('Start from Scratch error:', e);
   }
 }
@@ -1943,222 +794,72 @@ async function handleRefreshReconcile() {
   }
 }
 
-/**
- * After a failed fetch, rebuild the planner from the last save that DID load (fetchBackup keeps it on
- * this device), so the older save and the plan built from it match -- rather than leaving a plan from
- * one load beside a save from another. That mismatch is how a player at 170 TE was shown 147.
- */
-async function planFromLastGoodSave(): Promise<void> {
-  const older = initialStateStore.rawBackup;
-  if (!playerId.value || !older) return;
-  try {
-    await initPlanFuture(playerId.value, older);
-  } catch (e) {
-    console.error('Could not rebuild the planner from the saved copy:', e);
-  }
-}
-
-/** The fetch error in words a player can act on. The raw one names the forwarder's URL. */
-function backupFailureReason(e: unknown): string {
-  if (e instanceof SaveLoadError)
-    return e.kind === 'not-found'
-      ? "the game's server has no account under that player ID"
-      : "the game's server couldn't be reached or sent nothing back";
-  const msg = e instanceof Error ? e.message : String(e);
-  if (/timeout|timed out/i.test(msg)) return "the game's server didn't answer in time";
-  if (/failed to fetch|network|load failed/i.test(msg)) return "the game's server couldn't be reached";
-  // Never the error itself: it names the forwarder's URL (the Words audit's S76).
-  return isRawError(e) ? 'something went wrong on the way' : msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
-}
-
-// IntegrityNotice's "Try again". Only initPlanFuture clears the warning: it is the one path that also
-// rebuilds the plan snapshot the TE is read from (the header's reconcile refresh loads a save but
-// leaves that snapshot as it was).
-watch(
-  () => uiStore.backupRetryRequested,
-  () => void handleAutoPlannerTabClick()
-);
-
-/** Opening the Auto Planner collapses the header, unless there's no player ID or no save loaded yet:
- *  the header is where the player enters one (Joo's d574c3b7). */
+/** Opening a tab collapses the header, unless there's no EID or no backup loaded yet: the header is
+ *  where the player enters one (a tab opened straight from its URL can arrive without either). */
 function collapseHeaderIfPlayerLoaded() {
-  // Not when the player opened the top menu themselves and left it open (ui store `headerKeptOpen`).
-  if (playerId.value && initialStateStore.rawBackup && !uiStore.headerKeptOpen) isHeaderCollapsed.value = true;
-}
-/** The chevron: open or fold the top menu; an open one is kept open through the automatic collapses. */
-function toggleHeader() {
-  isHeaderCollapsed.value = !isHeaderCollapsed.value;
-  uiStore.setHeaderKeptOpen(!isHeaderCollapsed.value);
+  if (playerId.value && initialStateStore.rawBackup) isHeaderCollapsed.value = true;
 }
 
 async function handleAutoPlannerTabClick() {
   plannerTab.value = 'automatic';
   collapseHeaderIfPlayerLoaded();
-  await prepareAutoPlanner();
-  // Collapse the header now if it stayed open for want of a save.
-  if (plannerTab.value === 'automatic') collapseHeaderIfPlayerLoaded();
-}
 
-/**
- * Fetch a fresh save and set the planner up from it for the searches ("Plan Future" mode, zeroed
- * farm): what entering the Auto Planner does, and what a Science sweep does before showing its
- * figures (SweepRunner.vue). Resolves to '' when the planner is ready, else why not. A failed fetch
- * falls back to the last good save, and IntegrityNotice says so beside Start.
- */
-async function prepareAutoPlanner(): Promise<string> {
-  if (!playerId.value) return 'Enter your player ID at the top of the page first.';
-  // Never under a search that is running: it is pricing against the planner as it is.
-  if (searchActive.value) return 'A search is running. Let it finish or stop it first.';
-  if (loading.value) return 'Your save is still loading. Try again in a moment.';
-  loading.value = true;
-  try {
-    await initPlanFuture(playerId.value);
-    uiStore.staleBackup = null;
-    // A Try again that worked: the "Couldn't load your latest save." line goes with the button (QA 24 Oct 2026).
-    error.value = errorAfterSaveLoaded(error.value);
-    // Back from a run's own older save: its pinned start belongs to that save, not this one.
-    if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
-    uiStore.runSaveLoaded = null;
-    return '';
-  } catch (e) {
-    console.error('Failed to auto-init Auto Planner:', e);
-    error.value = LATEST_SAVE_FAILED;
-    uiStore.staleBackup = backupFailureReason(e);
-    await planFromLastGoodSave();
-    return initialStateStore.rawBackup ? '' : `Your save could not be loaded: ${uiStore.staleBackup}.`;
-  } finally {
-    loading.value = false;
+  if (playerId.value && !loading.value) {
+    loading.value = true;
+    try {
+      // Fetch fresh backup and initialize for "Plan Future" mode (zeroed farm)
+      await initPlanFuture(playerId.value);
+      // Collapse the header now if it stayed open for want of a backup.
+      if (plannerTab.value === 'automatic') collapseHeaderIfPlayerLoaded();
+    } catch (e) {
+      console.error('Failed to auto-init Auto Planner:', e);
+      error.value = 'Failed to load fresh backup for Auto Planner.';
+    } finally {
+      loading.value = false;
+    }
   }
 }
 
-/** My runs' "Load a fresh one": the same fresh save as entering the Auto Planner, staying on My runs. */
-function loadFreshSave(): void {
-  void prepareAutoPlanner();
+/** The Chain Finder starts from the player's latest backup, so switching to it fetches one (for that tab
+ *  only: the rest of the page keeps the save it loaded). */
+function handleChainFinderTabClick() {
+  plannerTab.value = 'chainFinder';
+  collapseHeaderIfChainFinderReady();
+  chainFinderStore.refreshBackup().then(() => {
+    if (plannerTab.value === 'chainFinder') collapseHeaderIfChainFinderReady();
+  });
 }
 
-/**
- * My runs reads everything from the save, so it needs one LOADED into the stores. On a page load they hold the
- * Manual planner's restored draft instead (initPersistence -> importPlan -> hydrate: no save time, and the TE
- * and egg of whenever that plan was made) beside the last fetched save: the strip said "No save loaded" and the
- * board's look-alike rule read the draft's TE (fix 20). So on My runs, with no save loaded into the stores, load
- * one the way entering the Auto Planner does (prepareAutoPlanner: a fresh save, else the stored one). After the
- * page's own restore (onMounted ends with it), at most once per account per page visit (a Manual plan opened
- * later from the library is never reset by a tab click: the strip's "Load your save" is there), never under a
- * search or over a save the player picked.
- *
- * An account switch (submitPlayerId) DOES load the save into the stores, but the 'default' way: the pending Truth
- * Eggs not rolled up (the TE is the claimed one) and the farm caught up to now. My runs reads its TE and eggs from
- * the save itself (useNowPage), but the instant answer's key and the gear sets need the stores set up as Fastest
- * and By a date have them, so then it sets them up from the save already in hand (no second fetch; fix 21).
- */
-const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);
-/** The stores hold the loaded save set up the Auto Planner's way: its own time, its pending TE rolled up (or this
- *  account's starting-TE override put back over it: lib/teOverrideAccount.ts). */
-const storesSetUpFromSave = computed(
-  () =>
-    storesFromSave.value &&
-    initialStateStore.lastBackupTime === backupSecondsOf(initialStateStore.rawBackup) &&
-    chainSearchStore.currentTE === plannerStartTEOf(initialStateStore.rawBackup)
-);
-let myRunsReady = false;
-let myRunsLoadFor = '';
-function loadSaveForMyRuns(): void {
-  if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesSetUpFromSave.value) return;
-  // Once per account and save time: a newer save (the header's refresh, a stale tab) is set up again, a failed
-  // set-up isn't retried.
-  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;
-  if (myRunsLoadFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;
-  myRunsLoadFor = forSave;
-  const raw = initialStateStore.rawBackup;
-  const inHand =
-    storesFromSave.value &&
-    !!raw &&
-    raw.eiUserId === playerId.value &&
-    initialStateStore.lastBackupTime === backupSecondsOf(raw);
-  void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
+/** The Chain Finder can run on the backup it fetched for itself, so that counts as loaded here too. */
+function collapseHeaderIfChainFinderReady() {
+  if (playerId.value && chainFinderStore.backup) isHeaderCollapsed.value = true;
 }
-/** initPlanFuture from the save already loaded (an account switch just fetched it). */
-async function setUpFromSaveInHand(): Promise<void> {
-  const raw = initialStateStore.rawBackup;
-  if (!playerId.value || !raw || loading.value) return;
-  loading.value = true;
-  try {
-    // The save the account switch fetched a moment ago: a fresh one.
-    await initPlanFuture(playerId.value, raw, 'fresh');
-  } catch (e) {
-    console.error('Could not set the planner up from the loaded save:', e);
-  } finally {
-    loading.value = false;
-  }
-}
-/**
- * My runs' Build-up tracker Try again while the stores are not this save's (QA review 7 Nov 2026 #5): the set-up of
- * this account and save time forgotten and asked for once more. Called by the press only, so a set-up that still
- * cannot match is asked once per press, never in a loop (`loadSaveForMyRuns` keeps its once-per-save guard).
- */
-function setUpAgainForMyRuns(): void {
-  myRunsLoadFor = '';
-  loadSaveForMyRuns();
-}
-// A switch back to an account counts again (its stores were loaded the switch's way). A set-up put off by a running
-// search or a picked save is looked at again when that ends (spec-overridestart, 7 Nov 2026).
-watch(playerId, () => (myRunsLoadFor = ''));
-watch([plannerTab, playerId, loading, storesSetUpFromSave, searchActive, () => uiStore.runSaveLoaded], loadSaveForMyRuns);
 
-/**
- * The same for the Auto Planner, whose instant answer waits for the save set up the Auto Planner's way
- * (chainSearch `startWait`, search/startProvenance.ts). The tab click and links set it up (goTo, initAutoOnce),
- * but a way in that skips them (the Leaderboard's "use this route", an account switched while on the tab) can
- * leave the stores as a restored draft or a switch's quick load, and the answer would wait for good; so can a
- * newer save loaded underneath without a set-up (the header's refresh, a stale tab). So set them up then: from the
- * save in hand after a switch, else as entering the Auto Planner does. Once per account and save, after the page's
- * own restore, never under a search or over a save the player picked.
- *
- * And after a Manual plan is opened from the library or a file (spec-manualleak, 28 Oct 2026): it fills the same
- * stores with its own start and a redacted save with no time ('no-save'), which nothing set up again, so the Auto
- * Planner sat on the plan's start (search/saveStart.ts `needsSaveSetUp`). Once per plan opened, and again when a
- * search that was running ends (it held the stores as they were).
- */
-let autoSetUpFor = '';
-/** Manual plans opened (initialState `hydrate`), so each one is set up again once. Counted here, on our side. */
-let plansOpened = 0;
-initialStateStore.$onAction(({ name }) => {
-  if (name === 'hydrate') plansOpened++;
+/** The Table Builder doesn't use the player's plan or backup, so switching to it loads nothing either. */
+function handleTableBuilderTabClick() {
+  plannerTab.value = 'tableBuilder';
+  collapseHeaderIfPlayerLoaded();
+}
+
+/** Open a tab the way clicking it does (the Auto Planner sets itself up on the way in). */
+function openTab(tab: PlannerTab) {
+  if (tab === 'automatic') handleAutoPlannerTabClick();
+  else if (tab === 'chainFinder') handleChainFinderTabClick();
+  else if (tab === 'tableBuilder') handleTableBuilderTabClick();
+  else plannerTab.value = 'manual';
+}
+
+// The open tab lives in the URL (`?tab=`, stores/ui.ts), so a refresh or a shared link keeps it. Each
+// change is a history entry, so Back and Forward move between tabs.
+watch(plannerTab, tab => {
+  const search = searchWithTab(window.location.search, tab);
+  if (search !== window.location.search)
+    history.pushState(history.state, '', `${window.location.pathname}${search}${window.location.hash}`);
 });
-function setUpForInstantAnswer(): void {
-  if (!myRunsReady || plannerTab.value !== 'automatic' || !playerId.value || loading.value) return;
-  const wait = chainSearchStore.startWait;
-  if (!needsSaveSetUp(wait, initialStateStore.setupSource)) return;
-  // Once per account, save and plan opened: a newer save loaded underneath (a stale tab) is set up again, a failed
-  // set-up isn't retried.
-  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}|${plansOpened}`;
-  if (autoSetUpFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;
-  autoSetUpFor = forSave;
-  const raw = initialStateStore.rawBackup;
-  const inHand = wait === 'switch' && !!raw && raw.eiUserId === playerId.value;
-  void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
-}
-watch(playerId, () => (autoSetUpFor = ''));
-watch([plannerTab, playerId, loading, () => chainSearchStore.startWait, searchActive], setUpForInstantAnswer);
-
-/** What we need to check's Run this sweep, on the Science tab: open its window. */
-function openSweep(request: SweepRequest): void {
-  uiStore.scienceSweep = request;
-}
-/** A By a date ask's button, on the Science tab: open that screen with the ask filled in (DeadlinePanel
- *  applies it). Under a running search the screen opens as it is: that search owns the boxes. */
-function openByDate(request: ByDateRequest): void {
-  if (!searchActive.value) uiStore.byDateRequest = request;
-  goAuto('by-date');
-}
-function sweepKey(r: SweepRequest): string {
-  return `${r.preset}|${r.bands}|${r.minGap}|${r.firstAscension}`;
-}
-/** The window's "See it in the Full sweep": the result is the store's, so that screen has it all. */
-function showSweepResult(): void {
-  uiStore.scienceSweep = null;
-  goAuto('fastest', 'full');
-}
+window.addEventListener('popstate', () => {
+  const tab = tabFromSearch(window.location.search);
+  if (tab !== plannerTab.value) openTab(tab);
+});
 
 /**
  * Load player data from the server when the player ID form is submitted.
@@ -2166,65 +867,23 @@ function showSweepResult(): void {
  * mode buttons become usable and player info is displayed.
  */
 async function submitPlayerId(id: string) {
-  // "ei…" is the same ID as "EI…" (the follow key upper-cases it too); the shared check takes upper case only.
-  id = upperCaseIdPrefix(id).trim();
-  if (loading.value && loadingSaveFor === id) return;
-  // The stand-in from a downloaded save is no account (lib/saveScrub.ts): never fetched, saved or shown as one.
-  if (isPlaceholderId(id)) {
-    error.value = PLACEHOLDER_ID_ENTERED;
-    loadRetry.value = null;
-    // The box editable again, the stand-in gone from it (it was left read-only until a reload).
-    resetIdBox();
-    return;
-  }
-  loadingSaveFor = id;
-  error.value = '';
-  loadRetry.value = null;
-  loading.value = true;
-
-  // The save first, and nothing changed until it is in (QA's break-it #1, 22 Oct 2026): the stores used to be
-  // cleared before the fetch, so an empty or hung answer left a made-up default account on the page, with the
-  // raw TypeError beside it. Now a failed load says so in plain words, with Try again, and whatever account
-  // was loaded stays exactly as it was (lib/saveLoad.ts).
-  let backup: import('lib').ei.IBackup;
-  try {
-    ({ backup } = await requestSave(id));
-    resolveColleggtibleContracts(backup);
-  } catch (e) {
-    if (loadingSaveFor !== id) return;
-    loadingSaveFor = '';
-    loading.value = false;
-    failLoad(id, e instanceof SaveLoadError ? e.message : SAVE_UNREACHABLE);
-    console.error('Error fetching player data:', e);
-    return;
-  }
-  if (loadingSaveFor !== id) return;
-  loadingSaveFor = '';
-
   playerId.value = id;
-  // My runs sets this save up again (loadSaveForMyRuns), even for the same ID: this load leaves the pending Truth Eggs
-  // not rolled up, and a save with a TE not claimed yet then never matched (spec-webkit-tracker, 7 Nov 2026).
-  myRunsLoadFor = '';
   savePlayerID(id);
-  // An account now: a save file loaded without one gives way to this account's own save (set up as on entering).
-  if (uiStore.runSaveLoaded?.noAccount) uiStore.runSaveLoaded = null;
-  // The saved ID is this account now: a link's ID kept for this tab (lib/urlPlayerId.ts) would otherwise
-  // take a reload back to the link's account after the player had entered their own.
-  forgetLinkPlayerId();
+  error.value = '';
+  loading.value = true;
   notesStore.$reset();
 
   try {
     // Clear existing plan to ensure a fresh start with new player data
     // We skip recalculate because setInitialSnapshot will trigger it at the end of this function.
     await actionsStore.clearAll(undefined, true);
-    // The account's draft (the playerId watcher) lands before the new snapshot, as it did when the fetch
-    // sat here.
-    await persistenceInit;
+
+    const data = await requestFirstContact(id);
+    const backup = data.backup!;
+    resolveColleggtibleContracts(backup);
 
     try {
       const pHash = await hashID(id);
-      // The server's save time is this save's now (lib/serverSave.ts: My runs' strip, no quiet check needed).
-      noteServerSave(pHash, backup);
       await saveMetadata(pHash, 'rawBackup', backup);
     } catch (dbErr) {
       console.error('Failed to save raw backup to DB', dbErr);
@@ -2248,68 +907,9 @@ async function submitPlayerId(id: string) {
     loading.value = false;
   } catch (e) {
     loading.value = false;
-    failLoad(id, SAVE_SET_UP_FAILED);
-    console.error('Error setting up player data:', e);
-    return;
+    error.value = e instanceof Error ? e.message : 'Failed to load player data';
+    console.error('Error fetching player data:', e);
   }
-  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Highest TE by a
-  // date with Egg Day picked, rather than the Manual Planner. Once only; a returning player keeps their tab.
-  if (newPlayerLanding) {
-    newPlayerLanding = false;
-    if (plannerTab.value === 'manual') {
-      presetByDate({ eggDay: true });
-      applyRoute(FIRST_LOAD_ROUTE);
-    }
-  }
-  // A player id typed on a link into the Auto Planner: same set-up as the tab click.
-  await initAutoOnce();
-}
-
-/**
- * Try to determine which artifact set they have on based on stones.
- */
-function detectArtifactSet(loadout: import('@/lib/artifacts').EquippedArtifact[]): 'earnings' | 'elr' | null {
-  let totalSlots = 0;
-  const allStones: string[] = [];
-
-  for (const slot of loadout) {
-    if (slot.artifactId) {
-      const artifact = getArtifact(slot.artifactId);
-      if (artifact) {
-        totalSlots += artifact.slots;
-      }
-    }
-    for (const stoneId of slot.stones) {
-      if (stoneId) {
-        allStones.push(stoneId);
-      }
-    }
-  }
-
-  // 1. If their artifact set has at least 3 stone slots, we can try to determine which set it is
-  if (totalSlots < 3) {
-    return null;
-  }
-
-  // If no stones are equipped, we can't reliably determine the set
-  if (allStones.length === 0) {
-    return null;
-  }
-
-  const isLunar = (id: string) => id.startsWith('lunar-stone-');
-  const isELR = (id: string) => id.startsWith('quantum-stone-') || id.startsWith('tachyon-stone-');
-
-  // 2. If all the stones are lunar stones, it's the earnings set
-  if (allStones.every(isLunar)) {
-    return 'earnings';
-  }
-
-  // 3. If all the stones are either quantum or tachyon, it's the elr set
-  if (allStones.every(isELR)) {
-    return 'elr';
-  }
-
-  return null;
 }
 
 async function triggerQuickContinue() {
@@ -2318,7 +918,9 @@ async function triggerQuickContinue() {
   error.value = '';
 
   try {
-    const { backup } = await requestSave(playerId.value);
+    const data = await requestFirstContact(playerId.value);
+    if (!data.backup) throw new Error('Could not fetch player backup');
+    const backup = data.backup;
     resolveColleggtibleContracts(backup);
 
     const loadout = getArtifactLoadoutFromBackup(backup);
@@ -2332,7 +934,7 @@ async function triggerQuickContinue() {
     }
   } catch (e) {
     loading.value = false;
-    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
+    error.value = e instanceof Error ? e.message : 'Quick Continue failed';
     console.error('Quick Continue error:', e);
   }
 }
@@ -2355,7 +957,7 @@ async function quickContinueAscension(selection: 'earnings' | 'elr') {
     await initContinueCurrent(playerId.value, selection);
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
+    error.value = e instanceof Error ? e.message : 'Quick Continue failed';
     console.error('Quick Continue error:', e);
   } finally {
     loading.value = false;
@@ -2377,75 +979,38 @@ async function planNextAscension() {
     plannerTab.value = 'manual';
     savePlayerID(playerId.value);
     await initPlanFuture(playerId.value);
-    uiStore.staleBackup = null;
-    if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
-    uiStore.runSaveLoaded = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = plainError(e, "Couldn't plan your next ascension. Try again.");
-    uiStore.staleBackup = backupFailureReason(e);
-    await planFromLastGoodSave();
+    error.value = e instanceof Error ? e.message : 'Plan Next failed';
     console.error('Plan Next Ascension error:', e);
   } finally {
     loading.value = false;
   }
 }
 
-async function saveCurrentPlan() {
-  if (!partitionHash.value) return;
+const { saveCurrentPlan, savePlanAs } = usePlanSaving(partitionHash);
 
-  if (actionsStore.activePlanId) {
-    const { safeImport } = await import('lib/planners/import');
-    const plans = await (await safeImport(() => import('@/lib/storage/db'))).loadLibraryPlans(partitionHash.value!);
-    const current = plans.find(p => p.id === actionsStore.activePlanId);
-    if (current) {
-      await actionsStore.savePlan(current.name, partitionHash.value);
-      return;
-    }
-  }
-
-  // Prompt for name if no active plan
-  const name = prompt('Enter a name for this plan:');
-  if (name) {
-    await actionsStore.savePlan(name, partitionHash.value);
-  }
-}
-
-async function savePlanAs() {
-  if (!partitionHash.value) return;
-  const name = prompt('Enter a new name for this plan:');
-  if (name) {
-    // Reset ID to trigger a new save
-    const tempId = actionsStore.activePlanId;
-    actionsStore.activePlanId = null;
-    try {
-      await actionsStore.savePlan(name, partitionHash.value);
-    } catch (err) {
-      actionsStore.activePlanId = tempId;
-      alert('Save failed: ' + err);
-    }
-  }
-}
-
-// Chevron for the collapsible sections. A render function, not a `template:` string: the app ships
-// Vue's runtime-only build, which cannot compile a template at runtime and renders such a component
-// as an empty comment, so the collapse buttons had no visible icon at all.
-const ChevronIcon: FunctionalComponent<{ expanded?: boolean }> = props =>
-  h(
-    'svg',
-    {
-      class: ['w-5 h-5 text-gray-400 transition-transform', { 'rotate-180': props.expanded }],
-      fill: 'none',
-      stroke: 'currentColor',
-      viewBox: '0 0 24 24',
-      'aria-hidden': 'true',
-    },
-    [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 9l-7 7-7-7' })]
-  );
-ChevronIcon.props = { expanded: Boolean };
+// Chevron icon component
+const ChevronIcon = {
+  props: { expanded: Boolean },
+  template: `
+    <svg
+      class="w-5 h-5 text-gray-400 transition-transform"
+      :class="{ 'rotate-180': expanded }"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  `,
+};
 </script>
 
 <style scoped>
+.heading-xl {
+  @apply text-3xl md:text-4xl font-black uppercase tracking-tighter;
+}
 .text-gradient {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   -webkit-background-clip: text;
@@ -2455,34 +1020,12 @@ ChevronIcon.props = { expanded: Boolean };
   @apply bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500;
 }
 .btn-premium {
-  @apply rounded-xl font-bold text-body transition-all duration-300 flex items-center justify-center gap-2;
+  @apply rounded-xl font-black uppercase tracking-widest text-[10px] transition-all duration-300 flex items-center justify-center gap-2;
 }
 .btn-primary {
   @apply bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95;
 }
 .btn-ghost {
   @apply bg-transparent hover:bg-slate-50 border border-slate-100;
-}
-</style>
-
-<style>
-/* The shared nav bar's home and menu icons (ui/components/NavBar.vue, 20 x 20 px in a bar with 12 px padding): on a
-   phone each gets a 44 x 44 px tap area (UX review 26 Oct 2026, #12), drawn by an invisible ::before 12 px round the
-   icon, so the icons, the bar's height and the menu's green dot stay as they are. The menu moves 12 px further right
-   so the two areas never overlap. Not scoped: the bar is another component's markup. */
-@media (max-width: 639.98px) {
-  .aap-navbar nav > div > a,
-  .aap-navbar nav > div > button {
-    position: relative;
-  }
-  .aap-navbar nav > div > a::before,
-  .aap-navbar nav > div > button::before {
-    content: '';
-    position: absolute;
-    inset: -12px;
-  }
-  .aap-navbar nav > div > a + button {
-    margin-left: 1.5rem !important;
-  }
 }
 </style>

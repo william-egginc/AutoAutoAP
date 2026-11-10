@@ -30,12 +30,12 @@ import { createPinia, setActivePinia } from 'pinia';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
-import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { createBaseEngineState, getSimulationContext } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { createChainEvaluator } from './chain';
 import { isAvailable } from './availability';
 import type { SearchInputs } from './types';
@@ -68,7 +68,7 @@ describe.skipIf(!hasFixture)('chain evaluator (blind_main fixture)', () => {
     loadAndSyncBackup('file', backup, 'plan_next');
     rollUpPendingTE();
 
-    const virtueStore = useVirtueStore();
+    const virtueStore = usePlanStore();
     virtueStore.resetToCurrentDateTime();
     virtueStore.setBankValue(0);
     virtueStore.setCurrentEgg('curiosity');

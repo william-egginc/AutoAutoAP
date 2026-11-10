@@ -1,5 +1,5 @@
 import { type Action, generateActionId } from '@/types/actions/meta';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { timeToEarnTE } from './te-thresholds';
@@ -22,7 +22,7 @@ import { runC4, runI2, runR2, runH2, runTEWaitShift, distributeTargetTE, solveTE
 import { runMaxVehiclesPlan } from './shifts/helpers/vehicles';
 import { countSalesThrough, isResearchSaleActive, isEarningsBoostActive } from 'lib/planners/events';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
-import { computeRealisticELR } from '@/calculations/realisticELR';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
 import { calculateEggValue } from '@/calculations/eggValue';
 import { calculateEarnings } from '@/calculations/earnings';
 import { getTiers, isTierUnlocked } from '@/calculations/commonResearch';
@@ -30,6 +30,8 @@ import type { VirtueEgg } from '@/types';
 import { getHabById, type HabId } from '@/lib/habs';
 import { getVehicleType } from '@/lib/vehicles';
 import { DEBUG_SHIFT_TIMING } from 'lib/planners/debugFlags';
+import type { BuildStep } from './buildStep';
+import { farmStateOf } from './continueState';
 
 function logShiftTimings(label: string, timings: { name: string; ms: number }[]): void {
   if (!DEBUG_SHIFT_TIMING) return;
@@ -44,6 +46,43 @@ function computeLastTEDuration(finalTE: Record<VirtueEgg, number>, peakELR: numb
   if (maxTE <= 0 || peakELR <= 0) return 0;
   const prevEggs = maxTE > 1 ? getThresholdForTE(maxTE - 1) : 0;
   return timeToEarnTE(prevEggs, peakELR, 1);
+}
+
+/**
+ * The `start_ascension` action a plan starting from `state` at unix second `startTime` leads with.
+ * `fromFarm` (Continue): the plan starts from `state`'s farm rather than an empty one, which the
+ * action carries (`farmStateOf`) so the plan replays from it when loaded elsewhere.
+ */
+export function startAscensionAction(
+  state: EngineState,
+  context: SimulationContext,
+  startTime: number,
+  fromFarm = false
+): Action {
+  return {
+    id: generateActionId(),
+    index: 0,
+    timestamp: startTime * 1000,
+    type: 'start_ascension',
+    payload: {
+      initialEgg: state.currentEgg as VirtueEgg,
+      ...(fromFarm ? { initialFarmState: farmStateOf(state) } : {}),
+    },
+    cost: 0,
+    elrDelta: 0,
+    offlineEarningsDelta: 0,
+    eggValueDelta: 0,
+    habCapacityDelta: 0,
+    layRateDelta: 0,
+    shippingCapacityDelta: 0,
+    ihrDelta: 0,
+    bankDelta: 0,
+    populationDelta: 0,
+    totalTimeSeconds: 0,
+    endState: computeSnapshot(state, context),
+    dependsOn: [],
+    dependents: [],
+  };
 }
 
 /**
@@ -186,7 +225,8 @@ export type OpeningRun = ShiftResult & { shiftTimings: { name: string; ms: numbe
  *  - K: vehicles.
  *  - I: the best habs reachable within I1's 4-hour cap (see `runI1`), or `finalI1TimeLimit` for
  *    the last I in `visits`.
- * Any visit but the ascension's first C1 is skipped if it wouldn't buy anything.
+ * Any visit but the run's first is skipped if it wouldn't buy anything. `equipEarningsSet: false`
+ * keeps a first C1 from equipping the earnings set (Continue equips the player's own gear instead).
  * `base` is left untouched (its end state is deep-copied), so one run can be the shared prefix of
  * several longer ones. The returned `shiftTimings` cover only the new visits; `label` prefixes them.
  */
@@ -195,7 +235,7 @@ function continueOpening(
   visits: string,
   context: SimulationContext,
   label: string,
-  { c1TimeLimit = 1800, finalI1TimeLimit = I1_TIME_LIMIT_SECONDS } = {}
+  { c1TimeLimit = 1800, finalI1TimeLimit = I1_TIME_LIMIT_SECONDS, equipEarningsSet = true } = {}
 ): OpeningRun {
   const actions: Action[] = [...base.actions];
   let elapsedSeconds = base.elapsedSeconds;
@@ -215,16 +255,18 @@ function continueOpening(
   // the shift back to Curiosity, plus any research-sale toggle. Only the ascension's first C1
   // equips the earnings set; later visits are already wearing it.
   const runC1Visit = (state: EngineState, isFirstVisit: boolean): ShiftResult => {
-    if (state.currentEgg === 'curiosity') return runC1(state, context, c1TimeLimit, undefined, isFirstVisit);
+    const equip = isFirstVisit && equipEarningsSet;
+    if (state.currentEgg === 'curiosity') return runC1(state, context, c1TimeLimit, undefined, equip);
     const shifted = applyShiftAction(state, context, 'curiosity');
-    const c1 = runC1(shifted.state, context, c1TimeLimit, undefined, isFirstVisit);
+    const c1 = runC1(shifted.state, context, c1TimeLimit, undefined, equip);
     const leading = shifted.saleToggleAction ? [shifted.action, shifted.saleToggleAction] : [shifted.action];
     return { ...c1, actions: [...leading, ...c1.actions] };
   };
 
   const lastIIndex = visits.lastIndexOf('I');
   [...visits].forEach((visit, i) => {
-    // Only the ascension's first C1 is always kept: it equips the earnings set and has no shift.
+    // Only the run's first visit is always kept: from an empty farm that's C1, which equips the
+    // earnings set and has no shift; for Continue it's the step the player is on.
     const isFirstVisit = actions.length === 0;
     const name = visit === 'C' ? 'C1' : visit === 'K' ? 'K1' : 'I1';
     // The player's hours (auto/hold.ts): a visit that shifts waits for them, the farm laying the egg
@@ -303,10 +345,20 @@ function compareOpenings(a: ScoredOpening, b: ScoredOpening): number {
  * Openings sharing a first round reuse it rather than re-simulating — the CKI... paths continue
  * from the first pass itself, the CIK... paths from one shared CIK run — since every shift is
  * deterministic given its input state.
+ *
+ * `from` 'K' or 'I' (Continue, from a farm part-way through its opening) starts the first pass
+ * there instead — K1 -> I1, or I1 alone — and its fallbacks are that pass followed by a second CKI
+ * or CIK round, with the same second-C1 budgets and final-I cap.
  */
-function runC1K1I1Segment(startState: EngineState, context: SimulationContext): OpeningRun {
+function runC1K1I1Segment(
+  startState: EngineState,
+  context: SimulationContext,
+  from: 'C' | 'K' | 'I' = 'C',
+  equipEarningsSet = true
+): OpeningRun {
   const empty: OpeningRun = { actions: [], elapsedSeconds: 0, endState: startState, shiftTimings: [] };
-  const firstPass = continueOpening(empty, 'CKI', context, 'CKI');
+  const firstVisits = 'CKI'.slice('CKI'.indexOf(from));
+  const firstPass = continueOpening(empty, firstVisits, context, firstVisits, { equipEarningsSet });
   if (habsMaxed(firstPass.endState)) return firstPass;
 
   // OPENING SWITCH (auto/lowTeOpening.ts `openingFallback`): which opening a build takes when one
@@ -314,15 +366,17 @@ function runC1K1I1Segment(startState: EngineState, context: SimulationContext): 
   // the habs max (PR 717). 'v2': Joo's fallback openings below, picked by `compareOpenings`.
   if (openingFallback(context) === 'rounds') return continueOpeningRounds(firstPass, context, 2);
 
-  const firstRounds: Record<string, OpeningRun> = {
-    CKI: firstPass,
-    CIK: continueOpening(empty, 'CIK', context, 'CIK'),
-  };
-  const candidates = FALLBACK_OPENINGS.flatMap(order =>
+  const firstRounds: Record<string, OpeningRun> =
+    from === 'C'
+      ? { CKI: firstPass, CIK: continueOpening(empty, 'CIK', context, 'CIK', { equipEarningsSet }) }
+      : { [firstVisits]: firstPass };
+  const orders = from === 'C' ? FALLBACK_OPENINGS : ['CKI', 'CIK'].map(round => firstVisits + round);
+  const firstLength = from === 'C' ? 3 : firstVisits.length;
+  const candidates = orders.flatMap(order =>
     SECOND_C1_TIME_LIMITS_SECONDS.map(c1TimeLimit => {
       const run = continueOpening(
-        firstRounds[order.slice(0, 3)],
-        order.slice(3),
+        firstRounds[order.slice(0, firstLength)],
+        order.slice(firstLength),
         context,
         `${order} (second C1 ${c1TimeLimit / 60}m)`,
         { c1TimeLimit, finalI1TimeLimit: FINAL_I1_TIME_LIMIT_SECONDS }
@@ -334,7 +388,7 @@ function runC1K1I1Segment(startState: EngineState, context: SimulationContext): 
   // Marks the build as one whose opening needed more than one round (EngineState.lowTeOpening).
   best.endState.lowTeOpening = 2;
   // Keep every simulated visit's timing (not just the winner's) so the debug log shows the full cost.
-  const allRuns = [firstPass, firstRounds.CIK, ...candidates.map(c => c.run)];
+  const allRuns = [...Object.values(firstRounds), ...candidates.map(c => c.run)];
   return { ...best, shiftTimings: allRuns.flatMap(r => r.shiftTimings) };
 }
 
@@ -366,11 +420,16 @@ export function continueOpeningRounds(base: OpeningRun, context: SimulationConte
 /**
  * Runs the simulation until a specific shift name is reached.
  * Useful for precomputing common phases or debugging.
+ *
+ * `from` (Continue) starts at that build step instead of an empty farm's C1: a C1/K1/I1 step runs
+ * the opening from there (see `runC1K1I1Segment`); a C2/K2/R1 step skips the opening and the shifts
+ * before it. `equipEarningsSet: false` keeps the opening's C1 from equipping the earnings set.
  */
 export function runUntilShift(
   startState: EngineState,
   context: SimulationContext,
-  stopBeforeShift: string
+  stopBeforeShift: string,
+  { from = 'C1', equipEarningsSet = true }: { from?: Exclude<BuildStep, 'C3'>; equipEarningsSet?: boolean } = {}
 ) {
   let currentState = JSON.parse(JSON.stringify(startState));
   let currentActions: Action[] = [];
@@ -389,8 +448,9 @@ export function runUntilShift(
     );
   }
 
-  {
-    const segmentResult = runC1K1I1Segment(currentState, context);
+  const inOpening = from === 'C1' || from === 'K1' || from === 'I1';
+  if (inOpening) {
+    const segmentResult = runC1K1I1Segment(currentState, context, from[0] as 'C' | 'K' | 'I', equipEarningsSet);
     shiftTimings.push(...segmentResult.shiftTimings);
 
     currentActions.push(...segmentResult.actions);
@@ -398,8 +458,11 @@ export function runUntilShift(
     totalElapsedSeconds += segmentResult.elapsedSeconds;
   }
 
+  let skipping = !inOpening;
   for (const shift of allShifts) {
     if (shift.name === stopBeforeShift) break;
+    if (skipping && shift.name !== from) continue;
+    skipping = false;
     // The player's hours (auto/hold.ts): the shift waits for them, the farm laying the egg it is on.
     // Dropped together with a shift that is dropped for buying nothing.
     const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
@@ -711,29 +774,7 @@ export function runAscension(
 
   // Prepend start action if not resuming
   if (!resumeData) {
-    const startSnapshot = computeSnapshot(actualStartState, context);
-    const startAction: Action = {
-      id: generateActionId(),
-      index: 0,
-      timestamp: startTime * 1000,
-      type: 'start_ascension',
-      payload: { initialEgg: actualStartState.currentEgg as VirtueEgg },
-      cost: 0,
-      elrDelta: 0,
-      offlineEarningsDelta: 0,
-      eggValueDelta: 0,
-      habCapacityDelta: 0,
-      layRateDelta: 0,
-      shippingCapacityDelta: 0,
-      ihrDelta: 0,
-      bankDelta: 0,
-      populationDelta: 0,
-      totalTimeSeconds: 0,
-      endState: startSnapshot,
-      dependsOn: [],
-      dependents: [],
-    };
-    currentActions.unshift(startAction);
+    currentActions.unshift(startAscensionAction(actualStartState, context, startTime));
   }
 
   // Ensure indices are correct
@@ -994,29 +1035,7 @@ export function runContinueCurrent(
   // we might end on a different egg. The TE wait shifts handle this via their shift logic.
 
   // Prepend start action
-  const startSnapshot = computeSnapshot(actualStartState, context);
-  const startAction: Action = {
-    id: generateActionId(),
-    index: 0,
-    timestamp: startTime * 1000,
-    type: 'start_ascension',
-    payload: { initialEgg: actualStartState.currentEgg as VirtueEgg },
-    cost: 0,
-    elrDelta: 0,
-    offlineEarningsDelta: 0,
-    eggValueDelta: 0,
-    habCapacityDelta: 0,
-    layRateDelta: 0,
-    shippingCapacityDelta: 0,
-    ihrDelta: 0,
-    bankDelta: 0,
-    populationDelta: 0,
-    totalTimeSeconds: 0,
-    endState: startSnapshot,
-    dependsOn: [],
-    dependents: [],
-  };
-  currentActions.unshift(startAction);
+  currentActions.unshift(startAscensionAction(actualStartState, context, startTime, true));
 
   // Fix indices
   currentActions.forEach((a, idx) => {

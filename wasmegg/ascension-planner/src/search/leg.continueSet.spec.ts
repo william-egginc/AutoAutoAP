@@ -26,7 +26,7 @@ import { syntheticBackup, syntheticInputs } from '@/test/syntheticSave';
 import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
 import { sameSet } from '@/lib/gearMatch';
 import { getCommonResearches } from '@/calculations/commonResearch';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { buildUpStateForCheck, buildUpVariantForCheck, continueStateForCheck, continueVariantForCheck } from './leg';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';

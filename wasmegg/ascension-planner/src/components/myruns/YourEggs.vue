@@ -78,7 +78,7 @@
 import { computed, ref } from 'vue';
 import { formatNumber } from '@/lib/format';
 import { virtueEggName } from '@/lib/virtueEggs';
-import { formatSiloTime } from '@/stores/silos';
+import { formatSiloTime } from 'lib/planners/stores/silos';
 import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
 import { siloNow, siloNowWords } from '@/lib/farmNow';
 import HelpTip from '@/components/auto/HelpTip.vue';

@@ -3,7 +3,7 @@
  * the page simulates one build of the player's own account to measure their real peak delivery rate
  * against the table's (components/auto/InstantRoute.vue), the way the table's own cells are made.
  */
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { sanitizeLongs } from 'lib/planners/artifacts/utils';
 import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from 'lib/planners/events';
 import { deriveNextStartState, runUntilShift } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
@@ -12,7 +12,7 @@ import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';
 import { runMaxVehiclesPlan } from '@/auto/shifts/helpers/vehicles';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
-import { computeRealisticELR } from '@/calculations/realisticELR';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
 import { TIER_13_MIN_STARTING_TE } from './leg';
 import { canonicalDelivered, EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { EngineState } from '@/engine/types';

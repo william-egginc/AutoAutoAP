@@ -17,7 +17,7 @@
 import '../../scripts/node-shims';
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { sanitizeLongs } from 'lib/planners/artifacts/utils';
 import { syntheticInputs } from '@/test/syntheticSave';
 import { createChainEvaluator } from './chain';
 import { parseVirtueProgress } from '@/lib/backupVirtue';

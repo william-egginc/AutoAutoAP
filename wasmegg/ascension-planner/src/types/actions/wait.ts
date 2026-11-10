@@ -24,13 +24,4 @@ export interface WaitForTEPayload {
   heldForPlayer?: boolean;
 }
 
-/**
- * Payload for waiting to reach a target gem count.
- */
-export interface WaitForGemsPayload {
-  targetGems: number;
-  currentGems: number;
-  requiredGems: number;
-  earningsPerSecond: number;
-  timeSeconds: number;
-}
+export type { WaitForGemsPayload } from 'lib/planners/actions/currencyWait';

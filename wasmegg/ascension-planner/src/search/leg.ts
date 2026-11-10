@@ -14,7 +14,7 @@
  * is ~15 s. Nothing in here is cheap, and `runC3Variants` (specifically `evaluateStones` inside it)
  * is the hotspot.
  */
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import {
   runUntilShift,
   deriveNextStartState,
@@ -41,7 +41,7 @@ import {
   getOptimalEarningsSet,
   getOptimalELRSet,
 } from '@/lib/artifacts';
-import { computeRealisticELR } from '@/calculations/realisticELR';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
 import { sameSet } from '@/lib/gearMatch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { EngineState, SimulationContext } from '@/engine/types';

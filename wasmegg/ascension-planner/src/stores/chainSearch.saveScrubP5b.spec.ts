@@ -41,10 +41,10 @@ import { blankLinkingIds, PLACEHOLDER_ID } from '@/lib/saveScrub';
 import { classifyLibraryFile } from '@/lib/uploadGuard';
 import { saveClockOf } from '@/lib/saveFreshness';
 import { saveFarmOf } from '@/lib/farmFacts';
-import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { createBaseEngineState, getSimulationContext } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { useInitialStateStore } from './initialState';
-import { useVirtueStore } from './virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useUIStore } from './ui';
 import { useChainSearchStore } from './chainSearch';
 
@@ -407,7 +407,7 @@ async function loadAndRead(text: string) {
       farm: is.currentFarmState,
       missions: is.virtueMissions,
       saveNote: is.saveNote,
-      shifts: useVirtueStore().initialShiftCount,
+      shifts: usePlanStore().initialShiftCount,
       permit: (is.rawBackup as any)?.game?.permitLevel,
       clock: saveClockOf(is.rawBackup),
       saveFarm: saveFarmOf(is.rawBackup),

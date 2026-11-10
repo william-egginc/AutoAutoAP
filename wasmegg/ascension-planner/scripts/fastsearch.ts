@@ -100,8 +100,8 @@ import { nextEggDayYear } from '@/lib/eggDay';
 import { requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
@@ -133,7 +133,7 @@ import { runC3Variants } from '@/auto/shifts/c3';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { getArtifact, getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
 import { allPossibleTiers } from 'lib/artifacts/data';
 import { ei } from 'lib/proto';
@@ -777,7 +777,7 @@ async function loadPlayer(): Promise<void> {
   loadAndSyncBackup(playerId ?? 'file', backup, 'plan_next');
   rollUpPendingTE();
 
-  const virtueStore = useVirtueStore();
+  const virtueStore = usePlanStore();
   virtueStore.resetToCurrentDateTime();
   virtueStore.setBankValue(0);
   virtueStore.setCurrentEgg('curiosity');
