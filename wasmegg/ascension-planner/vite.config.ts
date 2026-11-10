@@ -571,9 +571,17 @@ export default defineConfig(({ mode }) => {
       // browser and, under the Content-Security-Policy (securityHeaders), is reported as a violation
       // on every load. The stub gives the same answer (nothing) without the eval. Not under vitest,
       // which runs in Node.
-      alias: process.env.VITEST
-        ? []
-        : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }],
+      // `@planner` is how the shared planner code (lib/planners, ui/components/planners, Joo's PR 731) names this app's
+      // own modules. tsconfigPaths only maps it for files under this tsconfig, so the shared files outside it need the
+      // alias spelled out (as Joo's vite.config has it).
+      alias: [
+        { find: /^@planner\//, replacement: fileURLToPath(new URL('./src/', import.meta.url)) },
+        // And `@/`: our edits that git carried into the shared ui/ copies in the merge use the app's own `@/` imports.
+        { find: /^@\//, replacement: fileURLToPath(new URL('./src/', import.meta.url)) },
+        ...(process.env.VITEST
+          ? []
+          : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }]),
+      ],
     },
     plugins: [
       vue(),
