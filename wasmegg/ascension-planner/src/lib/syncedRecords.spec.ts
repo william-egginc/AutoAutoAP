@@ -4,7 +4,7 @@
  * submit URL, list / get / put, typed failures (404 old collector, 409 newer stored, 429 with retryAfter, 503, offline),
  * never a throw, never an ID in a URL or a body, the override's value both ways, the override resolution (newer wins,
  * a tombstone removes, and a different override from another device is ASKED, never applied silently), and "Delete
- * everything" (/forget). SYNC_RECORDS stays off until the orchestrator flips it. Placeholder ID only.
+ * everything" (/forget). SYNC_RECORDS is on from Release 8 (Jordan, 9 Nov 2026). Placeholder ID only.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -47,8 +47,8 @@ function noIds() {
 }
 
 describe('the flag', () => {
-  it('SYNC_RECORDS stays off (one line to flip, by the orchestrator)', () => {
-    expect(SYNC_RECORDS).toEqual({ enabled: false });
+  it('SYNC_RECORDS is on from Release 8 (one line; Jordan, 9 Nov 2026)', () => {
+    expect(SYNC_RECORDS).toEqual({ enabled: true });
   });
 });
 

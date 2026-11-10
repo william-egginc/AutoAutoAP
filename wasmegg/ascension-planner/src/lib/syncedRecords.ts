@@ -5,7 +5,7 @@
  * (`override`, slot '0'; phase A) and, later, the Build-up tracker's ticks and kept plan (`ticks`, `plan`, slot = the
  * ascension's start; phase B). Plus "Delete everything saved online for this account" (`forgetEverything`).
  *
- * OFF until the orchestrator flips SYNC_RECORDS (one line), and always behind the master switch (lib/saveOnline.ts:
+ * ON from Release 8 (SYNC_RECORDS, one line), and always behind the master switch (lib/saveOnline.ts:
  * the callers derive the URL through `cloudSubmitUrl`). The key `k` is the followed routes' (lib/followCloud.ts
  * `followKey`): the player ID is never in a URL or a body; every JSON body is checked with `hasPlayerId` and refused
  * here on a match ('id').
@@ -27,10 +27,11 @@ import { followUrlOf, hasPlayerId, isAheadRefusal } from './followCloud';
 
 /**
  * THE SYNC SWITCH (one line, like lib/prefsCloud.ts SYNC_PROGRESS_SENDS): off, nothing of the synced records is read
- * or written, and Setup shows no "Delete everything" button (/forget is not on the live collector yet). An object so
- * the specs can turn it on against a fake collector. The orchestrator flips it once the collector side is live.
+ * or written, and Setup shows no "Delete everything" button. An object so the specs can turn it off and on. ON from
+ * Release 8 (Jordan, 9 Nov 2026), with the collector that adds /sync and /forget deployed the same evening; until it
+ * is, its 404 is "not there yet" (composables/useOverrideSync.ts `markSyncMissing`).
  */
-export const SYNC_RECORDS = { enabled: false };
+export const SYNC_RECORDS = { enabled: true };
 
 export type SyncKind = 'override' | 'ticks' | 'plan';
 /** The override's one slot. */
