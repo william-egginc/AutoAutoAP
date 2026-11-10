@@ -260,9 +260,10 @@ describe('the algorithm fold moved to How it works (12 Oct)', () => {
   it('the panel has two plain lines and a link; How it works has the explainer', () => {
     const panel = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
     expect(panel).not.toContain('<ChainSearchExplainer');
-    // The brief and its second link are gone (UX fluff review 2, 5 Nov 2026, item F8); the Search heading has the link.
+    // The brief and its second link are gone (UX fluff review 2, 5 Nov 2026, item F8); the screen's More ends with the one
+    // How it works link since the simpler page (9 Nov 2026).
     expect(panel).not.toContain('data-testid="nearby-in-brief"');
-    expect(fs.readFileSync(path.join(__dirname, 'SearchPanel.vue'), 'utf8')).toContain('href="#/science/how"');
+    expect(fs.readFileSync(path.join(__dirname, 'FastestRoute.vue'), 'utf8')).toContain('href="#/science/how"');
     const how = fs.readFileSync(path.join(__dirname, '../science/HowItWorks.vue'), 'utf8');
     expect(how).toContain('<ChainSearchExplainer />');
   });

@@ -19,7 +19,7 @@ describe('first tour words', () => {
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step."
+      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More."
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'
@@ -27,8 +27,18 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.myruns.body).toBe(
       'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.'
     );
+    // DRAFT (spec-simpler2, 9 Nov 2026), for Words: Simulate this plan after the answer, and Setup as two slides.
+    expect(FIRST_TOUR_STEPS.simulate).toEqual({
+      title: 'Simulate this plan',
+      body: 'Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
+    });
+    expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
+      title: 'Where Setup is',
+      body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
+    });
+    expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Setup is where you set your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
+      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });

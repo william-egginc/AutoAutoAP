@@ -57,16 +57,8 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('the save strip on the Auto Planner screens', () => {
-  it('sits at the top of Fastest and By a date, each with its own testid', () => {
-    for (const [file, screen, before] of [
-      ['FastestRoute.vue', 'fastest', '<YourSetup'],
-      ['ByDateScreen.vue', 'by-date', '<YourSetup'],
-    ] as const) {
-      const src = read(file);
-      const at = src.indexOf(`<AutoSaveStrip screen="${screen}"`);
-      expect(at, file).toBeGreaterThan(0);
-      expect(at, file).toBeLessThan(src.indexOf(before));
-    }
+  it('not on Fastest and By a date since the simpler page (9 Nov 2026): the save line at the top of the page says it; its own testid stays', () => {
+    for (const file of ['FastestRoute.vue', 'ByDateScreen.vue']) expect(read(file), file).not.toContain('<AutoSaveStrip');
     expect(read('AutoSaveStrip.vue')).toContain(':testid="`auto-save-strip-${screen}`"');
   });
 

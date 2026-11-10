@@ -8,12 +8,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { renderHtml } from '@/test/renderComponent';
 import SetupDock from './SetupDock.vue';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const g = globalThis as { window?: unknown };
 let had: unknown;
 beforeAll(() => {
   had = g.window;
-  g.window = { innerWidth: 1280, innerHeight: 900, addEventListener: () => {}, removeEventListener: () => {} };
+  // A location too: these cases set a search running (the pill's workers show only then, 9 Nov 2026), and a run start
+  // marks the run with the page's address (composables/useStepAway.ts `stepAwayRunStarted`: window.location.href).
+  g.window = {
+    innerWidth: 1280,
+    innerHeight: 900,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    location: { href: 'http://localhost/ascension-planner/#/auto/fastest', hash: '#/auto/fastest', search: '', pathname: '/ascension-planner/', origin: 'http://localhost' },
+  };
 });
 afterAll(() => {
   g.window = had;
@@ -25,6 +34,8 @@ describe('the Setup pill at 1280', () => {
   it('stacks from xl on the Auto Planner: 10rem wide, Setup over the workers', async () => {
     const p = createPinia();
     setActivePinia(p);
+    // The workers show only while a search runs (the simpler page, 9 Nov 2026): these cases are about the pill with them.
+    useChainSearchStore().isRunning = true;
     const html = await renderHtml(SetupDock, { screen: 'fastest' }, {}, [p]);
     const tag = pill(html);
     for (const c of ['xl:w-40', 'xl:flex-wrap', 'xl:justify-center']) expect(tag).toContain(c);
@@ -51,6 +62,8 @@ describe('the Setup pill at 1280', () => {
   it('My runs keeps the full pill at xl: Setup, the summary line, the divider and − workers +, nothing hidden', async () => {
     const p = createPinia();
     setActivePinia(p);
+    // The workers show only while a search runs (the simpler page, 9 Nov 2026): these cases are about the pill with them.
+    useChainSearchStore().isRunning = true;
     const summary = '7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27';
     const html = await renderHtml(SetupDock, { screen: 'fastest', summary }, {}, [p]);
     // Nothing on it hides at any width (Jordan, 26 Oct 2026: players turn the workers down mid-run); only the divider,
@@ -74,6 +87,8 @@ describe('the Setup pill at 1280', () => {
   it('phones keep the one-row pill (wrapping only when it does not fit) with its 44 px tap targets', async () => {
     const p = createPinia();
     setActivePinia(p);
+    // The workers show only while a search runs (the simpler page, 9 Nov 2026): these cases are about the pill with them.
+    useChainSearchStore().isRunning = true;
     const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 AM–11 PM · no time off' }, {}, [p]);
     expect(pill(html)).toContain('flex flex-wrap items-center justify-center gap-1 rounded-[1.75rem] bg-indigo-600');
     expect((html.match(/w-11 h-11 sm:w-6 sm:h-6/g) ?? []).length).toBe(2);

@@ -1,0 +1,70 @@
+/**
+ * THE SAVE LINE'S LAYOUT CONTRACT (layout/SaveLine.vue), after Jordan's iPhone (9 Nov 2026): with the player box open
+ * the save-age pill shrank to one character wide in Safari and ran down the screen a letter per line, because it was
+ * `flex-1 min-w-0` (a zero basis, allowed to shrink to nothing) in a row that never had to wrap. A spec cannot lay
+ * out a page, so this pins the markup that prevents it; harness-r7/simpler/saveline-check.mjs measures it in real
+ * WebKit and Chrome at 320 to 430 px. Also: a visible switch-account control is ON the line at all times ("Change
+ * player", "Close player box" while the box is open; Jordan: "the arrow to switch accounts is missing"), 44 px, named.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { renderHtml, textOf } from '@/test/renderComponent';
+import SaveLine from './SaveLine.vue';
+import { useUIStore } from '@/stores/ui';
+import { CHANGE_PLAYER, SAVE_LINE_CLOSE } from '@/lib/layoutWords';
+
+const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+const src = read('SaveLine.vue');
+const tpl = src.slice(src.indexOf('<template>'), src.indexOf('<script setup'));
+const tagOf = (id: string) => tpl.slice(tpl.lastIndexOf('<', tpl.indexOf(`testid="${id}"`)), tpl.indexOf('>', tpl.indexOf(`testid="${id}"`)));
+
+describe('the save line never squeezes its text to a sliver', () => {
+  it('the row wraps', () => {
+    expect(tagOf('save-line')).toMatch(/class="[^"]*\bflex flex-wrap\b/);
+  });
+  it('the save-age text has a basis and a floor (14rem, or the whole line when narrower), never a zero basis', () => {
+    const age = tpl.slice(tpl.indexOf('<SaveAgeStrip'), tpl.indexOf('/>', tpl.indexOf('<SaveAgeStrip')));
+    expect(age).toContain('flex-[1_1_14rem]');
+    expect(age).toContain('min-w-[min(14rem,100%)]');
+    expect(age).not.toMatch(/\bflex-1\b/);
+    expect(age).not.toMatch(/\bmin-w-0\b/);
+  });
+  it('the name may wrap (a long one) but keeps its words; nothing on the line breaks letters', () => {
+    expect(tagOf('save-line-who')).toContain('break-words');
+    for (const f of ['SaveLine.vue', '../myruns/SaveAgeStrip.vue']) expect(read(f), f).not.toMatch(/break-all|word-break:\s*break-all/);
+  });
+  it('the button keeps its size: flex-none, 44 px', () => {
+    const b = tagOf('save-line-switch');
+    expect(b).toContain('flex-none');
+    expect(b).toContain('min-h-[44px]');
+  });
+});
+
+describe('the switch-account control on the line', () => {
+  it('closed: "Change player" with its arrow, aria-expanded false; open: "Close player box", aria-expanded true', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useUIStore().isHeaderCollapsed = true;
+    let html = await renderHtml(SaveLine, {}, {}, [pinia]);
+    const btn = (h: string) => h.match(/<button[^>]*data-testid="save-line-switch"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '';
+    expect(btn(html)).toContain('aria-expanded="false"');
+    expect(textOf(btn(html))).toBe(CHANGE_PLAYER);
+    expect(btn(html)).toContain('<svg');
+    useUIStore().isHeaderCollapsed = false;
+    html = await renderHtml(SaveLine, {}, {}, [pinia]);
+    expect(btn(html)).toContain('aria-expanded="true"');
+    expect(textOf(btn(html))).toBe(SAVE_LINE_CLOSE);
+  });
+  it('opening it opens the player box, keeps it open and puts the cursor in the ID box', () => {
+    const fn = src.slice(src.indexOf('function toggle'), src.indexOf('\n}', src.indexOf('function toggle')));
+    expect(fn).toContain('ui.isHeaderCollapsed = false;');
+    expect(fn).toContain('ui.setHeaderKeptOpen(true);');
+    expect(fn).toContain("document.getElementById('playerId')");
+  });
+  it('App folds the player box once a save is in on the save-line screens (My runs too), unless the player opened it', () => {
+    const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
+    expect(app).toMatch(/watch\(\s*\(\) => \[saveLineShown\.value, !!initialStateStore\.rawBackup\][\s\S]{0,200}collapseHeaderIfPlayerLoaded\(\)/);
+  });
+});

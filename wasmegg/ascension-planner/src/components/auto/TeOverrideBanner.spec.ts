@@ -266,11 +266,11 @@ describe("Use my save's TE (Remove in the code)", () => {
 });
 
 describe('on each of the four screens, at the top', () => {
-  it('Fastest, By a date and My runs: above the save strip', () => {
+  it('Fastest, By a date and My runs: above the save strip (Fastest: above the answer; its save strip is the save line at the top since the simpler page, 9 Nov 2026)', () => {
     for (const [file, after] of [
-      ['FastestRoute.vue', '<AutoSaveStrip'],
-      ['ByDateScreen.vue', '<AutoSaveStrip'],
-      ['../MyRunsView.vue', '<SaveAgeStrip'],
+      ['FastestRoute.vue', 'data-region="answer"'],
+      ['ByDateScreen.vue', '<InsanePanel'],
+      ['../MyRunsView.vue', '<RightNowCard'],
     ] as const) {
       const src = read(file);
       const at = src.indexOf('<TeOverrideBanner');

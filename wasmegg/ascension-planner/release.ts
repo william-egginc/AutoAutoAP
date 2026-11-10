@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-10T22:00:00Z', note: 'A simpler page: each screen shows your answer and Follow first, and the rest is under More at the bottom. Setup › More options › Show everything opens it all again.', level: 'big' },
   { at: '2026-11-10T00:00:00Z', note: 'The first-visit tour now opens with a welcome box and shows a picture on each step; Skip, Remind me later and Show the tour again still work' },
   { at: '2026-11-09T00:00:00Z', note: 'A short tour for first-time visitors: six steps from loading your save to Setup, with Skip, a Remind me later tick, and Show the tour again at the foot of the page and in Setup' },
   { at: '2026-11-08T23:00:00Z', note: 'Tidier: the instant-answer note is said once, dates read “on Nov 14 at 9:52 AM”, simpler tracker sale lines, the goal shown once, empty footers hidden, a held prestige shows the time you press it' },

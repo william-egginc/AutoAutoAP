@@ -24,6 +24,13 @@ const SECTIONS: FoldSection[] = [
   'setupMore',
   // The Build-up tracker's List / Compact toggle (spec-trackercompact): folded = List.
   'buildUpCompact',
+  // The simpler default page (9 Nov 2026): each screen's More and Setup's Sharing and privacy, all closed.
+  'moreFastest',
+  'moreByDate',
+  'moreMyRuns',
+  'setupSharing',
+  // My runs' Full timeline, above More (9 Nov 2026), closed.
+  'myRunsTimeline',
 ];
 
 let mem: Map<string, string>;
@@ -52,8 +59,12 @@ describe('the default split (the review\'s proposal)', () => {
     expect(PANEL_FOLD.searchSettings).toBe('folded');
     expect(foldOpen('searchSettings')).toBe(false);
   });
-  it('only a long run started opens anything by itself: Stepping away? (28 Oct 2026; any run going did before)', () => {
-    expect(FOLD_OPENS_WHEN).toEqual({ steppingAway: ['longRun'] });
+  it('only a long run started opens anything by itself: Stepping away? (28 Oct 2026; any run going did before); and the search screens\' More while their search runs or can be carried on (9 Nov 2026)', () => {
+    expect(FOLD_OPENS_WHEN).toEqual({
+      steppingAway: ['longRun'],
+      moreFastest: ['running', 'unfinished'],
+      moreByDate: ['running', 'unfinished'],
+    });
   });
 });
 
@@ -67,8 +78,9 @@ describe('foldOpen', () => {
     expect(foldOpen('steppingAway', { longRun: true })).toBe(true);
     expect(foldOpen('steppingAway')).toBe(false);
   });
-  it('a run going alone no longer opens Stepping away? (28 Oct 2026)', () => {
-    for (const s of SECTIONS) expect(foldOpen(s, { running: true }), s).toBe(PANEL_FOLD[s] === 'open');
+  it('a run going alone no longer opens Stepping away? (28 Oct 2026); it does open the search screens\' More, the search being inside', () => {
+    for (const s of SECTIONS)
+      expect(foldOpen(s, { running: true }), s).toBe(PANEL_FOLD[s] === 'open' || s === 'moreFastest' || s === 'moreByDate');
   });
   it('a remembered close of an open-by-default section wins (the player\'s choice over the default)', () => {
     expect(foldOpen('countTable', { remembered: false })).toBe(false);
@@ -77,8 +89,9 @@ describe('foldOpen', () => {
   it('a long run started wins over the player having closed Stepping away? before', () => {
     expect(foldOpen('steppingAway', { longRun: true, remembered: false })).toBe(true);
   });
-  it('an unfinished run alone opens nothing the table does not', () => {
-    for (const s of SECTIONS) expect(foldOpen(s, { unfinished: true }), s).toBe(PANEL_FOLD[s] === 'open');
+  it('an unfinished run alone opens nothing the table does not, but the search screens\' More (the run to carry on is inside)', () => {
+    for (const s of SECTIONS)
+      expect(foldOpen(s, { unfinished: true }), s).toBe(PANEL_FOLD[s] === 'open' || s === 'moreFastest' || s === 'moreByDate');
   });
   it("the player's own toggle wins over the table, both ways", () => {
     for (const s of SECTIONS) {

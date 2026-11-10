@@ -28,7 +28,8 @@ import { useShareTarget } from '@/composables/useShareTarget';
 // ---- InstantRoute.vue's Teleport, compiled ----
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const template = parse(source).descriptor.template!.content;
-const teleportMarkup = template.slice(template.indexOf('<Teleport'), template.indexOf('</Teleport>') + '</Teleport>'.length);
+// The share line's Teleport: the card's last one (the More parts' come first since the simpler page, 9 Nov 2026).
+const teleportMarkup = template.slice(template.lastIndexOf('<Teleport'), template.lastIndexOf('</Teleport>') + '</Teleport>'.length);
 const compiled = compileTemplate({
   source: teleportMarkup,
   filename: 'InstantRoute.vue',

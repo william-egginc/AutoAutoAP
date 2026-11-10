@@ -165,6 +165,11 @@ function ctxOf(s: State): Record<string, unknown> {
     dateBoxOf: (r: Route) => ({ chain: r.chain, endTE: last(r), end: r.end }),
     datePickedRow: () => false,
     countIds: 'counts-v0',
+    // The screen's More (the simpler default page, 9 Nov 2026): none here, so everything stays on the card.
+    moreTo: undefined,
+    moreEl: null,
+    moreHowEl: null,
+    ROW_HINT: 'Open a row to follow or simulate that route instead.',
     countOpen: () => false,
     toggleCount: () => {},
     rowTight: () => false,
@@ -525,7 +530,9 @@ describe('the screens put the card in the guard', () => {
     it(file, () => {
       const text = fs.readFileSync(path.resolve(__dirname, file), 'utf8');
       const tpl = text.slice(0, text.indexOf('<script setup'));
-      const section = tpl.slice(tpl.indexOf('<CollapsibleSection'), tpl.indexOf('</CollapsibleSection>'));
+      // The answer's own region since the simpler page (9 Nov 2026; was a CollapsibleSection): the guard is in it.
+      const start = tpl.indexOf('data-testid="section-instant"');
+      const section = tpl.slice(start, tpl.indexOf('<NowLine', start));
       const guard = section.indexOf('<InstantGuard>');
       expect(guard).toBeGreaterThan(0);
       expect(section.indexOf('<InstantRoute')).toBeGreaterThan(guard);
@@ -537,8 +544,15 @@ describe('the screens put the card in the guard', () => {
 describe('the share Teleport lives as long as the card', () => {
   it('not inside the answer or the integrity hold; only its content comes and goes', () => {
     const tpl = source.slice(0, source.indexOf('<script setup'));
-    const at = tpl.indexOf('<Teleport');
-    expect(tpl.indexOf('<Teleport', at + 1)).toBe(-1);
+    // The More parts' Teleports (the simpler page, 9 Nov 2026) come first: never deferred, to looked-up elements
+    // (moreEl, moreHowEl) and disabled without one, as this one. The share line's is the last.
+    const more = tpl.match(/<Teleport [^>]*>/g)!.slice(0, -1);
+    expect(more.length).toBe(4);
+    for (const t of more) {
+      expect(t).not.toContain('defer');
+      expect(t).toMatch(/:to="more(How)?El \?\? 'body'" :disabled="!more(How)?El"/);
+    }
+    const at = tpl.lastIndexOf('<Teleport');
     // After both sections: a sibling of the card, not inside it.
     expect(at).toBeGreaterThan(tpl.indexOf('data-testid="instant-no-table"'));
     expect(tpl.slice(at, tpl.indexOf('>', at))).toContain('v-if="instantUrl"');

@@ -87,6 +87,9 @@
           :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
         ></span>
       </button>
+      <!-- The workers only while a search runs (the simpler page, Jordan 9 Nov 2026, Q4): at rest the pill is Setup
+           alone; mid-run they can still be turned down (Jordan, 26 Oct 2026). The count is in Setup › More options. -->
+      <template v-if="searching">
       <!-- Below 320 px the workers wrap to a second row, where the divider would only end the first. -->
       <span class="w-px h-5 bg-white/30 max-[319px]:hidden" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
       <span v-if="stacked" class="hidden xl:block basis-full h-0" aria-hidden="true"></span>
@@ -102,7 +105,7 @@
         >
           −
         </button>
-        <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
+        <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="WORKERS_TIP"
           >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
         >
         <button
@@ -115,17 +118,18 @@
           +
         </button>
       </span>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { thisDevice } from '@/search/device';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
 import YourSetup from './YourSetup.vue';
+import { WORKERS_TIP } from '@/lib/layoutWords';
 
 const props = defineProps<{
   screen: AutoView;
@@ -141,6 +145,8 @@ const stacked = computed(() => !props.summary);
 const store = useChainSearchStore();
 const ui = useUIStore();
 
+/** A search is running (or a Custom queue is between its chains): the pill shows the workers then only. */
+const searching = computed(() => store.busy || store.isRunning || store.deadlineRunning || store.sweepQueue.at >= 0);
 const errors = computed(() => store.setupIssues.filter(i => i.level === 'error').length);
 
 function setWorkers(n: number): void {

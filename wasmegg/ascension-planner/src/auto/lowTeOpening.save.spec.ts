@@ -85,13 +85,25 @@ const BEFORE_EGG_BETA2: Record<string, Pin> = {
   '400@131': { key: '1-sale', seconds: 10211115.452676805, preC3Seconds: 1824.4548021566807, shiftCount: 12 },
 };
 
-/** The merged simulator (egg-beta2, Joo's 39261255 + ours), same cells. */
+/** The simulator as of 9 Nov 2026 (after sim3), same cells. Re-recorded then; before, the merged simulator of egg-beta2
+ *  (Joo's 39261255 + ours) gave 9805431.445010353 / 4414.309467578185 / 12 shifts at 200@0, 7583967.446167223 /
+ *  3139.219150779773 / 12 at 300@77, and 10211115.452676803 / 1824.4548021559694 / 11 at 400@131. Bisected on this spec
+ *  (the pinned cases held through 1d49faebe, before sim3, and moved at these deliberate commits):
+ *    - sim3 1 (a14637789, vehicles read Bust Unions by its real epic id, Joo's b694b2d0): 200@0 seconds -22 s, preC3 -74 s;
+ *    - sim3 3 (f7fc1ead1, smart buy judges multi-level delivery research on all its levels, Joo's 4a9b110e): 200@0
+ *      seconds -30,262 s (8.4 h);
+ *    - sim3 6, 10 and 11 (the 60 s rule, K2's 24 h budget, the 60 s rule as Jordan ruled it): large swings (preC3 up to
+ *      17,428 s), replaced by sim3 12;
+ *    - sim3 12 (a224a5c0e, check-ins: everything affordable at a check-in is bought there): preC3 back to within 356 s
+ *      (200@0), 146 s (300@77) and 390 s (400@131) of the old pins; seconds against the old pins: -30,148 s (200@0: sim3 3's
+ *      -30,262 s and +114 s from sim3 12), +42 s (300@77), +78 s (400@131).
+ *  Not checked against the game, only against those commits' stated reasons (aaap-tools notes/lowte-bisect-2026-11-09.md). */
 const PINNED: Record<string, Pin> = {
-  '200@0': { key: '3-sale-tier13', seconds: 9805431.445010353, preC3Seconds: 4414.309467578185, shiftCount: 12 },
-  '300@77': { key: '2-sale-tier13', seconds: 7583967.446167223, preC3Seconds: 3139.219150779773, shiftCount: 12 },
-  // One shift fewer than before: C3 left K3 nothing to buy, so H1 waits out the build on Humility and
+  '200@0': { key: '3-sale-tier13', seconds: 9775283.267625479, preC3Seconds: 4770.282487407392, shiftCount: 12 },
+  '300@77': { key: '2-sale-tier13', seconds: 7584009.225974633, preC3Seconds: 3285.3816081006185, shiftCount: 12 },
+  // One shift fewer than the pre-merge code: C3 left K3 nothing to buy, so H1 waits out the build on Humility and
   // H2 drops out (Joo's 78ec357a).
-  '400@131': { key: '1-sale', seconds: 10211115.452676803, preC3Seconds: 1824.4548021559694, shiftCount: 11 },
+  '400@131': { key: '1-sale', seconds: 10211193.793349829, preC3Seconds: 2214.1857440760728, shiftCount: 11 },
 };
 
 // SLOW (minutes of full simulation) and timing-sensitive: on a loaded machine it ran past its caps and failed
@@ -170,7 +182,10 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)('low-TE opening on a re
     const at93 = { ...inputs, planStart: REFERENCE_WEEK, baseState: startStateAt(inputs, 93) };
     const check = integrityCheck(at93);
     expect(check.lowTe?.rounds).toBeGreaterThan(1);
-    expect(check.lowTe!.openingSeconds).toBeGreaterThan(4 * 3600);
+    // Until sim3 6 (3 Nov 2026) the opening took about 5 h here, more than I1's 4-hour cap, so "more than 4 hours" said the
+    // check spans the rounds. With the 60 s rule and check-ins (sim3 6, 11, 12) the whole opening is about 1.4 h (5,128 s)
+    // and the first I1 takes 4 minutes, so the claim is now: the check spans more than the first Integrity round.
+    expect(check.lowTe!.openingSeconds).toBeGreaterThan(ascension(inputs, 93, 0).firstI1Seconds!);
     // Inside the 10-round backstop the rounds fix the stall: no warning.
     expect(check.seconds).toBe(0);
     // Higher up: one round, and the first Integrity shift measured as before.

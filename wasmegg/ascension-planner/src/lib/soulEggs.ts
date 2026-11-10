@@ -13,6 +13,7 @@
  */
 import { formatNumber } from './format';
 import { plannedShiftsCost } from './shiftCost';
+import { soulEggFold, soulEggLine, soulEggPercentWords } from './soulEggWords';
 
 /** Under this share of soul eggs left, the plan says so. */
 export const SE_WARN_BELOW = 0.25;
@@ -37,24 +38,21 @@ export interface SoulEggPlan {
   soulEggs?: number | null;
 }
 
-function percent(left: number): string {
-  // Rounded down, so a line that only shows under 25% never says "about 25%".
-  return left < 0.01 ? 'under 1%' : `about ${Math.floor(left * 100)}%`;
-}
-
 const s = (n: number) => (n === 1 ? '' : 's');
 
-/** The amber line, or '' when the plan leaves a quarter or more (or its shifts aren't known). */
-export function soulEggWarning(p: SoulEggPlan): string {
-  if (p.planShifts == null || !(p.planShifts > 0)) return '';
+/**
+ * The soul-egg warning in two parts (Jordan, 9 Nov 2026; it replaced the one long line, `soulEggWarning`): `line` for
+ * the page and `fold` for the "?" behind it (components/SoulEggWarning.vue), or null when
+ * the plan leaves a quarter or more (or its shifts aren't known). The words are lib/soulEggWords.ts.
+ */
+export function soulEggWarningParts(p: SoulEggPlan): { line: string; fold: string } | null {
+  if (p.planShifts == null || !(p.planShifts > 0)) return null;
   const plan = Math.floor(p.planShifts);
   const left = soulEggsLeft(p.done ?? 0, plan, p.soulEggs);
-  if (left >= SE_WARN_BELOW) return '';
-  const tail = `Past about ${QUARTER_SHIFTS} shifts since a Path reset, less than a quarter is left.`;
-  if (p.done == null)
-    return `This plan has ${plan} shift${s(plan)}, which in this plan alone would leave ${percent(left)} of your soul eggs (counted from 0 shifts: your save's shifts since your last Path reset aren't known here). ${tail}`;
-  const done = Math.max(0, Math.floor(p.done));
-  return `This plan has about ${done + plan} shifts since your last Path reset (${done} in your save, ${plan} in the plan), which would leave ${percent(left)} of the soul eggs you have now. ${tail}`;
+  if (left >= SE_WARN_BELOW) return null;
+  const percent = soulEggPercentWords(left);
+  const done = p.done == null ? null : Math.max(0, Math.floor(p.done));
+  return { line: soulEggLine(percent, done == null), fold: soulEggFold({ plan, done, percent, quarterShifts: QUARTER_SHIFTS }) };
 }
 
 /**

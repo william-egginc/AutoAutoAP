@@ -67,10 +67,11 @@ describe("Custom's promise box, closed by default (Fast and Exact's What this do
 describe('44 px tap targets below sm, desktop unchanged', () => {
   const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
   const tapInline = /inline-flex min-h-\[44px\] items-center[^"]*sm:inline sm:min-h-0/;
-  it("How it works › in the card's heading, the one link (Nearby routes' brief is gone since 5 Nov 2026, item F8)", () => {
-    const head = read('SearchPanel.vue').match(/<a\s[^>]*>\s*How it works ›<\/a/)?.[0] ?? '';
-    expect(head).toMatch(tapInline);
+  it("no How it works › in the card's heading since the simpler page (9 Nov 2026): the screen's More ends with the one link (44 px)", () => {
+    expect(read('SearchPanel.vue')).not.toMatch(/How it works ›<\/a/);
     expect(read('ChainSearchPanel.vue')).not.toMatch(/How it works ›<\/a/);
+    const link = read('FastestRoute.vue').match(/<a href="#\/science\/how"[^>]*data-testid="how-it-works-link"/)?.[0] ?? '';
+    expect(link).toContain('min-h-[44px]');
   });
   it('Open in Custom', () => {
     const btn = read('DeadlinePanel.vue').match(/<button[^>]*data-test="open-in-advanced"[^>]*>\s*Open in Custom/)?.[0] ?? '';

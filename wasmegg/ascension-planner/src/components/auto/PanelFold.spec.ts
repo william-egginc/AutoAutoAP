@@ -215,7 +215,8 @@ describe('every foldable part reads lib/panelFold.ts', () => {
 
   it('the source: each section is a PanelFold, and the old hand-made folds are gone', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
-    const where: Record<Exclude<FoldSection, 'setupMore' | 'buildUpCompact'>, string[]> = {
+    const OWN_BUTTON: FoldSection[] = ['setupMore', 'buildUpCompact', 'moreFastest', 'moreByDate', 'moreMyRuns', 'setupSharing'];
+    const where: Record<Exclude<FoldSection, 'setupMore' | 'buildUpCompact' | 'moreFastest' | 'moreByDate' | 'moreMyRuns' | 'setupSharing'>, string[]> = {
       whatItDoes: ['StrongerBox.vue'],
       searchSettings: ['ChainSearchPanel.vue', 'DeadlinePanel.vue'],
       acknowledgement: ['FindBar.vue'],
@@ -223,12 +224,18 @@ describe('every foldable part reads lib/panelFold.ts', () => {
       countTable: ['InstantRoute.vue'],
       howWorkedOut: ['InstantRoute.vue'],
       buildUpTracker: ['../myruns/BuildUpTracker.vue'],
+      myRunsTimeline: ['../myruns/RightNowCard.vue'],
     };
     // Setup's More options (5 Nov 2026) is the one fold with its own button (aria-expanded / aria-controls over a
     // region hidden until found) rather than a <details>: it reads the same table and toggle.
     // The Build-up tracker's List / Compact toggle (spec-trackercompact, 8 Nov 2026) is not a fold at all: two buttons
     // with aria-pressed that read the same table and toggle.
-    expect(Object.keys(where).sort()).toEqual(SECTIONS.filter(s => s !== 'setupMore' && s !== 'buildUpCompact').sort());
+    // The screens' More (9 Nov 2026, the simpler default page) is one component with its own button too (layout/MoreFold.vue),
+    // and so is Setup's Sharing and privacy: both read the same table and toggle.
+    expect(Object.keys(where).sort()).toEqual(SECTIONS.filter(s => !OWN_BUTTON.includes(s)).sort());
+    const more = read('../layout/MoreFold.vue');
+    expect(more).toContain('foldOpen(props.section, {');
+    expect(more).toContain('rememberFoldToggle(props.section, open.value);');
     const tracker = read('../myruns/BuildUpTracker.vue');
     expect(tracker).toContain("foldOpen('buildUpCompact', { remembered: readFoldToggle('buildUpCompact') })");
     expect(tracker).toContain("rememberFoldToggle('buildUpCompact', v === 'compact');");

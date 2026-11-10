@@ -4,7 +4,8 @@
   no search (one exception since 24 Oct 2026: a followed route with no timeline is priced on the instant answer's data
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
-    1. Save-age banner (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
+    1. Save-age banner: the save line at the top of the page (layout/SaveLine.vue, App.vue) since the simpler page
+       (9 Nov 2026); every time below comes from the save, so its age comes first.
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -22,24 +23,28 @@
   plan ›" (lib/myRunsFocus.ts) land on Your runs.
 -->
 <template>
+  <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line above
+       (App.vue: whose save, its age, Load latest save; it replaced this page's own save strip and its intro line), then
+       the title, Right now (the goal pills, the route, the next step) with the Build-up tracker, the soul-egg line, then
+       the one closed More with everything else in its old order (Change route, your eggs, the saved answer, Try next,
+       the routes at a glance, Your runs), then the footer. -->
   <div class="space-y-3 pb-16" data-testid="my-runs">
-    <div>
+    <div data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
-      <!-- One clause (ux review 26 Oct, row 15; UX fluff review 2, 5 Nov 2026, item M1): the sections say the rest. -->
-      <p class="text-body text-slate-600 max-w-prose" data-testid="my-runs-intro">
-        From your save: where you are now, your next steps and your runs.
-      </p>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
     <TeOverrideBanner />
-    <SaveAgeStrip :state="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
     <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
     <template v-if="page.hasSave.value">
       <RightNowCard
+        data-region="right-now"
+        change-route-to="more-myruns-route"
+        detail-to="more-myruns-detail"
+        timeline-to="myruns-timeline"
         :card="page.cardPlan.value"
         :soul-eggs-after="page.soulEggsAfter.value"
         :on-virtue="page.onVirtue.value"
@@ -123,6 +128,8 @@
       </RightNowCard>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
+      <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
+           (RightNowCard `timelineTo`), closed by default and remembered. -->
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
@@ -138,6 +145,20 @@
         :save-seconds="page.saveSeconds.value"
         :zone="page.zone.value"
       />
+      <div id="myruns-timeline" data-testid="myruns-timeline"></div>
+    </template>
+
+    <MoreFold ref="more" section="moreMyRuns" :line="MORE_LINE_MYRUNS">
+    <!-- Change route: Right now's Earlier versions, Stop following and Follow another route (RightNowCard
+         `changeRouteTo`, moved here by Teleports to this looked-up element). -->
+    <section v-if="page.hasSave.value" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-1" data-testid="more-myruns-change-route">
+      <h2 class="text-body font-bold text-slate-900">{{ CHANGE_ROUTE }}</h2>
+      <div id="more-myruns-route" class="space-y-1"></div>
+    </section>
+    <!-- Right now's gear (RightNowCard `detailTo`). -->
+    <div v-if="page.hasSave.value" id="more-myruns-detail" class="space-y-2" data-testid="more-myruns-detail"></div>
+    <template v-if="page.hasSave.value">
+
 
       <!-- The saved answer for the goal picked on Right now's switch only (24 Oct 2026): the pill switches it. -->
       <div class="grid grid-cols-1 gap-3" data-testid="now-tiles" :data-goal="page.shownTile.value.key ?? ''">
@@ -322,6 +343,7 @@
         </details>
       </div>
     </section>
+    </MoreFold>
   </div>
 </template>
 
@@ -338,19 +360,19 @@ import { pickRouteOpen, scrollToInstantAnswer } from '@/lib/pickRoute';
 import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
+import MoreFold from '@/components/layout/MoreFold.vue';
+import { CHANGE_ROUTE, MORE_LINE_MYRUNS } from '@/lib/layoutWords';
 import { useNowPage } from '@/composables/useNowPage';
 import { useConsent } from '@/composables/useConsent';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useFollowStore } from '@/stores/follow';
 import type { RecalcRequest } from '@/lib/recalc';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
-import { useServerSave } from '@/composables/useServerSave';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { isConstrained } from '@/search/availability';
-import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
@@ -498,13 +520,8 @@ const trackerReplan = computed(() =>
       }
     : null
 );
-/** The save on the server versus the one loaded here: asked quietly once per page load (lib/serverSave.ts). */
-const serverSave = useServerSave({
-  playerId: computed(() => props.playerId),
-  loadedSeconds: page.saveSeconds,
-  ready: computed(() => page.hasSave.value && !props.loading),
-  now: page.now,
-});
+/* The save on the server versus the one loaded here: asked by the save line at the top since the simpler page
+   (layout/SaveLine.vue, 9 Nov 2026), which shows this page's save age now. */
 /** Try next's runs, all of them: Right now has no Run Fast button of its own since 25 Oct 2026 (one path per card). */
 const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
 /** "One more TE by Egg Day … would come …, after Egg Day starts, so it isn’t counted.": saved legs only, the laid
@@ -552,8 +569,12 @@ const modes = computed<{ id: Showing; label: string }[]>(() => [
 ]);
 
 /** A tile's "See the routes ›" (or Dig deeper): Your runs, on that run. */
+/** The page's More (layout/MoreFold.vue). */
+const more = ref<InstanceType<typeof MoreFold> | null>(null);
 function showRuns(kind: Showing | null): void {
   if (kind) pickShowing(kind);
+  // Your runs is inside More (the simpler page, 9 Nov 2026): open it first, not remembered.
+  more.value?.show();
   void nextTick(() => {
     if (typeof document === 'undefined') return;
     document.getElementById('my-runs-your-runs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -643,6 +664,7 @@ function act(to: DashAction): void {
   if (to.to === 'unsent') {
     pickShowing('all');
     open.unsent = true;
+    more.value?.show();
     void nextTick(() => {
       if (typeof document === 'undefined') return;
       document.querySelector('[data-testid="my-runs-part-unsent"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

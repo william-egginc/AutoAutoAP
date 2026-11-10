@@ -13,21 +13,28 @@ import goalDesk from '@/assets/tour/2-goal-desk.webp';
 import goalPhone from '@/assets/tour/2-goal-phone.webp';
 import answerDesk from '@/assets/tour/3-answer-desk.webp';
 import answerPhone from '@/assets/tour/3-answer-phone.webp';
-import followDesk from '@/assets/tour/4-follow-desk.webp';
-import followPhone from '@/assets/tour/4-follow-phone.webp';
-import trackerDesk from '@/assets/tour/5-tracker-desk.webp';
-import trackerPhone from '@/assets/tour/5-tracker-phone.webp';
-import setupDesk from '@/assets/tour/6-setup-desk.webp';
-import setupPhone from '@/assets/tour/6-setup-phone.webp';
+import simulateDesk from '@/assets/tour/4-simulate-desk.webp';
+import simulatePhone from '@/assets/tour/4-simulate-phone.webp';
+import followDesk from '@/assets/tour/5-follow-desk.webp';
+import followPhone from '@/assets/tour/5-follow-phone.webp';
+import trackerDesk from '@/assets/tour/6-tracker-desk.webp';
+import trackerPhone from '@/assets/tour/6-tracker-phone.webp';
+import setupWhereDesk from '@/assets/tour/7-setup-where-desk.webp';
+import setupWherePhone from '@/assets/tour/7-setup-where-phone.webp';
+import setupDesk from '@/assets/tour/8-setup-desk.webp';
+import setupPhone from '@/assets/tour/8-setup-phone.webp';
 
-/** The files behind each slide (src/assets/tour/). Slide 5 is the Build-up tracker (Jordan, 9 Nov 2026). */
+/** The files behind each slide (src/assets/tour/). Slide 6 is the Build-up tracker (Jordan, 9 Nov 2026); 4 (Simulate
+ *  this plan) and 7 (where Setup is) since spec-simpler2. */
 export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = {
   load: { desk: '1-load-desk.webp', phone: '1-load-phone.webp' },
   goal: { desk: '2-goal-desk.webp', phone: '2-goal-phone.webp' },
   answer: { desk: '3-answer-desk.webp', phone: '3-answer-phone.webp' },
-  follow: { desk: '4-follow-desk.webp', phone: '4-follow-phone.webp' },
-  myruns: { desk: '5-tracker-desk.webp', phone: '5-tracker-phone.webp' },
-  setup: { desk: '6-setup-desk.webp', phone: '6-setup-phone.webp' },
+  simulate: { desk: '4-simulate-desk.webp', phone: '4-simulate-phone.webp' },
+  follow: { desk: '5-follow-desk.webp', phone: '5-follow-phone.webp' },
+  myruns: { desk: '6-tracker-desk.webp', phone: '6-tracker-phone.webp' },
+  setupWhere: { desk: '7-setup-where-desk.webp', phone: '7-setup-where-phone.webp' },
+  setup: { desk: '8-setup-desk.webp', phone: '8-setup-phone.webp' },
 };
 
 export interface TourPicture {
@@ -49,8 +56,10 @@ export const TOUR_SLIDES: TourSlide[] = [
   { id: 'load', desk: desk(loadDesk), phone: phone(loadPhone) },
   { id: 'goal', desk: desk(goalDesk), phone: phone(goalPhone) },
   { id: 'answer', desk: desk(answerDesk), phone: phone(answerPhone) },
+  { id: 'simulate', desk: desk(simulateDesk), phone: phone(simulatePhone) },
   { id: 'follow', desk: desk(followDesk), phone: phone(followPhone) },
   { id: 'myruns', desk: desk(trackerDesk), phone: phone(trackerPhone) },
+  { id: 'setupWhere', desk: desk(setupWhereDesk), phone: phone(setupWherePhone) },
   { id: 'setup', desk: desk(setupDesk), phone: phone(setupPhone) },
 ];
 
