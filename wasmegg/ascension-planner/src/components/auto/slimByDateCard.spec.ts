@@ -25,10 +25,11 @@ describe("By a date's card (ByDateRouteCard.vue)", () => {
     const src = read('ByDateRouteCard.vue');
     expect(src).not.toMatch(/data-testid="ran-line"|data-testid="priced-with"/);
   });
-  it('no Simulate note; its words are the title (D10)', async () => {
+  it('no Simulate note; its words are the button\'s tip (D10; a Tip in place of the title, Allan 9 Nov 2026)', async () => {
     const html = await card();
     expect(html).not.toContain('simulate-plan-note');
-    expect(html).toMatch(/<button[^>]*title="Opens this route in Single run[^"]*"[^>]*data-testid="by-date-simulate"/);
+    expect(html).toMatch(/<button[^>]*aria-describedby="tip-[^"]+"[^>]*data-testid="by-date-simulate"/);
+    expect(read('ByDateRouteCard.vue')).toContain(':text="TIP_SIMULATE"');
   });
   it('Share ↓, then CSV and Excel under Download ▾, then one Save with a name (D9, D11)', async () => {
     const t = textOf(await card({ xlsx: true }));

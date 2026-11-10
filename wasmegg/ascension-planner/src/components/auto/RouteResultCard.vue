@@ -38,16 +38,19 @@
     <slot />
 
     <template v-if="!running && days > 0" #actions>
-      <!-- What it opens is the button's title (SIMULATE_TITLE); the line under the row that said it is gone (C6). -->
-      <button
-        type="button"
-        :disabled="busy"
-        :class="PRIMARY_BUTTON"
-        :title="SIMULATE_TITLE"
-        @click="emit('build')"
-      >
-        Simulate this plan
-      </button>
+      <!-- What it opens is the button's tip (Tip.vue, lib/tipWords.ts TIP_SIMULATE); the line under the row that said it is
+           gone (C6). -->
+      <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+        <button
+          :aria-describedby="describedby"
+          type="button"
+          :disabled="busy"
+          :class="PRIMARY_BUTTON"
+          @click="emit('build')"
+        >
+          Simulate this plan
+        </button>
+      </Tip>
       <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
       <FollowButton
         v-if="follow"
@@ -96,7 +99,8 @@
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { SIMULATE_TITLE } from '@/lib/siteNav';
+import Tip from '@/components/Tip.vue';
+import { TIP_SIMULATE } from '@/lib/tipWords';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
 import FollowButton from '../FollowButton.vue';

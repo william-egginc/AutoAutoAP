@@ -6,36 +6,46 @@
   the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
 <template>
-  <button
-    type="button"
-    class="inline-flex items-center rounded-lg border font-bold disabled:opacity-60 disabled:cursor-default"
-    :class="[
-      on
-        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-        : main
-          ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1'
-          : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
-      primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body',
-    ]"
-    :aria-label="ariaLabel"
-    :aria-pressed="on ? 'true' : 'false'"
-    :disabled="stale && !on"
-    :title="on ? `Right now (My runs) follows this route for ${goalName}` : `Right now (My runs) follows this route for ${goalName} instead of the checked one`"
-    data-testid="follow-route"
-    :data-goal="goalKey"
-    @click.stop="pick"
-  >
-    <template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template
-    ><template v-else>Follow this route</template>
-  </button>
+  <!-- Its tip (Tip.vue, lib/tipWords.ts; Allan, 9 Nov 2026) in place of the native title: at once on hover and focus,
+       the "i" beside it on a phone where it is a 44 px button (`primary`). The parent's class and attributes go on the
+       button itself, as before. -->
+  <Tip :text="on ? TIP_FOLLOWING : TIP_FOLLOW" name="Follow this route" :info="primary" v-slot="{ describedby }">
+    <button
+      v-bind="$attrs"
+      type="button"
+      class="inline-flex items-center rounded-lg border font-bold disabled:opacity-60 disabled:cursor-default"
+      :class="[
+        on
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+          : main
+            ? 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1'
+            : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
+        primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body',
+      ]"
+      :aria-label="ariaLabel"
+      :aria-pressed="on ? 'true' : 'false'"
+      :aria-describedby="describedby"
+      :disabled="stale && !on"
+      data-testid="follow-route"
+      :data-goal="goalKey"
+      @click.stop="pick"
+    >
+      <template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template
+      ><template v-else>Follow this route</template>
+    </button>
+  </Tip>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import Tip from '@/components/Tip.vue';
+import { TIP_FOLLOW, TIP_FOLLOWING } from '@/lib/tipWords';
 import { useFollowStore } from '@/stores/follow';
 import type { FollowFrom } from '@/lib/follow';
 import type { FollowSource } from '@/lib/followCloud';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
   chain: readonly number[];
@@ -72,12 +82,6 @@ const on = computed(() => !!follows?.isFollowed(props.goalKey, props.chain));
 const ariaLabel = computed(() =>
   props.routeLabel ? `${on.value ? 'Following' : props.stale ? 'Checking' : 'Follow'} ${props.routeLabel}` : undefined
 );
-const goalName = computed(() => {
-  const k = props.goalKey;
-  if (k.startsWith('fastest-')) return `Fastest to ${k.slice(8)} TE`;
-  if (k.startsWith('eggday-')) return `Egg Day ${k.slice(7)}`;
-  return 'this date';
-});
 function pick(): void {
   if (!follows || on.value || props.stale || !props.chain.length) return;
   const fin = typeof props.finish === 'number' && Number.isFinite(props.finish) ? Math.round(props.finish) : undefined;

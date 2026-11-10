@@ -1,7 +1,7 @@
 /**
  * The slim Fastest result card (UX fluff review 2, 5 Nov 2026, part A items C0 to C8; mock wireframes/fluff2-custom-v1):
  * the finish date leads with "684.5 days · 5 ascensions" under it, one meta line says when it ran, on which save and
- * what it was priced with (no-prestige days included), the Simulate note is the button's title only, the CSV, Excel and
+ * what it was priced with (no-prestige days included), the Simulate note is the button's tip only, the CSV, Excel and
  * Diagnostics sit under one Download ▾, and there is one Save (with its optional name) in the card. Under the card:
  * no "Compare runs by finish date", Saved for later keeps one line, and the second CSV row is gone.
  * New wording is DRAFT for Words.
@@ -64,10 +64,11 @@ describe("Fastest's card (RouteResultCard.vue)", () => {
     expect(textOf(html)).toContain('Custom, Nov 3 at 12:22 pm · any hour');
     expect(read('RouteResultCard.vue')).not.toMatch(/data-testid="ran-line"|data-testid="priced-with"/);
   });
-  it('no Simulate note under the buttons; its words stay as the title (C6)', async () => {
+  it('no Simulate note under the buttons; its words are the button\'s tip (C6; a Tip in place of the title, Allan 9 Nov 2026)', async () => {
     const html = await renderHtml(RouteResultCard, base);
     expect(html).not.toContain('build-plan-note');
-    expect(html).toMatch(/<button[^>]*title="Opens this route in Single run[^"]*"[^>]*>\s*Simulate this plan/);
+    expect(html).toMatch(/<button[^>]*aria-describedby="tip-[^"]+"[^>]*>\s*Simulate this plan/);
+    expect(read('RouteResultCard.vue')).toContain(':text="TIP_SIMULATE"');
   });
   it('CSV, Excel and Diagnostics under one Download ▾ (C5, C8)', async () => {
     const html = await renderHtml(RouteResultCard, { ...base, xlsx: true, diagnostics: true });

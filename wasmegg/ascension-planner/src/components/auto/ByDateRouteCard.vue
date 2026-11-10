@@ -126,16 +126,17 @@
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
       <template v-if="simulate || canShare || canCsv || canSave || (follow && !running)" #actions>
-        <button
-          v-if="simulate"
-          type="button"
-          :class="PRIMARY_BUTTON"
-          :title="SIMULATE_TITLE"
-          data-testid="by-date-simulate"
-          @click="emit('simulate')"
-        >
-          Simulate this plan
-        </button>
+        <Tip v-if="simulate" :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+          <button
+            :aria-describedby="describedby"
+            type="button"
+            :class="PRIMARY_BUTTON"
+            data-testid="by-date-simulate"
+            @click="emit('simulate')"
+          >
+            Simulate this plan
+          </button>
+        </Tip>
         <template v-if="!running">
           <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
           <FollowButton
@@ -223,7 +224,8 @@
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { SIMULATE_TITLE } from '@/lib/siteNav';
+import Tip from '@/components/Tip.vue';
+import { TIP_SIMULATE } from '@/lib/tipWords';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed, ref, useId, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';

@@ -41,35 +41,47 @@
       aria-label="How to search"
       @keydown="onKey"
     >
-      <button
+      <!-- Each choice's tip (Tip.vue, lib/tipWords.ts TIP_SEARCH_*; Allan, 9 Nov 2026): at once on hover and focus, by a
+           long press on a phone (no "i": three across do not leave room, and each says what it is for under it). -->
+      <Tip
         v-for="o in options"
         :key="o.id"
-        :ref="el => setOptEl(o.id, el)"
-        type="button"
-        role="radio"
-        :aria-checked="selected === o.id"
-        :tabindex="selected === o.id ? 0 : -1"
-        :disabled="running && selected !== o.id"
-        :data-testid="`search-option-${o.id}`"
-        class="min-h-[44px] min-w-0 rounded-xl px-1.5 py-2 sm:px-3 text-center sm:text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-55"
-        :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
-        @click="choose(o.id)"
+        :text="o.tip"
+        :name="o.label"
+        :info="false"
+        fill
+        class="min-w-0"
+        v-slot="{ describedby }"
       >
-        <span class="block text-body font-bold">{{ o.label }}</span>
-        <span
-          class="block mt-0.5 text-small font-bold"
-          :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
-          :data-testid="`search-option-time-${o.id}`"
-          >{{ o.time }}</span
+        <button
+          :ref="el => setOptEl(o.id, el)"
+          type="button"
+          role="radio"
+          :aria-describedby="describedby"
+          :aria-checked="selected === o.id"
+          :tabindex="selected === o.id ? 0 : -1"
+          :disabled="running && selected !== o.id"
+          :data-testid="`search-option-${o.id}`"
+          class="min-h-[44px] w-full min-w-0 rounded-xl px-1.5 py-2 sm:px-3 text-center sm:text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-55"
+          :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
+          @click="choose(o.id)"
         >
-        <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
-        <span
-          class="block mt-0.5 text-small font-normal leading-tight"
-          :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
-          :data-testid="`search-option-for-${o.id}`"
-          >{{ o.purpose }}</span
-        >
-      </button>
+          <span class="block text-body font-bold">{{ o.label }}</span>
+          <span
+            class="block mt-0.5 text-small font-bold"
+            :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
+            :data-testid="`search-option-time-${o.id}`"
+            >{{ o.time }}</span
+          >
+          <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
+          <span
+            class="block mt-0.5 text-small font-normal leading-tight"
+            :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
+            :data-testid="`search-option-for-${o.id}`"
+            >{{ o.purpose }}</span
+          >
+        </button>
+      </Tip>
     </div>
     <p v-if="running" class="text-body text-slate-500" data-testid="search-panel-locked">
       The choice is locked while a search runs. Stop it to change.
@@ -95,6 +107,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { SEARCH_CARD_LINE } from '@/lib/layoutWords';
+import Tip from '@/components/Tip.vue';
+import { TIP_SEARCH_CUSTOM, TIP_SEARCH_EXACT, TIP_SEARCH_FAST } from '@/lib/tipWords';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { searchTabs, selectSearchTab, type SearchTabId, type SearchTabScreen } from '@/lib/searchTab';
 import {
@@ -148,14 +162,15 @@ const here = (l: StrongerLevel): string => {
   return s ? `${s} here` : '';
 };
 const options = computed(() => [
-  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'usually close to the best' },
+  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'usually close to the best', tip: TIP_SEARCH_FAST },
   {
     id: 'exact' as const,
     label: 'Exact',
     time: here(SHOW_VERY_HIGH && veryHigh.value ? 'thorough' : 'normal'),
     purpose: 'a second opinion',
+    tip: TIP_SEARCH_EXACT,
   },
-  { id: 'custom' as const, label: 'Custom', time: 'you set the boxes', purpose: 'to prove it in your boxes' },
+  { id: 'custom' as const, label: 'Custom', time: 'you set the boxes', purpose: 'to prove it in your boxes', tip: TIP_SEARCH_CUSTOM },
 ]);
 
 /** Show a choice: its tab and, for Fast and Exact, its level (Fastest follows it with the search's effort). */

@@ -416,15 +416,17 @@
                 :plan-start="answerStart"
                 :deadline="deadline"
               />
-              <button
-                type="button"
-                :class="SECONDARY_BUTTON"
-                :title="SIMULATE_TITLE"
-                data-testid="box-simulate"
-                @click="openPlan(dateBoxOf(result.byDate).chain)"
-              >
-                Simulate this plan
-              </button>
+              <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                <button
+                  :aria-describedby="describedby"
+                  type="button"
+                  :class="SECONDARY_BUTTON"
+                  data-testid="box-simulate"
+                  @click="openPlan(dateBoxOf(result.byDate).chain)"
+                >
+                  Simulate this plan
+                </button>
+              </Tip>
             </div>
             <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
@@ -525,15 +527,17 @@
                   <template v-if="countOpen(r)">
                     <p class="text-small text-slate-600 tabular-nums">Reached {{ show(r.end) }}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        :class="SECONDARY_BUTTON"
-                        :title="SIMULATE_TITLE"
-                        :aria-label="`Simulate ${r.chain.join(' ')}`"
-                        @click="openPlan(r.chain)"
-                      >
-                        Simulate this plan
-                      </button>
+                      <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                        <button
+                          :aria-describedby="describedby"
+                          type="button"
+                          :class="SECONDARY_BUTTON"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
+                          @click="openPlan(r.chain)"
+                        >
+                          Simulate this plan
+                        </button>
+                      </Tip>
                       <FollowButton v-if="rowFollowable(r)" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                         :finish="r.end"
                         :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
@@ -627,15 +631,17 @@
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
               :plan-start="answerStart"
             />
-            <button
-              type="button"
-              :class="SECONDARY_BUTTON"
-              :title="SIMULATE_TITLE"
-              data-testid="box-simulate"
-              @click="openPlan(boxLead.chain)"
-            >
-              Simulate this plan
-            </button>
+            <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+              <button
+                :aria-describedby="describedby"
+                type="button"
+                :class="SECONDARY_BUTTON"
+                data-testid="box-simulate"
+                @click="openPlan(boxLead.chain)"
+              >
+                Simulate this plan
+              </button>
+            </Tip>
           </div>
           <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
           <BetterRoutePrompt
@@ -732,16 +738,18 @@
                   data-testid="counts-row-panel"
                 >
                   <div v-if="countOpen(r)" class="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      :class="SECONDARY_BUTTON"
-                      :disabled="r.chain.length < 2"
-                      :title="SIMULATE_TITLE"
-                      :aria-label="`Simulate ${r.chain.join(' ')}`"
-                      @click="openPlan(r.chain)"
-                    >
-                      Simulate this plan
-                    </button>
+                    <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                      <button
+                        :aria-describedby="describedby"
+                        type="button"
+                        :class="SECONDARY_BUTTON"
+                        :disabled="r.chain.length < 2"
+                        :aria-label="`Simulate ${r.chain.join(' ')}`"
+                        @click="openPlan(r.chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                    </Tip>
                     <FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                       :finish="r.end"
                       :end-te="r.chain[r.chain.length - 1]"
@@ -1040,7 +1048,9 @@ import { savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { instantSimulate, simulateRoute } from '@/search/simulateRoute';
 import type { FirstAscension } from '@/search/firstAscension';
 import InstantSteps from './InstantSteps.vue';
-import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import { NAMES, simulateNote } from '@/lib/siteNav';
+import Tip from '@/components/Tip.vue';
+import { TIP_SIMULATE } from '@/lib/tipWords';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
