@@ -40,6 +40,12 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
       'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
     );
+    // DRAFT (spec-tourmore, 9 Nov 2026), for Words: the four new slides. Pinned here so Words' rewrite shows in one place.
+    for (const id of ['moreWhere', 'moreInside', 'fast', 'custom'] as const) {
+      expect(FIRST_TOUR_STEPS[id].title.length, id).toBeGreaterThan(3);
+      expect(FIRST_TOUR_STEPS[id].body.length, id).toBeGreaterThan(20);
+    }
+    expect(FIRST_TOUR_STEPS.moreWhere.body).toContain('Show everything');
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {

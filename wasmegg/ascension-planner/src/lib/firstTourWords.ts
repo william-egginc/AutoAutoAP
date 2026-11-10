@@ -42,6 +42,23 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'Inside Setup',
     body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.',
   },
+  // DRAFT (spec-tourmore, 9 Nov 2026), for Words: More, then the Fast and Custom searches inside it.
+  moreWhere: {
+    title: 'More',
+    body: 'Everything else on a screen is under More, at the bottom. To have it all open every time, tick Show everything in Setup › More options.',
+  },
+  moreInside: {
+    title: 'Inside More',
+    body: 'Inside: every number of ascensions with its own route, the maxed-gear what-if, and the Search card to check the answer on your save.',
+  },
+  fast: {
+    title: 'A Fast search',
+    body: 'Fast checks routes near the instant answer with the full planner on your save. Its time here is on the button; you can stop it and keep the best.',
+  },
+  custom: {
+    title: 'A Custom search',
+    body: 'Custom tries every route in boxes you set, so it proves the best inside them. Big boxes take hours.',
+  },
 };
 
 /** The last card's closing line. */
@@ -85,4 +102,9 @@ export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
   setupWhere: 'The Setup button at the bottom of the screen, highlighted.',
   setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
+  // DRAFT (spec-tourmore), for Words.
+  moreWhere: 'The closed More fold at the bottom of Fastest to 490 TE, highlighted.',
+  moreInside: 'More open, highlighted: the table of every number of ascensions at its top.',
+  fast: 'The Fast choice in the Search card inside More, highlighted, with its time here.',
+  custom: 'The Custom choice in the Search card inside More, highlighted.',
 };

@@ -60,7 +60,7 @@ describe('the welcome box', () => {
     expect(t.state.phase).toBe('slides');
     expect(t.step.value).toBe('load');
     expect(t.state.wantFocus).toBe('title');
-    expect(t.state.announce).toBe(`Tour, step 1 of 8: ${FIRST_TOUR_STEPS.load.title}`);
+    expect(t.state.announce).toBe(`Tour, step 1 of 12: ${FIRST_TOUR_STEPS.load.title}`);
   });
 
   it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
@@ -105,7 +105,7 @@ describe('the slideshow', () => {
     t.begin({ ...ENV, hasAccount: true });
     t.take();
     const seen: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 12; i++) {
       seen.push(t.step.value);
       t.focused();
       if (!t.isLast.value) {
@@ -113,10 +113,10 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup']);
+    expect(seen).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']);
     t.focused();
     t.back();
-    expect(t.step.value).toBe('setupWhere');
+    expect(t.step.value).toBe('fast');
     expect(t.state.wantFocus).toBe('title');
     t.next();
     t.done();
