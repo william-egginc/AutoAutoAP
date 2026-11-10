@@ -200,7 +200,7 @@ export function eggTE(
 
 /** A fresh `SimulationContext` pinned to this leg's start. The stored context is never mutated —
  *  legs are evaluated out of order and share one `SearchInputs`. */
-function legContext(inputs: SearchInputs, startTime: number): SimulationContext {
+export function legContext(inputs: SearchInputs, startTime: number): SimulationContext {
   // With the player's hours picked, every egg shift waits for them inside the simulation, the farm
   // laying the egg it is on meanwhile (auto/hold.ts). Built here from the inputs' plain data, so a
   // worker that received the inputs by message gets the same hook.
@@ -211,6 +211,8 @@ function legContext(inputs: SearchInputs, startTime: number): SimulationContext 
     ascensionStartTime: startTime,
     planStartOffset: 0,
     ...(hours ? { holdUntil: (t: number) => nextAvailable(t, hours) } : {}),
+    // Setup's silo trick: the 2x event pays the away time at 2x (advanceTime.ts). Absent or off: the context as it came.
+    ...(inputs.siloTrick ? { deferForEarningsMode: true } : {}),
   };
 }
 
@@ -509,7 +511,7 @@ function legBuildKey(inputs: SearchInputs, baseState: EngineState, ctx: Simulati
   // (the hours hook) are dropped by JSON; the hours themselves are in the key below.
   const { rawBackup: _save, ...rest } = ctx;
   const context = JSON.stringify(rest);
-  const hours = JSON.stringify({ a: inputs.availability ?? null, d: !!inputs.deferShifts });
+  const hours = JSON.stringify({ a: inputs.availability ?? null, d: !!inputs.deferShifts, ...(inputs.siloTrick ? { t: true } : {}) });
   return `${id}|${startTE}|${hours}|${context}|${JSON.stringify(baseState)}`;
 }
 

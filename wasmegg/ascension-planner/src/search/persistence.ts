@@ -207,6 +207,8 @@ export function fingerprintRun(args: {
   deferShifts?: boolean;
   timeOff?: TimeOffWindow[] | null;
   noPrestige?: TimeOffWindow[] | null;
+  /** Setup's silo trick (10 Nov 2026): appended only when on, so every fingerprint written before still matches. */
+  siloTrick?: boolean;
 }): string {
   const parts = [
     args.playerId,
@@ -225,6 +227,7 @@ export function fingerprintRun(args: {
   if (args.timeOff?.length) parts.push('off:' + args.timeOff.map(w => `${w.from}-${w.to}`).join(','));
   // No prestige on these days (search/noPrestige.ts): likewise only when set.
   if (args.noPrestige?.length) parts.push('np:' + args.noPrestige.map(w => `${w.from}-${w.to}`).join(','));
+  if (args.siloTrick) parts.push('trick');
   // The simulator (sim3, 3 Nov 2026): a checkpoint priced by an older one does not resume as current.
   parts.push(`sim:${SIM_VERSION}`);
   return parts.join('|');
@@ -284,6 +287,7 @@ export interface FingerprintSettings {
   milestones: { te: number; by: number }[];
   timeOff: { from: number; to: number }[];
   noPrestige: { from: number; to: number }[];
+  siloTrick: boolean;
 }
 
 /**
@@ -304,6 +308,7 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
     milestones: [],
     timeOff: [],
     noPrestige: [],
+    siloTrick: false,
   };
   const windows = (text: string) =>
     text
@@ -314,6 +319,8 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
   for (const part of parts.slice(5)) {
     if (part.startsWith('off:')) {
       out.timeOff = windows(part.slice(4));
+    } else if (part === 'trick') {
+      out.siloTrick = true;
     } else if (part.startsWith('sim:')) {
       continue;
     } else if (part.startsWith('np:')) {
@@ -369,11 +376,13 @@ function tailChanges(a: string[], b: string[]): string[] {
   const isMs = (p: string) => p.startsWith('ms');
   const isNp = (p: string) => p.startsWith('np:');
   const isSim = (p: string) => p.startsWith('sim:');
-  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p) && !isSim(p);
+  const isTrick = (p: string) => p === 'trick';
+  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p) && !isSim(p) && !isTrick(p);
   if (tail(a, isAvail) !== tail(b, isAvail)) out.push('the availability schedule changed');
   if (tail(a, isMs) !== tail(b, isMs)) out.push('the TE milestones changed');
   if (tail(a, isOff) !== tail(b, isOff)) out.push('the time off changed');
   if (tail(a, isNp) !== tail(b, isNp)) out.push('the no-prestige days changed');
+  if (tail(a, isTrick) !== tail(b, isTrick)) out.push('the silo trick setting changed');
   if (tail(a, isSim) !== tail(b, isSim)) out.push('the simulator changed');
   return out;
 }

@@ -2800,6 +2800,7 @@ function cacheKey(): string | null {
     useHours: useHours.value,
     maxAscensions: filters.value.maxAscensions,
     minAscensions: filters.value.minAscensions,
+    siloTrick: store.siloTrick,
   });
 }
 /**

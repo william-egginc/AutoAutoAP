@@ -767,6 +767,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const deferShifts = ref(true);
 
+  /**
+   * Setup's "silo trick" (10 Nov 2026, Jordan: "Plans should have a setting in setup, off by default"): the player goes
+   * offline into Monday's 2x event and collects inside it, which pays the away time at 2x (capped at the silos). On, the plan
+   * counts that cash (`SearchInputs.siloTrick`, search/leg.ts legContext); off, plans are exactly as before. Remembered per
+   * account with the other Setup settings (lib/setupMemory.ts); not in the /prefs cloud value (the collector's contract).
+   */
+  const siloTrick = ref(false);
+
   const availabilityLabel = computed(() => describeAvailability(availability.value));
 
   // ------------------------------------------------------------------ YOUR SETUP, REMEMBERED PER ACCOUNT
@@ -822,6 +830,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         days: [...availableDays.value],
       },
       holdShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
       noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
@@ -836,6 +845,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableTo.value = v.hours.to;
       availableDays.value = [...v.hours.days];
       deferShifts.value = v.holdShifts;
+      siloTrick.value = !!v.siloTrick;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
       noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
@@ -936,6 +946,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deep: true,
   });
   watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
+  watch(siloTrick, () => noteSetupEdit('siloTrick'), { flush: 'sync' });
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
   watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
@@ -2532,6 +2543,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     firstAscension: FirstAscension;
     availability: Availability | null;
     deferShifts: boolean;
+    /** Setup's silo trick (absent on settings kept before 10 Nov 2026: off). */
+    siloTrick?: boolean;
     timeOff: TimeOffDates[];
     /** No prestige on these days (absent on settings kept before 24 Oct 2026: none). */
     noPrestige?: TimeOffDates[];
@@ -2543,6 +2556,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       firstAscension: firstAscensionFor(),
       availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
       noPrestige: JSON.parse(JSON.stringify(noPrestige.value)) as TimeOffDates[],
     };
@@ -2872,6 +2886,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     } else {
       scheduleEnabled.value = false;
     }
+    siloTrick.value = !!set.siloTrick;
     milestones.value = set.milestones.map(m => ({ ...m }));
     const tz = planTimezone();
     timeOff.value = set.timeOff.map(w => ({
@@ -2971,6 +2986,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // (before 9 Oct) carries on as Continue Asc., never as today's default.
     setFirstAscension(readFirstAscension(inputs));
     if (typeof inputs.deferShifts === 'boolean') deferShifts.value = inputs.deferShifts;
+    // A run priced before the setting existed had none: off.
+    siloTrick.value = !!inputs.siloTrick;
     pinPlanStart(inputs.planStart);
     const left = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
     if (left.length) {
@@ -3231,6 +3248,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     });
@@ -3526,6 +3544,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     };
@@ -4573,6 +4592,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // build-up (10 Oct) likewise.
       { continue: 'fc', auto: 'fresh', fresh: 'now', buildup: 'bu' }[usedSettings().firstAscension],
       deferShifts.value ? 'hold' : 'free',
+      // Only when on, so every key written before stays as it was.
+      ...(siloTrick.value ? ['trick'] : []),
       // What makes it a different ROW on the board even with the same answer: a different space or
       // sweep, or a partial run versus the finished one.
       sp ? JSON.stringify([sp.mode, sp.bands ?? sp.range, sp.minGap]) : 'staged',
@@ -7532,6 +7553,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!set) return;
     setFirstAscension(set.firstAscension);
     if (typeof set.deferShifts === 'boolean') deferShifts.value = set.deferShifts;
+    siloTrick.value = !!set.siloTrick;
     if (set.availability) {
       scheduleEnabled.value = true;
       availableFrom.value = set.availability.fromHour;
@@ -9964,6 +9986,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     })
@@ -10121,6 +10144,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     availability,
     availabilityLabel,
     deferShifts,
+    siloTrick,
     planStartUsed,
     scheduleIsEmpty,
     milestones,
