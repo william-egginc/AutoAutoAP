@@ -1,0 +1,70 @@
+[
+ {
+  "accounts": {
+   "carpet-4f9b3be4-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4E Quantum metronome []",
+   "T4R Interstellar compass []",
+   "T4C Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C Gusset",
+    "T4E Quantum metronome",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh",
+    "T4R Interstellar compass"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 4f9b3be4 (ap-table-store index.json, 10 Nov 2026: T4E metronome, T4R compass, T4C gusset, T4L totem) with REALISTIC stones: the weak class median (as 529b409d; collector /all, 4 Nov). Tables and PC, 10 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-4f9b3be4": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4E Quantum metronome []",
+   "T4R Interstellar compass []",
+   "T4C Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C Gusset",
+    "T4E Quantum metronome",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh",
+    "T4R Interstellar compass"
+   ],
+   "stones": "30x T4 Lunar stone, 30x T4 Quantum stone, 30x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 4f9b3be4 (ap-table-store index.json, 10 Nov 2026) on maxed earnings, epic research and colleggtibles (alt.json base); stones generous so the optimizer's choice is the delivery set's own. Tables and PC, 10 Nov."
+ }
+]

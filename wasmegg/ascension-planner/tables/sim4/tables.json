@@ -1,0 +1,210 @@
+{
+ "note": "sim4 tables (SIM_VERSION 2026-11-09-sim4), generator commit 8622accc7. Built with scripts/tables-build.mjs; every te-NNN.jsonl must be byte-identical to a build on any machine with this bundle (bundle.sha256), node v23.10.0, these inputs. 'built' = already built by AutoAutoAP (10 Nov 2026); maxed, all-common and the 8 gear stamps are built too and not listed (their inputs hold account names).",
+ "node": "v23.10.0",
+ "backupSha256": "26930d73ab2750a5756217712f0c66e4cdf75b0f1722db07a61f62d516b6ebcc",
+ "combosSha256": {
+  "carpet_combos.json": "c154c1a02466657cbaf5c12ca19c18fe6327f77bd8486a1e9720cb7bf80b0bbd",
+  "carpet_combos_extra5.json": "2cbd729452dbf5c945ec2be9b69d5b62b04285b9500b3dafa57647e569df4c48",
+  "carpet_combos_board.json": "5959c9bf84fd2007a0f4618f0e1195468704ec742c2c183bacb00147fa50fe30",
+  "carpet_combos_4f9b.json": "186b34e0b1aab07d7410b73dd59d114ceb4b128592a221ec844b684351f93926"
+ },
+ "flags": [
+  "--generate",
+  "--v2",
+  "--reuse-prefix"
+ ],
+ "tables": [
+  {
+   "name": "carpet-0b85c7a1-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-0b85c7a1-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-f9b40271-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-f9b40271-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-f8b400de-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-f8b400de-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-9da8f087-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-9da8f087-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-9a66a47c-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-9a66a47c-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-bae50cd3-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-bae50cd3-board",
+   "from": 75,
+   "to": 489,
+   "status": "built"
+  },
+  {
+   "name": "carpet-9f92d93c-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-9f92d93c-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-6fa77610-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-6fa77610-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-1b9d300e-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-1b9d300e-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-09f8b316-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-09f8b316-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-529b409d-board",
+   "combos": "carpet_combos_board.json",
+   "combo": "carpet-529b409d-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-4f9b3be4-board",
+   "combos": "carpet_combos_4f9b.json",
+   "combo": "carpet-4f9b3be4-board",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-09f8b316-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-09f8b316",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-1b9d300e-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-1b9d300e",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-0b85c7a1-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-0b85c7a1",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-9f92d93c-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-9f92d93c",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-9a66a47c-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-9a66a47c",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-529b409d-full",
+   "combos": "carpet_combos.json",
+   "combo": "carpet-529b409d",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-bae50cd3-full",
+   "combos": "carpet_combos_extra5.json",
+   "combo": "carpet-bae50cd3",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-6fa77610-full",
+   "combos": "carpet_combos_extra5.json",
+   "combo": "carpet-6fa77610",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-f8b400de-full",
+   "combos": "carpet_combos_extra5.json",
+   "combo": "carpet-f8b400de",
+   "from": 75,
+   "to": 489,
+   "status": "built"
+  },
+  {
+   "name": "carpet-9da8f087-full",
+   "combos": "carpet_combos_extra5.json",
+   "combo": "carpet-9da8f087",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-f9b40271-full",
+   "combos": "carpet_combos_extra5.json",
+   "combo": "carpet-f9b40271",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "carpet-4f9b3be4-full",
+   "combos": "carpet_combos_4f9b.json",
+   "combo": "carpet-4f9b3be4",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  }
+ ]
+}

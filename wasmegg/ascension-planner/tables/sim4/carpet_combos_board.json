@@ -1,0 +1,376 @@
+[
+ {
+  "accounts": {
+   "carpet-0b85c7a1-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4E Quantum metronome []",
+   "T4L Interstellar compass []",
+   "T4L Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Quantum metronome",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "9x T4 Lunar stone, 9x T4 Quantum stone, 7x T4 Tachyon stone, 14x T3 Lunar stone, 19x T3 Quantum stone, 16x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 0b85c7a1 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-f9b40271-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4L Quantum metronome []",
+   "T4E Interstellar compass []",
+   "T4L Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "21x T4 Lunar stone, 16x T4 Quantum stone, 14x T4 Tachyon stone, 29x T3 Lunar stone, 18x T3 Quantum stone, 19x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set f9b40271 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-f8b400de-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4E Quantum metronome []",
+   "T4E Interstellar compass []",
+   "T4L Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Interstellar compass",
+    "T4E Quantum metronome",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "16x T4 Lunar stone, 9x T4 Quantum stone, 14x T4 Tachyon stone, 8x T3 Lunar stone, 11x T3 Quantum stone, 13x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set f8b400de with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-9da8f087-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4L Quantum metronome []",
+   "T4L Interstellar compass []",
+   "T4E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Gusset",
+    "T4L Demeters necklace",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "12x T4 Lunar stone, 10x T4 Quantum stone, 9x T4 Tachyon stone, 14x T3 Lunar stone, 17x T3 Quantum stone, 15x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 9da8f087 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-9a66a47c-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4L Quantum metronome []",
+   "T4E Interstellar compass []",
+   "T4E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Gusset",
+    "T4E Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "12x T4 Lunar stone, 10x T4 Quantum stone, 9x T4 Tachyon stone, 14x T3 Lunar stone, 17x T3 Quantum stone, 15x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 9a66a47c with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-bae50cd3-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T3E Quantum metronome []",
+   "T4R Interstellar compass []",
+   "T4E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T3E Quantum metronome",
+    "T4E Gusset",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh",
+    "T4R Interstellar compass"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set bae50cd3 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-9f92d93c-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4E Quantum metronome []",
+   "T4R Interstellar compass []",
+   "T2E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T2E Gusset",
+    "T4E Quantum metronome",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh",
+    "T4R Interstellar compass"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 9f92d93c with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-6fa77610-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T3E Quantum metronome []",
+   "T4E Interstellar compass []",
+   "T2E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T2E Gusset",
+    "T3E Quantum metronome",
+    "T4E Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 6fa77610 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-1b9d300e-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T3E Quantum metronome []",
+   "T4E Interstellar compass []",
+   "T4E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T3E Quantum metronome",
+    "T4E Gusset",
+    "T4E Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 1b9d300e with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-09f8b316-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T3E Quantum metronome []",
+   "T4C Interstellar compass []",
+   "T2E Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T2E Gusset",
+    "T3E Quantum metronome",
+    "T4C Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 09f8b316 with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ },
+ {
+  "accounts": {
+   "carpet-529b409d-board": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4R Quantum metronome []",
+   "T4R Interstellar compass []",
+   "T4C Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C Gusset",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L The chalice",
+    "T4L Tungsten ankh",
+    "T4R Interstellar compass",
+    "T4R Quantum metronome"
+   ],
+   "stones": "4x T4 Lunar stone, 3x T4 Quantum stone, 2x T4 Tachyon stone, 19x T3 Lunar stone, 8x T3 Quantum stone, 14x T3 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Carpet's delivery set 529b409d with REALISTIC stones: median of board players (collector /all, 4 Nov, 67 distinct rows) wearing that set, or its class median when under 3 rows. Tables and PC, 4 Nov."
+ }
+]

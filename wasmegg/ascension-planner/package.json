@@ -12,6 +12,8 @@
     "format": "prettier --write \"src/**/*.{js,ts,vue}\"",
     "generate:pacific-time-table": "node --experimental-strip-types scripts/generatePacificTimeTable.ts",
     "search:build": "vite build --config vite.search.config.ts",
+    "tables:build": "node scripts/tables-build.mjs build",
+    "tables:verify": "node scripts/tables-build.mjs verify",
     "fastsearch": "node dist-search/fastsearch.js",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
