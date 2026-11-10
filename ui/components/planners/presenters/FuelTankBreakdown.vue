@@ -3,8 +3,8 @@
     <!-- Capacity Bar -->
     <div class="space-y-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
       <div class="flex justify-between items-end mb-1">
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilization</span>
-        <span class="text-xs font-bold text-slate-700 font-mono-premium">
+        <span class="text-slate-400 label">Utilization</span>
+        <span class="text-small font-bold text-slate-700 tabular-nums">
           {{ formatNumber(totalFuel, 1) }} <span class="opacity-40">/</span> {{ formatNumber(capacity, 1) }}
           <span class="opacity-40">·</span> {{ fillPercent.toFixed(1) }}%
         </span>
@@ -22,7 +22,7 @@
 
     <!-- Per-Egg Fuel Amounts -->
     <div class="space-y-3">
-      <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stored Inventory</h4>
+      <h4 class="text-slate-400 label ml-1">Stored Inventory</h4>
       <div class="grid grid-cols-1 gap-2">
         <div
           v-for="egg in eggs"
@@ -39,13 +39,13 @@
             />
           </div>
           <div class="flex-1">
-            <div class="text-xs font-bold text-slate-700 uppercase tracking-tight">{{ FUEL_EGG_NAMES[egg] }}</div>
+            <div class="text-slate-700 label">{{ FUEL_EGG_NAMES[egg] }}</div>
           </div>
           <div class="flex flex-col items-end">
             <div class="flex items-center gap-2">
               <svg
                 v-if="getRoundingShortfall(fuelAmounts[egg]) > 0"
-                v-tippy="'Rounding is likely to cause a problem for you, since you are below the displayed number of eggs.'"
+                v-tippy="'The amount shown is rounded up. You have fewer eggs than it shows.'"
                 class="w-4 h-4 text-warning"
                 fill="none"
                 stroke="currentColor"
@@ -57,18 +57,18 @@
                 v-if="editable"
                 type="text"
                 :value="formatNumber(fuelAmounts[egg], 1)"
-                class="input-premium w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+                class="input-premium w-40 text-right text-body tabular-nums font-bold text-slate-900"
                 placeholder="0"
                 @blur="handleFuelAmountChange(egg, ($event.target as HTMLInputElement).value)"
                 @keydown.enter="($event.target as HTMLInputElement).blur()"
               />
-              <span v-else class="text-sm font-mono-premium font-bold text-slate-700 tracking-tight">
+              <span v-else class="text-body tabular-nums font-bold text-slate-700">
                 {{ formatNumber(fuelAmounts[egg], 1) }}
               </span>
             </div>
             <div
               v-if="getRoundingShortfall(fuelAmounts[egg]) > 0"
-              class="text-[9px] text-danger font-bold uppercase tracking-widest mt-1"
+              class="text-small text-danger font-bold mt-1"
             >
               You're short by {{ formatFullNumber(getRoundingShortfall(fuelAmounts[egg])) }} eggs
             </div>

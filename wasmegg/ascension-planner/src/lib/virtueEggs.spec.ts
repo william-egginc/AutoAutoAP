@@ -50,7 +50,7 @@ describe('virtue egg pictures (fix 20: one helper for every egg picture on My ru
   });
 
   it('FloatingStats (the Manual planner’s current egg) builds the same path from the egg’s name', () => {
-    const src = readFileSync(new URL('../components/FloatingStats.vue', import.meta.url), 'utf8');
+    const src = readFileSync(new URL('../../../../ui/components/planners/FloatingStats.vue', import.meta.url), 'utf8');
     expect(src).toContain('iconURL(`egginc/egg_${currentEgg}.png`, 64)');
   });
 

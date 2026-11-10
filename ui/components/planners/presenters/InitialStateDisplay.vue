@@ -8,8 +8,8 @@
         <!-- Start Time -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 md:flex-wrap">
           <div>
-            <div class="text-sm font-bold text-slate-700">{{ PROFILE.planLabel }} Start</div>
-            <div class="hidden md:block text-[10px] uppercase font-black text-slate-400 tracking-wider">When this journey begins</div>
+            <div class="text-body font-bold text-slate-700">{{ PROFILE.planLabel }} Start</div>
+            <div class="hidden md:block label text-slate-400">When this journey begins</div>
           </div>
           <div class="flex flex-col md:flex-row md:items-center md:flex-wrap md:justify-end gap-2 w-full md:w-auto mt-1 md:mt-0">
             <DateTimeZonePicker
@@ -18,7 +18,7 @@
               v-model:timezone="localAscensionTimezone"
             />
             <button
-              class="btn-premium btn-primary w-full md:w-auto px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-30"
+              class="btn-premium btn-primary w-full md:w-auto px-4 py-2.5 text-body font-bold transition-all disabled:opacity-30"
               :disabled="!hasAscensionChanges"
               @click="applyAscensionChanges"
             >
@@ -34,9 +34,9 @@
           class="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100 group hover:bg-slate-50 transition-colors"
         >
           <div>
-            <div class="text-sm font-bold text-slate-700">Assume Double Earnings</div>
+            <div class="text-body font-bold text-slate-700">Assume Double Earnings</div>
             <div
-              class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider group-hover:text-slate-500 transition-colors"
+              class="hidden sm:block text-small font-bold text-slate-400 group-hover:text-slate-500 transition-colors"
             >
               Active Video Doubler or Ultra
             </div>
@@ -87,7 +87,7 @@
         <div class="flex items-center gap-4">
           <div class="px-2 py-0.5 bg-slate-200/50 rounded-full">
             <span
-              class="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none font-mono-premium"
+              class="text-body font-bold text-slate-600 leading-none tabular-nums"
             >
               {{ formatNumber(totalFuel, 1) }} <span class="opacity-40">/</span> {{ formatNumber(tankCapacity, 1) }}
             </span>
@@ -163,7 +163,7 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">{{ research.name }}</div>
+                <div class="text-slate-800 label">{{ research.name }}</div>
               </div>
             </div>
             <div class="flex flex-shrink-0 items-center gap-2">
@@ -173,7 +173,7 @@
                   :value="research.level"
                   :min="0"
                   :max="research.maxLevel"
-                  class="input-premium w-16 text-center text-xs font-mono-premium py-1 font-bold"
+                  class="input-premium w-16 text-center text-body tabular-nums py-1 font-bold"
                   @change="
                     $emit(
                       'set-epic-research-level',
@@ -182,13 +182,13 @@
                     )
                   "
                 />
-                <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest w-10"
+                <span class="text-slate-300 label w-10"
                   >/ {{ research.maxLevel }}</span
                 >
               </div>
             </div>
           </div>
-          <div class="text-[10px] text-slate-500 font-medium italic leading-relaxed pl-14 pr-2 pb-1">
+          <div class="text-small text-slate-500 font-normal italic pl-14 pr-2 pb-1">
             {{ research.effect }}
           </div>
         </div>
@@ -235,8 +235,8 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">{{ egg.name }}</div>
-                <div class="text-[10px] text-slate-400 font-medium truncate italic leading-relaxed">
+                <div class="text-slate-800 label">{{ egg.name }}</div>
+                <div class="text-small text-slate-400 font-normal truncate italic">
                   {{ egg.bonusText }} {{ egg.effect.toLowerCase() }}
                 </div>
               </div>
@@ -245,7 +245,7 @@
             <div class="flex items-center gap-4">
               <select
                 :value="egg.tierIndex"
-                class="input-premium py-1 pl-3 pr-10 text-xs font-bold text-slate-900 border-none bg-slate-100 hover:bg-slate-200 transition-colors w-auto"
+                class="input-premium py-1 pl-3 pr-10 text-body font-bold text-slate-900 border-none bg-slate-100 hover:bg-slate-200 transition-colors w-auto"
                 @change="$emit('set-colleggtible-tier', egg.id, parseInt(($event.target as HTMLSelectElement).value))"
               >
                 <option v-for="opt in TIER_OPTIONS" :key="opt.value" :value="opt.value">

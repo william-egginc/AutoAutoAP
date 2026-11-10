@@ -16,17 +16,17 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
-        <span class="text-[10px] font-bold text-slate-700 truncate">{{ group.note.payload.message }}</span>
-        <span class="text-[9px] font-bold text-slate-500 shrink-0">
+        <span class="text-small font-bold text-slate-700 truncate">{{ group.note.payload.message }}</span>
+        <span class="text-small font-bold text-slate-500 shrink-0">
           {{ group.purchaseCount }} research buy{{ group.purchaseCount === 1 ? '' : 's' }}
         </span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <span v-if="group.totalTimeSeconds >= 1" class="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+        <span v-if="group.totalTimeSeconds >= 1" class="text-slate-400 label">
           {{ formatDuration(group.totalTimeSeconds) }}
         </span>
         <div v-if="group.totalCost > 0" class="flex items-center gap-1">
-          <span class="text-[9px] font-black text-amber-600 tracking-tight">{{ formatPrice(group.totalCost) }}</span>
+          <span class="text-small font-bold text-amber-600">{{ formatPrice(group.totalCost) }}</span>
           <img :src="iconURL(PROFILE.currency.iconPath, 32)" class="w-2.5 h-2.5" :alt="PROFILE.currency.name" />
         </div>
       </div>

@@ -13,12 +13,12 @@
             <img :src="iconURL(icon, 64)" class="w-full h-full object-contain" />
           </div>
           <div>
-            <h4 class="text-sm font-black text-slate-800 uppercase tracking-tight">{{ title }}</h4>
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{{ subtitle }}</p>
+            <h4 class="text-body font-bold text-slate-800">{{ title }}</h4>
+            <p class="text-body text-slate-500 font-bold">{{ subtitle }}</p>
           </div>
         </div>
         <div class="text-right">
-          <span class="text-xs font-mono-premium font-black" :class="secondsClass">
+          <span class="text-small tabular-nums font-bold" :class="secondsClass">
             {{ formatDuration(seconds) }}
           </span>
         </div>

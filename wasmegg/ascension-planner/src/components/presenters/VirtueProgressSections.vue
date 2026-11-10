@@ -13,7 +13,7 @@
       </div>
       <div class="flex items-center gap-4">
         <div class="px-2 py-0.5 bg-brand-primary/10 rounded-full">
-          <span class="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">
+          <span class="text-body font-bold text-slate-900 leading-none">
             {{ totalTe }} <span class="opacity-50">/ 490</span> TE
           </span>
         </div>
@@ -32,16 +32,16 @@
       <!-- Eggs of Truth (Total display) -->
       <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
         <div>
-          <div class="text-sm font-bold text-slate-700">Total Eggs of Truth</div>
-          <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+          <div class="text-body font-bold text-slate-700">Total Eggs of Truth</div>
+          <div class="text-small font-bold text-slate-400">
             Multiplies IHR & Earnings by 1.1^TE
           </div>
         </div>
         <div class="flex items-center gap-3">
           <div class="relative">
-            <div class="text-lg font-mono-premium font-bold text-slate-900 px-3">{{ totalTe }}</div>
+            <div class="text-title tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
           </div>
-          <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Max: 490</span>
+          <span class="text-slate-300 label mt-1">Max: 490</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@
                 :alt="egg"
               />
             </div>
-            <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">
+            <div class="text-slate-800 label">
               {{ VIRTUE_EGG_NAMES[egg] }}
             </div>
           </div>
@@ -70,11 +70,11 @@
             <div class="grid grid-cols-2 gap-3 w-full">
               <!-- Delivered -->
               <div class="flex flex-col gap-1">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivered</span>
+                <span class="text-slate-400 label">Delivered</span>
                 <input
                   type="text"
                   :value="formatNumber(eggsDelivered[egg], 3)"
-                  class="input-premium w-full text-right text-sm font-mono-premium font-bold text-slate-900"
+                  class="input-premium w-full text-right text-body tabular-nums font-bold text-slate-900"
                   placeholder="0"
                   @change="handleEggsDeliveredChange(egg, ($event.target as HTMLInputElement).value)"
                   @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -82,13 +82,13 @@
               </div>
               <!-- TE -->
               <div class="flex flex-col gap-1">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
+                <span class="text-slate-400 label truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
                 <input
                   type="number"
                   :value="teEarned[egg]"
                   :min="0"
                   :max="98"
-                  class="input-premium w-full text-right text-sm font-mono-premium font-bold text-slate-900"
+                  class="input-premium w-full text-right text-body tabular-nums font-bold text-slate-900"
                   @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
                   @keydown.enter="($event.target as HTMLInputElement).blur()"
                 />
@@ -124,7 +124,7 @@
         <button
           v-for="setName in ['earnings', 'elr'] as const"
           :key="setName"
-          class="px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+          class="px-4 py-1 text-body font-bold rounded-lg transition-all"
           :class="[
             activeSetTab === setName
               ? 'bg-white text-slate-900 shadow-sm'
@@ -132,14 +132,14 @@
           ]"
           @click="activeSetTab = setName"
         >
-          {{ setName }}
+          {{ setName === 'elr' ? 'Delivery' : 'Earnings' }}
         </button>
       </div>
     </div>
     <div class="p-4">
       <div v-if="activeSetTab === 'earnings' && clothedTe !== null" class="mt-4 flex justify-between items-center px-1">
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clothed TE</span>
-        <span class="text-sm font-mono-premium font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
+        <span class="text-slate-400 label">Clothed TE</span>
+        <span class="text-body tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
       </div>
       <template v-if="!hasArtifactSets">
         <div class="mb-4">
@@ -151,13 +151,13 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <button
-            class="btn-premium btn-primary py-2 text-[10px] font-black uppercase tracking-widest"
+            class="btn-premium btn-primary py-2 text-body font-bold"
             @click="$emit('save-current-to-set', 'earnings')"
           >
             Save as Earnings
           </button>
           <button
-            class="btn-premium btn-primary py-2 text-[10px] font-black uppercase tracking-widest"
+            class="btn-premium btn-primary py-2 text-body font-bold"
             @click="$emit('save-current-to-set', 'elr')"
           >
             Save as Delivery
@@ -181,7 +181,7 @@
         </div>
         <div v-if="activeArtifactSet !== activeSetTab" class="mt-4 flex justify-end">
           <button
-            class="btn-premium btn-secondary py-1.5 px-4 text-[10px] font-black uppercase tracking-widest"
+            class="btn-premium btn-secondary py-1.5 px-4 text-body font-bold"
             @click="$emit('set-active-artifact-set', activeSetTab)"
           >
             Equip as Active
@@ -192,7 +192,7 @@
           class="mt-4 flex justify-end items-center gap-3 bg-brand-primary/5 p-2 rounded-xl border border-brand-primary/10"
         >
           <div class="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></div>
-          <span class="text-[10px] font-black text-slate-900 uppercase tracking-widest"
+          <span class="text-slate-900 label"
             >Currently Active Loadout</span
           >
         </div>

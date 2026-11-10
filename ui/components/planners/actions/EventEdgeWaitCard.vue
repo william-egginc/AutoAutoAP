@@ -6,9 +6,9 @@
     <div class="flex flex-col gap-0.5 text-left min-w-0">
       <div class="flex items-center gap-2">
         <div class="w-1.5 h-1.5 rounded-full" :class="isActive ? [theme.dot, 'animate-pulse'] : 'bg-slate-300'"></div>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{{ label }}</span>
+        <span class="text-slate-400 label leading-none">{{ label }}</span>
       </div>
-      <span class="text-[11px] font-black uppercase tracking-tighter" :class="isActive ? theme.text : 'text-slate-400'">
+      <span class="label" :class="isActive ? theme.text : 'text-slate-400'">
         {{ isActive ? activeText : 'Inactive' }}
       </span>
     </div>
@@ -16,14 +16,14 @@
     <button
       type="button"
       v-tippy="tooltip"
-      class="shrink-0 flex flex-col items-end rounded-xl border px-3 py-1.5 text-right transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2"
+      class="shrink-0 flex flex-col items-end justify-center min-h-[44px] rounded-xl border px-3 py-1.5 text-right transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2"
       :class="theme.button"
       @click="$emit('wait')"
     >
-      <span class="text-[11px] font-black uppercase tracking-tight leading-tight">
-        Wait for {{ eventName }} {{ isActive ? 'end' : 'start' }}
+      <span class="text-small font-bold leading-tight">
+        Wait for {{ eventName }}{{ ' ' }}{{ isActive ? 'end' : 'start' }}
       </span>
-      <span class="text-[10px] font-mono-premium font-bold opacity-75 leading-tight">
+      <span class="text-small tabular-nums font-bold opacity-75 leading-tight">
         {{ formatDuration(secondsUntilChange) }}
       </span>
     </button>

@@ -14,10 +14,10 @@
             />
           </svg>
         </div>
-        <p class="text-[11px] font-medium text-blue-700 leading-relaxed">
-          <span class="font-black uppercase tracking-widest text-[9px] block mb-1">Info:</span>
-          This tab displays missions that were in progress when your backup was taken. You can "Wait" for them to return
-          to account for their duration in your plan.
+        <p class="text-body font-normal text-blue-700 max-w-prose">
+          <span class="label block mb-1">Info:</span>
+          This shows missions that were in flight in your last save. Press Wait on one to add its remaining time to your
+          plan.
         </p>
       </div>
     </div>
@@ -51,10 +51,9 @@
           />
         </svg>
       </div>
-      <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">No Active Missions</h3>
-      <p class="text-[11px] text-slate-500 max-w-xs leading-relaxed font-medium">
-        There are no active {{ PROFILE.missions.noun }}s found in your last backup. Once missions return, use the "Rockets" tab to
-        plan new launches.
+      <h3 class="text-body font-bold text-slate-900 mb-2">No Active Missions</h3>
+      <p class="text-body text-slate-500 max-w-xs font-normal">
+        No active {{ PROFILE.missions.noun }}s were found in your last save. Use the Rockets tab to plan new launches.
       </p>
     </div>
   </div>

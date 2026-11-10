@@ -5,7 +5,7 @@
   >
     <button
       @click="toggleCollapse"
-      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-[10px] font-black uppercase tracking-wider h-8"
+      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
     >
       <svg
         class="w-4 h-4 transition-transform duration-300"
@@ -28,13 +28,13 @@
       <!-- Duration -->
       <div class="summary-item">
         <span class="summary-label">Duration</span>
-        <span class="summary-value font-mono-premium font-black text-slate-600">{{ formattedDuration }}</span>
+        <span class="summary-value tabular-nums font-bold text-slate-600">{{ formattedDuration }}</span>
       </div>
 
       <!-- End Date -->
       <div class="summary-item">
         <span class="summary-label">End Date</span>
-        <span class="summary-value text-slate-900">{{ formatDateTime(endDate) }}</span>
+        <span class="summary-value text-slate-900">{{ endReachable ? formatDateTime(endDate) : 'Not reachable' }}</span>
       </div>
 
       <PlannerSummaryStats />
@@ -96,7 +96,7 @@
           </svg>
         </button>
 
-        <span class="ml-4 text-[10px] text-slate-400 italic font-medium"
+        <span class="ml-4 text-small text-slate-400 italic font-normal"
           >Developed by
           <span @click="triggerCat" class="cursor-pointer select-none hover:text-slate-600 transition-colors"
             >joobrainie</span
@@ -133,11 +133,11 @@
             <div class="p-1.5 bg-slate-100 rounded-lg text-slate-600">
               <img :src="iconURL('egginc/icon_gift.png', 64)" class="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" alt="Gift" />
             </div>
-            <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Support the Developer</h3>
+            <h3 class="text-slate-800 label">Support the Developer</h3>
           </div>
 
           <div class="p-6">
-            <p class="text-sm font-medium text-slate-600 leading-relaxed mb-6">
+            <p class="text-body font-normal text-slate-600 mb-6 max-w-prose">
               If you find this tool helpful, you're welcome to buy me a coffee! No obligation at all, but it is deeply appreciated.
             </p>
             
@@ -145,23 +145,23 @@
               <a href="https://ko-fi.com/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/kofi_logo.png" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="Ko-fi" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support on Ko-fi</span>
-                  <span class="text-xs font-medium text-slate-500">ko-fi.com/joobrainie</span>
+                  <span class="text-body font-bold text-slate-800">Support on Ko-fi</span>
+                  <span class="text-small font-normal text-slate-500">ko-fi.com/joobrainie</span>
                 </div>
               </a>
 
               <a href="https://paypal.me/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/paypal_logo.svg" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="PayPal" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support via PayPal</span>
-                  <span class="text-xs font-medium text-slate-500">paypal.me/joobrainie</span>
+                  <span class="text-body font-bold text-slate-800">Support via PayPal</span>
+                  <span class="text-small font-normal text-slate-500">paypal.me/joobrainie</span>
                 </div>
               </a>
             </div>
 
             <div class="mt-8 flex justify-end">
               <button
-                class="px-8 py-2 text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl font-mono-premium"
+                class="px-8 py-2 text-body font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl tabular-nums"
                 @click="showDonateModal = false"
               >
                 Close
@@ -176,6 +176,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { useActionsStore } from '@planner/stores/actions';
 import { usePlanStore } from '@planner/stores/plan';
@@ -245,6 +246,7 @@ const totalDurationSeconds = computed(() => {
 
 const formattedDuration = computed(() => {
   const seconds = totalDurationSeconds.value;
+  if (!endReachable.value) return 'Not reachable';
   if (seconds === 0) return '0s';
 
   const days = Math.floor(seconds / 86400);
@@ -273,20 +275,13 @@ const endDate = computed(() => {
   return new Date(Math.round(startDate.value.getTime() + totalDurationSeconds.value * 1000));
 });
 
+// A wait that can never finish (or finishes past what a Date can hold, e.g. a Wait for TE priced at
+// billions of days on a fresh farm) has no end date: say so instead of printing the raw days.
+const endReachable = computed(() => isFinite(totalDurationSeconds.value) && !isNaN(endDate.value.getTime()));
+
 function formatDateTime(date: Date): string {
   if (isNaN(date.getTime())) return 'N/A';
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  };
-  if (date.getFullYear() !== new Date().getFullYear()) {
-    options.year = 'numeric';
-  }
-  return date.toLocaleString('en-US', options);
+  return formatMoment(date.getTime(), { weekday: true, year: 'auto' });
 }
 
 // Import/Export Logic
@@ -364,11 +359,11 @@ function triggerCat() {
 }
 
 :deep(.summary-label) {
-  @apply text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none;
+  @apply text-slate-400 label leading-none;
 }
 
 :deep(.summary-value) {
-  @apply text-[13px] font-bold tracking-tight whitespace-nowrap;
+  @apply text-small font-bold whitespace-nowrap;
 }
 
 .btn-icon-premium {

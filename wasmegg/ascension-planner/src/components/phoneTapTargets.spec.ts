@@ -185,7 +185,7 @@ describe('nothing floating covers the end of the page on a phone', () => {
     expect(room).toBeGreaterThanOrEqual(pillTop + 16);
   });
   it('Manual: the notes and stats bubbles (7rem up below md, about 70 px tall) sit inside the 12rem under the page', () => {
-    for (const f of ['../../../../ui/components/planners/FloatingNotes.vue', 'FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
+    for (const f of ['../../../../ui/components/planners/FloatingNotes.vue', '../../../../ui/components/planners/FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
     expect(app).toContain("? 'pb-48 md:pb-8'");
     expect(app).toContain(": 'pb-48 md:pb-24'");
     const bubbleTop = 7 * rem + 6 + 16 + 4 + 36 + 6; // bottom-28, p-1.5, chevron, mb-1, 36 px icon, p-1.5

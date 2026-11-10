@@ -1,12 +1,12 @@
 <template>
   <div class="flex items-center justify-between">
     <div>
-      <div class="text-sm font-bold text-slate-700">Tank Level</div>
-      <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">Storage capacity tier</div>
+      <div class="text-body font-bold text-slate-700">Tank Level</div>
+      <div class="label text-slate-400">Storage capacity tier</div>
     </div>
     <select
       :value="tankLevel"
-      class="input-premium w-auto text-sm font-bold text-slate-900 py-2.5 pl-4 pr-12"
+      class="input-premium w-auto text-body font-bold text-slate-900 py-2.5 pl-4 pr-12"
       @change="$emit('set-tank-level', parseInt(($event.target as HTMLSelectElement).value))"
     >
       <option v-for="opt in tankLevelOptions" :key="opt.level" :value="opt.level">

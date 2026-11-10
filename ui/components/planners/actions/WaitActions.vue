@@ -17,7 +17,7 @@
           >
             <img :src="iconURL('egginc/ei_hab_icon_chicken_universe.png', 64)" class="w-full h-full object-contain" />
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait for Full Habs</h3>
+          <h3 class="label text-slate-500">Wait for Full Habs</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -49,7 +49,7 @@
           >
             <img :src="iconURL('egginc/icon_afx_mission.png', 64)" class="w-full h-full object-contain" />
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait for Missions</h3>
+          <h3 class="label text-slate-500">Wait for Missions</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -80,7 +80,7 @@
           >
             <img :src="iconURL(PROFILE.currency.iconPath, 64)" class="w-full h-full object-contain" />
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait for {{ PROFILE.currency.title }}</h3>
+          <h3 class="label text-slate-500">Wait for {{ PROFILE.currency.title }}</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -111,7 +111,7 @@
           >
             <img :src="iconURL('egginc/tiny_indicator_waiting.png', 64)" class="w-full h-full object-contain" />
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait for Time</h3>
+          <h3 class="label text-slate-500">Wait for Time</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -142,7 +142,7 @@
           >
             <img :src="iconURL('egginc-extras/silo.png', 64)" class="w-full h-full object-contain" />
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait with Empty Silos</h3>
+          <h3 class="label text-slate-500">Wait with Empty Silos</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -180,7 +180,7 @@
               />
             </svg>
           </div>
-          <h3 class="font-black text-[10px] uppercase tracking-[0.2em] text-slate-500">Wait for Events</h3>
+          <h3 class="label text-slate-500">Wait for Events</h3>
         </div>
         <svg
           class="w-5 h-5 text-slate-300 transition-transform duration-300"

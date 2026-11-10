@@ -13,11 +13,17 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { useActionsStore } from '@/stores/actions';
 import { generateActionId } from '@/types';
 import { nextTEWait, tippyStub } from '@/test/teWait';
-import PlanFinalSummary from './PlanFinalSummary.vue';
-import FloatingStats from './FloatingStats.vue';
+import PlanFinalSummary from 'ui/components/planners/PlanFinalSummary.vue';
+import FloatingStats from 'ui/components/planners/FloatingStats.vue';
+import { PLANNER_PROFILE_KEY } from 'ui/composables/planners/plannerProfile';
+import { PROFILE } from '@/lib/profile';
+import type { App } from 'vue';
+
+// Since Joo's PR 731 both are the shared ui/ components, which read the planner profile main.ts provides.
+const profilePlugin = { install: (app: App) => app.provide(PLANNER_PROFILE_KEY, PROFILE) };
 
 async function render() {
-  const plugins = [getActivePinia()!, tippyStub];
+  const plugins = [getActivePinia()!, tippyStub, profilePlugin];
   return {
     summary: textOf(await renderHtml(PlanFinalSummary, {}, {}, plugins)),
     stats: textOf(await renderHtml(FloatingStats, {}, {}, plugins)),

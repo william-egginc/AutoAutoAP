@@ -2,8 +2,8 @@
   <!-- Starting Egg -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
     <div>
-      <div class="text-sm font-bold text-slate-700">Starting Egg</div>
-      <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Initial Egg</div>
+      <div class="text-body font-bold text-slate-700">Starting Egg</div>
+      <div class="hidden sm:block label text-slate-400">Where the plan begins</div>
     </div>
     <div class="flex gap-2 justify-between w-full sm:w-auto mt-1 sm:mt-0">
       <button
@@ -37,15 +37,15 @@
   <!-- Previous Shifts (editable) -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
     <div>
-      <div class="text-sm font-bold text-slate-700">Previous Shifts</div>
-      <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Experience baseline</div>
+      <div class="text-body font-bold text-slate-700">Previous Shifts</div>
+      <div class="hidden sm:block label text-slate-400">Experience baseline</div>
     </div>
     <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
       <input
         type="number"
         :value="initialShiftCount"
         :min="0"
-        class="input-premium w-full sm:w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+        class="input-premium w-full sm:w-40 text-right text-body tabular-nums font-bold text-slate-900"
         @change="$emit('set-initial-shift-count', parseInt(($event.target as HTMLInputElement).value) || 0)"
       />
     </div>
@@ -55,18 +55,18 @@
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
     <div>
       <div class="flex items-center gap-1.5">
-        <div class="text-sm font-bold text-slate-700">Soul Eggs (SE)</div>
+        <div class="text-body font-bold text-slate-700">Soul Eggs (SE)</div>
         <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-4 h-4 mb-0.5" alt="SE" />
       </div>
-      <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">
-        Earnings potential multiplier
+      <div class="hidden sm:block label text-slate-400">
+        Pays for shifts
       </div>
     </div>
     <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
       <input
         type="text"
         :value="formatNumber(soulEggs, 3)"
-        class="input-premium w-full sm:w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+        class="input-premium w-full sm:w-40 text-right text-body tabular-nums font-bold text-slate-900"
         @blur="handleSoulEggsChange(($event.target as HTMLInputElement).value)"
         @keydown.enter="($event.target as HTMLInputElement).blur()"
       />

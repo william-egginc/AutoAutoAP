@@ -3,16 +3,16 @@
   <div class="summary-item">
     <span class="summary-label">Shifts</span>
     <div class="flex items-center gap-2">
-      <span class="summary-value font-mono-premium font-black text-slate-600">{{ shiftCount }}</span>
+      <span class="summary-value tabular-nums font-bold text-slate-600">{{ shiftCount }}</span>
       <div
         v-if="totalShiftCost > 0"
         class="flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80"
         v-tippy="{ content: 'Spent • Remaining', placement: 'top' }"
       >
-        <div class="text-[8px] font-black leading-none text-slate-400 mb-1">
+        <div class="text-small font-bold leading-none text-slate-400 mb-1">
           -{{ formatNumber(totalShiftCost, 1) }}
         </div>
-        <div class="text-[9px] font-black leading-none text-slate-600 flex items-center gap-0.5">
+        <div class="text-small font-bold leading-none text-slate-600 flex items-center gap-0.5">
           {{ formatNumber(finalSE, 1) }}
           <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-2.5 h-2.5" alt="SE" />
         </div>
@@ -27,9 +27,9 @@
   >
     <span class="summary-label group-hover:text-indigo-400 transition-colors">TE Gained</span>
     <div class="flex items-center gap-2">
-      <span class="summary-value font-mono-premium font-black text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
+      <span class="summary-value tabular-nums font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
       <span
-        class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
+        class="text-slate-400 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
       >
         (Total: {{ currentTE }})
       </span>
