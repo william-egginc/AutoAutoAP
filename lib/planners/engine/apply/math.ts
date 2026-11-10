@@ -72,6 +72,37 @@ export function boostTransitionsFrom(
   absTime: number,
   horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS
 ): EarningsRateTransition[] {
+  // Remembered per (absTime, horizon, stale flag): the walk below reads only those and the fixed
+  // calendar (lib/planners/events.ts), and the table builder prices thousands of waits from the same
+  // moment (about a tenth of a sim4 build went here, PC profile 9 Nov). The lists are frozen, since
+  // every caller shares them; `getTimeToSave`/`calculateEarningsForTime` only read them.
+  const flag = snapshot.earningsBoost.active;
+  if (horizonSeconds !== BOOST_TRANSITION_HORIZON_SECONDS || (flag !== true && flag !== false)) {
+    return walkBoostTransitions(snapshot, absTime, horizonSeconds);
+  }
+  const memo = boostTransitionsMemo[flag ? 1 : 0];
+  let list = memo.get(absTime);
+  if (!list) {
+    list = Object.freeze(walkBoostTransitions(snapshot, absTime, horizonSeconds).map(t => Object.freeze(t)));
+    if (memo.size >= BOOST_TRANSITIONS_MEMO_SIZE) memo.delete(memo.keys().next().value!);
+    memo.set(absTime, list);
+  }
+  return list as EarningsRateTransition[];
+}
+
+/** `boostTransitionsFrom`'s memo by absTime, oldest first: [flag off, flag on]. */
+const boostTransitionsMemo = [
+  new Map<number, readonly EarningsRateTransition[]>(),
+  new Map<number, readonly EarningsRateTransition[]>(),
+];
+const BOOST_TRANSITIONS_MEMO_SIZE = 4096;
+
+/** `boostTransitionsFrom` without its memo: the walk itself. */
+export function walkBoostTransitions(
+  snapshot: BaseCalculationsSnapshot,
+  absTime: number,
+  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS
+): EarningsRateTransition[] {
   const trueActiveNow = isEarningsBoostActive(absTime);
   const transitions: EarningsRateTransition[] = [];
   if (trueActiveNow !== snapshot.earningsBoost.active) {

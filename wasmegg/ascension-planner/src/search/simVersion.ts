@@ -53,8 +53,9 @@ export const SIM_SOURCES = [
  *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
  *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge.
  *  9 Nov 2026 (spec-sim4): re-pasted for isTierUnlocked's short count (commonResearch.ts), a speed-up
- *  with the same answers: its spec checks it against the full count, and the tables bitcheck. */
-export const SIM_SOURCE_HASH = 'c15f813006b2b94244d16b649d73cbe5b47175e3ae71595b8e28b6c4ed2b4b56';
+ *  with the same answers: its spec checks it against the full count, and the tables bitcheck. Then for
+ *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). */
+export const SIM_SOURCE_HASH = '09925e0578f15d45603f37362366c34184ce72b121e6a3e81f478bdedf81c332';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
