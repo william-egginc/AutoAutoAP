@@ -55,6 +55,23 @@ function trailingIdleSeconds(actions: Action[]): number {
   return seconds;
 }
 
+/**
+ * THE PLAYER'S HOURS FOR PURCHASES (spec-awakebuys, 9 Nov 2026; aaap-tools notes/awake-buys-design-2026-11-09.md). A wait
+ * ends where the purchase after it happens. With the player's hours (`context.holdUntil`, set by the search only when
+ * hours are picked: search/leg.ts legContext) a wait that would end while the player is away is stretched to the next
+ * moment they are around, the farm laying meanwhile (the helpers below credit the longer wait like any other), so the buys
+ * land inside the hours, as egg shifts do (auto/hold.ts). Sale-end cap (Jordan, 9 Nov 2026): a wait that ends inside a
+ * research sale is never stretched past the sale's end, the player staying up for the last sale buys. Seconds to add; 0
+ * without the hook, so the tables, the manual planner and every run without hours are untouched.
+ */
+function stretchToHours(context: SimulationContext, endAbsTime: number): number {
+  if (!context.holdUntil) return 0;
+  let extra = context.holdUntil(endAbsTime) - endAbsTime;
+  if (!(extra > 0)) return 0;
+  if (isResearchSaleActive(endAbsTime)) extra = Math.min(extra, Math.max(0, getNextSaleEnd(endAbsTime) - endAbsTime));
+  return extra > 0 ? extra : 0;
+}
+
 export interface AdvanceTimeResult {
   currentState: EngineState;
   elapsedSeconds: number;
@@ -81,6 +98,8 @@ export function advanceTimeFlat(
   metadata?: Record<string, unknown>
 ): AdvanceTimeResult {
   if (seconds <= 0) return { currentState, elapsedSeconds };
+  // The wait ends inside the player's hours (stretchToHours); absolute time as everywhere else: start + (lastStepTime - offset).
+  seconds += stretchToHours(context, context.ascensionStartTime + ((currentState.lastStepTime || 0) - context.planStartOffset) + seconds);
 
   const snap = computeSnapshot(currentState, context, { skipGrowth: true });
   const waitAction = createSimAction('wait_for_time', { totalTimeSeconds: seconds, ...metadata });
@@ -127,6 +146,8 @@ export function advanceTimeWithBoundaries(
   totalSeconds: number
 ): AdvanceTimeResult {
   let remaining = totalSeconds;
+  // The wait ends inside the player's hours (stretchToHours); the loop below still stops at every sale and boost boundary.
+  if (remaining > 0) remaining += stretchToHours(context, baseAbsTime + elapsedSeconds + remaining);
 
   while (remaining > 0) {
     const absTime = baseAbsTime + elapsedSeconds;
