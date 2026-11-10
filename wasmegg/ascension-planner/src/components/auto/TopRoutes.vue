@@ -50,16 +50,6 @@
             <p class="break-words text-body font-bold text-slate-900 tabular-nums">{{ r.chain.join(' ') }}</p>
             <p class="break-words text-small text-slate-600 tabular-nums">{{ whenLine(r) }}</p>
             <div class="flex flex-wrap gap-2">
-              <button
-                type="button"
-                :class="SECONDARY_BUTTON"
-                :disabled="busy"
-                :aria-label="`Simulate this plan: ${r.chain.join(' ')}`"
-                data-testid="top-route-simulate"
-                @click="emit('simulate', [...r.chain])"
-              >
-                Simulate this plan
-              </button>
               <FollowButton
                 v-if="canFollow(r)"
                 primary
@@ -72,6 +62,19 @@
                 :plan-start="follow!.planStart"
                 :deadline="deadline ?? null"
               />
+              <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                <button
+                  :aria-describedby="describedby"
+                  type="button"
+                  :class="SECONDARY_BUTTON"
+                  :disabled="busy"
+                  :aria-label="`Simulate this plan: ${r.chain.join(' ')}`"
+                  data-testid="top-route-simulate"
+                  @click="emit('simulate', [...r.chain])"
+                >
+                  Simulate this plan
+                </button>
+              </Tip>
             </div>
           </li>
         </ol>
@@ -125,16 +128,6 @@
             Its time for each ascension wasn't kept; Simulate this plan works it out again.
           </p>
           <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              :class="SECONDARY_BUTTON"
-              :disabled="busy"
-              :aria-label="`Simulate this plan: ${chosen.chain.join(' ')}`"
-              data-testid="top-route-simulate"
-              @click="emit('simulate', [...chosen.chain])"
-            >
-              Simulate this plan
-            </button>
             <FollowButton
               v-if="canFollow(chosen)"
               primary
@@ -147,6 +140,19 @@
               :plan-start="follow!.planStart"
               :deadline="deadline ?? null"
             />
+            <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+              <button
+                :aria-describedby="describedby"
+                type="button"
+                :class="SECONDARY_BUTTON"
+                :disabled="busy"
+                :aria-label="`Simulate this plan: ${chosen.chain.join(' ')}`"
+                data-testid="top-route-simulate"
+                @click="emit('simulate', [...chosen.chain])"
+              >
+                Simulate this plan
+              </button>
+            </Tip>
           </div>
         </div>
       </section>
@@ -157,6 +163,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import FollowButton from '../FollowButton.vue';
+import Tip from '../Tip.vue';
+import { TIP_SIMULATE } from '@/lib/tipWords';
 import { SECONDARY_BUTTON } from './resultCardStyle';
 import { plural } from '@/lib/format';
 import { compactDuration } from '@/lib/duration';

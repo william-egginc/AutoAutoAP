@@ -29,22 +29,26 @@
       <!-- Never sends without the ticks. With the send ticked and sharing off, the button looks greyed out; with
            the acknowledgement folded (lib/panelFold.ts) it stays pressable, and a press opens the fold and goes to
            the box instead of starting. -->
-      <button
-        type="button"
-        class="btn-premium btn-primary flex-1 min-w-[12rem] py-4 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
-        :class="needsTicks ? 'opacity-40' : ''"
-        :disabled="findDisabled || notReady || running || (needsTicks && !ACK_FOLDS)"
-        :aria-disabled="needsTicks ? 'true' : undefined"
-        data-testid="run-button"
-        @click="run"
-      >
-        <!-- Dots in CSS (AnimatedDots.vue): moving, so a long run never looks stuck, at no cost per tick. -->
-        <span v-if="running" :aria-label="runningLabel"
-          >{{ runningWords }}<AnimatedDots /></span
-        ><span v-else-if="blockedBy" :aria-label="`${blockedBy} is running...`" data-testid="find-blocked-label"
-          >{{ blockedBy }} is running<AnimatedDots /></span
-        ><template v-else>{{ runLabel }}</template>
-      </button>
+      <!-- Its tip (Tip.vue, lib/tipWords.ts TIP_RUN_*; Allan, 9 Nov 2026): what the picked option does. -->
+      <Tip :text="runTip" :name="runLabel" fill class="flex-1 min-w-[12rem]" v-slot="{ describedby }">
+        <button
+          type="button"
+          class="btn-premium btn-primary flex-1 min-w-[12rem] py-4 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
+          :aria-describedby="describedby"
+          :class="needsTicks ? 'opacity-40' : ''"
+          :disabled="findDisabled || notReady || running || (needsTicks && !ACK_FOLDS)"
+          :aria-disabled="needsTicks ? 'true' : undefined"
+          data-testid="run-button"
+          @click="run"
+        >
+          <!-- Dots in CSS (AnimatedDots.vue): moving, so a long run never looks stuck, at no cost per tick. -->
+          <span v-if="running" :aria-label="runningLabel"
+            >{{ runningWords }}<AnimatedDots /></span
+          ><span v-else-if="blockedBy" :aria-label="`${blockedBy} is running...`" data-testid="find-blocked-label"
+            >{{ blockedBy }} is running<AnimatedDots /></span
+          ><template v-else>{{ runLabel }}</template>
+        </button>
+      </Tip>
       <div v-if="bestSoFarHere" class="flex flex-col items-center gap-1">
         <button
           type="button"
@@ -278,6 +282,8 @@ import ShareExtras from './ShareExtras.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ConsentBox from './ConsentBox.vue';
 import PanelFold from './PanelFold.vue';
+import Tip from '../Tip.vue';
+import { TIP_RUN_CUSTOM, TIP_RUN_EXACT, TIP_RUN_FAST } from '@/lib/tipWords';
 import { PANEL_FOLD } from '@/lib/panelFold';
 import { rememberRunSends, runSendsChoice, runSendsTicked } from '@/lib/runSends';
 import type { SearchOption } from '@/lib/searchOption';
@@ -330,6 +336,10 @@ const store = useChainSearchStore();
 const OPTION_WORD: Record<SearchOption, string> = { fast: 'Fast', exact: 'Exact', custom: 'Custom' };
 /** "Run Fast", "Run Exact", "Run Custom" (Jordan's glossary answer Q2, 25 Oct 2026); a screen's own words win. */
 const runLabel = computed(() => props.findLabel || (props.option ? `Run ${OPTION_WORD[props.option]}` : 'Run'));
+/** The run button's tip: what the picked option does (none on a screen that names its own button). */
+const runTip = computed(() =>
+  props.findLabel || !props.option ? '' : { fast: TIP_RUN_FAST, exact: TIP_RUN_EXACT, custom: TIP_RUN_CUSTOM }[props.option]
+);
 /** The running label without its "...": the dots are drawn (AnimatedDots). */
 const runningWords = computed(() => props.runningLabel.replace(/(\.\.\.|…)$/, ''));
 function jump(): void {

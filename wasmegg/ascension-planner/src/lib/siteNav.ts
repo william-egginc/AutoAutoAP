@@ -103,8 +103,7 @@ export const NAMES = {
 export function simulateNote(button = 'Simulate this plan'): string {
   return `${button} opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
 }
-/** The same, for the button's title. */
-export const SIMULATE_TITLE = `Opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift on your save`;
+/** The button's own tip: lib/tipWords.ts TIP_SIMULATE (was SIMULATE_TITLE here, the button's title, to 9 Nov 2026). */
 
 /** The exhaustive way's full title, as the chooser names it. */
 export const EXHAUSTIVE_TITLE = 'Custom: every route in boxes you set';
