@@ -141,7 +141,7 @@ function ctxOf(s: State): Record<string, unknown> {
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
     SHARE_WHAT: '',
-    SIMULATE_TITLE: '',
+    TIP_SIMULATE: '',
     SECONDARY_BUTTON: 'btn',
     START_WAIT_LABEL: 'From before: waiting for your save.',
     TABLE_URL: '/precompute/table-v2.bin',
@@ -287,6 +287,8 @@ async function draw(s: State, over: Record<string, unknown> = {}, real: Record<s
   // The moving dots (spec-dots, 1 Nov 2026): the real ones.
   app.component('AnimatedDots', AnimatedDots);
   app.component('PendingText', PendingText);
+  // The buttons' tips (Tip.vue, 9 Nov 2026): the button alone, with the id its slot hands it.
+  app.component('Tip', defineComponent({ name: 'Tip', setup: (_p, { slots }) => () => slots.default?.({ describedby: 'tip-stub' }) }));
   app.config.warnHandler = () => {};
   return renderToString(app);
 }

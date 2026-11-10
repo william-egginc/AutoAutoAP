@@ -217,8 +217,8 @@ Where the simulator does not follow them yet:
   shift cost and no reset. A fix is planned after Release 7.
 - **The silo trick** is advised by the Build-up tracker but not simulated, so the planner's times leave out its gain.
 - **Waits inside a planned ascension are not capped by silos.** They assume you check in often enough that the silos
-  never run out. Only the catch-up from your save to the plan start is capped at what the silos hold
-  (`src/lib/saveAge.ts` `catchUpSeconds`).
+  never run out. The catch-up from your save to the plan start is not capped either: it counts all the time since the
+  sync, as Joo's engine does (it was capped at what the silos hold until 10 Nov 2026).
 
 ---
 

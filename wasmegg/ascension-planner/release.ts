@@ -33,18 +33,14 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-11-10T22:00:00Z', note: 'A simpler page: each screen shows your answer and Follow first, and the rest is under More at the bottom. Setup › More options › Show everything opens it all again.', level: 'big' },
-  { at: '2026-11-10T00:00:00Z', note: 'The first-visit tour now opens with a welcome box and shows a picture on each step; Skip, Remind me later and Show the tour again still work' },
-  { at: '2026-11-09T00:00:00Z', note: 'A short tour for first-time visitors: six steps from loading your save to Setup, with Skip, a Remind me later tick, and Show the tour again at the foot of the page and in Setup' },
-  { at: '2026-11-08T23:00:00Z', note: 'Tidier: the instant-answer note is said once, dates read “on Nov 14 at 9:52 AM”, simpler tracker sale lines, the goal shown once, empty footers hidden, a held prestige shows the time you press it' },
-  { at: '2026-11-08T01:38:34Z', note: 'A banner tells you when your answers start from a TE you typed instead of your save’s, with Use my save’s TE; Setup › Sharing has one Save online switch for everything kept online' },
-  { at: '2026-11-08T01:38:33Z', note: 'The Build-up tracker no longer waits for ever when a typed starting TE is on, says Try again after 3 minutes, and gives up after 8 with the reason' },
-  { at: '2026-11-07T18:41:52Z', note: 'Release 8 (beta): plans and the Build-up tracker use your real TE again, so no more wrong “prestige now” or “shift now”; a stuck tracker fix for Safari; long searches can tell the maintainer', level: 'big' },
-  { at: '2026-11-07T18:41:51Z', note: 'Fixed: a TE you haven’t claimed yet was counted, so your current ascension looked about 10% richer; plans, buy times and the tracker now use your claimed TE' },
-  { at: '2026-11-07T18:41:50Z', note: 'Build-up tracker: no longer stuck “working it out” in Safari; says “max” for maxed research; cheap buys are grouped; a Tight warning when a sale buy is due minutes before the sale ends' },
-  { at: '2026-11-07T18:41:49Z', note: 'If your build-up can’t be worked out, the first step now says not to prestige and to reload, instead of “prestige now”; a reload works it out again' },
-  { at: '2026-11-07T18:41:48Z', note: 'Searches of 2 hours or more tell the maintainer they started and ended, so site updates can wait for them; nothing about you is sent, and Setup has an off switch (see About)' },
-  { at: '2026-11-07T18:41:47Z', note: 'The “?” tip and About say exactly what goes online; downloaded saves keep only what the planner reads; instant answers are worked out again when your save changes' },
+  { at: '2026-11-10T06:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans that use your real TE, and one Save online switch that now also keeps your starting TE and tracker ticks and plan', level: 'big' },
+  { at: '2026-11-10T06:00:06Z', note: 'A simpler page: your answer and Follow come first; the rest is in one More box (Less at the bottom). Buttons have instant tips, with an “i” on phones. Show everything in Setup opens it all.' },
+  { at: '2026-11-10T06:00:05Z', note: 'A first-visit tour with a welcome box and a picture on each step; Skip, Remind me later and Show the tour again are always there' },
+  { at: '2026-11-10T06:00:04Z', note: 'Plans and the Build-up tracker use your real TE again, so no more wrong “prestige now” or “shift now”; a TE you haven’t claimed yet is no longer counted' },
+  { at: '2026-11-10T06:00:03Z', note: 'Build-up tracker: no longer stuck “working it out”, says “max” for maxed research, groups cheap buys, warns when a sale buy is due just before the sale ends, and has a Compact view' },
+  { at: '2026-11-10T06:00:02Z', note: 'If your build-up can’t be worked out, the first step says not to prestige and to reload; a banner tells you when your answers start from a typed TE, or one set on another device' },
+  { at: '2026-11-10T06:00:01Z', note: 'My runs: Your eggs and the full timeline sit above More; Fast shows a more typical time and number of routes; dates read “on Nov 14 at 9:52 AM”; empty footers are hidden' },
+  { at: '2026-11-10T06:00:00Z', note: 'Searches expected to take 2 hours or more tell the maintainer they started and ended, so site updates can wait for them; nothing about you is sent, and Setup has an off switch (see About)' },
   { at: '2026-11-04T18:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
   { at: '2026-11-04T18:00:06Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
   { at: '2026-11-04T18:00:05Z', note: 'When keeping on building would end your ascension later, My runs lets you pick: keep building or finish without buying' },
@@ -67,7 +63,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-10-23T00:13:48.000Z',
+  reloadIfBuiltBefore: '2026-11-10T04:25:00.000Z',
   note: history[0].note,
   history,
 };

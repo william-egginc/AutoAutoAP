@@ -10,7 +10,7 @@ import type {
 } from '@planner/types';
 import { calculateArtifactModifiers, activeSlots } from '@planner/lib/artifacts';
 import { totalAwayTime } from '../stores/silos';
-import { catchUpSeconds, siloSeconds } from '@planner/lib/saveAge';
+import { catchUpSeconds } from '@planner/lib/saveAge';
 import { integrateRate } from './apply/math';
 
 import { calculateEggValue } from '@planner/calculations/eggValue';
@@ -156,12 +156,8 @@ export function computeSnapshot(
     !options.skipGrowth &&
     !options.freezePopulation
   ) {
-    // Capped at what the silos hold, as the game caps time away (lib/saveAge.ts).
-    const elapsedSeconds = catchUpSeconds(
-      state.lastStepTime,
-      context.ascensionStartTime,
-      siloSeconds(state.siloCount, epicResearchLevels['silo_capacity'])
-    );
+    // All of the time since the sync, as Joo's engine does (10 Nov 2026; it was capped at the silos: lib/saveAge.ts).
+    const elapsedSeconds = catchUpSeconds(state.lastStepTime, context.ascensionStartTime);
 
     // Accurate catch-up using integrated rate (accounts for population growth)
     extraEggs = integrateRate(

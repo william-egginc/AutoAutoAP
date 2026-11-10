@@ -17,6 +17,10 @@ export const MORE_LINE_AUTO =
 /** My runs. */
 /** My runs' More line: Your eggs and the timeline moved above More, so they are not named here (spec-simpler2). */
 export const MORE_LINE_MYRUNS = 'Change route, gear, saved answer, try next, your runs';
+/** The second fold control at the foot of an open More (Allan, 9 Nov 2026: one click folds all of it). */
+export const MORE_LESS = 'Less ⌃';
+/** Its name for a screen reader (the "⌃" is drawn, not read). */
+export const MORE_LESS_LABEL = `Close ${MORE_TITLE}`;
 /** "Every number of ascensions, ... · Prefer fewer: within 12 h". */
 export function moreLineWithChanges(line: string, changed: readonly string[]): string {
   return changed.length ? `${line} · ${changed.join(' · ')}` : line;

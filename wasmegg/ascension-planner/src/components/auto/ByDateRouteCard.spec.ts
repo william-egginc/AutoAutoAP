@@ -226,16 +226,17 @@ describe('Follow this route on the result cards (23 Oct 2026)', () => {
   it('By a date: the finished answer has "Follow this route" for its goal; the best so far and a card without it have none', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ follow, simulate: true, canCsv: true }));
     expect(html).toMatch(/data-testid="follow-route" data-goal="eggday-2027"/);
-    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Download ▾ Download CSV/);
+    // Follow first, then Simulate (one order wherever the pair is shown, Allan 9 Nov 2026).
+    expect(textOf(html)).toMatch(/Follow this route Simulate this plan Download ▾ Download CSV/);
     expect(await renderHtml(ByDateRouteCard, props({ follow, running: true, simulate: true }))).not.toContain('follow-route');
     expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('follow-route');
   });
-  it('Fastest: the finished answer has it after Build this plan; mid-run none', async () => {
+  it('Fastest: the finished answer has it before Simulate this plan; mid-run none', async () => {
     const base = { chain: [166, 197, 223, 490], days: 30.5, finalTE: 490, endLabel: 'Feb 15, 2029, 9:22 PM', running: false };
     const f = { goalKey: 'fastest-490', source: 'exact' as const, finish: 1_900_000_000, endTE: 490, planStart: 1_897_000_000 };
     const html = await renderHtml(RouteResultCard, { ...base, follow: f });
     expect(html).toMatch(/data-testid="follow-route" data-goal="fastest-490"/);
-    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Share/);
+    expect(textOf(html)).toMatch(/Follow this route Simulate this plan Share/);
     expect(await renderHtml(RouteResultCard, { ...base, running: true, follow: f })).not.toContain('follow-route');
   });
 });

@@ -4,10 +4,9 @@
  *
  * THE RULE (2026-09-24). A plan starts NOW by default, not at the save's own timestamp, and the farm
  * is caught up from its last sync to the plan start at its current rate -- the same credit the game
- * gives for time away (Joo's catch-up, in `computeSnapshot` and `runContinueCurrent`). The game only
- * credits time away up to what the silos hold, so the catch-up stops there too. A save older than
- * that is suspicious in itself: either the sync is stale, or the player has been playing since and
- * the save no longer describes the farm. That gets a warning, never a silent guess.
+ * gives for time away (Joo's catch-up, in `computeSnapshot` and `runContinueCurrent`). Until 10 Nov 2026 it stopped at
+ * what the silos hold, as the game caps time away; Jordan had it follow Joo's engine instead: the whole time since the
+ * sync is credited, and a stale save is the save-age banner's to say (lib/saveFreshness.ts).
  */
 import { formatSiloTime, totalAwayTime } from 'lib/planners/stores/silos';
 import { compactDuration } from './duration';
@@ -21,21 +20,19 @@ export function siloSeconds(
   return totalAwayTime(Math.max(1, siloCount || 1), siloCapacityLevel || 0) * 60;
 }
 
-/** Seconds of offline progress to credit between a sync and a plan start: capped at the silos. */
-export function catchUpSeconds(syncSeconds: number, startSeconds: number, silo: number): number {
+/**
+ * Seconds of offline progress to credit between a sync and a plan start: all of it, as Joo's engine/compute.ts does
+ * (Jordan, 10 Nov 2026: "get rid of the amber box and just follow it like Joo's does"). It used to stop at what the
+ * silos hold, as the game caps time away; a save older than that is the save-age banner's to say (lib/saveFreshness.ts).
+ */
+export function catchUpSeconds(syncSeconds: number, startSeconds: number): number {
   if (!(syncSeconds > 1e9) || !(startSeconds > syncSeconds)) return 0;
-  return Math.min(startSeconds - syncSeconds, Math.max(0, silo));
+  return startSeconds - syncSeconds;
 }
 
 export interface SaveAgeNote {
   level: 'ok' | 'warning';
   text: string;
-  /**
-   * The plan starts further from the sync than the silos hold: the catch-up stops at the silos. A plan-start fact,
-   * shown in amber beside the start (SchedulingInputs). Whether the SAVE is old is the save-age banner's
-   * (lib/saveFreshness.ts `saveState`, spec-saveage, 29 Oct 2026), no longer said here in red.
-   */
-  pastSilos?: boolean;
 }
 
 /**
@@ -66,10 +63,9 @@ export function describeSaveAge(
   if (!syncSeconds || !(syncSeconds > 1e9) || !startSeconds || !Number.isFinite(startSeconds)) return null;
   const gap = startSeconds - syncSeconds;
   if (!hasVirtueFarm && gap >= 15 * 60) return { level: 'ok', text: SAVE_AGE_WORDS.noVirtueFarm() };
-  const silos = formatSiloTime(Math.round(silo / 60));
   if (Math.abs(gap) < 15 * 60) return { level: 'ok', text: SAVE_AGE_WORDS.atSync() };
   if (gap < 0) return { level: 'warning', text: SAVE_AGE_WORDS.beforeSync(ageWords(gap)) };
-  if (gap <= silo) return { level: 'ok', text: SAVE_AGE_WORDS.caughtUp(silos) };
-  // The words are in lib/saveAgeWords.ts (outside the result code hash).
-  return { level: 'ok', pastSilos: true, text: SAVE_AGE_WORDS.pastSilos(ageWords(gap), silos) };
+  // However long the gap (no cap at the silos, 10 Nov 2026): the words are in lib/saveAgeWords.ts (outside the result code hash).
+  // How old the SAVE is, is the save-age banner's (lib/saveFreshness.ts).
+  return { level: 'ok', text: SAVE_AGE_WORDS.caughtUp(formatSiloTime(Math.round(silo / 60))) };
 }

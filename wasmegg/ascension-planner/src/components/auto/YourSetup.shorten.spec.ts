@@ -36,13 +36,15 @@ describe('S4: the lock note', () => {
 });
 
 describe('S10: the catch-up note', () => {
-  it('is one clause; the past-silos form is unchanged', () => {
+  it('is one clause, however long the gap (the past-silos form went with the silo cap, 10 Nov 2026)', () => {
     const H = 3600;
     const SYNC = 1_790_000_000;
     expect(describeSaveAge(SYNC, SYNC + 5 * H, 12 * H)!.text).toBe(
       'Your farm is caught up to here from your save. Played since? Sync and reload.'
     );
-    expect(describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!.text).toMatch(/^Starts 1d 16h after your last sync|^Starts .* after your last sync, longer than your silos hold/);
+    expect(describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!.text).toBe(
+      'Your farm is caught up to here from your save. Played since? Sync and reload.'
+    );
   });
 });
 

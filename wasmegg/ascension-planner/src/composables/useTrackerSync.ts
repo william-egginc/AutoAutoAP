@@ -21,7 +21,9 @@
  *    it is taken instead), nor over a NEWER build's (left alone). A read takes the cloud plan only under this build's
  *    `rc` and when this browser has none for that ascension, or a later one. So two builds never replace each other in a
  *    loop: the older one never writes over the newer, and neither takes the other's.
- *  - Failures: 404 off for the page (shared with the override), 429 waits retryAfter, the rest quiet. Never a throw.
+ *  - Failures: 404 is "no /sync YET" (shared with the override: nothing asked for 10 minutes, then a read checks again;
+ *    ticks changed meanwhile wait and go once it answers; a plan kept meanwhile stays here), 429 waits retryAfter, the
+ *    rest quiet. Never a throw.
  *  - The key is the followed routes'; the account hash in the local keys is never sent; every JSON is checked with
  *    `hasPlayerId` (the plan before it is compressed).
  *
@@ -50,7 +52,7 @@ import {
   type TicksValue,
 } from '@/lib/syncedRecords';
 import { onlineFetch } from '@/lib/saveOnline';
-import { markSyncOff, onSyncList, pauseSync, syncClock, syncPausedFor, syncWhere } from './useOverrideSync';
+import { markSyncMissing, onSyncList, pauseSync, syncClock, syncMissingFor, syncPausedFor, syncTarget, syncWhere } from './useOverrideSync';
 
 export const TICKS_DEBOUNCE_MS = 10_000;
 export const TICKS_MAX_SLOTS = 3;
@@ -139,7 +141,9 @@ export function noteTicksChange(account: string, slot: number, _on?: ReadonlySet
     const m = ticksMeta(account, slot);
     writeJson(ticksMetaKey(account, slot), { ...m, at: Math.max(syncClock(), m.at + 1) });
     if (!loaded(account) || !takeSlot(account, slot)) return;
-    if (!syncWhere()) return;
+    // A 404's window: they wait for the collector (`sendTicks`); off for the page: kept here only.
+    const w = syncTarget();
+    if (!w || syncMissingFor(w.url) === Infinity) return;
     pending.set(`${account}|${slot}`, { account, slot });
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flushTrackerSync(), TICKS_DEBOUNCE_MS);
@@ -159,9 +163,12 @@ export async function flushTrackerSync(opts: { keepalive?: boolean } = {}): Prom
 
 async function sendTicks(account: string, slot: number, opts: { keepalive?: boolean }, mayMerge: boolean): Promise<void> {
   try {
-    const w = syncWhere();
+    const w = syncTarget();
     if (!w || !loaded(account)) return;
-    const wait = syncPausedFor();
+    const gone = syncMissingFor(w.url);
+    if (gone === Infinity) return;
+    // A 429's pause, or a 404's window (one second after the window's read).
+    const wait = Math.max(syncPausedFor(), gone ? gone + 1000 : 0);
     if (wait > 0) {
       pending.set(`${account}|${slot}`, { account, slot });
       if (!timer) timer = setTimeout(() => void flushTrackerSync(), wait);
@@ -185,8 +192,13 @@ async function sendTicks(account: string, slot: number, opts: { keepalive?: bool
       writeJson(ticksMetaKey(account, slot), { at: Math.max(syncClock(), r.latest.at + 1), synced: m.synced });
       trackerSyncVersion.value++;
       await sendTicks(account, slot, opts, false);
-    } else if (r.why === 'missing') markSyncOff(w.url);
-    else if (r.why === 'limit') {
+    } else if (r.why === 'missing') {
+      markSyncMissing(w.url);
+      const later = syncMissingFor(w.url);
+      if (later === Infinity) return;
+      pending.set(`${account}|${slot}`, { account, slot });
+      if (!timer) timer = setTimeout(() => void flushTrackerSync(), later + 1000);
+    } else if (r.why === 'limit') {
       pauseSync(r.retryAfter ?? 60);
       pending.set(`${account}|${slot}`, { account, slot });
       if (!timer) timer = setTimeout(() => void flushTrackerSync(), syncPausedFor());
@@ -232,7 +244,7 @@ export async function notePlanKept(account: string, reason: 'first' | 'replan'):
     const at = syncClock();
     const there = await getSyncedBytes(w.url, w.k, String(slot));
     if (!there.ok && there.why !== 'absent') {
-      if (there.why === 'missing') markSyncOff(w.url);
+      if (there.why === 'missing') markSyncMissing(w.url);
       else if (there.why === 'limit') pauseSync(there.retryAfter ?? 60);
       return;
     }
@@ -253,7 +265,7 @@ export async function notePlanKept(account: string, reason: 'first' | 'replan'):
     if (!gz || gz.length > PLAN_MAX_GZIP_BYTES) return;
     const r = await putSyncedBytes(w.url, w.k, String(slot), at, gz, onlineFetch<SyncFetch>());
     if (r.ok) writeJson(planMetaKey(account), { slot, at: r.resentAt ?? at });
-    else if (r.why === 'missing') markSyncOff(w.url);
+    else if (r.why === 'missing') markSyncMissing(w.url);
     else if (r.why === 'limit') pauseSync(r.retryAfter ?? 60);
   } catch {
     // quiet: kept here

@@ -23,6 +23,14 @@ import setupWhereDesk from '@/assets/tour/7-setup-where-desk.webp';
 import setupWherePhone from '@/assets/tour/7-setup-where-phone.webp';
 import setupDesk from '@/assets/tour/8-setup-desk.webp';
 import setupPhone from '@/assets/tour/8-setup-phone.webp';
+import moreWhereDesk from '@/assets/tour/9-more-where-desk.webp';
+import moreWherePhone from '@/assets/tour/9-more-where-phone.webp';
+import moreInsideDesk from '@/assets/tour/10-more-inside-desk.webp';
+import moreInsidePhone from '@/assets/tour/10-more-inside-phone.webp';
+import fastDesk from '@/assets/tour/11-fast-desk.webp';
+import fastPhone from '@/assets/tour/11-fast-phone.webp';
+import customDesk from '@/assets/tour/12-custom-desk.webp';
+import customPhone from '@/assets/tour/12-custom-phone.webp';
 
 /** The files behind each slide (src/assets/tour/). Slide 6 is the Build-up tracker (Jordan, 9 Nov 2026); 4 (Simulate
  *  this plan) and 7 (where Setup is) since spec-simpler2. */
@@ -35,6 +43,11 @@ export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = 
   myruns: { desk: '6-tracker-desk.webp', phone: '6-tracker-phone.webp' },
   setupWhere: { desk: '7-setup-where-desk.webp', phone: '7-setup-where-phone.webp' },
   setup: { desk: '8-setup-desk.webp', phone: '8-setup-phone.webp' },
+  // spec-tourmore (9 Nov 2026): More closed, More open, then Fast and Custom in its Search card.
+  moreWhere: { desk: '9-more-where-desk.webp', phone: '9-more-where-phone.webp' },
+  moreInside: { desk: '10-more-inside-desk.webp', phone: '10-more-inside-phone.webp' },
+  fast: { desk: '11-fast-desk.webp', phone: '11-fast-phone.webp' },
+  custom: { desk: '12-custom-desk.webp', phone: '12-custom-phone.webp' },
 };
 
 export interface TourPicture {
@@ -61,6 +74,10 @@ export const TOUR_SLIDES: TourSlide[] = [
   { id: 'myruns', desk: desk(trackerDesk), phone: phone(trackerPhone) },
   { id: 'setupWhere', desk: desk(setupWhereDesk), phone: phone(setupWherePhone) },
   { id: 'setup', desk: desk(setupDesk), phone: phone(setupPhone) },
+  { id: 'moreWhere', desk: desk(moreWhereDesk), phone: phone(moreWherePhone) },
+  { id: 'moreInside', desk: desk(moreInsideDesk), phone: phone(moreInsidePhone) },
+  { id: 'fast', desk: desk(fastDesk), phone: phone(fastPhone) },
+  { id: 'custom', desk: desk(customDesk), phone: phone(customPhone) },
 ];
 
 /** The slides for what is loaded: a save file with no player ID ends at Follow this route (lib/firstTour.ts stepsFor). */

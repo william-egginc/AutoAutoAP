@@ -37,7 +37,7 @@ describe('TopRoutes', () => {
     const t = textOf(html);
     expect(count(html, 'data-testid="top-route-row"')).toBe(5);
     expect(t).toContain('Best 5 routes');
-    expect(t).toMatch(/1\. Best 4 ascensions 150 250 350 490 Finishes Jul 17, 2027, 6:00 AM Simulate this plan Follow this route 2\./);
+    expect(t).toMatch(/1\. Best 4 ascensions 150 250 350 490 Finishes Jul 17, 2027, 6:00 AM Follow this route Simulate this plan 2\./);
     expect(t).toMatch(/2\. 5 ascensions \+1h 30m 100 200 300 400 490 Finishes/);
     expect(t).toContain('5. 4 ascensions +8h 170 270 370 490');
     expect(count(html, 'data-best="true"')).toBe(2); // the best row and its bar
@@ -55,7 +55,7 @@ describe('TopRoutes', () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="4 ascensions: finishes [^"]*, best"[^>]*data-count="4" data-best="true"/);
     expect(html).toContain('aria-label="2 ascensions: finishes Jul 18, 2027, 12:00 PM, +30h"');
     const chosen = textOf(html.slice(html.indexOf('data-testid="top-routes-chosen"')));
-    expect(chosen).toMatch(/> 4 ascensions \(the best\): 150 250 350 490 Finishes .* Simulate this plan Follow this route/);
+    expect(chosen).toMatch(/> 4 ascensions \(the best\): 150 250 350 490 Finishes .* Follow this route Simulate this plan/);
     // The sooner, the further left: the best at 4%, the slowest at 96%.
     expect(html).toContain('left:4%');
     expect(html).toContain('left:96%');

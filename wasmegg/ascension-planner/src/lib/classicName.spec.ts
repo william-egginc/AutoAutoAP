@@ -91,10 +91,11 @@ describe('the Single run name', () => {
       expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);
       expect(src, f).not.toContain('shows every shift and when each TE arrives');
     }
-    // The result cards: the button's title only (UX fluff review 2, 5 Nov 2026, items C6 and D10).
+    // The result cards: the button's tip only (UX fluff review 2, 5 Nov 2026, items C6 and D10; the title became a
+    // Tip, Allan 9 Nov 2026).
     for (const f of ['RouteResultCard.vue', 'ByDateRouteCard.vue']) {
       const card = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
-      expect(card, f).toContain(':title="SIMULATE_TITLE"');
+      expect(card, f).toContain(':text="TIP_SIMULATE"');
       expect(card, f).not.toMatch(/simulate(?:Note|Line)\(/);
     }
   });

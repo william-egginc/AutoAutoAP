@@ -181,7 +181,7 @@ export function saveState(i: SaveStateInput): SaveState | null {
   );
   if (farmAt != null)
     details.push(
-      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate, for as long as your silos hold, the way the game credits time away. Anything you did in the game since is not in it.'
+      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.'
     );
 
   return {

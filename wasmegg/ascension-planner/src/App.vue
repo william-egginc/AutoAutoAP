@@ -1,5 +1,8 @@
 <template>
-  <the-nav-bar active-entry-id="ascension-planner" />
+  <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
+  <!-- use-absolute-urls: the planner is served alone (egg-beta, the live site), so the other tools' links, '/rockets-tracker/'
+       and the like, are sent to wasmegg-carpet.netlify.app, which hosts them, rather than to 404s here (spec-betaurls). -->
+  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" use-absolute-urls /></div>
 
   <div
     :class="[
