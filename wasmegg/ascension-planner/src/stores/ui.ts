@@ -96,6 +96,9 @@ export const useUIStore = defineStore('ui', () => {
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
   const openSetupRequested = ref(0);
+  /** Where that open lands (SetupDock.vue maps it to the option): Time off unless set just before the bump, e.g. the
+   *  Build-up tracker's "Open Setup" lands on the Silo trick box (spec-silotrick-ui). SetupDock puts it back after. */
+  const openSetupAt = ref<'timeOff' | 'siloTrick'>('timeOff');
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
   /** A route handed to the Full sweep to price exactly (the instant answer's "Check exactly",
@@ -152,6 +155,7 @@ export const useUIStore = defineStore('ui', () => {
     planFromInstant,
     backupRetryRequested,
     openSetupRequested,
+    openSetupAt,
     setupOpen,
     scienceSweep,
     byDateRequest,

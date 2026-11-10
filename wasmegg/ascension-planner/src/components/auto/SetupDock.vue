@@ -166,13 +166,17 @@ watch(
 );
 
 /** Asked from a panel (a sweep's "add time off"): open, and bring the time off into view. Setup reveals it, opening
- *  More options first should a target ever sit inside it (YourSetup.vue `reveal`). */
+ *  More options first should a target ever sit inside it (YourSetup.vue `reveal`). `ui.openSetupAt` names another
+ *  option to land on (the Build-up tracker's silo trick hint: the Silo trick box, which Setup also focuses). */
+const SETUP_TARGETS = { timeOff: 'your-setup-time-off', siloTrick: 'your-setup-silo-trick' } as const;
 const setup = ref<InstanceType<typeof YourSetup> | null>(null);
 watch(
   () => ui.openSetupRequested,
   () => {
     ui.setupOpen = true;
-    void nextTick(() => setup.value?.reveal('your-setup-time-off'));
+    const target = SETUP_TARGETS[ui.openSetupAt] ?? SETUP_TARGETS.timeOff;
+    ui.openSetupAt = 'timeOff';
+    void nextTick(() => setup.value?.reveal(target));
   }
 );
 
