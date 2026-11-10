@@ -882,7 +882,7 @@ export function buildUpTailParams(inputs: SearchInputs, startTime: number): Buil
   const base = cloneBaseState(inputs);
   const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
   if (!b) return [];
-  return b.variants.map(v => paramsOf({ ctx: b.ctx, preC3: b.preC3, variants: b.variants }, v, startTime));
+  return b.variants.map(v => paramsOf({ ctx: b.ctx, preC3: b.preC3, variants: b.variants, prefix: undefined }, v, startTime));
 }
 
 /**
@@ -897,7 +897,7 @@ export function buildUpTailParamsV2(inputs: SearchInputs, startTime: number): Bu
   if (!b) return [];
   const { holdUntil: _held, ...ctx } = b.ctx;
   return b.variants.map(v => {
-    const pe = paramsAndExtrasOf({ ctx, preC3: b.preC3, variants: b.variants }, v, startTime);
+    const pe = paramsAndExtrasOf({ ctx, preC3: b.preC3, variants: b.variants, prefix: undefined }, v, startTime);
     return { ...pe.params, extras: pe.extras };
   });
 }
