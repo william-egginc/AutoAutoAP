@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-10T21:00:00Z', note: 'A Silo trick setting in Setup › Awake hours (off to start): count the extra cash from collecting inside Monday’s 2x event' },
   { at: '2026-11-10T20:00:02Z', note: 'Joo’s planner update: wait for 2x or sale start and end buttons, smart buys folded in the history, and Continue from the middle of a build in Single run' },
   { at: '2026-11-10T20:00:01Z', note: 'Old saves are caught up all the way to now, with no cap at what your silos hold' },
   { at: '2026-11-10T20:00:00Z', note: 'New instant answers for 12 artifact sets, built with the newest code; other sets use the maxed table for now' },
