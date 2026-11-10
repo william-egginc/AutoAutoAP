@@ -12,6 +12,7 @@ import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
 import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
 import { resultCodeHash } from './src/lib/resultCodeHash';
 import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
+import { trailingSlashRedirect } from './src/lib/previewRedirects';
 import {
   BROTLI_TYPES,
   digest,
@@ -299,6 +300,24 @@ function securityHeaders(env: Record<string, string | undefined>): Plugin {
   };
 }
 
+/**
+ * /ascension-planner (no slash) to /ascension-planner/, query kept (src/lib/previewRedirects.ts): both servers
+ * answered it with a plain-text 404. In preview (the live site and egg-beta) it runs after securityHeaders, so the
+ * redirect carries the same headers as everything else. Takes effect when `pnpm serve` restarts; it has nothing to do
+ * with `vite build`, so a static copy of dist/ (Netlify, Pages) is unchanged.
+ */
+function previewRedirects(): Plugin {
+  return {
+    name: 'aap-preview-redirects',
+    configureServer(server) {
+      server.middlewares.use(trailingSlashRedirect(server.config.base));
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(trailingSlashRedirect(server.config.base));
+    },
+  };
+}
+
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 function immutableAssets(): Plugin {
@@ -550,6 +569,7 @@ export default defineConfig(({ mode }) => {
       keepOldAssets(),
       // Before immutableAssets, which answers brotli requests itself.
       securityHeaders(env),
+      previewRedirects(),
       immutableAssets(),
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
