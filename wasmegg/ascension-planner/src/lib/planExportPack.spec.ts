@@ -107,7 +107,7 @@ describe('packExportedPlan', () => {
   it('the export packs and the Plan Library unpacks', () => {
     const exp = readFileSync(new URL('../auto/export.ts', import.meta.url), 'utf8');
     expect(exp).toContain('JSON.stringify(packExportedPlan(plan))');
-    const lib = readFileSync(new URL('../components/PlanLibrary.vue', import.meta.url), 'utf8');
+    const lib = readFileSync(new URL('../../../../ui/components/planners/PlanLibrary.vue', import.meta.url), 'utf8');
     expect(lib).toContain("readLibraryFile(await readUploadText(file, 'library'))");
     const guard = readFileSync(new URL('./uploadGuard.ts', import.meta.url), 'utf8');
     expect(guard).toContain('plan = unpackExportedPlan(value as object);');

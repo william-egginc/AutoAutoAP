@@ -179,11 +179,12 @@
 import { formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { useActionsStore } from '@planner/stores/actions';
+import { PlanImportError, dropFileResults, parsePlanFile } from '@planner/stores/actions/io';
+import { UploadError, checkPlanData, readUploadText } from '@planner/lib/uploadGuard';
 import { usePlanStore } from '@planner/stores/plan';
 
 import { formatNumber } from '@planner/lib/format';
 import { isTestingEnvironment } from '@planner/lib/isTestingEnvironment';
-import { readImportedJson } from 'lib/planners/utils/export';
 import { iconURL } from 'lib';
 import PlannerSummaryStats from '@planner/components/PlannerSummaryStats.vue';
 
@@ -293,34 +294,33 @@ function triggerImport() {
   fileInput.value?.click();
 }
 
-function handleImport(event: Event) {
+async function handleImport(event: Event) {
   const input = event.target as HTMLInputElement;
   if (!input.files || input.files.length === 0) return;
-
   const file = input.files[0];
-  const reader = new FileReader();
+  try {
+    // One strict check for every upload (lib/uploadGuard.ts): size, a capped gzip unpack, strict text and
+    // JSON, the plan's fields in range. All before anything changes.
+    const data = parsePlanFile(await readUploadText(file, 'plan'), true);
+    checkPlanData(data);
 
-  reader.onload = async e => {
-    try {
-      const jsonString = await readImportedJson(e.target?.result as ArrayBuffer);
-
-      if (actionsStore.actionCount > 0) {
-        if (!confirm('Importing a plan will overwrite your current actions. Continue?')) {
-          input.value = ''; // Reset input
-          return;
-        }
-      }
-
-      await actionsStore.importPlan(jsonString);
-    } catch (error) {
-      console.error(error);
-      alert('Failed to import plan: Invalid file format.');
-    } finally {
-      input.value = ''; // Reset for next use
+    if (actionsStore.actionCount > 0) {
+      if (!confirm('Importing a plan will overwrite your current actions. Continue?')) return;
     }
-  };
 
-  reader.readAsArrayBuffer(file);
+    // A file's results are recalculated, never trusted (io.ts `dropFileResults`).
+    await actionsStore.importPlan(JSON.stringify(dropFileResults(data)));
+  } catch (error) {
+    console.error(error);
+    // importPlan is all or nothing: the plan on screen was kept.
+    const why =
+      error instanceof PlanImportError || error instanceof UploadError
+        ? ` ${error.message}`
+        : ' The file could not be read as a plan.';
+    alert(`Couldn’t import this plan.${why} Your current plan is unchanged.`);
+  } finally {
+    input.value = ''; // Reset for next use
+  }
 }
 
 // Cat Gif Logic

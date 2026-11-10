@@ -41,8 +41,10 @@ export function useAutoPlanImport() {
     if (resolution === 'cancel') return null;
 
     if (resolution === 'restore') {
-      // 1. Switch tab
+      // 1. Switch tab: Classic, where a restored auto plan is shown (the Auto Planner has three
+      //    screens now, and the last one visited may be a search).
       uiStore.plannerTab = 'automatic';
+      uiStore.autoView = 'classic';
       uiStore.isHeaderCollapsed = true;
 
       // 2. Load fresh backup first (ensures we have latest epic research/artifacts as a baseline)
@@ -108,17 +110,29 @@ export function useAutoPlanImport() {
           targetEndTime: formatUnixToTimeInput(a1EndTime, plan.timezone),
           nextGoals: nextGoalsMap,
           planVariantOverrides: importedOverrides,
-          endTimeOverrides: plan.endTimeOverrides ?? {},
+          // The cut ends are in there for older importers; they belong to the cuts, not to the
+          // player (Generate clears player overrides, and must not clear the days off).
+          endTimeOverrides: Object.fromEntries(
+            Object.entries(plan.endTimeOverrides ?? {}).filter(([k, v]) => plan.timeOffCuts?.ends[Number(k)] !== v)
+          ),
           loadoutInputs: plan.loadoutInputs ?? null,
           loadoutOverrides: plan.loadoutOverrides ?? {},
         });
+        if (plan.timeOffCuts) {
+          autoPlannerStore.timeOffCuts = {
+            targets: autoPlannerStore.targetTE,
+            ends: { ...plan.timeOffCuts.ends },
+            starts: { ...plan.timeOffCuts.starts },
+            start: `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`,
+          };
+        }
 
         // Hydrate stores so the form shows the correct numbers from the plan
         initialStateStore.hydrate(plan.initialState);
         truthEggsStore.hydrate(plan.initialState);
       } catch (e) {
         console.error('Failed to restore roadmap:', e);
-        alert('Failed to restore roadmap simulation state.');
+        alert('Failed to restore the Single run state.');
       } finally {
         uiStore.loading = false;
       }

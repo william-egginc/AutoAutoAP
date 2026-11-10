@@ -3,9 +3,13 @@ import { formatMoment } from '@/lib/clock';
 import { PROFILE } from '@planner/lib/profile';
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { useActionsStore } from '@planner/stores/actions';
+import { dropFileResults } from '@planner/stores/actions/io';
+import { UploadError, readLibraryFile, readUploadText } from '@planner/lib/uploadGuard';
 import { usePersistence } from 'lib/planners/composables/usePersistence';
 import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanData } from '@planner/lib/storage/db';
-import { downloadGzipped, importedPlanName, readImportedJson } from 'lib/planners/utils/export';
+// Downloads go through the app's scrubbing wrapper (utils/export.ts: the stand-in ID, never the player's).
+import { downloadGzipped } from '@/utils/export';
+import { importedPlanName } from 'lib/planners/utils/export';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@planner/lib/format';
 import { initLoadPlan, initPlanFuture } from '@planner/lib/modes';
 import { useInitialStateStore } from '@planner/stores/initialState';
@@ -267,11 +271,13 @@ async function handleImport(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file || !partitionHash.value) return;
 
-  const reader = new FileReader();
-  reader.onload = async e => {
+  await (async () => {
     try {
-      const content = await readImportedJson(e.target?.result as ArrayBuffer);
-      const imported = JSON.parse(content);
+      // One strict check for every upload (lib/uploadGuard.ts): size, a capped gzip unpack, strict text and
+      // JSON, a packed Auto-Plan export rebuilt (lib/planExportPack.ts), and every plan in the file checked,
+      // all before anything is saved.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imported = readLibraryFile(await readUploadText(file, 'library')) as any;
 
       // Normalize imported data into a uniform array
       let plansToImport: { name: string; data: Record<string, unknown> }[] = [];
@@ -299,6 +305,9 @@ async function handleImport(event: Event) {
       } else {
         throw new Error('Unrecognized file format');
       }
+
+      // Results in a file are recalculated when the plan is opened, never trusted (io.ts `dropFileResults`).
+      for (const p of plansToImport) dropFileResults(p.data);
 
       // Track the current library names (live, updated as we add)
       const existingNames = plans.value.map(p => p.name);
@@ -385,10 +394,10 @@ async function handleImport(event: Event) {
       }
     } catch (err) {
       importProgress.value = null;
-      alert('Failed to import plans: ' + err);
+      if (err instanceof UploadError) alert(`Couldn’t import this file. ${err.message} Nothing was imported.`);
+      else alert('Failed to import plans: ' + err);
     }
-  };
-  reader.readAsArrayBuffer(file);
+  })();
 
   // Reset the file input so the same file can be imported again
   if (event.target) {

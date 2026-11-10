@@ -100,12 +100,12 @@ describe('downloads carry no player ID', () => {
     }
     // Joo's exports reach the browser only through the same wrapper (his files unchanged).
     // Joo's plan files are gzipped since PR #729: every caller goes through our scrubbing downloadGzipped.
-    for (const p of ['stores/actions/io.ts', 'auto/export.ts', 'components/PlanLibrary.vue']) {
+    for (const p of ['stores/actions/io.ts', 'auto/export.ts', '../../../ui/components/planners/PlanLibrary.vue']) {
       const src = read(p);
       expect(src, p).toContain("import { downloadGzipped } from '@/utils/export'");
       expect(src, p).not.toMatch(/downloadGzipped[^;]*from 'lib\/planners\/utils\/export'/);
     }
-    expect(read('components/PlanLibrary.vue')).not.toContain('createObjectURL');
+    expect(read('../../../ui/components/planners/PlanLibrary.vue')).not.toContain('createObjectURL');
   });
 
   it('a gzipped plan file is scrubbed before the shared helper gzips it', async () => {

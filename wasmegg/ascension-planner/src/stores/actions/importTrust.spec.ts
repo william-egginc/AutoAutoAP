@@ -63,9 +63,9 @@ describe("a plan file's results", () => {
   });
 
   it('both file imports drop results: the summary bar Import and the Plan Library', () => {
-    const summary = readFileSync(new URL('../../components/PlanFinalSummary.vue', import.meta.url), 'utf8');
+    const summary = readFileSync(new URL('../../../../../ui/components/planners/PlanFinalSummary.vue', import.meta.url), 'utf8');
     expect(summary).toContain('importPlan(JSON.stringify(dropFileResults(data)))');
-    const library = readFileSync(new URL('../../components/PlanLibrary.vue', import.meta.url), 'utf8');
+    const library = readFileSync(new URL('../../../../../ui/components/planners/PlanLibrary.vue', import.meta.url), 'utf8');
     expect(library).toContain('for (const p of plansToImport) dropFileResults(p.data);');
   });
 });
