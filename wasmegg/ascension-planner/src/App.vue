@@ -1,6 +1,8 @@
 <template>
   <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
-  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>
+  <!-- use-absolute-urls: the planner is served alone (egg-beta, the live site), so the other tools' links, '/rockets-tracker/'
+       and the like, are sent to wasmegg-carpet.netlify.app, which hosts them, rather than to 404s here (spec-betaurls). -->
+  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" use-absolute-urls /></div>
 
   <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
        44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines

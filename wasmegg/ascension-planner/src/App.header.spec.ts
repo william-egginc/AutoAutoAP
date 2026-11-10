@@ -38,7 +38,7 @@ describe('the nav bar icons on a phone (#12)', () => {
   });
 
   it('App.vue wraps it and gives each icon a 44 px tap area under sm, without overlap', () => {
-    expect(app).toContain('<div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>');
+    expect(app).toContain('<div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" use-absolute-urls /></div>');
     const css = app.slice(app.indexOf('@media (max-width: 639.98px)'));
     expect(css).toMatch(/\.aap-navbar nav > div > a::before,\s*\.aap-navbar nav > div > button::before \{\s*content: '';\s*position: absolute;\s*inset: -12px;/);
     // 20 + 2 x 12 = 44; the 12 px default gap plus 12 px more keeps the two areas apart.
