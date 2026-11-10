@@ -24,7 +24,7 @@ import {
 } from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3, type BuildUpPre } from '@/auto/buildUp';
-import { calculateMaxVehicleSlots } from '@/calculations/shippingCapacity';
+import { calculateMaxVehicleSlots } from 'lib/planners/calculations/shippingCapacity';
 import { getResearchById } from '@/calculations/commonResearch';
 // LOW-TE OPENING (auto/lowTeOpening.ts)
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
