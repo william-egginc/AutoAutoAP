@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // The farm's rate and earnings come from the snapshot; fixed here so the arithmetic is exact.
-vi.mock('../engine/compute', () => ({
+// lib/planners since Joo's PR 731 moved the engine's compute there (hold.ts imports it from there).
+vi.mock('lib/planners/engine/compute', () => ({
   computeSnapshot: () => ({ elr: 1e12, offlineEarnings: 5 }),
 }));
 vi.mock('../engine/apply', () => ({

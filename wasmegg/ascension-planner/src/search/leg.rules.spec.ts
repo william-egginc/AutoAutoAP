@@ -69,7 +69,8 @@ vi.mock('@/auto/shifts/c3', () => ({
     }));
   },
 }));
-vi.mock('@/engine/compute', () => ({ computeSnapshot: () => ({ elr: 1 }) }));
+// lib/planners since Joo's PR 731 (leg.ts imports compute from there).
+vi.mock('lib/planners/engine/compute', () => ({ computeSnapshot: () => ({ elr: 1 }) }));
 vi.mock('@/lib/artifacts', () => ({
   getArtifactLoadoutFromBackup: () => [],
   getOptimalEarningsSet: () => null,

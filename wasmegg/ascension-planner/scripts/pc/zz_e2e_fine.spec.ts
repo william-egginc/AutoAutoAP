@@ -20,7 +20,7 @@ const BACKUP = process.env.E2E_BACKUP!;
 const OUT = process.env.E2E_OUT!;
 const log = (s: string) => appendFileSync(OUT, s + '\n');
 
-vi.mock('@/lib/modes/fetchBackup', () => ({
+vi.mock('lib/planners/modes/fetchBackup', () => ({
   fetchPlayerBackup: async () => {
     const b = JSON.parse(readFileSync(BACKUP, 'utf8'));
     resolveColleggtibleContracts(b);
