@@ -7,8 +7,8 @@
  *   pnpm tables:verify <name> <DIR> [--jobs N] [--all | --tes A,B,..]
  *
  * <name> is a table in tables/sim4/tables.json (e.g. carpet-9a66a47c-board). Before building it checks
- * the node version, the generator bundle (dist-search, against tables/sim4/bundle.sha256; it runs
- * `pnpm search:build` first when there is none) and the input hashes (the generic start state and the
+ * the node version, the generator bundle (dist-search, against tables/sim4/bundle.sha256; it builds it
+ * first when there is none, as `pnpm search:build` does) and the input hashes (the generic start state and the
  * combos file). No save is needed: tables/sim4/start-state.json is a maxed starting state with no
  * account in it (maxed epic research, every colleggtible at the top tier). Then it runs scripts/precompute.ts's generator with the same flags as AutoAutoAP's queues,
  * checks the result (one te file per start TE, 168 rows each, none empty) and writes MANIFEST.txt.
@@ -53,22 +53,44 @@ if (process.version !== LIST.node) fail(`node ${LIST.node} is needed (this is ${
 
 // 2. Inputs: the generic start state and the combos, both in git, pinned by hash.
 const backup = join(DIR, LIST.startState);
-if (sha(backup) !== LIST.startStateSha256) fail(`tables/sim4/${LIST.startState} has changed (sha256 should be ${LIST.startStateSha256.slice(0, 16)}...); run git checkout -- tables`);
+if (sha(backup) !== LIST.startStateSha256) fail(`tables/sim4/${LIST.startState} has changed (sha256 should be ${LIST.startStateSha256.slice(0, 16)}...). On Windows this is usually line endings: clone with -c core.autocrlf=false (see the how-to).`);
 const combos = join(DIR, table.combos);
-if (sha(combos) !== LIST.combosSha256[table.combos]) fail(`${table.combos} has changed (sha256 should be ${LIST.combosSha256[table.combos].slice(0, 16)}...)`);
+if (sha(combos) !== LIST.combosSha256[table.combos]) fail(`${table.combos} has changed (sha256 should be ${LIST.combosSha256[table.combos].slice(0, 16)}...). On Windows this is usually line endings: clone with -c core.autocrlf=false.`);
 
 // 3. The generator bundle, built here and checked file by file against ours.
 const dist = join(APP, 'dist-search');
 if (!existsSync(join(dist, 'precompute.js'))) {
-  console.log('building the generator (pnpm search:build) ...');
-  const r = spawnSync('pnpm', ['run', 'search:build'], { cwd: APP, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (r.status !== 0) fail('pnpm search:build failed (did `pnpm install` run?)');
+  // lib/proto is generated, not in git (lib/Makefile). A fresh clone has none: make it as the Makefile does, with
+  // node itself (no make, no shell glob), then the mission-info patch. The bundle check below catches any difference.
+  const LIB = join(APP, '..', '..', 'lib');
+  if (!existsSync(join(LIB, 'proto', 'index.js'))) {
+    const pbjs = join(LIB, 'node_modules', 'protobufjs-cli', 'bin', 'pbjs');
+    if (!existsSync(pbjs)) fail('protobufjs-cli is not installed: run `npx -y pnpm@11.11.0 install` in the repository first');
+    const protos = readdirSync(join(LIB, '..', 'protobuf')).filter(n => n.endsWith('.proto')).sort().map(n => `../protobuf/${n}`);
+    console.log('generating lib/proto/index.js (lib/Makefile) ...');
+    const g = spawnSync(process.execPath, [pbjs, '-p', 'protobuf', '-t', 'static-module', '-w', 'es6', '--force-number', '-o', 'proto/index.js', ...protos], { cwd: LIB, stdio: 'inherit' });
+    if (g.status !== 0) fail('generating lib/proto failed (see above)');
+    const p = spawnSync(process.execPath, ['proto/patch-missioninfo.js'], { cwd: LIB, stdio: 'inherit' });
+    if (p.status !== 0) fail('patching lib/proto failed (see above)');
+  }
+  if (!existsSync(join(LIB, 'sandbox', 'schema.js'))) {
+    console.log('generating lib/sandbox/schema.js (lib/Makefile) ...');
+    const pbjs = join(LIB, 'node_modules', 'protobufjs-cli', 'bin', 'pbjs');
+    const g = spawnSync(process.execPath, [pbjs, '-t', 'static-module', '-w', 'es6', '--force-number', '-o', 'sandbox/schema.js', 'sandbox/schema.proto'], { cwd: LIB, stdio: 'inherit' });
+    if (g.status !== 0) fail('generating lib/sandbox failed (see above)');
+  }
+  // vite through node itself (the same as `pnpm search:build`), so no global pnpm is needed (npx -y pnpm@... works).
+  const vite = join(APP, 'node_modules', 'vite', 'bin', 'vite.js');
+  if (!existsSync(vite)) fail('vite is not installed here: run `npx -y pnpm@11.11.0 install` in the repository first');
+  console.log('building the generator (vite build --config vite.search.config.ts) ...');
+  const r = spawnSync(process.execPath, [vite, 'build', '--config', 'vite.search.config.ts'], { cwd: APP, stdio: 'inherit' });
+  if (r.status !== 0) fail('building the generator failed (see above)');
 }
 const expected = readFileSync(join(DIR, 'bundle.sha256'), 'utf8').trim().split('\n').map(l => l.trim().split(/\s+/));
 for (const [hash, file] of expected) {
   const p = join(dist, ...file.split('/'));
   if (!existsSync(p) || sha(p) !== hash)
-    fail(`dist-search/${file} differs from AutoAutoAP's build. Check out branch sim4-tables, run pnpm install, delete dist-search and run again.`);
+    fail(`dist-search/${file} differs from AutoAutoAP's build. Check out branch sim4-tables, run "npx -y pnpm@11.11.0 install", delete dist-search and run again.`);
 }
 const git = spawnSync('git', ['rev-parse', '--short=9', 'HEAD'], { cwd: APP, encoding: 'utf8' }).stdout.trim() || 'unknown';
 
