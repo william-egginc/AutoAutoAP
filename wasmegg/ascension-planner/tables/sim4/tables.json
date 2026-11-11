@@ -1,12 +1,16 @@
 {
- "note": "sim4 tables (SIM_VERSION 2026-11-09-sim4), generator commit 8622accc7. Built with scripts/tables-build.mjs; every te-NNN.jsonl must be byte-identical to a build on any machine with this bundle (bundle.sha256), node v23.10.0, these inputs. 'built' = already built by AutoAutoAP (10 Nov 2026); maxed, all-common and the 8 gear stamps are built too and not listed (their inputs hold account names).",
+ "note": "sim4 tables with maxed epic research and all 14 colleggtibles at the top tier (Copper included), from the generic start state tables/sim4/start-state.json (no account data: the modeled epic research at max, permit 1, one max-size contract per colleggtible; everything else of a save left out after checking the tables do not read it). Generator commit 8622accc7 (SIM_VERSION 2026-11-09-sim4). Built with scripts/tables-build.mjs; every te-NNN.jsonl must be byte-identical to a build on any machine with this bundle (bundle.sha256), node v23.10.0 and these inputs. 34 tables: maxed (--reference on maxed_combos.json: every set T4 legendary), all-common, 8 board gear stamps (gear_combos_sim4.json: gear only, named by table), and Carpet's 12 delivery sets, -board and -full.",
  "node": "v23.10.0",
- "backupSha256": "26930d73ab2750a5756217712f0c66e4cdf75b0f1722db07a61f62d516b6ebcc",
+ "startState": "start-state.json",
+ "startStateSha256": "607a1c2a67ecfd09160b04a3dc6092baa9eb68922db35db31f2b223acfd158ba",
  "combosSha256": {
   "carpet_combos.json": "c154c1a02466657cbaf5c12ca19c18fe6327f77bd8486a1e9720cb7bf80b0bbd",
   "carpet_combos_extra5.json": "2cbd729452dbf5c945ec2be9b69d5b62b04285b9500b3dafa57647e569df4c48",
   "carpet_combos_board.json": "5959c9bf84fd2007a0f4618f0e1195468704ec742c2c183bacb00147fa50fe30",
-  "carpet_combos_4f9b.json": "186b34e0b1aab07d7410b73dd59d114ceb4b128592a221ec844b684351f93926"
+  "carpet_combos_4f9b.json": "186b34e0b1aab07d7410b73dd59d114ceb4b128592a221ec844b684351f93926",
+  "gear_combos_sim4.json": "fd487bac57b4295005edd3dbc2bb8c674b77a60ac5aeb0f2096d42d6fda0d105",
+  "synthetic_combos.json": "3060f12dd6fbdc15ff83a8658a81c5d0c83b07717b9b90f2e40b6473a980f97a",
+  "maxed_combos.json": "0dddf1cd85bdc3e1401f3caffaec8b80f0a5de8fb15da73b570e8be7443b4bd9"
  },
  "flags": [
   "--generate",
@@ -14,6 +18,87 @@
   "--reuse-prefix"
  ],
  "tables": [
+  {
+   "name": "maxed",
+   "combos": "maxed_combos.json",
+   "combo": "maxed",
+   "from": 55,
+   "to": 489,
+   "status": "todo",
+   "reference": true
+  },
+  {
+   "name": "gear-af39bd7c",
+   "combos": "synthetic_combos.json",
+   "combo": "all-common",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-036f74b4",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-036f74b4",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-574bbea7",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-574bbea7",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-56e34c28",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-56e34c28",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-808f643d",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-808f643d",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-7d2b5fcc",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-7d2b5fcc",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-058afe6c",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-058afe6c",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-5003fbad",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-5003fbad",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "gear-fb5db948",
+   "combos": "gear_combos_sim4.json",
+   "combo": "gear-fb5db948",
+   "from": 75,
+   "to": 489,
+   "status": "todo"
+  },
   {
    "name": "carpet-0b85c7a1-board",
    "combos": "carpet_combos_board.json",
@@ -60,7 +145,7 @@
    "combo": "carpet-bae50cd3-board",
    "from": 75,
    "to": 489,
-   "status": "built"
+   "status": "todo"
   },
   {
    "name": "carpet-9f92d93c-board",
@@ -180,7 +265,7 @@
    "combo": "carpet-f8b400de",
    "from": 75,
    "to": 489,
-   "status": "built"
+   "status": "todo"
   },
   {
    "name": "carpet-9da8f087-full",

@@ -3,13 +3,14 @@
  * Build one sim4 table, or check one that came back, so every te-NNN.jsonl is byte-identical to
  * AutoAutoAP's own builds (Tables and PC, 10 Nov 2026). Plain Node, no packages: Windows, Mac, Linux.
  *
- *   pnpm tables:build <name> [--jobs N] [--backup FILE] [--out DIR]
- *   pnpm tables:verify <name> <DIR> [--backup FILE] [--jobs N] [--all | --tes A,B,..]
+ *   pnpm tables:build <name> [--jobs N] [--out DIR]
+ *   pnpm tables:verify <name> <DIR> [--jobs N] [--all | --tes A,B,..]
  *
  * <name> is a table in tables/sim4/tables.json (e.g. carpet-9a66a47c-board). Before building it checks
  * the node version, the generator bundle (dist-search, against tables/sim4/bundle.sha256; it runs
- * `pnpm search:build` first when there is none) and the input hashes (the backup save and the combos
- * file). Then it runs scripts/precompute.ts's generator with the same flags as AutoAutoAP's queues,
+ * `pnpm search:build` first when there is none) and the input hashes (the generic start state and the
+ * combos file). No save is needed: tables/sim4/start-state.json is a maxed starting state with no
+ * account in it (maxed epic research, every colleggtible at the top tier). Then it runs scripts/precompute.ts's generator with the same flags as AutoAutoAP's queues,
  * checks the result (one te file per start TE, 168 rows each, none empty) and writes MANIFEST.txt.
  * Stopped part-way, run it again: the generator keeps the start TEs already done.
  *
@@ -39,8 +40,8 @@ const fail = msg => {
 const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 
 if (!['build', 'verify'].includes(mode) || !name) {
-  console.log('usage: pnpm tables:build <name> [--jobs N] [--backup FILE] [--out DIR]');
-  console.log('       pnpm tables:verify <name> <DIR> [--backup FILE] [--jobs N] [--all]');
+  console.log('usage: pnpm tables:build <name> [--jobs N] [--out DIR]');
+  console.log('       pnpm tables:verify <name> <DIR> [--jobs N] [--all | --tes A,B,..]');
   console.log(`tables still to build: ${LIST.tables.filter(t => t.status === 'todo').map(t => t.name).join(' ')}`);
   process.exit(2);
 }
@@ -50,10 +51,9 @@ if (!table) fail(`no table called ${name} in tables/sim4/tables.json`);
 // 1. Node: the same version as our machines. Other versions may round the maths differently.
 if (process.version !== LIST.node) fail(`node ${LIST.node} is needed (this is ${process.version}): https://nodejs.org/dist/${LIST.node}/`);
 
-// 2. Inputs.
-const backup = resolve(opt('backup', join(DIR, 'alt-sim3.json')));
-if (!existsSync(backup)) fail(`the backup save is missing: ${backup} (it is not in git; ask for alt-sim3.json and put it in tables/sim4/)`);
-if (sha(backup) !== LIST.backupSha256) fail(`${backup} is not the expected save (sha256 ${LIST.backupSha256.slice(0, 16)}...)`);
+// 2. Inputs: the generic start state and the combos, both in git, pinned by hash.
+const backup = join(DIR, LIST.startState);
+if (sha(backup) !== LIST.startStateSha256) fail(`tables/sim4/${LIST.startState} has changed (sha256 should be ${LIST.startStateSha256.slice(0, 16)}...); run git checkout -- tables`);
 const combos = join(DIR, table.combos);
 if (sha(combos) !== LIST.combosSha256[table.combos]) fail(`${table.combos} has changed (sha256 should be ${LIST.combosSha256[table.combos].slice(0, 16)}...)`);
 
@@ -73,7 +73,9 @@ for (const [hash, file] of expected) {
 const git = spawnSync('git', ['rev-parse', '--short=9', 'HEAD'], { cwd: APP, encoding: 'utf8' }).stdout.trim() || 'unknown';
 
 const generate = (out, extra) => {
-  const args = [join(dist, 'precompute.js'), '--backup', backup, '--combos', combos, '--combo', table.combo, ...LIST.flags,
+  // The maxed table is the reference (its header says so; the page reads its k3, research and colleggtibles).
+  const gear = [...(table.reference ? ['--reference'] : []), '--combos', combos, '--combo', table.combo];
+  const args = [join(dist, 'precompute.js'), '--backup', backup, ...gear, ...LIST.flags,
     '--out', out, '--from', String(table.from), '--to', String(table.to), '--jobs', String(opt('jobs', '4')), ...extra];
   console.log(`node ${args.slice(1).join(' ')}`);
   const r = spawnSync(process.execPath, args, { cwd: APP, stdio: 'inherit' });
@@ -109,7 +111,7 @@ if (mode === 'build') {
   const files = lines.length;
   const manifest = [
     `table ${name}`, `commit ${git}`, `node ${process.version}`, `platform ${process.platform} ${process.arch}`,
-    `backup ${LIST.backupSha256}`, `combos ${table.combos} ${LIST.combosSha256[table.combos]}`,
+    `start ${LIST.startStateSha256}`, `combos ${table.combos} ${LIST.combosSha256[table.combos]}${table.reference ? ' --reference' : ''}`,
     `files ${files} (te ${table.from}-${table.to})`, `rows ${rows}`, `hours ${((Date.now() - t0) / 3600e3).toFixed(2)}`,
     `all ${createHash('sha256').update(lines.join('\n')).digest('hex')}`, '', ...lines, '',
   ].join('\n');

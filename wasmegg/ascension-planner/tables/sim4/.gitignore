@@ -1,2 +1,1 @@
-# sim4 table builds (scripts/tables-build.mjs): the save is private and never in git; builds go here
-alt-sim3.json
+# sim4 table builds (scripts/tables-build.mjs): builds go in tables/out (gitignored there)

@@ -1,0 +1,36 @@
+[
+ {
+  "accounts": {
+   "maxed": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace []",
+   "T4L Lunar totem []",
+   "T4L Puzzle cube []",
+   "T4L Tungsten ankh []"
+  ],
+  "delivery": [
+   "T4L Quantum metronome []",
+   "T4L Interstellar compass []",
+   "T4L Gusset []",
+   "T4L Lunar totem []"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L The chalice",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "30x T4 Lunar stone, 30x T4 Quantum stone, 30x T4 Tachyon stone, 30x T4 Shell stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "The maxed table: every set T4 legendary, generous T4 stones, on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ }
+]

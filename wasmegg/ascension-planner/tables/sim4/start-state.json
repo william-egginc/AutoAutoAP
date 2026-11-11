@@ -1,0 +1,237 @@
+{
+ "approxTime": 1790000000,
+ "game": {
+  "permitLevel": 1,
+  "epicResearch": [
+   {
+    "id": "hold_to_hatch",
+    "level": 15
+   },
+   {
+    "id": "epic_hatchery",
+    "level": 20
+   },
+   {
+    "id": "epic_internal_incubators",
+    "level": 20
+   },
+   {
+    "id": "video_doubler_time",
+    "level": 12
+   },
+   {
+    "id": "epic_clucking",
+    "level": 20
+   },
+   {
+    "id": "epic_multiplier",
+    "level": 100
+   },
+   {
+    "id": "cheaper_contractors",
+    "level": 10
+   },
+   {
+    "id": "bust_unions",
+    "level": 10
+   },
+   {
+    "id": "cheaper_research",
+    "level": 10
+   },
+   {
+    "id": "epic_silo_quality",
+    "level": 0
+   },
+   {
+    "id": "silo_capacity",
+    "level": 20
+   },
+   {
+    "id": "int_hatch_sharing",
+    "level": 10
+   },
+   {
+    "id": "int_hatch_calm",
+    "level": 20
+   },
+   {
+    "id": "accounting_tricks",
+    "level": 20
+   },
+   {
+    "id": "hold_to_research",
+    "level": 20
+   },
+   {
+    "id": "soul_eggs",
+    "level": 140
+   },
+   {
+    "id": "prestige_bonus",
+    "level": 20
+   },
+   {
+    "id": "drone_rewards",
+    "level": 20
+   },
+   {
+    "id": "epic_egg_laying",
+    "level": 20
+   },
+   {
+    "id": "transportation_lobbyist",
+    "level": 30
+   },
+   {
+    "id": "warp_shift",
+    "level": 0
+   },
+   {
+    "id": "prophecy_bonus",
+    "level": 5
+   },
+   {
+    "id": "afx_mission_time",
+    "level": 60
+   },
+   {
+    "id": "afx_mission_capacity",
+    "level": 10
+   }
+  ],
+  "currentFarm": 0,
+  "eggsOfProphecy": 200,
+  "unclaimedEggsOfProphecy": 0,
+  "soulEggsD": 1e+21,
+  "unclaimedSoulEggsD": 0
+ },
+ "farms": [],
+ "contracts": {
+  "contracts": [],
+  "archive": [
+   {
+    "contractIdentifier": "copper-new-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "custom-christmas-2025",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "delugge-2023",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "easter-2023",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "egg-memory-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "fday-refill-2023",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "gatoregg-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "more-housing-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "new-rules-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "new-snow-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "personal-stash-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "pumpkin-pie",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "racing-lithium-2026",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   },
+   {
+    "contractIdentifier": "summer-surprise-2023",
+    "maxFarmSizeReached": 14883750000,
+    "timeAccepted": 1719435601
+   }
+  ],
+  "contractIdsSeen": []
+ },
+ "artifactsDb": {
+  "inventoryItems": [],
+  "itemSequence": 0,
+  "missionInfos": [],
+  "missionArchive": [],
+  "activeArtifactSets": [],
+  "artifactStatus": [],
+  "savedArtifactSets": [],
+  "virtueAfxDb": {
+   "inventoryItems": [],
+   "artifactStatus": [],
+   "activeArtifacts": {
+    "slots": [
+     {
+      "occupied": false
+     },
+     {
+      "occupied": false
+     },
+     {
+      "occupied": false
+     },
+     {
+      "occupied": false
+     }
+    ]
+   }
+  }
+ },
+ "eiUserId": "EI0000000000000000",
+ "version": 75,
+ "virtue": {
+  "shiftCount": 0,
+  "resets": 0,
+  "eovEarned": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "eggsDelivered": [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "afx": {},
+  "pastSimTime": 0
+ }
+}

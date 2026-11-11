@@ -1,0 +1,275 @@
+[
+ {
+  "accounts": {
+   "gear-808f643d": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T3 Lunar]",
+   "T4L Puzzle cube [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4L Gusset [T4 Quantum, T4 Quantum, T4 Quantum]",
+   "T4L Interstellar compass [T4 Quantum, T4 Quantum]",
+   "T4L Quantum metronome [T4 Quantum, T3 Quantum, T4 Tachyon]",
+   "T4L Puzzle cube [T4 Tachyon, T4 Tachyon, T4 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T3C The chalice",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "8x T2 Lunar stone, 5x T2 Quantum stone, 6x T2 Tachyon stone, 3x T3 Lunar stone, 12x T3 Quantum stone, 12x T3 Tachyon stone, 11x T4 Lunar stone, 6x T4 Quantum stone, 5x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": 0.9848,
+  "note": "Board gear stamp gear-808f643d (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-036f74b4": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Puzzle cube [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4L Quantum metronome [T4 Tachyon, T4 Tachyon, T4 Tachyon]",
+   "T4L Interstellar compass [T4 Quantum, T4 Quantum]",
+   "T4L Gusset [T4 Tachyon, T4 Tachyon, T4 Tachyon]",
+   "T4L Demeters necklace [T4 Quantum, T4 Quantum, T4 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C The chalice",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "17x T2 Lunar stone, 7x T2 Quantum stone, 4x T2 Tachyon stone, 22x T3 Lunar stone, 1x T3 Quantum stone, 10x T3 Tachyon stone, 12x T4 Lunar stone, 13x T4 Quantum stone, 9x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": 0.9905,
+  "note": "Board gear stamp gear-036f74b4 (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-058afe6c": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T3L Tungsten ankh [T3 Lunar, T3 Lunar, T4 Lunar]",
+   "T4E Puzzle cube [T3 Lunar, T3 Lunar]",
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4E Gusset [T4 Tachyon, T4 Tachyon]",
+   "T4R Interstellar compass [T4 Tachyon]",
+   "T3E Quantum metronome [T4 Tachyon, T3 Tachyon]",
+   "T4L Lunar totem [T3 Tachyon, T3 Tachyon, T3 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C Quantum metronome",
+    "T4C The chalice",
+    "T4C Tungsten ankh",
+    "T4E Gusset",
+    "T4E Puzzle cube",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4R Interstellar compass"
+   ],
+   "stones": "5x T2 Lunar stone, 5x T2 Quantum stone, 4x T2 Tachyon stone, 20x T3 Lunar stone, 14x T3 Quantum stone, 20x T3 Tachyon stone, 7x T4 Lunar stone, 7x T4 Quantum stone, 4x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Board gear stamp gear-058afe6c (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-574bbea7": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T3L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Demeters necklace [T3 Lunar, T3 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4R Puzzle cube [T3 Lunar]"
+  ],
+  "delivery": [
+   "T3E Quantum metronome [T4 Quantum, T4 Tachyon]",
+   "T4E Interstellar compass [T4 Quantum, T3 Tachyon]",
+   "T2E Gusset [T3 Tachyon, T3 Tachyon]",
+   "T4L The chalice [T4 Tachyon, T3 Tachyon, T3 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4C Gusset",
+    "T4C Quantum metronome",
+    "T4E Interstellar compass",
+    "T4L Demeters necklace",
+    "T4L Lunar totem",
+    "T4L The chalice",
+    "T4R Puzzle cube",
+    "T4R Tungsten ankh"
+   ],
+   "stones": "42x T2 Lunar stone, 120x T2 Quantum stone, 35x T2 Tachyon stone, 150x T3 Lunar stone, 174x T3 Quantum stone, 104x T3 Tachyon stone, 7x T4 Lunar stone, 7x T4 Quantum stone, 2x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Board gear stamp gear-574bbea7 (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-7d2b5fcc": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T3L Tungsten ankh [T4 Lunar, T3 Lunar, T4 Lunar]",
+   "T4E Puzzle cube [T4 Lunar, T4 Lunar]",
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T3 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4L Quantum metronome [T4 Tachyon, T4 Quantum, T3 Quantum]",
+   "T4L Interstellar compass [T4 Tachyon, T4 Tachyon]",
+   "T4E Gusset [T4 Tachyon, T4 Quantum]",
+   "T4L Lunar totem [T4 Quantum, T4 Tachyon, T4 Quantum]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T3L Tungsten ankh",
+    "T4C The chalice",
+    "T4E Gusset",
+    "T4E Puzzle cube",
+    "T4L Demeters necklace",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Quantum metronome"
+   ],
+   "stones": "12x T2 Quantum stone, 13x T2 Tachyon stone, 10x T3 Lunar stone, 6x T3 Quantum stone, 9x T3 Tachyon stone, 9x T4 Lunar stone, 4x T4 Quantum stone, 6x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": 0.9393,
+  "note": "Board gear stamp gear-7d2b5fcc (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-fb5db948": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T3L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Puzzle cube [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4E Quantum metronome [T4 Quantum, T4 Quantum]",
+   "T4E Interstellar compass [T4 Quantum, T4 Quantum]",
+   "T4L Gusset [T4 Tachyon, T4 Tachyon, T4 Quantum]",
+   "T3L Tungsten ankh [T4 Tachyon, T4 Tachyon, T4 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Interstellar compass",
+    "T4E Quantum metronome",
+    "T4E The chalice",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4R Tungsten ankh"
+   ],
+   "stones": "13x T2 Lunar stone, 8x T2 Tachyon stone, 8x T3 Lunar stone, 4x T3 Quantum stone, 13x T3 Tachyon stone, 16x T4 Lunar stone, 9x T4 Quantum stone, 14x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Board gear stamp gear-fb5db948 (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-56e34c28": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T3L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4E Puzzle cube [T4 Lunar, T4 Lunar]",
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4L Quantum metronome [T4 Tachyon, T4 Tachyon, T4 Tachyon]",
+   "T4E Interstellar compass [T4 Quantum, T4 Quantum]",
+   "T4L Gusset [T4 Quantum, T4 Quantum, T4 Quantum]",
+   "T3L Tungsten ankh [T4 Quantum, T4 Tachyon, T4 Tachyon]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T4E Interstellar compass",
+    "T4E Puzzle cube",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Lunar totem",
+    "T4L Quantum metronome",
+    "T4L The chalice",
+    "T4R Tungsten ankh"
+   ],
+   "stones": "7x T2 Quantum stone, 1x T2 Tachyon stone, 29x T3 Lunar stone, 27x T3 Quantum stone, 27x T3 Tachyon stone, 20x T4 Lunar stone, 16x T4 Quantum stone, 16x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": null,
+  "note": "Board gear stamp gear-56e34c28 (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ },
+ {
+  "accounts": {
+   "gear-5003fbad": {
+    "latest_gear": true
+   }
+  },
+  "earnings": [
+   "T4L Demeters necklace [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Lunar totem [T4 Lunar, T4 Lunar, T3 Lunar]",
+   "T4L Puzzle cube [T4 Lunar, T4 Lunar, T4 Lunar]",
+   "T4L Tungsten ankh [T4 Lunar, T4 Lunar, T4 Lunar]"
+  ],
+  "delivery": [
+   "T4L Quantum metronome [T4 Tachyon, T4 Tachyon, T4 Tachyon]",
+   "T4L Interstellar compass [T4 Tachyon, T4 Tachyon]",
+   "T4L Gusset [T4 Quantum, T4 Quantum, T4 Tachyon]",
+   "T4L Aurelian brooch [T4 Quantum, T4 Quantum, T4 Quantum]"
+  ],
+  "inventory": {
+   "artifacts": [
+    "T3R The chalice",
+    "T4L Aurelian brooch",
+    "T4L Demeters necklace",
+    "T4L Gusset",
+    "T4L Interstellar compass",
+    "T4L Lunar totem",
+    "T4L Puzzle cube",
+    "T4L Quantum metronome",
+    "T4L Tungsten ankh"
+   ],
+   "stones": "11x T2 Lunar stone, 4x T2 Quantum stone, 15x T2 Tachyon stone, 12x T3 Lunar stone, 3x T3 Quantum stone, 4x T3 Tachyon stone, 11x T4 Lunar stone, 7x T4 Quantum stone, 11x T4 Tachyon stone"
+  },
+  "delivery_k_full_research": 0.9882,
+  "note": "Board gear stamp gear-5003fbad (one leaderboard player's gear, Sept/Oct 2026), on the generic maxed start state. Tables and PC, 10 Nov 2026."
+ }
+]
