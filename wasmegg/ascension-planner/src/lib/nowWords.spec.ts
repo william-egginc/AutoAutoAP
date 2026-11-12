@@ -133,4 +133,14 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
     // Without a wait, the reach time stays.
     expect(nextStepText([ev({ kind: 'prestige', te: 222, at: reached })], 'fastest', NOW, ZONE, false)).toContain('10:17');
   });
+
+  it('a held prestige does not jump ahead of an event that happens before it (M12)', () => {
+    const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000;
+    const held = Date.UTC(2027, 0, 1, 6, 0) / 1000;
+    const p = ev({ kind: 'prestige', te: 222, at: reached, wait: 'hours', prestigeAt: held });
+    const shift = ev({ kind: 'shift', egg: 'humility', at: reached + 20 * 60 });
+    const t = nextStepText([p, shift], 'fastest', NOW, ZONE, false);
+    expect(t.startsWith('Shift to Humility')).toBe(true);
+    expect(t).toContain('then prestige at 222 TE');
+  });
 });
