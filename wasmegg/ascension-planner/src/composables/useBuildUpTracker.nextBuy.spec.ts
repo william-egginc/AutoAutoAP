@@ -56,7 +56,7 @@ describe('the research buy for Next step, with the fold shut', () => {
     const buy = lines.find(l => l.kind === 'research' && l.tickable);
     expect(buy).toBeTruthy();
     const next = { kind: 'shift', egg: 'humility', at: buy!.at + 3600 } as const;
-    expect(nextBuyBefore(next, t.state.value === 'ready' ? lines : null, t.ticks.value)).toEqual({ at: buy!.at });
+    expect(nextBuyBefore(next, t.state.value === 'ready' ? lines : null, t.ticks.value)).toMatchObject({ at: buy!.at, until: next.at });
     scope.stop();
   });
   it('a plan kept on an earlier visit is read on load, the fold shut: nothing is worked out again', async () => {

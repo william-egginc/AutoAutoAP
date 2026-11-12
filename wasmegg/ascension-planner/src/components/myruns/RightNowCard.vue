@@ -596,7 +596,7 @@ import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
-import { formatMoment } from '@/lib/clock';
+import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
@@ -940,7 +940,13 @@ const nextText = computed(() =>
 const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
 /** The fresh-start line in this card's zone (as every other time on it). */
 const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
-const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen, props.nextBuy) : ''));
+/** The research buy window's words in this card's zone: the clock alone (same day), the weekday of the sale. */
+const buyFmt = {
+  clock: (t: number) => formatClock(t * 1000, props.zone),
+  weekday: (t: number) => new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: props.zone }).format(new Date(t * 1000)),
+  sameDay: (a: number, b: number) => calendarOf(a * 1000, props.zone)?.ymd === calendarOf(b * 1000, props.zone)?.ymd,
+};
+const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen, props.nextBuy, buyFmt) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) => nextShiftWords(l, (t, exact) => sentenceWhen(exact ? t : roundToHourIn(t, props.zone)));
 /** A moment in a sentence, "Nov 13, 2026 at 10:00 AM" (spec-uxpass item 2, 8 Nov 2026: was "Nov 13, 2026, 10:00 AM"
