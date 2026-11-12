@@ -423,8 +423,20 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     expect(button).toContain('min-h-[44px] sm:min-h-0');
     expect(button).toContain('focus-visible:ring-2');
   });
-  it('Reached … · N ascensions under the route', async () => {
-    expect(textOf(await draw(box))).toContain(`Reached t${dateRoute.end} · 5 ascensions`);
+  it('the route and Reached in ONE line (instantCardWords routeReachedLine; Jordan, 12 Nov 2026)', async () => {
+    const html = await draw(box);
+    const inBox = textOf(html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"')));
+    expect(inBox).toContain('314 TE');
+    expect(inBox).toContain(`Route 197 → 222 → 251 → 282 → 314 · reached t${dateRoute.end} · 5 ascensions`);
+    // The route is said once in the box (not again on a line of its own).
+    expect(inBox.split('197 → 222 → 251 → 282 → 314').length - 1).toBe(1);
+    expect(html).toMatch(/data-testid="box-route"[^>]*>|class="[^"]*tabular-nums[^"]*"[^>]*data-testid="box-route"/);
+  });
+  it('a one-ascension route: no route (the TE above says it), only "Reached <when>"', async () => {
+    const one = route([203], DEADLINE - 166_440);
+    const html = await draw(box, { result: { ...resultOf('date')!, byDate: one }, dateRows: [one] });
+    const line = html.slice(html.indexOf('data-testid="box-route"'));
+    expect(textOf(line.slice(line.indexOf('>') + 1, line.indexOf('</div>')))).toBe(`Reached t${one.end}`);
   });
 });
 

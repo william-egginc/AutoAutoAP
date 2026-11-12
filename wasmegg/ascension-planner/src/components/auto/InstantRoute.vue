@@ -352,11 +352,10 @@
                 >tight</span
               >
             </div>
-            <div class="tabular-nums text-body font-bold text-slate-800">
-              {{ dateBoxOf(result.byDate).chain.join(' → ') }}
-            </div>
-            <div class="text-small text-slate-700">
-              {{ reachedLine({ time: show(dateBoxOf(result.byDate).end), count: dateBoxOf(result.byDate).chain.length }) }}
+            <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
+                 routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
+            <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -1104,7 +1103,7 @@ import {
   noPrestigeDayCount,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { WORK_IT_OUT_AGAIN, reachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import { WORK_IT_OUT_AGAIN, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
 import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
