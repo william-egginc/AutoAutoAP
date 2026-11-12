@@ -389,7 +389,7 @@
                  the first ascension continues the build-up with the hours limiting the answer, so its research buys can
                  fall outside them and the finish above is a best case. Once, under First step. -->
             <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-              {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+              {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ INSTANT_NIGHT_BUY_TIP }}</HelpTip>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -609,7 +609,7 @@
           </p>
           <!-- The night-buy note, as in By a date's box above. -->
           <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-            {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+            {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ INSTANT_NIGHT_BUY_TIP }}</HelpTip>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1108,7 +1108,7 @@ import {
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
-import { NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
@@ -1755,7 +1755,7 @@ const firstStepWarn = computed(() => buildUpMissingRestOf(firstStep.value));
 /** The legs First step reads: the box's route's. */
 const firstLegs = computed(() => (props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null)));
 /**
- * The night-buy note under First step (spec-nightbuynote; NIGHT_BUY_NOTE_SHORT): the first ascension continues the
+ * The night-buy note under First step (spec-nightbuynote; INSTANT_NIGHT_BUY_NOTE): the first ascension continues the
  * build-up and the awake hours limit the answer (`hoursLimited`, as First step's hours clause), so the build-up's research
  * buys may fall outside them. Never for a fresh start, the ascension you are in continued, or the warning line.
  */
