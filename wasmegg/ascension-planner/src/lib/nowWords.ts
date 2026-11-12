@@ -94,7 +94,7 @@ export function howFar(
       ? (() => {
           // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
           const s = spareSide(e.spareHours);
-          return ` · ${s.size} ${s.late ? 'after' : 'spare before'} this date${rounded ? ", on the instant answer's plan" : ''}`;
+          return ` · ${s.late ? `lands ${s.size} after` : `${s.size} spare before`} this date${rounded ? ", on the instant answer's plan" : ''}`;
         })()
       : '';
   return base + spare;
