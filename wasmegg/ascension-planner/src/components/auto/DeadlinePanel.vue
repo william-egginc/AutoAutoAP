@@ -122,6 +122,11 @@
       Egg Day's own bonuses aren't in the plan.
     </p>
 
+    <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
+         where the Setup pill is mounted (a player ID). -->
+    <div v-if="initialState.playerId" class="flex justify-end">
+      <FiltersButton />
+    </div>
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
     <!-- The simpler default page (9 Nov 2026, notes/simpler-design.md): the answer always shown (no Hide; the section's
@@ -1230,6 +1235,7 @@ import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
 
 const props = defineProps<{
   playerId: string;

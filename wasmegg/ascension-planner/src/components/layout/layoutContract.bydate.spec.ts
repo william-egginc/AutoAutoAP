@@ -19,7 +19,8 @@ describe('By a date: the regions in their fixed order', () => {
   it('title (the screen), then the date, the answer, what to do now and More (the panel), in this order', () => {
     expect(screen.indexOf('data-region="title"')).toBeGreaterThan(-1);
     expect(screen.indexOf('data-region="title"')).toBeLessThan(screen.indexOf('<InsanePanel'));
-    const at = ['data-region="date"', 'data-region="answer"', '<NowLine', '<MoreFold'].map(m => panel.indexOf(m));
+    // Filters right above the answer, below the date (Jordan, 13 Nov 2026).
+    const at = ['data-region="date"', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold'].map(m => panel.indexOf(m));
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });

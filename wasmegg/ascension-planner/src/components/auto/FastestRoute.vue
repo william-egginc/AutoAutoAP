@@ -29,6 +29,11 @@
          start?" is in Science (#/science/start). -->
     <YourSetup screen="fastest" issues-only />
 
+    <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
+         where the Setup pill is mounted (a player ID). -->
+    <div v-if="initialState.playerId" class="flex justify-end">
+      <FiltersButton />
+    </div>
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
     <!-- The answer, always shown: no Hide since the simpler page (the section's old id kept for the tracker's "Pick a route
@@ -137,6 +142,8 @@ import type { InstantState } from '@/search/autoWiden';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
+import { useInitialStateStore } from '@/stores/initialState';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
@@ -166,6 +173,7 @@ const emit = defineEmits<{
 
 const store = useChainSearchStore();
 const ui = useUIStore();
+const initialState = useInitialStateStore();
 const stronger = useStrongerStore();
 
 // The hidden sections' one-line results (CollapsibleSection.vue).

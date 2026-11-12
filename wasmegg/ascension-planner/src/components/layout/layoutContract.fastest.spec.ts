@@ -20,7 +20,8 @@ const order = (src: string, marks: string[]) => marks.map(m => src.indexOf(m));
 describe('Fastest: the regions in their fixed order', () => {
   const t = template(read('auto/FastestRoute.vue'));
   it('title, answer, what to do now, More: in this order', () => {
-    const at = order(t, ['data-region="title"', 'data-region="answer"', '<NowLine', '<MoreFold']);
+    // Filters right above the answer (Jordan, 13 Nov 2026).
+    const at = order(t, ['data-region="title"', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold']);
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -63,9 +64,8 @@ describe('the answer card (InstantRoute.vue) with a More', () => {
     const src = read('auto/InstantRoute.vue');
     expect(src).toContain('return props.moreTo ? false : countLit(r);');
   });
-  it('Filters sits on the card, right of its heading (Jordan, 13 Nov 2026; both screens draw this card), not beside the tabs', () => {
-    const head = t.slice(t.indexOf('<section v-if="!noTable"'), t.indexOf('<InstantPointer'));
-    expect(head.indexOf('<FiltersButton')).toBeGreaterThan(head.indexOf('</h3>'));
+  it('Filters is not in the card (it sits right above it, FastestRoute / DeadlinePanel; Jordan, 13 Nov 2026), nor beside the tabs', () => {
+    expect(t).not.toContain('<FiltersButton');
     const app = read('../App.vue');
     expect(app.slice(0, app.indexOf('<script setup'))).not.toContain('<FiltersButton');
   });

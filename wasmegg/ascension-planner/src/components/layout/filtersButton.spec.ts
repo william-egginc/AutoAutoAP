@@ -2,9 +2,9 @@
  * THE FILTERS BUTTON (Jordan, 12 Nov 2026: "a Filters button that opens Setup, like Joo's page has"): his own ask, so a
  * visible slot, not in More. layout/FiltersButton.vue, the bar's small-button style (Change player's), 44 px at every
  * width, a real button with a name, aria-expanded and aria-haspopup="dialog". It opens the floating Setup
- * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795): ON the instant answer
- * card of Fastest and of By a date, at its top right, as Joo's page has it; no longer after the Auto Planner tabs or
- * beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
+ * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795, made precise the same
+ * day): right ABOVE the instant answer card, on By a date below the date picker and its "N days from your plan start"
+ * line, on Fastest in the same spot; not inside the card, not after the Auto Planner tabs, not beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,18 +47,23 @@ describe('the button', () => {
 });
 
 describe('where it sits', () => {
-  it('the instant answer card (InstantRoute.vue, Fastest and By a date): at the right of its heading row, only with a player ID', () => {
-    const t = tplOf(read('components/auto/InstantRoute.vue'));
-    const main = t.slice(t.indexOf('<section v-if="!noTable"'), t.indexOf('<InstantPointer'));
-    expect(main).toContain('<FiltersButton v-if="initialState.playerId"');
-    expect(main.indexOf('<FiltersButton')).toBeGreaterThan(main.indexOf('</h3>'));
-    const none = t.slice(t.indexOf('data-testid="instant-no-table"'));
-    expect(none.slice(0, none.indexOf('<InstantPointer'))).toContain('<FiltersButton v-if="initialState.playerId"');
-    // Both screens draw this card.
-    expect(read('components/auto/FastestRoute.vue')).toContain('<InstantRoute');
-    expect(read('components/auto/DeadlinePanel.vue')).toContain('<InstantRoute');
+  it('By a date: right above the instant answer card, below the date picker and its "days from your plan start" line', () => {
+    const t = tplOf(read('components/auto/DeadlinePanel.vue'));
+    const f = t.indexOf('<FiltersButton');
+    expect(f).toBeGreaterThan(t.indexOf('from your plan start.'));
+    expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
+    expect(t.slice(f, t.indexOf('data-testid="section-instant"'))).not.toMatch(/<(p|section|InstantRoute)\b/);
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-end">');
   });
-  it('not beside the Auto Planner tabs, not beside My runs\' title (one place: the card)', () => {
+  it('Fastest: the same spot, right above its instant answer card', () => {
+    const t = tplOf(read('components/auto/FastestRoute.vue'));
+    const f = t.indexOf('<FiltersButton');
+    expect(f).toBeGreaterThan(t.indexOf('<YourSetup'));
+    expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-end">');
+  });
+  it('not in the card, not beside the Auto Planner tabs, not beside My runs\' title (one place per screen)', () => {
+    expect(tplOf(read('components/auto/InstantRoute.vue'))).not.toContain('<FiltersButton');
     const app = read('App.vue');
     const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');
     expect(tpl).not.toContain('<FiltersButton');

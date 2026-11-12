@@ -1,9 +1,10 @@
 <!--
   FILTERS (Jordan, 12 Nov 2026: "a Filters button that opens Setup, like Joo's page has"; his ask, so a visible slot, not
   in More). Opens or closes the floating Setup (auto/SetupDock.vue's panel, a dialog named Setup) as the pill's gear
-  does. The bar's small-button style (layout/SaveLine.vue's Change player), 44 px at every width. On the instant answer
-  card of Fastest and By a date, at its top right (auto/InstantRoute.vue; Jordan, 13 Nov 2026: on the card, as Joo's
-  page has it, not beside the tabs or My runs' title), only where SetupDock is mounted.
+  does. The bar's small-button style (layout/SaveLine.vue's Change player), 44 px at every width. Right above the
+  instant answer card (Jordan, 13 Nov 2026): on By a date below the date picker and its "days from your plan start"
+  line (auto/DeadlinePanel.vue), on Fastest in the same spot (auto/FastestRoute.vue); not in the card, not beside the
+  tabs or My runs' title. Only where SetupDock is mounted (a player ID).
 -->
 <template>
   <button
