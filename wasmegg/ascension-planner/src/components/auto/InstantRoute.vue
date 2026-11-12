@@ -176,19 +176,13 @@
       class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600 flex flex-wrap items-center gap-x-3"
       data-testid="saved-answer"
     >
-      <span
-        >Saved from {{ show(savedAt / 1000) }}: same save, setup and filters, so nothing was worked out again<template
-          v-if="answerStart"
-        >
-          (its dates are for a plan start of {{ show(answerStart) }})</template
-        >.</span
-      >
+      <span>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</span>
       <button
         type="button"
         class="font-bold text-body text-emerald-800 underline hover:text-emerald-900"
         @click="pressRun(true, 'again')"
       >
-        Work it out again
+        {{ WORK_IT_OUT_AGAIN }}
       </button>
     </p>
     <InstantRunWarning
@@ -360,8 +354,7 @@
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
             <div class="text-small text-slate-700">
-              Reached {{ show(dateBoxOf(result.byDate).end) }} ·
-              {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
+              {{ reachedLine({ time: show(dateBoxOf(result.byDate).end), count: dateBoxOf(result.byDate).chain.length }) }}
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -1109,6 +1102,7 @@ import {
   noPrestigeDayCount,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { WORK_IT_OUT_AGAIN, reachedLine, savedFromSentence } from '@/lib/instantCardWords';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';

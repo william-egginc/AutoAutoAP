@@ -42,6 +42,7 @@ import {
   mergeFirstStepCaveats,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import * as cardWords from '@/lib/instantCardWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
@@ -138,6 +139,8 @@ function ctxOf(s: State): Record<string, unknown> {
     INSTANT_NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
     INSTANT_ESTIMATE_LINE,
+    // The card's words (lib/instantCardWords.ts), the real ones.
+    ...cardWords,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
     SHARE_WHAT: '',
@@ -373,6 +376,34 @@ describe('InstantRoute: every state draws something', () => {
     expect(html).toContain('314 TE');
     expect(html).toContain('data-testid="inside-hours"');
     expect(html).toContain('data-testid="saved-answer"');
+  });
+});
+
+describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the same as before", () => {
+  const box: State = {
+    answer: 'date',
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: true,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: true,
+  };
+  const textOf = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  it('the saved-from sentence and Work it out again, with and without a plan start', async () => {
+    expect(textOf(await draw(box))).toContain(
+      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again. Work it out again'
+    );
+    expect(textOf(await draw(box, { answerStart: 1_792_003_600 }))).toContain(
+      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600).'
+    );
+  });
+  it('Reached … · N ascensions under the route', async () => {
+    expect(textOf(await draw(box))).toContain(`Reached t${dateRoute.end} · 5 ascensions`);
   });
 });
 

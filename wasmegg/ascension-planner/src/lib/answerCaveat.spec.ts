@@ -172,7 +172,7 @@ describe('InstantRoute wiring', () => {
     expect(template.match(/<AnswerCaveatLine :caveat="headCaveat" \/>/g)).toHaveLength(2);
     const fast = template.slice(template.indexOf('in {{ headlineGap(boxLead.seconds) }}'));
     expect(fast.indexOf('<AnswerCaveatLine')).toBeLessThan(fast.indexOf('{{ boxLead.chain.join'));
-    const date = template.slice(template.indexOf('Reached {{ show(dateBoxOf(result.byDate).end) }}'));
+    const date = template.slice(template.indexOf('reachedLine({ time: show(dateBoxOf(result.byDate).end)'));
     expect(date.indexOf('<AnswerCaveatLine')).toBeLessThan(date.indexOf('<PreferFewerNote'));
   });
   it('with the box on screen, the bound, the low-TE note and the gear box are not shown on their own', () => {
