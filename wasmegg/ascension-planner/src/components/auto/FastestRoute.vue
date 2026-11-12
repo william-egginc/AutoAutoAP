@@ -46,6 +46,7 @@
         <InstantRoute
           share-to="#search-share-fastest"
           more-to="more-fastest-answer"
+          now-to="now-offer-fastest"
           @check="checkExactly"
           @state="st => (instantLoad = st)"
           @unloaded="u => (instantUnloaded = u)"

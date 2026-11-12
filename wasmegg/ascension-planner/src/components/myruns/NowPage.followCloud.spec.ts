@@ -451,7 +451,8 @@ describe('the prompt and Earlier versions on their own', () => {
     expect(prompt).toContain('follows.followBetter(');
     expect(prompt).toContain('@click.stop="keepIt"');
     expect(prompt).toContain('keepMine(p.id)');
-    expect(prompt.match(/min-h-\[44px\]/g)?.length).toBe(2);
+    // Follow it and Keep mine in the box; Keep mine on the instant card's one line (`line`, 12 Nov 2026).
+    expect(prompt.match(/min-h-\[44px\]/g)?.length).toBe(3);
     const hist = read('./FollowHistory.vue');
     expect(hist).toContain('follows.restore(props.goalKey, v)');
     expect(hist).toContain('message.value = r.words');

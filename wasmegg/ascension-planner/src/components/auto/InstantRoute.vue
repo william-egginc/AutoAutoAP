@@ -416,15 +416,19 @@
                 </button>
               </Tip>
             </div>
-            <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
-            <BetterRoutePrompt
-              v-if="!staleAt"
-              class="mt-2"
-              :goal-key="followGoal"
-              goal="date"
-              :deadline="deadline ?? null"
-              :candidate="instantCandidate(dateBoxOf(result.byDate))"
-            />
+            <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts), as one line in
+                 the Following bar under the card (`nowTo`; the card clean-up, Jordan 12 Nov 2026); here without one. -->
+            <Teleport :to="nowEl ?? 'body'" :disabled="!nowEl">
+              <BetterRoutePrompt
+                v-if="!staleAt"
+                line
+                :class="nowEl ? '' : 'mt-2'"
+                :goal-key="followGoal"
+                goal="date"
+                :deadline="deadline ?? null"
+                :candidate="instantCandidate(dateBoxOf(result.byDate))"
+              />
+            </Teleport>
           </template>
           <p v-else-if="result.outside?.date" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
             No route in this range: the nearest is {{ plural(result.outside.date.ascensions, 'ascension') }},
@@ -627,15 +631,19 @@
               </button>
             </Tip>
           </div>
-          <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
-          <BetterRoutePrompt
-            v-if="!staleAt"
-            class="mt-2"
-            :goal-key="followGoal"
-            goal="fastest"
-            :deadline="null"
-            :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
-          />
+          <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts), as one line in the
+               Following bar, as By a date's. -->
+          <Teleport :to="nowEl ?? 'body'" :disabled="!nowEl">
+            <BetterRoutePrompt
+              v-if="!staleAt"
+              line
+              :class="nowEl ? '' : 'mt-2'"
+              :goal-key="followGoal"
+              goal="fastest"
+              :deadline="null"
+              :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
+            />
+          </Teleport>
         </div>
         <p v-else-if="result.outside?.fastest" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
           No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
@@ -1119,6 +1127,9 @@ const props = defineProps<{
    *  takes the line under the title and its filters, Prefer fewer and Every number of ascensions, and the maxed-gear
    *  what-if; `<moreTo>-how` takes How this is worked out. Without one, all of it stays on this card, as before. */
   moreTo?: string;
+  /** The Following bar's slot (layout/NowLine.vue `now-offer-<screen>`): the better-route line goes there. Without one
+   *  it stays under the box's buttons. */
+  nowTo?: string;
 }>();
 /** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
 const sectionHide = inject(SECTION_HIDE, null);
@@ -3274,6 +3285,8 @@ const shareEl = useShareTarget(() => props.shareTo, shareShown);
 /** Where the More parts go (`moreTo`), looked up as the share line's target is (composables/useTeleportTarget.ts):
  *  after mount and each time an answer is in; none found, and they stay on this card. */
 const moreEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}` : undefined), () => !!result.value);
+/** The Following bar's slot for the better-route line (`nowTo`, layout/NowLine.vue): looked up as More's. */
+const nowEl = useTeleportTarget(() => (props.nowTo ? `#${props.nowTo}` : undefined), () => !!result.value);
 const moreHowEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}-how` : undefined), () => !!result.value);
 /** More's line names these when they aren't at their default (lib/moreChanges.ts, DRAFT words). */
 watch(

@@ -19,8 +19,27 @@
   brings it back whole (R7 red-team QA, 1 Nov 2026).
 -->
 <template>
+  <!-- The instant card's one line (`line`): the words and Keep mine; its "Follow it" is the card's main button. -->
   <div
-    v-if="prompt && prompt.words"
+    v-if="line && prompt && prompt.words && !prompt.stale"
+    class="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-indigo-950"
+    role="status"
+    data-testid="better-route"
+    data-variant="line"
+    :data-id="prompt.id"
+  >
+    <span data-testid="better-route-words">{{ lineWords }}</span>
+    <button
+      type="button"
+      class="inline-flex items-center min-h-[44px] font-bold text-body text-indigo-700 underline hover:text-indigo-900 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      data-testid="better-route-keep"
+      @click.stop="keepIt"
+    >
+      Keep mine
+    </button>
+  </div>
+  <div
+    v-else-if="prompt && prompt.words"
     class="rounded-xl border border-indigo-300 bg-indigo-50 px-3 py-2 text-small text-indigo-950 space-y-1.5"
     role="status"
     data-testid="better-route"
@@ -70,6 +89,9 @@ import type { StaleReason } from '@/lib/followStale';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
+import { betterAboveLine } from '@/lib/instantCardWords';
+import { headlineGap } from '@/lib/format';
+import { finishesBefore } from '@/lib/eggDayRule';
 
 const props = defineProps<{
   goalKey: string | null | undefined;
@@ -88,6 +110,10 @@ const props = defineProps<{
   /** Right now (My runs): only the "Re-plan from this save" offer (`stale` set); the better-route offer is asked on the
    *  Auto Planner's cards, where following is done (Jordan, 13 Nov 2026). */
   replanOnly?: boolean;
+  /** The instant answer card only (Jordan, 12 Nov 2026): the better-route offer as one line (lib/instantCardWords.ts
+   *  betterAboveLine on By a date) with Keep mine, drawn in the Following bar; no "Follow it" (the card's main button,
+   *  "Follow this route instead", is the same press). A "Re-plan from this save" offer keeps its box and its button. */
+  line?: boolean;
   zone?: string;
 }>();
 
@@ -157,6 +183,14 @@ function savedPriceIsOld(f: { simVersion?: string; hours?: CloudHours | null }):
   return null;
 }
 
+/** The followed route's finish: Right now's price (`followedFinish`), else the one saved with it. */
+function finishOf(f: { finish?: number; endTE?: number; chain: readonly number[] }): RouteFinish | null {
+  return (
+    props.followedFinish ??
+    (typeof f.finish === 'number' ? { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] ?? 0 } : null)
+  );
+}
+
 const prompt = computed<FollowPrompt | null>(() => {
   // From the press on, nothing of the offer (its words, its press and Keep mine go together; R7 red-team QA).
   if (!follows || !props.goalKey || !props.candidate || follows.offerPressed(props.goalKey)) return null;
@@ -169,9 +203,7 @@ const prompt = computed<FollowPrompt | null>(() => {
   const priced =
     (props.candidate.source === 'instant' || source === 'instant') &&
     followIsPriced({ source, chain: f.chain, pricedByResult: !!props.followedPriced, results: resultRoutes() });
-  const finish =
-    props.followedFinish ??
-    (typeof f.finish === 'number' ? { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] ?? 0 } : null);
+  const finish = finishOf(f);
   const nowSec = Date.now() / 1000;
   // The price saved with the follow is only compared when it is for this setup: not when another version of the planner or
   // other awake hours worked it out (M13: "yours: 313 TE, 37h 6m to spare" on the instant card, over My runs' fresh Jul 17).
@@ -191,6 +223,21 @@ const prompt = computed<FollowPrompt | null>(() => {
   return p && savedPriceOld === 'version' && p.stale
     ? { ...p, words: versionPriceWords(props.candidate, props.goal, t => dateAt(t, nowSec, zone.value)) }
     : p;
+});
+
+/** The line's words: By a date's in Words' betterAboveLine (each side's TE and spare as the box writes them,
+ *  lib/format.ts headlineGap); Fastest's finishes are times, which that line has no words for, so today's words. */
+const lineWords = computed(() => {
+  const p = prompt.value;
+  if (!p) return '';
+  const f = follows?.followed(props.goalKey);
+  const fin = f ? finishOf(f) : null;
+  const d = props.deadline;
+  if (props.goal !== 'date' || d == null || !fin) return p.words;
+  return betterAboveLine({
+    better: { te: `${p.endTE} TE`, size: headlineGap(d - p.end) },
+    yours: { te: `${fin.endTE} TE`, size: headlineGap(Math.abs(d - fin.end)), late: !finishesBefore(fin.end, d) },
+  });
 });
 
 /** A "Re-plan from this save" press made the follow (stores/follow.ts `replanned`) and it is the answer shown. */

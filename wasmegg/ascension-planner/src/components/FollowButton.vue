@@ -1,7 +1,7 @@
 <!--
   "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
-  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `main` fills it (the answer's own, the screen's one main button); `primary` makes it a 44 px tap
+  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `main` fills it (the answer's own, the screen's one main button; "Follow this route instead" while another route is followed); `primary` makes it a 44 px tap
   target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):
   the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
@@ -31,7 +31,7 @@
       @click.stop="pick"
     >
       <template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template
-      ><template v-else>Follow this route</template>
+      ><template v-else-if="instead">{{ FOLLOW_THIS_ROUTE_INSTEAD }}</template><template v-else>Follow this route</template>
     </button>
   </Tip>
 </template>
@@ -41,6 +41,7 @@ import { computed } from 'vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import Tip from '@/components/Tip.vue';
 import { TIP_FOLLOW, TIP_FOLLOWING } from '@/lib/tipWords';
+import { FOLLOW_THIS_ROUTE_INSTEAD } from '@/lib/instantCardWords';
 import { useFollowStore } from '@/stores/follow';
 import type { FollowFrom } from '@/lib/follow';
 import type { FollowSource } from '@/lib/followCloud';
@@ -79,6 +80,10 @@ const follows = (() => {
   }
 })();
 const on = computed(() => !!follows?.isFollowed(props.goalKey, props.chain));
+/** The answer's own button (`main`, the instant card's) while another route is followed for this goal: "Follow this
+ *  route instead" (the card clean-up, Jordan 12 Nov 2026; the better-route line in the Following bar has no button of
+ *  its own). The same press. */
+const instead = computed(() => !!props.main && !on.value && !!follows?.followed(props.goalKey));
 const ariaLabel = computed(() =>
   props.routeLabel ? `${on.value ? 'Following' : props.stale ? 'Checking' : 'Follow'} ${props.routeLabel}` : undefined
 );

@@ -133,19 +133,24 @@ describe('BetterRoutePrompt: no "Keep mine" without its offer', () => {
     expect(wholeOrNothing((await show(stale)).html, 'Re-plan from this save')).toBe('nothing');
   });
 
-  it('in the file: "Keep mine" and the press sit inside the one block that shows the words, nowhere else', () => {
+  it('in the file: "Keep mine" and the press sit inside the block that shows the words, nowhere else', () => {
     const src = fs.readFileSync(path.join(__dirname, 'BetterRoutePrompt.vue'), 'utf8');
     const tpl = parse(src).descriptor.template!.content;
-    const open = /<div\s+v-if="([^"]+)"[^>]*data-testid="better-route"/.exec(tpl);
-    expect(open).not.toBeNull();
-    expect(open![1]).toContain('prompt');
-    const start = open!.index;
-    const end = tpl.indexOf('\n  </div>', start);
-    const block = tpl.slice(start, end);
-    for (const id of ['better-route-words', 'better-route-follow', 'better-route-keep']) {
-      expect(block).toContain(`data-testid="${id}"`);
-      expect(tpl.split(`data-testid="${id}"`).length).toBe(2);
-    }
-    expect(tpl.slice(end)).not.toContain('Keep mine');
+    // Two blocks since the instant card's one line (`line`, 12 Nov 2026): the line (words, Keep mine; its press is the
+    // card's main button) and the box (words, the press, Keep mine). Each shows its words with its buttons or nothing.
+    const opens = [...tpl.matchAll(/<div\s+v-(?:else-)?if="([^"]+)"[^>]*data-testid="better-route"/g)];
+    expect(opens).toHaveLength(2);
+    const blocks = opens.map(o => {
+      expect(o[1]).toContain('prompt');
+      return tpl.slice(o.index!, tpl.indexOf('\n  </div>', o.index!));
+    });
+    expect(opens[0][1]).toContain('line');
+    for (const b of blocks) for (const id of ['better-route-words', 'better-route-keep']) expect(b).toContain(`data-testid="${id}"`);
+    expect(blocks[0]).not.toContain('data-testid="better-route-follow"');
+    expect(blocks[1]).toContain('data-testid="better-route-follow"');
+    for (const [id, n] of [['better-route-words', 2], ['better-route-keep', 2], ['better-route-follow', 1]] as const)
+      expect(tpl.split(`data-testid="${id}"`).length - 1).toBe(n);
+    const last = tpl.indexOf('\n  </div>', opens[1].index!);
+    expect(tpl.slice(last)).not.toContain('Keep mine');
   });
 });

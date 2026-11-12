@@ -140,6 +140,7 @@
         :deadline="deadline"
         share-to="#search-share-by-date"
         more-to="more-bydate-answer"
+        now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
         @check="checkByDate"
         @routes="onInstantRoutes"

@@ -172,6 +172,7 @@ function ctxOf(s: State): Record<string, unknown> {
     moreTo: undefined,
     moreEl: null,
     moreHowEl: null,
+    nowEl: null,
     ROW_HINT: 'Open a row to follow or simulate that route instead.',
     countOpen: () => false,
     toggleCount: () => {},
@@ -613,11 +614,12 @@ describe('the share Teleport lives as long as the card', () => {
     const tpl = source.slice(0, source.indexOf('<script setup'));
     // The More parts' Teleports (the simpler page, 9 Nov 2026) come first: never deferred, to looked-up elements
     // (moreEl, moreHowEl) and disabled without one, as this one. The share line's is the last.
+    // The better-route line's two (to the Following bar, nowEl; the card clean-up, 12 Nov 2026) are the same kind.
     const more = tpl.match(/<Teleport [^>]*>/g)!.slice(0, -1);
-    expect(more.length).toBe(4);
+    expect(more.length).toBe(6);
     for (const t of more) {
       expect(t).not.toContain('defer');
-      expect(t).toMatch(/:to="more(How)?El \?\? 'body'" :disabled="!more(How)?El"/);
+      expect(t).toMatch(/:to="(more(How)?|now)El \?\? 'body'" :disabled="!(more(How)?|now)El"/);
     }
     const at = tpl.lastIndexOf('<Teleport');
     // After both sections: a sibling of the card, not inside it.
