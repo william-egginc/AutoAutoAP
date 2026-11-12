@@ -9,7 +9,7 @@ const base = { hasVirtueFarm: true, nowSeconds: NOW, zone: 'America/Denver' };
 describe('the save banner words', () => {
   it('the Details sentences say the age lines and the 30% silo rule', () => {
     expect(thresholdsDetail('13h 30m', '1d')).toBe(
-      "Getting old after 13h 30m, out of date after 1d, by your save's age. The silo line turns amber when your silos have under 30% of their time left. Both go by your save, so the game may have synced since."
+      "Getting old after 13h 30m, out of date after 1d, by your save's age. The silo line turns amber when your silos have under 30% of their time left. Both go by your save. If you've opened the game since, your silos have refilled; the save just hasn't caught up."
     );
     expect(thresholdsDetail('13h 30m', '1d', true)).toContain('by your save\'s age once your clock is right.');
   });
@@ -17,9 +17,13 @@ describe('the save banner words', () => {
     expect(siloLine({ when: 'Nov 12 at 2:40 PM' })).toBe('Silos run out about Nov 12 at 2:40 PM (from your save)');
     expect(siloLine({ when: 'Nov 12 at 2:40 PM', past: true })).toBe('Silos ran out about Nov 12 at 2:40 PM (from your save)');
     expect(siloLine({ when: 'Nov 12 at 2:40 PM', low: true })).toBe(
-      'Silos are low: they run out about Nov 12 at 2:40 PM (from your save). The game may have synced since, so it may be later.'
+      "Silos are low: from your save, they run out about Nov 12 at 2:40 PM. If you've opened the game since, they've refilled; the save just hasn't caught up."
     );
-    expect(siloLine({ when: 'Nov 12 at 2:40 PM', low: true, past: true })).toMatch(/ran out about .*may have more time now\.$/);
+    const past = siloLine({ when: 'Nov 12 at 1:29 PM', low: true, past: true });
+    expect(past).toBe(
+      "From your save, your silos ran out about Nov 12 at 1:29 PM. If you've opened the game since, they've refilled; the save just hasn't caught up."
+    );
+    expect(past).not.toMatch(/low/);
   });
   it('Details carries the new threshold sentence, in the clock-behind state too, and no other line changes', () => {
     const ok = saveBannerState({ ...base, backupSeconds: NOW - 16 * H, farmStepSeconds: NOW - 16 * H, siloSeconds: 24 * H, siloCount: 3 });

@@ -15,17 +15,18 @@ export const SILO_AMBER_PERCENT_WORDS = 30;
  * `dateAt`); `past`: that time has gone by; `low`: the amber state. It goes by the save, so the low one says the game may
  * have synced since. Colour is never alone: the low one says "low".
  *   normal: "Silos run out about Nov 12 at 2:40 PM (from your save)"   ("Silos ran out about … (from your save)")
- *   low:    "Silos are low: they run out about Nov 12 at 2:40 PM (from your save). The game may have synced since, so it
- *            may be later."   (past: "Silos are low: they ran out about … (from your save). The game may have synced since,
- *            so they may have more time now.")
+ *   low:    "Silos are low: from your save, they run out about Nov 12 at 2:40 PM. If you've opened the game since, they've
+ *            refilled; the save just hasn't caught up."
+ *   past:   "From your save, your silos ran out about Nov 12 at 2:40 PM. If you've opened the game since, they've refilled;
+ *            the save just hasn't caught up."   (no "low": it contradicts "ran out"; Jordan, 12 Nov 2026)
+ *   The real case: the game was opened (refilling the silos) but hasn't synced, so the save can't tell.
  */
 export function siloLine(o: { when: string; past?: boolean; low?: boolean }): string {
   const ran = o.past ? 'ran out' : 'run out';
   if (!o.low) return `Silos ${ran} about ${o.when} (from your save)`;
-  const tail = o.past
-    ? 'The game may have synced since, so they may have more time now.'
-    : 'The game may have synced since, so it may be later.';
-  return `Silos are low: they ${ran} about ${o.when} (from your save). ${tail}`;
+  const caughtUp = "If you've opened the game since, they've refilled; the save just hasn't caught up.";
+  if (o.past) return `From your save, your silos ran out about ${o.when}. ${caughtUp}`;
+  return `Silos are low: from your save, they run out about ${o.when}. ${caughtUp}`;
 }
 
 /**
@@ -34,7 +35,7 @@ export function siloLine(o: { when: string; past?: boolean; low?: boolean }): st
  * (lib/saveAge.ts `ageWords`); `clockRight`: the clock-behind state's ending.
  */
 export function thresholdsDetail(yellow: string, red: string, clockRight = false): string {
-  return `Getting old after ${yellow}, out of date after ${red}, by your save's age${clockRight ? ' once your clock is right' : ''}. The silo line turns amber when your silos have under ${SILO_AMBER_PERCENT_WORDS}% of their time left. Both go by your save, so the game may have synced since.`;
+  return `Getting old after ${yellow}, out of date after ${red}, by your save's age${clockRight ? ' once your clock is right' : ''}. The silo line turns amber when your silos have under ${SILO_AMBER_PERCENT_WORDS}% of their time left. Both go by your save. If you've opened the game since, your silos have refilled; the save just hasn't caught up.`;
 }
 
 /** The quiet line's word for a screen reader (the banner isn't showing): the save's age, not "Up to date" (a 16 h old save
