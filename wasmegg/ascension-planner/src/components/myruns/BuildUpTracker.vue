@@ -215,8 +215,10 @@
                 <span class="text-small text-slate-500 tabular-nums">
                   {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
                 </span>
+                <!-- Show less only: a collapsed day's way to show all is the "+ N more · show all" under its lines (both were
+                     shown, "Show all 22" here and "+ 19 more · show all" there; spec-tidy). -->
                 <button
-                  v-if="!row.full && dayView(d, false, ticked).hidden > 0"
+                  v-if="!row.full && isOpen(d) && dayView(d, false, ticked).hidden > 0"
                   type="button"
                   class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
                   :aria-expanded="isOpen(d)"
@@ -751,7 +753,10 @@ function runWords(run: readonly TrackerLine[]): string {
 function compactMeta(d: TrackerDay): string {
   const t = d.lines.filter(l => l.tickable);
   if (!t.length) return dayWords(d);
-  return checkInSpanWords(d.checkIns, t[0].time, t[t.length - 1].time);
+  const [first, last] = [t[0].time, t[t.length - 1].time];
+  // One time, and the status says it ("next 7:46 am"): not twice on the row (spec-tidy).
+  if (first === last && compactStatus(d) === compactNextWords(first)) return checkInSpanWords(d.checkIns, '', '');
+  return checkInSpanWords(d.checkIns, first, last);
 }
 /** "all done", "next 8:41 am" (the next check-in is on this day), "3 of 20 lines done", or nothing. */
 function compactStatus(d: TrackerDay): string {

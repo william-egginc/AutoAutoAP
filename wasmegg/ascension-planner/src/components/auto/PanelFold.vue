@@ -25,7 +25,10 @@
     >
       <span class="font-bold">{{ title }}</span>
       <slot name="extra" />
-      <span v-if="hint" class="min-w-0 font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
+      <!-- The hint takes the rest of its row (basis 12rem, so it never shrinks to a sliver), keeping the chevron beside it:
+           a long hint used to wrap whole and leave the › alone on a line of its own (the Build-up tracker at 390 px,
+           spec-tidy). -->
+      <span v-if="hint" class="min-w-0 flex-[1_1_12rem] font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
         hint
       }}<AnimatedDots v-if="hintBusy" /></span>
       <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-400">›</span>

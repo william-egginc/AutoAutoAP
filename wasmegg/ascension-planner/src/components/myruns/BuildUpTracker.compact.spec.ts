@@ -72,6 +72,12 @@ describe('Compact: a day at a glance', () => {
     const head = textOf(b.match(/<h3[\s\S]*?<\/h3>/)![0]);
     expect(head).toMatch(/^Fri Oct 30 \d+ check-ins · 8:41 am to 10:52 pm next 8:41 am › show this day in the list$/);
   });
+  it('the header of a one-check-in day that holds the next: its time once ("1 check-in · 7:46 am next 7:46 am"; spec-tidy)', async () => {
+    const before = new Set(result.days.filter(d => d.ymd < '2026-11-01').flatMap(d => d.lines.filter(l => l.tickable).map(l => l.key)));
+    const b = block(await render(before), '2026-11-01');
+    const head = textOf(b.match(/<h3[\s\S]*?<\/h3>/)![0]);
+    expect(head).toMatch(/^Sun Nov 1 1 check-in next \d+:\d\d [ap]m › show this day in the list$/);
+  });
   it('bold kinds as chips in the lines\' words without "buy"; sale on and off as quiet chips', async () => {
     const html = await render();
     const fri = chips(block(html, '2026-10-30'));

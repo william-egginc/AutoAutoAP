@@ -174,7 +174,12 @@ const tiles = computed(() => [
     label: 'Clothed TE',
     value:
       props.clothedEarnings != null
-        ? `${Math.round(props.clothedEarnings)}${props.clothedEquipped != null ? ` (equipped ${Math.round(props.clothedEquipped)})` : ''}`
+        ? `${Math.round(props.clothedEarnings)}${
+            // Not when it is the same number ("326 (equipped 326)"; spec-tidy).
+            props.clothedEquipped != null && Math.round(props.clothedEquipped) !== Math.round(props.clothedEarnings)
+              ? ` (equipped ${Math.round(props.clothedEquipped)})`
+              : ''
+          }`
         : '—',
     note: props.clothedEarnings != null ? 'with your earnings set' : '',
   },

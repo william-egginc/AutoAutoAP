@@ -114,6 +114,12 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain('Show all ');
     expect(t).toContain('Show less');
   });
+  it('a collapsed day has one way to show all, under its lines: not "Show all N" in its header too (spec-tidy)', async () => {
+    const html = await render('ready');
+    const more = [...html.matchAll(/data-testid="buildup-more-([\d-]+)"/g)].map(m => m[1]);
+    expect(more.length).toBeGreaterThan(0);
+    for (const ymd of more) expect(html, ymd).not.toContain(`data-testid="buildup-showall-${ymd}"`);
+  });
   it('the silo strip when the trick does not fit', async () => {
     const short = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: 3600, startSilos: 1, startEgg: 'curiosity', now: NOW });
     const t = textOf(await render('ready', { result: short, summary: trackerSummary(short, new Set()), siloWarnings: 2 }));
