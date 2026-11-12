@@ -196,7 +196,10 @@
         </button>
       </div>
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
-      <SaveLine v-if="saveLineShown" />
+      <SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />
+      <!-- The save strip and the silo line, small, out of the bar (layout/SaveSide.vue, Jordan 12 Nov 2026). On My runs
+           they sit beside Right now instead (MyRunsView.vue). -->
+      <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2" />
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->
@@ -409,7 +412,7 @@
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
         <template v-if="plannerTab === 'automatic'">
-          <div class="flex justify-center">
+          <div class="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. Each at least
                  44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
@@ -444,6 +447,9 @@
                 ></span>
               </button>
             </div>
+            <!-- Filters opens Setup (layout/FiltersButton.vue, Jordan 12 Nov 2026), where the Setup pill is (not while loading);
+                 under the tabs at the right on a phone. -->
+            <FiltersButton v-if="!loading" class="ml-auto sm:ml-0" />
           </div>
         </template>
 
@@ -929,6 +935,8 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';

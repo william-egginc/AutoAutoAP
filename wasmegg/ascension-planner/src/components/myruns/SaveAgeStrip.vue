@@ -28,8 +28,8 @@
 -->
 <template>
   <div
-    class="min-w-0 rounded-xl border px-3 text-body break-words"
-    :class="[state ? TONE[state.tone] : TONE.green, slim ? 'py-1' : 'py-2']"
+    class="min-w-0 rounded-xl border px-3 break-words"
+    :class="[state ? TONE[state.tone] : TONE.green, slim ? 'py-1' : 'py-2', small ? 'text-small' : 'text-body']"
     :data-testid="testid"
     :data-tone="state?.tone ?? 'none'"
     :data-server="server.kind"
@@ -97,6 +97,8 @@ const props = withDefaults(
     testid?: string;
     /** The Auto Planner screens' slim banner (auto/AutoSaveStrip.vue). */
     slim?: boolean;
+    /** Small text (layout/SaveSide.vue, beside Right now; Jordan 12 Nov 2026: "make them small"). Same content. */
+    small?: boolean;
     /** The button's words when the server has nothing newer known; the state's own link words without. */
     loadWords?: string;
   }>(),
@@ -105,6 +107,7 @@ const props = withDefaults(
     now: () => Math.floor(Date.now() / 1000),
     testid: 'now-save-strip',
     slim: false,
+    small: false,
     loadWords: '',
   }
 );

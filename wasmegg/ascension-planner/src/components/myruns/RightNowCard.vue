@@ -279,8 +279,10 @@
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
+    <!-- The player line (My runs' #player: myruns/PlayerLine.vue, 12 Nov 2026), right above the egg. -->
+    <slot name="player" />
     <!-- The egg. -->
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3" data-testid="now-egg-row">
       <!-- The picture and its frame as FloatingStats.vue shows the current egg (lib/virtueEggs.ts eggIconPath). -->
       <div v-if="eggPicture" class="w-14 h-14 shrink-0 rounded-xl border border-slate-200/50 bg-white/50 p-1.5 shadow-inner overflow-hidden">
         <img :src="iconURL(eggPicture, 64)" :alt="eggName" class="w-full h-full object-contain" data-testid="now-egg-picture" />

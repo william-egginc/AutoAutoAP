@@ -55,6 +55,9 @@ export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 
 // ---------------------------------------------------------------------------------------- My runs
 
+/** The button that opens Setup, after the Auto Planner tabs and beside My runs' title (Jordan's word, 12 Nov 2026). */
+export const FILTERS = 'Filters';
+
 export const STOP_FOLLOWING = 'Stop following';
 export const CHANGE_ROUTE = 'Change route';
 // ---------------------------------------------------------------------------------------- Setup

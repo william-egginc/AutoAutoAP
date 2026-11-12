@@ -25,7 +25,7 @@ describe('App: the regions in their fixed order', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
   it('the save line in place of the chevron on Fastest, By a date and My runs; the chevron stays elsewhere', () => {
-    expect(tpl).toContain('<SaveLine v-if="saveLineShown" />');
+    expect(tpl).toContain(`<SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />`);
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
     expect(app).toContain("(plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))");
   });
@@ -44,7 +44,7 @@ describe('App: the regions in their fixed order', () => {
 
 describe('the save line', () => {
   beforeEach(() => setActivePinia(createPinia()));
-  it('whose save and its TE, the save age with Load latest save; the switch-account button always on it (Change player, Close player box while the box is open: layoutContract.saveline.spec.ts)', async () => {
+  it('whose save and its TE (the save age is layout/SaveSide.vue since 12 Nov 2026); the switch-account button always on it (Change player, Close player box while the box is open: layoutContract.saveline.spec.ts)', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     useInitialStateStore().nickname = 'Williamthe5thc';
@@ -52,7 +52,8 @@ describe('the save line', () => {
     const html = await renderHtml(SaveLine, {}, {}, [pinia]);
     expect(html).toContain('data-region="save-line"');
     expect(textOf(html)).toContain('Williamthe5thc ·');
-    expect(html).toContain('data-testid="save-line-age"');
+    // The save age left the bar (12 Nov 2026): layout/SaveSide.vue, under it on Fastest and By a date (saveSide.spec.ts).
+    expect(html).not.toContain('data-testid="save-line-age"');
     expect(html).toContain('data-testid="save-line-switch"');
     useUIStore().isHeaderCollapsed = false;
     expect(await renderHtml(SaveLine, {}, {}, [pinia])).toContain('aria-expanded="true"');

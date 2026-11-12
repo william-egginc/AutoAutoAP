@@ -25,7 +25,12 @@ describe('the save line never squeezes its text to a sliver', () => {
     expect(tagOf('save-line')).toMatch(/class="[^"]*\bflex flex-wrap\b/);
   });
   it('the save-age text has a basis and a floor (14rem, or the whole line when narrower), never a zero basis', () => {
-    const age = tpl.slice(tpl.indexOf('<SaveAgeStrip'), tpl.indexOf('/>', tpl.indexOf('<SaveAgeStrip')));
+    // Out of the bar since 12 Nov 2026 (layout/SaveSide.vue, small, beside Right now): the same rule there.
+    const side = read('SaveSide.vue');
+    const sideTpl = side.slice(side.indexOf('<template>'), side.indexOf('<script setup'));
+    expect(sideTpl).toMatch(/data-testid="save-side"/);
+    expect(sideTpl.slice(sideTpl.lastIndexOf('<div', sideTpl.indexOf('testid="save-side"')))).toMatch(/class="[^"]*\bflex flex-wrap\b/);
+    const age = sideTpl.slice(sideTpl.indexOf('<SaveAgeStrip'), sideTpl.indexOf('/>', sideTpl.indexOf('<SaveAgeStrip')));
     expect(age).toContain('flex-[1_1_14rem]');
     expect(age).toContain('min-w-[min(14rem,100%)]');
     expect(age).not.toMatch(/\bflex-1\b/);
@@ -33,7 +38,7 @@ describe('the save line never squeezes its text to a sliver', () => {
   });
   it('the name may wrap (a long one) but keeps its words; nothing on the line breaks letters', () => {
     expect(tagOf('save-line-who')).toContain('break-words');
-    for (const f of ['SaveLine.vue', '../myruns/SaveAgeStrip.vue']) expect(read(f), f).not.toMatch(/break-all|word-break:\s*break-all/);
+    for (const f of ['SaveLine.vue', 'SaveSide.vue', '../myruns/SaveAgeStrip.vue']) expect(read(f), f).not.toMatch(/break-all|word-break:\s*break-all/);
   });
   it('the button keeps its size: flex-none, 44 px', () => {
     const b = tagOf('save-line-switch');

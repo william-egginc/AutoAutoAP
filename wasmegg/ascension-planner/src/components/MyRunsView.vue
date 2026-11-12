@@ -5,7 +5,7 @@
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
     1. Save-age banner: the save line at the top of the page (layout/SaveLine.vue, App.vue) since the simpler page
-       (9 Nov 2026); every time below comes from the save, so its age comes first.
+       (9 Nov 2026); since 12 Nov 2026 the strip and the silo line are small, beside Right now (layout/SaveSide.vue).
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -29,8 +29,10 @@
        the one closed More with everything else in its old order (Change route, your eggs, the saved answer, Try next,
        the routes at a glance, Your runs), then the footer. -->
   <div class="space-y-3 pb-16" data-testid="my-runs">
-    <div data-region="title">
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2" data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
+      <!-- Opens Setup (layout/FiltersButton.vue), where App mounts the Setup pill. -->
+      <FiltersButton v-if="playerId && !loading" />
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -39,7 +41,12 @@
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
+    <!-- The save strip, small (layout/SaveSide.vue), while the page waits for the save. -->
+    <SaveSide v-if="!page.hasSave.value" />
+
     <template v-if="page.hasSave.value">
+      <!-- Right now, and the save strip beside it from lg, under it on a phone (layout/SaveSide.vue, 12 Nov 2026). -->
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start" data-testid="now-grid">
       <RightNowCard
         data-region="right-now"
         change-route-to="more-myruns-route"
@@ -94,6 +101,16 @@
         @pick-a1="page.pickA1"
         @switch-fastest="page.switchToFastest"
       >
+        <!-- The player line above the egg, the silo line beside it (myruns/PlayerLine.vue). -->
+        <template #player>
+          <PlayerLine
+            :name="playerName"
+            :claimed="playerTe?.claimed ?? null"
+            :pending="playerTe?.pending ?? null"
+            :clothed="page.gear.value?.clothedEarnings ?? null"
+            :silo="saveStrip.silo.value"
+          />
+        </template>
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
         <template #buildUp>
@@ -127,6 +144,8 @@
           />
         </template>
       </RightNowCard>
+      <SaveSide :with-silo="false" />
+      </div>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
@@ -377,6 +396,13 @@ import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
+import PlayerLine from './myruns/PlayerLine.vue';
+import { playerTeOf } from '@/lib/playerTe';
+import { useInitialStateStore } from '@/stores/initialState';
+import { useMinuteClock } from '@/composables/useMinuteClock';
+import { useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';
@@ -472,6 +498,12 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The player line (myruns/PlayerLine.vue): the save's name, claimed and pending TE; the silo line from the save strip. */
+const initial = useInitialStateStore();
+const playerTe = computed(() => playerTeOf(initial.rawBackup));
+/** The save's name; never the ID the store falls back to with no name in the save. */
+const playerName = computed(() => (initial.nickname && !/^EI\d{16}$/.test(initial.nickname) ? initial.nickname : null));
+const saveStrip = useAutoSaveStrip({ now: useMinuteClock() });
 /** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
 const tracker = useBuildUpTracker({
   account: computed(() => page.account.value || null),
