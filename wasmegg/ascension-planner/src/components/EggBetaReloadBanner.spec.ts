@@ -24,11 +24,11 @@ const render = (s: EggBetaState, busy = false) => {
 describe('EggBetaReloadBanner', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('countdown: 2:00 pm Pacific, the time left, Reload now', async () => {
+  it('countdown: 2:00 PM Pacific, the time left, Reload now', async () => {
     const html = await render({ kind: 'countdown', reloadAt: RELOAD_AT, msLeft: 72 * 60_000 });
     expect(html).toContain('role="status"');
     expect(textOf(html)).toBe(
-      'This page will reload at 2:00 pm Pacific to get the latest version (save your results first). Reloads in 1h 12m. Reload now'
+      'This page will reload at 2:00 PM Pacific to get the latest version (save your results first). Reloads in 1h 12m. Reload now'
     );
     expect(html).toMatch(/<span class="tabular-nums" data-testid="eggbeta-countdown">1h 12m<\/span>/);
   });

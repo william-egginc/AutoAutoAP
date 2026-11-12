@@ -580,7 +580,7 @@
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <!-- One line each (fluff review 2, L5 and L20); the rest is in "How it's judged". -->
         <p v-if="tab === 'eggday'" class="text-body text-indigo-900/80 max-w-prose">
-          Highest TE by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific). Ranked by TE, then time to spare.
+          Highest TE by Egg Day {{ eggDayYear }} (Jul 14, 9:00 AM Pacific). Ranked by TE, then time to spare.
         </p>
         <p v-else class="text-body text-indigo-900/80 max-w-prose">
           Highest TE by any other date, in your timezone ({{ viewZone }}). Ranked by TE, then time to spare.

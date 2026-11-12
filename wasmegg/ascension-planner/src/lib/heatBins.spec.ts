@@ -45,7 +45,7 @@ describe('heatBins: edge cases', () => {
     const t = at('2027-03-04T10:00:00Z');
     const f = heatBins([r('a', 2, t), r('b', 2, t)], fin());
     expect(f.rows).toHaveLength(1);
-    expect(f.rows[0].label).toBe('Mar 4, 10 AM');
+    expect(f.rows[0].label).toBe('Mar 4, 10:00 AM');
   });
 });
 

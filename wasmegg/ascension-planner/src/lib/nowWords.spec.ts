@@ -47,14 +47,14 @@ describe('the Setup button’s line', () => {
   const L = 'en-US';
   it('hours and none: today’s wording, no "no prestige" part', async () => {
     const { setupSummary } = await import('./nowWords');
-    expect(setupSummary(HOURS, [], [], L)).toBe('7 AM–11 PM · no time off');
+    expect(setupSummary(HOURS, [], [], L)).toBe('7:00 AM–11:00 PM · no time off');
     expect(setupSummary(null, null, null, L)).toBe('any hour · no time off');
-    expect(setupSummary(HOURS, [], undefined, L)).toBe('7 AM–11 PM · no time off');
+    expect(setupSummary(HOURS, [], undefined, L)).toBe('7:00 AM–11:00 PM · no time off');
   });
   it('one stretch of time off and one no prestige day', async () => {
     const { setupSummary } = await import('./nowWords');
     expect(setupSummary(HOURS, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], L)).toBe(
-      '7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27'
+      '7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27'
     );
     expect(setupSummary(null, [{ from: '2026-10-20', to: '2026-10-22' }], [], L)).toBe('any hour · time off Oct 20–22');
     expect(setupSummary(null, [], [{ from: '2026-11-03', to: '2026-11-04' }], L)).toBe('any hour · no time off · no prestige Nov 3–4');
@@ -65,10 +65,10 @@ describe('the Setup button’s line', () => {
       { from: '2026-11-03', to: '2026-11-03' },
       { from: '2026-10-29', to: '2026-10-30' },
     ];
-    expect(setupSummary(HOURS, two, two, L)).toBe('7 AM–11 PM · time off Oct 29–30, Nov 3 · no prestige Oct 29–30, Nov 3');
+    expect(setupSummary(HOURS, two, two, L)).toBe('7:00 AM–11:00 PM · time off Oct 29–30, Nov 3 · no prestige Oct 29–30, Nov 3');
     const three = [...two, { from: '2026-12-01', to: '2026-12-02' }];
     expect(setupSummary(HOURS, three, three, L)).toBe(
-      '7 AM–11 PM · time off Oct 29–30, Nov 3 +1 more · no prestige Oct 29–30, Nov 3 +1 more'
+      '7:00 AM–11:00 PM · time off Oct 29–30, Nov 3 +1 more · no prestige Oct 29–30, Nov 3 +1 more'
     );
   });
   it('across months and years; half-typed rows left out', async () => {
@@ -84,7 +84,7 @@ describe('the Setup button’s line', () => {
     expect(setupSummary(days, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], 'en-GB')).toBe(
       '7:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
     );
-    expect(setupSummary(days, [], [], 'en-US')).toBe('7 AM–11 PM on Mon–Fri · no time off');
+    expect(setupSummary(days, [], [], 'en-US')).toBe('7:00 AM–11:00 PM on Mon–Fri · no time off');
   });
 });
 

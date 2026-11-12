@@ -70,7 +70,7 @@
           <code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>. Joo's simulator plays each
           ascension shift by shift: the opening research, habs, vehicles and silos, the sale-timed research buying, then
           the egg shifts up to the next TE. Every build is timed to end when the weekly Research Sale ends, Saturday
-          9:00 am Pacific. We didn't write a second simulator. Every search calls Joo's code, on your own computer's
+          9:00 AM Pacific. We didn't write a second simulator. Every search calls Joo's code, on your own computer's
           cores, and a route run from the command line gives the same answer as the same route in the browser.
         </p>
         <p>
@@ -165,7 +165,7 @@
       <div class="hw-body">
         <p>
           <b>Simulated ahead of time.</b> A fresh ascension depends on two things: the TE you start from and the hour of
-          the week you start, because the sale is always Saturday 9:00 am Pacific. So we simulated a fresh ascension
+          the week you start, because the sale is always Saturday 9:00 AM Pacific. So we simulated a fresh ascension
           once for every start TE from 120 to 489 and every one of the 168 hours of the Pacific week: 62,160 starts,
           each with its build options (1, 2 or 3 sale weeks, with and without tier 13). Only the build is simulated. The
           waiting after it is the simulator's own arithmetic, replayed exactly, so one start gives the time to every TE
@@ -284,7 +284,7 @@
             <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
-            <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on that
+            <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 PM, on that
             day's code: 13 instant answers, 15 starts each, rebuilt from scratch, and all 195 came out identical. The simulator changed on 21 Oct 2026, so the
             check has not been repeated on it yet.
           </li>
@@ -412,7 +412,7 @@
           </li>
           <li>
             <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › More options › Experimental (on the beta
-            site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
+            site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2:00 PM to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
             route finder. In five test cases from one account, with awake hours off and an older model where the farm stopped
