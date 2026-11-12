@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ascensionSteps } from './instantSteps';
 import { c3Wait } from './c3WaitWords';
-const wait = (l: Parameters<typeof ascensionSteps>[0][number]) => c3Wait(ascensionSteps([l], null, null)[0]);
+const wait = (l: NonNullable<Parameters<typeof ascensionSteps>[0]>[number]) => c3Wait(ascensionSteps([l], null, null)[0]);
 import { legShifts } from '@/search/legShifts';
 import type { BuildParams } from '@/search/precomputedLeg';
 import type { BuildExtras } from '@/search/tableV2';
