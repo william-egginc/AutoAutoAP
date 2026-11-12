@@ -110,6 +110,6 @@ describe('RunsExploreBar on a phone', () => {
     expect(t).toContain('3 of 25 runs');
     expect(t).toContain('Clear filters');
     expect(t).not.toMatch(/\b(Light|table|chain|checkpoint)\b/i);
-    expect(t).not.toMatch(/\d{1,2}:\d\d(?! ?[ap]m)/);
+    expect(t).not.toMatch(/\d{1,2}:\d\d(?! ?[ap]m)/i);
   });
 });

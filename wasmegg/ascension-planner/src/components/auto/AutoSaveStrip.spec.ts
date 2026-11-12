@@ -112,12 +112,13 @@ describe('the save strip on the Auto Planner screens', () => {
     stop();
   });
 
-  it('not quiet under 10 minutes when the farm is out of date: a check-in that didn’t sync (spec-saveage)', async () => {
+  it('shown under 10 minutes when the farm is out of date: a check-in that didn’t sync (spec-saveage); the quiet line, no box (12 Nov 2026)', async () => {
     requestSave.mockResolvedValue({ backup: backupAt(NOW) });
     loadSave(NOW - 4 * 60, NOW - 22 * H);
     const { s, stop } = mountStrip();
     await settle();
-    expect(s.state.value?.tone).toBe('red');
+    expect(s.state.value?.tone).toBe('green');
+    expect(s.state.value?.old).toBe(true);
     expect(s.state.value?.namesFarm).toBe(true);
     expect(s.shown.value).toBe(true);
     stop();

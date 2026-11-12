@@ -55,13 +55,13 @@ describe('a pointless sweep buy days before a research sale, with nothing bought
     research(mt(11, 6, 10, 0), 'eggsistor', 'Eggsistor Miniturization', 40, 46, 3e44, false),
   ];
 
-  it('is held to the sale: no 11:23 am check-in on Nov 3, the levels are in the 10:00 am line', () => {
+  it('is held to the sale: no 11:23 AM check-in on Nov 3, the levels are in the 10:00 AM line', () => {
     const r = run(actions, mt(11, 3, 11, 23));
     expect(r.checkIns[0].at).toBe(mt(11, 6, 10, 0));
-    const first = r.lines.map(lineText).find(t => t.startsWith('10:00 am · buy'))!;
+    const first = r.lines.map(lineText).find(t => t.startsWith('10:00 AM · buy'))!;
     expect(first).toContain('Neural Linking');
     expect(first).toContain('Enlightened Chickens');
-    expect(r.lines.map(lineText).some(t => t.startsWith('11:23 am'))).toBe(false);
+    expect(r.lines.map(lineText).some(t => t.startsWith('11:23 AM'))).toBe(false);
   });
 
   it('is NOT held when another purchase lies between the sweep and the sale (it keeps its time)', () => {

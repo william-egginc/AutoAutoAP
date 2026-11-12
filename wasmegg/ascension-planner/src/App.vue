@@ -1640,8 +1640,8 @@ watch(
 
 const earningsEventTooltip = computed(() =>
   isEarningsBoostActive.value
-    ? `2x Earnings ends Tuesday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
-    : `Next 2x Earnings starts Monday at 9:00 am PT. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
+    ? `2x Earnings ends Tuesday at 9:00 AM PT. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
+    : `Next 2x Earnings starts Monday at 9:00 AM PT. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
 );
 
 onMounted(async () => {

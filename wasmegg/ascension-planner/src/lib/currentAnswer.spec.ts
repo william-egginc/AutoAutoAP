@@ -108,13 +108,13 @@ describe('the priced-with check', () => {
 
   it('labels: the hours it WAS priced with, or "with other hours" when not recorded', () => {
     expect(otherSetupLabel(setupCheck(ANY, MINE, TODAY))).toBe('with any hour (before your awake hours changed)');
-    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9 am–1 am (before your awake hours changed)');
+    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9:00 AM–1:00 AM (before your awake hours changed)');
     expect(otherSetupLabel(setupCheck(null, MINE, TODAY))).toBe('with other awake hours');
     expect(otherSetupLabel(setupCheck(MINE, { ...MINE, timeOff: [{ from: '2026-10-20', to: '2026-10-22' }] }, TODAY))).toBe(
       'with no time off (before your time off changed)'
     );
     expect(otherSetupLabel(currentSetup(MINE))).toBe('');
-    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with awake hours 7 am to 1 am, no time off');
+    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with awake hours 7:00 AM to 1:00 AM, no time off');
     expect(pricedWithWords(setupCheck(null, MINE, TODAY))).toBe('priced with other awake hours');
   });
 
@@ -150,7 +150,7 @@ describe('the ranking', () => {
 });
 
 describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () => {
-  it('setup now 7 am to 1 am: both lead with 11:59 pm; 11:51 pm is secondary "with any hour (before your awake hours changed)"', () => {
+  it('setup now 7:00 AM to 1:00 AM: both lead with 11:59 PM; 11:51 PM is secondary "with any hour (before your awake hours changed)"', () => {
     const card = cardPick(MINE, B, A, ANY);
     expect(card.candidate.plan).toBe(B);
     expect(card.state).toBe('this-save');
@@ -167,7 +167,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
     expect(tile.sure?.reason).not.toContain('hours changed');
   });
 
-  it('setup now any hour: 11:51 pm leads both, no secondary (the other finishes later)', () => {
+  it('setup now any hour: 11:51 PM leads both, no secondary (the other finishes later)', () => {
     const card = cardPick(ANY, A, B, MINE);
     expect(card.candidate.plan).toBe(A);
     expect(card.secondary).toBeNull();

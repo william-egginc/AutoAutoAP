@@ -1,25 +1,25 @@
 /**
  * What hours and time off a finished search was priced with, said in the result (Jordan, 16 Oct 2026):
- * "Priced with your hours 9 am to 1 am, no time off", "Priced with your hours 9 am to 11 pm on Mon–Fri,
- * time off Oct 20–22", "Priced with any hour, no time off". It names them rather than pointing at Your
+ * "Priced with your hours 9:00 AM to 1:00 AM, no time off", "Priced with your hours 9:00 AM to 11:00 PM on
+ * Mon–Fri, time off Oct 20–22", "Priced with any hour, no time off". It names them rather than pointing at Your
  * setup, which may have changed since: callers pass the settings the RUN used (store `usedSettings()`, a
  * result's recorded `settings`), never the live ones.
  *
- * Hours are 12-hour with am/pm, in the schedule's own zone (the planner's); time off is the dates as
+ * Hours are 12-hour, "9:00 AM" (lib/timeStyleWords.ts), in the schedule's own zone (the planner's); time off is the dates as
  * typed (whole local days). A schedule that rules nothing out is "any hour", as the search reads it
  * (search/availabilitySchedule.ts `isConstrained`); a half-typed time-off row is left out, as the search
  * leaves it out (search/timeOff.ts `usableTimeOff`).
  */
 import { isConstrained, validDays, type Availability } from '@/search/availabilitySchedule';
 import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { formatClockTime } from './timeStyleWords';
 
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** 0-23 as "12 am", "9 am", "12 pm", "11 pm". */
+/** 0-23 as "12:00 AM", "9:00 AM", "12:00 PM", "11:00 PM". */
 export function hour12(h: number): string {
-  const x = ((Math.floor(h) % 24) + 24) % 24;
-  return `${x % 12 === 0 ? 12 : x % 12} ${x < 12 ? 'am' : 'pm'}`;
+  return formatClockTime(h);
 }
 
 /** The days as runs: "Mon–Fri", "Sat, Sun", "Mon, Wed–Fri". */
@@ -35,7 +35,7 @@ function dayRuns(days: number[]): string {
   return out.join(', ');
 }
 
-/** "awake hours 9 am to 1 am on Mon–Fri", or "any hour". */
+/** "awake hours 9:00 AM to 1:00 AM on Mon–Fri", or "any hour". */
 export function hoursWords(a: Availability | null | undefined): string {
   if (!isConstrained(a)) return 'any hour';
   const days = validDays(a);
@@ -44,11 +44,11 @@ export function hoursWords(a: Availability | null | undefined): string {
   return `awake hours ${hour12(a.fromHour)} to ${hour12(a.toHour)}${on}`;
 }
 
-/** The hours alone, short: "any hour", "9 am–1 am", "9 am–11 pm on Mon–Fri", "all day on Sat, Sun". */
+/** The hours alone, short: "any hour", "9:00 AM–1:00 AM", "9:00 AM–11:00 PM on Mon–Fri", "all day on Sat, Sun". */
 export function hoursShort(a: Availability | null | undefined): string {
   return hoursWords(a)
     .replace(/^awake hours /, '')
-    .replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
+    .replace(/^(\d+:\d\d [AP]M) to (\d+:\d\d [AP]M)/, '$1–$2');
 }
 
 /** "Oct 20", "Oct 20–22", "Oct 30–Nov 2", "Dec 30, 2026–Jan 2, 2027". */
@@ -67,7 +67,7 @@ export function timeOffWords(dates: TimeOffDates[] | null | undefined): string {
   return list.length ? `time off ${list.map(stretch).join(', ')}` : 'no time off';
 }
 
-/** "Priced with your hours 9 am to 1 am, no time off". */
+/** "Priced with your hours 9:00 AM to 1:00 AM, no time off". */
 export function pricedWithLine(s: {
   availability: Availability | null | undefined;
   timeOff: TimeOffDates[] | null | undefined;

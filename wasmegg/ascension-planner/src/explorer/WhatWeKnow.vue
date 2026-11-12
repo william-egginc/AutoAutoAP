@@ -163,7 +163,7 @@
             Otherwise it moves the maxed answer to your gear (the adjusted answer), and tells you which.
           </p>
           <p v-else-if="f.id === 'sale'">
-            Every build ends at the Saturday 9:00 am (Pacific) sale. A third sale week pays on long jumps below about TE
+            Every build ends at the Saturday 9:00 AM (Pacific) sale. A third sale week pays on long jumps below about TE
             300 (up to 33 days on the final ascension from 225-270, up to 194 days from 120-150), but never on short jumps or
             from about TE 300 up. Tier 13 is offered from TE 190. Starting an ascension a few hours either side of the sale
             can move it by days, which is why the best stops are so sharp.

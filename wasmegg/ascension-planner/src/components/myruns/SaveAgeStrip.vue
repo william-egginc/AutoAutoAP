@@ -5,6 +5,9 @@
   the two banners there were: this strip on the save's age alone (6 h amber, 24 h red) and the red "longer than
   your silos hold" line in Setup and the run notes.
 
+  Since 12 Nov 2026 (lib/saveBanner.ts) the state is always the quiet line apart from the clock-behind one: an old save
+  adds Why and Details, past a day the text turns amber, and the silos have their own line (layout/SiloLine.vue).
+
   Green stays quiet: one neutral line (slate, not answer-green; ux review 26 Oct, row 15). Yellow and red lead with
   what to do, then what is at stake. Never colour alone: each tone has a word and an icon; the word sits in a
   `role="status"` region of its own, so it is announced when the tone changes, not every minute as the ages tick.
@@ -42,7 +45,7 @@
           <span :class="quiet ? 'sr-only' : 'font-bold'">{{ state.word }}</span>
         </span>
         <span class="min-w-0">
-          <span :class="quiet ? '' : 'font-bold'" data-testid="save-headline">{{ state.headline }}<template v-if="quiet">.</template></span>
+          <span :class="quiet ? (state.outOfDate ? 'text-amber-800' : '') : 'font-bold'" data-testid="save-headline">{{ state.headline }}<template v-if="quiet">.</template></span>
           <template v-if="quiet">{{ ' ' }}</template>
           <template v-else>
             <span class="block" data-testid="save-reason">{{ state.reason }}</span>
@@ -55,7 +58,7 @@
 
     <div class="flex-wrap items-center gap-x-4 min-w-0" :class="quiet || !state ? 'inline-flex' : 'flex mt-1'">
       <template v-if="state && server.kind === 'newest' && !loading">
-        <details v-if="!quiet" data-testid="now-save-why">
+        <details v-if="!quiet || state.old" data-testid="now-save-why">
           <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-bold underline" data-testid="now-save-why-summary">{{ WHY_OUT_OF_DATE.summary }}</summary>
           <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
         </details>
@@ -68,7 +71,7 @@
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-sync-how-summary">How to sync ›</summary>
         <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
       </details>
-      <details v-if="state && state.tone !== 'green'" data-testid="save-details">
+      <details v-if="state && (state.tone !== 'green' || state.old)" data-testid="save-details">
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-details-summary">Details ›</summary>
         <ul class="mt-1 mb-1 space-y-0.5 text-small tabular-nums">
           <li v-if="server.kind === 'newest'" data-testid="now-save-newest">{{ newestOnServerLine(server.serverSeconds, now) }}</li>
@@ -82,12 +85,12 @@
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed } from 'vue';
-import type { SaveState } from '@/lib/saveFreshness';
+import type { SaveBannerState } from '@/lib/saveBanner';
 import { NEWER_ON_SERVER, WHY_OUT_OF_DATE, newestOnServerLine, type ServerSaveState } from '@/lib/serverSave';
 
 const props = withDefaults(
   defineProps<{
-    state: SaveState | null;
+    state: SaveBannerState | null;
     loading: boolean;
     server?: ServerSaveState;
     now?: number;

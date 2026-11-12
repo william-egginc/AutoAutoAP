@@ -185,13 +185,6 @@ export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): st
   return d ? `${d} (${relativeWords(atSeconds - nowSeconds)})` : '';
 }
 
-/** An hour of the day as the browser says it, short: "7 AM" (en-US), "19:00" (de-DE): the minutes are left off
- *  only on a 12-hour clock, where "7 AM" reads whole. */
-function hourShort(h: number, locale?: string): string {
-  const s = formatHourOfDay(h, locale);
-  return /[^\d:\s.]/.test(s) ? s.replace(/[:.]00(?=\D|$)/, '') : s;
-}
-
 /** A whole-day stretch in the browser's format, compact: "Oct 27", "Oct 29–30", "Oct 29 – Nov 2",
  *  "Dec 30, 2026 – Jan 2, 2027" (the year only when the stretch crosses one). */
 export function stretchWords(d: TimeOffDates, locale?: string): string {
@@ -223,8 +216,9 @@ function stretchList(list: TimeOffDates[], locale?: string): string {
 
 /**
  * The Setup pill's line on My runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
- * "7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is left
- * out when there are none. Hours and dates in the browser's format (lib/clock.ts); `locale` is for specs.
+ * "7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is
+ * left out when there are none. Hours and dates in the browser's format (lib/clock.ts), the hours always with their
+ * minutes (Jordan, 12 Nov 2026: "7:00 AM", never "7 AM"); `locale` is for specs.
  */
 export function setupSummary(
   availability: Availability | null | undefined,
@@ -232,8 +226,10 @@ export function setupSummary(
   noPrestige?: TimeOffDates[] | null,
   locale?: string
 ): string {
-  const hours = hoursShort(availability).replace(/\b(\d+) ([ap]m)\b/g, (_, n: string, ap: string) =>
-    hourShort((Number(n) % 12) + (ap === 'pm' ? 12 : 0), locale)
+  // hoursShort's 12-hour times ("7:00 AM", once "7 am"), read back as hours in the browser's clock.
+  const hours = hoursShort(availability).replace(
+    /\b(\d{1,2})(?::00)?\s?([AaPp])\.?[Mm]\b\.?/g,
+    (_, n: string, ap: string) => formatHourOfDay((Number(n) % 12) + (ap.toLowerCase() === 'p' ? 12 : 0), locale)
   );
   const off = usableTimeOff(timeOff);
   const held = usableTimeOff(noPrestige);

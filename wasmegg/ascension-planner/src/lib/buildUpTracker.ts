@@ -64,6 +64,7 @@ import {
   isResearchSaleActive,
 } from 'lib/planners/events';
 import { calendarOf } from './clock';
+import { clockTimeOf } from './timeStyleWords';
 import { getResearchById } from '@/calculations/commonResearch';
 import { resultCode, sameResultCode } from './resultCode';
 import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';
@@ -188,15 +189,9 @@ export interface TrackerResult {
 
 // ------------------------------------------------------------------------------------------------ words
 
-/** '8:42 am' in `zone`, rounded down to the minute. */
+/** '8:42 AM' in `zone`, rounded down to the minute; '' for a zone the browser does not know (lib/timeStyleWords.ts). */
 export function clock12(at: number, zone: string): string {
-  const d = new Date(Math.floor(at / 60) * 60 * 1000);
-  try {
-    const s = new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
-    return s.replace(/[\s  ]*([AaPp])\.?[Mm]\.?$/, (_m, x: string) => ` ${x.toLowerCase()}m`);
-  } catch {
-    return '';
-  }
+  return clockTimeOf(Math.floor(at / 60) * 60 * 1000, zone);
 }
 
 /** 'Fri Oct 30' in `zone` (the year after it when not `now`'s: 'Fri Jan 1 2027'). */

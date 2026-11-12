@@ -1491,8 +1491,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
       now: Math.floor(Date.now() / 1000),
       ...(deadline ? { deadline } : {}),
       final: target.value,
-      // On the hour, as the hour alone ("Feb 23, 2027, 7 PM"; UX review 26 Oct 2026, item 8).
-      show: (unix: number) => showDateTime(unix, zone.value, undefined, { shortTime: true }),
+      // The full time, minutes too ("Feb 23, 2027, 7:00 PM"; Jordan, 12 Nov 2026: never the hour alone).
+      show: (unix: number) => showDateTime(unix, zone.value),
     });
     prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS), route: routeKey };
     cachePrestige(found, prestige.value);

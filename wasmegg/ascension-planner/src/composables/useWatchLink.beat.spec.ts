@@ -312,11 +312,11 @@ describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => 
     const note = watchFailingNote({ ...base, fails: WATCH_FAILS_NOTE });
     const when = new Date(base.lastOkAt!);
     const h = when.getHours();
-    const clock12 = `${h % 12 || 12}:${String(when.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+    const clock12 = `${h % 12 || 12}:${String(when.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
     expect(note).toBe(
       `Your phone link isn't updating: the last 3 updates didn't go (the planner's server said 503). The last one sent was at ${clock12}. It keeps trying every 5 minutes.`
     );
-    expect(note).toMatch(/\d{1,2}:\d{2} (am|pm)/);
+    expect(note).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
   });
 
   it('says so when none has gone yet', () => {

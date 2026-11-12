@@ -87,6 +87,7 @@
 
 import { FIRST_ASCENSION_WORDS, readFirstAscensionOrNull, type FirstAscension } from '@/search/firstAscension';
 import { finishesBefore } from './eggDayRule';
+import { inTimeStyle } from './timeStyleWords';
 
 export const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -943,10 +944,12 @@ const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 /** A date in the plan's own zone, falling back to UTC for an unknown zone. */
 export function formatDate(ms: number | null, timezone: string | undefined, opts: Intl.DateTimeFormatOptions): string {
   if (ms == null || !Number.isFinite(ms)) return '—';
-  // Players read times as 12-hour with am/pm, whatever the browser's locale.
-  if (opts.hour || opts.timeStyle) {
+  // Players read times as 12-hour, "9:00 AM" with the minutes (lib/timeStyleWords.ts), whatever the browser's locale.
+  const timed = !!(opts.hour || opts.timeStyle);
+  if (timed) {
     opts = { ...opts, hour12: true };
     if (opts.hour === '2-digit') opts.hour = 'numeric';
+    if (opts.hour && !opts.minute) opts.minute = '2-digit';
   }
   const key = `${timezone || 'UTC'}|${JSON.stringify(opts)}`;
   let f = dateFormatters.get(key);
@@ -958,7 +961,8 @@ export function formatDate(ms: number | null, timezone: string | undefined, opts
     }
     dateFormatters.set(key, f);
   }
-  return f.format(new Date(ms));
+  const text = f.format(new Date(ms));
+  return timed ? inTimeStyle(text) : text;
 }
 
 /** Start more than 12 h after the send: "what if I started on 23 Nov". The send is the collector's

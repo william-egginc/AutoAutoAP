@@ -16,7 +16,7 @@ const words = template.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 describe('Leaderboard intros (L5, L10, L15, L17, L20)', () => {
   it('Egg Day: one line, the rest folded', () => {
-    expect(words).toContain('Highest TE by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific). Ranked by TE, then time to spare.');
+    expect(words).toContain('Highest TE by Egg Day {{ eggDayYear }} (Jul 14, 9:00 AM Pacific). Ranked by TE, then time to spare.');
     expect(words).not.toContain('The highest TE each player can reach by Egg Day');
     expect(template).toMatch(/<BoardFold title="How it's judged" testid="dates-judged">/);
   });

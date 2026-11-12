@@ -260,7 +260,7 @@ describe('Send best so far', () => {
         expect(bodies[0]).toMatchObject({ provisional: true });
         // Fastest: the finish date, not "best 490" (its target is always 490).
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Last progress sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 routes\)\. Next in about 60 min\.$/
+          /^Last progress sent \d+:\d\d [AP]M \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 routes\)\. Next in about 60 min\.$/
         );
         // An hour on, nothing new priced: not sent, and the line says so (no send status, no error).
         at('14:00');
@@ -270,7 +270,7 @@ describe('Send best so far', () => {
         expect(bodies).toHaveLength(1);
         expect(s.bestSoFarStatus).toBeNull();
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Not sent at \d+:\d\d [ap]m: nothing new priced since \d+:\d\d [ap]m\. Next check in about 60 min\.$/
+          /^Not sent at \d+:\d\d [AP]M: nothing new priced since \d+:\d\d [AP]M\. Next check in about 60 min\.$/
         );
         // More priced, same best: the next check (one interval on) sends it, replacing the first row.
         s.chainsDone = 180;
@@ -300,7 +300,7 @@ describe('Send best so far', () => {
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(0);
-        expect(s.bestSoFarAutoLine).toMatch(/^Last progress sent \d+:\d\d [ap]m\. Next in about 8 min\.$/);
+        expect(s.bestSoFarAutoLine).toMatch(/^Last progress sent \d+:\d\d [AP]M\. Next in about 8 min\.$/);
         expect(s.bestSoFarWait).toBe(8);
         at('11:59');
         s.autoTick();
@@ -340,7 +340,7 @@ describe('Send best so far', () => {
         await flush();
         expect(n).toBe(2);
         expect(s.bestSoFarStatus).toMatchObject({ ok: false });
-        expect(s.bestSoFarAutoLine).toMatch(/Couldn't send at \d+:\d\d [ap]m\. Next in about 30 min\./);
+        expect(s.bestSoFarAutoLine).toMatch(/Couldn't send at \d+:\d\d [AP]M\. Next in about 30 min\./);
         at('13:09');
         s.autoTick();
         await flush();

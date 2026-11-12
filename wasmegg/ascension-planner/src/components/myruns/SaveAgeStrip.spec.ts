@@ -127,7 +127,7 @@ describe('the template', () => {
   });
 
   it('the details are closed by default', () => {
-    expect(template).toMatch(/<details v-if="state && state.tone !== 'green'" data-testid="save-details">/);
+    expect(template).toMatch(/<details v-if="state && \(state.tone !== 'green' \|\| state.old\)" data-testid="save-details">/);
     expect(template).not.toMatch(/<details[^>]*\sopen\b/);
   });
 });
