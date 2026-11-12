@@ -36,6 +36,7 @@ import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
 import { compactDuration } from './duration';
+import { roundToHourIn } from './nowWords';
 import { eggGoalTE, NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
 
 /** Above this many TE in all the habs are taken as full straight after a shift (Jordan, 26 Oct 2026). */
@@ -195,7 +196,8 @@ export function afterShiftLines(o: {
  *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal about 4d 5h at this
  *     rate"; every other egg from a shift to it (the after-shift model above), "to goal about 4d 5h after you shift
  *     here". An egg with no TE left, or over about 10 years, says so.
- *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h").
+ *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h"); to the hour when the
+ *     plan isn't exact, as Right now shows it (`rounded`).
  * Empty without a goal (or a By a date goal without a plan). Pure.
  */
 export function eggGoalLines(o: {
@@ -203,7 +205,9 @@ export function eggGoalLines(o: {
   delivered: Partial<Record<string, number>>;
   totalTe: number;
   rates: ShiftRates | null;
-  goal: { kind: 'te'; teLeft: number } | { kind: 'date'; endTE: number; finish: number; zone: string } | null;
+  /** `rounded`: the plan isn't exact (the instant answer's, or a route estimated on its data): its finish to the hour,
+   *  as Right now's timeline and events table show it (lib/nowWords.ts `roundedAt`; spec-myruns-fix). */
+  goal: { kind: 'te'; teLeft: number } | { kind: 'date'; endTE: number; finish: number; zone: string; rounded?: boolean } | null;
   now: number;
   saveSeconds: number;
 }): Record<string, string> {
@@ -214,7 +218,8 @@ export function eggGoalLines(o: {
   const cap = NEXT_TE_CAP_DAYS * 86400;
   if (g.kind === 'date') {
     if (!Number.isFinite(g.finish) || !(g.finish > o.now)) return out;
-    const line = `to goal: ${g.endTE} TE ${dateAt(g.finish, o.now, g.zone)}, in ~${compactDuration(g.finish - o.now)}`;
+    const finish = g.rounded ? roundToHourIn(g.finish, g.zone) : g.finish;
+    const line = `to goal: ${g.endTE} TE ${dateAt(finish, o.now, g.zone)}, in ~${compactDuration(finish - o.now)}`;
     for (const e of o.eggs) out[e.egg] = line;
     return out;
   }

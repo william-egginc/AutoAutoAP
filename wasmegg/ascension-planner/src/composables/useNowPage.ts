@@ -2070,7 +2070,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           ? { kind: 'te' as const, teLeft: shown.target - totalTe }
           : null
         : p
-          ? { kind: 'date' as const, endTE: p.endTE, finish: planFinish(p), zone: zone.value }
+          ? { kind: 'date' as const, endTE: p.endTE, finish: planFinish(p), zone: zone.value, rounded: !p.exact }
           : null;
     return eggGoalLines({
       eggs: eggs.value,
