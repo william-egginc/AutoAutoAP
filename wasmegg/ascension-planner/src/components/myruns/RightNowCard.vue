@@ -666,7 +666,7 @@ const props = defineProps<{
     /** The save contradicts the followed route (lib/followStale.ts): offered as "Re-plan from this save". */
     stale?: StaleReason | null;
   } | null;
-  /** "This route was set with a different hours window / simulator version." ('' or absent: none). */
+  /** "This route was set with a different hours window / planner version." ('' or absent: none). */
   followSetWith?: string;
   /** The last Follow press couldn't be saved online: why, in words. */
   followSaveWords?: string;
