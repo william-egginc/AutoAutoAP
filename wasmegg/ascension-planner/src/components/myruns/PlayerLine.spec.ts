@@ -65,6 +65,10 @@ describe('PlayerLine', () => {
       const nameTag = html.match(/<(b|span)[^>]*>Williamthe5thc</)?.[0] ?? '';
       expect(nameTag, JSON.stringify(p)).toMatch(/\btext-title\b/);
       expect(nameTag).toMatch(/\bfont-bold\b/);
+      // At title size a long name (33 letters) is wider than a 320 px phone: it may wrap, never pushes the page sideways
+      // (harness-r7/simpler/saveline-check.mjs, 13 Nov 2026).
+      expect(nameTag).not.toMatch(/whitespace-nowrap/);
+      expect(nameTag).toMatch(/\bbreak-words\b/);
       if (p.claimed != null) {
         const te = html.match(/<span[^>]*>197 claimed TE</)?.[0] ?? '';
         expect(te).not.toMatch(/text-title/);

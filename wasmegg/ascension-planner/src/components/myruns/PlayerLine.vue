@@ -15,7 +15,7 @@
           ><PartsOf :parts="partsOf(true)" />{{ ' ' }}<HelpTip>{{ CLOTHED_TE_TIP }}</HelpTip></span
         >
       </template>
-      <b v-else class="text-title font-bold text-slate-900">{{ name }}</b>
+      <b v-else class="break-words text-title font-bold text-slate-900">{{ name }}</b>
     </p>
     <!-- The full line on one line, out of sight in a 0 px box (no page scroll), to measure whether it fits. -->
     <span v-if="te" class="invisible absolute left-0 top-0 h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true"
@@ -44,8 +44,8 @@ const props = defineProps<{
 
 /** The TE values are all here: otherwise no TE line. */
 const te = computed(() => props.claimed != null && props.clothed != null && Number.isFinite(props.clothed));
-/** playerLine's own words, split at its dots so each part stays whole (the name at heading size, Jordan 13 Nov 2026;
- *  the TE parts stay body size). */
+/** playerLine's own words, split at its dots so each TE part stays whole (the name at heading size, Jordan 13 Nov 2026,
+ *  may wrap: a long one is wider than a 320 px phone at that size; the TE parts stay body size). */
 function partsOf(short: boolean): string[] {
   return playerLine({ name: props.name, claimed: props.claimed ?? 0, pending: props.pending, clothed: props.clothed, short }).split(' · ');
 }
@@ -55,7 +55,7 @@ const PartsOf = defineComponent({
     p.parts.flatMap((part, i) => [
       ...(i ? [' · '] : []),
       i === 0 && props.name
-        ? h('b', { class: 'whitespace-nowrap text-title font-bold text-slate-900' }, part)
+        ? h('b', { class: 'break-words text-title font-bold text-slate-900' }, part)
         : h('span', { class: 'whitespace-nowrap' }, part),
     ]),
 });
