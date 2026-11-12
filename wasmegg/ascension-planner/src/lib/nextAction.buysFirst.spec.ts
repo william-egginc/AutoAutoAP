@@ -58,16 +58,16 @@ describe('Next step names the research buy that comes before the shift', () => {
   });
   it('the words: the window, the step itself left to Next shifts', () => {
     const when = (t: number) => `T${t - NOW}`;
-    const fmt = { clock: (t: number) => `C${t - NOW}`, weekday: () => 'Saturday', day: () => 'Friday', sameDay: () => true };
+    const fmt = { clock: (t: number) => `C${t - NOW}`, weekday: (t: number) => (t === SALE ? 'Friday' : 'Saturday'), day: () => 'Friday', sameDay: () => true };
     expect(nextActionWords(next, when, { at: SALE, until: SHIFT, sale: true }, fmt)).toBe(
       `Wait for Friday's research sale, then buy research from C${SALE - NOW} to C${SHIFT - NOW}`
     );
     expect(nextActionWords(next, when, { at: SALE, until: SHIFT }, { ...fmt, sameDay: () => false })).toBe(
       `Buy research from ${when(SALE)} to ${when(SHIFT)}`
     );
-    // Another day than the start: the end carries its weekday; the sale already on: Words' "now" sentence.
+    // Another day than the start: both clocks carry their weekday (QA, 12 Nov 2026); the sale already on: Words' "now" sentence.
     expect(nextActionWords(next, when, { at: SALE, until: SHIFT, sale: true }, { ...fmt, sameDay: () => false })).toBe(
-      `Wait for Friday's research sale, then buy research from C${SALE - NOW} to C${SHIFT - NOW} Saturday`
+      `Wait for Friday's research sale, then buy research from Friday C${SALE - NOW} to Saturday C${SHIFT - NOW}`
     );
     expect(nextActionWords(next, when, { at: NOW, until: SHIFT, sale: true, open: true }, fmt)).toBe(`Buy research now, until C${SHIFT - NOW}`);
     expect(nextActionWords(next, when)).toBe(`Shift to Humility on ${when(SHIFT)}`);

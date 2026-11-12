@@ -12,4 +12,9 @@ describe("Next step's research buy window", () => {
     expect(buyWindowWords({ day: 'Friday', from: '10:00 AM', to: '2:26 PM', open: true })).toBe('Buy research now, until 2:26 PM');
     expect(buyWindowWords({ day: 'Friday', from: '10:00 AM', to: null, open: true })).toBe('Buy research now');
   });
+  it('a window that ends on another day names both days (QA, 12 Nov 2026)', () => {
+    const o = { day: 'Friday', from: '10:00 AM', to: '10:00 AM', fromDay: 'Friday', toDay: 'Saturday' };
+    expect(buyWindowWords(o)).toBe("Wait for Friday's research sale, then buy research from Friday 10:00 AM to Saturday 10:00 AM");
+    expect(buyWindowWords({ ...o, open: true })).toBe('Buy research now, until Saturday 10:00 AM');
+  });
 });

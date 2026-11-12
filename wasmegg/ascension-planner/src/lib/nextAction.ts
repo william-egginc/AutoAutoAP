@@ -167,10 +167,11 @@ export function nextActionWords(
   if (buy) {
     const same = !!fmt && fmt.sameDay(buy.at, buy.until);
     const clock = (t: number) => (fmt ? fmt.clock(t) : when(t));
-    // "2:26 PM" on the day it starts, else with its weekday ("2:26 PM Saturday"); Words' sentence (lib/nextBuyWords.ts).
-    const to = fmt ? (same ? fmt.clock(buy.until) : `${fmt.clock(buy.until)} ${fmt.weekday(buy.until)}`) : when(buy.until);
+    // The weekdays go with the clocks only when the window ends on another day (Words' sentence, lib/nextBuyWords.ts).
+    const to = fmt ? fmt.clock(buy.until) : when(buy.until);
+    const days = fmt && !same ? { fromDay: fmt.weekday(buy.at), toDay: fmt.weekday(buy.until) } : {};
     if (buy.sale || buy.open)
-      return buyWindowWords({ day: fmt ? fmt.day(buy.at) : 'the', from: clock(buy.at), to, ...(buy.open ? { open: true } : {}) });
+      return buyWindowWords({ day: fmt ? fmt.day(buy.at) : 'the', from: clock(buy.at), to, ...days, ...(buy.open ? { open: true } : {}) });
     return `Buy research from ${same ? clock(buy.at) : when(buy.at)} to ${same ? clock(buy.until) : when(buy.until)}`;
   }
   return nextActionWordsOf(a, when);
