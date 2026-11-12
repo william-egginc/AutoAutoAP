@@ -355,7 +355,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' · ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -378,12 +378,6 @@
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
               ><template v-else>{{ stepCaveat.step }}</template>
-            </p>
-            <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
-                 the first ascension continues the build-up with the hours limiting the answer, so its research buys can
-                 fall outside them and the finish above is a best case. Once, under First step. -->
-            <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-              {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ INSTANT_NIGHT_BUY_TIP }}</HelpTip>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -578,7 +572,7 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' · ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></template>
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -600,10 +594,6 @@
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
             ><template v-else>{{ stepCaveat.step }}</template>
-          </p>
-          <!-- The night-buy note, as in By a date's box above. -->
-          <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-            {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ INSTANT_NIGHT_BUY_TIP }}</HelpTip>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1094,7 +1084,6 @@ import { pointerOf } from '@/lib/searchPointer';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
-  mergeFirstStepCaveats,
   INSTANT_ESTIMATE_LINE,
   buildUpMissingRestOf,
   firstStepKind,
@@ -1102,11 +1091,10 @@ import {
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
-import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
 import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
-import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
 import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
@@ -1760,10 +1748,10 @@ const nightBuyNote = computed(() =>
   !firstStepWarn.value &&
   nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
 );
-/** First step and its one caveat line: the hours clause and the night-buy note merged into one line when both would
- *  show (lib/instantWords.ts `mergeFirstStepCaveats`, spec-uxpass item 9, 8 Nov 2026); the note's show rule is
- *  `nightBuyNote`'s, unchanged. */
-const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));
+/** First step as it is, its awake-hours clause kept, and the night-buy note for the "quick estimate ?" marker on the
+ *  box's time line (the card clean-up, Jordan 12 Nov 2026; was merged with the clause into one line under First step,
+ *  lib/instantWords.ts `mergeFirstStepCaveats`). The note's show rule is `nightBuyNote`'s, unchanged. */
+const stepCaveat = computed(() => ({ step: firstStep.value, note: nightBuyNote.value ? INSTANT_NIGHT_BUY_NOTE : null }));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
