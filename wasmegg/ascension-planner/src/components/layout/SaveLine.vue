@@ -10,7 +10,10 @@
        the right end (ml-auto) now the save age is not between them (layout/SaveSide.vue keeps the 14rem basis rule). harness-r7/simpler/saveline-check.mjs measures it in WebKit and Chrome from 320 px;
        layoutContract.saveline.spec.ts pins these classes. -->
   <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2" data-region="save-line" data-testid="save-line">
-    <span class="min-w-0 max-w-full break-words text-body text-slate-800 tabular-nums" data-testid="save-line-who"
+    <!-- The name off My runs (`who` false, 12 Nov 2026): the player line above the egg says it there. -->
+    <span
+      v-if="who"
+      class="min-w-0 max-w-full break-words text-body text-slate-800 tabular-nums" data-testid="save-line-who"
       ><b>{{ initial.nickname || 'Your account' }}</b> · {{ store.currentTE }} TE</span
     >
     <!-- The save strip and the silo line left the bar (Jordan, 12 Nov 2026: too big between the name and Change player):
@@ -49,6 +52,8 @@ import { useUIStore } from '@/stores/ui';
 const initial = useInitialStateStore();
 const store = useChainSearchStore();
 const ui = useUIStore();
+/** Whose save on the bar; false on My runs, where the player line above the egg names the player. */
+withDefaults(defineProps<{ who?: boolean }>(), { who: true });
 
 /** Change player opens the player box (kept open through the page's own folds) with the cursor in the ID box; Close
  *  player box folds it again and lets the page fold it after a load as before. */

@@ -99,6 +99,16 @@
         @pick-a1="page.pickA1"
         @switch-fastest="page.switchToFastest"
       >
+        <!-- The player line above the egg, the silo line beside it (myruns/PlayerLine.vue). -->
+        <template #player>
+          <PlayerLine
+            :name="playerName"
+            :claimed="playerTe?.claimed ?? null"
+            :pending="playerTe?.pending ?? null"
+            :clothed="page.gear.value?.clothedEarnings ?? null"
+            :silo="saveStrip.silo.value"
+          />
+        </template>
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
         <template #buildUp>
@@ -132,7 +142,7 @@
           />
         </template>
       </RightNowCard>
-      <SaveSide />
+      <SaveSide :with-silo="false" />
       </div>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
@@ -385,6 +395,11 @@ import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
+import PlayerLine from './myruns/PlayerLine.vue';
+import { playerTeOf } from '@/lib/playerTe';
+import { useInitialStateStore } from '@/stores/initialState';
+import { useMinuteClock } from '@/composables/useMinuteClock';
+import { useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';
@@ -480,6 +495,12 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The player line (myruns/PlayerLine.vue): the save's name, claimed and pending TE; the silo line from the save strip. */
+const initial = useInitialStateStore();
+const playerTe = computed(() => playerTeOf(initial.rawBackup));
+/** The save's name; never the ID the store falls back to with no name in the save. */
+const playerName = computed(() => (initial.nickname && !/^EI\d{16}$/.test(initial.nickname) ? initial.nickname : null));
+const saveStrip = useAutoSaveStrip({ now: useMinuteClock() });
 /** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
 const tracker = useBuildUpTracker({
   account: computed(() => page.account.value || null),

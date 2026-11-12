@@ -25,7 +25,7 @@ describe('App: the regions in their fixed order', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
   it('the save line in place of the chevron on Fastest, By a date and My runs; the chevron stays elsewhere', () => {
-    expect(tpl).toContain('<SaveLine v-if="saveLineShown" />');
+    expect(tpl).toContain(`<SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />`);
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
     expect(app).toContain("(plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))");
   });
