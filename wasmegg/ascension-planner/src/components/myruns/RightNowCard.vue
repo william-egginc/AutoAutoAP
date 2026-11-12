@@ -26,7 +26,8 @@
   "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
   (lib/recalc.ts): the goal's screen with Fast selected.
   FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a
-  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"); when the save contradicts the
+  newer, better one is asked about on the Auto Planner's cards, not here (BetterRoutePrompt.vue; Jordan, 13 Nov 2026);
+  when the save contradicts the
   followed route (lib/followStale.ts), the planner's answer for this save is offered ("Re-plan from this save"). "Earlier versions"
   (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
   set with other hours or another simulator says so in one quiet line.
@@ -206,9 +207,11 @@
         Retry ›
       </button>
     </p>
-    <!-- A newer, better result for the goal while a route is followed: asked, never swapped in (lib/searchPlan.ts). -->
+    <!-- Only when the save contradicts the followed route: "Re-plan from this save" (`replan-only`). The better-route
+         offer is asked on the Auto Planner's cards, where following is done (Jordan, 13 Nov 2026). -->
     <BetterRoutePrompt
       v-if="follow && betterRoute"
+      replan-only
       :goal-key="betterRoute.goalKey"
       :goal="betterRoute.goal"
       :deadline="betterRoute.deadline"

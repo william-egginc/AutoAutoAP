@@ -2,8 +2,9 @@
   A newer, better result for a goal the player follows a route for (lib/searchPlan.ts `followPrompt`, the 'prompt'
   path; 23 Oct 2026): the followed route is never replaced on its own, so this asks. "Follow it" is a Follow press
   (stores/follow.ts: kept here and saved online); "Keep mine" hides it for this result (remembered in this browser).
-  On Right now (RightNowCard.vue, with the followed route's own price as `followedFinish`) and on the result cards
-  (the instant card, Fastest's and By a date's search results). Nothing shows without a followed route. An instant
+  On the result cards (the instant card, Fastest's and By a date's search results). On Right now (RightNowCard.vue,
+  with the followed route's own price as `followedFinish`) only the "Re-plan from this save" kind (`replanOnly`; Jordan,
+  13 Nov 2026: following is done from the Auto Planner, so My runs drops the better-route box). Nothing shows without a followed route. An instant
   answer never asks about a PRICED follow (lib/searchPlan.ts `followIsPriced`, Jordan 23 Oct 2026): one from a Fast,
   Exact or Custom result, the route of such a result for this account and goal (kept, or in the search store now), or
   one Right now priced from a result (`followedPriced`). A Fast, Exact or Custom result asks about an unpriced route
@@ -84,6 +85,9 @@ const props = defineProps<{
   /** The save contradicts the followed route (lib/followStale.ts `followStaleness`): asked as "Re-plan from this save".
    *  Absent or null: the better-route rules only. */
   stale?: StaleReason | null;
+  /** Right now (My runs): only the "Re-plan from this save" offer (`stale` set); the better-route offer is asked on the
+   *  Auto Planner's cards, where following is done (Jordan, 13 Nov 2026). */
+  replanOnly?: boolean;
   zone?: string;
 }>();
 
@@ -156,6 +160,7 @@ function savedPriceIsOld(f: { simVersion?: string; hours?: CloudHours | null }):
 const prompt = computed<FollowPrompt | null>(() => {
   // From the press on, nothing of the offer (its words, its press and Keep mine go together; R7 red-team QA).
   if (!follows || !props.goalKey || !props.candidate || follows.offerPressed(props.goalKey)) return null;
+  if (props.replanOnly && !props.stale) return null;
   const f = follows.followed(props.goalKey);
   if (!f) return null;
   const source = f.source ?? sourceOfFrom(f.from);
