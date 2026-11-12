@@ -227,12 +227,14 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     r = await render(page);
     expect(r.text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026): not on the follow line, the Next step or under the events.
-    expect(r.text).toContain('from the instant answer your route estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.');
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(r.text).toContain('from the instant answer');
+    expect(r.html).toContain('data-testid="tip-info"');
     expect(r.html).not.toContain('data-testid="now-next-estimated"');
     expect(r.html).not.toContain('data-testid="now-events-rounded"');
     expect(r.text).not.toContain(ESTIMATE_WORDS);
     expect(r.text).not.toContain("Estimated from the instant answer's data");
-    expect(r.text.match(/rounded to the hour/g)).toHaveLength(1);
+    expect(r.text).not.toMatch(/rounded to the hour/);
     expect(r.text).not.toContain(NO_TIMELINE);
     expect(r.text).not.toContain(WORKING);
     // Rounded: no calendar buttons; one path per card (25 Oct 2026): no Run Fast or Simulate it on the follow line.

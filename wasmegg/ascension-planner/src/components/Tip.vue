@@ -14,6 +14,8 @@
   the button when it fits, else below, never over it, clamped inside the screen. Styled as the site's cards: white,
   slate border, small text.
 
+  `info-always`: the "i" on the desktop too, for a trigger that is not a button (My runs' source pill).
+
   Usage: <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }"><button :aria-describedby=...>
 -->
 <template>
@@ -42,6 +44,8 @@
     <button
       v-if="info && text"
       type="button"
+      :class="{ 'tip-info-always': infoAlways }"
+      :aria-describedby="infoAlways ? id : undefined"
       class="tip-info min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       :aria-label="tipInfoLabel(name)"
       :aria-expanded="tip.pinned.value ? 'true' : 'false'"
@@ -84,8 +88,11 @@ const props = withDefaults(
     info?: boolean;
     /** The button fills the row it is in (the run button, a Search choice). */
     fill?: boolean;
+    /** The "i" on every screen, the desktop too, and the tip read with it (aria-describedby): for a trigger that is
+     *  not a button and so takes no keyboard focus (My runs' "from the instant answer" pill, spec-myruns-fix). */
+    infoAlways?: boolean;
   }>(),
-  { info: true, fill: false }
+  { info: true, fill: false, infoAlways: false }
 );
 
 const id = `tip-${useId()}`;
@@ -160,6 +167,9 @@ defineExpose({ id, text: props.text });
 @media (min-width: 640px) and (hover: hover) {
   .tip-info {
     display: none;
+  }
+  .tip-info.tip-info-always {
+    display: inline-flex;
   }
 }
 </style>

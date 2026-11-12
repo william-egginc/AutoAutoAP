@@ -169,8 +169,9 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     const { html, text } = await render(page);
     expect(html).toContain('data-testid="now-source-pill"');
     expect(text).toContain('from the instant answer');
-    expect(text).toContain('worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
-    expect(text.match(/rounded to the hour/g)).toHaveLength(1);
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(text).not.toMatch(/rounded to the hour/);
+    expect(html).toContain('data-testid="tip-info"');
     expect(text).toContain('Following 2');
     expect(text).not.toContain('Following your pick');
     expect(text).not.toContain(NOT_PRICED);
@@ -179,7 +180,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     // button on the card: one path per card, 25 Oct 2026).
     expect(text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     expect(html).not.toContain('data-testid="calendar-button"');
-    expect(text.match(/For exact times/g)).toHaveLength(1);
+    expect(text).not.toContain('For exact times');
     expect(html).not.toContain('data-testid="now-recalc-button"');
     // The follow line offers nothing more to price it.
     expect(html).not.toContain('data-testid="now-follow-price"');

@@ -310,8 +310,10 @@ describe('the card', () => {
     const html = await renderHtml(RightNowCard, cardFor(drivingPlan(snap as never, 'date', DEADLINE)));
     const t = textOf(html);
     // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026): no footer under the events.
-    expect(t).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
-    expect(t.match(/rounded to the hour/g)).toHaveLength(1);
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(t).toContain('from the instant answer');
+    expect(t).not.toMatch(/rounded to the hour/);
+    expect(html).toContain('data-testid="tip-info"');
     // The header is "Calculated …" only when the pill says the source (UX fluff review 2, 5 Nov 2026, item R1).
     expect(t).toMatch(/^Right now Calculated /);
     expect(t).not.toContain('(instant answer)');

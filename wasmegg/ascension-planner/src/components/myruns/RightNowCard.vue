@@ -111,14 +111,24 @@
 
     <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
     <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
+      <!-- The source explainer in a Tip beside the pill (Tip.vue, info-always; spec-myruns-fix), not a line on the card. -->
       <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-500">
+        <Tip v-if="pillInfo" :text="pillInfo" :name="pill" info-always class="-my-3" v-slot="{ describedby }">
+          <span
+            class="rounded px-1.5 py-0.5 label bg-emerald-100 text-emerald-800"
+            :aria-describedby="describedby"
+            data-testid="now-source-pill"
+            >{{ pill }}</span
+          >
+        </Tip>
         <span
+          v-else
           class="rounded px-1.5 py-0.5 label"
           :class="card.plan.from ? 'bg-indigo-600 text-white' : 'bg-emerald-100 text-emerald-800'"
           data-testid="now-source-pill"
           >{{ pill }}</span
         >
-        <span data-testid="now-source-sub">{{ pillSub }}</span>
+        <span v-if="pillSub" data-testid="now-source-sub">{{ pillSub }}</span>
       </p>
       <p v-if="replaceLine" class="text-body text-slate-600" data-testid="now-replaces">
         {{ replaceLine }}
@@ -575,6 +585,7 @@ import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
 import A1Choice from './A1Choice.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
+import Tip from '@/components/Tip.vue';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
@@ -608,7 +619,7 @@ import { askGoal, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
 import { CLOUD_BOTH_UNREACHABLE_NOTE, NOT_SAVED_WORDS, saveFailWords, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { SAVE_ONLINE_FOLLOW_OFF } from '@/lib/syncWords';
-import { SOURCE_ESTIMATE_SIM_WORDS, SOURCE_ESTIMATE_WORDS, SOURCE_INSTANT_WORDS } from '@/lib/nowSourceWords';
+import { SOURCE_ESTIMATE_INFO_WORDS, SOURCE_ESTIMATE_SIM_INFO_WORDS, SOURCE_INSTANT_INFO_WORDS } from '@/lib/nowSourceWords';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
@@ -992,15 +1003,20 @@ const pill = computed(() => {
   const words = sourcePill(p.from?.level ?? null);
   return p.from?.otherBrowser ? words.replace(/ run,/, ' run (sent from another browser),') : words;
 });
-/** "done Oct 22 at 4:47 pm, your save of Oct 22 at 11:03 am, priced with your hours …" / "worked out ahead of time;
- *  times rounded to the hour". */
+/**
+ * The source explainer (lib/nowSourceWords.ts *_INFO_WORDS) for the Tip beside the pill: the one place the instant
+ * answer's data is explained (spec-uxpass item 1), in the Tip since spec-myruns-fix. Empty for a search's result.
+ */
+const pillInfo = computed(() => {
+  const p = props.card?.plan;
+  if (!p || !pill.value) return '';
+  if (p.estimated) return simulatedNow.value ? SOURCE_ESTIMATE_SIM_INFO_WORDS : SOURCE_ESTIMATE_INFO_WORDS;
+  return p.from ? '' : SOURCE_INSTANT_INFO_WORDS;
+});
+/** A search's result: when it was done, from which save, priced with what. */
 const pillSub = computed(() => {
   const p = props.card?.plan;
-  if (!p) return '';
-  // The one place the instant answer's data is explained (spec-uxpass item 1, 8 Nov 2026): not on the follow line,
-  // under Next step or under the events again.
-  if (p.estimated) return simulatedNow.value ? SOURCE_ESTIMATE_SIM_WORDS : SOURCE_ESTIMATE_WORDS;
-  if (!p.from) return SOURCE_INSTANT_WORDS;
+  if (!p || p.estimated || !p.from) return '';
   const done = dateAt(p.from.at / 1000, props.now, props.zone);
   return `done ${done}, your save of ${planSaveWhen.value}${props.card?.pricedWith ? `, ${props.card.pricedWith}` : ''}`;
 });

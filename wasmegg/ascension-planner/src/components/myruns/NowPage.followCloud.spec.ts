@@ -183,7 +183,9 @@ describe('Right now: a better result with and without a followed route', () => {
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     expect(text).not.toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
     // Said once (spec-uxpass item 1): the follow line doesn't say "From the instant answer" again under the pill.
-    expect(text).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(text).toContain('from the instant answer');
+    expect(text).not.toContain('rounded to the hour');
     expect(text).not.toContain('From the instant answer');
     expect(text).toContain("Stop following");
     expect(text).not.toContain('your pick');
