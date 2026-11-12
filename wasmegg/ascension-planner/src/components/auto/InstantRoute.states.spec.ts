@@ -41,7 +41,7 @@ import {
   FIRST_STEP_HOURS_NIGHT_BUY,
   mergeFirstStepCaveats,
 } from '@/lib/instantWords';
-import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
@@ -134,8 +134,8 @@ function ctxOf(s: State): Record<string, unknown> {
     firstStepWarn: '',
     nightBuyNote: false,
     stepCaveat: { step: '', note: null },
-    NIGHT_BUY_NOTE_SHORT,
-    NIGHT_BUY_TIP,
+    INSTANT_NIGHT_BUY_NOTE,
+    INSTANT_NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
     INSTANT_ESTIMATE_LINE,
     MAX_ASCENSIONS: 12,
@@ -1088,12 +1088,12 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
 
 describe('The night-buy note under First step (spec-nightbuynote; Jordan option b, until Joo\'s fix after #729)', () => {
   // With awake hours set, a build-up's research buys can fall outside them, so the finish First step gives for "continue
-  // your build-up" is a best case. Said once under First step (NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP behind a "?"), only
+  // your build-up" is a best case. Said once under First step (INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP behind a "?"), only
   // when the first ascension continues the build-up and the hours limit the answer (lib/nightBuyNote.ts); never for a
   // fresh start or the ascension you are in continued.
   const script = source.slice(source.indexOf('<script setup'));
   const BUILD_STEP = 'continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
-  const words = { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP };
+  const words = { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP };
   const at = (answer: Answer, deadline: boolean): State => ({
     answer,
     status: 'done',
@@ -1116,8 +1116,8 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: true });
       const box = html.slice(html.indexOf('data-testid="instant-box"'));
       expect(count(box, 'data-testid="box-night-buy"')).toBe(1);
-      expect(count(textOf(box), NIGHT_BUY_NOTE_SHORT)).toBe(1);
-      expect(textOf(box)).toContain(NIGHT_BUY_TIP);
+      expect(count(textOf(box), INSTANT_NIGHT_BUY_NOTE)).toBe(1);
+      expect(textOf(box)).toContain(INSTANT_NIGHT_BUY_TIP);
       const step = box.indexOf('data-testid="box-first-step"');
       const note = box.indexOf('data-testid="box-night-buy"');
       expect(note).toBeGreaterThan(step);
@@ -1128,18 +1128,18 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       const box = textOf(html.slice(html.indexOf('data-testid="instant-box"')));
       expect(count(box, FIRST_STEP_HOURS_NIGHT_BUY)).toBe(1);
       expect(box).not.toContain(FIRST_STEP_HOURS);
-      expect(box).not.toContain(NIGHT_BUY_NOTE_SHORT);
+      expect(box).not.toContain(INSTANT_NIGHT_BUY_NOTE);
       expect(box).toContain(BUILD_STEP);
       expect(count(html, 'data-testid="box-night-buy"')).toBe(1);
     });
     it(`${name}: not shown when the page says no (no hours, a fresh start, the ascension you are in)`, async () => {
       const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: false });
       expect(html).not.toContain('data-testid="box-night-buy"');
-      expect(html).not.toContain(NIGHT_BUY_NOTE_SHORT);
+      expect(html).not.toContain(INSTANT_NIGHT_BUY_NOTE);
     });
   }
   it('the page: shown with the hours that limit the answer and a first ascension that continues the build-up', () => {
-    // The note's words come through lib/instantWords.ts mergeFirstStepCaveats (NIGHT_BUY_NOTE_SHORT, or the merged line).
+    // The note's words come through lib/instantWords.ts mergeFirstStepCaveats (INSTANT_NIGHT_BUY_NOTE, or the merged line).
     expect(script).toMatch(/import \{[^}]*mergeFirstStepCaveats[^}]*\} from '@\/lib\/instantWords'/);
     expect(script).toContain('const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));');
     expect(script).toMatch(
@@ -1163,7 +1163,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     for (const tag of tags) {
       expect(tag).toContain('text-small');
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
-      expect(tag).toMatch(/\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
+      expect(tag).toMatch(/\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ INSTANT_NIGHT_BUY_TIP \}\}<\/HelpTip>/);
     }
   });
 });

@@ -61,8 +61,8 @@ describe('Build-up tracker: the night-buy note', () => {
     expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     expect(tag).toMatch(/\{\{ NIGHT_BUY_NOTE \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
   });
-  it('MyRunsView passes the awake hours the tracker already plans with', () => {
+  it('MyRunsView passes the tracker the hours the note sees: none while the simulation holds its buys (spec-nightbuyfix)', () => {
     const view = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(view).toMatch(/<BuildUpTracker[\s\S]*?:awake-hours="store\.availability"[\s\S]*?\/>/);
+    expect(view).toMatch(/<BuildUpTracker[\s\S]*?:awake-hours="nightBuyHours"[\s\S]*?\/>/);
   });
 });

@@ -12,7 +12,7 @@ import { createPinia } from 'pinia';
 import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { NIGHT_BUY_NOTE } from '@/lib/nightBuyWords';
-import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
+import { nextStepShowsBuildUp, nightBuyHours, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
 
 const ZONE = 'America/Los_Angeles';
@@ -103,6 +103,36 @@ describe('Right now: the night-buy note in Next step', () => {
     expect(tag).toMatch(/\{\{ NIGHT_BUY_NOTE \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
     expect(count(src, 'data-testid="now-night-buy"')).toBe(1);
     const view = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(view).toMatch(/<RightNowCard[\s\S]*?:awake-hours="store\.availability"/);
+    expect(view).toMatch(/<RightNowCard[\s\S]*?:awake-hours="nightBuyHours"/);
+  });
+});
+
+describe('the night-buy note on My runs follows the simulation (spec-nightbuyfix)', () => {
+  // With "hold my shifts" on and hours that rule something out, the simulated ascension holds its research buys to the
+  // hours too (search/leg.ts legContext holdUntil; auto/shifts/helpers/advanceTime.ts stretchToHours), so its finish is
+  // not a best case any more and Next step and the tracker say nothing. Hours set but "hold my shifts" off: no hold in
+  // the simulation, so buys can still fall at night and the note stays.
+  it('hold my shifts on (the default) with hours: no hours reach the note', () => {
+    expect(nightBuyHours(HOURS, true)).toBeNull();
+    expect(nightBuyNoteShown(nightBuyHours(HOURS, true), true)).toBe(false);
+  });
+  it('hold my shifts off with hours: the hours reach the note, so it shows', () => {
+    expect(nightBuyHours(HOURS, false)).toBe(HOURS);
+    expect(nightBuyNoteShown(nightBuyHours(HOURS, false), true)).toBe(true);
+  });
+  it('no hours: none either way', () => {
+    expect(nightBuyHours(null, false)).toBeNull();
+    expect(nightBuyHours(undefined, true)).toBeNull();
+  });
+  it('MyRunsView gives both the Right now card and the Build-up tracker the same, not the raw store hours', () => {
+    const view = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
+    expect(view).not.toContain(':awake-hours="store.availability"');
+    expect(count(view, ':awake-hours="nightBuyHours"')).toBe(2);
+    expect(view).toMatch(/nightBuyHours = computed\(\(\) => nightBuyHours\w*\(|const nightBuyHours = computed/);
+  });
+  it('the instant answer keeps its note: it reads the raw hours, never nightBuyHours', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../auto/InstantRoute.vue'), 'utf8');
+    expect(src).not.toContain('nightBuyHours');
+    expect(src).toMatch(/nightBuyNoteShown\(\s*hoursLimited\.value \? store\.availability : null/);
   });
 });

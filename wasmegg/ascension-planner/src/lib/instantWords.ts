@@ -3,7 +3,7 @@
  * ahead of the full simulator and a full search on both of Jordan's accounts, the same on R6). Pure; wording only
  * (lib/resultCodeHash.ts `isWordingOnly`: a *Words.ts file), so an edit here never recomputes a kept result.
  */
-import { NIGHT_BUY_NOTE_SHORT } from './nightBuyWords';
+import { INSTANT_NIGHT_BUY_NOTE } from './nightBuyWords';
 
 /** Under the date in the instant answer's green box (components/auto/InstantRoute.vue), on the tables' answer only.
  *  DRAFT (Words). */
@@ -46,22 +46,22 @@ export const FIRST_STEP_LABEL = 'First step:';
  *  second check, 24 Oct 2026: one route moved 6.3 days between at once and on the hour). DRAFT. */
 export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a few minutes late can cost days.';
 
-/** The hours clause and the night-buy note (lib/nightBuyWords.ts NIGHT_BUY_NOTE_SHORT) as ONE line, when both would
+/** The hours clause and the night-buy note (lib/nightBuyWords.ts INSTANT_NIGHT_BUY_NOTE) as ONE line, when both would
  *  show (spec-uxpass item 9, 8 Nov 2026: Jordan's pass found two caveats stacked under First step). Both meanings:
  *  prestige at the time shown; research buys may fall outside the hours, so the finish is a best case. DRAFT (Words). */
 export const FIRST_STEP_HOURS_NIGHT_BUY =
-  'With awake hours, prestige at the time shown (a few minutes late can cost days); buys may fall outside the hours, so the finish is a best case.';
+  'With awake hours, prestige at the time shown (a few minutes late can cost days). Quick estimate: it may buy research at night; after you press Follow, My runs shows exact times.';
 
 /**
  * First step and the one caveat line under it (components/auto/InstantRoute.vue). The night-buy note's show rule is
  * lib/nightBuyNote.ts's (`nightBuy`), unchanged: with it and the hours clause both, the clause leaves the step and the
- * note is the merged line; with the note only, NIGHT_BUY_NOTE_SHORT; without it, no note and the step as it was.
+ * note is the merged line; with the note only, INSTANT_NIGHT_BUY_NOTE; without it, no note and the step as it was.
  */
 export function mergeFirstStepCaveats(step: string, nightBuy: boolean): { step: string; note: string | null } {
   if (!nightBuy) return { step, note: null };
   const tail = ` ${FIRST_STEP_HOURS}`;
   if (step.endsWith(tail)) return { step: step.slice(0, -tail.length), note: FIRST_STEP_HOURS_NIGHT_BUY };
-  return { step, note: NIGHT_BUY_NOTE_SHORT };
+  return { step, note: INSTANT_NIGHT_BUY_NOTE };
 }
 
 /**

@@ -79,7 +79,7 @@
         :follow-not-saved="page.followNotSaved.value"
         :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
-        :awake-hours="store.availability"
+        :awake-hours="nightBuyHours"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"
         @open="to => emit('open', to)"
@@ -115,7 +115,7 @@
             :replan="trackerReplan"
             :finish-chosen="tracker.finishChosen.value"
             :followed-for="trackerFollowedFor"
-            :awake-hours="store.availability"
+            :awake-hours="nightBuyHours"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
@@ -360,6 +360,7 @@ import { pickRouteOpen, scrollToInstantAnswer } from '@/lib/pickRoute';
 import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
+import { nightBuyHours as nightBuyHoursOf } from '@/lib/nightBuyNote';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import { CHANGE_ROUTE, MORE_LINE_MYRUNS } from '@/lib/layoutWords';
 import { useNowPage } from '@/composables/useNowPage';
@@ -420,6 +421,8 @@ function unfollowGoal(): void {
 }
 
 const store = useChainSearchStore();
+/** The hours the night-buy note sees: none while the simulation holds its buys to them (lib/nightBuyNote.ts). */
+const nightBuyHours = computed(() => nightBuyHoursOf(store.availability, store.deferShifts));
 const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
