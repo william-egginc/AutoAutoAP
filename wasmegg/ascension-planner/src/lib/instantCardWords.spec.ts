@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FOLLOW_THIS_ROUTE_INSTEAD, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, betterAboveLine, gearEffectLine, reachedLine,
+  FOLLOW_THIS_ROUTE_INSTEAD, fasterAboveLine, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, betterAboveLine, gearEffectLine, reachedLine,
   routeReachedLine, savedAnswerLabel, savedFromSentence,
 } from './instantCardWords';
 
@@ -26,6 +26,11 @@ describe('the instant card words', () => {
     );
     expect(betterAboveLine({ better: { te: '203 TE', size: '1h' }, yours: { te: '202 TE', size: '3h', late: true } })).toBe(
       'The answer above is better: 203 TE, 1h to spare (yours: 202 TE, lands 3h after the date).'
+    );
+  });
+  it('Fastest: a faster route, as times', () => {
+    expect(fasterAboveLine({ better: 'Sep 16, 2028 at 9:00 AM', yours: 'Sep 24, 2028 at 9:00 AM' })).toBe(
+      'The answer above is faster: Sep 16, 2028 at 9:00 AM (yours: Sep 24, 2028 at 9:00 AM).'
     );
   });
   it('no player-facing "collector", "table" or "Click"', () => {

@@ -60,3 +60,13 @@ export function betterAboveLine(o: {
   const tail = (s: { size: string; late?: boolean }) => (s.late ? `lands ${s.size} after the date` : s.size);
   return `The answer above is better: ${o.better.te}, ${o.better.late ? tail(o.better) : `${o.better.size} to spare`} (yours: ${o.yours.te}, ${tail(o.yours)}).`;
 }
+
+/**
+ * 6b. The same line for Fastest, where each side is a finish time (the app's own writing of it, e.g. lib/eventWhen.ts
+ * `dateAt`: "Sep 16, 2028 at 9:00 AM"):
+ *   "The answer above is faster: Sep 16, 2028 at 9:00 AM (yours: Sep 24, 2028 at 9:00 AM)."
+ * It says "faster", not "better", because the finish time is what is compared; it keeps the shape of `betterAboveLine`.
+ */
+export function fasterAboveLine(o: { better: string; yours: string }): string {
+  return `The answer above is faster: ${o.better} (yours: ${o.yours}).`;
+}
