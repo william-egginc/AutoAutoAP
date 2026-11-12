@@ -9,7 +9,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-baseline gap-2 flex-wrap">
         <span class="text-body font-bold text-slate-800 tabular-nums">{{ startLabel }}</span>
-        <span class="text-slate-400 label">Now</span>
+        <span class="text-slate-400 label">Default</span>
       </div>
       <div class="flex gap-2">
         <button

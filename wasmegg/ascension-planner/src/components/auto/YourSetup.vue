@@ -142,7 +142,7 @@
       <div class="space-y-1" data-testid="setup-save-line">
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <p class="min-w-0 text-body break-words">
-            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}</span>{{ ' ' }}<span class="text-slate-500 tabular-nums">· {{ saveAgeLabel }}</span>
+            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · {{ store.currentTE }} TE</span>{{ ' ' }}<span class="text-slate-500 tabular-nums">· {{ saveAgeLabel }}</span>
           </p>
           <button
             type="button"
@@ -893,6 +893,7 @@ import { useFollowStore } from '@/stores/follow';
 import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import { ageAgo } from '@/lib/saveAge';
+import { dateAt } from '@/lib/eventWhen';
 import { FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import { FIRST_ASCENSION_CHOICES } from '@/search/firstAscensionWords';
 import SchedulingInputs from './SchedulingInputs.vue';
@@ -1081,7 +1082,8 @@ const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;
   if (!at) return 'No save loaded yet.';
   // The one save age on Setup (lib/saveAge.ts `ageAgo`, the style every save-age line uses).
-  return `Save from ${ageAgo(Math.max(0, Date.now() / 1000 - at))} (${showDateTime(at, zone.value)}).`;
+  const nowSec = Date.now() / 1000;
+  return `Save from ${dateAt(at, nowSec, zone.value)}, ${ageAgo(Math.max(0, nowSec - at))}.`;
 });
 
 /** Problems with the save, under its line. Not the save-age note while More options is open: Start time, in it,
