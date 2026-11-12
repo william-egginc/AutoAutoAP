@@ -595,7 +595,7 @@ import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
 import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
 import { freshSoonerLine } from '@/lib/freshSoonerWords';
 import FreshSooner from './FreshSooner.vue';
-import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
+import { nextActionWords, nextShiftWords, type NextAction, type NextBuy, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
@@ -708,7 +708,7 @@ const props = defineProps<{
   /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
   nextStep?: NextAction | null;
   /** A research buy still to do before the next step (lib/nextAction.ts `nextBuyBefore`, from the tracker's lines): said first. */
-  nextBuy?: { at: number } | null;
+  nextBuy?: NextBuy | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
   nextShiftLines?: NextShiftLine[];
   /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
