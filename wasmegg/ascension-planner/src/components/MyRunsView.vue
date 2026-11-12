@@ -5,7 +5,8 @@
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
     1. Save-age banner: the save line at the top of the page (layout/SaveLine.vue, App.vue) since the simpler page
-       (9 Nov 2026); since 12 Nov 2026 the strip and the silo line are small, beside Right now (layout/SaveSide.vue).
+       (9 Nov 2026); since 12 Nov 2026 the save is in Right now's header line, the strip behind its "?"
+       (myruns/SaveHeadHelp.vue), and the silo line beside the player line (layout/SaveSide.vue only while the save loads).
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -43,8 +44,8 @@
     <SaveSide v-if="!page.hasSave.value" />
 
     <template v-if="page.hasSave.value">
-      <!-- Right now, and the save strip beside it from lg, under it on a phone (layout/SaveSide.vue, 12 Nov 2026). -->
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start" data-testid="now-grid">
+      <!-- Right now. The save is in its header line, the strip behind the "?" after it (myruns/SaveHeadHelp.vue; Jordan,
+           12 Nov 2026: no save box beside the card any more). -->
       <RightNowCard
         data-region="right-now"
         change-route-to="more-myruns-route"
@@ -86,6 +87,7 @@
         :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
         :awake-hours="nightBuyHours"
+        :save-old="!!saveStrip.state.value?.outOfDate"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"
         @open="to => emit('open', to)"
@@ -99,6 +101,16 @@
         @pick-a1="page.pickA1"
         @switch-fastest="page.switchToFastest"
       >
+        <!-- The "?" after the header's save line: the save strip, folded (myruns/SaveHeadHelp.vue). -->
+        <template #save>
+          <SaveHeadHelp
+            :state="saveStrip.state.value"
+            :server="saveStrip.server.value"
+            :loading="saveStrip.loading.value"
+            :now="saveClock"
+            @fresh="saveStrip.load"
+          />
+        </template>
         <!-- The player line above the egg, the silo line beside it (myruns/PlayerLine.vue). -->
         <template #player>
           <PlayerLine
@@ -142,8 +154,6 @@
           />
         </template>
       </RightNowCard>
-      <SaveSide :with-silo="false" />
-      </div>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
@@ -395,6 +405,7 @@ import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
+import SaveHeadHelp from '@/components/myruns/SaveHeadHelp.vue';
 import PlayerLine from './myruns/PlayerLine.vue';
 import { playerTeOf } from '@/lib/playerTe';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -500,7 +511,8 @@ const initial = useInitialStateStore();
 const playerTe = computed(() => playerTeOf(initial.rawBackup));
 /** The save's name; never the ID the store falls back to with no name in the save. */
 const playerName = computed(() => (initial.nickname && !/^EI\d{16}$/.test(initial.nickname) ? initial.nickname : null));
-const saveStrip = useAutoSaveStrip({ now: useMinuteClock() });
+const saveClock = useMinuteClock();
+const saveStrip = useAutoSaveStrip({ now: saveClock });
 /** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
 const tracker = useBuildUpTracker({
   account: computed(() => page.account.value || null),

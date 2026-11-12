@@ -97,7 +97,7 @@ const props = withDefaults(
     testid?: string;
     /** The Auto Planner screens' slim banner (auto/AutoSaveStrip.vue). */
     slim?: boolean;
-    /** Small text (layout/SaveSide.vue, beside Right now; Jordan 12 Nov 2026: "make them small"). Same content. */
+    /** Small text (layout/SaveSide.vue, myruns/SaveHeadHelp.vue; Jordan 12 Nov 2026: "make them small"). Same content. */
     small?: boolean;
     /** The button's words when the server has nothing newer known; the state's own link words without. */
     loadWords?: string;

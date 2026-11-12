@@ -1,8 +1,9 @@
 /**
  * THE SAVE STRIP OUT OF THE TOP BAR (Jordan, 12 Nov 2026): the save strip and the silo line sat in the top bar
  * (layout/SaveLine.vue) between the player's name and "Change player", too big. The top bar keeps the name and Change
- * player; the strip and the silo line are layout/SaveSide.vue, small (text-small), with the same content: on My runs
- * beside the Right now card from lg, below it on a phone; on Fastest and By a date a small block of its own under the bar.
+ * player; the strip and the silo line are layout/SaveSide.vue, small (text-small), with the same content: on Fastest and
+ * By a date a small block of its own under the bar (on My runs only while the save loads: since 12 Nov 2026 the save is in
+ * Right now's header there, the strip behind its "?", myruns/SaveHeadHelp.vue).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,18 +58,16 @@ describe('SaveSide: the same strip and silo line, small', () => {
 });
 
 describe('where it sits', () => {
-  it('My runs: Right now and SaveSide in one grid, the side column from lg (below it on a phone), before the soul-egg line', () => {
+  it('My runs: no SaveSide beside Right now since 12 Nov 2026 (Jordan): the save is in its header, the strip behind a "?" (RightNowCard.saveHead.spec.ts)', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
-    const grid = view.slice(view.lastIndexOf('<div', view.indexOf('data-testid="now-grid"')), view.indexOf('<SoulEggWarning'));
-    expect(grid).toMatch(/lg:grid-cols-\[minmax\(0,1fr\)_15rem\]/);
-    expect(grid.indexOf('<RightNowCard')).toBeGreaterThan(-1);
-    expect(grid.indexOf('<SaveSide')).toBeGreaterThan(grid.indexOf('</RightNowCard>'));
+    expect(view).not.toContain('data-testid="now-grid"');
+    expect(view.slice(view.indexOf('<RightNowCard'), view.indexOf('<SoulEggWarning'))).not.toContain('<SaveSide');
   });
   it('My runs: the save strip shows while the page waits for the save too', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).toMatch(/<SaveSide v-if="!page\.hasSave\.value"/);
   });
-  it('App: SaveSide under the bar on Fastest and By a date, not on My runs (it is beside Right now there)', () => {
+  it('App: SaveSide under the bar on Fastest and By a date, not on My runs (the save is in Right now\'s header there)', () => {
     const app = read('App.vue');
     const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');
     expect(tpl).toContain(`<SaveSide v-if="saveLineShown && plannerTab !== 'myruns'"`);

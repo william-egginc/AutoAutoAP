@@ -104,9 +104,11 @@ describe('wiring', () => {
     expect(t).toContain(':clothed="page.gear.value?.clothedEarnings ?? null"');
     expect(view).toContain(':clothed-earnings="page.gear.value?.clothedEarnings ?? null"');
   });
-  it('the silo line shows once on My runs: beside the player line, not in SaveSide beside the card', () => {
+  it('the silo line shows once on My runs: beside the player line (no SaveSide beside the card since 12 Nov 2026)', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
-    expect(view).toContain('<SaveSide :with-silo="false" />');
+    expect(view).not.toContain('<SaveSide :with-silo');
+    expect(view).not.toContain('<SiloLine');
+    expect(view.match(/:silo="saveStrip\.silo\.value"/g) ?? []).toHaveLength(1);
   });
   it('the top bar names the player on My runs too, above Change player (Jordan, 13 Nov 2026: on every screen with the bar)', () => {
     const app = read('App.vue');
