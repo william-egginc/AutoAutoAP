@@ -50,11 +50,10 @@
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <template v-if="view === 'goal' && hasGoal">
-          <p v-if="!goalOnce" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
-            {{ goalLines?.[e.egg] || nextLine(e) }}
-          </p>
-        </template>
+        <!-- With the goal line shown once above, each egg keeps the next view's lines (spec-myruns-fix). -->
+        <p v-if="perEggGoal" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
+          {{ goalLines?.[e.egg] || nextLine(e) }}
+        </p>
         <p v-else-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
         <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
         <p v-if="clockLine(e.egg)" class="text-body tabular-nums text-slate-500 break-words" data-testid="now-egg-when">{{ clockLine(e.egg) }}</p>
@@ -124,6 +123,12 @@ const goalOnce = computed(() => {
   const first = props.goalLines?.[props.eggs[0].egg] ?? '';
   return first && props.eggs.every(e => props.goalLines?.[e.egg] === first) ? first : '';
 });
+/**
+ * Each egg its own goal line: the goal view with lines that differ by egg (a Fastest goal). With the goal line shown once
+ * (a By a date goal, Egg Day too), the eggs keep the next view's lines and clock lines, never a name over a bar alone
+ * (spec-myruns-fix, 12 Nov 2026).
+ */
+const perEggGoal = computed(() => view.value === 'goal' && hasGoal.value && !goalOnce.value);
 function pick(v: EggsView): void {
   view.value = v;
   writeEggsView(v);
@@ -138,7 +143,7 @@ function nextLine(e: EggLine): string {
 function clockLine(egg: string): string {
   const c = props.clockLines;
   if (!c) return '';
-  return (view.value === 'goal' && hasGoal.value ? c.goal[egg] : c.next[egg]) ?? '';
+  return (perEggGoal.value ? c.goal[egg] : c.next[egg]) ?? '';
 }
 
 /** The egg's next TE after a shift to it; '' says nothing (the egg being laid, at the TE cap, no data). */
