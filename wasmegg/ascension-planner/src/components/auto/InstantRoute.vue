@@ -364,7 +364,7 @@
               >{{ boxGain }}
             </p>
             <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
-            <AnswerCaveatLine :caveat="headCaveat" />
+            <AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
                  same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
@@ -587,7 +587,7 @@
             >{{ boxGain }}
           </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
-          <AnswerCaveatLine :caveat="headCaveat" />
+          <AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" />
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <!-- First step, as in By a date's box. -->
@@ -979,7 +979,7 @@ import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
 import AnswerCaveatLine from './AnswerCaveatLine.vue';
 import PanelFold from './PanelFold.vue';
-import { answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
+import { GEAR_CAVEAT_DAYS, answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
 import { OPTIMISTIC_TEXT, gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
@@ -1103,7 +1103,7 @@ import {
   noPrestigeDayCount,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { WORK_IT_OUT_AGAIN, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import { WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
 import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
@@ -2524,6 +2524,9 @@ const headCaveat = computed(() =>
     lowTeCaveat(lowTeNote.value),
   ])
 );
+/** The gear warning cut to its effect on the card (Jordan, 12 Nov 2026): only for the gear shift (the form G), which
+ *  leads the caveats whenever it shows; its line and the Why list go behind the "?" (AnswerCaveatLine `effect`). */
+const gearEffect = computed(() => (shiftedTable.value && headCaveat.value ? gearEffectLine(GEAR_CAVEAT_DAYS) : null));
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
 function dateBoxOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;

@@ -18,6 +18,8 @@ import { OPTIMISTIC_TEXT } from './optimisticAnswer';
 import { lowTeOpeningNote } from '@/search/instantIntegrity';
 import { showDateTime } from './displayTime';
 import { renderHtml, textOf } from '@/test/renderComponent';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import AnswerCaveatLine from '@/components/auto/AnswerCaveatLine.vue';
 
 const G =
@@ -163,17 +165,36 @@ describe('AnswerCaveatLine', () => {
   it('no caveat: nothing', async () => {
     expect(textOf(await renderHtml(AnswerCaveatLine, { caveat: null }))).toBe('');
   });
+  it('the instant card (`effect`, Jordan 12 Nov 2026): the effect in amber, the line and the Why list behind a "?", word for word', async () => {
+    const ctx: { teleports?: Record<string, string> } = {};
+    const app = createSSRApp({ render: () => h(AnswerCaveatLine, { caveat: { line: 'LINE', more: ['ONE', 'TWO'] }, effect: 'Up to about 5 days later than shown.' }) });
+    const html = await renderToString(app, ctx);
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain('Why? ›');
+    expect(html).toMatch(/data-testid="answer-caveat"[^>]*|class="[^"]*text-amber-900/);
+    expect(textOf(html.replace(/<button[\s\S]*?<\/button>/g, ''))).toBe('Up to about 5 days later than shown.');
+    expect(html).toContain('data-testid="card-help"');
+    const bubble = Object.values(ctx.teleports ?? {}).join('');
+    expect(textOf(bubble)).toBe('LINE ONE TWO');
+  });
+  it('the instant card with no `effect` (not the gear shift): the line and its Why? › as before', async () => {
+    const html = await renderHtml(AnswerCaveatLine, { caveat: { line: 'LINE', more: ['ONE'] }, effect: null });
+    expect(textOf(html.match(/<summary[\s\S]*?<\/summary>/)?.[0] ?? '')).toBe('LINE Why? ›');
+  });
 });
 
 describe('InstantRoute wiring', () => {
   const src = readFileSync(new URL('../components/auto/InstantRoute.vue', import.meta.url), 'utf8');
   const template = src.slice(0, src.indexOf('<script setup'));
   it('one caveat line in each answer box, right under the headline', () => {
-    expect(template.match(/<AnswerCaveatLine :caveat="headCaveat" \/>/g)).toHaveLength(2);
+    expect(template.match(/<AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" \/>/g)).toHaveLength(2);
     const fast = template.slice(template.indexOf('in {{ headlineGap(boxLead.seconds) }}'));
     expect(fast.indexOf('<AnswerCaveatLine')).toBeLessThan(fast.indexOf('{{ boxLead.chain.join'));
     const date = template.slice(template.indexOf('routeReachedLine({ chain: dateBoxOf(result.byDate).chain'));
     expect(date.indexOf('<AnswerCaveatLine')).toBeLessThan(date.indexOf('<PreferFewerNote'));
+  });
+  it('the gear effect only for the gear shift (it leads whenever it shows), in instantCardWords\' words, the days from answerCaveat', () => {
+    expect(src).toContain('const gearEffect = computed(() => (shiftedTable.value && headCaveat.value ? gearEffectLine(GEAR_CAVEAT_DAYS) : null));');
   });
   it('with the box on screen, the bound, the low-TE note and the gear box are not shown on their own', () => {
     expect(template).toContain('v-else-if="bracketText && !boxShown"');

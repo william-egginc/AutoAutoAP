@@ -195,6 +195,7 @@ function ctxOf(s: State): Record<string, unknown> {
     followGoal: 'date',
     boxGain: '',
     headCaveat: null,
+    gearEffect: null,
     gearDiffers: false,
     gearTable: false,
     header: { from: 120, to: 489, cteBonus: 128.71, gearTo: 489 },
