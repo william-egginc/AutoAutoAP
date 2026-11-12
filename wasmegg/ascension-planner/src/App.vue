@@ -412,7 +412,7 @@
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
         <template v-if="plannerTab === 'automatic'">
-          <div class="flex justify-center">
+          <div class="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. Each at least
                  44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
@@ -447,6 +447,9 @@
                 ></span>
               </button>
             </div>
+            <!-- Filters opens Setup (layout/FiltersButton.vue, Jordan 12 Nov 2026), where the Setup pill is (not while loading);
+                 under the tabs at the right on a phone. -->
+            <FiltersButton v-if="!loading" class="ml-auto sm:ml-0" />
           </div>
         </template>
 
@@ -933,6 +936,7 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';
