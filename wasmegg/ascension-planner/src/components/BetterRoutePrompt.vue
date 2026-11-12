@@ -60,7 +60,11 @@ import { useFollowStore } from '@/stores/follow';
 import { followIsPriced, followPrompt, keepMine, readKeptMine, readKeptSearches, type FollowPrompt, type RouteFinish } from '@/lib/searchPlan';
 import { dateAt } from '@/lib/eventWhen';
 import { useInitialStateStore } from '@/stores/initialState';
-import { sourceOfFrom } from '@/lib/followCloud';
+import { hoursOf, sameHours, sourceOfFrom, type CloudHours } from '@/lib/followCloud';
+import { SIM_VERSION } from '@/search/simVersion';
+import { versionPriceWords } from '@/lib/followOldPriceWords';
+import { offerAt } from '@/lib/followOfferWords';
+import type { Availability } from '@/search/availability';
 import type { StaleReason } from '@/lib/followStale';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
@@ -133,6 +137,22 @@ function resultRoutes(): number[][] {
   return out;
 }
 
+/** The follow's saved price was worked out by another version of the planner or with other awake hours than now. */
+function savedPriceIsOld(f: { simVersion?: string; hours?: CloudHours | null }): 'version' | StaleReason | null {
+  if (f.simVersion && f.simVersion !== SIM_VERSION) return 'version';
+  if (f.hours !== undefined) {
+    let availability: Availability | null = null;
+    try {
+      const pinia = getActivePinia() as { state: { value: Record<string, unknown> } } | undefined;
+      if (pinia && 'chainSearch' in pinia.state.value) availability = useChainSearchStore().availability ?? null;
+    } catch {
+      // no store (a card on its own in a spec)
+    }
+    if (!sameHours(f.hours, hoursOf(availability))) return { kind: 'hours' };
+  }
+  return null;
+}
+
 const prompt = computed<FollowPrompt | null>(() => {
   // From the press on, nothing of the offer (its words, its press and Keep mine go together; R7 red-team QA).
   if (!follows || !props.goalKey || !props.candidate || follows.offerPressed(props.goalKey)) return null;
@@ -148,16 +168,24 @@ const prompt = computed<FollowPrompt | null>(() => {
     props.followedFinish ??
     (typeof f.finish === 'number' ? { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] ?? 0 } : null);
   const nowSec = Date.now() / 1000;
-  return followPrompt({
+  // The price saved with the follow is only compared when it is for this setup: not when another version of the planner or
+  // other awake hours worked it out (M13: "yours: 313 TE, 37h 6m to spare" on the instant card, over My runs' fresh Jul 17).
+  // Right now passes its own fresh price (`followedFinish`) or its own `stale`; a card without either checks here.
+  const savedPriceOld = !props.followedFinish && !props.stale ? savedPriceIsOld(f) : null;
+  const p = followPrompt({
     goalKey: props.goalKey,
     goal: props.goal,
     deadline: props.deadline,
     followed: { chain: f.chain, at: f.at, finish, priced, source },
-    candidate: props.candidate,
+    candidate: offerAt(props.candidate, f.at),
     keptMine: kept.value,
     when: t => dateAt(t, nowSec, zone.value),
-    stale: props.stale ?? null,
+    // 'version': the kind that says "Re-plan from this save" (the hours', a stale price is the same offer), its words below.
+    stale: props.stale ?? (savedPriceOld === 'version' ? { kind: 'hours' } : savedPriceOld),
   });
+  return p && savedPriceOld === 'version' && p.stale
+    ? { ...p, words: versionPriceWords(props.candidate, props.goal, t => dateAt(t, nowSec, zone.value)) }
+    : p;
 });
 
 /** A "Re-plan from this save" press made the follow (stores/follow.ts `replanned`) and it is the answer shown. */
