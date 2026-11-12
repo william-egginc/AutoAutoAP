@@ -589,6 +589,7 @@
                 v-if="!store.isRunning"
                 :hours="store.runSettingsUsed?.availability ?? null"
                 :build-up-clause="store.buildUpClause"
+                :hold-shifts="store.runSettingsUsed?.deferShifts ?? true"
               />
               <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
               <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />

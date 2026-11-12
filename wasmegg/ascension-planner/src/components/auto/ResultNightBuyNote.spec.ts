@@ -22,7 +22,7 @@ const count = (s: string, sub: string) => s.split(sub).length - 1;
 
 describe('ResultNightBuyNote', () => {
   it('awake hours and a route carrying on the build-up: the short note once, from the shared words', async () => {
-    const html = await renderHtml(ResultNightBuyNote, { hours: HOURS, buildUpClause: CLAUSE });
+    const html = await renderHtml(ResultNightBuyNote, { hours: HOURS, buildUpClause: CLAUSE, holdShifts: false });
     expect(count(html, 'data-testid="result-night-buy"')).toBe(1);
     expect(count(textOf(html), NIGHT_BUY_NOTE_SHORT)).toBe(1);
   });
@@ -30,6 +30,13 @@ describe('ResultNightBuyNote', () => {
     expect(await renderHtml(ResultNightBuyNote, { hours: null, buildUpClause: CLAUSE })).not.toContain('result-night-buy');
     const anyHour = { ...HOURS, fromHour: 0, toHour: 0 };
     expect(await renderHtml(ResultNightBuyNote, { hours: anyHour, buildUpClause: CLAUSE })).not.toContain(NIGHT_BUY_NOTE_SHORT);
+  });
+  it('the run held its shifts (the default): the search held its buys to the hours too, so nothing (spec-nightbuyfix)', async () => {
+    expect(await renderHtml(ResultNightBuyNote, { hours: HOURS, buildUpClause: CLAUSE, holdShifts: true })).not.toContain('result-night-buy');
+  });
+  it('the run did not hold its shifts: nothing held the buys either, so the note stays', async () => {
+    const html = await renderHtml(ResultNightBuyNote, { hours: HOURS, buildUpClause: CLAUSE, holdShifts: false });
+    expect(count(html, 'data-testid="result-night-buy"')).toBe(1);
   });
   it('a fresh start (no build-up clause): nothing, even with awake hours', async () => {
     expect(await renderHtml(ResultNightBuyNote, { hours: HOURS, buildUpClause: '' })).not.toContain('result-night-buy');
@@ -54,6 +61,7 @@ describe('the result cards: once per card, after the First ascension line, keyed
       expect(tag).toContain('v-if="!store.isRunning"');
       expect(tag).toContain(':hours="store.runSettingsUsed?.availability ?? null"');
       expect(tag).toContain(':build-up-clause="store.buildUpClause"');
+      expect(tag).toContain(':hold-shifts="store.runSettingsUsed?.deferShifts ?? true"');
       const extras = src.lastIndexOf('<RouteExtras', at);
       expect(extras).toBeGreaterThan(-1);
       expect(src.slice(extras, at)).toContain(':first-note="store.buildUpClause"');
