@@ -157,7 +157,7 @@
     <p v-if="follow && followSetWith" class="text-body text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
     <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
          `notSaved`). -->
-    <p v-if="follow && (followSaveWords || followNotSaved)" class="text-body text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
+    <p v-if="follow && (followSaveWords || followNotSaved) && !saveAndReadFailed" class="text-body text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
       {{ followSaveWords || NOT_SAVED_WORDS }}<template v-if="followNotSaved">{{ ' ' }}</template>
       <button
         v-if="followNotSaved"
@@ -186,7 +186,7 @@
     <!-- The routes saved online couldn't be read on this load: amber with Retry, never red, as following still works in
          this browser (UX review, 25 Oct 2026). -->
     <p v-if="followCloudUnreachable" class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
-      {{ UNREACHABLE_NOTE }} Following still works in this browser.{{ ' ' }}
+      {{ saveAndReadFailed ? CLOUD_BOTH_UNREACHABLE_NOTE : UNREACHABLE_NOTE }} Following still works in this browser.{{ ' ' }}
       <button
         type="button"
         class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
@@ -603,7 +603,7 @@ import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
-import { NOT_SAVED_WORDS, UNREACHABLE_NOTE } from '@/lib/followCloud';
+import { CLOUD_BOTH_UNREACHABLE_NOTE, NOT_SAVED_WORDS, saveFailWords, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { SAVE_ONLINE_FOLLOW_OFF } from '@/lib/syncWords';
 import { SOURCE_ESTIMATE_SIM_WORDS, SOURCE_ESTIMATE_WORDS, SOURCE_INSTANT_WORDS } from '@/lib/nowSourceWords';
 import { deadlineKind } from '@/lib/eggDayRule';
@@ -731,6 +731,8 @@ const emit = defineEmits<{
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
 const notOnVirtue = computed(() => props.onVirtue === false);
+/** A save that failed for want of a connection AND the unreadable saved routes are one cause: one line (spec-tidy M8). */
+const saveAndReadFailed = computed(() => !!props.followCloudUnreachable && props.followSaveWords === saveFailWords('error'));
 /**
  * The night-buy note (lib/nightBuyNote.ts): awake hours set and a build-up's finish drawn in Next step: the next action
  * or a Next shifts line building up (drawn with a plan, or with a followed route's simulation), or the A1 choice.

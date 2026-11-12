@@ -123,7 +123,9 @@ describe('a collector that answers with an error', () => {
 
 describe('what the player reads', () => {
   it('My runs: unreachable and read errors, neither saying "none yet" nor naming the collector', () => {
-    expect(boardErrorText('unreachable', 'myruns')).toBe("Couldn't reach the leaderboard.");
+    expect(boardErrorText('unreachable', 'myruns')).toMatch(
+      /^Couldn't reach the leaderboard right now\. Your runs are safe on this (computer|phone|tablet|device)\.$/
+    );
     expect(boardErrorText('read', 'myruns')).toMatch(
       /^Couldn't read the leaderboard right now\. Your runs are safe on this (computer|phone|tablet|device)\.$/
     );

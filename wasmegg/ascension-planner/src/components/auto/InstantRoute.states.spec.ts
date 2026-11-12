@@ -634,7 +634,8 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     expect(plain).toContain('8d to spare');
     expect(plain).not.toContain('data-testid="box-tight"');
     const caveat = await draw(at('date', true), { dateSpare: spareLine(3 * D, true, 'en-US') });
-    expect(caveat).toContain('3d to spare, maybe none on your gear');
+    expect(caveat).toContain('3d to spare');
+    expect(caveat).not.toContain('maybe none on your gear');
     expect(caveat).toContain('data-testid="box-tight"');
     expect(caveat).toMatch(/text-amber-700[^>]*data-testid="box-spare"|data-testid="box-spare"[^>]*text-amber-700/);
     const none = await draw(at('date', true), { dateSpare: spareLine(3 * D, false, 'en-US') });

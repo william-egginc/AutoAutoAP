@@ -452,7 +452,7 @@ const boardFailed = ref<BoardReadKind | null>(null);
  */
 const boardCountText = computed(() => {
   if (!boardFailed.value) return countText(boardCount.value);
-  return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · couldn't read the leaderboard";
+  return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · not loaded";
 });
 
 // A run of the account's on the board: remembered, so the tab stays for the next visit (lib/myRunsShown.ts; the board is

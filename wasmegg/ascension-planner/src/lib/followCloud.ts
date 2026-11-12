@@ -406,6 +406,8 @@ export async function getFollowHistory(
 
 /** Setup › Sharing's note when the saved routes couldn't be read on load. */
 export const UNREACHABLE_NOTE = "Couldn't read your routes saved online right now.";
+/** One line when a save failed AND the saved routes couldn't be read: the same cause, said once (spec-tidy M8). */
+export const CLOUD_BOTH_UNREACHABLE_NOTE = "Couldn't save or read your routes online right now.";
 /** A save refused for the hour's limit. */
 export const LIMIT_WORDS = 'Too many changes this hour. Try again later.';
 

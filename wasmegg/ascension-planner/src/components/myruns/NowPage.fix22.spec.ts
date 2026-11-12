@@ -188,4 +188,29 @@ describe('Right now: the routes saved online could not be read (UX review, 25 Oc
   it('nothing when the read worked', async () => {
     expect(await renderHtml(RightNowCard, cardProps(cardOf()))).not.toContain('now-follow-cloud-unreachable');
   });
+  it('spec-tidy M8: a failed save and an unreachable read are ONE line, not two stacked notes', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: "Couldn't save the route online right now; it is still followed in this browser.",
+      })
+    );
+    expect(t).toContain("Couldn't save or read your routes online right now. Following still works in this browser. Retry ›");
+    expect(t).not.toContain("Couldn't read your routes saved online");
+    expect(t).not.toContain("Couldn't save the route online right now");
+  });
+  it('spec-tidy M8: a refused save (too big, hour limit) keeps its own note beside the unreachable read', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: 'Too many changes this hour. Try again later.',
+      })
+    );
+    expect(t).toContain('Too many changes this hour. Try again later.');
+    expect(t).toContain("Couldn't read your routes saved online right now. Following still works in this browser. Retry ›");
+  });
 });
