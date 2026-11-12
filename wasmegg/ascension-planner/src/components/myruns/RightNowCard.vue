@@ -691,6 +691,8 @@ const props = defineProps<{
   simFailure?: { reason: string; retrying: boolean } | null;
   /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
   nextStep?: NextAction | null;
+  /** A research buy still to do before the next step (lib/nextAction.ts `nextBuyBefore`, from the tracker's lines): said first. */
+  nextBuy?: { at: number } | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
   nextShiftLines?: NextShiftLine[];
   /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
@@ -917,7 +919,7 @@ const nextText = computed(() =>
 const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
 /** The fresh-start line in this card's zone (as every other time on it). */
 const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
-const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen) : ''));
+const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen, props.nextBuy) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) => nextShiftWords(l, (t, exact) => sentenceWhen(exact ? t : roundToHourIn(t, props.zone)));
 /** A moment in a sentence, "Nov 13, 2026 at 10:00 AM" (spec-uxpass item 2, 8 Nov 2026: was "Nov 13, 2026, 10:00 AM"
