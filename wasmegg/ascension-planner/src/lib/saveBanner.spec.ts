@@ -35,9 +35,11 @@ describe('the save banner words', () => {
     expect(s?.word).toBe('Save is 16h old');
     expect(s?.headline).not.toBe(SAVE_LOW_SILOS_LEAD);
   });
-  it('a save so old with silos under 6 h left: the banner keeps its tone word and the blurb', () => {
+  it('a save so old with silos under 6 h left: still the quiet line (12 Nov 2026: no box; the silos have their own line)', () => {
     const s = saveBannerState({ ...base, backupSeconds: NOW - 20 * H, farmStepSeconds: NOW - 20 * H, siloSeconds: 24 * H, siloCount: 3 });
-    expect(s?.headline).toBe(SAVE_LOW_SILOS_LEAD);
-    expect(s?.word).not.toMatch(/^Save is/);
+    expect(s?.headline).not.toBe(SAVE_LOW_SILOS_LEAD);
+    expect(s?.tone).toBe('green');
+    expect(s?.old).toBe(true);
+    expect(s?.word).toBe('Save is 20h old');
   });
 });

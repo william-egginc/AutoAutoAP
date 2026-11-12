@@ -26,6 +26,8 @@
       :load-words="LOAD_LATEST_SAVE"
       @fresh="load"
     />
+    <!-- The silo line (layout/SiloLine.vue), on a row of its own at the end. -->
+    <SiloLine class="order-last basis-full" :silo="silo" />
     <!-- Switch account, always on the line (Jordan, 9 Nov 2026: "the arrow to switch accounts is missing"): opens the
          player box above (the ID box and the save file) with the cursor in the ID box; while it is open it folds it. -->
     <button
@@ -53,6 +55,7 @@
 <script setup lang="ts">
 import { nextTick } from 'vue';
 import SaveAgeStrip from '@/components/myruns/SaveAgeStrip.vue';
+import SiloLine from './SiloLine.vue';
 import { CHANGE_PLAYER, SAVE_LINE_CLOSE } from '@/lib/layoutWords';
 import { useMinuteClock } from '@/composables/useMinuteClock';
 import { LOAD_LATEST_SAVE, useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
@@ -61,7 +64,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 
 const now = useMinuteClock();
-const { state, server, loading, load } = useAutoSaveStrip({ now });
+const { state, server, loading, load, silo } = useAutoSaveStrip({ now });
 const initial = useInitialStateStore();
 const store = useChainSearchStore();
 const ui = useUIStore();

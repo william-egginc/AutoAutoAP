@@ -17,7 +17,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { saveBannerState } from '@/lib/saveBanner';
+import { saveBannerState, siloLineState } from '@/lib/saveBanner';
 import { QUIET_CHECK_MIN_AGE_S } from '@/lib/serverSave';
 import { useServerSave } from './useServerSave';
 
@@ -39,16 +39,21 @@ export function useAutoSaveStrip(o: { now: Ref<number> }) {
     ready: computed(() => loadedSeconds.value > 0 && initial.hasData && !ui.loading),
     now: o.now,
   });
-  // Amber or red only with under 6 h of silos left (lib/saveBanner.ts, Jordan 12 Nov 2026).
+  // The quiet line at any age, Why and Details once old (lib/saveBanner.ts, Jordan 12 Nov 2026).
   const state = computed(() => (clock.value ? saveBannerState({ ...clock.value, nowSeconds: o.now.value, zone: zone.value }) : null));
+  /** The silo line (layout/SiloLine.vue): when the silos run out, as of the save; null without a virtue farm. */
+  const silo = computed(() => siloLineState(state.value, o.now.value, zone.value));
   const shown = computed(
     () =>
       !!state.value &&
-      (state.value.tone !== 'green' || server.value.kind === 'newer' || o.now.value - loadedSeconds.value >= QUIET_CHECK_MIN_AGE_S)
+      (state.value.tone !== 'green' ||
+        !!state.value.old ||
+        server.value.kind === 'newer' ||
+        o.now.value - loadedSeconds.value >= QUIET_CHECK_MIN_AGE_S)
   );
   /** Setup's "Load latest save": App watches the counter and loads a fresh save. */
   function load(): void {
     ui.backupRetryRequested++;
   }
-  return { state, server, shown, loading, load };
+  return { state, server, shown, loading, load, silo };
 }
