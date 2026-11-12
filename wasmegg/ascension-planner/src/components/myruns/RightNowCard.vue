@@ -141,14 +141,14 @@
     <!-- "Following your pick" is not said again here (UX fluff review 2, item R5: the route line says Following); a label
          of its own ("From your Fast run") still is. -->
     <p
-      v-if="follow && (followWhose || followNote || follow.missesDate)"
+      v-if="follow && (followWhose || followNote || followLate)"
       class="text-body text-slate-600"
       data-testid="now-follow"
       :data-price="follow.price"
       :data-source="follow.source ?? ''"
     >
       <span v-if="followWhose" class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span
-      >{{ followWhose && followNote ? ' · ' : '' }}{{ followWhose ? followNote : capitalise(followNote) }}<template v-if="follow.missesDate"
+      >{{ followWhose && followNote ? ' · ' : '' }}{{ followWhose ? followNote : capitalise(followNote) }}<template v-if="followLate"
         >{{ followWhose || followNote ? ' · ' : '' }}{{ lateMark }}</template
       >
     </p>
@@ -853,6 +853,13 @@ const selectedOption = computed(() => props.goals?.find(g => g.key === props.sel
 const lateKind = computed(() => (selectedOption.value?.kind === 'eggday' ? 'eggday' : 'date'));
 const lateWords = computed(() => noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null));
 const lateMark = computed(() => lateMarker(lateKind.value));
+/** The follow line's "after Egg Day starts": not again when the goal pill above already says it ("following · lands about
+ *  Jul 15, 2027, after Egg Day starts"; spec-tidy, open item from spec-uxpass). */
+const followLate = computed(() => {
+  if (!props.follow?.missesDate) return false;
+  const o = selectedOption.value;
+  return !(o?.follow && optionSub(o).includes(lateMark.value));
+});
 const radios = ref<(HTMLButtonElement | null)[]>([]);
 /** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
  *  line no longer starts with it.) */
