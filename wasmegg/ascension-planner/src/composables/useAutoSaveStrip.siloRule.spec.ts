@@ -20,7 +20,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 import { resetServerSaveChecks, WHY_OUT_OF_DATE } from '@/lib/serverSave';
 import { siloSeconds } from '@/lib/saveAge';
-import { SAVE_LOW_SILOS_LEAD, SILO_AMBER_PERCENT_WORDS } from '@/lib/saveFreshnessWords';
+import { SILO_AMBER_PERCENT_WORDS } from '@/lib/saveFreshnessWords';
 import { dateAt } from '@/lib/eventWhen';
 import { useAutoSaveStrip } from './useAutoSaveStrip';
 import * as banner from '@/lib/saveBanner';
@@ -71,7 +71,7 @@ describe('the save strip: small and quiet at any age and silo level', () => {
     const st = s.state.value!;
     expect(st.tone).toBe('green');
     expect(st.headline).toMatch(/^Your save is from /);
-    expect(st.headline).not.toBe(SAVE_LOW_SILOS_LEAD);
+    expect(st.headline).not.toMatch(/Either your save is out of date/);
     expect(s.shown.value).toBe(true);
     const html = await render(st);
     expect(html).not.toMatch(BOX);

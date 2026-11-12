@@ -1,20 +1,9 @@
 /**
- * The blurb that replaces the amber "Getting old" save banner (12 Nov 2026, Jordan). Shown only when the save's silo
- * estimate is under 6 hours (UI owns that rule). A save this old, or silos this low, could mean either: the save is out
- * of date, or the silos are running low. We can't tell which from the save, so it says both and never claims the farm
- * has stopped earning.
+ * The words of the save strip and the silo line (lib/saveBanner.ts). The "Either your save is out of date, or your silos
+ * are running low" blurb of the short-lived amber banner (12 Nov 2026) is retired: the silo line says it now.
  *
  * A *Words.ts file: wording only, never part of the result code hash (lib/resultCodeHash.ts `isWordingOnly`).
  */
-
-/** The first sentence: the two things it can mean. */
-export const SAVE_LOW_SILOS_LEAD = 'Either your save is out of date, or your silos are running low.';
-
-/** What to do about it. */
-export const SAVE_LOW_SILOS_DO = 'Open Egg, Inc. so it syncs, then load a fresh save.';
-
-/** The whole blurb, one paragraph. */
-export const SAVE_LOW_SILOS_WORDS = `${SAVE_LOW_SILOS_LEAD} ${SAVE_LOW_SILOS_DO}`;
 
 /** The silo line turns amber with under this share of the silos' time left (Jordan, 12 Nov 2026), as a percent. UI's rule is
  *  the source; this only says it in Details. */

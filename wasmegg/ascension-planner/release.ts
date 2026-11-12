@@ -33,6 +33,8 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-13T06:00:01Z', note: 'Times read the same everywhere: 9:00 AM, with the minutes and capitals' },
+  { at: '2026-11-13T06:00:00Z', note: 'The save line stays small at any age, and a small silo line says when your silos run out as of your save (amber when low)' },
   { at: '2026-11-10T21:00:00Z', note: 'A Silo trick setting in Setup › Awake hours (off to start): count the extra cash from collecting inside Monday’s 2x event' },
   { at: '2026-11-10T20:00:02Z', note: 'Joo’s planner update: wait for 2x or sale start and end buttons, smart buys folded in the history, and Continue from the middle of a build in Single run' },
   { at: '2026-11-10T20:00:01Z', note: 'Old saves are caught up all the way to now, with no cap at what your silos hold' },
@@ -62,7 +64,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-29T23:00:01Z', note: 'The phone watch keeps reporting and warns you when its updates fail; Stepping away starts closed and opens on long runs; the CSV buttons say what they hold, plus a download for the full CSV you sent' },
   { at: '2026-10-29T23:00:00Z', note: 'No prestige days now sit beside Awake hours and Time off in Setup; Custom help is now short bullets; the Help box has Yes to all; this list of updates shows the newest first, with dates' },
   { at: '2026-10-23T00:30:00Z', note: 'Joo’s latest planner with an artifact and stone editor; one Search panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
-  { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
+  { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4:00 PM Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-20T00:37:44Z', note: 'prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster Highest TE by a date searches, a My runs route chart', level: 'big' },
 ];
 

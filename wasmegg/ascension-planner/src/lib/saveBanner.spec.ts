@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { saveBannerState } from './saveBanner';
-import { SAVE_LOW_SILOS_LEAD, siloLine, thresholdsDetail } from './saveFreshnessWords';
+import { siloLine, thresholdsDetail } from './saveFreshnessWords';
 
 const NOW = Date.UTC(2026, 9, 15, 23, 36) / 1000;
 const H = 3600;
@@ -33,11 +33,11 @@ describe('the save banner words', () => {
   it('a 16 h old save with big silos: the quiet line says its age to a screen reader, never "Up to date"', () => {
     const s = saveBannerState({ ...base, backupSeconds: NOW - 16 * H, farmStepSeconds: NOW - 16 * H, siloSeconds: 40 * H, siloCount: 4 });
     expect(s?.word).toBe('Save is 16h old');
-    expect(s?.headline).not.toBe(SAVE_LOW_SILOS_LEAD);
+    expect(s?.headline).not.toMatch(/Either your save is out of date/);
   });
   it('a save so old with silos under 6 h left: still the quiet line (12 Nov 2026: no box; the silos have their own line)', () => {
     const s = saveBannerState({ ...base, backupSeconds: NOW - 20 * H, farmStepSeconds: NOW - 20 * H, siloSeconds: 24 * H, siloCount: 3 });
-    expect(s?.headline).not.toBe(SAVE_LOW_SILOS_LEAD);
+    expect(s?.headline).not.toMatch(/Either your save is out of date/);
     expect(s?.tone).toBe('green');
     expect(s?.old).toBe(true);
     expect(s?.word).toBe('Save is 20h old');

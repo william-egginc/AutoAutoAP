@@ -87,12 +87,13 @@ that choice.
   pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
-- **My runs** (a top tab): the "where am I now" page. One save-age box, also on Fastest, Highest TE by a date and
-  Single run's Setup bar (`lib/saveFreshness.ts`): green **Up to date**, yellow **Getting old** from half the virtue
-  farm's silo time used, red **Out of date** with a tenth or less left, judged on the worse of the save's age and the
-  time since the farm last ran (neither before 1 hour; 3 hours of silos when the save doesn't say), and yellow **Check
-  your clock** when the save is more than 5 minutes ahead of the device's clock. Past a day old it also asks you to let
-  the game sync. With it, the save check (at most once per page load it asks the server whether a newer save is there:
+- **My runs** (a top tab): the "where am I now" page. One quiet save line (its age) and a small silo line (when the silos run out, as of the save; amber under 30% of the
+  silo time), also on Fastest, Highest TE by a date and Single run's Setup bar (`lib/saveFreshness.ts`,
+  `lib/saveBanner.ts`): once the save is getting old (half the virtue farm's silo time used, or nine tenths for out of
+  date; neither before 1 hour; 3 hours of silos when the save doesn't say) it adds **Why is my save out of date?** and
+  **Details ›**, and past a day old its text turns amber and asks you to let the game sync; yellow **Check your clock**
+  when the save is more than 5 minutes ahead of the device's clock. With it, the save check (at most once per page load
+  it asks the server whether a newer save is there:
   "A newer save is on the server · Load it", or, in its Details, "This is the newest save on the server"; it never
   swaps the save by itself);
   **Right now**: the **Next step** and the **Next shifts** (the next few shifts, with the prestiges between). When
@@ -135,7 +136,7 @@ that choice.
   blank (`lib/saveScrub.ts`); **Load a save file** puts it back under the account on screen, and with no account
   on screen loads it without one (own instant answer, Follow, Saved answers and everything online off).
   Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
-  save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
+  save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 PM" (days from 48 hours).
   "Dig deeper into your plan ›" opens it. `#/compare/mine` lands here.
 - **Science** (off until ticked in Setup): **How it works** (the default), **What we need to check**,
   **Submit a sweep** and
@@ -203,8 +204,8 @@ on the wiki: [Game rules the planner follows](https://github.com/william-egginc/
   delivery set at H1, on Humility. In plans that continue your build-up, or finish it without buying, a farm off
   Humility keeps the artifacts it has on until its first Humility shift (`continueState` and `buildUpState` in
   `src/search/leg.ts`). The Build-up tracker leaves out any set swap that is not on Humility.
-- **The silo trick.** Check in on Sunday, then stay offline until a check-in inside Monday's 2x event (Monday 9:00 am
-  to Tuesday 9:00 am Pacific), with enough silo time to cover the gap: what the farm earned offline is paid at 2x
+- **The silo trick.** Check in on Sunday, then stay offline until a check-in inside Monday's 2x event (Monday 9:00 AM
+  to Tuesday 9:00 AM Pacific), with enough silo time to cover the gap: what the farm earned offline is paid at 2x
   when you come back inside the event. It is wasted if you come online on Sunday again, or if the silos run out
   first.
 - A prestige takes about 30 seconds (through the Edible egg to Enlightenment), too short to matter for planning.
