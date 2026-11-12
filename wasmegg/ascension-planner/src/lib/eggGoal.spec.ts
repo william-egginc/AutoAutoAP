@@ -27,16 +27,16 @@ describe('eggGoalLines: every egg, to the goal', () => {
   it("Fastest to N TE: the egg being laid at the save's rate, the others after a shift, each by its own thresholds", () => {
     const l = lines({ kind: 'te', teLeft: 2 });
     const need = getThresholdForTE(32) - at30;
-    expect(l.curiosity).toMatch(/^to goal about .+ at this rate$/);
-    expect(l.kindness).toMatch(/^to goal about .+ after you shift here$/);
+    expect(l.curiosity).toMatch(/^to goal .+ at this rate$/);
+    expect(l.kindness).toMatch(/^to goal .+ after you shift here$/);
     // The other eggs at the after-shift rate (2e12, habs full): half the save's-rate time.
-    const days = (s: string) => s.replace(/^to goal about ~?/, '').replace(/ (at this rate|after you shift here)$/, '');
+    const days = (s: string) => s.replace(/^to goal ~?/, '').replace(/ (at this rate|after you shift here)$/, '');
     expect(days(l.kindness)).not.toBe(days(l.curiosity));
     expect(need / 2e12).toBeGreaterThan(0);
     expect(Object.keys(l).sort()).toEqual(['curiosity', 'humility', 'integrity', 'kindness', 'resilience']);
   });
   it("more than the egg's room: to its last TE (pieha, below); over about 10 years: not at this rate", () => {
-    expect(lines({ kind: 'te', teLeft: 500 }).kindness).toMatch(/^to goal about .+ after you shift here$/);
+    expect(lines({ kind: 'te', teLeft: 500 }).kindness).toMatch(/^to goal .+ after you shift here$/);
     const slow = eggGoalLines({
       eggs: eggLines(delivered, {}, 'curiosity', 1e-3, 60),
       delivered,
@@ -77,14 +77,14 @@ describe("eggGoalLines: a goal bigger than one egg's room (pieha)", () => {
       saveSeconds: NOW,
     });
     expect(eggs[0].goalInSeconds).toBeCloseTo((getThresholdForTE(98) - at70) / 1e15, 3);
-    expect(l.curiosity).toMatch(/^to goal about .+ at this rate$/);
+    expect(l.curiosity).toMatch(/^to goal .+ at this rate$/);
     for (const egg of ['kindness', 'integrity', 'humility', 'resilience']) {
       expect(l[egg]).not.toBe('to goal: more TE than this egg has left');
-      expect(l[egg]).toMatch(/^to goal about .+ after you shift here$/);
+      expect(l[egg]).toMatch(/^to goal .+ after you shift here$/);
     }
     // Kindness at the after-shift rate (habs full over 100 TE): its 98th TE's threshold, less what it has.
     const t = (getThresholdForTE(98) - at70) / rates.maxElr;
-    expect(l.kindness).toBe(`to goal about ${aboutWords(t)} after you shift here`);
+    expect(l.kindness).toBe(`to goal ${aboutWords(t)} after you shift here`);
   });
   it("a smaller goal still fits in one egg: the TE left, not the egg's last TE", () => {
     const eggs = eggLines(d70, {}, 'curiosity', 1e15, 5);
@@ -98,7 +98,7 @@ describe("eggGoalLines: a goal bigger than one egg's room (pieha)", () => {
       saveSeconds: NOW,
     });
     expect(l.kindness).toBe(
-      `to goal about ${aboutWords((getThresholdForTE(75) - at70) / rates.maxElr)} after you shift here`
+      `to goal ${aboutWords((getThresholdForTE(75) - at70) / rates.maxElr)} after you shift here`
     );
   });
   it('an egg with no TE left (98) says so; the clock lines time the others', () => {
@@ -114,7 +114,7 @@ describe("eggGoalLines: a goal bigger than one egg's room (pieha)", () => {
       saveSeconds: NOW,
     });
     expect(l.kindness).toBe('to goal: more TE than this egg has left');
-    expect(l.integrity).toMatch(/^to goal about .+ after you shift here$/);
+    expect(l.integrity).toMatch(/^to goal .+ after you shift here$/);
     const c = eggClockLines({
       eggs,
       delivered: d,
@@ -127,7 +127,7 @@ describe("eggGoalLines: a goal bigger than one egg's room (pieha)", () => {
       shifts: [],
     });
     expect(c.goal.integrity).toMatch(/^to goal about .+ if you shift now$/);
-    expect(c.goal.curiosity).toMatch(/^to goal about /);
+    expect(c.goal.curiosity).toMatch(/^to goal /);
     expect(c.goal.kindness).toBeUndefined();
   });
 });
