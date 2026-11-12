@@ -933,6 +933,7 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
+import { formatClockTime } from '@/lib/timeStyleWords';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';
@@ -1642,10 +1643,11 @@ watch(
   { immediate: true }
 );
 
+/** 9:00 PT in the player's own style (lib/timeStyleWords.ts; Jordan, 13 Nov 2026): "9:00 AM PT" in en-US. */
 const earningsEventTooltip = computed(() =>
   isEarningsBoostActive.value
-    ? `2x Earnings ends Tuesday at 9:00 AM PT. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
-    : `Next 2x Earnings starts Monday at 9:00 AM PT. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
+    ? `2x Earnings ends Tuesday at ${formatClockTime(9, 0, { zone: 'PT' })}. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
+    : `Next 2x Earnings starts Monday at ${formatClockTime(9, 0, { zone: 'PT' })}. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
 );
 
 onMounted(async () => {

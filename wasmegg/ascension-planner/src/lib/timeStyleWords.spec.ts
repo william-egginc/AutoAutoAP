@@ -129,3 +129,14 @@ describe('readbacks: built from the numbers, so a 24-hour locale works', () => {
     expect(setupSummary(a, [], null, 'ja-JP').split(' · ')[0]).toBe('7:00–23:00');
   });
 });
+
+describe('the top bar\'s 2x Earnings tooltip (App.vue): 9:00 PT in the player\'s style, not a typed "9:00 AM PT"', () => {
+  it('goes through formatClockTime with the PT label', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const app = fs.readFileSync(path.resolve(__dirname, '../App.vue'), 'utf8');
+    const tip = app.slice(app.indexOf('const earningsEventTooltip'), app.indexOf(');', app.indexOf('const earningsEventTooltip')));
+    expect(tip).not.toContain('9:00 AM PT');
+    expect(tip.match(/\$\{formatClockTime\(9, 0, \{ zone: 'PT' \}\)\}/g)).toHaveLength(2);
+  });
+});
