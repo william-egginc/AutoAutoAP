@@ -66,7 +66,9 @@ describe('the save line', () => {
     const who = html.match(/<[^>]*data-testid="save-line-who"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '';
     expect(textOf(who)).toBe('Williamthe5thc');
     expect(textOf(html)).not.toContain('TE');
-    expect(html.indexOf('save-line-who')).toBeLessThan(html.indexOf('save-line-switch'));
+    // Inside Change player since 12 Nov 2026 (Jordan): the button holds the name, nothing above it.
+    expect(html.indexOf('save-line-switch')).toBeLessThan(html.indexOf('save-line-who'));
+    expect(textOf(html)).toBe('Williamthe5thc');
     // The save age left the bar (12 Nov 2026): layout/SaveSide.vue, under it on Fastest and By a date (saveSide.spec.ts).
     expect(html).not.toContain('data-testid="save-line-age"');
     expect(html).toContain('data-testid="save-line-switch"');
