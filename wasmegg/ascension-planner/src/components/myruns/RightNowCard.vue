@@ -944,6 +944,11 @@ const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.fre
 const buyFmt = {
   clock: (t: number) => formatClock(t * 1000, props.zone),
   weekday: (t: number) => new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: props.zone }).format(new Date(t * 1000)),
+  /** The sale's day: "Friday", with the date when it is a week or more away ("Friday, Nov 20"). */
+  day: (t: number) => {
+    const w = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: props.zone }).format(new Date(t * 1000));
+    return t - props.now >= 7 * 86400 ? `${w}, ${formatMoment(t * 1000, { zone: props.zone, dateOnly: true, year: 'never' })}` : w;
+  },
   sameDay: (a: number, b: number) => calendarOf(a * 1000, props.zone)?.ymd === calendarOf(b * 1000, props.zone)?.ymd,
 };
 const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen, props.nextBuy, buyFmt) : ''));

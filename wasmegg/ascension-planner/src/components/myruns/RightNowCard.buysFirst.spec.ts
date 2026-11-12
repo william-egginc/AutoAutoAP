@@ -42,7 +42,7 @@ const render = (over: Record<string, unknown>) =>
 describe('Right now: Next step names the research buy first', () => {
   it('a sale buy before the shift: the sale, the window, the shift left to Next shifts (Jordan, 12 Nov 2026)', async () => {
     const t = textOf(await render({ nextBuy: { at: SALE, until: SHIFT, sale: true } }));
-    expect(t).toMatch(/Wait for the Friday research sale, then buy research from 10:00 AM to 2:26 PM/);
+    expect(t).toMatch(/Wait for Friday's research sale, then buy research from 10:00 AM to 2:26 PM/);
     expect(t).not.toMatch(/then shift to Humility/);
   });
   it('a buy outside a sale: "Buy research from … to …"', async () => {
