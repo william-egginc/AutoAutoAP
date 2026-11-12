@@ -527,6 +527,8 @@
         :rounded="rounded"
         :here="hereRow"
       />
+      <!-- The followed route lands after the date while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
+      <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
       <!-- The Full timeline (Jordan, 9 Nov 2026): above My runs' More with `timelineTo` (a looked-up element, never
            deferred; on this card without one), closed by default, the player's own open or close remembered
            (lib/panelFold.ts myRunsTimeline). -->
@@ -587,6 +589,7 @@ import { formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
+import { followedLateLine } from '@/lib/followedLateWords';
 import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
@@ -864,6 +867,13 @@ const followLate = computed(() => {
   const o = selectedOption.value;
   return !(o?.follow && optionSub(o).includes(lateMark.value));
 });
+/** "Your followed route lands about Jul 17, 2027, after Egg Day starts" beside a goal row that is another plan's
+ *  (lib/followedLateWords.ts). */
+const followedLate = computed(() =>
+  props.card && props.card.goal.goal === 'date'
+    ? followedLateLine(selectedOption.value?.follow, props.card.plan.end, t => dayWords(t, props.zone), lateMark.value)
+    : ''
+);
 const radios = ref<(HTMLButtonElement | null)[]>([]);
 /** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
  *  line no longer starts with it.) */
