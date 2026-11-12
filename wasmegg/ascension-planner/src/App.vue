@@ -197,6 +197,9 @@
       </div>
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
       <SaveLine v-if="saveLineShown" />
+      <!-- The save strip and the silo line, small, out of the bar (layout/SaveSide.vue, Jordan 12 Nov 2026). On My runs
+           they sit beside Right now instead (MyRunsView.vue). -->
+      <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2" />
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->
@@ -929,6 +932,7 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';

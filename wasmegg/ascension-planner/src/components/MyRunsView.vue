@@ -5,7 +5,7 @@
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
     1. Save-age banner: the save line at the top of the page (layout/SaveLine.vue, App.vue) since the simpler page
-       (9 Nov 2026); every time below comes from the save, so its age comes first.
+       (9 Nov 2026); since 12 Nov 2026 the strip and the silo line are small, beside Right now (layout/SaveSide.vue).
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -39,7 +39,12 @@
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
+    <!-- The save strip, small (layout/SaveSide.vue), while the page waits for the save. -->
+    <SaveSide v-if="!page.hasSave.value" />
+
     <template v-if="page.hasSave.value">
+      <!-- Right now, and the save strip beside it from lg, under it on a phone (layout/SaveSide.vue, 12 Nov 2026). -->
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start" data-testid="now-grid">
       <RightNowCard
         data-region="right-now"
         change-route-to="more-myruns-route"
@@ -127,6 +132,8 @@
           />
         </template>
       </RightNowCard>
+      <SaveSide />
+      </div>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
@@ -377,6 +384,7 @@ import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';
