@@ -527,7 +527,7 @@
         :rounded="rounded"
         :here="hereRow"
       />
-      <!-- The followed route lands after the date while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
+      <!-- A followed route that is late (see the helper's words) while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
       <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
       <!-- The Full timeline (Jordan, 9 Nov 2026): above My runs' More with `timelineTo` (a looked-up element, never
            deferred; on this card without one), closed by default, the player's own open or close remembered
