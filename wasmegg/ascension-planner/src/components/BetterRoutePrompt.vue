@@ -89,7 +89,7 @@ import type { StaleReason } from '@/lib/followStale';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
-import { betterAboveLine } from '@/lib/instantCardWords';
+import { betterAboveLine, fasterAboveLine } from '@/lib/instantCardWords';
 import { headlineGap } from '@/lib/format';
 import { finishesBefore } from '@/lib/eggDayRule';
 
@@ -226,12 +226,17 @@ const prompt = computed<FollowPrompt | null>(() => {
 });
 
 /** The line's words: By a date's in Words' betterAboveLine (each side's TE and spare as the box writes them,
- *  lib/format.ts headlineGap); Fastest's finishes are times, which that line has no words for, so today's words. */
+ *  lib/format.ts headlineGap); Fastest's in Words' fasterAboveLine (12 Nov 2026), each side's finish written as the
+ *  offer's own words write times (lib/eventWhen.ts dateAt). Without the followed route's finish, today's words. */
 const lineWords = computed(() => {
   const p = prompt.value;
   if (!p) return '';
   const f = follows?.followed(props.goalKey);
   const fin = f ? finishOf(f) : null;
+  if (props.goal === 'fastest' && fin) {
+    const nowSec = Date.now() / 1000;
+    return fasterAboveLine({ better: dateAt(p.end, nowSec, zone.value), yours: dateAt(fin.end, nowSec, zone.value) });
+  }
   const d = props.deadline;
   if (props.goal !== 'date' || d == null || !fin) return p.words;
   return betterAboveLine({
