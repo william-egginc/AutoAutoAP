@@ -193,8 +193,8 @@ export function afterShiftLines(o: {
  * "to goal" view, by egg:
  *   Fastest to N TE (`teLeft`, the goal's TE less the save's): if every TE still to earn came from this egg, up to its
  *     last TE (farmFacts `eggGoalTE`: a bigger goal takes it to its last TE, the rest from the others), by its own
- *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal about 4d 5h at this
- *     rate"; every other egg from a shift to it (the after-shift model above), "to goal about 4d 5h after you shift
+ *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal ~4d 5h at this
+ *     rate"; every other egg from a shift to it (the after-shift model above), "to goal ~4d 5h after you shift
  *     here". An egg with no TE left, or over about 10 years, says so.
  *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h"); to the hour when the
  *     plan isn't exact, as Right now shows it (`rounded`).
@@ -234,14 +234,14 @@ export function eggGoalLines(o: {
     if (e.current) {
       if (e.goalInSeconds == null) continue;
       const left = e.goalInSeconds - since;
-      out[e.egg] = left > cap ? 'to goal: not at this rate (over 10 years)' : `to goal about ${aboutWords(left)} at this rate`;
+      out[e.egg] = left > cap ? 'to goal: not at this rate (over 10 years)' : `to goal ${aboutWords(left)} at this rate`;
       continue;
     }
     const r = o.rates;
     if (!r) continue;
     const t = goalAfterShiftSeconds(d, need, o.totalTe, r);
     if (!Number.isFinite(t) || t > cap) out[e.egg] = 'to goal after you shift here: not at this rate (over 10 years)';
-    else out[e.egg] = `to goal about ${aboutWords(t)} after you shift here`;
+    else out[e.egg] = `to goal ${aboutWords(t)} after you shift here`;
   }
   return out;
 }

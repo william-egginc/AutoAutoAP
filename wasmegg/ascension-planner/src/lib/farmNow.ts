@@ -38,21 +38,21 @@ export function siloNow(o: {
 }
 
 export interface SiloNowWords {
-  /** "about 14 h left" / "empty". */
+  /** "about 14 h left" / "empty (from your save)": the save can't know the game was opened since (12 Nov 2026). */
   value: string;
-  /** "of 1d 2h · estimated from your save of Oct 25 at 10:09 AM" / "since Oct 26 at 1:00 AM · estimated …". */
+  /** "of 1d 2h · estimated from your save of Oct 25 at 10:09 AM" / "since about Oct 26 at 1:00 AM · estimated …". */
   note: string;
   /** The whole sentence: "Silos: about 14 h left (estimated from your save of Oct 25 at 10:09 AM)". */
   line: string;
-  /** The note without the save: "of 1d 2h" / "since Oct 26 at 1:00 AM" (Right now's tile, UX fluff review 2, item R17). */
+  /** The note without the save: "of 1d 2h" / "since about Oct 26 at 1:00 AM" (Right now's tile, UX fluff review 2, item R17). */
   short: string;
 }
 
 export function siloNowWords(s: SiloNow, saveSeconds: number, nowSeconds: number, zone: string): SiloNowWords {
   const from = `estimated from your save of ${dateAt(saveSeconds, nowSeconds, zone)}`;
   if (s.empty) {
-    const since = `since ${dateAt(s.emptyAt, nowSeconds, zone)}`;
-    return { value: 'empty', note: `${since} · ${from}`, line: `Silos: empty ${since} (${from})`, short: since };
+    const since = `since about ${dateAt(s.emptyAt, nowSeconds, zone)}`;
+    return { value: 'empty (from your save)', note: `${since} · ${from}`, line: `Silos: empty ${since} (${from})`, short: since };
   }
   const left = s.leftSeconds < 60 ? 'under a minute left' : `about ${ageWords(s.leftSeconds)} left`;
   return {
