@@ -122,7 +122,11 @@ export function nextStepText(
   zone: string,
   rounded = false
 ): string {
-  const ahead = events.filter(e => !e.past && e.kind !== 'goal');
+  // A prestige that waits (for the player's hours or past a no-prestige day) is said at the time it happens, as the events
+  // table does (M12: "at around 10:00 PM" here over "11:00 PM" there): `prestigeAt`, not the stop's reach time.
+  const ahead = events
+    .filter(e => !e.past && e.kind !== 'goal')
+    .map(e => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.notDone ? { ...e, at: e.prestigeAt } : e));
   const first = ahead[0];
   if (!first) return '';
   const w = eventWhen(roundedAt(first, goal, rounded, zone), nowSeconds, zone);

@@ -118,4 +118,19 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 31) / 1000, 'America/Denver')).toBe(Date.UTC(2026, 9, 23, 22) / 1000);
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 29) / 1000, 'UTC')).toBe(Date.UTC(2026, 9, 23, 21) / 1000);
   });
+
+  it('a prestige that waits for the hours is said at the time it happens, like the events table (M12)', () => {
+    // Reached 10:17 PM Denver Dec 31, held to 11:00 PM by the player's hours: one time, 11:00 PM, in both places.
+    const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000; // Dec 31, 10:17 PM Denver
+    const held = Date.UTC(2027, 0, 1, 6, 0) / 1000; // Dec 31, 11:00 PM Denver
+    const e = ev({ kind: 'prestige', te: 222, at: reached, wait: 'hours', prestigeAt: held });
+    const rounded = nextStepText([e], 'fastest', NOW, ZONE, true);
+    expect(rounded).toContain('11:00');
+    expect(rounded).not.toContain('10:00');
+    const exact = nextStepText([e], 'fastest', NOW, ZONE, false);
+    expect(exact).toContain('11:00');
+    expect(exact).not.toContain('10:17');
+    // Without a wait, the reach time stays.
+    expect(nextStepText([ev({ kind: 'prestige', te: 222, at: reached })], 'fastest', NOW, ZONE, false)).toContain('10:17');
+  });
 });
