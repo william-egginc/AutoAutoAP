@@ -49,7 +49,7 @@ describe('the one time style (Jordan, 12 Nov 2026): "8:00 AM", minutes and capit
     expect(clockTimeOf(at, 'America/Los_Angeles')).toBe('2:00 PM');
     expect(clockTimeOf(Date.UTC(2026, 10, 12, 3, 7), 'UTC')).toBe('3:07 AM');
     expect(clockTimeOf(Date.UTC(2026, 10, 12, 0, 0), 'UTC')).toBe('12:00 AM');
-    expect(clockTimeOf(Date.UTC(2026, 10, 12, 12, 30), 'Not/AZone')).toBe('12:30 PM');
+    expect(clockTimeOf(Date.UTC(2026, 10, 12, 12, 30), 'Not/AZone')).toBe('');
     expect(clockTimeOf(NaN, 'UTC')).toBe('');
   });
   it("an Intl formatter's text put into the style", () => {

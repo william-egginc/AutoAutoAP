@@ -22,14 +22,14 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 describe('pricedWithDays', () => {
   it('names the no-prestige days the run used after the hours and time off', () => {
     expect(pricedWithDays(pricedWithLine({ availability: hours, timeOff: [] }), days)).toBe(
-      'Priced with awake hours 8 am to 11 pm, no time off, and your 9 no-prestige days'
+      'Priced with awake hours 8:00 AM to 11:00 PM, no time off, and your 9 no-prestige days'
     );
     expect(pricedWithDays('priced with any hour, time off Oct 20–22', [{ from: '2026-12-25', to: '2026-12-25' }])).toBe(
       'priced with any hour, time off Oct 20–22, and your 1 no-prestige day'
     );
   });
   it('none, none recorded, or only a half-typed row: the line as it was', () => {
-    const line = 'Priced with awake hours 8 am to 11 pm, no time off';
+    const line = 'Priced with awake hours 8:00 AM to 11:00 PM, no time off';
     expect(pricedWithDays(line, [])).toBe(line);
     expect(pricedWithDays(line, undefined)).toBe(line);
     expect(pricedWithDays(line, [{ from: '2026-12-25', to: '' }])).toBe(line);

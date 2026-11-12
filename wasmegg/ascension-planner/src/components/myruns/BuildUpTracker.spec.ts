@@ -73,20 +73,20 @@ describe('BuildUpTracker: the list', () => {
   it('summary, now and save lines, day headers, oracle lines, the footer', async () => {
     const t = textOf(await render('ready'));
     expect(t).toContain('Build-up tracker 0 of ');
-    expect(t).toMatch(/check-ins done · next 8:41 am \(3 h 29 min ago\)/);
-    expect(t).toMatch(/Now Fri Oct 30 12:10 pm · your save Fri Oct 30 12:05 pm \(5 min old\) ?\./);
+    expect(t).toMatch(/check-ins done · next 8:41 AM \(3 h 29 min ago\)/);
+    expect(t).toMatch(/Now Fri Oct 30 12:10 PM · your save Fri Oct 30 12:05 PM \(5 min old\) ?\./);
     // Behind the "?" after the save line since 5 Nov 2026 (UX fluff review 2, item R12): a HelpTip, read from the source.
     expect(t).not.toContain('Plan from your save of');
     expect(fs.readFileSync(path.join(__dirname, 'BuildUpTracker.vue'), 'utf8').replace(/\s+/g, ' ')).toContain('<HelpTip data-testid="buildup-plan" >Plan from your save of {{ dayClock(planSave, zone, now) }} · check-ins at least 1 min apart');
     expect(t).toContain('Fri Oct 30 18 check-ins Show less');
-    expect(t).toContain('Fri Nov 13 1 check-in 10:00 am');
-    expect(t).toContain('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
+    expect(t).toContain('Fri Nov 13 1 check-in 10:00 AM');
+    expect(t).toContain('9:02 AM · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
     // Fri Oct 30 is open with 32 lines: its first 8, then "Show all 32" (UX fluff review 2, 5 Nov 2026, item R12; the
     // cap is BuildUpTracker.cap.spec's). Its later lines, such as the wait for the sale, are the plan's still.
     // The cap counts lines still to do since spec-trackercompact (8 Nov 2026): "Show all N still to do".
-    expect(t).toContain(`9:04 am · buy 1 Hyperloop Train (slot 17), cars to 5 Show all ${result.days[0].lines.filter(l => l.tickable).length} still to do Sat Oct 31`);
-    expect(result.lines.map(lineText)).toContain('wait for the sale: offline until Fri Oct 30 10:00 am (25 min)');
-    expect(t).toContain('clocks go back 1 h at 2:00 am');
+    expect(t).toContain(`9:04 AM · buy 1 Hyperloop Train (slot 17), cars to 5 Show all ${result.days[0].lines.filter(l => l.tickable).length} still to do Sat Oct 31`);
+    expect(result.lines.map(lineText)).toContain('wait for the sale: offline until Fri Oct 30 10:00 AM (25 min)');
+    expect(t).toContain('clocks go back 1 h at 2:00 AM');
     expect(t).toContain('Times are in your zone (America/Denver), rounded down to the minute.');
   });
   it('bold lines are bold, research is not', async () => {
@@ -99,16 +99,16 @@ describe('BuildUpTracker: the list', () => {
     const html = await render('ready', { ticks: new Set([key]), summary: trackerSummary(result, new Set([key])) });
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${key.replace(':', '\\:')}"[^>]*>`))?.[0] ?? '';
     expect(box).toContain('checked');
-    expect(box).toContain('aria-label="Done: 8:42 am · buy Comfortable Nests (0 → 50)');
+    expect(box).toContain('aria-label="Done: 8:42 AM · buy Comfortable Nests (0 → 50)');
     expect(html.match(/type="checkbox"/g)?.length).toBeGreaterThan(10);
     // Event and wait lines have no checkbox.
     expect(html).not.toMatch(/aria-label="Done: wait for the sale/);
-    expect(html).not.toMatch(/aria-label="Done: 10:00 am · research sale starts/);
+    expect(html).not.toMatch(/aria-label="Done: 10:00 AM · research sale starts/);
   });
   it('today and tomorrow open; a later day collapsed to its bold lines, with "+ N more · show all"', async () => {
     const t = textOf(await render('ready'));
     // Fri Nov 6 (collapsed): its research beyond the first is hidden.
-    expect(t).toContain('10:00 am · buy Multiversal Layering (1 → 2)');
+    expect(t).toContain('10:00 AM · buy Multiversal Layering (1 → 2)');
     expect(t).not.toContain('buy Enlightened Chickens (95 → 96)');
     expect(t).toContain('+ 1 more · show all');
     expect(t).toContain('Show all ');
@@ -124,7 +124,7 @@ describe('BuildUpTracker: the list', () => {
     const short = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: 3600, startSilos: 1, startEgg: 'curiosity', now: NOW });
     const t = textOf(await render('ready', { result: short, summary: trackerSummary(short, new Set()), siloWarnings: 2 }));
     expect(t).toContain('The silo trick does not fit this plan 2 times: see the amber lines.');
-    expect(t).toContain('Your silos hold 9 h: going offline Mon Nov 2 12:59 am does not reach Mon Nov 2 10:01 am.');
+    expect(t).toContain('Your silos hold 9 h: going offline Mon Nov 2 12:59 AM does not reach Mon Nov 2 10:01 AM.');
   });
 });
 
@@ -193,7 +193,7 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     const html = await renderHtml(BuildUpTracker, fromSave(save(PART)));
     const t = textOf(html);
     expect(t.replace(/ ,/g, ',')).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → max) (bought), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min · 3 of 5 bought'
+      '8:42 AM · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → max) (bought), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min · 3 of 5 bought'
     );
     expect(html).toMatch(/<span class="tabular-nums text-amber-800"[^>]*>3 of 5 bought<\/span>/);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);
@@ -209,7 +209,7 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     const html = await renderOpened(fromSave(save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 })), s => (s.toggleRun as (y: string) => void)('2026-10-30'));
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
     expect(box).toContain('checked');
-    expect(box).toMatch(/aria-label="Done: 8:42 am · buy Comfortable Nests \(0 → 50\), [^"]*, from your save"/);
+    expect(box).toMatch(/aria-label="Done: 8:42 AM · buy Comfortable Nests \(0 → 50\), [^"]*, from your save"/);
     expect(html).toMatch(/<label[^>]*title="from your save"/);
     expect(html).toMatch(/<span class="text-green-700"[^>]*>bought<\/span>/);
     expect(textOf(html)).toContain('Build-up tracker 2 of ');
@@ -226,7 +226,7 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     expect(boxOf(second.key)).toMatch(/, ticked by you"/);
     const clear = html.match(new RegExp(`<button[^>]*data-testid="buildup-clear-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
     expect(clear).toContain('min-h-[44px] min-w-[44px]');
-    expect(clear).toMatch(/aria-label="Use what your save says: 8:42 am · buy Comfortable Nests/);
+    expect(clear).toMatch(/aria-label="Use what your save says: 8:42 AM · buy Comfortable Nests/);
     // The status words give way to the override.
     expect(html).not.toMatch(new RegExp(`data-testid="buildup-status-${first.key.replace(':', '\\:')}"`));
   });
@@ -273,7 +273,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
     const html = await render('ready', { replan: { ...R, working: true } });
     expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="buildup-replan-button"[^>]*>\s*(?:<!--\[-->)?Re-planning<span class="animated-dots" aria-hidden="true"/);
     expect(textOf(html)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
-    expect(textOf(html)).toContain('9:02 am · buy 14 Hyperloop Trains');
+    expect(textOf(html)).toContain('9:02 AM · buy 14 Hyperloop Trains');
   });
   it('working: the button gives the wait, "(about half a minute)" (DRAFT words, R7 red-team 1 Nov 2026); not when idle', async () => {
     const working = await render('ready', { replan: { ...R, working: true } });
@@ -290,7 +290,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
   it('failed: the reason, and the plan stays', async () => {
     const t = textOf(await render('ready', { replan: { ...R, error: 'the worker ran out of memory' } }));
     expect(t).toContain('The new plan could not be worked out (the worker ran out of memory). The plan below stays as it was.');
-    expect(t).toContain('9:02 am · buy 14 Hyperloop Trains');
+    expect(t).toContain('9:02 AM · buy 14 Hyperloop Trains');
   });
   it('hidden without it', async () => {
     expect(await render('ready')).not.toContain('buildup-replan');
@@ -343,7 +343,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   const sweepActs = plan.actions.map(a => (a.kind === 'research' && a.t <= firstAt ? { ...a, cheap: true as const } : a));
   const sweepResult = buildUpTracker({ actions: sweepActs, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW });
   const ALL_SWEEP =
-    '8:42 am · buy Comfortable Nests (0 → 50), Bigger Eggs (0 → 1) (cheap sweep) · offline 5 min';
+    '8:42 AM · buy Comfortable Nests (0 → 50), Bigger Eggs (0 → 1) (cheap sweep) · offline 5 min';
   // The fixture's other sweep buys here (Excitable Chickens, the two Internal Hatchery Expansions) are held to the 10:00 am sale: they
   // are research with no earnings value and the sale starts within 3 hours (buildUpTracker.holdsweep.spec.ts).
 
@@ -365,7 +365,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
     );
     const t = textOf(html).replace(/ ,/g, ',');
     expect(t).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Bigger Eggs (0 → 1) (cheap sweep) · offline 5 min · 1 of 2 bought'
+      '8:42 AM · buy Comfortable Nests (0 → 50) (bought), Bigger Eggs (0 → 1) (cheap sweep) · offline 5 min · 1 of 2 bought'
     );
     expect(t.match(/cheap sweep/g)).toHaveLength(1);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(1);

@@ -68,6 +68,6 @@ describe('BuildUpTracker: tick targets', () => {
 
   it('the box keeps its accessible name and the title says where the tick came from', async () => {
     const html = await render();
-    expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*aria-label="Done: 8:42 am · buy Comfortable Nests \(0 → 50\)/);
+    expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*aria-label="Done: 8:42 AM · buy Comfortable Nests \(0 → 50\)/);
   });
 });

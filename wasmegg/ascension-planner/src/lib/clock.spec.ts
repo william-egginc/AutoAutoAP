@@ -30,9 +30,8 @@ describe('formatMoment: the browser’s own format, from the language it is give
     expect(sp(formatMoment(EGG_DAY_2027, { zone: LA, zoneName: true, locale: 'en-US' }))).toBe(
       'Jul 14, 2027, 9:00 AM PDT'
     );
-    expect(sp(formatMoment(EGG_DAY_2027, { zone: LA, shortTime: true, year: 'never', locale: 'en-US' }))).toBe(
-      'Jul 14, 9 AM'
-    );
+    // On the hour the minutes stay (Jordan, 12 Nov 2026: "9:00 AM", never "9 AM").
+    expect(sp(formatMoment(EGG_DAY_2027, { zone: LA, year: 'never', locale: 'en-US' }))).toBe('Jul 14, 9:00 AM');
   });
 
   it('de-DE: day first, 24-hour', () => {

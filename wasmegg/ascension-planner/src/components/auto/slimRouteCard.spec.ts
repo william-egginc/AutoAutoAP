@@ -35,9 +35,9 @@ describe('the meta line (C1, C4)', () => {
       timeOff: [],
       noPrestige: [{ from: '2026-11-26', to: '2026-11-28' }, { from: '2026-12-24', to: '2026-12-26' }, { from: '2027-01-01', to: '2027-01-03' }],
     });
-    expect(priced).toBe('awake hours 8 am to 11 pm, 9 no-prestige days');
+    expect(priced).toBe('awake hours 8:00 AM to 11:00 PM, 9 no-prestige days');
     expect(runMetaLine({ level: 'exhaustive', at: RAN, saveAt: SAVE, zone: Z, now: NOW, priced })).toMatch(
-      /^Custom, Nov 3 at 12:22 PM, on your save of Nov 3 at 11:19 AM · awake hours 8 am to 11 pm, 9 no-prestige days$/i
+      /^Custom, Nov 3 at 12:22 PM, on your save of Nov 3 at 11:19 AM · awake hours 8:00 AM to 11:00 PM, 9 no-prestige days$/i
     );
   });
   it('the start TE when given, time off when any, and nothing for what is unknown', () => {
@@ -59,9 +59,9 @@ describe("Fastest's card (RouteResultCard.vue)", () => {
     expect(t).not.toContain('reaches 490 on');
   });
   it('one meta line in place of the ran line and Priced with (C1, C4)', async () => {
-    const html = await renderHtml(RouteResultCard, { ...base, meta: 'Custom, Nov 3 at 12:22 pm · any hour' });
+    const html = await renderHtml(RouteResultCard, { ...base, meta: 'Custom, Nov 3 at 12:22 PM · any hour' });
     expect(html).toContain('data-testid="run-meta"');
-    expect(textOf(html)).toContain('Custom, Nov 3 at 12:22 pm · any hour');
+    expect(textOf(html)).toContain('Custom, Nov 3 at 12:22 PM · any hour');
     expect(read('RouteResultCard.vue')).not.toMatch(/data-testid="ran-line"|data-testid="priced-with"/);
   });
   it('no Simulate note under the buttons; its words are the button\'s tip (C6; a Tip in place of the title, Allan 9 Nov 2026)', async () => {

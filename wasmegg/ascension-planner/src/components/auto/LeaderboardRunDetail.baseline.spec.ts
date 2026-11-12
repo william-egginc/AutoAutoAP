@@ -37,9 +37,9 @@ describe('vs their instant answer (B2)', () => {
     expect(t).toContain('vs their instant answer: 36h sooner (Exact)');
     expect(t).toContain('Compared with their instant answer');
     // Dates in the viewer's zone, in the runner's locale.
-    expect(t).toMatch(/Instant answer \S+ \S+ 2028, 10:00 pm \(UTC\) · /i);
-    expect(t).toMatch(/Fast \S+ \S+ 2028, 0?5:10 pm \(UTC\) 28h 50m sooner/i);
-    expect(t).toMatch(/Exact this run \S+ \S+ 2028, 10:00 am \(UTC\) 36h sooner/i);
+    expect(t).toMatch(/Instant answer \S+ \S+ 2028, 10:00 PM \(UTC\) · /i);
+    expect(t).toMatch(/Fast \S+ \S+ 2028, 0?5:10 PM \(UTC\) 28h 50m sooner/i);
+    expect(t).toMatch(/Exact this run \S+ \S+ 2028, 10:00 AM \(UTC\) 36h sooner/i);
     expect(t).toMatch(/Custom not run ·/);
     expect(html).toContain('data-testid="run-baseline-exact"');
   });

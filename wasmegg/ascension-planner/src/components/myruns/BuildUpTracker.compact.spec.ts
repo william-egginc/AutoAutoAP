@@ -70,13 +70,13 @@ describe('Compact: a day at a glance', () => {
     const b = block(await render(), '2026-10-30');
     expect(b).toMatch(/<h3[^>]*><button type="button"[^>]*class="[^"]*min-h-\[44px\][^"]*"[^>]*data-testid="buildup-cday-open-2026-10-30"/);
     const head = textOf(b.match(/<h3[\s\S]*?<\/h3>/)![0]);
-    expect(head).toMatch(/^Fri Oct 30 \d+ check-ins · 8:41 am to 10:52 pm next 8:41 am › show this day in the list$/);
+    expect(head).toMatch(/^Fri Oct 30 \d+ check-ins · 8:41 AM to 10:52 PM next 8:41 AM › show this day in the list$/);
   });
-  it('the header of a one-check-in day that holds the next: its time once ("1 check-in · 7:46 am next 7:46 am"; spec-tidy)', async () => {
+  it('the header of a one-check-in day that holds the next: its time once ("1 check-in · 7:46 AM next 7:46 AM"; spec-tidy)', async () => {
     const before = new Set(result.days.filter(d => d.ymd < '2026-11-01').flatMap(d => d.lines.filter(l => l.tickable).map(l => l.key)));
     const b = block(await render(before), '2026-11-01');
     const head = textOf(b.match(/<h3[\s\S]*?<\/h3>/)![0]);
-    expect(head).toMatch(/^Sun Nov 1 1 check-in next \d+:\d\d [ap]m › show this day in the list$/);
+    expect(head).toMatch(/^Sun Nov 1 1 check-in next \d+:\d\d [AP]M › show this day in the list$/);
   });
   it('bold kinds as chips in the lines\' words without "buy"; sale on and off as quiet chips', async () => {
     const html = await render();
@@ -89,12 +89,12 @@ describe('Compact: a day at a glance', () => {
         'Planet Portal in hab slot 1',
         'train cars: all 17 trains to 8',
         'silos #2-5',
-        'sale starts 10:00 am',
+        'sale starts 10:00 AM',
       ])
     );
     expect(fri.some(c => c.startsWith('buy '))).toBe(false);
-    expect(chips(block(html, '2026-10-31'))).toContain('sale ends 10:00 am');
-    expect(chips(block(html, '2026-11-01'))).toEqual(['last Sunday check-in: collect, then go offline until Mon 10:01 am (26 h 15 min)']);
+    expect(chips(block(html, '2026-10-31'))).toContain('sale ends 10:00 AM');
+    expect(chips(block(html, '2026-11-01'))).toEqual(['last Sunday check-in: collect, then go offline until Mon 10:01 AM (26 h 15 min)']);
   });
   it('research: one range per research over the whole day, in a grid (1 column on a phone, 3 wider)', async () => {
     const b = block(await render(), '2026-10-30');
@@ -107,7 +107,7 @@ describe('Compact: a day at a glance', () => {
   });
   it('warnings and notes in full; the waits left out', async () => {
     const html = await render();
-    expect(textOf(block(html, '2026-10-31'))).toContain('Tight: the sale ends at 10:00 am. Buy this first: after that it costs 3.3 times as much.');
+    expect(textOf(block(html, '2026-10-31'))).toContain('Tight: the sale ends at 10:00 AM. Buy this first: after that it costs 3.3 times as much.');
     expect(textOf(block(html, '2026-10-30'))).toContain('set swap left out: sets are swapped only on Humility (the plan had it on Resilience)');
     expect(textOf(html)).not.toContain('wait for the sale');
   });

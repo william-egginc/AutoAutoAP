@@ -25,24 +25,30 @@ export function formatClockRange(fromHour: number, toHour: number, o: { sep?: st
   return o.zone ? `${s} ${o.zone}` : s;
 }
 
-/** The hour and minute of `ms` in IANA `zone` (the viewer's own when unset; UTC for a zone it can't read). */
+const wallFormatters = new Map<string, Intl.DateTimeFormat | null>();
+
+/** The hour and minute of `ms` in IANA `zone` (the viewer's own when unset); null for a zone the browser doesn't know. */
 function wallClock(ms: number, zone: string | undefined): { hour: number; minute: number } | null {
   const d = new Date(ms);
   if (isNaN(d.getTime())) return null;
-  const read = (timeZone: string | undefined) => {
-    const p: Record<string, string> = {};
-    const f = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
-    for (const x of f.formatToParts(d)) p[x.type] = x.value;
-    return { hour: Number(p.hour) % 24, minute: Number(p.minute) };
-  };
-  try {
-    return read(zone);
-  } catch {
-    return read('UTC');
+  const key = zone ?? '';
+  if (!wallFormatters.has(key)) {
+    let f: Intl.DateTimeFormat | null;
+    try {
+      f = new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+    } catch {
+      f = null;
+    }
+    wallFormatters.set(key, f);
   }
+  const f = wallFormatters.get(key);
+  if (!f) return null;
+  const p: Record<string, string> = {};
+  for (const x of f.formatToParts(d)) p[x.type] = x.value;
+  return { hour: Number(p.hour) % 24, minute: Number(p.minute) };
 }
 
-/** The clock time of an instant (epoch ms) in `zone`: "3:07 AM", "2:00 PM". '' when it can't be read. */
+/** The clock time of an instant (epoch ms) in `zone`: "3:07 AM", "2:00 PM". '' when it can't be read (an unknown zone). */
 export function clockTimeOf(ms: number, zone?: string): string {
   if (!Number.isFinite(ms)) return '';
   const w = wallClock(ms, zone);

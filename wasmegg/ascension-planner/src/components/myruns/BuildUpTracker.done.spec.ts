@@ -133,13 +133,13 @@ describe('more than 3 done days: the older ones under one line', () => {
 describe('today: the done run in one line, the rest as it was, the cap on lines still to do', () => {
   // The first five boxed lines (8:41 am to 9:01 am) ticked.
   const run = new Set(boxed.slice(0, 5).map(l => l.key));
-  it('"✓ Bought 8:41 am to 9:01 am: …", a 44 px button with aria-expanded; then the next line', async () => {
+  it('"✓ Bought 8:41 AM to 9:01 AM: …", a 44 px button with aria-expanded; then the next line', async () => {
     const html = await render(run);
     const b = button(html, 'buildup-run-2026-10-30');
     expect(b).toMatch(/min-h-\[44px\]/);
     expect(b).toContain('aria-expanded="false"');
     expect(textOf(b)).toBe(
-      '✓ Bought 8:41 am to 9:01 am: Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5), Grav Plating (17 → 18), Autonomous Vehicles (1 → 2), Crystalline Shelling (58 → 84), Telepathic Will (10 → 11); prestige: start the ascension on Curiosity (earnings set on), shift to Kindness ›'
+      '✓ Bought 8:41 AM to 9:01 AM: Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5), Grav Plating (17 → 18), Autonomous Vehicles (1 → 2), Crystalline Shelling (58 → 84), Telepathic Will (10 → 11); prestige: start the ascension on Curiosity (earnings set on), shift to Kindness ›'
     );
     const sec = section(html, '2026-10-30');
     for (const k of run) expect(sec).not.toContain(`data-testid="buildup-tick-${k}"`);
@@ -155,7 +155,7 @@ describe('today: the done run in one line, the rest as it was, the cap on lines 
     const gap = new Set([boxed[0].key, boxed[1].key, boxed[6].key]);
     const sec = section(await render(gap), '2026-10-30');
     expect(sec).toMatch(new RegExp(`<li class="[^"]*text-slate-500[^"]*"[^>]*>[\\s\\S]*?data-testid="buildup-tick-${boxed[6].key.replace(':', '\\:')}"`));
-    expect(textOf(button(sec, 'buildup-run-2026-10-30'))).toMatch(/^✓ Bought 8:41 am to 8:42 am: /);
+    expect(textOf(button(sec, 'buildup-run-2026-10-30'))).toMatch(/^✓ Bought 8:41 AM to 8:42 AM: /);
   });
   it('the cap counts lines still to do: 8 of them, then "Show all N still to do"', async () => {
     const html = await render(run);
