@@ -90,7 +90,12 @@ export function howFar(
   const rel = rounded && /^in \d+[hm]\b/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
   const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
   const spare =
-    e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare before this date${rounded ? ", on the instant answer's plan" : ''}` : '';
+    e.kind === 'goal' && typeof e.spareHours === 'number'
+      ? e.spareHours < 0
+        ? // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
+          ` · ${spareWords(-e.spareHours)} after this date${rounded ? ", on the instant answer's plan" : ''}`
+        : ` · ${spareWords(e.spareHours)} spare before this date${rounded ? ", on the instant answer's plan" : ''}`
+      : '';
   return base + spare;
 }
 
