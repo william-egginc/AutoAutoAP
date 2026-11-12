@@ -355,7 +355,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' · ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></template>
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -576,7 +576,7 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' · ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></template>
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
