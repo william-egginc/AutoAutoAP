@@ -77,7 +77,8 @@ describe('the save strip on the Auto Planner screens', () => {
 
   it('the newest save on the server: says so, no reload offered', async () => {
     requestSave.mockResolvedValue({ backup: backupAt(NOW - 12 * H) });
-    loadSave(NOW - 12 * H);
+    // The banner (and its Details) only with under 6 h of silos left (spec-myruns-fix): a farm that last ran 22 h ago.
+    loadSave(NOW - 12 * H, NOW - 22 * H);
     const { s, stop } = mountStrip();
     await settle();
     expect(s.server.value.kind).toBe('newest');

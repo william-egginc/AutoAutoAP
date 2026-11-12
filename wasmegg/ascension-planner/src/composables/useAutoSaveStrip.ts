@@ -17,7 +17,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { saveState } from '@/lib/saveFreshness';
+import { saveBannerState } from '@/lib/saveBanner';
 import { QUIET_CHECK_MIN_AGE_S } from '@/lib/serverSave';
 import { useServerSave } from './useServerSave';
 
@@ -39,7 +39,8 @@ export function useAutoSaveStrip(o: { now: Ref<number> }) {
     ready: computed(() => loadedSeconds.value > 0 && initial.hasData && !ui.loading),
     now: o.now,
   });
-  const state = computed(() => (clock.value ? saveState({ ...clock.value, nowSeconds: o.now.value, zone: zone.value }) : null));
+  // Amber or red only with under 6 h of silos left (lib/saveBanner.ts, Jordan 12 Nov 2026).
+  const state = computed(() => (clock.value ? saveBannerState({ ...clock.value, nowSeconds: o.now.value, zone: zone.value }) : null));
   const shown = computed(
     () =>
       !!state.value &&
