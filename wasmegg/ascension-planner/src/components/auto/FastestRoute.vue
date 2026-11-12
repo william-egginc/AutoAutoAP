@@ -30,8 +30,8 @@
     <YourSetup screen="fastest" issues-only />
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
-         where the Setup pill is mounted (a player ID). -->
-    <div v-if="initialState.playerId" class="flex justify-end">
+         where the Setup pill is mounted (a player ID). Left on phones, right from sm up: the fixed Setup pill (bottom-right) covered it at 390 px. -->
+    <div v-if="initialState.playerId" class="flex justify-start sm:justify-end">
       <FiltersButton />
     </div>
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
