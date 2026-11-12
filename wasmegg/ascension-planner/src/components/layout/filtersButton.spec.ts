@@ -2,8 +2,9 @@
  * THE FILTERS BUTTON (Jordan, 12 Nov 2026: "a Filters button that opens Setup, like Joo's page has"): his own ask, so a
  * visible slot, not in More. layout/FiltersButton.vue, the bar's small-button style (Change player's), 44 px at every
  * width, a real button with a name, aria-expanded and aria-haspopup="dialog". It opens the floating Setup
- * (auto/SetupDock.vue's panel, ui.setupOpen). After the Auto Planner tabs and beside My runs' title, only where
- * SetupDock is mounted. The word is in lib/layoutWords.ts.
+ * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795): ON the instant answer
+ * card of Fastest and of By a date, at its top right, as Joo's page has it; no longer after the Auto Planner tabs or
+ * beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,16 +47,24 @@ describe('the button', () => {
 });
 
 describe('where it sits', () => {
-  it('App: after the Auto Planner tabs, only when Setup is there (playerId and not loading)', () => {
+  it('the instant answer card (InstantRoute.vue, Fastest and By a date): at the right of its heading row, only with a player ID', () => {
+    const t = tplOf(read('components/auto/InstantRoute.vue'));
+    const main = t.slice(t.indexOf('<section v-if="!noTable"'), t.indexOf('<InstantPointer'));
+    expect(main).toContain('<FiltersButton v-if="initialState.playerId"');
+    expect(main.indexOf('<FiltersButton')).toBeGreaterThan(main.indexOf('</h3>'));
+    const none = t.slice(t.indexOf('data-testid="instant-no-table"'));
+    expect(none.slice(0, none.indexOf('<InstantPointer'))).toContain('<FiltersButton v-if="initialState.playerId"');
+    // Both screens draw this card.
+    expect(read('components/auto/FastestRoute.vue')).toContain('<InstantRoute');
+    expect(read('components/auto/DeadlinePanel.vue')).toContain('<InstantRoute');
+  });
+  it('not beside the Auto Planner tabs, not beside My runs\' title (one place: the card)', () => {
     const app = read('App.vue');
     const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');
-    const nav = tpl.slice(tpl.indexOf('aria-label="Site"'), tpl.indexOf("v-else-if=\"plannerTab === 'science'\"", tpl.indexOf('aria-label="Site"')));
-    expect(nav).toContain('<FiltersButton v-if="!loading"');
-    expect(nav.indexOf('<FiltersButton')).toBeGreaterThan(nav.indexOf('v-for="v in autoTabs"'));
-  });
-  it('My runs: beside the title, only when Setup is there', () => {
-    const view = tplOf(read('components/MyRunsView.vue'));
-    const title = view.slice(view.indexOf('data-region="title"'), view.indexOf('<TeOverrideBanner'));
-    expect(title).toContain('<FiltersButton v-if="playerId && !loading"');
+    expect(tpl).not.toContain('<FiltersButton');
+    expect(app).not.toContain("import FiltersButton");
+    const view = read('components/MyRunsView.vue');
+    expect(tplOf(view)).not.toContain('<FiltersButton');
+    expect(view).not.toContain('import FiltersButton');
   });
 });

@@ -63,6 +63,12 @@ describe('the answer card (InstantRoute.vue) with a More', () => {
     const src = read('auto/InstantRoute.vue');
     expect(src).toContain('return props.moreTo ? false : countLit(r);');
   });
+  it('Filters sits on the card, right of its heading (Jordan, 13 Nov 2026; both screens draw this card), not beside the tabs', () => {
+    const head = t.slice(t.indexOf('<section v-if="!noTable"'), t.indexOf('<InstantPointer'));
+    expect(head.indexOf('<FiltersButton')).toBeGreaterThan(head.indexOf('</h3>'));
+    const app = read('../App.vue');
+    expect(app.slice(0, app.indexOf('<script setup'))).not.toContain('<FiltersButton');
+  });
   it('the main Follow is filled; a plain one is not', async () => {
     setActivePinia(createPinia());
     const main = await renderHtml(FollowButton, { chain: [200, 490], goalKey: 'fastest-490', from: 'answer', main: true, primary: true });

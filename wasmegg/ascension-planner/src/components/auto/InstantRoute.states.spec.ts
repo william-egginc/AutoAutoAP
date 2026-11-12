@@ -259,6 +259,8 @@ function ctxOf(s: State): Record<string, unknown> {
     spareOf: (d: { end: number }) => (deadline ?? 0) - d.end,
     status: s.status,
     store: { currentTE: 250, finalTE: 300, startWait: s.saveWait ? { since: 1 } : null },
+    // The Filters button's gate (a player ID, where the Setup pill is mounted; Jordan, 13 Nov 2026).
+    initialState: { playerId: 'EI0000000000000000' },
     target: s.deadline ? 490 : 300,
     useHours: s.hours,
     noPrestigeOn: false,

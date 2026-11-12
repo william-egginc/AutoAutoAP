@@ -29,10 +29,8 @@
        the one closed More with everything else in its old order (Change route, your eggs, the saved answer, Try next,
        the routes at a glance, Your runs), then the footer. -->
   <div class="space-y-3 pb-16" data-testid="my-runs">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2" data-region="title">
+    <div data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
-      <!-- Opens Setup (layout/FiltersButton.vue), where App mounts the Setup pill. -->
-      <FiltersButton v-if="playerId && !loading" />
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -397,7 +395,6 @@ import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
-import FiltersButton from '@/components/layout/FiltersButton.vue';
 import PlayerLine from './myruns/PlayerLine.vue';
 import { playerTeOf } from '@/lib/playerTe';
 import { useInitialStateStore } from '@/stores/initialState';

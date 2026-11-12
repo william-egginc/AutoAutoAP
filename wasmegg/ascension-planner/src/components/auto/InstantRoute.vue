@@ -36,7 +36,7 @@
           >your gear</span
         >
       </h3>
-      <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
+      <span class="ml-auto inline-flex items-center gap-x-2">
         <span v-if="ms !== null && !moreTo" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
         <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
              2026: it was a lone pill above the card). 44 px on a phone. -->
@@ -50,6 +50,9 @@
         >
           Hide
         </button>
+        <!-- Filters opens Setup (layout/FiltersButton.vue), on this card at its top right, as Joo's page has it (Jordan,
+             13 Nov 2026); only where the Setup pill is mounted (a player ID). -->
+        <FiltersButton v-if="initialState.playerId" />
       </span>
     </div>
     <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save, at the top,
@@ -875,7 +878,10 @@
        instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile; a file newer
        than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
-    <h3 class="text-title font-bold text-slate-900">Instant answer</h3>
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h3 class="text-title font-bold text-slate-900">Instant answer</h3>
+      <FiltersButton v-if="initialState.playerId" class="ml-auto" />
+    </div>
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
@@ -1057,6 +1063,7 @@ import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableName
 import { compositeUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
 import { useAnswersStore } from '@/stores/answers';

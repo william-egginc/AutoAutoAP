@@ -30,6 +30,8 @@ describe('My runs: the regions in their fixed order', () => {
     expect(view).not.toContain('<SaveAgeStrip');
     expect(view).not.toContain('data-testid="my-runs-intro"');
     expect(view).toContain('section="moreMyRuns" :line="MORE_LINE_MYRUNS"');
+    // Filters is on the instant answer card (Fastest, By a date), not beside this title (Jordan, 13 Nov 2026).
+    expect(view).not.toContain('<FiltersButton');
   });
   it('Change route moves from Right now into More (a Teleport to a looked-up element), with "Stop following"', () => {
     const card = tpl(read('myruns/RightNowCard.vue'));
