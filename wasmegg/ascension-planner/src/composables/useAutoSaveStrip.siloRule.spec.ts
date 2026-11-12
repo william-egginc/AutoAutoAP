@@ -131,7 +131,7 @@ describe('the silo line: always with a virtue farm, amber under 30%', () => {
     const { s, stop } = strip(NOW - (S - 0.25 * S), { silos: 10 });
     const l = s.silo.value!;
     expect(l.low).toBe(true);
-    expect(l.text).toMatch(/^Silos are low: they run out about .* \(from your save\)\. The game may have synced since/);
+    expect(l.text).toMatch(/^Silos are low: from your save, they run out about .*\. If you've opened the game since, they've refilled/);
     const html = await renderHtml(SiloLine, { silo: l });
     expect(html).toContain('text-amber-800');
     expect(html).toContain('data-low="true"');
@@ -147,7 +147,7 @@ describe('the silo line: always with a virtue farm, amber under 30%', () => {
   it('already gone by: "they ran out about …", low', () => {
     const { s, stop } = strip(NOW - S - 3 * H, { silos: 10 });
     expect(s.silo.value?.past).toBe(true);
-    expect(s.silo.value?.text).toMatch(/^Silos are low: they ran out about /);
+    expect(s.silo.value?.text).toMatch(/^From your save, your silos ran out about /);
     stop();
   });
 
