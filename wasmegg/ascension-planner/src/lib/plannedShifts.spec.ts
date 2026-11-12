@@ -126,7 +126,7 @@ describe('where the count is shown', () => {
     const base = { eggs: [], facts: null, shiftsDone: 100, nextShiftCost: null, clothedEquipped: null, clothedEarnings: null, now: T0, saveSeconds: T0 };
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 40, cost: 1e18, opening: 24 } }));
     expect(t).toContain('40 shifts');
-    expect(t).toContain('about 24 of them build-up shifts (estimated)');
+    expect(t).toContain('including about 24 build-up shifts (estimated)');
     const none = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 12, cost: 1e18, opening: 0 } }));
     expect(none).not.toContain('build-up shifts (estimated)');
   });

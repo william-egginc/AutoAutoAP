@@ -18,7 +18,7 @@ describe('the Right now card’s words', () => {
     expect(howFar(ev({ at: NOW + 80 * 60 }), NOW, ZONE)).toBe('today, in 1h 20m');
     expect(howFar(ev({ at: NOW + 18 * 3600 + 35 * 60 }), NOW, ZONE)).toBe('tomorrow, in 18h 35m');
     expect(howFar(ev({ at: NOW + 2 * 86400 }), NOW, ZONE)).toBe('in 2d');
-    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271d · 16h 48m spare');
+    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271d · 16h 48m spare before this date');
     expect(howFar(ev({ past: true }), NOW, ZONE)).toBe('passed');
   });
 
@@ -142,5 +142,12 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
     const t = nextStepText([p, shift], 'fastest', NOW, ZONE, false);
     expect(t.startsWith('Shift to Humility')).toBe(true);
     expect(t).toContain('then prestige at 222 TE');
+  });
+});
+
+describe('the goal row says what the spare is measured against (Jordan, 12 Nov 2026)', () => {
+  it('names the date, and for the instant answer the plan it comes from', () => {
+    const e = ev({ at: NOW + 244 * 86400, kind: 'goal', spareHours: 65 });
+    expect(howFar(e, NOW, ZONE, true)).toBe("in 244d · 2d 17h spare before this date, on the instant answer's plan");
   });
 });

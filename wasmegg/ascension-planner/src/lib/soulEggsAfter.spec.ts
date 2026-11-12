@@ -33,7 +33,7 @@ describe('soulEggsAfterLine (lib/soulEggs.ts)', () => {
   it('says how many of the shifts are the estimated build-up shifts', () => {
     const line = soulEggsAfterLine({ soulEggs: SE, done: 0, planned: { count: 48, opening: 24 } })!;
     expect(line.text).toMatch(
-      /^You'll have about \d+\.\ds soul eggs left when this plan is done \(about \d+\.\d[a-zA-Z]+ goes on 48 shifts · about 24 of the 48 are build-up shifts, estimated\)$/
+      /^You'll have about \d+\.\ds soul eggs left when this plan is done \(about \d+\.\d[a-zA-Z]+ goes on 48 shifts, including about 24 build-up shifts \(estimated\)\)$/
     );
   });
 

@@ -78,7 +78,8 @@ export function soulEggsAfterLine(p: {
   const spent = given != null && Number.isFinite(given) && given >= 0 ? given : plannedShiftsCost(se, done, count);
   const left = Math.max(0, se - spent);
   const opening = p.planned.opening ?? 0;
-  const est = opening > 0 ? ` · about ${opening} of the ${count} are build-up shifts, estimated` : '';
+  // Build-up shifts cost soul eggs like any other: said as included, never as a separate or free group (Jordan, 12 Nov 2026).
+  const est = opening > 0 ? `, including about ${opening} build-up shift${opening === 1 ? '' : 's'} (estimated)` : '';
   const tail = count === 0 ? 'no shifts planned' : `about ${formatNumber(spent, 1)} goes on ${count} shift${s(count)}${est}`;
   return {
     text: `You'll have about ${formatNumber(left, 1)} soul eggs left when this plan is done (${tail})`,
@@ -99,8 +100,8 @@ export function plannedShiftsWords(p: { count: number; cost: number; opening?: n
   const tail =
     opening > 0
       ? count === 1
-        ? ', a build-up shift (estimated)'
-        : `, about ${opening} of them ${opening === 1 ? 'a build-up shift' : 'build-up shifts'} (estimated)`
+        ? ', including a build-up shift (estimated)'
+        : `, including about ${opening} build-up ${opening === 1 ? 'shift' : 'shifts'} (estimated)`
       : p.partial
         ? ", the shifts listed, without each new ascension's first hours"
         : '';

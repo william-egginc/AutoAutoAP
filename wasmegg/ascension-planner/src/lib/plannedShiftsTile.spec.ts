@@ -26,15 +26,15 @@ describe('plannedShiftsWords (lib/soulEggs.ts)', () => {
     const p = planned(41, 18);
     expect(plannedShiftsWords(p)).toEqual({
       value: '41 shifts',
-      note: `will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), about 18 of them build-up shifts (estimated)`,
+      note: `will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), including about 18 build-up shifts (estimated)`,
     });
   });
   it('no build-up part without estimated shifts; singular', () => {
     const p = planned(12);
     expect(plannedShiftsWords(p).note).toBe(`will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices)`);
     expect(plannedShiftsWords(planned(1)).value).toBe('1 shift');
-    expect(plannedShiftsWords(planned(5, 1)).note).toMatch(/, about 1 of them a build-up shift \(estimated\)$/);
-    expect(plannedShiftsWords(planned(1, 1)).note).toMatch(/, a build-up shift \(estimated\)$/);
+    expect(plannedShiftsWords(planned(5, 1)).note).toMatch(/, including about 1 build-up shift \(estimated\)$/);
+    expect(plannedShiftsWords(planned(1, 1)).note).toMatch(/, including a build-up shift \(estimated\)$/);
   });
   it("the instant answer's shifts only: says what is left out", () => {
     expect(plannedShiftsWords(planned(12, 0, true)).note).toMatch(
@@ -68,7 +68,7 @@ describe('YourEggs renders it', () => {
     const p = planned(41, 18);
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: p }));
     expect(t).toContain(
-      `All planned shifts 41 shifts will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), about 18 of them build-up shifts (estimated)`
+      `All planned shifts 41 shifts will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), including about 18 build-up shifts (estimated)`
     );
   });
 });
