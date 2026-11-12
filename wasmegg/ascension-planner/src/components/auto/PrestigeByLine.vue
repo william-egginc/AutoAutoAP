@@ -16,7 +16,7 @@
   >
     <p class="text-body text-slate-800">
       <span
-        class="mr-1 inline-block px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 label"
+        class="mr-1 inline-block max-w-full truncate max-[359px]:whitespace-normal align-top px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 text-small font-bold"
         :title="EVIDENCE"
         data-testid="prestige-by-tag"
         >Experimental · needs more data</span
@@ -32,7 +32,9 @@
     <!-- How it is worked out, the hours note and the evidence: folded under one "Why? ›" (Jordan, 25 Oct 2026; one line
          per number, the rest behind Why, as under the answer itself: AnswerCaveatLine.vue). Its "›" is the marker, as
          there: no browser triangle too ("▶ Why? ›"), and the tag above is one chip that never breaks across lines
-         (spec-tidy). -->
+         (spec-tidy; spec-tidy-chip: in sentence case at the small size, since in the caps label it was 265 px wide in
+         Linux WebKit's font against a 264 px row at 390 px, and broke as "…NEEDS MORE / DATA"; it may wrap only under
+         360 px, where the row is narrower than the tag in any font and wrapping beats an ellipsis). -->
     <details data-testid="prestige-by-why">
       <summary
         class="list-none [&::-webkit-details-marker]:hidden cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0 text-body font-bold text-violet-800 underline decoration-dotted underline-offset-2"

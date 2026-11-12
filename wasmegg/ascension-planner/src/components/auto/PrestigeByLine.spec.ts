@@ -113,3 +113,28 @@ describe('PrestigeByLine: "Working out…" for at most ~20 s (UX review 26 Oct 2
     expect(src).toContain(`v-if="status === 'running' && working"`);
   });
 });
+
+describe('PrestigeByLine: the Experimental tag stays on one line on a 390 px phone in any font (QA t203, 12 Nov 2026)', () => {
+  // jsdom has no layout, so this pins the structure; harness-r7/tidy/chip-check.mjs measures it in WebKit and Chrome.
+  // In caps (.label, 0.08em tracking) the tag is 265 px wide in Verdana / Linux WebKit's fallback font, against a
+  // 264 px row in the instant answer box at 390 px: it broke as "EXPERIMENTAL · NEEDS MORE / DATA" (260x36).
+  it('one unbreakable chip: no wrapping inside it, never wider than its row, and not in the wide caps style', async () => {
+    const html = await renderHtml(PrestigeByLine, { line: LINE, status: 'done' });
+    const tag = html.match(/<span[^>]*data-testid="prestige-by-tag"[^>]*>/)?.[0] ?? '';
+    expect(tag).not.toBe('');
+    const cls = (tag.match(/\sclass="([^"]*)"/)?.[1] ?? '').split(/\s+/);
+    expect(cls).toContain('inline-block');
+    // The text never breaks inside the chip (truncate = nowrap, and an ellipsis only in a font wider still), and the
+    // clipped box sits on the line's top (an overflow-hidden inline-block's baseline is its bottom edge).
+    expect(cls).toContain('truncate');
+    expect(cls).toContain('align-top');
+    // Under 360 px (a 320 px phone: a 194 px row, narrower than the tag in any font) it wraps rather than clip "data".
+    expect(cls).toContain('max-[359px]:whitespace-normal');
+    expect(cls.filter(c => /whitespace-normal/.test(c))).toEqual(['max-[359px]:whitespace-normal']);
+    expect(cls).toContain('max-w-full');
+    // Sentence case, the small badge size: about a fifth narrower than the caps label.
+    expect(cls).not.toContain('label');
+    expect(cls).toContain('text-small');
+    expect(cls).toContain('font-bold');
+  });
+});
