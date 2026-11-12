@@ -91,12 +91,19 @@ export function howFar(
   const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
   const spare =
     e.kind === 'goal' && typeof e.spareHours === 'number'
-      ? e.spareHours < 0
-        ? // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
-          ` · ${spareWords(-e.spareHours)} after this date${rounded ? ", on the instant answer's plan" : ''}`
-        : ` · ${spareWords(e.spareHours)} spare before this date${rounded ? ", on the instant answer's plan" : ''}`
+      ? (() => {
+          // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
+          const s = spareSide(e.spareHours);
+          return ` · ${s.size} ${s.late ? 'after' : 'spare before'} this date${rounded ? ", on the instant answer's plan" : ''}`;
+        })()
       : '';
   return base + spare;
+}
+
+/** A spare that may be negative, as a side and a size: `late` when the route lands after the date (the goal row's
+ *  "5d 20h after this date", the saved tile's "5d 20h after the date"). */
+export function spareSide(hours: number): { late: boolean; size: string } {
+  return { late: hours < 0, size: spareWords(Math.abs(hours)) };
 }
 
 /** "16h 48m", "2d 2h" (lib/duration); a negative spare reads its size (the caller says behind). */

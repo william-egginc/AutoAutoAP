@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { dateAt, dayWords } from '@/lib/eventWhen';
-import { spareWords, whenAgo } from '@/lib/nowWords';
+import { spareSide, whenAgo } from '@/lib/nowWords';
 import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '@/lib/savedTiles';
 import { secondaryLine } from '@/lib/currentAnswer';
 import { NAMES, fastestName } from '@/lib/siteNav';
@@ -122,7 +122,11 @@ const headline = computed(() => {
 });
 const sub = computed(() => {
   if (!a.value) return '';
-  if (props.goal === 'date') return a.value.spareHours != null ? `${spareWords(a.value.spareHours)} spare` : 'by the date';
+  if (props.goal === 'date') {
+    if (a.value.spareHours == null) return 'by the date';
+    const s = spareSide(a.value.spareHours);
+    return s.late ? `${s.size} after the date` : `${s.size} spare`;
+  }
   const n = a.value.chain.length;
   return `${n} ascension${n === 1 ? '' : 's'}`;
 });
