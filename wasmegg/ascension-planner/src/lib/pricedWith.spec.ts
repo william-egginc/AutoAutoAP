@@ -28,7 +28,7 @@ describe('pricedWithLine', () => {
   });
 
   it('hours: noon and midnight, and days as runs', () => {
-    expect([0, 11, 12, 13, 23].map(hour12)).toEqual(['12:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '11:00 PM']);
+    expect([0, 11, 12, 13, 23].map(h => hour12(h, 'en-US'))).toEqual(['12:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '11:00 PM']);
     expect(hoursWords({ days: [0, 6], fromHour: 10, toHour: 22, timezone: tz })).toBe(
       'awake hours 10:00 AM to 10:00 PM on Sun, Sat'
     );
