@@ -16,18 +16,36 @@ export const SAVE_LOW_SILOS_DO = 'Open Egg, Inc. so it syncs, then load a fresh 
 /** The whole blurb, one paragraph. */
 export const SAVE_LOW_SILOS_WORDS = `${SAVE_LOW_SILOS_LEAD} ${SAVE_LOW_SILOS_DO}`;
 
-/** Hours of silo time under which the save banner shows. Must equal lib/saveBanner.ts SAVE_BANNER_SILO_HOURS (a spec pins it;
- *  this file can't import saveBanner, which imports it). */
-export const SAVE_BANNER_SILO_HOURS_WORDS = 6;
+/** The silo line turns amber with under this share of the silos' time left (Jordan, 12 Nov 2026), as a percent. UI's rule is
+ *  the source; this only says it in Details. */
+export const SILO_AMBER_PERCENT_WORDS = 30;
 
 /**
- * The thresholds sentence behind "Details" (moved out of lib/saveFreshness.ts, which is hashed, 12 Nov 2026), reworded the
- * same day for the new rule: the banner shows only when the silos are low AND the save is old (lib/saveBanner.ts).
- * `yellow` / `red`: where Getting old and Out of date start, already as words (lib/saveAge.ts `ageWords`); `clockRight`:
- * the clock-behind state's ending.
+ * THE SILO LINE (12 Nov 2026, Jordan: a small silo tracker as of the save, always shown with a virtue farm, amber under 30%
+ * of the silos' time). `when`: when the silos run out, as the app writes times ("Nov 12 at 2:40 PM", lib/eventWhen.ts
+ * `dateAt`); `past`: that time has gone by; `low`: the amber state. It goes by the save, so the low one says the game may
+ * have synced since. Colour is never alone: the low one says "low".
+ *   normal: "Silos run out about Nov 12 at 2:40 PM (from your save)"   ("Silos ran out about … (from your save)")
+ *   low:    "Silos are low: they run out about Nov 12 at 2:40 PM (from your save). The game may have synced since, so it
+ *            may be later."   (past: "Silos are low: they ran out about … (from your save). The game may have synced since,
+ *            so they may have more time now.")
+ */
+export function siloLine(o: { when: string; past?: boolean; low?: boolean }): string {
+  const ran = o.past ? 'ran out' : 'run out';
+  if (!o.low) return `Silos ${ran} about ${o.when} (from your save)`;
+  const tail = o.past
+    ? 'The game may have synced since, so they may have more time now.'
+    : 'The game may have synced since, so it may be later.';
+  return `Silos are low: they ${ran} about ${o.when} (from your save). ${tail}`;
+}
+
+/**
+ * The thresholds sentences behind "Details" (moved out of lib/saveFreshness.ts, which is hashed; saveBanner.ts swaps this
+ * in for its older "Getting old after…" line). `yellow` / `red`: where Getting old and Out of date start, already as words
+ * (lib/saveAge.ts `ageWords`); `clockRight`: the clock-behind state's ending.
  */
 export function thresholdsDetail(yellow: string, red: string, clockRight = false): string {
-  return `The banner shows only when your silos have under ${SAVE_BANNER_SILO_HOURS_WORDS} hours left and your save is getting old (after ${yellow}) or out of date (after ${red}). The same lines apply to the silo time used${clockRight ? ', once your clock is right' : ''}.`;
+  return `Getting old after ${yellow}, out of date after ${red}, by your save's age${clockRight ? ' once your clock is right' : ''}. The silo line turns amber when your silos have under ${SILO_AMBER_PERCENT_WORDS}% of their time left. Both go by your save, so the game may have synced since.`;
 }
 
 /** The quiet line's word for a screen reader (the banner isn't showing): the save's age, not "Up to date" (a 16 h old save
