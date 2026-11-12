@@ -3,7 +3,8 @@
   lib/playerLineWords.ts `playerLine`. Claimed and pending TE from the save (lib/playerTe.ts), Clothed TE the value Your
   eggs shows. The full line when it fits on one line; where it doesn't (measured, e.g. a long name with pending TE at
   390 px), the short form with "CTE" and its "?" (CLOTHED_TE_TIP). Each part stays whole, so a line breaks only at a
-  dot. Without the TE values: the name alone. The silo line (layout/SiloLine.vue) beside it from lg, under it below.
+  dot. The name at heading size (text-title, bold; Jordan, 13 Nov 2026), the TE parts body size. Without the TE
+  values: the name alone. The silo line (layout/SiloLine.vue) beside it from lg, under it below.
 -->
 <template>
   <div ref="row" class="relative flex flex-col gap-y-0.5 lg:flex-row lg:flex-wrap lg:items-baseline lg:gap-x-4" data-testid="player-line-row">
@@ -14,7 +15,7 @@
           ><PartsOf :parts="partsOf(true)" />{{ ' ' }}<HelpTip>{{ CLOTHED_TE_TIP }}</HelpTip></span
         >
       </template>
-      <b v-else>{{ name }}</b>
+      <b v-else class="text-title font-bold text-slate-900">{{ name }}</b>
     </p>
     <!-- The full line on one line, out of sight in a 0 px box (no page scroll), to measure whether it fits. -->
     <span v-if="te" class="invisible absolute left-0 top-0 h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true"
@@ -43,7 +44,8 @@ const props = defineProps<{
 
 /** The TE values are all here: otherwise no TE line. */
 const te = computed(() => props.claimed != null && props.clothed != null && Number.isFinite(props.clothed));
-/** playerLine's own words, split at its dots so each part stays whole (the name bold). */
+/** playerLine's own words, split at its dots so each part stays whole (the name at heading size, Jordan 13 Nov 2026;
+ *  the TE parts stay body size). */
 function partsOf(short: boolean): string[] {
   return playerLine({ name: props.name, claimed: props.claimed ?? 0, pending: props.pending, clothed: props.clothed, short }).split(' · ');
 }
@@ -52,7 +54,9 @@ const PartsOf = defineComponent({
   setup: p => () =>
     p.parts.flatMap((part, i) => [
       ...(i ? [' · '] : []),
-      h(i === 0 && props.name ? 'b' : 'span', { class: 'whitespace-nowrap' }, part),
+      i === 0 && props.name
+        ? h('b', { class: 'whitespace-nowrap text-title font-bold text-slate-900' }, part)
+        : h('span', { class: 'whitespace-nowrap' }, part),
     ]),
 });
 

@@ -58,6 +58,20 @@ describe('PlayerLine', () => {
     expect(src).toContain('short.value = probe.value.offsetWidth > row.value.clientWidth;');
     expect(src).toContain('new ResizeObserver(fit)');
   });
+  it('the name at heading size (text-title, bold; Jordan, 13 Nov 2026), the TE parts staying body size', async () => {
+    setActivePinia(createPinia());
+    for (const p of [{ claimed: 197, pending: 2, clothed: 328.4 }, { claimed: null, pending: 0, clothed: null }]) {
+      const html = await renderHtml(PlayerLine, { name: 'Williamthe5thc', silo: null, ...p });
+      const nameTag = html.match(/<(b|span)[^>]*>Williamthe5thc</)?.[0] ?? '';
+      expect(nameTag, JSON.stringify(p)).toMatch(/\btext-title\b/);
+      expect(nameTag).toMatch(/\bfont-bold\b/);
+      if (p.claimed != null) {
+        const te = html.match(/<span[^>]*>197 claimed TE</)?.[0] ?? '';
+        expect(te).not.toMatch(/text-title/);
+        expect(html).toMatch(/<p [^>]*class="[^"]*\btext-body\b[^"]*"[^>]*data-testid="player-line"/);
+      }
+    }
+  });
   it('the silo line beside it from lg, under it below', async () => {
     const tpl = tplOf(read('components/myruns/PlayerLine.vue'));
     expect(tpl).toMatch(/data-testid="player-line-row"/);
