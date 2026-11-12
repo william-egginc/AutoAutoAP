@@ -498,7 +498,7 @@ const tracker = useBuildUpTracker({
 /** The research buy still to do before Next step's own step, from the tracker's lines (M13, lib/nextAction.ts `nextBuyBefore`):
  *  Next step names it first. None while the tracker is not in (its fold shut, or still working out). */
 const nextBuy = computed(() =>
-  nextBuyBefore(page.nextStep.value, tracker.state.value === 'ready' ? tracker.result.value?.lines : null, tracker.ticks.value)
+  nextBuyBefore(page.nextStep.value, tracker.state.value === 'ready' ? tracker.result.value?.lines : null, tracker.ticks.value, page.now.value)
 );
 /**
  * The Build-up tracker's Try again: the tracker's bounds started again and the simulation asked again. With the stores

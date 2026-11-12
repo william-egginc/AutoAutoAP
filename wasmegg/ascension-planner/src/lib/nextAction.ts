@@ -22,6 +22,7 @@
 import { virtueEggName } from './virtueEggs';
 import { buildLeftWords } from './saveBuild';
 import type { TrackerLine } from './buildUpTracker';
+import { buyWindowWords } from './nextBuyWords';
 
 /** One ascension as these read it: the simulated one (`simulated`) or the table's. */
 export interface ActionLeg {
@@ -153,24 +154,60 @@ function nextActionOf(o: {
 /** The Next step's words: "Shift to Humility on Oct 28, 2026 at 3:12 PM", "Building up until about …", "Prestige on …",
  *  "Reach 490 TE on …" ("on", spec-uxpass item 2, 8 Nov 2026: `when` gives the date AND the time, "Oct 28, 2026 at
  *  3:12 PM", RightNowCard.vue `sentenceWhen`). */
-export function nextActionWords(a: NextAction, when: (t: number) => string, buy?: { at: number } | null): string {
-  const text = nextActionWordsOf(a, when);
-  // The tracker has research to buy before this step (M13, 12 Nov 2026, Jordan: on Curiosity "Shift to Humility" came
-  // over the buys the sale starts at 10:00 am): the buy first, with when it can start. DRAFT words (Words reviews).
-  return buy ? `Buy research from ${when(buy.at)}, then ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
+export function nextActionWords(
+  a: NextAction,
+  when: (t: number) => string,
+  buy?: NextBuy | null,
+  /** Words for the buy window: the clock alone, the weekday, whether two moments are the same day. Absent: `when` only. */
+  fmt?: { clock: (t: number) => string; weekday: (t: number) => string; day: (t: number) => string; sameDay: (a: number, b: number) => boolean }
+): string {
+  // The tracker has research to buy before this step (M13, 12 Nov 2026, Jordan: on Curiosity "Shift to Humility" came over
+  // the buys the sale starts at 10:00 am): the buy window, with when it opens and ends; the step itself is Next shifts'
+  // first line right below, so it is not said again. DRAFT words (Words reviews).
+  if (buy) {
+    const same = !!fmt && fmt.sameDay(buy.at, buy.until);
+    const clock = (t: number) => (fmt ? fmt.clock(t) : when(t));
+    // "2:26 PM" on the day it starts, else with its weekday ("2:26 PM Saturday"); Words' sentence (lib/nextBuyWords.ts).
+    const to = fmt ? (same ? fmt.clock(buy.until) : `${fmt.clock(buy.until)} ${fmt.weekday(buy.until)}`) : when(buy.until);
+    if (buy.sale || buy.open)
+      return buyWindowWords({ day: fmt ? fmt.day(buy.at) : 'the', from: clock(buy.at), to, ...(buy.open ? { open: true } : {}) });
+    return `Buy research from ${same ? clock(buy.at) : when(buy.at)} to ${same ? clock(buy.until) : when(buy.until)}`;
+  }
+  return nextActionWordsOf(a, when);
+}
+
+/** The research buy window ahead of the Next step: when it opens, when it ends (the step, or the sale's end when that is
+ *  earlier), and whether it opens with a sale. */
+export interface NextBuy {
+  at: number;
+  until: number;
+  sale?: boolean;
+  /** It is due now (its start has passed): "Buy research now, until …". */
+  open?: boolean;
 }
 
 /** The first research buy still to do that comes before the Next step (a shift, a prestige or the goal): the tracker's
- *  lines (lib/buildUpTracker.ts), those not ticked, by their planned time. Null when none, or when the step is the
- *  build-up's own ("Building up", "Keep building" already say it). */
+ *  lines (lib/buildUpTracker.ts), those not ticked, by their planned time, as a window that ends at the step or at the
+ *  sale's end, whichever is first. Null when none, or when the step is the build-up's own ("Building up", "Keep
+ *  building" already say it). */
 export function nextBuyBefore(
   a: NextAction | null | undefined,
   lines: readonly TrackerLine[] | null | undefined,
-  ticks: ReadonlySet<string>
-): { at: number } | null {
+  ticks: ReadonlySet<string>,
+  /** Now, unix seconds: a buy already due is `open`. */
+  now?: number
+): NextBuy | null {
   if (!a || !lines || !(a.kind === 'shift' || a.kind === 'prestige' || a.kind === 'goal')) return null;
   const first = lines.find(l => l.kind === 'research' && l.tickable && !ticks.has(l.key) && ok(l.at) && l.at < a.at);
-  return first ? { at: first.at } : null;
+  if (!first) return null;
+  // The sale this buy opens (a sale-start line at its time), or is inside: the buys run in it, so its end can come first.
+  const opens = lines.find(l => l.kind === 'saleStart' && ok(l.at) && Math.abs(l.at - first.at) <= 120);
+  const sale = opens ?? lines.filter(l => l.kind === 'saleStart' && ok(l.at) && l.at <= first.at).pop();
+  const end = sale ? lines.find(l => l.kind === 'saleEnd' && ok(l.at) && l.at > sale.at) : undefined;
+  return { at: first.at, until: end && end.at < a.at ? end.at : a.at,
+    ...(opens ? { sale: true } : {}),
+    ...(typeof now === 'number' && first.at <= now ? { open: true } : {}),
+  };
 }
 
 function nextActionWordsOf(a: NextAction, when: (t: number) => string): string {
