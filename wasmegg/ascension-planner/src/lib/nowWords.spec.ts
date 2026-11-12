@@ -78,11 +78,11 @@ describe('the Setup button’s line', () => {
     expect(stretchWords({ from: '2026-10-27', to: '2026-10-27' }, L)).toBe('Oct 27');
     expect(setupSummary(null, [{ from: '2026-10-29', to: '' }], [{ from: '2026-11-05', to: '2026-11-01' }], L)).toBe('any hour · no time off');
   });
-  it('in the browser’s format: a 24-hour clock and day-first dates', async () => {
+  it('in the browser’s format: a 24-hour clock (en-GB’s own "07:00", 13 Nov 2026) and day-first dates', async () => {
     const { setupSummary } = await import('./nowWords');
     const days = { fromHour: 7, toHour: 23, days: [1, 2, 3, 4, 5], timezone: 'UTC' } as never;
     expect(setupSummary(days, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], 'en-GB')).toBe(
-      '7:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
+      '07:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
     );
     expect(setupSummary(days, [], [], 'en-US')).toBe('7:00 AM–11:00 PM on Mon–Fri · no time off');
   });

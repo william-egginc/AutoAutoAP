@@ -4,10 +4,16 @@
  * .vue, not specs, tests or fixtures) for the old styles so they cannot come back: "10 am", "10 AM", "10:00 am",
  * a hand-made 'am' / 'pm', an Intl "AM" turned into "am", the hour alone on the hour (`shortTime`) and "noon".
  * Code comments (// and block comments, <!-- --> in templates) are left out: they are not player text.
+ *
+ * Since 13 Nov 2026 (Jordan: "follow each person's own device settings / Setup options") the style is the locale's own
+ * (lib/timeStyleWords.ts, Intl's short time): these checks are for en-US, forced below, where the locale's style IS
+ * "9:00 AM". Locale-driven code (Intl output, a lower-case "9:00 am" that en-AU writes itself) is not hand-made text,
+ * so it is not flagged; lib/timeStyleWords.spec.ts holds the other locales.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { clockTimeOf, formatClockRange, formatClockTime } from './timeStyleWords';
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -88,5 +94,17 @@ describe('the one time style ("8:00 AM") everywhere in src', () => {
     expect(caught("s.replace(/[:.]00(?=\\D|$)/, '')")).toHaveLength(1);
     expect(caught('9:00 AM PT, 7:00 AM–1:00 AM, 12:00 PM')).toEqual([]);
     expect(caught('2 amber eggs, 10 amps, 48 sends a day, midnight UTC')).toEqual([]);
+  });
+});
+
+describe('en-US (forced): the writers give "9:00 AM", minutes and capitals', () => {
+  const US = { locale: 'en-US', iso: false } as const;
+  it('whole hours keep ":00", AM / PM in capitals, a PT label after', () => {
+    expect(formatClockTime(9, 0, US)).toBe('9:00 AM');
+    expect(formatClockTime(10, 0, US)).toBe('10:00 AM');
+    expect(formatClockTime(12, 0, US)).toBe('12:00 PM');
+    expect(formatClockTime(9, 0, { ...US, zone: 'PT' })).toBe('9:00 AM PT');
+    expect(formatClockRange(7, 1, US)).toBe('7:00 AM–1:00 AM');
+    expect(clockTimeOf(Date.UTC(2026, 6, 14, 16, 0), 'America/Los_Angeles', US)).toBe('9:00 AM');
   });
 });

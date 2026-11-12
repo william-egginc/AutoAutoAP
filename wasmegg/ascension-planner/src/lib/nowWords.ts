@@ -7,7 +7,7 @@ import { shiftTitle, type PlanEvent } from './nowPlan';
 import { clockWords } from './planPace';
 import { virtueEggName } from './virtueEggs';
 import { hoursShort } from './pricedWith';
-import { formatHourOfDay, formatMoment } from './clock';
+import { formatMoment } from './clock';
 import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
@@ -226,11 +226,9 @@ export function setupSummary(
   noPrestige?: TimeOffDates[] | null,
   locale?: string
 ): string {
-  // hoursShort's 12-hour times ("7:00 AM", once "7 am"), read back as hours in the browser's clock.
-  const hours = hoursShort(availability).replace(
-    /\b(\d{1,2})(?::00)?\s?([AaPp])\.?[Mm]\b\.?/g,
-    (_, n: string, ap: string) => formatHourOfDay((Number(n) % 12) + (ap.toLowerCase() === 'p' ? 12 : 0), locale)
-  );
+  // The hours from the numbers in the player's style (lib/timeStyleWords.ts), never read back from words: a 24-hour
+  // locale's "07:00" has no am/pm to read.
+  const hours = hoursShort(availability, locale);
   const off = usableTimeOff(timeOff);
   const held = usableTimeOff(noPrestige);
   const parts = [hours, off.length ? `time off ${stretchList(off, locale)}` : 'no time off'];
