@@ -5,9 +5,9 @@
        store (set when the save loads, and again by Single run's Generate and this card's Now button),
        shown as it is rather than as a ticking clock the searches would not follow. -->
   <div v-if="!startTimeOverride" class="space-y-2">
-    <label class="text-slate-500 label ml-1">Start Time</label>
+    <label class="text-slate-500 label">Start Time</label>
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-baseline gap-2 flex-wrap px-1">
+      <div class="flex items-baseline gap-2 flex-wrap">
         <span class="text-body font-bold text-slate-800 tabular-nums">{{ startLabel }}</span>
         <span class="text-slate-400 label">Now</span>
       </div>
@@ -15,26 +15,26 @@
         <button
           @click="setStartTimeToNow"
           title="Start from the current time"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
+          class="min-h-[44px] px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
         >
           Now
         </button>
         <button
           @click="addOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
+          class="min-h-[44px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
         >
           Override
         </button>
       </div>
     </div>
-    <p v-if="backupHint" class="text-small font-bold px-1" :class="backupHint.class">
+    <p v-if="backupHint" class="text-small font-bold" :class="backupHint.class">
       {{ backupHint.text }}
     </p>
   </div>
 
   <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
-      <label class="text-slate-500 label ml-1">Start Time</label>
+      <label class="text-slate-500 label">Start Time</label>
       <div class="flex flex-wrap gap-3">
         <input
           :value="startDate"
@@ -53,13 +53,13 @@
       </div>
       <!-- The default is the backup's own timestamp, which is not obvious from a date box that
            simply has a time in it. Said here so "why is this not now?" has an answer in place. -->
-      <p v-if="backupHint" class="text-small font-bold px-1" :class="backupHint.class">
+      <p v-if="backupHint" class="text-small font-bold" :class="backupHint.class">
         {{ backupHint.text }}
       </p>
     </div>
 
     <div class="space-y-2">
-      <label class="text-slate-500 label ml-1">Timezone</label>
+      <label class="text-slate-500 label">Timezone</label>
       <div class="flex flex-wrap gap-2">
         <div class="relative flex-grow min-w-0">
           <select
@@ -74,7 +74,7 @@
         </div>
         <button
           @click="removeOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
+          class="min-h-[44px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
         >
           Remove Override
         </button>
