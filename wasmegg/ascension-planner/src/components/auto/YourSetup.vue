@@ -345,9 +345,9 @@
           </p>
         </fieldset>
 
-        <!-- Time off -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
-          <div id="your-setup-time-off" class="scroll-mt-4"></div>
+        <!-- Time off. The link target is the box itself (an empty anchor div inside took space-y-2's 8 px, so its heading
+             and button sat 8 px below No prestige days' beside it; spec-tidy). -->
+        <fieldset id="your-setup-time-off" :disabled="locked" class="scroll-mt-4 rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
             {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
@@ -637,7 +637,8 @@
                     {{ formatSoulEggs(store.setupFacts.soulEggs) }}
                   </dd>
                 </div>
-                <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
+                <!-- Both, side by side: a reported failure was exactly these two disagreeing. The save's own only when it
+                     differs ("197 · save says 197" said the number twice; spec-tidy). -->
                 <div>
                   <dt class="text-slate-400 label">Starting TE</dt>
                   <dd
@@ -649,7 +650,9 @@
                     "
                   >
                     {{ store.setupFacts.currentTE }}
-                    <span class="font-normal text-slate-400">· save says {{ store.setupFacts.backupTE }}</span>
+                    <span v-if="store.setupFacts.backupTE !== store.setupFacts.currentTE" class="font-normal text-slate-400"
+                      >· save says {{ store.setupFacts.backupTE }}</span
+                    >
                   </dd>
                 </div>
                 <div>

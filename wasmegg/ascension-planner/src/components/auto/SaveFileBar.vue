@@ -9,10 +9,11 @@
   <div class="space-y-1">
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-small" :class="compact ? 'justify-center' : ''">
       <!-- A button, not a heading (ux review 26 Oct, row 19: "LOAD A SAVE FILE" had no button in sight): the label
-           opens the file picker; the input stays focusable (sr-only), so Tab and Enter reach it too. 44 px on phones. -->
+           opens the file picker; the input stays focusable (sr-only), so Tab and Enter reach it too. 44 px on phones. Bold body
+           text like every other button, not the small caps of a heading (spec-tidy). -->
       <label
         class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-indigo-400"
-        :class="[disabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer', compact ? 'text-body font-bold' : 'label']"
+        :class="[disabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer', 'text-body font-bold']"
         data-testid="save-file-load"
       >
         <template v-if="loading">Loading the save<AnimatedDots /></template><template v-else>{{ compact ? 'or load a save file' : 'Load a save file' }}</template>
