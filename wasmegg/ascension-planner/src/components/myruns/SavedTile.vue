@@ -125,7 +125,7 @@ const sub = computed(() => {
   if (props.goal === 'date') {
     if (a.value.spareHours == null) return 'by the date';
     const s = spareSide(a.value.spareHours);
-    return s.late ? `${s.size} after the date` : `${s.size} spare`;
+    return s.late ? `lands ${s.size} after the date` : `${s.size} spare`;
   }
   const n = a.value.chain.length;
   return `${n} ascension${n === 1 ? '' : 's'}`;

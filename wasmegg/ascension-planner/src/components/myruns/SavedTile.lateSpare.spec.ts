@@ -1,5 +1,5 @@
 /** M13 follow-up (12 Nov 2026): a saved date answer can go late once the save moves past its plan start; the tile says how
- *  late ("5d 20h after the date"), not its size as "spare" (lib/nowWords.ts `spareSide`, the same as the goal row). */
+ *  late ("lands 5d 20h after the date"), not its size as "spare" (lib/nowWords.ts `spareSide`, the same as the goal row). */
 import { describe, expect, it } from 'vitest';
 import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import SavedTile from './SavedTile.vue';
@@ -23,7 +23,7 @@ describe('the saved date tile\'s spare', () => {
   });
   it('late: "after the date", never "spare"', async () => {
     const t = textOf(await render(-140));
-    expect(t).toContain('5d 20h after the date');
+    expect(t).toContain('lands 5d 20h after the date');
     expect(t).not.toMatch(/spare/);
   });
   it('in time: as before', async () => {
