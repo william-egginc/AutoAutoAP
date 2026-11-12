@@ -80,6 +80,7 @@ const PARTS = [
   'InstantShareCheck',
   'GearCaveat',
   'InstantUnloaded',
+  'CardHelp',
 ];
 const stub = (name: string) =>
   defineComponent({ name, setup: (_p, { slots }) => () => h('div', { 'data-part': name }, slots.default?.()) });
@@ -401,6 +402,26 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     expect(textOf(await draw(box, { answerStart: 1_792_003_600 }))).toContain(
       'Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600).'
     );
+  });
+  it('the saved answer: ONE line in the heading row, "Saved answer, <when>", its sentence behind the "?", Work it out again beside it (Jordan, 12 Nov 2026)', async () => {
+    const html = (await draw(box, { answerStart: 1_792_003_600 })).replace(/<!--[\s\S]*?-->/g, '');
+    const at = html.indexOf('data-testid="saved-answer"');
+    expect(at).toBeGreaterThan(html.indexOf('</h3>'));
+    // In the heading row: before the row closes and before the green box.
+    const row = html.slice(html.indexOf('<h3'), html.indexOf('data-testid="instant-box"'));
+    expect(row).toContain('data-testid="saved-answer"');
+    const line = html.slice(html.lastIndexOf('<p', at), html.indexOf('</p>', at) + 4);
+    expect(line).not.toMatch(/bg-slate-50|border-slate-200|rounded-lg/);
+    expect(line).toContain('text-small');
+    expect(textOf(line)).toBe(
+      'Saved answer, t1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600). Work it out again'
+    );
+    // Today's sentence inside the "?" (CardHelp), word for word.
+    const help = line.slice(line.indexOf('data-part="CardHelp"'));
+    expect(textOf(help.slice(0, help.indexOf('</div>')))).toContain('Saved from t1792000000: same save, setup and filters');
+    const button = line.match(/<button[^>]*>/)![0];
+    expect(button).toContain('min-h-[44px] sm:min-h-0');
+    expect(button).toContain('focus-visible:ring-2');
   });
   it('Reached … · N ascensions under the route', async () => {
     expect(textOf(await draw(box))).toContain(`Reached t${dateRoute.end} · 5 ascensions`);

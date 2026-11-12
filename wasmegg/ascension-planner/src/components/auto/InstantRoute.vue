@@ -36,6 +36,21 @@
           >your gear</span
         >
       </h3>
+      <!-- The saved answer (the card clean-up, Jordan 12 Nov 2026): one line beside the heading, its sentence behind the
+           "?" word for word (lib/instantCardWords.ts), Work it out again beside it (44 px on a phone). -->
+      <p v-if="savedAt" class="flex flex-wrap items-center gap-x-2 text-small text-slate-500" data-testid="saved-answer">
+        <span>{{ savedAnswerLabel(show(savedAt / 1000)) }}</span
+        >{{ ' '
+        }}<CardHelp>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</CardHelp
+        >{{ ' '
+        }}<button
+          type="button"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-body text-emerald-800 underline hover:text-emerald-900 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          @click="pressRun(true, 'again')"
+        >
+          {{ WORK_IT_OUT_AGAIN }}
+        </button>
+      </p>
       <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
         <span v-if="ms !== null && !moreTo" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
         <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
@@ -52,6 +67,14 @@
         </button>
       </span>
     </div>
+    <!-- Work it out again's warning, right under the heading row it sits in. -->
+    <InstantRunWarning
+      v-if="warnHere(confirming, 'again')"
+      at="again"
+      @go="confirmRun(false)"
+      @remember="confirmRun(true)"
+      @cancel="confirming = null"
+    />
     <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save, at the top,
          whether the instant answer is here, still working or missing. The only thing on this card a search changes. -->
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
@@ -171,27 +194,6 @@
       Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page.
       These routes and dates are not real answers.
     </p>
-    <p
-      v-if="savedAt"
-      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600 flex flex-wrap items-center gap-x-3"
-      data-testid="saved-answer"
-    >
-      <span>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</span>
-      <button
-        type="button"
-        class="font-bold text-body text-emerald-800 underline hover:text-emerald-900"
-        @click="pressRun(true, 'again')"
-      >
-        {{ WORK_IT_OUT_AGAIN }}
-      </button>
-    </p>
-    <InstantRunWarning
-      v-if="warnHere(confirming, 'again')"
-      at="again"
-      @go="confirmRun(false)"
-      @remember="confirmRun(true)"
-      @cancel="confirming = null"
-    />
     <p v-if="!confirming && runBusy && alongside" class="text-body text-slate-500" data-testid="instant-alongside">
       Running alongside your search: this uses more memory.
     </p>
@@ -1102,7 +1104,8 @@ import {
   noPrestigeDayCount,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { WORK_IT_OUT_AGAIN, reachedLine, savedFromSentence } from '@/lib/instantCardWords';
+import { WORK_IT_OUT_AGAIN, reachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
