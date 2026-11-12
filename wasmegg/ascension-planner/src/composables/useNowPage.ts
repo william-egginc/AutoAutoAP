@@ -2098,6 +2098,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       saveSeconds: saveSeconds.value,
       zone: zone.value,
       shifts: nextShiftLines.value,
+      // To the hour unless the plan is exact, as the Full timeline and the goal line (QA, 12 Nov 2026).
+      rounded: cardPlan.value?.plan.exact !== true,
     });
   });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
