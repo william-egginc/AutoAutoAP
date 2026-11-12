@@ -21,8 +21,15 @@ const tpl = src.slice(src.indexOf('<template>'), src.indexOf('<script setup'));
 const tagOf = (id: string) => tpl.slice(tpl.lastIndexOf('<', tpl.indexOf(`testid="${id}"`)), tpl.indexOf('>', tpl.indexOf(`testid="${id}"`)));
 
 describe('the save line never squeezes its text to a sliver', () => {
-  it('the row wraps', () => {
-    expect(tagOf('save-line')).toMatch(/class="[^"]*\bflex flex-wrap\b/);
+  it('a centred column (Jordan, 13 Nov 2026): the name right above Change player, both in the middle of the bar', () => {
+    const line = tagOf('save-line');
+    expect(line).toMatch(/class="[^"]*\bflex flex-col items-center\b/);
+    expect(line).toContain('text-center');
+    expect(tpl.indexOf('testid="save-line-who"')).toBeLessThan(tpl.indexOf('testid="save-line-switch"'));
+    // The name on every screen with the bar, name only: no `who` gate, no TE.
+    expect(tagOf('save-line-who')).not.toContain('v-if');
+    expect(tpl).not.toContain('currentTE');
+    expect(tagOf('save-line-switch')).not.toContain('ml-auto');
   });
   it('the save-age text has a basis and a floor (14rem, or the whole line when narrower), never a zero basis', () => {
     // Out of the bar since 12 Nov 2026 (layout/SaveSide.vue, small, beside Right now): the same rule there.

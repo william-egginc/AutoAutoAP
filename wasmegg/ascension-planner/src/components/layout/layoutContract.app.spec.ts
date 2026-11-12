@@ -25,7 +25,8 @@ describe('App: the regions in their fixed order', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
   it('the save line in place of the chevron on Fastest, By a date and My runs; the chevron stays elsewhere', () => {
-    expect(tpl).toContain(`<SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />`);
+    // The same bar on all three (Jordan, 13 Nov 2026): the name above a centred Change player.
+    expect(tpl).toContain('<SaveLine v-if="saveLineShown" />');
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
     expect(app).toContain("(plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))");
   });
@@ -44,14 +45,17 @@ describe('App: the regions in their fixed order', () => {
 
 describe('the save line', () => {
   beforeEach(() => setActivePinia(createPinia()));
-  it('whose save and its TE (the save age is layout/SaveSide.vue since 12 Nov 2026); the switch-account button always on it (Change player, Close player box while the box is open: layoutContract.saveline.spec.ts)', async () => {
+  it('whose save, the name only (no TE; Jordan, 13 Nov 2026), right above the switch-account button (Change player, Close player box while the box is open: layoutContract.saveline.spec.ts); the save age is layout/SaveSide.vue', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     useInitialStateStore().nickname = 'Williamthe5thc';
     useUIStore().isHeaderCollapsed = true;
     const html = await renderHtml(SaveLine, {}, {}, [pinia]);
     expect(html).toContain('data-region="save-line"');
-    expect(textOf(html)).toContain('Williamthe5thc ·');
+    const who = html.match(/<[^>]*data-testid="save-line-who"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '';
+    expect(textOf(who)).toBe('Williamthe5thc');
+    expect(textOf(html)).not.toContain('TE');
+    expect(html.indexOf('save-line-who')).toBeLessThan(html.indexOf('save-line-switch'));
     // The save age left the bar (12 Nov 2026): layout/SaveSide.vue, under it on Fastest and By a date (saveSide.spec.ts).
     expect(html).not.toContain('data-testid="save-line-age"');
     expect(html).toContain('data-testid="save-line-switch"');

@@ -104,10 +104,11 @@ describe('wiring', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).toContain('<SaveSide :with-silo="false" />');
   });
-  it('the top bar keeps its name off My runs (Change player stays): SaveLine `who`', () => {
+  it('the top bar names the player on My runs too, above Change player (Jordan, 13 Nov 2026: on every screen with the bar)', () => {
     const app = read('App.vue');
-    expect(app).toContain(`<SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />`);
+    expect(app).toContain('<SaveLine v-if="saveLineShown" />');
     const line = read('components/layout/SaveLine.vue');
-    expect(line).toMatch(/<span\s+v-if="who"[^>]*data-testid="save-line-who"/);
+    expect(line).toMatch(/<span\s[^>]*data-testid="save-line-who"/);
+    expect(line).not.toMatch(/v-if="who"/);
   });
 });

@@ -196,7 +196,7 @@
         </button>
       </div>
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
-      <SaveLine v-if="saveLineShown" :who="plannerTab !== 'myruns'" />
+      <SaveLine v-if="saveLineShown" />
       <!-- The save strip and the silo line, small, out of the bar (layout/SaveSide.vue, Jordan 12 Nov 2026). On My runs
            they sit beside Right now instead (MyRunsView.vue). -->
       <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2" />
