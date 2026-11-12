@@ -21,6 +21,7 @@
  */
 import { virtueEggName } from './virtueEggs';
 import { buildLeftWords } from './saveBuild';
+import type { TrackerLine } from './buildUpTracker';
 
 /** One ascension as these read it: the simulated one (`simulated`) or the table's. */
 export interface ActionLeg {
@@ -152,7 +153,27 @@ function nextActionOf(o: {
 /** The Next step's words: "Shift to Humility on Oct 28, 2026 at 3:12 PM", "Building up until about …", "Prestige on …",
  *  "Reach 490 TE on …" ("on", spec-uxpass item 2, 8 Nov 2026: `when` gives the date AND the time, "Oct 28, 2026 at
  *  3:12 PM", RightNowCard.vue `sentenceWhen`). */
-export function nextActionWords(a: NextAction, when: (t: number) => string): string {
+export function nextActionWords(a: NextAction, when: (t: number) => string, buy?: { at: number } | null): string {
+  const text = nextActionWordsOf(a, when);
+  // The tracker has research to buy before this step (M13, 12 Nov 2026, Jordan: on Curiosity "Shift to Humility" came
+  // over the buys the sale starts at 10:00 am): the buy first, with when it can start. DRAFT words (Words reviews).
+  return buy ? `Buy research from ${when(buy.at)}, then ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
+}
+
+/** The first research buy still to do that comes before the Next step (a shift, a prestige or the goal): the tracker's
+ *  lines (lib/buildUpTracker.ts), those not ticked, by their planned time. Null when none, or when the step is the
+ *  build-up's own ("Building up", "Keep building" already say it). */
+export function nextBuyBefore(
+  a: NextAction | null | undefined,
+  lines: readonly TrackerLine[] | null | undefined,
+  ticks: ReadonlySet<string>
+): { at: number } | null {
+  if (!a || !lines || !(a.kind === 'shift' || a.kind === 'prestige' || a.kind === 'goal')) return null;
+  const first = lines.find(l => l.kind === 'research' && l.tickable && !ticks.has(l.key) && ok(l.at) && l.at < a.at);
+  return first ? { at: first.at } : null;
+}
+
+function nextActionWordsOf(a: NextAction, when: (t: number) => string): string {
   if (a.kind === 'build') return `Building up until about ${when(a.until)}`;
   if (a.kind === 'keepbuilding') return `Keep building: ${buildLeftWords(a.left)} until about ${when(a.until)}`;
   if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} on ${when(a.at)}`;

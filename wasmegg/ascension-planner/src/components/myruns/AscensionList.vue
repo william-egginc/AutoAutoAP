@@ -59,6 +59,10 @@
         <p v-if="l.openingShifts" class="ml-4 text-small text-slate-500" data-testid="now-ascension-opening">
           Its first hours: about {{ l.openingShifts }} build-up shifts (estimated, not listed)
         </p>
+        <!-- Its third Curiosity wait (C3), which can take 1 to 3 weeks (M13): the start of the ascension to its H1 (lib/c3WaitWords.ts). DRAFT words. -->
+        <p v-if="c3Wait(l)" class="ml-4 text-small text-slate-500" data-testid="now-ascension-c3">
+          Wait on Curiosity (C3): about {{ dayOnly(c3Wait(l)!.from) }} to {{ dayOnly(c3Wait(l)!.to) }}
+        </p>
         <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-small text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
@@ -85,6 +89,8 @@
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { showDateTime } from '@/lib/displayTime';
+import { formatMoment } from '@/lib/clock';
+import { c3Wait } from '@/lib/c3WaitWords';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { roundToHourIn } from '@/lib/nowWords';
 import { stayWords, timeOffDays, type AscensionStep } from '@/lib/instantSteps';
@@ -100,6 +106,8 @@ const props = defineProps<{
 
 /** The table's times: to the hour on the player's clock. */
 const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone), props.zone)}`;
+/** A day, "Dec 22" (the C3 wait's ends: it runs days, so the hour says nothing). */
+const dayOnly = (t: number) => formatMoment(t * 1000, { zone: props.zone, dateOnly: true, year: 'never' });
 const exact = (t: number) => showDateTime(t, props.zone);
 /** The first ascension's shifts still being worked out: its line gets the moving dots (spec-dots, 1 Nov 2026). */
 const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working;

@@ -59,6 +59,7 @@
         :sim-failure="page.simFailure.value"
         :sim-slow="page.simSlow.value"
         :next-step="page.nextStep.value"
+        :next-buy="nextBuy"
         :next-shift-lines="page.nextShiftLines.value"
         :a1-choice="page.a1Choice.value"
         :fresh-sooner="page.freshLine.value"
@@ -373,6 +374,7 @@ import DashboardGaps from './myruns/DashboardGaps.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
+import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
@@ -493,6 +495,11 @@ const tracker = useBuildUpTracker({
   saveLoading: computed(() => props.loading || page.saveWaiting.value),
   finishChosen: page.a1Finish,
 });
+/** The research buy still to do before Next step's own step, from the tracker's lines (M13, lib/nextAction.ts `nextBuyBefore`):
+ *  Next step names it first. None while the tracker is not in (its fold shut, or still working out). */
+const nextBuy = computed(() =>
+  nextBuyBefore(page.nextStep.value, tracker.state.value === 'ready' ? tracker.result.value?.lines : null, tracker.ticks.value)
+);
 /**
  * The Build-up tracker's Try again: the tracker's bounds started again and the simulation asked again. With the stores
  * not this save's (useNowPage `storeReady` false) no simulation is asked, so App is asked to set the save up again
