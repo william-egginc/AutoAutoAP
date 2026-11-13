@@ -122,15 +122,12 @@
               The search moves the stops of the route it starts from and adds at most one, so a route with too few
               stops can't reach a longer answer. Leave the final target off a typed route; it is added for you.
             </p>
-            <label class="flex items-center gap-2 text-small text-slate-600">
-              <span class="font-bold text-slate-700">Final target TE</span>
-              <input
-                v-model.number="store.finalTE"
-                type="number"
-                :min="store.currentTE + 1"
-                :max="490"
-                :disabled="store.isRunning"
-                class="w-24 rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
+            <!-- The store's one rule, on Enter or leaving the box (FinalTargetInput.vue, 13 Nov 2026). -->
+            <label class="flex items-start gap-2 text-small text-slate-600">
+              <span class="font-bold text-slate-700 py-2">Final target TE</span>
+              <FinalTargetInput
+                class="min-w-0"
+                input-class="w-24 rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
             </label>
           </div>
@@ -287,14 +284,9 @@
           <label for="chain-search-final-te" class="text-slate-400 label"
             >Final target TE</label
           >
-          <input
+          <FinalTargetInput
             id="chain-search-final-te"
-            v-model.number="store.finalTE"
-            type="number"
-            :min="store.currentTE + 1"
-            :max="490"
-            :disabled="store.isRunning"
-            class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
+            input-class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1086,6 +1078,7 @@
 </template>
 
 <script setup lang="ts">
+import FinalTargetInput from './FinalTargetInput.vue';
 import { LEG_HEAD, LEG_ROW, LEG_TABLE } from './resultCardStyle';
 import { formatMoment } from '@/lib/clock';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
