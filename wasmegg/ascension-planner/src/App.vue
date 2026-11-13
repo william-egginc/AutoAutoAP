@@ -836,7 +836,7 @@ import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, watchEffect, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
-  FIRST_LOAD_ROUTE,
+  firstLoadRoute,
   LAST_ROUTE_KEY,
   NAMES,
   canonicalUrl,
@@ -926,6 +926,7 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { choiceForEffort, openOn } from '@/lib/searchOption';
 import { presetByDate } from '@/lib/byDateForm';
+import { rememberedChainGoal } from '@/lib/autoScreen';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import { fastOpen, needsFreshSave, type RecalcRequest } from '@/lib/recalc';
 import { useStrongerStore } from '@/stores/stronger';
@@ -1127,13 +1128,23 @@ function readLastRoute(): string | null {
 }
 /**
  * The tab the page opens on, and whether this is a new player (lib/siteNav.ts openingRoute): the address
- * wins, then the last tab this browser remembers; a new player (neither, and no saved ID) is taken to
- * FIRST_LOAD_ROUTE when their first save loads (submitPlayerId).
+ * wins, then the last tab this browser remembers; with neither, Chain Finder on the goal the player used last
+ * (`chainGoal`), else By a date with Egg Day (spec-startchain2, Jordan 12 Nov 2026 late): at once for a saved player
+ * ID, and for a new player (no saved ID) when their first save loads (submitPlayerId).
  */
 /** The first-visit tour starts by itself for a new visitor only (lib/firstTour.ts): no saved player ID and no remembered
  *  tab when the page loaded. */
 const tourNewVisitor = isNewVisitor({ savedPlayerId: getSavedPlayerID(), lastRoute: readLastRoute() });
-const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
+/** Chain Finder's goal the player picked last (lib/autoScreen.ts), read before the stores write it: where a first load
+ *  lands. */
+const chainGoal = rememberedChainGoal();
+/** The player ID saved in this browser, when it is an account: the stand-in from a downloaded save is none (playerId
+ *  above drops it too), so it would land on a Chain Finder with nothing to show. */
+function savedRealPlayerId(): string {
+  const id = getSavedPlayerID();
+  return id && !isPlaceholderId(id) ? id : '';
+}
+const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: savedRealPlayerId(), goal: chainGoal });
 let newPlayerLanding = opening.newPlayer;
 /**
  * First visit (spec-fluff3-chrome; lib/siteNav.ts firstVisitShows): the Manual Planner counts as asked for once a tab
@@ -1198,6 +1209,7 @@ if (initialRoute) {
   applyRoute(initialRoute);
   window.history.replaceState(null, '', canonicalUrl(window.location.href, initialRoute));
 } else if (opening.route) {
+  if (opening.eggDay) presetByDate({ eggDay: true });
   applyRoute(opening.route);
   window.history.replaceState(null, '', hashFor(opening.route));
 }
@@ -2174,12 +2186,15 @@ async function submitPlayerId(id: string) {
     console.error('Error setting up player data:', e);
     return;
   }
-  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Chain Finder with Target
-  // TE lit (#/auto/fastest; By a date with Egg Day preset until 12 Nov 2026), rather than the Manual Planner. Once only;
-  // a returning player keeps their tab.
+  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer on Chain Finder, the goal
+  // they used last or By a date with Egg Day picked (spec-startchain2), rather than the Manual Planner. Once only; a
+  // returning player keeps their tab.
   if (newPlayerLanding) {
     newPlayerLanding = false;
-    if (plannerTab.value === 'manual') applyRoute(FIRST_LOAD_ROUTE);
+    if (plannerTab.value === 'manual') {
+      if (opening.eggDay) presetByDate({ eggDay: true });
+      applyRoute(firstLoadRoute(chainGoal));
+    }
   }
   // A player id typed on a link into the Auto Planner: same set-up as the tab click.
   await initAutoOnce();

@@ -15,7 +15,7 @@ describe('first tour words', () => {
       body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'You start on Chain Finder. Its switch picks the goal: Target TE finds the quickest way to a TE such as 490, and By a date plans the most TE by a date such as Egg Day.'
+      'You start on Chain Finder, on By a date with Egg Day picked: the most TE by that date. The switch changes the goal: Target TE finds the quickest way to a TE such as 490.'
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
@@ -45,7 +45,7 @@ describe('first tour words', () => {
       'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.'
     );
     expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
-      'Inside More: the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
+      'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
     );
     expect(FIRST_TOUR_STEPS.fast.body).toBe(
       'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.'

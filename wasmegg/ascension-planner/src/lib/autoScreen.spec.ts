@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-import { readAutoScreen, writeAutoScreen, AUTO_SCREEN_KEY } from './autoScreen';
+import { readAutoScreen, rememberedChainGoal, writeAutoScreen, AUTO_SCREEN_KEY } from './autoScreen';
 import { useUIStore } from '@/stores/ui';
 
 let mem: Map<string, string>;
@@ -57,6 +57,28 @@ describe('autoScreen memory', () => {
     stub(true);
     expect(readAutoScreen()).toBeNull();
     expect(() => writeAutoScreen('by-date', 'smart')).not.toThrow();
+  });
+});
+
+describe('the goal a player picked on Chain Finder (where a first load lands, spec-startchain2)', () => {
+  it('is null on a first visit, junk or blocked storage', () => {
+    expect(rememberedChainGoal()).toBeNull();
+    mem.set(AUTO_SCREEN_KEY, 'not json');
+    expect(rememberedChainGoal()).toBeNull();
+    stub(true);
+    expect(rememberedChainGoal()).toBeNull();
+  });
+  it('is Target TE or By a date as written, with its depth', () => {
+    writeAutoScreen('fastest', 'full');
+    expect(rememberedChainGoal()).toEqual({ view: 'fastest', depth: 'full' });
+    writeAutoScreen('by-date', 'smart');
+    expect(rememberedChainGoal()).toEqual({ view: 'by-date', depth: 'smart' });
+  });
+  it("a 'classic' stored before Chain Finder is no goal the player picked (Joo's simulator): none", () => {
+    mem.set(AUTO_SCREEN_KEY, '{"view":"classic","depth":"smart"}');
+    expect(rememberedChainGoal()).toBeNull();
+    // The tab itself still reads it as Fastest (readAutoScreen).
+    expect(readAutoScreen()).toEqual({ view: 'fastest', depth: 'smart' });
   });
 });
 

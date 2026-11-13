@@ -1,29 +1,70 @@
 /**
- * Where the page opens, and where a NEW player lands once their save is in: Chain Finder on Target TE (#/auto/fastest,
- * the instant answer to 490 TE; spec-startchain, 12 Nov 2026). It was Highest TE by a date with Egg Day picked
- * (Jordan, 25 Oct 2026; the UX review's item 2/A) until then. A returning player keeps their last tab, and a tab in
- * the address (a #/ hash, an old link, Joo's ?tab=) wins over both.
+ * Where the page opens, and where a player with no remembered tab lands (Jordan, 12 Nov 2026 late, spec-startchain2):
+ * Chain Finder on the goal they used last (aap.autoScreen), else By a date with Egg Day picked (#/auto/by-date; Jordan,
+ * 25 Oct 2026, the UX review's item 2/A). A new player lands there once their first save is in; a player ID saved from
+ * before aap.lastRoute existed opens there at once (it was the Manual Planner). A remembered tab (aap.lastRoute) keeps
+ * its place, and a tab in the address (a #/ hash, an old link, Joo's ?tab=) wins over everything.
+ * (spec-startchain, earlier on 12 Nov, had made the landing Target TE; reverted.)
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROUTE, FIRST_LOAD_ROUTE, hashFor, openingRoute, routeFromLocation, storedRoute, topTabOf } from './siteNav';
+import {
+  DEFAULT_ROUTE,
+  FIRST_LOAD_ROUTE,
+  firstLoadRoute,
+  hashFor,
+  openingRoute,
+  routeFromLocation,
+  storedRoute,
+  topTabOf,
+} from './siteNav';
 
 const ID = 'EI1234567890123456';
 
 describe('openingRoute (new vs returning)', () => {
   it('a first visit (no tab in the address, none remembered, no saved ID) is a new player on the default shell', () => {
-    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: '' })).toEqual({ route: null, newPlayer: true });
+    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: '' })).toEqual({ route: null, newPlayer: true, eggDay: true });
     expect(openingRoute({ fromUrl: null, stored: undefined, savedPlayerId: null }).newPlayer).toBe(true);
   });
 
-  it('the first-load route is Chain Finder on Target TE (Fastest, the Fast and Exact depth), not By a date', () => {
-    expect(FIRST_LOAD_ROUTE).toEqual({ ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest', depth: 'smart' });
-    expect(hashFor(FIRST_LOAD_ROUTE)).toBe('#/auto/fastest');
+  it('the first-load route is Chain Finder on By a date (Egg Day preset by App.vue), not Target TE', () => {
+    expect(FIRST_LOAD_ROUTE).toEqual({ ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' });
+    expect(hashFor(FIRST_LOAD_ROUTE)).toBe('#/auto/by-date');
     expect(topTabOf(FIRST_LOAD_ROUTE)).toBe('chain');
-    // The same route the bare #/auto opens.
-    expect(FIRST_LOAD_ROUTE).toEqual(routeFromLocation('', '#/auto'));
+    expect(FIRST_LOAD_ROUTE).toEqual(routeFromLocation('', '#/auto/by-date'));
     // The default for everything else is unchanged.
     expect(DEFAULT_ROUTE.section).toBe('manual');
+  });
+
+  it('a remembered Chain Finder goal (aap.autoScreen) wins over By a date; with none, By a date', () => {
+    expect(firstLoadRoute(null)).toEqual(FIRST_LOAD_ROUTE);
+    expect(hashFor(firstLoadRoute({ view: 'fastest', depth: 'smart' }))).toBe('#/auto/fastest');
+    expect(hashFor(firstLoadRoute({ view: 'fastest', depth: 'full' }))).toBe('#/auto/fastest/full');
+    expect(firstLoadRoute({ view: 'by-date', depth: 'full' })).toEqual(FIRST_LOAD_ROUTE);
+    // A new player with a remembered goal: that goal after the first save, and no Egg Day preset.
+    const goal = { view: 'fastest', depth: 'smart' } as const;
+    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: '', goal })).toEqual({
+      route: null,
+      newPlayer: true,
+      eggDay: false,
+    });
+    // A remembered By a date is the player's own choice too: no preset over their date.
+    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: '', goal: { view: 'by-date', depth: 'smart' } }).eggDay).toBe(false);
+  });
+
+  it('a saved player ID with no remembered tab (from before aap.lastRoute) opens on Chain Finder at once', () => {
+    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: ID })).toEqual({
+      route: FIRST_LOAD_ROUTE,
+      newPlayer: false,
+      eggDay: true,
+    });
+    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: ID, goal: { view: 'fastest', depth: 'smart' } })).toEqual({
+      route: routeFromLocation('', '#/auto/fastest'),
+      newPlayer: false,
+      eggDay: false,
+    });
+    // A stored value that is not a tab address is no remembered tab.
+    expect(openingRoute({ fromUrl: null, stored: 'garbage', savedPlayerId: ID }).route).toEqual(FIRST_LOAD_ROUTE);
   });
 
   it('a returning player keeps the last tab this browser remembers', () => {
@@ -31,14 +72,11 @@ describe('openingRoute (new vs returning)', () => {
     expect(openingRoute({ fromUrl: null, stored: '#/auto/fastest', savedPlayerId: ID })).toEqual({
       route: fastest,
       newPlayer: false,
+      eggDay: false,
     });
     expect(openingRoute({ fromUrl: null, stored: '#/myruns', savedPlayerId: ID }).route?.section).toBe('myruns');
     // Even with no saved ID, a remembered tab means they have been here.
     expect(openingRoute({ fromUrl: null, stored: '#/manual', savedPlayerId: '' }).newPlayer).toBe(false);
-  });
-
-  it('a saved player ID alone (from before the tab was remembered) is returning: the old default, no redirect', () => {
-    expect(openingRoute({ fromUrl: null, stored: null, savedPlayerId: ID })).toEqual({ route: null, newPlayer: false });
   });
 
   it('a tab in the address wins over the remembered one, and is never a new-player landing', () => {
@@ -46,14 +84,20 @@ describe('openingRoute (new vs returning)', () => {
     expect(openingRoute({ fromUrl: science, stored: '#/auto/fastest', savedPlayerId: '' })).toEqual({
       route: science,
       newPlayer: false,
+      eggDay: false,
     });
+    // The same with a saved ID and no remembered tab, and with a remembered goal.
+    const goal = { view: 'fastest', depth: 'smart' } as const;
+    expect(openingRoute({ fromUrl: science, stored: null, savedPlayerId: ID, goal }).route).toEqual(science);
   });
 
-  it("a returning player on By a date or the Auto Planner stays there: the new default is for new players only", () => {
-    for (const h of ['#/auto/by-date', '#/auto/classic', '#/manual', '#/compare/race']) {
-      expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: ID })).toEqual({ route: storedRoute(h), newPlayer: false });
-      expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: '' })).toEqual({ route: storedRoute(h), newPlayer: false });
-    }
+  it('a remembered tab (aap.lastRoute) always wins over the landing, whatever goal is remembered', () => {
+    for (const goal of [null, { view: 'fastest', depth: 'smart' } as const, { view: 'by-date', depth: 'smart' } as const])
+      for (const h of ['#/auto/by-date', '#/auto/fastest', '#/auto/classic', '#/manual', '#/compare/race', '#/myruns']) {
+        const want = { route: storedRoute(h), newPlayer: false, eggDay: false };
+        expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: ID, goal })).toEqual(want);
+        expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: '', goal })).toEqual(want);
+      }
   });
 
   it('on a first visit, a link still wins over the new default: a #/ hash, the old flags and Joo\'s ?tab=', () => {
@@ -66,9 +110,12 @@ describe('openingRoute (new vs returning)', () => {
       ['?tab=auto-planner', '', '#/auto/classic'],
     ] as const) {
       const fromUrl = routeFromLocation(search, hash);
-      const o = openingRoute({ fromUrl, stored: null, savedPlayerId: '' });
-      expect(o.newPlayer).toBe(false);
-      expect(hashFor(o.route!)).toBe(want);
+      for (const savedPlayerId of ['', ID]) {
+        const o = openingRoute({ fromUrl, stored: null, savedPlayerId });
+        expect(o.newPlayer).toBe(false);
+        expect(o.eggDay).toBe(false);
+        expect(hashFor(o.route!)).toBe(want);
+      }
     }
   });
 
@@ -85,21 +132,24 @@ describe('App.vue wiring', () => {
   const script = app.slice(app.indexOf('<script setup'));
 
   it('opens on openingRoute, remembering the last tab on every change', () => {
+    expect(script).toContain('const chainGoal = rememberedChainGoal();');
     expect(script).toContain(
-      'openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() })'
+      'openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: savedRealPlayerId(), goal: chainGoal })'
     );
-    expect(script).toContain('applyRoute(opening.route);');
+    expect(script).toMatch(
+      /\} else if \(opening\.route\) \{\s*if \(opening\.eggDay\) presetByDate\(\{ eggDay: true \}\);\s*applyRoute\(opening\.route\);/
+    );
     expect(script).toContain('localStorage.setItem(LAST_ROUTE_KEY, hash);');
   });
 
-  it("a new player's first loaded save goes to Chain Finder's Target TE, once, with no By a date preset", () => {
+  it("a new player's first loaded save goes to Chain Finder's remembered goal or By a date with Egg Day, once", () => {
     const start = script.indexOf('async function submitPlayerId(');
     const body = script.slice(start, script.indexOf('\n}\n', start));
     const landing = body.slice(body.indexOf('if (newPlayerLanding) {'), body.indexOf('await initAutoOnce();'));
     expect(landing).toContain('newPlayerLanding = false;');
     expect(landing).toContain("if (plannerTab.value === 'manual')");
-    expect(landing).toContain('applyRoute(FIRST_LOAD_ROUTE);');
-    expect(landing).not.toContain('presetByDate');
+    expect(landing).toContain('if (opening.eggDay) presetByDate({ eggDay: true });');
+    expect(landing).toContain('applyRoute(firstLoadRoute(chainGoal));');
     // After the save is set up (a failed load returns before it), and before the Auto Planner set-up.
     expect(body.indexOf('if (newPlayerLanding) {')).toBeGreaterThan(body.indexOf('failLoad(id, SAVE_SET_UP_FAILED);'));
     expect(body.indexOf('if (newPlayerLanding) {')).toBeLessThan(body.indexOf('await initAutoOnce();'));
