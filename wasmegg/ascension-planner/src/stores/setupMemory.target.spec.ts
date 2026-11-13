@@ -9,8 +9,8 @@ import { useChainSearchStore } from './chainSearch';
 import { hashID } from '@/lib/storage/db';
 import { isDefaultSetup, mergeSetup, parseSetup, sameSetup, setupDefaults, setupKey } from '@/lib/setupMemory';
 
-const A = 'EI0000000000000007';
-const B = 'EI0000000000000008';
+const A = 'EI1234567890123456';
+const B = 'EI9876543210987654';
 let mem: Map<string, string>;
 
 beforeEach(() => {
@@ -118,7 +118,7 @@ describe('the store remembers the target per account', () => {
     // A switch in the same page also goes back to the defaults for an account with nothing remembered.
     store = reload();
     await store.loadSetupFor(A);
-    await store.loadSetupFor('EI0000000000000009');
+    await store.loadSetupFor('EI1111111111111111');
     expect(store.finalTE).toBe(490);
   });
 
