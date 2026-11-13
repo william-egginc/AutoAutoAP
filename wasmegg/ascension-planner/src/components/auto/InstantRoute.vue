@@ -365,9 +365,11 @@
                 v-if="dateSpare?.tight"
                 data-testid="box-tight"
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label"
-                >tight</span
+                >{{ closeCall ? CLOSE_CALL_TAG : 'tight' }}</span
               >
             </div>
+            <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
+            <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
@@ -1114,6 +1116,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
+import { CLOSE_CALL_TAG, closeCallLine, isCloseCall } from '@/lib/closeCallWords';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
@@ -2362,6 +2365,13 @@ const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 const dateSpare = computed(() => {
   const b = result.value?.byDate;
   return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
+});
+/** The close-call line under a By a date answer with under about 2 days to spare (lib/closeCallWords.ts), or null. */
+const closeCall = computed(() => {
+  const b = result.value?.byDate;
+  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value)) return null;
+  const f = searchFound.value;
+  return closeCallLine({ te: dateBoxOf(b).endTE, found: f ? { level: f.level, endTE: f.endTE } : null });
 });
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
