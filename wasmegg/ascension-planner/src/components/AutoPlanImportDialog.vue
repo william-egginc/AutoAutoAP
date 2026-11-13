@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { NAMES } from '@/lib/siteNav';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -43,8 +44,8 @@ const emit = defineEmits<{
               </svg>
             </div>
             <div>
-              <div class="text-body font-bold text-slate-900">Open in Single run</div>
-              <div class="text-small font-normal text-slate-500">Restores all ascensions in Auto Planner › Single run.</div>
+              <div class="text-body font-bold text-slate-900">Open in the {{ NAMES.classic }}</div>
+              <div class="text-small font-normal text-slate-500">Restores all ascensions in the {{ NAMES.classic }}.</div>
             </div>
           </button>
 

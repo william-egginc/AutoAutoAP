@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { NAMES } from '@/lib/siteNav';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { initPlanFuture } from '@/lib/modes';
 import { useAutoPlannerStore, pickVariant, type ChainedAscension, type VariantKey } from '@/stores/autoPlanner';
@@ -132,7 +133,7 @@ export function useAutoPlanImport() {
         truthEggsStore.hydrate(plan.initialState);
       } catch (e) {
         console.error('Failed to restore roadmap:', e);
-        alert('Failed to restore the Single run state.');
+        alert(`Failed to restore the ${NAMES.classic} state.`);
       } finally {
         uiStore.loading = false;
       }
