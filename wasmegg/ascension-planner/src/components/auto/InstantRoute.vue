@@ -558,6 +558,9 @@
             </ul>
           </div>
           </PanelFold>
+          <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
+               expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
+          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
           <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
         <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
@@ -782,6 +785,9 @@
             extra stop only adds a prestige.
           </p>
           </PanelFold>
+          <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
+               expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
+          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
           <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
         <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
@@ -919,7 +925,8 @@ import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
 import { computed, inject, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
 import { SECTION_HIDE } from './sectionHide';
-import { useChainSearchStore } from '@/stores/chainSearch';
+import { isNearTarget, useChainSearchStore } from '@/stores/chainSearch';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1283,6 +1290,8 @@ const deliveryScale = computed<number | null>(() =>
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
+/** Near the target: the note under Every number of ascensions (the same rule on By a date, whose target is 490). */
+const nearTarget = computed(() => isNearTarget(target.value, store.currentTE));
 /** The save is already at or past the target: nothing to find, said plainly instead of nothing. */
 const atTarget = computed(() => {
   const te = Math.floor(store.currentTE);

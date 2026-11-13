@@ -551,6 +551,18 @@ export function targetTeRange(currentTE: number): { min: number; max: number } {
   const te = Number.isFinite(currentTE) && currentTE > 0 ? Math.floor(currentTE) : 0;
   return { min: Math.max(1, te + 1), max: TARGET_TE_MAX };
 }
+/**
+ * How near the target is "near" for Every number of ascensions' note (game expert, 13 Nov 2026): within about 25 TE of
+ * the player's TE, rows with 3 or more tiny ascensions can be priced 8-23% too fast (205 from 200 in 3: 19.6 d in the
+ * table, 25.5 d simulated). They never win, but they show as rows.
+ */
+export const NEAR_TARGET_TE = 25;
+/** The target is within NEAR_TARGET_TE above the player's TE (target - TE <= 25; a part TE counts as the TE below it). */
+export function isNearTarget(target: number, currentTE: number): boolean {
+  if (!(Number.isFinite(currentTE) && currentTE > 0)) return false;
+  const te = Math.floor(currentTE);
+  return target > te && target - te <= NEAR_TARGET_TE;
+}
 /** The TE of a state the workers price: what a run's `currentTE` must be. */
 export function pricedTE(state: { teEarned?: Record<string, number> } | null | undefined): number {
   return sumTE(state?.teEarned);

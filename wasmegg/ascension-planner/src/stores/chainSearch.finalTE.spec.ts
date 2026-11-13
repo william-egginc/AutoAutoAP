@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { TARGET_TE_MAX, targetTeRange, useChainSearchStore } from './chainSearch';
+import { isNearTarget, NEAR_TARGET_TE, TARGET_TE_MAX, targetTeRange, useChainSearchStore } from './chainSearch';
 import { useInitialStateStore } from './initialState';
 import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 
@@ -59,5 +59,31 @@ describe('commitFinalTE', () => {
     store.isRunning = true;
     expect(store.commitFinalTE(300)).toBe(TARGET_TE_WORDS.running);
     expect(store.finalTE).toBe(490);
+  });
+});
+
+/**
+ * The near-target note on Every number of ascensions (game expert, 13 Nov 2026): within about 25 TE of the player's TE,
+ * rows with 3 or more tiny ascensions can be priced 8-23% too fast (they never win). Within 25 means target - TE <= 25.
+ */
+describe('isNearTarget', () => {
+  it('within 25 TE of your TE (a part TE counts as the TE below)', () => {
+    expect(NEAR_TARGET_TE).toBe(25);
+    expect(isNearTarget(205, 200)).toBe(true);
+    expect(isNearTarget(225, 200)).toBe(true);
+    expect(isNearTarget(225, 200.9)).toBe(true);
+    expect(isNearTarget(201, 200)).toBe(true);
+  });
+  it('not at +26, not 490 from a normal TE, not at or past the target, not with no save', () => {
+    expect(isNearTarget(226, 200)).toBe(false);
+    expect(isNearTarget(490, 200)).toBe(false);
+    expect(isNearTarget(200, 200)).toBe(false);
+    expect(isNearTarget(490, 495)).toBe(false);
+    expect(isNearTarget(20, 0)).toBe(false);
+    expect(isNearTarget(20, Number.NaN)).toBe(false);
+  });
+  it('By a date (always 490) only from TE 465 up, by the same rule', () => {
+    expect(isNearTarget(490, 464)).toBe(false);
+    expect(isNearTarget(490, 465)).toBe(true);
   });
 });
