@@ -39,7 +39,7 @@
       <!-- The saved answer (the card clean-up, Jordan 12 Nov 2026): one line beside the heading, its sentence behind the
            "?" word for word (lib/instantCardWords.ts), Work it out again beside it (44 px on a phone). -->
       <p v-if="savedAt" class="flex flex-wrap items-center gap-x-2 text-small text-slate-500" data-testid="saved-answer">
-        <span>{{ savedAnswerLabel(show(savedAt / 1000)) }}</span
+        <span>{{ savedAnswerLabel(showNear(savedAt / 1000)) }}</span
         >{{ ' '
         }}<CardHelp>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</CardHelp
         >{{ ' '
@@ -355,7 +355,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: show(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -3213,6 +3213,12 @@ function show(unix: number): string {
 }
 /** A Fastest route's finish in the box, the counts table and the outside-your-limits line: the date alone
  *  when it is over a year away ("Jun 7, 2032"), since an instant answer years out is not good to the minute. */
+/** The saved line's and By a date's Reached time without this year's year ("Nov 18, 2:46 PM"; another year keeps it):
+ *  at 390 px the long form pushed Work it out again and "· quick estimate ?" onto rows of their own (QA t241, 12 Nov
+ *  2026). ISO as `show`. The sentence behind the "?" keeps the full date. */
+function showNear(unix: number): string {
+  return dateStyle.value === 'iso' ? show(unix) : formatMoment(unix * 1000, { zone: zone.value, year: 'auto' }) || show(unix);
+}
 function showFinish(unix: number): string {
   return showDateTime(unix, zone.value, undefined, { dateOnlyWhenFar: true });
 }

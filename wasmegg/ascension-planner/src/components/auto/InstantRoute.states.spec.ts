@@ -24,6 +24,7 @@ import { compileTemplate, parse } from '@vue/compiler-sfc';
 import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
 import { HOURS_NOTE } from '@/lib/hoursNote';
+import { formatMoment } from '@/lib/clock';
 import { instantLiveText } from '@/lib/liveStatus';
 import { headlineGap, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';
@@ -256,6 +257,7 @@ function ctxOf(s: State): Record<string, unknown> {
     shareEl: null,
     shiftedTable: true,
     show: (unix: number) => `t${unix}`,
+    showNear: (unix: number) => `n${unix}`,
     showFinish: (unix: number) => `t${unix}`,
     showMoreCounts: false,
     shownRows: result ? [result.best] : [],
@@ -415,8 +417,10 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     const line = html.slice(html.lastIndexOf('<p', at), html.indexOf('</p>', at) + 4);
     expect(line).not.toMatch(/bg-slate-50|border-slate-200|rounded-lg/);
     expect(line).toContain('text-small');
+    // The label's time without this year's year (showNear, QA t241 at 390: it kept Work it out again on the line);
+    // the sentence behind the "?" keeps the full date.
     expect(textOf(line)).toBe(
-      'Saved answer, t1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600). Work it out again'
+      'Saved answer, n1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600). Work it out again'
     );
     // Today's sentence inside the "?" (CardHelp), word for word.
     const help = line.slice(line.indexOf('data-part="CardHelp"'));
@@ -429,7 +433,7 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     const html = await draw(box);
     const inBox = textOf(html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"')));
     expect(inBox).toContain('314 TE');
-    expect(inBox).toContain(`Route 197 → 222 → 251 → 282 → 314 · reached t${dateRoute.end} · 5 ascensions`);
+    expect(inBox).toContain(`Route 197 → 222 → 251 → 282 → 314 · reached n${dateRoute.end} · 5 ascensions`);
     // The route is said once in the box (not again on a line of its own).
     expect(inBox.split('197 → 222 → 251 → 282 → 314').length - 1).toBe(1);
     expect(html).toMatch(/data-testid="box-route"[^>]*>|class="[^"]*tabular-nums[^"]*"[^>]*data-testid="box-route"/);
@@ -438,7 +442,14 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     const one = route([203], DEADLINE - 166_440);
     const html = await draw(box, { result: { ...resultOf('date')!, byDate: one }, dateRows: [one] });
     const line = html.slice(html.indexOf('data-testid="box-route"'));
-    expect(textOf(line.slice(line.indexOf('>') + 1, line.indexOf('</div>')))).toBe(`Reached t${one.end}`);
+    expect(textOf(line.slice(line.indexOf('>') + 1, line.indexOf('</div>')))).toBe(`Reached n${one.end}`);
+  });
+  it('showNear: the year only when it is not this year (clock.ts formatMoment year auto), ISO as before (QA t241, 390 px)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
+    const fn = src.slice(src.indexOf('function showNear'), src.indexOf('\n}', src.indexOf('function showNear')));
+    expect(fn).toContain("dateStyle.value === 'iso' ? show(unix)");
+    expect(fn).toContain("formatMoment(unix * 1000, { zone: zone.value, year: 'auto' })");
+    expect(formatMoment(Date.UTC(2026, 10, 18, 22, 46), { zone: 'America/Los_Angeles', year: 'auto', now: Date.UTC(2026, 10, 12), locale: 'en-US' })).toBe('Nov 18, 2:46 PM');
   });
 });
 
@@ -1187,7 +1198,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       // On the line that gives the time: By a date's route-and-reached line, Fastest's "in … · N ascensions".
       const mark = box.indexOf('data-testid="box-quick-estimate"');
       const line = box.slice(box.lastIndexOf('<div', mark), box.indexOf('</div>', box.indexOf('data-part="CardHelp"', mark)) + 6);
-      expect(textOf(line)).toMatch(deadline ? /^Route .* · reached t\d+ · 5 ascensions · quick estimate/ : /^in .* · 3 ascensions · quick estimate/);
+      expect(textOf(line)).toMatch(deadline ? /^Route .* · reached n\d+ · 5 ascensions · quick estimate/ : /^in .* · 3 ascensions · quick estimate/);
       const help = line.slice(line.indexOf('>', line.indexOf('data-part="CardHelp"')) + 1);
       expect(textOf(help)).toBe(`${INSTANT_NIGHT_BUY_NOTE} ${INSTANT_NIGHT_BUY_TIP}`);
       // Said once on the card, behind the "?" only.
