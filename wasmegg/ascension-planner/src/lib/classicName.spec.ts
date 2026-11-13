@@ -113,6 +113,25 @@ describe('the Single run name', () => {
     expect(uses.map(f => path.relative(SRC, f))).toEqual([]);
   });
 
+  it('no code that reaches a player says "Single run" (12 Nov 2026: the screen is just the Auto Planner)', () => {
+    const strip = (src: string) =>
+      src
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+    const left = files(SRC)
+      // Joo's planner's own internals, and the Words file that keeps the retired name for specs.
+      .filter(f => !f.includes(`${path.sep}components${path.sep}classic${path.sep}`))
+      .filter(f => !f.endsWith(path.join('lib', 'chainFinderWords.ts')))
+      .flatMap(f =>
+        strip(fs.readFileSync(f, 'utf8'))
+          .split('\n')
+          .filter(l => /Single run/.test(l))
+          .map(l => `${path.relative(SRC, f)}: ${l.trim()}`)
+      );
+    expect(left).toEqual([]);
+  });
+
   it("By a date's build-up note follows the name", () => {
     expect(BUILDUP_NOTE).toBe(`The ${NAMES.classic} can't carry on a build-up, so it starts ascension 1 fresh.`);
   });
