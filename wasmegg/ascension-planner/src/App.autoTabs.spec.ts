@@ -2,8 +2,8 @@
  * The Auto Planner's sub-tabs (Jordan, 26 Oct 2026; UX review 26 Oct, #9) were Fastest to 490 TE, Highest TE by a date,
  * then Single run. Since Chain Finder (spec-chainfinder, 12 Nov 2026) the first two are Chain Finder's goal switch
  * ("Target TE | By a date", GoalSwitch.vue) and Single run is the Auto Planner tab alone. My runs stays a top tab
- * only (its copy here made the row jump when it appeared). A new player still lands on By a date, and remembered tabs
- * and old links still open where they did.
+ * only (its copy here made the row jump when it appeared). A new player lands on Chain Finder's Target TE (Fastest;
+ * By a date until spec-startchain, 12 Nov 2026), and remembered tabs and old links still open where they did.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -44,9 +44,9 @@ describe("Chain Finder's goal switch (was the Auto Planner sub-tabs)", () => {
 });
 
 describe('landing and links after the move', () => {
-  it('a new player still lands on By a date (by route, not by tab position), on Chain Finder', () => {
-    expect(FIRST_LOAD_ROUTE).toEqual({ ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' });
-    expect(hashFor(FIRST_LOAD_ROUTE)).toBe('#/auto/by-date');
+  it("a new player lands on Chain Finder's Target TE (by route, not by tab position)", () => {
+    expect(FIRST_LOAD_ROUTE).toEqual({ ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest' });
+    expect(hashFor(FIRST_LOAD_ROUTE)).toBe('#/auto/fastest');
     expect(topTabOf(FIRST_LOAD_ROUTE)).toBe('chain');
     expect(app).toContain('applyRoute(FIRST_LOAD_ROUTE);');
     expect(app).not.toMatch(/autoTabs\.value\[\d\]/);

@@ -138,11 +138,12 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
 };
 
 /**
- * Where a NEW player lands once their save is in (Jordan, 25 Oct 2026, the UX review's item 2/A): the
- * instant answer, on Chain Finder › By a date (Auto Planner › Highest TE by a date until 12 Nov 2026) with Egg Day picked, rather than the Manual
- * Planner's empty cards. App.vue also presets Egg Day on that screen (lib/byDateForm.ts).
+ * Where a NEW player lands once their save is in: the instant answer on Chain Finder with Target TE lit
+ * (#/auto/fastest, Fastest to 490 TE; spec-startchain, 12 Nov 2026), rather than the Manual Planner's empty cards. It was
+ * By a date with Egg Day preset (Jordan, 25 Oct 2026, the UX review's item 2/A) until then. Returning players (a
+ * remembered tab) and links (a #/ hash, ?tab=) never land here (openingRoute).
  */
-export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
+export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest', depth: 'smart' };
 
 /** The browser's memory of the last tab (its hash), so a returning player opening the bare address
  *  lands where they left off. */
