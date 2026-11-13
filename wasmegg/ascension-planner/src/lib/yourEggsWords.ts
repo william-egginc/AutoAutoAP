@@ -104,12 +104,13 @@ export const GOAL_NO_SHIFT_WORDS = "not in the plan's next shifts";
 /** How sure an egg's goal time is (lib/eggGoalTimes.ts): `at` the end of its last stint (the threshold crossed then);
  *  `by` a late bound; `byAbout` approximate (awake hours on). */
 export type EggGoalBound = 'at' | 'by' | 'byAbout';
-/** DRAFT (Words to review; spec-myruns-goal): one egg's goal on the followed plan. With its TE share (Exact plans):
- *  "42 TE on Sat, Mar 4 at 9:00 AM" / "42 TE by Sat, Mar 4 at 9:00 AM" / "42 TE by about Sat, Mar 4 at 9:00 AM";
- *  without (a table replay): "at its goal on …" / "at its goal by …" / "at its goal by about …". */
+/** Words reviewed 13 Nov 2026 (spec-myruns-goal): one egg's goal on the followed plan, under that egg. "42 TE on …" could be
+ *  read as a total, so it says what happens: "reaches 42 TE on Sat, Mar 4 at 9:00 AM" / "reaches 42 TE by Sat, Mar 4 at
+ *  9:00 AM" / "reaches 42 TE by about Sat, Mar 4 at 9:00 AM"; without the TE (a table replay): "reaches its goal on …" /
+ *  "… by …" / "… by about …". "on" is the end of its last stint, "by" a late bound, "by about" approximate. */
 export function goalEggWords(te: number | null, when: string, bound: EggGoalBound): string {
-  const lead = te != null ? `${te} TE` : 'at its goal';
+  const lead = te != null ? `reaches ${te} TE` : 'reaches its goal';
   return bound === 'at' ? `${lead} on ${when}` : bound === 'by' ? `${lead} by ${when}` : `${lead} by about ${when}`;
 }
-/** DRAFT (Words to review; spec-myruns-goal): no later stint on the plan (the game expert's wording). */
-export const GOAL_EGG_DONE_WORDS = 'done on this plan';
+/** Reviewed 13 Nov 2026: no later stint on the plan; the egg is at its goal (the game expert's "done on this plan", with why). */
+export const GOAL_EGG_DONE_WORDS = 'done: no more shifts to it on this plan';
