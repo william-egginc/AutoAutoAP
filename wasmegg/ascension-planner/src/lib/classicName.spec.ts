@@ -72,7 +72,7 @@ describe('the Single run name', () => {
         strip(fs.readFileSync(f, 'utf8'))
           .split('\n')
           // The README's history mentions: "(was Your plan)" and "(formerly Your plan, formerly Classic)".
-          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', ''))
+          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', '').replace('(was Single run, before that Your plan, Classic)', '').replace('(formerly Single run, Your plan and Classic)', ''))
           .filter(l => named.test(l))
           .map(l => `${path.relative(root, f)}: ${l.trim()}`)
       );
@@ -106,9 +106,9 @@ describe('the Single run name', () => {
   it('"(was Your plan)" is no longer said: the rename was a month ago (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
     // The intro moved to lib/chainFinderWords.ts (12 Nov 2026).
-    expect(app).toContain('{{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE)) }}');
-    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE')).toMatch(/^The Auto Planner is Joo's original planner: /);
-    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE')).toMatch(/use Chain Finder \(Fastest to 490 TE or Highest TE by a date\)\.$/);
+    expect(app).toContain('{{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}');
+    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE', NAMES.byDate)).toMatch(/^The Auto Planner is Joo's original planner: /);
+    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE', NAMES.byDate)).toMatch(/use Chain Finder \(Fastest to 490 TE or Highest TE by a date\)\.$/);
     const uses = files(SRC).filter(f => /NAMES\.classicFirst|\(was Your plan\)/.test(fs.readFileSync(f, 'utf8')));
     expect(uses.map(f => path.relative(SRC, f))).toEqual([]);
   });

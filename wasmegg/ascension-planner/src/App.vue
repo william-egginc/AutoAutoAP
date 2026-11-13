@@ -611,7 +611,7 @@
           <template v-if="autoView === 'classic'">
             <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-body text-slate-600">
-              {{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE)) }}
+              {{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}
             </p>
             <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): said above the planner too, as on
                  the other screens. -->

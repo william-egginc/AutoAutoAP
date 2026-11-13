@@ -34,6 +34,8 @@
  * Every name a player reads is in NAMES, so the names the Discord feedback settles on are one edit.
  */
 
+import { CHAIN_FINDER_TAB } from './chainFinderWords';
+
 export type Section = 'manual' | 'auto' | 'compare' | 'myruns' | 'science';
 export type AutoView = 'classic' | 'fastest' | 'by-date';
 /** Chain Finder's two goals (the Auto Planner's screens other than Joo's simulator). */
@@ -67,7 +69,7 @@ export const NAMES = {
   auto: 'Auto Planner',
   /** Fastest to 490 TE and Highest TE by a date, under one "Target TE | By a date" switch (spec-chainfinder, Jordan
    *  12 Nov 2026; Joo's tab name). DRAFT for Words. */
-  chainFinder: 'Chain Finder',
+  chainFinder: CHAIN_FINDER_TAB,
   /** The shared board and its charts (#/compare: the address kept its old name). Was "Compare" until
    *  16 Oct 2026. */
   compare: 'Leaderboard',
@@ -112,11 +114,10 @@ export const NAMES = {
 
 /**
  * What "Simulate this plan" (and Fastest's "Build this plan") does, said on the button's own line (Jordan,
- * 16 Oct 2026): it opens the route in the Auto Planner (was Single run), Joo's original planner, and simulates every
- * shift. DRAFT for Words (12 Nov 2026: "in Single run" became "in the Auto Planner").
+ * 16 Oct 2026): it opens the route in the Auto Planner, Joo's original planner, and simulates every shift.
  */
 export function simulateNote(button = 'Simulate this plan'): string {
-  return `${button} opens this route in the ${NAMES.classic} (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
+  return `${button} opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
 }
 /** The button's own tip: lib/tipWords.ts TIP_SIMULATE (was SIMULATE_TITLE here, the button's title, to 9 Nov 2026). */
 

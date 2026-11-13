@@ -137,3 +137,25 @@ export function firstStepLine(o: {
   const timed = !!o.prestigeDate || (o.kind === 'fresh' && !!o.start);
   return `${FIRST_STEP_LABEL} ${first} (${o.reached})${next}.${o.hours && timed ? ` ${FIRST_STEP_HOURS}` : ''}`;
 }
+
+/**
+ * THE SHORT FIRST STEP (Jordan, 12 Nov 2026, pm): one sentence on the card, the full sentence behind its "?".
+ *   short: "First step: continue your build-up to 203 TE, then prestige Nov 20 at 9:00 AM sharp."
+ *   full:  `firstStepLine` (with when each TE is reached and the awake-hours clause).
+ * "sharp" only where the awake-hours clause would show (`hours` and a prestige time): a few minutes late can cost days. The
+ * "?" is for the caller to draw when `full !== short`. A build-up that could not be worked out has nothing to shorten.
+ */
+export function firstStepShort(o: Parameters<typeof firstStepLine>[0]): { short: string; full: string } {
+  const full = firstStepLine(o);
+  if (o.buildUpMissing && o.kind !== 'buildup') return { short: full, full };
+  const first =
+    o.kind === 'buildup'
+      ? `continue your build-up to ${o.stopTE} TE`
+      : o.kind === 'continue'
+        ? `continue your current ascension to ${o.stopTE} TE`
+        : `prestige ${o.start ? o.start : 'now'} and reach ${o.stopTE} TE`;
+  const timed = !!o.prestigeDate || (o.kind === 'fresh' && !!o.start);
+  const sharp = o.hours && timed && !!o.prestigeDate ? ' sharp' : '';
+  const next = o.prestigeDate ? `, then prestige ${o.sameDay && o.prestigeTime ? `at ${o.prestigeTime}` : o.prestigeDate}${sharp}` : '';
+  return { short: `${FIRST_STEP_LABEL} ${first}${next}.`, full };
+}

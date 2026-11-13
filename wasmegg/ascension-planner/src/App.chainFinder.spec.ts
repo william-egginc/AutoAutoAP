@@ -58,7 +58,7 @@ describe('the goal switch', () => {
   it("the Auto Planner's heading and intro come from the names and the Words file", () => {
     const classic = between(`<template v-if="autoView === 'classic'">`, '<AutomaticPlanner />');
     expect(classic).toContain('{{ NAMES.classic }}</h1>');
-    expect(classic).toContain('{{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE)) }}');
+    expect(classic).toContain('{{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}');
     expect(classic).not.toContain("Joo's original planner");
   });
 });
