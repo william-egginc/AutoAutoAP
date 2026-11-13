@@ -2279,8 +2279,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (!missing) keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
-    answerBuildUpMissing.value = missing;
     answerDeadline.value = askedDeadline;
+    answerBuildUpMissing.value = missing;
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
