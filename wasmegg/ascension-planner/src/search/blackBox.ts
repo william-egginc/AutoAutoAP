@@ -56,7 +56,31 @@ export interface Beat {
   pageClosed?: boolean;
   /** The player's note on the run (the open beat only; left out of the history to keep it small). */
   runNote?: string;
+  /** The run's last save (its checkpoint) that was written: the time it was taken, ms epoch like `at`
+   *  (the save's own `updatedAt`). What a carry-on would start from. Null while the run has none yet;
+   *  absent where the run kind does not say (By a date only, for now). A carry-on's own entry gives
+   *  the save it carried on from. */
+  lastSaveAt?: number | null;
+  /** Routes that save held. Null/absent as `lastSaveAt`. */
+  lastSaveRoutes?: number | null;
+  /** A 'page load' entry: how the page was opened (`navigationType`). */
+  load?: string;
+  /** A 'page load' entry: ms from the unfinished beat it found to this load. */
+  sinceLastBeatMs?: number;
+  /** 'page load' / 'carry on': the second-tab watcher opened this page (search/stepAway.ts
+   *  `watcherReopenPath`), in a new tab or by turning its own tab into the run's page. */
+  reopenedBy?: ReopenPath;
+  /** ...and ms from the watcher's reopen to this page's load. */
+  sinceReopenMs?: number;
+  /** A 'carry on' entry: Stepping away?'s countdown carried it on ('auto'), or the player did ('click'). */
+  carryOn?: 'auto' | 'click';
+  /** A 'carry on' entry: the workers of the run that stopped, and of the carry-on. */
+  workersFrom?: number | null;
+  workersTo?: number;
 }
+
+/** How the watcher tab reopened the run's page (search/stepAway.ts `watcherReopenPath`). */
+export type ReopenPath = 'watcher-new-tab' | 'watcher-own-tab';
 
 /** Facts about the machine and page, recorded once per box rather than per beat. */
 export interface BoxEnv {
@@ -322,6 +346,64 @@ export function note(detail: string): void {
   };
   box.history = [...box.history, b].slice(-HISTORY);
   write(box);
+}
+
+/** A history entry that opens no phase: the page load and the carry-on below. */
+function noteEntry(b: Omit<Beat, 'at' | 'hidden'>, now = Date.now()): Beat {
+  const box = read();
+  const full: Beat = {
+    ...b,
+    at: now,
+    hidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+  };
+  box.history = [...box.history, full].slice(-HISTORY);
+  write(box);
+  return full;
+}
+
+/**
+ * This page loaded and found the previous page's unfinished beat (13 Nov 2026: the download held the
+ * dead page's last beat and nothing after, so a reload and a 4-minute "stall" looked the same). How the
+ * page was opened, how long after that beat, and whether the watcher reopened it.
+ */
+export function notePageLoad(
+  found: Pick<Beat, 'at'>,
+  extra: { reopenedBy?: ReopenPath; sinceReopenMs?: number } = {},
+  now = Date.now()
+): Beat {
+  return noteEntry(
+    {
+      phase: 'page load',
+      detail: 'found an unfinished beat',
+      load: navigationType(),
+      sinceLastBeatMs: Math.max(0, now - found.at),
+      ...(extra.reopenedBy ? { reopenedBy: extra.reopenedBy } : {}),
+      ...(extra.sinceReopenMs !== undefined ? { sinceReopenMs: extra.sinceReopenMs } : {}),
+    },
+    now
+  );
+}
+
+/** A stopped run carried on: by the countdown or a click, from what save, on how many workers. */
+export function noteCarryOn(x: {
+  kind: string;
+  carryOn: 'auto' | 'click';
+  workersFrom: number | null;
+  workersTo: number;
+  lastSaveAt: number | null;
+  lastSaveRoutes: number | null;
+  reopenedBy?: ReopenPath;
+  sinceReopenMs?: number;
+}): Beat {
+  const { kind, ...rest } = x;
+  return noteEntry({ phase: 'carry on', detail: kind, ...rest });
+}
+
+/** The box as it is now, open beat, history and machine facts: for the download, which used to
+ *  carry only the copy read as the page loaded. */
+export function readLive(): { open: Beat | null; history: Beat[]; env?: BoxEnv } {
+  const box = read();
+  return { open: box.open, history: box.history, ...(box.env ? { env: box.env } : {}) };
 }
 
 /** The phase finished normally: nothing to report next time. */

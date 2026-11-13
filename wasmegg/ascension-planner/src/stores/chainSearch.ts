@@ -238,11 +238,12 @@ import {
   stepAwayDropRunMark,
   stepAwayRunStarted,
   stepAwayStopPressed,
+  stepAwayTakeAutoCarryOn,
 } from '@/composables/useStepAway';
 import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
 import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
 import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
-import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
+import { readRunMark, runAliveElsewhere, RUN_KEY, watcherReopenPath, type RunKind } from '@/search/stepAway';
 import {
   currentWatchLink,
   installWatchLink,
@@ -6443,6 +6444,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineRunStartedAt = 0;
   let deadlineRunCarryOns = 0;
   let deadlineCheckpointSize = { routes: 0, bytes: 0 };
+  /** The running deadline search's last checkpoint that was written: its time (ms epoch, as in the save) and routes,
+   *  for the black box's beats; a carry-on starts at the save it carried on from. Null: none yet. */
+  let deadlineLastSave: { at: number; routes: number } | null = null;
 
   function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
@@ -7931,7 +7935,29 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (ready) {
       const [cp, inputs, account] = ready;
       ready = undefined;
+      noteDeadlineCarryOn(cp);
       await runDeadline(cp.spec, inputs, cp.inputsKey, cp, account, cp.elapsedSeconds ?? 0);
+    }
+  }
+
+  /** The black box's carry-on entry: by Stepping away?'s countdown or a click, from which save, on
+   *  how many workers (the stopped run's, from its run mark or last beat, to this one's), and whether
+   *  the watcher opened this page. Numbers only. */
+  function noteDeadlineCarryOn(cp: DeadlineCheckpoint): void {
+    try {
+      const mark = readRunMark();
+      const crashed = crashAtLoad?.last.phase === 'deadline search' ? crashAtLoad.last.workers : undefined;
+      blackBox.noteCarryOn({
+        kind: 'deadline search',
+        carryOn: stepAwayTakeAutoCarryOn() ? 'auto' : 'click',
+        workersFrom: (mark?.kind === 'deadline' && mark.workers) || crashed || null,
+        workersTo: workerBudget.value,
+        lastSaveAt: cp.updatedAt ?? null,
+        lastSaveRoutes: checkpointCount(cp),
+        ...(loadReopen ?? {}),
+      });
+    } catch {
+      // the recorder is a nicety
     }
   }
 
@@ -7974,7 +8000,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes' | 'updatedAt'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -7987,6 +8013,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
+    deadlineLastSave = seed ? { at: seed.updatedAt, routes: seedCount } : null;
     // The leg spill cut back to the checkpoint's length (a fresh run: emptied). Bounded (spec-stuck3): a spill that never
     // answers leaves no run rather than a page waiting for good.
     const startLimit = runStorageLimit('opening the search detail file');
@@ -8170,6 +8197,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             part
           );
           deadlineCheckpointSize = { routes: header.count, bytes };
+          deadlineLastSave = { at: header.updatedAt, routes: header.count };
         } catch (e) {
           // Kept for the next write rather than lost.
           replay.undrain(part);
@@ -8809,15 +8837,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const lastCrash = ref(typeof window !== 'undefined' ? blackBox.readUnfinished() : null);
   // Another tab with a run going holds the run lock, and its beat is in the shared box: that run is
   // alive, not crashed. Without this, opening a second tab said the browser had killed the first.
-  if (lastCrash.value && typeof navigator !== 'undefined') {
-    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
-    void locks
-      ?.query()
-      .then(state => {
-        if (state.held?.some(l => l.name === 'ascension-planner:chain-search')) lastCrash.value = null;
-      })
-      .catch(() => {});
+  /** The second-tab watcher opened this page (search/stepAway.ts `watcherReopenPath`): for the black
+   *  box's page-load and carry-on entries. Null when it did not, or no unfinished beat was found. */
+  let loadReopen: ReturnType<typeof watcherReopenPath> = null;
+  /** This page found an unfinished beat that no other tab's live run explains: into the box's history,
+   *  with how the page was opened and how long after that beat (13 Nov 2026: a reload read as a stall). */
+  function notePageLoad(found: blackBox.Beat): void {
+    try {
+      const loadedAt =
+        typeof performance !== 'undefined' && performance.timeOrigin > 0 ? Math.round(performance.timeOrigin) : Date.now();
+      loadReopen = watcherReopenPath(readRunMark(), loadedAt);
+      blackBox.notePageLoad(found, loadReopen ?? {}, loadedAt);
+    } catch {
+      // the recorder is a nicety
+    }
   }
+  if (lastCrash.value && typeof navigator !== 'undefined') {
+    const found = lastCrash.value.last;
+    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+    if (!locks?.query) notePageLoad(found);
+    else
+      void locks
+        .query()
+        .then(state => {
+          if (state.held?.some(l => l.name === 'ascension-planner:chain-search')) lastCrash.value = null;
+          else notePageLoad(found);
+        })
+        .catch(() => notePageLoad(found));
+  } else if (lastCrash.value) notePageLoad(lastCrash.value.last);
   function dismissCrash(): void {
     blackBox.clearUnfinished();
     lastCrash.value = null;
@@ -8886,6 +8933,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
         workers,
+        lastSaveAt: deadlineLastSave?.at ?? null,
+        lastSaveRoutes: deadlineLastSave?.routes ?? null,
         ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
       });
@@ -9096,7 +9145,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return JSON.stringify(
       {
         note: 'ascension-planner black box: what the page was doing when it stopped',
+        // The previous page's unfinished beat, as THIS page found it at load (what the notice says).
         unfinished: lastCrash.value,
+        // The box as it is now: this page's own beats too, a carry-on and its run included.
+        live: blackBox.readLive(),
         ...(runNoteUsed.value ? { runNote: runNoteUsed.value } : {}),
         userAgent: navigator.userAgent,
         cores: machineThreads,
