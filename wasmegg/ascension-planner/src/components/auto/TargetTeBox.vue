@@ -1,13 +1,13 @@
 <!--
-  The target box on Chain Finder > Target TE, right under the "Target TE | By a date" switch (spec-targette, Jordan's OK
-  12 Nov 2026, Joo's layout): "Reach [490] TE as soon as possible". It is store.finalTE, the one remembered target (this
+  The target box on Chain Finder > Target TE, first in Target TE's one card, "The target" (FastestRoute.vue; spec-targette, Jordan's OK
+  12 Nov 2026, Joo's layout; left-aligned in the card like By a date's date choice, 13 Nov 2026): "Reach [490] TE as soon as possible". It is store.finalTE, the one remembered target (this
   browser and online Setup), the same as More's "Final target TE" boxes. Your TE + 1 up to 490; the target changes on
   Enter or leaving the box (targetTe.ts), never per keystroke, through the store's own guard (chainSearch.ts
   `commitFinalTE`). Not on By a date, which is fixed at 490.
 -->
 <template>
-  <div class="flex flex-col items-center gap-1 text-center" data-region="target" data-testid="target-te">
-    <div class="flex items-center justify-center gap-2 text-body text-slate-700">
+  <div class="flex flex-col items-start gap-1 text-left" data-region="target" data-testid="target-te">
+    <div class="flex items-center justify-start gap-2 text-body text-slate-700">
       <label for="target-te-input" class="font-bold">{{ TARGET_TE_WORDS.before }}</label>
       <input
         id="target-te-input"

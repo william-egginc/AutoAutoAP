@@ -2,8 +2,8 @@
  * THE LAYOUT CONTRACT on Fastest to 490 TE (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the
  * title and its one line, the answer (always shown, no Hide) with Follow this route as its one main button and first,
  * what to do now, then the one closed More holding the search and the rest, in that order and nothing between. Read
- * from the source (as the other layout specs do), plus the pieces rendered on the server. One control sits above the
- * title, outside More: the target box right under the Target TE | By a date switch (Jordan's OK, 12 Nov 2026).
+ * from the source (as the other layout specs do), plus the pieces rendered on the server. One control sits outside More:
+ * the target box, first in the one card under the title (Jordan's OK, 12 Nov 2026; the card, 13 Nov 2026).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,9 +20,9 @@ const order = (src: string, marks: string[]) => marks.map(m => src.indexOf(m));
 
 describe('Fastest: the regions in their fixed order', () => {
   const t = template(read('auto/FastestRoute.vue'));
-  it('the target box, title, answer, what to do now, More: in this order', () => {
-    // The target box first, right under the switch (Jordan, 12 Nov 2026); Filters right above the answer (13 Nov 2026).
-    const at = order(t, ['<TargetTeBox', 'data-region="title"', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold']);
+  it('the title, the target card (target box first), Filters, answer, what to do now, More: in this order', () => {
+    // The title, then the one card with the target box first (Jordan, 12 and 13 Nov 2026); Filters right above the answer.
+    const at = order(t, ['data-region="title"', 'data-testid="target-card"', '<TargetTeBox', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold']);
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
