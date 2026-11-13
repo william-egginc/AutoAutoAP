@@ -669,6 +669,22 @@ describe('the filters under Filters, the table on the card (Jordan, 12 Nov 2026 
   });
 });
 
+describe('on a phone the green box is the card (Jordan, 12 Nov 2026 pm; phone proposal item a)', () => {
+  const tpl = source.slice(0, source.indexOf('<script setup'));
+  it('the outer card has its border, background and padding from sm only; the green box 12 px sides on a phone', () => {
+    const outer = tpl.match(/<section v-if="!noTable" class="([^"]*)"/)![1].split(' ');
+    for (const c of ['sm:rounded-2xl', 'sm:border', 'sm:bg-white', 'sm:p-4']) expect(outer, c).toContain(c);
+    for (const c of ['border', 'p-4', 'bg-white', 'rounded-2xl']) expect(outer, c).not.toContain(c);
+    const boxes = [...tpl.matchAll(/<div [^>]*class="([^"]*)"[^>]*data-testid="instant-box"/g)].map(m => m[1].split(' '));
+    expect(boxes).toHaveLength(2);
+    for (const b of boxes) {
+      expect(b).toContain('px-3');
+      expect(b).toContain('sm:px-4');
+      expect(b).not.toContain('px-4');
+    }
+  });
+});
+
 describe('the share Teleport lives as long as the card', () => {
   it('not inside the answer or the integrity hold; only its content comes and goes', () => {
     const tpl = source.slice(0, source.indexOf('<script setup'));

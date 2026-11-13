@@ -24,7 +24,9 @@
   (wireframes/price-route-v2, Jordan 23 Oct 2026: nothing prices it here, the instant numbers never change by themselves).
 -->
 <template>
-  <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
+  <!-- On a phone the green box is the card (Jordan, 12 Nov 2026 pm; phone proposal item a): the outer card's border,
+       background and padding from sm up only, so the box's text gets 42 px more width at 390. -->
+  <section v-if="!noTable" class="sm:rounded-2xl sm:border border-emerald-200 sm:bg-white sm:p-4 space-y-3">
     <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -336,7 +338,7 @@
            instant answer only, and never change by themselves (nothing on this card prices a route). A search below has
            its own result card; once it has one for this goal, the pointer line at the bottom points to it. -->
       <template v-if="result && deadline">
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700"
               >Highest TE by {{ showNear(deadline) }}</span
@@ -576,7 +578,7 @@
       </template>
 
       <template v-if="result && !deadline">
-        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
+        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700">Fastest to {{ store.finalTE }} TE</span>
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
