@@ -356,7 +356,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   const stages = computed<BuildUpStages | null>(() => {
     const r = result.value;
     const a = plan.value;
-    return r && a ? buildUpStages(a.plan.start?.researchLevels, a.plan.variantKey, r.lines) : null;
+    return r && a ? buildUpStages(a.plan.start?.researchLevels, r.lines) : null;
   });
 
   // ------------------------------------------------------------------ ticks (Phase 2: from the save, the player's override)

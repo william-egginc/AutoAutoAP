@@ -141,6 +141,12 @@
               {{ TRACKER_VIEW_COMPACT }}
             </button>
           </div>
+          <!-- The key to the stages' colours (lib/buildUpStageStyle.ts): only the stages in this plan. A label, not a control. -->
+          <ul v-if="stages?.starts.length" class="flex flex-wrap gap-x-4 gap-y-1 text-small text-slate-700" data-testid="buildup-key">
+            <li v-for="st in stages.starts" :key="st.stage" class="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-sm" :class="STAGE_STYLE[st.stage].swatch"></span>{{ STAGE_WORDS[st.stage] }}
+            </li>
+          </ul>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"
@@ -241,11 +247,11 @@
                 </li>
                 <!-- A stage starts here (lib/buildUpStages.ts): a label, not a control. -->
                 <li v-if="stageAt.get(l.key)" class="pl-[44px] pt-2" data-testid="buildup-stage-row">
-                  <p class="label text-indigo-700" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ stageStartWords(stageAt.get(l.key)!.stage, stageAt.get(l.key)!.time) }}</p>
+                  <p class="label" :class="STAGE_STYLE[stageAt.get(l.key)!.stage].text" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ stageStartWords(stageAt.get(l.key)!.stage, stageAt.get(l.key)!.time) }}</p>
                 </li>
                 <li
                   class="flex items-start gap-x-1 rounded-md pr-1.5"
-                  :class="lineClass(l)"
+                  :class="[lineClass(l), stageLine(l)]"
                   :data-testid="`buildup-line-${l.kind}`"
                 >
                   <label
@@ -386,10 +392,19 @@
             </div>
             <section
               v-else-if="!row.full"
-              class="border-t border-slate-200 pt-1"
+              class="relative border-t border-slate-200 pt-1"
+              :class="stages ? 'pl-3' : ''"
               :data-testid="`buildup-cday-${row.ymd}`"
             >
               <template v-for="d in [row.day]" :key="d.ymd">
+              <!-- The day's stages as a line down its left (lib/buildUpStageStyle.ts): colour is not the only cue, the bands say it. -->
+              <span
+                v-if="dayStripe(d)"
+                aria-hidden="true"
+                class="absolute bottom-0 left-0 top-2 w-1 rounded-full"
+                :style="{ background: dayStripe(d) }"
+                data-testid="buildup-cstripe"
+              ></span>
               <h3><button
                   type="button"
                   class="flex min-h-[44px] w-full flex-wrap items-center gap-x-3 gap-y-0.5 text-left"
@@ -418,7 +433,8 @@
               <p
                 v-for="st in dayStageStarts(d)"
                 :key="st.key"
-                class="label mt-1 text-indigo-700"
+                class="label mt-1"
+                :class="STAGE_STYLE[st.stage].text"
                 :data-testid="`buildup-stage-${st.stage}`"
               >
                 {{ stageStartWords(st.stage, st.time) }}
@@ -520,6 +536,7 @@ import {
   compactNextWords,
   compactSaleWords,
   tierAheadWords,
+  STAGE_WORDS,
   stageNowWords,
   stageStartWords,
   tierUnlocksChipWords,
@@ -527,6 +544,7 @@ import {
 } from '@/lib/buildUpWords';
 import type { TierUnlock } from '@/lib/buildUpTiers';
 import type { BuildUpStages, StageStart } from '@/lib/buildUpStages';
+import { STAGE_STYLE, stageStripe } from '@/lib/buildUpStageStyle';
 import { chipWords, dayDone, doneRun, groupedDoneDays, listLines, researchRanges, toDoCount, whatLinesDo, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
@@ -626,6 +644,16 @@ const stageAt = computed(() => new Map((props.stages?.starts ?? []).map(x => [x.
 /** Where a stage starts on this day (Compact's bands). */
 function dayStageStarts(d: TrackerDay): StageStart[] {
   return d.lines.map(l => stageAt.value.get(l.key)).filter((x): x is StageStart => !!x);
+}
+/** A List row's left line: its stage's colour (nothing without stages). */
+function stageLine(l: TrackerLine): string {
+  const st = props.stages?.stageOf.get(l.key);
+  return st ? `border-l-4 ${STAGE_STYLE[st].line}` : '';
+}
+/** A Compact day's line: the stages of its lines, top to bottom. */
+function dayStripe(d: TrackerDay): string {
+  const so = props.stages?.stageOf;
+  return so ? stageStripe(d.lines.map(l => so.get(l.key)).filter((x): x is NonNullable<typeof x> => !!x)) : '';
 }
 /** The header's " · now: Buying to Tier 13": the stage of the next check-in; '' for none. */
 const stageNow = computed(() => {

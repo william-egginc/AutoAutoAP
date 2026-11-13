@@ -36,7 +36,7 @@ const result = buildUpTracker({
   startEgg: 'curiosity',
   now: NOW,
 });
-const stages = buildUpStages(START, '3-sale-tier13', result.lines);
+const stages = buildUpStages(START, result.lines);
 const unlocks = tierUnlocks(START, result.lines);
 
 let mem: Map<string, string>;
@@ -119,5 +119,52 @@ describe('the header line', () => {
   });
   it('nothing without stages', async () => {
     expect(textOf(await render({ stages: null }))).not.toContain('now:');
+  });
+});
+
+describe('colour by stage (Jordan, 13 Nov 2026): a coloured line down the left of each row, and a key', () => {
+  it('List: each row\'s line is its stage\'s colour', async () => {
+    const html = await render();
+    const rows = html.match(/<li[^>]*data-testid="buildup-line-[a-z]+"[^>]*>/g) ?? [];
+    expect(rows.length).toBeGreaterThan(3);
+    for (const r of rows) {
+      expect(r).toContain('border-l-4');
+      expect(r).toMatch(/border-(violet|teal|orange)-600/);
+    }
+    expect(rows.some(r => r.includes('border-violet-600'))).toBe(true);
+    expect(rows.some(r => r.includes('border-teal-600'))).toBe(true);
+    expect(rows.some(r => r.includes('border-orange-600'))).toBe(true);
+  });
+  it('Compact: a line down each day\'s left, its colours the stages of that day\'s lines', async () => {
+    const html = await render({ compact: true });
+    const stripes = (html.match(/<span[^>]*data-testid="buildup-cstripe"[^>]*>/g) ?? []).map(t => t.match(/style="([^"]*)"/)?.[1] ?? '');
+    expect(stripes.length).toBeGreaterThan(0);
+    expect(stripes.join(' ')).toMatch(/#7c3aed/i);
+    expect(html.match(/<span[^>]*data-testid="buildup-cstripe"[^>]*>/)?.[0]).toContain('aria-hidden="true"');
+  });
+  it('the key names the stages in this plan with swatches, in order, and only those', async () => {
+    const html = await render();
+    const key = html.match(/data-testid="buildup-key">([\s\S]*?)<\/ul>/)?.[1] ?? '';
+    expect(textOf(key)).toBe('Buying to Tier 13 Focus on ROI Delivery research');
+    expect(key).toContain('bg-violet-600');
+    expect(key).toContain('bg-orange-600');
+    expect(key).toContain('aria-hidden="true"');
+  });
+  it('a one-stage plan\'s key has that stage alone', async () => {
+    const one = buildUpStages({}, result.lines.filter(l => stages.stageOf.get(l.key) === 'delivery'));
+    const html = await render({ stages: one });
+    const key = html.match(/data-testid="buildup-key">([\s\S]*?)<\/ul>/)?.[1] ?? '';
+    expect(textOf(key)).toBe('Delivery research');
+  });
+  it('no stages, no key and no lines', async () => {
+    const html = await render({ stages: null });
+    expect(html).not.toContain('buildup-key');
+    expect(html).not.toContain('buildup-cstripe');
+    expect(html).not.toMatch(/border-(violet|teal|orange)-600/);
+  });
+  it('colour is not the only cue: the bands and the header still say the stage', async () => {
+    const html = await render();
+    expect(textOf(html)).toContain('now: Buying to Tier 13');
+    expect(bands(html).length).toBe(3);
   });
 });

@@ -3,8 +3,10 @@
  * the game expert's (~/code/aaap-tools/notes/spec-buildup-stages.md), computed from what the tracker already has: the
  * research items on its lines (their levels), the plan's start levels and variant, and the research table.
  *
- *  - Buying to Tier 13: only on a Tier 13 variant (the variant key ends in "tier13"), every research buy up to and
- *    including the one that makes the levels in tiers 1-12 reach the tier's threshold (the planner's `isTierUnlocked`).
+ *  - Buying to Tier 13: wherever the plan unlocks Tier 13 (Jordan, 13 Nov 2026: "where applicable", whatever the plan's
+ *    variant; the game expert's 5.5 reading, over their first, variant-only one): every research buy up to and including
+ *    the one that makes the levels in tiers 1-12 reach the tier's threshold (the planner's `isTierUnlocked`). Open at the
+ *    start, or never reached in the plan: no such stage.
  *  - Delivery research: the unbroken final run of research buys in a delivery-impact category (DELIVERY_IMPACT_CATEGORIES;
  *    a research can list two, any counts), from no earlier than the start of the sale that holds the last buy.
  *  - Focus on ROI: everything else. The "cheap" tag is NOT a stage marker.
@@ -52,7 +54,7 @@ interface Buy {
   n: number;
 }
 
-export function buildUpStages(startLevels: Readonly<Record<string, number>> | null | undefined, variantKey: string | null | undefined, lines: readonly TrackerLine[]): BuildUpStages {
+export function buildUpStages(startLevels: Readonly<Record<string, number>> | null | undefined, lines: readonly TrackerLine[]): BuildUpStages {
   // Every research buy, in order, with the levels it adds (replayed from the start levels).
   const level = new Map<string, number>(Object.entries(startLevels ?? {}));
   const buys: Buy[] = [];
@@ -86,8 +88,7 @@ export function buildUpStages(startLevels: Readonly<Record<string, number>> | nu
     if (first < buys.length) deliveryAt = Math.max(buys[first].at, saleStart);
   }
 
-  const tier13Build = /tier13$/.test(variantKey ?? '');
-  const stageOfBuy = (b: Buy): Stage => (b.at >= deliveryAt ? 'delivery' : tier13Build && unlockBuy >= 0 && b.n <= unlockBuy ? 'tier13' : 'roi');
+  const stageOfBuy = (b: Buy): Stage => (b.at >= deliveryAt ? 'delivery' : unlockBuy >= 0 && b.n <= unlockBuy ? 'tier13' : 'roi');
 
   // A check-in takes the stage of its last research buy.
   const byCheckIn = new Map<number, Stage>();

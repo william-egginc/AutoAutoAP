@@ -41,12 +41,12 @@ const linesOf = (actions: BuildUpAction[]): TrackerLine[] =>
   buildUpTracker({ actions, zone: ZONE, hours: null, siloSeconds: 0, startSilos: 1, startEgg: 'curiosity', now: at(4, 14, 0) }).lines;
 const lines = linesOf(PLAN);
 const research = lines.filter(l => l.kind === 'research');
-const perLine = (v: string | null, start: Record<string, number> | null = START, ls: TrackerLine[] = lines): (Stage | undefined)[] => {
-  const s = buildUpStages(start, v, ls);
+const perLine = (start: Record<string, number> | null = START, ls: TrackerLine[] = lines): (Stage | undefined)[] => {
+  const s = buildUpStages(start, ls);
   return ls.map(l => s.stageOf.get(l.key));
 };
-const perResearch = (v: string | null, start: Record<string, number> | null = START, ls: TrackerLine[] = lines) => {
-  const s = buildUpStages(start, v, ls);
+const perResearch = (start: Record<string, number> | null = START, ls: TrackerLine[] = lines) => {
+  const s = buildUpStages(start, ls);
   return ls.filter(l => l.kind === 'research').map(l => s.stageOf.get(l.key));
 };
 
@@ -59,31 +59,37 @@ describe('the plan is as built', () => {
 
 describe('a Tier 13 build', () => {
   it('Tier 13 ends exactly on the buy that reaches 1,655 levels; ROI; Delivery from the final run, inside the sale', () => {
-    expect(perResearch('3-sale-tier13')).toEqual(['tier13', 'tier13', 'roi', 'roi', 'roi', 'roi', 'delivery', 'delivery']);
+    expect(perResearch()).toEqual(['tier13', 'tier13', 'roi', 'roi', 'roi', 'roi', 'delivery', 'delivery']);
   });
   it('a check-in with no research takes the one before (the first: the plan\'s first stage)', () => {
-    const habs = lines.map((l, i) => [l, i] as const).filter(([l]) => l.kind === 'hab').map(([, i]) => perLine('3-sale-tier13')[i]);
+    const habs = lines.map((l, i) => [l, i] as const).filter(([l]) => l.kind === 'hab').map(([, i]) => perLine()[i]);
     expect(habs).toEqual(['tier13', 'roi', 'delivery']);
   });
   it('stages only move forward, and the start of each is on the list', () => {
     const order = ['tier13', 'roi', 'delivery'];
-    const per = perLine('3-sale-tier13').map(s => order.indexOf(s as string));
+    const per = perLine().map(s => order.indexOf(s as string));
     expect(per.every((x, i) => x >= 0 && (i === 0 || x >= per[i - 1]))).toBe(true);
-    const s = buildUpStages(START, '3-sale-tier13', lines);
+    const s = buildUpStages(START, lines);
     expect(s.starts.map(x => x.stage)).toEqual(['tier13', 'roi', 'delivery']);
     expect(s.starts[0].key).toBe(lines[0].key);
     expect(s.starts[2].key).toBe(research[6].key);
   });
 });
 
-describe('without a Tier 13 attempt, or with Tier 13 open', () => {
-  it('a build that is not a Tier 13 variant has no Tier 13 stage: ROI from the first check-in', () => {
-    expect(perResearch('3-sale')).toEqual(['roi', 'roi', 'roi', 'roi', 'roi', 'roi', 'delivery', 'delivery']);
-    expect(buildUpStages(START, '3-sale', lines).starts.map(x => x.stage)).toEqual(['roi', 'delivery']);
+describe('Tier 13 wherever the plan unlocks it, whatever its variant (Jordan, 13 Nov 2026: "where applicable")', () => {
+  it('the stage is not tied to the variant key: no variant is read at all', () => {
+    expect(buildUpStages.length).toBe(2);
   });
-  it('Tier 13 open at the start: no Tier 13 stage even on a Tier 13 variant', () => {
+  it('Tier 13 open at the start: no Tier 13 stage', () => {
     const open = { ...START, comfy_nests: 50, nutritional_sup: 40 };
-    expect(perResearch('3-sale-tier13', open)).not.toContain('tier13');
+    expect(perResearch(open)).not.toContain('tier13');
+    expect(buildUpStages(open, lines).starts.map(x => x.stage)).toEqual(['roi', 'delivery']);
+  });
+  it('a plan that never reaches 1,655 levels has no Tier 13 stage', () => {
+    const far = { ...START, hab_capacity1: 0, internal_hatchery1: 0, hatchery_expansion: 0, leafsprings: 0, vehicle_reliablity: 0 };
+    const low: Record<string, number> = {};
+    for (const k of Object.keys(far)) low[k] = 0;
+    expect(perResearch(low)).not.toContain('tier13');
   });
 });
 
@@ -91,8 +97,8 @@ describe('Jordan-style: a plan that starts inside the final sale', () => {
   const plan = [buy(at(6, 20, 0), 'grav_plating', 2, 4), buy(at(6, 20, 10), 'leafsprings', 0, 3), hab(at(6, 21, 0))];
   const ls = linesOf(plan);
   it('every check-in reads Delivery research from the first', () => {
-    expect(perLine('buildup', START, ls)).toEqual(ls.map(() => 'delivery'));
-    expect(buildUpStages(START, 'buildup', ls).starts.map(x => x.stage)).toEqual(['delivery']);
+    expect(perLine(START, ls)).toEqual(ls.map(() => 'delivery'));
+    expect(buildUpStages(START, ls).starts.map(x => x.stage)).toEqual(['delivery']);
   });
 });
 
@@ -100,16 +106,16 @@ describe('what is not a stage', () => {
   it('a final run outside any sale is not Delivery research (the last buy is not held by a sale)', () => {
     const plan = [buy(at(4, 15, 0), 'comfy_nests', 0, 10), buy(at(4, 16, 0), 'grav_plating', 0, 2)];
     const ls = linesOf(plan);
-    expect(perLine('3-sale', START, ls)).not.toContain('delivery');
+    expect(perLine(START, ls)).not.toContain('delivery');
   });
   it('delivery-category research bought by ROI in an earlier sale stays ROI', () => {
     const plan = [buy(at(6, 18, 0), 'grav_plating', 0, 2), buy(at(6, 18, 30), 'padded_packaging', 0, 5), buy(at(13, 18, 0), 'leafsprings', 0, 3)];
     const ls = linesOf(plan);
     // Nov 13 18:00 UTC is the next sale's Friday 10:00 AM Pacific: the last buy is delivery, the sale holds it.
-    expect(perResearch('3-sale', START, ls)).toEqual(['roi', 'roi', 'delivery']);
+    expect(perResearch(START, ls)).toEqual(['roi', 'roi', 'delivery']);
   });
   it('without start levels no Tier 13 stage is guessed, ROI and Delivery still are', () => {
-    expect(perResearch('3-sale-tier13', null)).not.toContain('tier13');
+    expect(perResearch(null)).not.toContain('tier13');
   });
 });
 
