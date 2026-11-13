@@ -11,8 +11,8 @@ import { RUNS_EXPLORE_PREFIX, emptyExplore } from '@/lib/runsExplore';
 const ID = 'EI0000000000000000';
 const OTHER = 'EI1234567890123456';
 // Not hashed yet by the test above (accountHash remembers hashes), so the slow hash is really waited for.
-const SLOW = 'EI0000000000000002';
-const SLOW_OTHER = 'EI0000000000000003';
+const SLOW = 'EI9876543210987654';
+const SLOW_OTHER = 'EI1111111111111111';
 let mem: Map<string, string>;
 
 beforeEach(() => {
