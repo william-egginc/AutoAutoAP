@@ -109,3 +109,19 @@ export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n ===
 export const showAllToDoWords = (n: number): string => `Show all ${n} still to do`;
 /** Said after a done day's line for a screen reader. */
 export const DONE_DAY_SR = 'all done';
+
+/**
+ * Research tier unlocks (spec-tierunlock, 13 Nov 2026; DRAFT, Words). The tracker says where a tier opens: on the check-in
+ * ("Tier 13 unlocks") and, while one is still ahead, in the header ("Tier 13 at 4:41 PM"). A label, not a control. Tiers
+ * read as "13", "12 and 13", "2, 3 and 4".
+ */
+const tiersList = (tiers: readonly number[]): string =>
+  tiers.length < 2 ? `${tiers[0]}` : `${tiers.slice(0, -1).join(', ')} and ${tiers[tiers.length - 1]}`;
+/** On the check-in: "Tier 13 unlocks", "Tiers 12 and 13 unlock". */
+export function tierUnlocksWords(tiers: readonly number[]): string {
+  return tiers.length === 1 ? `Tier ${tiers[0]} unlocks` : `Tiers ${tiersList(tiers)} unlock`;
+}
+/** In the header, after the check-in count: "Tier 13 at 4:41 PM". `when` is the time as the tracker's lines write it. */
+export function tierAheadWords(tiers: readonly number[], when: string): string {
+  return `${tiers.length === 1 ? 'Tier' : 'Tiers'} ${tiersList(tiers)} at ${when}`;
+}

@@ -280,6 +280,10 @@
                     <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
                     <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
                     <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
+                    <!-- A research tier unlocks on this check-in (lib/buildUpTiers.ts): a label, not a control. -->
+                    <span v-if="tierAt.get(l.key)" class="font-bold text-indigo-700" :data-testid="`buildup-tier-${l.key}`"
+                      >{{ ' · ' }}{{ tierUnlocksWords(tierAt.get(l.key)!) }}</span
+                    >
                     <span v-if="statusOf(l) === 'partial'"
                       >{{ ' · ' }}<span class="tabular-nums text-amber-800" :data-testid="`buildup-status-${l.key}`"
                         >{{ boughtOf(l)!.bought }} of {{ boughtOf(l)!.total }} bought</span
@@ -472,7 +476,7 @@ import PanelFold from '@/components/auto/PanelFold.vue';
 import BuildUpDoneLine from './BuildUpDoneLine.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
+import { clock12, dayClock, dayTitle, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from 'lib/planners/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import { a1TrackerWords } from '@/lib/a1Choice';
@@ -502,7 +506,10 @@ import {
   checkInSpanWords,
   compactNextWords,
   compactSaleWords,
+  tierAheadWords,
+  tierUnlocksWords,
 } from '@/lib/buildUpWords';
+import type { TierUnlock } from '@/lib/buildUpTiers';
 import { chipWords, dayDone, doneRun, groupedDoneDays, listLines, researchRanges, toDoCount, whatLinesDo, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
@@ -551,8 +558,11 @@ const props = withDefaults(
     /** Setup's awake hours (the store's `availability`; null: none): with hours that rule something out, the
      *  night-buy note under the save line (spec-nightbuynote). */
     awakeHours?: Availability | null;
+    /** Where a research tier unlocks in this plan (lib/buildUpTiers.ts `tierUnlocks`): a label on that check-in and a part of
+     *  the header line while it is ahead (spec-tierunlock). */
+    tierUnlocks?: readonly TierUnlock[];
   }>(),
-  { awakeHours: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
+  { awakeHours: null, tierUnlocks: () => [], siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -589,7 +599,18 @@ const hint = computed(() => {
   if (!s.next) return `all ${s.total} check-ins done`;
   const wait = s.next.at - props.now;
   const when = wait > 60 ? ` (in ${gapWords(wait)})` : wait < -60 ? ` (${gapWords(-wait)} ago)` : ' (now)';
-  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}`;
+  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}${tierAhead.value}`;
+});
+
+/** Tiers by the line they unlock on. */
+const tierAt = computed(() => new Map(props.tierUnlocks.map(u => [u.key, u.tiers] as const)));
+/** The header's " · Tier 13 at 4:41 PM": the first unlock still ahead (its check-in not ticked), with its day when it is not today's; '' for none. */
+const tierAhead = computed(() => {
+  const u = props.tierUnlocks.find(x => !ticked.value.has(x.key));
+  if (!u) return '';
+  const day = dayTitle(u.at, props.zone, props.now);
+  const when = day === dayTitle(props.now, props.zone, props.now) ? u.time : `${day} ${u.time}`;
+  return ` · ${tierAheadWords(u.tiers, when)}`;
 });
 
 /** The night-buy note: a plan shown (this branch of the template) with awake hours set (lib/nightBuyNote.ts). */
@@ -782,6 +803,8 @@ function compactChips(d: TrackerDay): { key: string; text: string; done: boolean
   for (const l of compactRest(d)) {
     if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
     else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
+    const tiers = tierAt.value.get(l.key);
+    if (tiers) out.push({ key: `tier-${l.key}`, text: tierUnlocksWords(tiers), done: false, event: true });
   }
   return out;
 }

@@ -48,6 +48,7 @@ import {
   type AnchoredPlan,
   type TrackerResult,
 } from '@/lib/buildUpTracker';
+import { tierUnlocks as tierUnlocksOf, type TierUnlock } from '@/lib/buildUpTiers';
 import {
   boughtFromSave,
   carryTicks,
@@ -340,6 +341,14 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
         })
       )
     );
+  });
+
+  /** Where a research tier unlocks in this plan (lib/buildUpTiers.ts; spec-tierunlock): from the plan's start levels and the
+   *  list's research lines. Empty for a plan kept without its start. */
+  const tierUnlocks = computed<TierUnlock[]>(() => {
+    const r = result.value;
+    const a = plan.value;
+    return r && a ? tierUnlocksOf(a.plan.start?.researchLevels, r.lines) : [];
   });
 
   // ------------------------------------------------------------------ ticks (Phase 2: from the save, the player's override)
@@ -642,6 +651,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     wanted,
     plan,
     result,
+    tierUnlocks,
     ticks,
     tickSource,
     toggleTick,
