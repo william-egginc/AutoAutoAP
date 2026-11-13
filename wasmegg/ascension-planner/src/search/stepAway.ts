@@ -570,3 +570,22 @@ export function markHeldElsewhere(a: {
   if (!mark || mark.startedAt === ownStartedAt || lock === 'ours') return false;
   return runAliveElsewhere({ mark, kind: mark.kind, account: '', now, lockHeld: lock === 'other', runningHere: false });
 }
+
+/**
+ * Whether the second-tab watcher opened this page, and how (for the black box only). The watcher
+ * counts a reopen in the run mark, then opens the run in a new tab; a page that has not said it loaded
+ * REOPEN_CONFIRM_MS later, it opens in its own tab instead (watch/local.ts `reopen`). So a load within
+ * that time of the last reopen is the new tab, a later one (up to REOPEN_GRACE_MS) the watcher's own.
+ * A new tab slower than REOPEN_CONFIRM_MS reads as the watcher's own: by then it has gone there too.
+ * Null: no reopen near this load (the player, or the browser's own reload).
+ */
+export function watcherReopenPath(
+  mark: Pick<RunMark, 'reopens'> | null,
+  loadedAt: number
+): { reopenedBy: 'watcher-new-tab' | 'watcher-own-tab'; sinceReopenMs: number } | null {
+  const before = (mark?.reopens ?? []).filter(t => t <= loadedAt);
+  if (!before.length) return null;
+  const since = loadedAt - Math.max(...before);
+  if (since > REOPEN_GRACE_MS) return null;
+  return { reopenedBy: since < REOPEN_CONFIRM_MS ? 'watcher-new-tab' : 'watcher-own-tab', sinceReopenMs: since };
+}

@@ -278,8 +278,22 @@ export function stepAwayPageClosing(): void {
   if (m && m.status === 'running') sa.writeRunMark({ ...m, status: 'closed', endedAt: Date.now() });
 }
 
+/** When the countdown last carried a run on (`stepAwayBeginCarryOn`), for the black box's carry-on
+ *  entry: taken once by the carry-on it started (`stepAwayTakeAutoCarryOn`). */
+let autoCarryAt = 0;
+/** How long after the countdown's carry-on the run's own start still counts as that carry-on. */
+const AUTO_CARRY_TAKE_MS = 60_000;
+
+/** Whether the carry-on starting now is the countdown's (true once, then forgotten) or a click. */
+export function stepAwayTakeAutoCarryOn(now = Date.now()): boolean {
+  const auto = autoCarryAt > 0 && now - autoCarryAt <= AUTO_CARRY_TAKE_MS;
+  autoCarryAt = 0;
+  return auto;
+}
+
 /** About to carry a crashed run on by itself: count it for the guard and take fewer workers. */
 export function stepAwayBeginCarryOn(): number | null {
+  autoCarryAt = Date.now();
   const m = sa.readRunMark();
   if (!m || !deps) return null;
   const now = Date.now();
