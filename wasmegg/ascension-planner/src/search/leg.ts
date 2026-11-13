@@ -361,17 +361,29 @@ export function runLeg(
   // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
   // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
   // A1 CHOICE (spec-a1choice): its build's buy count is read here, before its actions are let go.
+  // SHIFT NOW (spec-emptyshiftnow, `isShiftNow`): a build-up whose build buys nothing (the sale's buying done, H1 at once)
+  // is only ever an addition. It is taken when it is sooner than continue (by a deadline: more TE); otherwise the best
+  // build-up that buys stands in for it, exactly as before it was kept (My runs' unfinished build and its A1 choice too).
   let buildUp = ((): CompactVariant | null => {
     if (!allowContinue || mode === 'fresh') return null;
+    const startOf = () => buildUpBuild(inputs, baseState, startTime, startTE)?.start;
+    const withBuys = (raw: VariantResult | null | undefined): CompactVariant | null => {
+      const c = compactOrNull(raw ?? null, startOf);
+      return c && raw ? { ...c, buys: buildBuysOf(raw.actions) } : c;
+    };
     const raw = buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride);
-    const c = compactOrNull(raw, () => buildUpBuild(inputs, baseState, startTime, startTE)?.start);
-    return c && raw ? { ...c, buys: buildBuysOf(raw.actions) } : c;
+    const best = withBuys(raw);
+    const c = kinds.continue?.v;
+    if (!raw?.shiftNow || !best || !c || c.summary.totalDurationSeconds > CONTINUE_MAX_SECONDS || sooner(best, c, byDeadline))
+      return best;
+    return withBuys(raw.buying);
   })();
   if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
   // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026; Jordan's alt: a build-up A1 of 6 shifts and 38.59Q of soul
   // eggs to Dec 13 against continue's 3 shifts and 17.82Q to Dec 12). The build-up always opens with C3's shift to
   // Curiosity (auto/buildUp.ts), so one that buys nothing is continue with extra shifts. Such a build-up never gets
-  // here: `buildUpBuild` keeps only the variants whose build (the steps to C3 and C3 itself) buys something. With
+  // here: `buildUpBuild` keeps only the variants whose build (the steps to C3 and C3 itself) buys something (and SHIFT NOW,
+  // which opens with no shift and is weighed against continue above). With
   // nothing to buy, "Continue my build-up" is "just laying" (the 'buildup' rule below): continue, even when the
   // caller left continue out (My runs' unfinished build, useNowPage.ts `continueMaxSeconds` 0), within the six months.
   const nothingToBuild = allowContinue && mode !== 'fresh' && !!buildUpBuild(inputs, baseState, startTime, startTE)?.buysNothing;
@@ -774,6 +786,9 @@ interface BuildUpBuild {
   /** Every possible variant's build (the steps to C3 and C3 itself) buys nothing (`buildUpBuys`): `variants` is
    *  then empty, and the build-up is no option (NO EMPTY BUILD-UP, `runLeg`). */
   buysNothing?: true;
+  /** The one variant in `variants` whose build buys nothing: the farm's buying for this sale is done, so it shifts to
+   *  H1 at once (`isShiftNow`). `runLeg` takes it only when it is sooner than continue. */
+  shiftNow?: C3Variant;
 }
 
 /** Whether a build-up variant's build buys anything: a research, vehicle, train car, hab or silo purchase
@@ -782,6 +797,19 @@ interface BuildUpBuild {
  *  a build-up from continue with extra shifts, the same in the search and in the instant answer. */
 function buildUpBuys(preC3: { actions: Action[] }, v: C3Variant): boolean {
   return preC3.actions.some(isPurchase) || (v.result?.actions ?? []).some(isPurchase);
+}
+
+/**
+ * SHIFT NOW (spec-emptyshiftnow, 13 Nov 2026; Jordan's main at 2:51 PM: Wormhole Dampening 18->19 bought, the last buy of
+ * the 1-sale variant, which shifts at once). The variant then buys nothing, so NO EMPTY BUILD-UP dropped it, and only
+ * the 2-sale variant was left: wait a week for the next sale, buy more, shift, ending 39 hours later. What tells it from
+ * the alt's empty build-up (6 shifts for nothing, spec-noemptybuild): the farm is already in C3 (no steps before it, no
+ * shift into it: Curiosity stays), and this variant's C3 takes no time, so it is "the sale's buying is done, H1 now",
+ * with no shift and no wait added. `buildUpBuild` keeps it only while a longer variant still buys (a farm with nothing
+ * at all to buy is still no build-up), and `runLeg` only when it is sooner than continue.
+ */
+function isShiftNow(pre: { actions: Action[]; stayOnCuriosity: boolean }, v: C3Variant): boolean {
+  return pre.stayOnCuriosity && pre.actions.length === 0 && !(v.result.elapsedSeconds > 0) && !v.result.actions.some(isPurchase);
 }
 
 /**
@@ -834,10 +862,20 @@ function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: n
       stayOnCuriosity: pre.stayOnCuriosity,
     }).filter(v => !v.impossible);
     const preC3 = { actions, state, elapsedSeconds };
-    // NO EMPTY BUILD-UP: a variant whose build buys nothing is continue with extra shifts, never offered.
-    const variants = possible.filter(v => buildUpBuys(preC3, v));
+    // NO EMPTY BUILD-UP: a variant whose build buys nothing is continue with extra shifts, never offered. Except the
+    // sale's buying done (`isShiftNow`): H1 now, kept while a longer variant still buys.
+    const buying = possible.filter(v => buildUpBuys(preC3, v));
+    const shiftNow = buying.length ? possible.find(v => !buying.includes(v) && isShiftNow(pre, v)) : undefined;
+    const variants = shiftNow ? possible.filter(v => v === shiftNow || buying.includes(v)) : buying;
     built = possible.length
-      ? { start, ctx, preC3, variants, ...(variants.length ? {} : { buysNothing: true as const }) }
+      ? {
+          start,
+          ctx,
+          preC3,
+          variants,
+          ...(variants.length ? {} : { buysNothing: true as const }),
+          ...(shiftNow ? { shiftNow } : {}),
+        }
       : null;
   }
   if (byStart.size >= 4) byStart.delete(byStart.keys().next().value as number);
@@ -855,7 +893,7 @@ function buildBuildUpVariant(
   idx: number,
   startTE: number,
   endOverride?: number
-): VariantResult | null {
+): (VariantResult & { shiftNow?: true; buying?: VariantResult }) | null {
   const b = buildUpBuild(inputs, baseState, startTime, startTE);
   if (!b) return null;
   const variants = endOverride !== undefined ? b.variants.filter(v => v.buildPhaseEnd <= endOverride) : b.variants;
@@ -865,9 +903,22 @@ function buildBuildUpVariant(
     res[key] = runAscensionFromC3Variant(b.start, b.preC3, v, b.ctx, startTime, `asc_${idx}_buildup`, targetTE, endOverride);
   }
   if (!Object.keys(res).length) return null;
-  const best = pickVariant(res, undefined, endOverride !== undefined);
-  return { ...best, summary: { ...best.summary, strategyLabel: `Build-up, ${best.summary.strategyLabel}` } };
+  const byEnd = endOverride !== undefined;
+  const labelled = (v: VariantResult): VariantResult => ({
+    ...v,
+    summary: { ...v.summary, strategyLabel: `Build-up, ${v.summary.strategyLabel}` },
+  });
+  const best = pickVariant(res, undefined, byEnd);
+  // SHIFT NOW picked: the best of the variants that buy goes with it, for `runLeg` to fall back on.
+  const nowKey = b.shiftNow ? keyOfC3(b.shiftNow) : null;
+  if (!nowKey || res[nowKey] !== best) return labelled(best);
+  const { [nowKey]: _now, ...rest } = res;
+  const buying = Object.keys(rest).length ? labelled(pickVariant(rest, undefined, byEnd)) : undefined;
+  return { ...labelled(best), shiftNow: true as const, ...(buying ? { buying } : {}) };
 }
+
+const keyOfC3 = (v: C3Variant): VariantKey =>
+  (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
 
 /** `buildBuildUpVariant` for checks and the CLI; the search calls it through `runLeg`. */
 export const buildUpVariantForCheck = buildBuildUpVariant;

@@ -317,3 +317,25 @@ export function shippingShortBackup(): any {
   b.farms[0].trainLength = Array(9).fill(10);
   return b;
 }
+
+/** A plan start inside a research sale (Friday Oct 2, 2026, 11:00 am Pacific), for `saleBuysDoneBackup`. */
+export const IN_SALE_START = Math.floor(Date.UTC(2026, 9, 2, 18, 0) / 1000);
+
+/**
+ * THE SALE'S BUYING DONE, PART-WAY THROUGH C3 (spec-emptyshiftnow, 13 Nov 2026: the shape of Jordan's main at 2:51 PM,
+ * the 1-sale variant's last buy just bought). `nothingToBuyBackup` on Curiosity (every vehicle bought, Autonomous
+ * Vehicles finished: the build is in C3) wearing no set (as a farm in C3 wears its earnings set, not the delivery set
+ * H1 swaps to), with Dark Containment five levels short. Planned from `IN_SALE_START`, its 1-sale C3 buys nothing and
+ * takes no time (H1 now), and its 2-sale C3 waits a week for the next sale and buys the five levels. `short` 0: the same
+ * farm with nothing left to buy at all. No player data.
+ */
+export function saleBuysDoneBackup(short = 5): any {
+  const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
+  const f = b.farms[0];
+  f.eggType = 50;
+  f.commonResearch = f.commonResearch.map((r: { id: string; level: number }) =>
+    r.id === 'dark_containment' ? { id: r.id, level: r.level - short } : r
+  );
+  b.artifactsDb.virtueAfxDb.activeArtifacts.slots = [{ occupied: false }, { occupied: false }, { occupied: false }, { occupied: false }];
+  return b;
+}
