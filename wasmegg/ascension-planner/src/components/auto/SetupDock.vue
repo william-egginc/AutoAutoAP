@@ -48,12 +48,17 @@
     <div
       ref="pillEl"
       class="flex flex-wrap items-center justify-center gap-1 rounded-[1.75rem] bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5 max-w-[calc(100vw-2rem)]"
-      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl'"
+      :class="[
+        stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl',
+        round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:gap-0 max-sm:rounded-full' : '',
+      ]"
       data-testid="setup-dock-pill"
     >
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
+      <!-- Below sm, as the round gear (Jordan, 12 Nov 2026 pm), there is no handle: the gear itself drags (onGearDown). -->
       <span
         class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white/70 hover:text-white"
+        :class="round ? 'max-sm:hidden' : ''"
         title="Drag to move · double-click to put back"
         aria-hidden="true"
         @pointerdown="startDrag"
@@ -63,13 +68,17 @@
       <button
         type="button"
         class="relative flex items-center gap-1.5 min-h-[44px] sm:min-h-0 rounded-full px-2.5 py-1 hover:bg-white/15"
-        :class="summary ? 'basis-0 grow xl:basis-auto xl:grow-0' : ''"
+        :class="[
+          summary ? 'basis-0 grow xl:basis-auto xl:grow-0' : '',
+          round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:justify-center max-sm:touch-none max-sm:select-none' : '',
+        ]"
         :aria-expanded="ui.setupOpen"
         aria-label="Setup"
         :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
-        @click="ui.setupOpen = !ui.setupOpen"
+        @pointerdown="onGearDown"
+        @click="onGearClick"
       >
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg class="w-4 h-4 shrink-0" :class="round ? 'max-sm:w-6 max-sm:h-6' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -77,7 +86,7 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span class="flex flex-col items-start leading-tight">
+        <span class="flex flex-col items-start leading-tight" :class="round ? 'max-sm:hidden' : ''">
           <span class="text-body font-bold">Setup</span>
           <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
           <span v-if="summary" class="text-small font-normal text-white/85 text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
@@ -131,6 +140,7 @@ import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
 import YourSetup from './YourSetup.vue';
 import { WORKERS_TIP } from '@/lib/layoutWords';
+import { movedPast } from './setupDockDrag';
 
 const props = defineProps<{
   screen: AutoView;
@@ -154,6 +164,12 @@ const ui = useUIStore();
 /** A search is running (or a Custom queue is between its chains): the pill shows the workers then only. */
 const searching = computed(() => store.busy || store.isRunning || store.deadlineRunning || store.sweepQueue.at >= 0);
 const errors = computed(() => store.setupIssues.filter(i => i.level === 'error').length);
+/**
+ * THE ROUND GEAR (Jordan, 12 Nov 2026 pm, phone proposal question 5): below sm (the max-sm: classes) and while no search
+ * runs, the pill is a 48 px round gear (aria-label "Setup", its title and the red problem dot kept) that is also its own
+ * drag handle. My runs (its summary) and a running search (the workers) keep the pill at every width.
+ */
+const round = computed(() => !props.summary && !searching.value);
 
 function setWorkers(n: number): void {
   store.setWorkersByHand(Math.max(1, Math.min(store.machineThreads, Math.floor(n))));
@@ -245,6 +261,43 @@ function endDrag(): void {
   window.removeEventListener('pointermove', onDrag);
   savePos();
 }
+/** The gear on a phone: a press that moves past GEAR_DRAG_PX drags the pill (as the ⋮⋮ handle does from sm up); a
+ *  press that doesn't is a tap, which opens Setup (onGearClick). The click a drag ends with is swallowed. */
+let gearFrom: { px: number; py: number; x: number; y: number; id: number } | null = null;
+let dragged = false;
+function roundNow(): boolean {
+  return round.value && viewport.value.w < 640;
+}
+function onGearDown(e: PointerEvent): void {
+  dragged = false;
+  if (!roundNow()) return;
+  const r = dock.value?.getBoundingClientRect();
+  if (!r) return;
+  gearFrom = { px: e.clientX, py: e.clientY, x: r.left, y: r.top, id: e.pointerId };
+  window.addEventListener('pointermove', onGearMove);
+  window.addEventListener('pointerup', onGearUp);
+  window.addEventListener('pointercancel', onGearUp);
+}
+function onGearMove(e: PointerEvent): void {
+  if (!gearFrom || e.pointerId !== gearFrom.id) return;
+  if (!dragged && !movedPast(gearFrom.px, gearFrom.py, e.clientX, e.clientY)) return;
+  dragged = true;
+  pos.value = clamped({ x: gearFrom.x + e.clientX - gearFrom.px, y: gearFrom.y + e.clientY - gearFrom.py });
+}
+function onGearUp(): void {
+  window.removeEventListener('pointermove', onGearMove);
+  window.removeEventListener('pointerup', onGearUp);
+  window.removeEventListener('pointercancel', onGearUp);
+  if (gearFrom && dragged) savePos();
+  gearFrom = null;
+}
+function onGearClick(): void {
+  if (dragged) {
+    dragged = false;
+    return;
+  }
+  ui.setupOpen = !ui.setupOpen;
+}
 function resetPos(): void {
   pos.value = null;
   savePos();
@@ -271,6 +324,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('pointermove', onDrag);
+  onGearUp();
   ui.setupOpen = false;
 });
 </script>
