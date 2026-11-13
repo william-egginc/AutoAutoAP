@@ -49,6 +49,7 @@ import {
   type TrackerResult,
 } from '@/lib/buildUpTracker';
 import { tierUnlocks as tierUnlocksOf, type TierUnlock } from '@/lib/buildUpTiers';
+import { buildUpStages, type BuildUpStages } from '@/lib/buildUpStages';
 import {
   boughtFromSave,
   carryTicks,
@@ -349,6 +350,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const r = result.value;
     const a = plan.value;
     return r && a ? tierUnlocksOf(a.plan.start?.researchLevels, r.lines) : [];
+  });
+
+  /** The stages of this plan (lib/buildUpStages.ts; spec-stages): Buying to Tier 13, Focus on ROI, Delivery research. */
+  const stages = computed<BuildUpStages | null>(() => {
+    const r = result.value;
+    const a = plan.value;
+    return r && a ? buildUpStages(a.plan.start?.researchLevels, a.plan.variantKey, r.lines) : null;
   });
 
   // ------------------------------------------------------------------ ticks (Phase 2: from the save, the player's override)
@@ -652,6 +660,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     plan,
     result,
     tierUnlocks,
+    stages,
     ticks,
     tickSource,
     toggleTick,

@@ -129,3 +129,13 @@ export function tierUnlocksChipWords(tiers: readonly number[], time: string): st
 export function tierAheadWords(tiers: readonly number[], when: string): string {
   return `${tiers.length === 1 ? 'Tier' : 'Tiers'} ${tiersList(tiers)} at ${when}`;
 }
+
+/**
+ * The tracker's stages (spec-stages, 13 Nov 2026; Jordan's three names; DRAFT for the rest, Words): a band where a stage
+ * starts, and "now: <stage>" in the header line. Labels only.
+ */
+export const STAGE_WORDS = { tier13: 'Buying to Tier 13', roi: 'Focus on ROI', delivery: 'Delivery research' } as const;
+/** The header line's part: "now: Buying to Tier 13". */
+export const stageNowWords = (stage: keyof typeof STAGE_WORDS): string => `now: ${STAGE_WORDS[stage]}`;
+/** A stage's band: "Focus on ROI from 11:16 AM" (the time the stage's first line has; none: the name alone). */
+export const stageStartWords = (stage: keyof typeof STAGE_WORDS, time: string): string => `${STAGE_WORDS[stage]}${time ? ` from ${time}` : ''}`;

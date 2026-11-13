@@ -239,6 +239,10 @@
                     @toggle="toggleRun(d.ymd)"
                   />
                 </li>
+                <!-- A stage starts here (lib/buildUpStages.ts): a label, not a control. -->
+                <li v-if="stageAt.get(l.key)" class="pl-[44px] pt-2" data-testid="buildup-stage-row">
+                  <p class="label text-indigo-700" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ stageStartWords(stageAt.get(l.key)!.stage, stageAt.get(l.key)!.time) }}</p>
+                </li>
                 <li
                   class="flex items-start gap-x-1 rounded-md pr-1.5"
                   :class="lineClass(l)"
@@ -410,6 +414,15 @@
                 />
                 <p class="label mt-2 text-slate-500">{{ STILL_TO_BUY }}</p>
               </template>
+              <!-- Where a stage starts on this day (lib/buildUpStages.ts): labels. -->
+              <p
+                v-for="st in dayStageStarts(d)"
+                :key="st.key"
+                class="label mt-1 text-indigo-700"
+                :data-testid="`buildup-stage-${st.stage}`"
+              >
+                {{ stageStartWords(st.stage, st.time) }}
+              </p>
               <ul v-if="compactChips(d).length" class="mt-1 flex flex-wrap gap-1.5">
                 <li
                   v-for="c in compactChips(d)"
@@ -507,10 +520,13 @@ import {
   compactNextWords,
   compactSaleWords,
   tierAheadWords,
+  stageNowWords,
+  stageStartWords,
   tierUnlocksChipWords,
   tierUnlocksWords,
 } from '@/lib/buildUpWords';
 import type { TierUnlock } from '@/lib/buildUpTiers';
+import type { BuildUpStages, StageStart } from '@/lib/buildUpStages';
 import { chipWords, dayDone, doneRun, groupedDoneDays, listLines, researchRanges, toDoCount, whatLinesDo, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
@@ -562,8 +578,10 @@ const props = withDefaults(
     /** Where a research tier unlocks in this plan (lib/buildUpTiers.ts `tierUnlocks`): a label on that check-in and a part of
      *  the header line while it is ahead (spec-tierunlock). */
     tierUnlocks?: readonly TierUnlock[];
+    /** The build-up's stages (lib/buildUpStages.ts): a band where each starts and "now: <stage>" in the header line (spec-stages). */
+    stages?: BuildUpStages | null;
   }>(),
-  { awakeHours: null, tierUnlocks: () => [], siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
+  { awakeHours: null, tierUnlocks: () => [], stages: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -600,7 +618,20 @@ const hint = computed(() => {
   if (!s.next) return `all ${s.total} check-ins done`;
   const wait = s.next.at - props.now;
   const when = wait > 60 ? ` (in ${gapWords(wait)})` : wait < -60 ? ` (${gapWords(-wait)} ago)` : ' (now)';
-  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}${tierAhead.value}`;
+  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}${stageNow.value}${tierAhead.value}`;
+});
+
+/** The stages' first lines by key (a band goes before each). */
+const stageAt = computed(() => new Map((props.stages?.starts ?? []).map(x => [x.key, x] as const)));
+/** Where a stage starts on this day (Compact's bands). */
+function dayStageStarts(d: TrackerDay): StageStart[] {
+  return d.lines.map(l => stageAt.value.get(l.key)).filter((x): x is StageStart => !!x);
+}
+/** The header's " · now: Buying to Tier 13": the stage of the next check-in; '' for none. */
+const stageNow = computed(() => {
+  const key = props.summary?.next?.keys[0];
+  const st = key ? props.stages?.stageOf.get(key) : undefined;
+  return st ? ` · ${stageNowWords(st)}` : '';
 });
 
 /** Tiers by the line they unlock on. */

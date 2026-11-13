@@ -145,6 +145,7 @@
             :followed-for="trackerFollowedFor"
             :awake-hours="nightBuyHours"
             :tier-unlocks="tracker.tierUnlocks.value"
+            :stages="tracker.stages.value"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
