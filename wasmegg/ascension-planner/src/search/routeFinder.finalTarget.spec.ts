@@ -55,7 +55,9 @@ describe('a target the first build already holds (documents today’s behaviour,
   // The build starts at TE 300 and ends holding the eggs of TE 308. A target of 303 was reached
   // part-way through the build, but the sweep only reaches a TE the build already holds once K3's
   // wait for the sale is over (precomputedLeg.ts sweepTails). So the answer is the build's whole
-  // length, never less. If a later change prices the earlier moment, this fails on purpose: update it.
+  // length, never less. Checked against the simulator (TE 200 to 205, 210, 220, maxed table): the
+  // one-ascension answers match it to the second, so this is also what the simulator does. If a later
+  // change prices an earlier moment, this fails on purpose: look at why before updating it.
   it('a target below what the build ends holding takes the whole build to the sale’s end', async () => {
     const { best } = await findRoutes({ table: tableOf(8), startTE: FROM, start: START, final: 303, maxAscensions: 1 });
     expect(best).not.toBeNull();
