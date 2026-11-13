@@ -15,11 +15,11 @@ describe('first tour words', () => {
       body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'Chain Finder has two goals: By a date plans the most TE by a date such as Egg Day, and Target TE finds the quickest way to a TE such as 490. Switch any time.'
+      'You start on Chain Finder. Its switch picks the goal: Target TE finds the quickest way to a TE such as 490, and By a date plans the most TE by a date such as Egg Day.'
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      "Your answer is worked out ahead of time: the finish date, each stop's TE and your first step. Below it is the best route for every number of ascensions."
+      "Your answer is worked out ahead of time: the finish date, each stop's TE and a short first step. The filters above narrow it, and every number of ascensions is below."
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'
@@ -38,7 +38,7 @@ describe('first tour words', () => {
     });
     expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
+      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The Filters button above the answer opens it too.'
     );
     // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
     expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(

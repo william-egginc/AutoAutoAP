@@ -14,11 +14,11 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   goal: {
     title: 'Pick a goal',
-    body: 'Chain Finder has two goals: By a date plans the most TE by a date such as Egg Day, and Target TE finds the quickest way to a TE such as 490. Switch any time.',
+    body: 'You start on Chain Finder. Its switch picks the goal: Target TE finds the quickest way to a TE such as 490, and By a date plans the most TE by a date such as Egg Day.',
   },
   answer: {
     title: 'The instant answer',
-    body: "Your answer is worked out ahead of time: the finish date, each stop's TE and your first step. Below it is the best route for every number of ascensions.",
+    body: "Your answer is worked out ahead of time: the finish date, each stop's TE and a short first step. The filters above narrow it, and every number of ascensions is below.",
   },
   // The button beside Follow this route on the answer (spec-simpler2).
   simulate: {
@@ -40,7 +40,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   setup: {
     title: 'Inside Setup',
-    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.',
+    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The Filters button above the answer opens it too.',
   },
   // More, then the Fast and Custom searches inside it (spec-tourmore).
   moreWhere: {
@@ -95,13 +95,13 @@ export const FIRST_TOUR_WELCOME = {
 /** Each picture's alt text: what is highlighted, on the sample account; no numbers from the sample (v2). */
 export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
-  goal: 'The goal switch in Chain Finder, highlighted: Target TE | By a date.',
-  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the first step.',
+  goal: "Chain Finder's goal switch, highlighted: Target TE | By a date.",
+  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the short first step, with the Filters button above it.',
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
   follow: 'The Follow this route button under the instant answer, highlighted.',
   myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
   setupWhere: 'The round gear Setup button at the bottom of the screen, highlighted.',
-  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
+  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours, and the Filters button that opens it.',
   moreWhere: 'The closed More fold at the bottom of Fastest to 490 TE, highlighted.',
   moreInside: "More open, highlighted: the Search card.",
   fast: 'The Fast choice in the Search card inside More, highlighted, with its time shown.',
