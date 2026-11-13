@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { showDateTime } from '@/lib/displayTime';
+import { cardTime } from './instantCardTime';
 import { instantSteps, type StepLeg } from '@/lib/instantSteps';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffWindow } from '@/search/types';
@@ -52,5 +52,6 @@ const props = defineProps<{
 }>();
 
 const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props.noPrestige ?? null));
-const show = (t: number) => showDateTime(t, props.zone);
+/** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
+const show = (t: number) => cardTime(t, props.zone);
 </script>

@@ -325,7 +325,7 @@
         <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700"
-              >Highest TE by {{ show(deadline) }}</span
+              >Highest TE by {{ showNear(deadline) }}</span
             >
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
             <span
@@ -895,6 +895,7 @@
 
 <script setup lang="ts">
 import { SECONDARY_BUTTON } from './resultCardStyle';
+import { cardTime } from './instantCardTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
@@ -3213,11 +3214,12 @@ function show(unix: number): string {
 }
 /** A Fastest route's finish in the box, the counts table and the outside-your-limits line: the date alone
  *  when it is over a year away ("Jun 7, 2032"), since an instant answer years out is not good to the minute. */
-/** The saved line's and By a date's Reached time without this year's year ("Nov 18, 2:46 PM"; another year keeps it):
- *  at 390 px the long form pushed Work it out again and "· quick estimate ?" onto rows of their own (QA t241, 12 Nov
- *  2026). ISO as `show`. The sentence behind the "?" keeps the full date. */
+/** The card's times without this year's year ("Nov 18, 2:46 PM"; another year keeps it; ./instantCardTime.ts): the saved
+ *  line, By a date's Reached time (QA t241, 12 Nov 2026: at 390 px the long form pushed Work it out again and "· quick
+ *  estimate ?" onto rows of their own) and the box label (Jordan, 12 Nov 2026 pm). ISO as `show`. The sentence behind a
+ *  "?" keeps the full date. */
 function showNear(unix: number): string {
-  return dateStyle.value === 'iso' ? show(unix) : formatMoment(unix * 1000, { zone: zone.value, year: 'auto' }) || show(unix);
+  return cardTime(unix, zone.value);
 }
 function showFinish(unix: number): string {
   return showDateTime(unix, zone.value, undefined, { dateOnlyWhenFar: true });

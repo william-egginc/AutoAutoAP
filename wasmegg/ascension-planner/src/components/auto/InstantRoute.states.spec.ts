@@ -433,6 +433,8 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     const html = await draw(box);
     const inBox = textOf(html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"')));
     expect(inBox).toContain('314 TE');
+    // The box label without this year's year (showNear; Jordan, 12 Nov 2026 pm).
+    expect(inBox).toContain(`Highest TE by n${DEADLINE}`);
     expect(inBox).toContain(`Route 197 → 222 → 251 → 282 → 314 · reached n${dateRoute.end} · 5 ascensions`);
     // The route is said once in the box (not again on a line of its own).
     expect(inBox.split('197 → 222 → 251 → 282 → 314').length - 1).toBe(1);
@@ -444,11 +446,11 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     const line = html.slice(html.indexOf('data-testid="box-route"'));
     expect(textOf(line.slice(line.indexOf('>') + 1, line.indexOf('</div>')))).toBe(`Reached n${one.end}`);
   });
-  it('showNear: the year only when it is not this year (clock.ts formatMoment year auto), ISO as before (QA t241, 390 px)', () => {
+  it('showNear: the year only when it is not this year (./instantCardTime.ts on clock.ts formatMoment year auto), ISO as before (QA t241, 390 px)', () => {
     const src = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
     const fn = src.slice(src.indexOf('function showNear'), src.indexOf('\n}', src.indexOf('function showNear')));
-    expect(fn).toContain("dateStyle.value === 'iso' ? show(unix)");
-    expect(fn).toContain("formatMoment(unix * 1000, { zone: zone.value, year: 'auto' })");
+    expect(fn).toContain('cardTime(unix, zone.value)');
+    expect(fs.readFileSync(path.resolve(__dirname, 'instantCardTime.ts'), 'utf8')).toContain("year: 'auto'");
     expect(formatMoment(Date.UTC(2026, 10, 18, 22, 46), { zone: 'America/Los_Angeles', year: 'auto', now: Date.UTC(2026, 10, 12), locale: 'en-US' })).toBe('Nov 18, 2:46 PM');
   });
 });

@@ -10,7 +10,7 @@ const t = src.slice(0, src.indexOf('<script'));
 
 describe('InstantRoute layout', () => {
   for (const [goal, heading, rowsFor] of [
-    ['By a date', 'Highest TE by {{ show(deadline) }}', 'v-for="r in dateRows"'],
+    ['By a date', 'Highest TE by {{ showNear(deadline) }}', 'v-for="r in dateRows"'],
     ['Fastest', 'Fastest to {{ store.finalTE }} TE', 'v-for="r in shownRows"'],
   ] as const) {
     it(`${goal}: the one line under the title, then the box with its two buttons, then the counts list`, () => {
