@@ -1,58 +1,54 @@
 /**
- * The Auto Planner's sub-tabs (Jordan, 26 Oct 2026; UX review 26 Oct, #9): Fastest to 490 TE, Highest TE by a date,
- * then Single run; My runs only in the top tabs (its copy here made the row jump when it appeared). A new player
- * still lands on By a date, and remembered tabs and old links still open where they did.
+ * The Auto Planner's sub-tabs (Jordan, 26 Oct 2026; UX review 26 Oct, #9) were Fastest to 490 TE, Highest TE by a date,
+ * then Single run. Since Chain Finder (spec-chainfinder, 12 Nov 2026) the first two are Chain Finder's goal switch
+ * ("Target TE | By a date", GoalSwitch.vue) and Single run is the Auto Planner tab alone. My runs stays a top tab
+ * only (its copy here made the row jump when it appeared). A new player still lands on By a date, and remembered tabs
+ * and old links still open where they did.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROUTE, FIRST_LOAD_ROUTE, NAMES, hashFor, openingRoute, routeFromLocation } from '@/lib/siteNav';
+import { DEFAULT_ROUTE, FIRST_LOAD_ROUTE, hashFor, openingRoute, routeFromLocation, topTabOf } from '@/lib/siteNav';
+import { CHAIN_GOALS } from '@/lib/goalSwitch';
 
 const app = readFileSync(new URL('./App.vue', import.meta.url), 'utf8');
 const ID = 'EI1234567890123456';
 const nav = app.slice(app.indexOf('<nav v-if="playerId"'), app.indexOf('<div v-else-if="plannerTab === \'science\'"'));
 
-describe('the Auto Planner sub-tabs', () => {
-  it('are Fastest, By a date, then Single run, in that order', () => {
-    const at = app.indexOf('const autoTabs = computed');
-    const list = app.slice(at, app.indexOf(']);', at));
-    const ids = [...list.matchAll(/\{ id: '([a-z-]+)'/g)].map(m => m[1]);
-    expect(ids).toEqual(['fastest', 'by-date', 'classic']);
-    expect(list).toContain('label: fastestName(chainSearchStore.finalTE)');
-    expect(list).toContain('label: NAMES.byDate');
-    expect(list).toContain('label: NAMES.classic');
-    expect([NAMES.fastest, NAMES.byDate, NAMES.classic]).toEqual(['Fastest to 490 TE', 'Highest TE by a date', 'Single run']);
+describe("Chain Finder's goal switch (was the Auto Planner sub-tabs)", () => {
+  it('is Fastest then By a date; the simulator is not on it', () => {
+    expect(CHAIN_GOALS).toEqual(['fastest', 'by-date']);
+    expect(app).not.toContain('const autoTabs');
   });
 
-  it('have no My runs copy: one button (the v-for), three columns on a phone', () => {
+  it('has no My runs copy: one switch, no buttons of its own in the nav', () => {
     expect(nav).not.toContain('auto-tab-myruns');
     expect(nav).not.toContain("selectSection('myruns')");
     expect(nav).not.toContain('NAMES.myRuns');
-    expect(nav.match(/<button\b/g)).toHaveLength(1);
-    expect(nav).toContain('class="grid grid-cols-3 w-full sm:flex');
+    expect(nav.match(/<button\b/g)).toBeNull();
+    expect(nav.match(/<GoalSwitch\b/g)).toHaveLength(1);
   });
 
-  it('in every state: the list depends on nothing but the target (no fresh-profile, width, answer or run condition), and nothing else draws an Auto sub-tab row (QA 26 Oct 2026 saw "My runs, Fastest, …" on an older build)', () => {
-    const at = app.indexOf('const autoTabs = computed');
-    const list = app.slice(at, app.indexOf(']);', at));
-    for (const cond of ['myRunsTabShown', 'myRuns', 'innerWidth', 'matchMedia', 'hasData', 'rawBackup', '...(']) expect(list).not.toContain(cond);
-    // One sub-tab row, drawn from autoTabs only, and no other v-for over a My runs tab in the nav.
-    expect(app.match(/v-for="v in autoTabs"/g)).toHaveLength(1);
+  it('in every state: nothing but the screen decides it shows (no fresh-profile, width, answer or run condition), and nothing else draws a goal row (QA 26 Oct 2026 saw "My runs, Fastest, …" on an older build)', () => {
+    const wrap = nav.slice(nav.lastIndexOf('<div', nav.indexOf('<GoalSwitch')), nav.indexOf('<GoalSwitch'));
+    expect(wrap).toContain("v-if=\"plannerTab === 'automatic' && autoView !== 'classic'\"");
+    for (const cond of ['myRunsTabShown', 'myRuns', 'innerWidth', 'matchMedia', 'hasData', 'rawBackup']) expect(wrap).not.toContain(cond);
+    expect(app.match(/<GoalSwitch\b/g)).toHaveLength(1);
     expect(nav).not.toMatch(/myruns/i);
     // My runs appears in the top tabs exactly once.
     expect(app.match(/id: 'myruns' as const/g)).toHaveLength(1);
   });
 
   it('My runs is still a top tab, shown on the same rule', () => {
-    expect(app).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[\s*\{\s*id: 'myruns' as const,\s*tab: 'myruns',\s*label: NAMES\.myRuns,/);
+    expect(app).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[\s*\{\s*id: 'myruns' as const,\s*label: NAMES\.myRuns,/);
   });
 });
 
-describe('landing and links after the reorder', () => {
-  it('a new player still lands on By a date (by route, not by tab position)', () => {
+describe('landing and links after the move', () => {
+  it('a new player still lands on By a date (by route, not by tab position), on Chain Finder', () => {
     expect(FIRST_LOAD_ROUTE).toEqual({ ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' });
     expect(hashFor(FIRST_LOAD_ROUTE)).toBe('#/auto/by-date');
+    expect(topTabOf(FIRST_LOAD_ROUTE)).toBe('chain');
     expect(app).toContain('applyRoute(FIRST_LOAD_ROUTE);');
-    // Nothing picks a sub-tab by its place in the list.
     expect(app).not.toMatch(/autoTabs\.value\[\d\]/);
   });
 
@@ -68,8 +64,6 @@ describe('landing and links after the reorder', () => {
     expect(routeFromLocation('', '#/myruns')?.section).toBe('myruns');
     expect(routeFromLocation('', '#/compare/mine')?.section).toBe('myruns');
     expect(openingRoute({ fromUrl: null, stored: '#/myruns', savedPlayerId: ID }).route?.section).toBe('myruns');
-    // The Leaderboard's one-line Your latest run tab (its link to My runs) went in the fluff review 2 (L1, 5 Nov 2026):
-    // its addresses, linked or remembered, now open My runs themselves.
     for (const h of ['#/compare/latest', '#/leaderboard/latest']) {
       expect(routeFromLocation('', h)?.section).toBe('myruns');
       expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: ID }).route?.section).toBe('myruns');

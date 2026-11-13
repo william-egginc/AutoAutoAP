@@ -35,7 +35,7 @@
     >
       <p class="text-emerald-700 label">The short version</p>
       <p>
-        <b>Every number comes from Joo's Auto AP simulator,</b> the same one behind {{ NAMES.auto }} ›
+        <b>Every number comes from Joo's Auto AP simulator,</b> the same one behind the
         {{ NAMES.classic }}. Our part is choosing which TEs to ascend at.
       </p>
       <p>
@@ -108,7 +108,7 @@
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
             its boxes. The answer card shows your TE on each egg when the route ends, the date and time each egg's next TE
             would come at your final delivery rate, and when your next TE would come if you keep laying.
-            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }} (Joo's original planner) and simulates every
+            <b>Simulate this plan</b> opens the route in the {{ NAMES.classic }} (Joo's original planner) and simulates every
             shift on your save.
           </li>
         </ul>
@@ -332,7 +332,7 @@
         </p>
         <p>
           A plan that starts more than an hour from now has no ascension to continue, so it's priced as a fresh build,
-          as {{ NAMES.classic }} does.
+          as the {{ NAMES.classic }} does.
         </p>
       </div>
     </details>

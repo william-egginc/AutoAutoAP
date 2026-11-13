@@ -16,7 +16,8 @@ export const TIP_FOLLOWING = 'Active for My runs';
 /** "Simulate this plan" (the answer, its table rows, the result cards, More routes). Was lib/siteNav.ts
  *  SIMULATE_TITLE: "Opens this route in Single run (Joo's original planner) and simulates every shift on your save";
  *  Allan: cut "and simulates every shift on your save". */
-export const TIP_SIMULATE = `Opens this route in ${NAMES.classic}`;
+/** DRAFT (Words, spec-chainfinder 12 Nov 2026): "in Single run" became "in the Auto Planner". */
+export const TIP_SIMULATE = `Opens this route in the ${NAMES.classic}`;
 
 /** The run button (FindBar.vue), named by the option picked. No title before; from the tour's words (firstTourWords). */
 export const TIP_RUN_FAST = 'Checks routes near the instant answer. You can stop and keep the best.';

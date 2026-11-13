@@ -99,7 +99,7 @@
   >
     <p class="text-body font-bold text-emerald-900 sm:flex-1 break-words max-w-prose">
       Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
-      {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
+      {{ NAMES.study }} (the {{ NAMES.setup }} button on {{ NAMES.chainFinder }}, the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>
     <button
       type="button"

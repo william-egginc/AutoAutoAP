@@ -28,7 +28,7 @@ describe('C3: the build-up good news is a clause in the First ascension line', (
 
 describe('D8/S-4: Single run’s build-up note', () => {
   it('says what Single run does with A1', () => {
-    expect(BUILDUP_NOTE).toBe("Single run can't carry on a build-up, so it starts ascension 1 fresh.");
+    expect(BUILDUP_NOTE).toBe("The Auto Planner can't carry on a build-up, so it starts ascension 1 fresh.");
   });
 });
 

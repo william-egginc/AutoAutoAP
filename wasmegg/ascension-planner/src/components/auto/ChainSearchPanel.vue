@@ -514,7 +514,7 @@
           >
             <span class="font-bold">That's a single ascension.</span>
             {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
-            look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type
+            look for. To plan that one ascension, go to the {{ NAMES.classic }}, type
             {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, pick
             Type a route… under Start from a different route and give it some stops (like <span class="tabular-nums">200 250 300 {{ store.finalTE }}</span
             >).
@@ -559,7 +559,7 @@
               :saving="saving"
               :saved="store.currentRunSaved"
               :note="
-                applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
+                applied ? `Sent ${applied} to the ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
               "
               @build="use(store.bestChain, true)"
               @fill="use(store.bestChain)"
@@ -805,7 +805,7 @@
                           One row per egg, with when you start laying it and how long you stay. The
                           <span class="font-bold text-emerald-700">first row is where the ascension begins</span>:
                           no action needed, you are already on it. Every row after it is one manual shift, which is why
-                          twelve eggs means eleven shifts. This matches Single run's own C1 / K1 / I1 list.
+                          twelve eggs means eleven shifts. This matches the Auto Planner's own C1 / K1 / I1 list.
                         </p>
                         <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
                         <RouteTimeline
@@ -877,7 +877,7 @@
             The built plan will show slightly earlier dates than this search
           </p>
           <p>
-            Only this search knows about your awake hours; {{ NAMES.classic }} does not. It will lay the plan out
+            Only this search knows about your awake hours; the {{ NAMES.classic }} does not. It will lay the plan out
             assuming you prestige the instant each target is hit, so its dates omit the
             <span class="font-bold">{{ totalPrestigeWait }}</span> of waiting the search charged. The stops and
             strategies are the same; only the clock differs, and
@@ -1209,7 +1209,7 @@ const seedSource = computed(() =>
     : store.instantSeed
       ? "the instant answer's route"
       : autoPlannerStore.targetTE.trim()
-        ? `from Target TE(s) on ${NAMES.classic}`
+        ? `from Target TE(s) on the ${NAMES.classic}`
         : 'a suggested route'
 );
 /** "Start from a different route": the instant answer's best (the default), its other routes, your

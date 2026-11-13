@@ -148,7 +148,7 @@ describe('the box', () => {
     let t = textOf(await box());
     expect(t).not.toContain('Yes, help improve it');
     expect(t).toContain(
-      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on the Auto Planner and My runs).'
+      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on Chain Finder, the Auto Planner and My runs).'
     );
     closeThanks();
     expect(textOf(await box())).toBe('');

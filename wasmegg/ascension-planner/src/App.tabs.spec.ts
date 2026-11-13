@@ -70,7 +70,7 @@ describe('App.vue header layout', () => {
 /** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My runs always. */
 describe('App.vue optional tabs', () => {
   it('builds the top tabs from what is shown, not from a count', () => {
-    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
+    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
     expect(tabs).toContain('...(optionalShown.value.leaderboard');
     expect(tabs).toContain('...(optionalShown.value.science');
     expect(app).toContain("const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);");

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
-import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
+import type { AutoView, ChainView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
@@ -29,6 +29,12 @@ export const useUIStore = defineStore('ui', () => {
   const fastestDepth = ref<Depth>(
     lastScreen?.depth ?? (readSearchMode('fastest') === 'advanced' ? 'full' : 'smart')
   );
+  /** Chain Finder's goal (spec-chainfinder, 12 Nov 2026): the screen its tab opens on, Fastest on a first visit. Follows
+   *  autoView whenever that is Fastest or By a date; the simulator (the Auto Planner tab) leaves it alone. */
+  const chainView = ref<ChainView>(lastScreen?.view ?? 'fastest');
+  watch(autoView, view => {
+    if (view !== 'classic') chainView.value = view;
+  });
   watch([autoView, fastestDepth], ([view, depth]) => writeAutoScreen(view, depth));
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
@@ -139,6 +145,7 @@ export const useUIStore = defineStore('ui', () => {
   return {
     plannerTab,
     autoView,
+    chainView,
     fastestDepth,
     compareView,
     scienceView,

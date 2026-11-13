@@ -1,6 +1,9 @@
 /**
- * The Auto Planner opens on the screen the player was last on (Jordan, 1 Nov 2026: the tab always landed on
+ * The Auto Planner opened on the screen the player was last on (Jordan, 1 Nov 2026: the tab always landed on
  * Single run). Remembered in this browser under aap.autoScreen; nothing stored keeps the old default.
+ * Since Chain Finder (spec-chainfinder, 12 Nov 2026) it is Chain Finder's last goal: Fastest (and its depth) or By a
+ * date. A stored 'classic' (from before) reads as Fastest, the Auto Planner tab always opens the simulator, and opening
+ * the simulator never overwrites the goal.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -37,6 +40,15 @@ describe('autoScreen memory', () => {
     writeAutoScreen('fastest', 'full');
     expect(readAutoScreen()).toEqual({ view: 'fastest', depth: 'full' });
   });
+  it("a 'classic' stored before Chain Finder reads as Fastest, its depth kept", () => {
+    mem.set(AUTO_SCREEN_KEY, '{"view":"classic","depth":"full"}');
+    expect(readAutoScreen()).toEqual({ view: 'fastest', depth: 'full' });
+  });
+  it('opening the simulator writes nothing: the goal stays', () => {
+    writeAutoScreen('by-date', 'smart');
+    writeAutoScreen('classic', 'full');
+    expect(readAutoScreen()).toEqual({ view: 'by-date', depth: 'smart' });
+  });
   it('ignores junk and survives blocked storage', () => {
     mem.set(AUTO_SCREEN_KEY, '{"view":"nope","depth":"x"}');
     expect(readAutoScreen()).toBeNull();
@@ -58,6 +70,24 @@ describe('the ui store', () => {
     expect(ui.autoView).toBe('fastest');
     expect(ui.fastestDepth).toBe('full');
   });
+  it("Chain Finder's goal: Fastest on a first visit, else the remembered one (a stored classic is Fastest)", () => {
+    expect(useUIStore().chainView).toBe('fastest');
+    setActivePinia(createPinia());
+    writeAutoScreen('by-date', 'smart');
+    expect(useUIStore().chainView).toBe('by-date');
+    setActivePinia(createPinia());
+    mem.set(AUTO_SCREEN_KEY, '{"view":"classic","depth":"smart"}');
+    expect(useUIStore().chainView).toBe('fastest');
+  });
+  it('the simulator leaves the goal alone; a goal change is remembered', async () => {
+    const ui = useUIStore();
+    ui.autoView = 'by-date';
+    await nextTick();
+    ui.autoView = 'classic';
+    await nextTick();
+    expect(ui.chainView).toBe('by-date');
+    expect(readAutoScreen()?.view).toBe('by-date');
+  });
   it('remembers a change of screen or depth', async () => {
     const ui = useUIStore();
     ui.autoView = 'by-date';
@@ -76,9 +106,10 @@ describe('App.vue', () => {
     const fn = app.slice(at, app.indexOf('plannerTab.value =', at));
     expect(fn).toMatch(/if \(r\.section === 'auto'\)/);
   });
-  it('the bare tab click carries the current screen, not a forced one', () => {
+  it("the Auto Planner tab opens the simulator; Chain Finder its remembered goal (the store's chainView)", () => {
     const fn = app.slice(app.indexOf('function selectSection'), app.indexOf('function goAuto'));
     expect(fn).toContain('currentRoute()');
-    expect(fn).not.toContain("'classic'");
+    expect(fn).toContain("goAuto('classic')");
+    expect(fn).toContain('uiStore.chainView');
   });
 });

@@ -44,7 +44,7 @@
       <p class="flex-1 min-w-[14rem] text-body text-indigo-900/80">
         Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to any
         target TE, and other dates, and the ones hidden from the public. Open one for its details, or press
-        <span class="font-bold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
+        <span class="font-bold">Use</span> to open its route in the Auto Planner, without running it. The Auto Planner doesn't use your awake hours.
       </p>
       <button
         type="button"
@@ -587,7 +587,7 @@
         </p>
         <BoardFold title="How it's judged" testid="dates-judged">
           <p class="max-w-prose">
-            From the Auto Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search<template v-if="tab === 'eggday'">
+            From {{ NAMES.chainFinder }}'s <span class="font-bold">{{ NAMES.byDate }}</span> search<template v-if="tab === 'eggday'">
               with the Egg Day preset</template
             ><template v-else>, one table per date</template>, using each player's best answer.
             <template v-if="tab === 'eggday'">Game events aren't simulated, including Egg Day's own.</template>
@@ -635,7 +635,7 @@
           No answers in these categories.
         </p>
         <p v-else-if="!shownDates.length" class="text-body text-indigo-900/60 py-6 text-center">
-          No answers yet. Run {{ NAMES.byDate }} in the Auto Planner<template v-if="tab === 'eggday'">
+          No answers yet. Run {{ NAMES.byDate }} in {{ NAMES.chainFinder }}<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
           and use <span class="font-bold">Share this result</span>.
@@ -946,7 +946,7 @@
                           <button
                             type="button"
                             class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border border-slate-300 bg-white text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                            :title="`Open ${line.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
+                            :title="`Open ${line.row.chain.join(' ')} in the Auto Planner, without running it. The Auto Planner doesn't use your awake hours.`"
                             @click="emit('use', line.row.chain)"
                           >
                             Use

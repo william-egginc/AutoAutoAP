@@ -58,9 +58,13 @@ describe('the shades now used pass AA where they sit', () => {
 });
 
 describe('and the screens use them', () => {
-  it('App.vue: the Auto Planner and Science tabs not picked are slate-600', () => {
+  it('App.vue: the Science tabs not picked are slate-600; Chain Finder\'s goal switch (GoalSwitch.vue) slate-600 on its slate-100 track', () => {
     const app = read('App.vue');
-    expect(app.match(/'border-transparent text-slate-600 hover:text-slate-900'/g)).toHaveLength(2);
+    // The Auto Planner's goal tabs became Chain Finder's switch (12 Nov 2026): Science's tabs are the one row left here.
+    expect(app.match(/'border-transparent text-slate-600 hover:text-slate-900'/g)).toHaveLength(1);
+    const sw = read('components/auto/GoalSwitch.vue');
+    expect(sw).toContain('bg-slate-100');
+    expect(sw).toContain("'text-slate-600 hover:text-slate-900'");
     // (The Auto Planner's My runs copy, also slate-600, is gone: My runs is a top tab only since 26 Oct 2026.)
     expect(app).not.toContain('data-testid="auto-tab-myruns"');
     expect(app).not.toContain('text-slate-400 hover:text-slate-700');

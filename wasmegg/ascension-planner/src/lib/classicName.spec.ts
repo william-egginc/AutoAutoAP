@@ -1,13 +1,15 @@
 /**
  * "Your plan" became "Single run" (15 Oct 2026): every player-facing mention of that screen comes from
  * NAMES.classic, so another rename is one line in lib/siteNav.ts; "Single run (was Your plan)" appears in
- * one place only, the screen's own intro on the Auto Planner.
+ * one place only, the screen's own intro on the Auto Planner. Since Chain Finder (12 Nov 2026) the name is dropped:
+ * the screen is just the Auto Planner (NAMES.classic === NAMES.auto).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { NAMES, simulateNote } from './siteNav';
 import { BUILDUP_NOTE } from '@/search/byDateSimulate';
+import { CHAIN_FINDER_WORDS } from './chainFinderWords';
 
 const SRC = path.resolve(__dirname, '..');
 
@@ -30,8 +32,9 @@ function playerFacing(file: string): string[] {
 }
 
 describe('the Single run name', () => {
-  it('lives in NAMES.classic', () => {
-    expect(NAMES.classic).toBe('Single run');
+  it('lives in NAMES.classic: the Auto Planner since 12 Nov 2026 (was Single run)', () => {
+    expect(NAMES.classic).toBe('Auto Planner');
+    expect(NAMES.classic).toBe(NAMES.auto);
   });
 
   it('no component or module names the screen "Your plan" itself (outside NAMES)', () => {
@@ -81,11 +84,11 @@ describe('the Single run name', () => {
       expect(named.test(fine), fine).toBe(false);
   });
 
-  it("Simulate this plan's line says what it does, in Single run (Joo's original planner)", () => {
+  it("Simulate this plan's line says what it does, in the Auto Planner (Joo's original planner)", () => {
     expect(simulateNote()).toBe(
-      "Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
+      "Simulate this plan opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
     );
-    expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in Single run/);
+    expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in the Auto Planner/);
     for (const f of ['InstantRoute.vue']) {
       const src = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
       expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);
@@ -102,12 +105,15 @@ describe('the Single run name', () => {
 
   it('"(was Your plan)" is no longer said: the rename was a month ago (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
-    expect(app).toContain("<span class=\"font-bold text-slate-900\">{{ NAMES.classic }}</span> is Joo's original planner");
+    // The intro moved to lib/chainFinderWords.ts (12 Nov 2026).
+    expect(app).toContain('{{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE)) }}');
+    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE')).toMatch(/^The Auto Planner is Joo's original planner: /);
+    expect(CHAIN_FINDER_WORDS.autoPlannerIntro('Fastest to 490 TE')).toMatch(/use Chain Finder \(Fastest to 490 TE or Highest TE by a date\)\.$/);
     const uses = files(SRC).filter(f => /NAMES\.classicFirst|\(was Your plan\)/.test(fs.readFileSync(f, 'utf8')));
     expect(uses.map(f => path.relative(SRC, f))).toEqual([]);
   });
 
   it("By a date's build-up note follows the name", () => {
-    expect(BUILDUP_NOTE).toBe(`${NAMES.classic} can't carry on a build-up, so it starts ascension 1 fresh.`);
+    expect(BUILDUP_NOTE).toBe(`The ${NAMES.classic} can't carry on a build-up, so it starts ascension 1 fresh.`);
   });
 });

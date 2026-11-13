@@ -315,7 +315,7 @@
           </summary>
           <div class="mt-3 space-y-3">
             <p class="text-body text-slate-500 max-w-prose">
-              Kept in this browser for this account. Open puts one back on its screen in the {{ NAMES.auto }}: runs on
+              Kept in this browser for this account. Open puts one back on its screen in {{ NAMES.chainFinder }}: runs on
               {{ fastestName(store.finalTE) }}, answers on {{ NAMES.byDate }}.
             </p>
             <SavedRuns

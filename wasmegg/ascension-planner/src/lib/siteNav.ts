@@ -2,7 +2,7 @@
  * The site's tabs and the address of each one (the unified layout, redesign 2026-09-30).
  *
  *   Manual Planner   #/manual
- *   Auto Planner     #/auto/classic          Joo's Auto AP
+ *   Auto Planner     #/auto/classic          Joo's Auto AP (was "Single run" until 12 Nov 2026)
  *   Chain Finder     #/auto/fastest          (its own top tab since 12 Nov 2026, spec-chainfinder: the goal switch
  *                                            "Target TE | By a date" picks between these two addresses)
  *                    #/auto/fastest          fastest route to 490, Smart search (was Chain Search)
@@ -86,9 +86,10 @@ export const NAMES = {
   start: 'When should I start?',
   /** Science › How it works: what the searches and the instant answer do, and how they were checked. */
   how: 'How it works',
-  /** Joo's single-plan simulator (Classic), the Auto Planner's first screen. Was "Your plan" until 15 Oct
-   *  2026; the intro named the old name too until 5 Nov 2026 (UX fluff review 2, item S-1: a month after the rename). */
-  classic: 'Single run',
+  /** Joo's single-plan simulator (Classic), the Auto Planner tab's one screen. Was "Your plan" until 15 Oct 2026 (the
+   *  intro named the old name too until 5 Nov 2026, UX fluff review 2, item S-1), then "Single run" until 12 Nov 2026,
+   *  when the name was dropped and the screen is just the Auto Planner (Jordan, spec-chainfinder). DRAFT for Words. */
+  classic: 'Auto Planner',
   classicWas: 'Your plan',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
@@ -105,16 +106,17 @@ export const NAMES = {
   fullFirst: 'Custom',
   /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
   study: 'Help improve the planner',
-  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner and My runs. */
+  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner, Chain Finder and My runs. */
   setup: 'Setup',
 } as const;
 
 /**
  * What "Simulate this plan" (and Fastest's "Build this plan") does, said on the button's own line (Jordan,
- * 16 Oct 2026): it opens the route in Single run, Joo's original planner, and simulates every shift.
+ * 16 Oct 2026): it opens the route in the Auto Planner (was Single run), Joo's original planner, and simulates every
+ * shift. DRAFT for Words (12 Nov 2026: "in Single run" became "in the Auto Planner").
  */
 export function simulateNote(button = 'Simulate this plan'): string {
-  return `${button} opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
+  return `${button} opens this route in the ${NAMES.classic} (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
 }
 /** The button's own tip: lib/tipWords.ts TIP_SIMULATE (was SIMULATE_TITLE here, the button's title, to 9 Nov 2026). */
 
