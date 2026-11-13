@@ -101,7 +101,8 @@ import {
 } from '@/lib/currentAnswer';
 import { pricedWithDays } from '@/lib/pricedWithWords';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
-import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
+import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates, type EggViewLine } from '@/lib/nextTeEgg';
+import { planEggGoalLines } from '@/lib/eggGoalTimes';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -2082,6 +2083,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       plan: !!cardPlan.value?.plan,
     });
   });
+  /** Your eggs' "to goal" per egg (spec-myruns-goal, lib/eggGoalTimes.ts): each egg's goal time on the plan shown on
+   *  Right now, the end of its last stint, from the plan's own shift lists (the exact legs, else the table's with the
+   *  replay's and the simulated ascension's shifts); approximate with the player's hours on (`stepHours`). Null: the
+   *  plan can't say per egg (its final ascension has no shifts), and "to goal" keeps the plan-shift lines. */
+  const goalTimes = computed<Record<string, EggViewLine> | null>(() => {
+    if (!hasSave.value || !onVirtue.value) return null;
+    const p = cardPlan.value?.plan;
+    if (!p) return null;
+    return planEggGoalLines({ plan: p, now: now.value, zone: zone.value, hours: !!stepHours.value, saveEgg: currentEgg.value });
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -2269,6 +2280,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     afterShift,
     goalLines,
     clockLines,
+    goalTimes,
     phase,
     startInfo,
     eggs,

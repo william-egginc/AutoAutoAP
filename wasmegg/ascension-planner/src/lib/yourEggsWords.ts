@@ -27,15 +27,33 @@ export const EGG_LINE = {
   goalShift: 'goal-shift',
   /** to goal: the egg you are on, the plan shifting to it no more in its next shifts. */
   goalOnEgg: 'goal-on-egg',
-  /** to goal: no shift to this egg in the plan's next shifts. */
+  /** to goal: no shift to this egg in the plan's next shifts (a plan with no shift list for its final ascension). */
   goalNoShift: 'goal-no-shift',
+  /** to goal: the egg reaches its goal (its TE at the plan's end) when its last stint on the plan ends
+   *  (lib/eggGoalTimes.ts, spec-myruns-goal). */
+  goalEggAt: 'goal-egg-at',
+  /** to goal: the same, a late bound (Kindness waits for the sale's end; an egg last laid in a build not listed). */
+  goalEggBy: 'goal-egg-by',
+  /** to goal: the same, approximate (awake hours on: the threshold can come hours before the shift). */
+  goalEggByAbout: 'goal-egg-by-about',
+  /** to goal: no later stint on the plan; the egg is at its goal. */
+  goalEggDone: 'goal-egg-done',
 } as const;
 export type EggLineKind = (typeof EGG_LINE)[keyof typeof EGG_LINE];
 
 /** The kinds each view may show; nothing else. */
 export const EGG_VIEW_LINES: Record<EggsView, readonly EggLineKind[]> = {
   next: [EGG_LINE.nextAtSaveRate, EGG_LINE.nextAfterShift, EGG_LINE.nextProgress, EGG_LINE.nextClock],
-  goal: [EGG_LINE.goalPlan, EGG_LINE.goalShift, EGG_LINE.goalOnEgg, EGG_LINE.goalNoShift],
+  goal: [
+    EGG_LINE.goalPlan,
+    EGG_LINE.goalShift,
+    EGG_LINE.goalOnEgg,
+    EGG_LINE.goalNoShift,
+    EGG_LINE.goalEggAt,
+    EGG_LINE.goalEggBy,
+    EGG_LINE.goalEggByAbout,
+    EGG_LINE.goalEggDone,
+  ],
 };
 
 /** The goal's words: never in the "next TE" view. */
@@ -82,3 +100,16 @@ export function goalShiftWords(when: string): string {
 export const GOAL_ON_EGG_WORDS = "you're on this egg now";
 /** DRAFT (Words to review): no shift to this egg in the plan's next shifts. */
 export const GOAL_NO_SHIFT_WORDS = "not in the plan's next shifts";
+
+/** How sure an egg's goal time is (lib/eggGoalTimes.ts): `at` the end of its last stint (the threshold crossed then);
+ *  `by` a late bound; `byAbout` approximate (awake hours on). */
+export type EggGoalBound = 'at' | 'by' | 'byAbout';
+/** DRAFT (Words to review; spec-myruns-goal): one egg's goal on the followed plan. With its TE share (Exact plans):
+ *  "42 TE on Sat, Mar 4 at 9:00 AM" / "42 TE by Sat, Mar 4 at 9:00 AM" / "42 TE by about Sat, Mar 4 at 9:00 AM";
+ *  without (a table replay): "at its goal on …" / "at its goal by …" / "at its goal by about …". */
+export function goalEggWords(te: number | null, when: string, bound: EggGoalBound): string {
+  const lead = te != null ? `${te} TE` : 'at its goal';
+  return bound === 'at' ? `${lead} on ${when}` : bound === 'by' ? `${lead} by ${when}` : `${lead} by about ${when}`;
+}
+/** DRAFT (Words to review; spec-myruns-goal): no later stint on the plan (the game expert's wording). */
+export const GOAL_EGG_DONE_WORDS = 'done on this plan';
