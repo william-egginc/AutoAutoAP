@@ -210,7 +210,8 @@ describe('reset and what is kept', () => {
     ]);
   });
 
-  it('never the plan start, time zone, Target TE, milestones, workers or level', async () => {
+  // Chain Finder's target TE is remembered since spec-targetmemory (13 Nov 2026; setupMemory.target.spec.ts), as `target`.
+  it('never the plan start, time zone, milestones, workers or level', async () => {
     const store = useChainSearchStore();
     await store.loadSetupFor(A);
     store.pinPlanStart(Date.parse('2026-11-01T12:00:00Z') / 1000);
@@ -218,7 +219,8 @@ describe('reset and what is kept', () => {
     store.scheduleEnabled = true;
     settle();
     const blob = await blobOf(A);
-    expect(Object.keys(blob).sort()).toEqual(['at', 'firstAscension', 'holdShifts', 'hours', 'noPrestige', 'siloTrick', 'timeOff', 'v']);
+    expect(Object.keys(blob).sort()).toEqual(['at', 'firstAscension', 'holdShifts', 'hours', 'noPrestige', 'siloTrick', 'target', 'timeOff', 'v']);
+    expect(blob.target).toBe(300);
     expect(JSON.stringify(blob)).not.toMatch(/planStart|timezone|final|milestone|worker|level/i);
   });
 });

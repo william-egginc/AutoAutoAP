@@ -1,11 +1,12 @@
 /**
  * YOUR SETUP, REMEMBERED PER ACCOUNT (batch 16, item 8): the hours ("Let me pick my hours", from, to,
- * days), hold shifts, time off (away from virtue), the no-prestige days and first ascension, kept in this browser under the account's partition
+ * days), hold shifts, time off (away from virtue), the no-prestige days, first ascension and Chain Finder's target TE
+ * (spec-targetmemory, 13 Nov 2026: it was kept only online, so a reload with no network went back to 490), kept in this browser under the account's partition
  * hash (`aap-setup:<sha-256 of the player ID>`, the same hashing as stores/shareName.ts), never under the
  * player ID. One JSON blob an account, with when it was written.
  *
  * Not remembered, on purpose: the plan start (it stays "now" or the save's moment), the time zone and
- * Target TE (Single run's own cache, lib/autoPlannerFormCache.ts), milestones, and the workers
+ * Single run's own Target TE (its own cache, lib/autoPlannerFormCache.ts), milestones, and the workers
  * (`aap-workers`) and Stronger check level (`aap-stronger-level`), which stay one per browser: they
  * describe the computer and a habit, not the account.
  *
@@ -18,6 +19,11 @@ import { DEFAULT_FIRST_ASCENSION, isFirstAscension, type FirstAscension } from '
 import type { TimeOffDates } from '@/search/timeOff';
 
 export const SETUP_PREFIX = 'aap-setup:';
+/** The target with nothing remembered, and the highest one (stores/chainSearch.ts TARGET_TE_MAX). */
+const DEFAULT_TARGET = 490;
+/** A target the store can take: a whole number 1 to 490. */
+export const isSetupTarget = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= DEFAULT_TARGET;
 
 /** What is remembered. `v` for a later change of shape. */
 export interface RememberedSetup {
@@ -32,16 +38,19 @@ export interface RememberedSetup {
    *  before 24 Oct 2026: none. */
   noPrestige: TimeOffDates[];
   firstAscension: FirstAscension;
+  /** Chain Finder's target TE (chainSearch `finalTE`), a whole number 1 to 490. Absent in a blob written before
+   *  13 Nov 2026: 490. A target at or below the player's TE is kept as it is (the answer says "already at or past"). */
+  target: number;
   /** When it was written, ms. */
   at: number;
 }
 
 /** The parts the player edits, one group each: an edit writes only its own group. */
-export type SetupGroup = 'hours' | 'holdShifts' | 'siloTrick' | 'timeOff' | 'noPrestige' | 'firstAscension';
+export type SetupGroup = 'hours' | 'holdShifts' | 'siloTrick' | 'timeOff' | 'noPrestige' | 'firstAscension' | 'target';
 export type SetupValues = Omit<RememberedSetup, 'v' | 'at'>;
 
 /** The store's own defaults (stores/chainSearch.ts): any hour (7 am to 11 pm when picked, every day),
- *  hold shifts on, no time off, no no-prestige days, first ascension Soonest. */
+ *  hold shifts on, no time off, no no-prestige days, first ascension Soonest, target 490. */
 export function setupDefaults(): SetupValues {
   return {
     hours: { on: false, from: 7, to: 23, days: [0, 1, 2, 3, 4, 5, 6] },
@@ -50,6 +59,7 @@ export function setupDefaults(): SetupValues {
     timeOff: [],
     noPrestige: [],
     firstAscension: DEFAULT_FIRST_ASCENSION,
+    target: DEFAULT_TARGET,
   };
 }
 
@@ -106,6 +116,7 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
     timeOff,
     noPrestige,
     firstAscension: isFirstAscension(o.firstAscension) ? o.firstAscension : d.firstAscension,
+    target: isSetupTarget(o.target) ? o.target : d.target,
     at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : 0,
   };
 }
@@ -113,7 +124,15 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
 /** The same values (the time it was written aside). */
 export function sameSetup(a: SetupValues, b: SetupValues): boolean {
   const pick = (s: SetupValues) =>
-    JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension, s.noPrestige ?? [], !!s.siloTrick]);
+    JSON.stringify([
+      s.hours,
+      s.holdShifts,
+      s.timeOff,
+      s.firstAscension,
+      s.noPrestige ?? [],
+      !!s.siloTrick,
+      isSetupTarget(s.target) ? s.target : DEFAULT_TARGET,
+    ]);
   return pick(a) === pick(b);
 }
 
@@ -134,6 +153,7 @@ export function mergeSetup(base: SetupValues, edits: Partial<SetupValues>, at: n
     timeOff: (edits.timeOff ?? base.timeOff).map(w => ({ from: w.from, to: w.to })),
     noPrestige: (edits.noPrestige ?? base.noPrestige ?? []).map(w => ({ from: w.from, to: w.to })),
     firstAscension: edits.firstAscension ?? base.firstAscension,
+    target: [edits.target, base.target].find(isSetupTarget) ?? DEFAULT_TARGET,
     at,
   };
 }

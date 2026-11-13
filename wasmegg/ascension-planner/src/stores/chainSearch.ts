@@ -27,6 +27,7 @@ import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity'
 import { accountHash, accountHashNow } from '@/lib/accountHash';
 import {
   isDefaultSetup,
+  isSetupTarget,
   mergeSetup,
   readSetup,
   removeSetup,
@@ -802,7 +803,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   // ------------------------------------------------------------------ YOUR SETUP, REMEMBERED PER ACCOUNT
   //
-  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off and first ascension, one blob per
+  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off, first ascension and the target, one blob per
   // account under its hash. Read when the account loads (App's player ID watcher, `loadSetupFor`), and
   // `setupLoaded` holds back anything that starts work from the setup (the instant answer and its Check
   // exactly) until then, so a reload doesn't start a three-minute check on the defaults and restart it
@@ -857,6 +858,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
       noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
+      target: finalTE.value,
     };
   }
   /** Put a remembered (or default) setup in place, muted. First ascension straight into Your setup's own
@@ -872,6 +874,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff.value = v.timeOff.map(w => ({ ...w }));
       noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
+      finalTE.value = isSetupTarget(v.target) ? v.target : TARGET_TE_MAX;
     });
   }
   /** Today, `YYYY-MM-DD`, in the planner's zone: time off that ended before it is dropped on read. */
@@ -957,7 +960,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       if (p.finalTE !== undefined && Number.isInteger(p.finalTE) && p.finalTE >= 1 && p.finalTE <= 490 && finalTE.value !== p.finalTE) {
         finalTE.value = p.finalTE;
-        changed = true;
+        groups.add('target');
       }
     });
     rememberSetupGroups([...groups]);
@@ -973,6 +976,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
   watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
+  // The target (spec-targetmemory): the boxes commit through `commitFinalTE`, so a refused value never gets here; My
+  // runs' Open (App.vue) is the player's pick too. A run's or saved answer's own target is set muted.
+  watch(finalTE, () => noteSetupEdit('target'), { flush: 'sync' });
 
   /**
    * An account loaded (App.vue's player ID watcher): its remembered setup, or the defaults, so nothing of
