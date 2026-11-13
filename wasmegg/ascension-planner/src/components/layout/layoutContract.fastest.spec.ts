@@ -2,7 +2,8 @@
  * THE LAYOUT CONTRACT on Fastest to 490 TE (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the
  * title and its one line, the answer (always shown, no Hide) with Follow this route as its one main button and first,
  * what to do now, then the one closed More holding the search and the rest, in that order and nothing between. Read
- * from the source (as the other layout specs do), plus the pieces rendered on the server.
+ * from the source (as the other layout specs do), plus the pieces rendered on the server. One control sits above the
+ * title, outside More: the target box right under the Target TE | By a date switch (Jordan's OK, 12 Nov 2026).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,11 +20,21 @@ const order = (src: string, marks: string[]) => marks.map(m => src.indexOf(m));
 
 describe('Fastest: the regions in their fixed order', () => {
   const t = template(read('auto/FastestRoute.vue'));
-  it('title, answer, what to do now, More: in this order', () => {
-    // Filters right above the answer (Jordan, 13 Nov 2026).
-    const at = order(t, ['data-region="title"', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold']);
+  it('the target box, title, answer, what to do now, More: in this order', () => {
+    // The target box first, right under the switch (Jordan, 12 Nov 2026); Filters right above the answer (13 Nov 2026).
+    const at = order(t, ['<TargetTeBox', 'data-region="title"', '<FiltersButton', 'data-region="answer"', '<NowLine', '<MoreFold']);
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+  it('the target box is outside More, on Target TE only (By a date is fixed at 490)', () => {
+    const more = t.slice(t.indexOf('<MoreFold'), t.indexOf('</MoreFold>'));
+    expect(t.match(/<TargetTeBox/g)).toHaveLength(1);
+    expect(more).not.toContain('<TargetTeBox');
+    expect(read('auto/ByDateScreen.vue')).not.toContain('TargetTeBox');
+    expect(read('auto/DeadlinePanel.vue')).not.toContain('TargetTeBox');
+    expect(read('../App.vue')).not.toContain('TargetTeBox');
+    // The contract's own comment records Jordan's OK.
+    expect(read('auto/FastestRoute.vue')).toContain("Jordan's OK, 12 Nov 2026");
   });
   it('the answer\'s filters sit just below Filters, always shown, not in More (Jordan, 12 Nov 2026 pm)', () => {
     const f = t.indexOf('<FiltersButton');

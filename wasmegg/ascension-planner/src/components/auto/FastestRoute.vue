@@ -13,8 +13,14 @@
   <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line and the
        goal tabs above (App.vue), then here, always in this order: the title and its one line, the answer with Follow this
        route as its one main button, what to do now, then the one closed More (everything else, in its old order), then
-       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. -->
+       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. One has a place outside More:
+       the target box, first, right under the Target TE | By a date switch (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE
+       as soon as possible"). -->
   <div class="max-w-4xl mx-auto space-y-4">
+    <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
+         box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
+    <TargetTeBox />
+
     <div data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
       <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
@@ -155,6 +161,7 @@ import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import TargetTeBox from './TargetTeBox.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
