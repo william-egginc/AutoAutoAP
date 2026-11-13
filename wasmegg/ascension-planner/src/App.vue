@@ -2174,14 +2174,12 @@ async function submitPlayerId(id: string) {
     console.error('Error setting up player data:', e);
     return;
   }
-  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Highest TE by a
-  // date with Egg Day picked, rather than the Manual Planner. Once only; a returning player keeps their tab.
+  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Chain Finder with Target
+  // TE lit (#/auto/fastest; By a date with Egg Day preset until 12 Nov 2026), rather than the Manual Planner. Once only;
+  // a returning player keeps their tab.
   if (newPlayerLanding) {
     newPlayerLanding = false;
-    if (plannerTab.value === 'manual') {
-      presetByDate({ eggDay: true });
-      applyRoute(FIRST_LOAD_ROUTE);
-    }
+    if (plannerTab.value === 'manual') applyRoute(FIRST_LOAD_ROUTE);
   }
   // A player id typed on a link into the Auto Planner: same set-up as the tab click.
   await initAutoOnce();
