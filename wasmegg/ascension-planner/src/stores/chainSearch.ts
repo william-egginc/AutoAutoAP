@@ -243,7 +243,9 @@ import {
 import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
 import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
 import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
-import { readRunMark, runAliveElsewhere, RUN_KEY, watcherReopenPath, type RunKind } from '@/search/stepAway';
+import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
+// Diagnostics only, kept out of the result code hash (lib/blackBoxDiag.ts).
+import * as blackBoxDiag from '@/lib/blackBoxDiag';
 import {
   currentWatchLink,
   installWatchLink,
@@ -7947,7 +7949,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       const mark = readRunMark();
       const crashed = crashAtLoad?.last.phase === 'deadline search' ? crashAtLoad.last.workers : undefined;
-      blackBox.noteCarryOn({
+      blackBoxDiag.noteCarryOn({
         kind: 'deadline search',
         carryOn: stepAwayTakeAutoCarryOn() ? 'auto' : 'click',
         workersFrom: (mark?.kind === 'deadline' && mark.workers) || crashed || null,
@@ -8837,17 +8839,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const lastCrash = ref(typeof window !== 'undefined' ? blackBox.readUnfinished() : null);
   // Another tab with a run going holds the run lock, and its beat is in the shared box: that run is
   // alive, not crashed. Without this, opening a second tab said the browser had killed the first.
-  /** The second-tab watcher opened this page (search/stepAway.ts `watcherReopenPath`): for the black
+  /** The second-tab watcher opened this page (lib/blackBoxDiag.ts `watcherReopenPath`): for the black
    *  box's page-load and carry-on entries. Null when it did not, or no unfinished beat was found. */
-  let loadReopen: ReturnType<typeof watcherReopenPath> = null;
+  let loadReopen: ReturnType<typeof blackBoxDiag.watcherReopenPath> = null;
   /** This page found an unfinished beat that no other tab's live run explains: into the box's history,
    *  with how the page was opened and how long after that beat (13 Nov 2026: a reload read as a stall). */
   function notePageLoad(found: blackBox.Beat): void {
     try {
       const loadedAt =
         typeof performance !== 'undefined' && performance.timeOrigin > 0 ? Math.round(performance.timeOrigin) : Date.now();
-      loadReopen = watcherReopenPath(readRunMark(), loadedAt);
-      blackBox.notePageLoad(found, loadReopen ?? {}, loadedAt);
+      loadReopen = blackBoxDiag.watcherReopenPath(readRunMark(), loadedAt);
+      blackBoxDiag.notePageLoad(found, loadReopen ?? {}, loadedAt);
     } catch {
       // the recorder is a nicety
     }
@@ -8928,7 +8930,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (deadlineRunning.value) {
       const p = deadlineProgress.value;
       workers = deadlinePool?.size ?? workerBudget.value;
-      b = blackBox.beat({
+      // The last save's fields are lib/blackBoxDiag.ts's (`DiagBeat`): `beat` spreads what it is given, so
+      // they are stored with the rest, and search/blackBox.ts (hashed) need not know them.
+      const fields: Omit<blackBoxDiag.DiagBeat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> = {
         phase: 'deadline search',
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
@@ -8937,7 +8941,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         lastSaveRoutes: deadlineLastSave?.routes ?? null,
         ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
-      });
+      };
+      b = blackBox.beat(fields);
       const beatNow = b;
       runTimeline.updateTimeline(t =>
         runTimeline.tickTimeline(t, {
@@ -9148,7 +9153,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // The previous page's unfinished beat, as THIS page found it at load (what the notice says).
         unfinished: lastCrash.value,
         // The box as it is now: this page's own beats too, a carry-on and its run included.
-        live: blackBox.readLive(),
+        live: blackBoxDiag.readLive(),
         ...(runNoteUsed.value ? { runNote: runNoteUsed.value } : {}),
         userAgent: navigator.userAgent,
         cores: machineThreads,
