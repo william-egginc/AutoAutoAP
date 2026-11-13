@@ -128,7 +128,7 @@
                 v-model.number="store.finalTE"
                 type="number"
                 :min="store.currentTE + 1"
-                :max="2000"
+                :max="490"
                 :disabled="store.isRunning"
                 class="w-24 rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
@@ -292,7 +292,7 @@
             v-model.number="store.finalTE"
             type="number"
             :min="store.currentTE + 1"
-            :max="2000"
+            :max="490"
             :disabled="store.isRunning"
             class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />

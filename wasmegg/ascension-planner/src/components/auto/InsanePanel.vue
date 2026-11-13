@@ -335,6 +335,7 @@
                 v-model.number="store.finalTE"
                 type="number"
                 min="1"
+                max="490"
                 :disabled="store.isRunning"
                 class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
