@@ -7,12 +7,15 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterShiftLines, eggClockLines, eggGoalLines } from '@/lib/nextTeEgg';
+import { planEggGoalLines } from '@/lib/eggGoalTimes';
+import type { NowPlan } from '@/lib/nowPlan';
 import { eggLines } from '@/lib/farmFacts';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import {
   AFTER_SHIFT_TAIL,
   EGG_LINE,
   EGG_VIEW_LINES,
+  GOAL_EGG_DONE_WORDS,
   GOAL_WORDS,
   IF_SHIFT_NOW_TAIL,
   PLAN_SHIFT_LEAD,
@@ -110,5 +113,60 @@ describe('YourEggs, "to goal" view', () => {
     const html = await renderHtml(YourEggs, { ...props(false), view: 'goal' });
     expect(html).not.toContain('data-testid="now-eggs-view"');
     for (const x of blocks(html)) for (const k of x.kinds) expect(EGG_VIEW_LINES.next).toContain(k);
+  });
+});
+
+/** A followed table replay plan (spec-myruns-goal): its final ascension's shifts in a non-standard tail order. The
+ *  farm is in it now, Kindness's stint (K3) already over. */
+function replayPlan(): NowPlan {
+  const start = NOW - 3 * D;
+  const eggs = ['humility', 'kindness', 'resilience', 'curiosity', 'humility', 'integrity'];
+  return {
+    goal: 'fastest',
+    deadline: null,
+    chain: [210],
+    end: start + 7 * D,
+    endTE: 210,
+    legs: null,
+    tableLegs: [{ to: 210, endTE: 210, start, end: start + 7 * D, shifts: eggs.map((egg, i) => ({ at: start + (i + 1) * D, egg })) }],
+    exact: false,
+    instantTE: null,
+    calculatedAt: 0,
+    planStart: start,
+    spareHours: null,
+  } as NowPlan;
+}
+
+describe('YourEggs, "to goal" per egg on the followed plan (spec-myruns-goal)', () => {
+  function goalProps(hours: boolean) {
+    const p = props(true);
+    return { ...p, goalTimes: planEggGoalLines({ plan: replayPlan(), now: NOW, zone: ZONE, hours, saveEgg: 'curiosity' }) };
+  }
+  it('each egg one goal-time line (the plan\'s goal once above), Kindness done; no hypotheticals, no plan-shift lines', async () => {
+    const p = goalProps(false);
+    const html = await renderHtml(YourEggs, { ...p, view: 'goal' });
+    expect(blockKinds(html)).toEqual([EGG_LINE.goalPlan]);
+    const b = blocks(html);
+    expect(b[ORDER.indexOf('kindness')].kinds).toEqual([EGG_LINE.goalEggDone]);
+    expect(b[ORDER.indexOf('kindness')].text).toContain(GOAL_EGG_DONE_WORDS);
+    for (const egg of ['curiosity', 'integrity', 'humility', 'resilience']) {
+      expect(b[ORDER.indexOf(egg)].kinds).toEqual([EGG_LINE.goalEggAt]);
+      expect(b[ORDER.indexOf(egg)].text).toContain(p.goalTimes![egg].text);
+    }
+    for (const x of b) {
+      for (const k of x.kinds) expect(EGG_VIEW_LINES.goal).toContain(k);
+      for (const banned of [AFTER_SHIFT_TAIL, IF_SHIFT_NOW_TAIL, PLANNED_SHIFT_TAIL, PLAN_SHIFT_LEAD]) expect(x.text).not.toContain(banned);
+    }
+  });
+  it('awake hours on: every egg still on the plan says its time approximately', async () => {
+    const b = blocks(await renderHtml(YourEggs, { ...goalProps(true), view: 'goal' }));
+    for (const egg of ['curiosity', 'integrity', 'humility', 'resilience']) expect(b[ORDER.indexOf(egg)].kinds).toEqual([EGG_LINE.goalEggByAbout]);
+  });
+  it('"next TE" with goal times given: still only next TE lines, no goal words', async () => {
+    const html = await renderHtml(YourEggs, { ...goalProps(false), view: 'next' });
+    for (const x of blocks(html)) {
+      for (const k of x.kinds) expect(EGG_VIEW_LINES.next).toContain(k);
+      for (const banned of [GOAL_WORDS, GOAL_EGG_DONE_WORDS, PLAN_SHIFT_LEAD]) expect(x.text).not.toContain(banned);
+    }
   });
 });

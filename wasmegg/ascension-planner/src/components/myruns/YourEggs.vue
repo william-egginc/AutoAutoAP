@@ -13,7 +13,8 @@
   `eggClockLines`), in "next TE".
   NEXT TE | TO GOAL (28 Oct 2026, pieha; each view only its own lines, spec-myruns-fix2, 13 Nov 2026): a two-way
   switch. "next TE": if you switched to the egg now, its next TE, nothing else. "to goal": the followed plan's goal once
-  above the eggs (lib/nextTeEgg.ts `eggGoalLines`) and each egg's plan line. Every line carries its kind (data-line,
+  above the eggs (lib/nextTeEgg.ts `eggGoalLines`) and each egg's goal time on the plan, the end of its last stint
+  (lib/eggGoalTimes.ts, spec-myruns-goal); a plan that can't say per egg (table only, no replay) keeps the plan line. Every line carries its kind (data-line,
   lib/yourEggsWords.ts) and lib/nextTeEgg.ts `eggViewLines` picks them. Remembered in this browser; "next TE" by
   default; no switch without a plan.
 -->
@@ -113,6 +114,9 @@ const props = defineProps<{
   /** By view and egg (lib/nextTeEgg.ts `eggClockLines`): `next` each egg's next TE day and time from now; `goal` each
    *  egg's plan line (a planned shift to it, on it now, or none in the plan's next shifts). */
   clockLines?: { next: Record<string, string>; goal: Record<string, string> } | null;
+  /** Each egg's goal time on the followed plan (lib/eggGoalTimes.ts `planEggGoalLines`); null or absent: the plan
+   *  can't say per egg, and "to goal" shows `clockLines.goal`. */
+  goalTimes?: Record<string, EggViewLine> | null;
   /** The view to start on (specs); absent: the one remembered in this browser. */
   view?: EggsView;
 }>();
@@ -144,6 +148,10 @@ const LINE_STYLE: Partial<Record<EggLineKind, { cls: string; testid?: string }>>
   [EGG_LINE.goalShift]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalOnEgg]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalNoShift]: { cls: 'text-slate-500', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalEggAt]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalEggBy]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalEggByAbout]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalEggDone]: { cls: 'text-slate-500', testid: 'now-egg-to-goal' },
 };
 
 /** The egg's lines for the view shown (lib/nextTeEgg.ts `eggViewLines`). */
@@ -153,6 +161,7 @@ function linesOf(e: EggLine): EggViewLine[] {
     saveSeconds: props.saveSeconds,
     afterShift: props.afterShift?.lines ?? null,
     clockLines: props.clockLines ?? null,
+    goalTimes: props.goalTimes ?? null,
   });
 }
 

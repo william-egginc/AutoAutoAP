@@ -277,7 +277,10 @@ export interface EggViewLine {
  * kinds (lib/yourEggsWords.ts `EGG_VIEW_LINES`):
  *   next: the egg being laid, its next TE at the save's rate WITHOUT the goal (farmFacts `nextTeLine` with no goal
  *     time); every other egg its after-shift time, or how far it is to its next TE when it has none; then its clock.
- *   goal: the egg's plan line (`clockLines.goal`): when the plan shifts here, on it now, or no shift in the next shifts.
+ *   goal: the egg's goal time on the followed plan (`goalTimes`, lib/eggGoalTimes.ts `planEggGoalLines`, spec-myruns-goal):
+ *     the end of its last stint, or done on this plan. When the plan can't say per egg (`goalTimes` null: a table-only
+ *     plan with no replay), its plan line (`clockLines.goal`): when the plan shifts here, on it now, or no shift in the
+ *     next shifts.
  */
 export function eggViewLines(
   view: EggsView,
@@ -287,10 +290,16 @@ export function eggViewLines(
     saveSeconds: number;
     afterShift?: Record<string, string> | null;
     clockLines?: { next: Record<string, string>; goal: Record<string, string> } | null;
+    /** Each egg's goal time on the followed plan; null: the plan can't say per egg. */
+    goalTimes?: Record<string, EggViewLine> | null;
   }
 ): EggViewLine[] {
   const out: EggViewLine[] = [];
   if (view === 'goal') {
+    if (o.goalTimes) {
+      const t = o.goalTimes[e.egg];
+      return t ? [t] : [];
+    }
     const g = o.clockLines?.goal[e.egg];
     if (g) out.push({ kind: g === GOAL_ON_EGG_WORDS ? EGG_LINE.goalOnEgg : g === GOAL_NO_SHIFT_WORDS ? EGG_LINE.goalNoShift : EGG_LINE.goalShift, text: g });
     return out;
