@@ -194,15 +194,15 @@ describe('Compare without My plans', () => {
 describe('the My runs tab', () => {
   const app = read('../App.vue');
 
-  it('sits after Leaderboard and before Science (collector or not), shown once there is something on it (24 Oct 2026), and opens MyRunsView', () => {
-    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
+  it('sits after Chain Finder and before Leaderboard and Science (Joo\'s order, Jordan 12 Nov 2026; was after Leaderboard), shown once there is something on it (24 Oct 2026), and opens MyRunsView', () => {
+    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
     const ids = [...tabs.matchAll(/id: '(\w+)' as const/g)].map(m => m[1]);
-    expect(ids).toEqual(['manual', 'auto', 'compare', 'myruns', 'science']);
+    expect(ids).toEqual(['manual', 'auto', 'chain', 'myruns', 'compare', 'science']);
     // Leaderboard and Science each behind their own switch; My runs behind what the account has (lib/myRunsShown.ts),
     // never behind the collector.
     expect(tabs).not.toContain('submitUrl');
-    const my = tabs.slice(tabs.indexOf("id: 'compare'"), tabs.indexOf("id: 'science'"));
-    expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[/);
+    const my = tabs.slice(tabs.indexOf("id: 'chain'"), tabs.indexOf("id: 'compare'"));
+    expect(my.slice(0, my.indexOf("id: 'myruns'"))).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[/);
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
       /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+@setup="setUpAgainForMyRuns"\s+\/>/
@@ -211,18 +211,17 @@ describe('the My runs tab', () => {
     expect(app).not.toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
   });
 
-  it('the tabs wrap as two full rows below lg (planners, then My runs with Leaderboard and Science when shown)', () => {
+  it('the tabs wrap two a row below lg (the planners, then Chain Finder and My runs, then Leaderboard and Science when shown), an odd last one across its row', () => {
     const tabs = read('SiteTabs.vue');
-    expect(tabs).toContain('grid grid-cols-6 w-full lg:flex');
-    expect(tabs).toContain("i < 2 ? 'col-span-3' : (SECOND_ROW[tabs.length - 2] ?? 'col-span-2')");
-    expect(tabs).toContain("{ 1: 'col-span-6', 2: 'col-span-3', 3: 'col-span-2' }");
+    expect(tabs).toContain('grid grid-cols-2 w-full lg:flex');
+    expect(tabs).toContain("i === tabs.length - 1 && tabs.length % 2 === 1 ? 'col-span-2' : 'col-span-1'");
   });
 
-  it('is a top tab only, not an Auto Planner sub-tab (Jordan, 26 Oct 2026: the sub-tabs jumped when it appeared)', () => {
-    const nav = app.slice(app.indexOf('v-for="v in autoTabs"'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
+  it('is a top tab only, not a side of Chain Finder\'s goal switch (Jordan, 26 Oct 2026: the sub-tabs jumped when it appeared)', () => {
+    const nav = app.slice(app.indexOf('<GoalSwitch'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
     expect(nav).not.toContain('data-testid="auto-tab-myruns"');
-    expect(nav).not.toContain("@click=\"selectSection('myruns')\"");
-    expect(app).toContain('class="grid grid-cols-3 w-full sm:flex');
+    expect(nav).not.toContain("selectSection('myruns')");
+    expect(read('../lib/goalSwitch.ts')).toContain("export const CHAIN_GOALS: ChainView[] = ['fastest', 'by-date'];");
   });
 });
 

@@ -31,8 +31,11 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The tabs are **Manual Planner**, **Auto Planner** and **My runs** (shown once the account has something there, or
-while a search runs). **Leaderboard** and **Science** are off
+The tabs are **Manual Planner**, **Auto Planner**, **Chain Finder** and **My runs** (shown once the account has
+something there, or while a search runs), in that order, as on Joo's site (12 Nov 2026; Fastest and Highest TE by a date
+were under the Auto Planner until then, and their addresses `#/auto/fastest`, `#/auto/fastest/full` and `#/auto/by-date`
+did not change). Joo's `?tab=chain-finder` (and `?tab=instant-search`) links open Chain Finder, `?tab=auto-planner` the
+Auto Planner. **Leaderboard** and **Science** are off
 until you tick them in Setup › How the site shows things (kept in this browser). A link to one of them still
 opens it, for that visit. Both need the collector: a build without one never shows them.
 

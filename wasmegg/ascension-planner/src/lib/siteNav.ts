@@ -2,7 +2,9 @@
  * The site's tabs and the address of each one (the unified layout, redesign 2026-09-30).
  *
  *   Manual Planner   #/manual
- *   Auto Planner     #/auto/classic          Joo's Auto AP
+ *   Auto Planner     #/auto/classic          Joo's Auto AP (was "Single run" until 12 Nov 2026)
+ *   Chain Finder     #/auto/fastest          (its own top tab since 12 Nov 2026, spec-chainfinder: the goal switch
+ *                                            "Target TE | By a date" picks between these two addresses)
  *                    #/auto/fastest          fastest route to 490, Smart search (was Chain Search)
  *                    #/auto/fastest/full     the same, every route in a box (was Insane mode)
  *                    #/auto/by-date          highest TE by a date (was Insane's deadline goal)
@@ -25,13 +27,22 @@
  *
  * In the hash, not the path: the live site is `vite preview` behind a tunnel, and a path it has no
  * file for is a 404 on some hosts. Old links still land where they meant to: `?insane=1` (every
- * Chain Explorer "Run this sweep" link, and the Egg Day prefill link) and `#insane` / `#deadline`.
+ * Chain Explorer "Run this sweep" link, and the Egg Day prefill link) and `#insane` / `#deadline`. Joo's site's
+ * `?tab=chain-finder` (and his older `?tab=instant-search`) opens Chain Finder on its remembered goal, and
+ * `?tab=auto-planner` the Auto Planner (12 Nov 2026). Read here and in App.vue only, never by the watch page.
  *
  * Every name a player reads is in NAMES, so the names the Discord feedback settles on are one edit.
  */
 
+import { CHAIN_FINDER_TAB } from './chainFinderWords';
+
 export type Section = 'manual' | 'auto' | 'compare' | 'myruns' | 'science';
 export type AutoView = 'classic' | 'fastest' | 'by-date';
+/** Chain Finder's two goals (the Auto Planner's screens other than Joo's simulator). */
+export type ChainView = Exclude<AutoView, 'classic'>;
+/** The top tabs (SiteTabs.vue): the sections, with the 'auto' section split in two, the Auto Planner (Joo's simulator,
+ *  #/auto/classic) and Chain Finder (Fastest and By a date). The store's plannerTab is 'automatic' for both. */
+export type TopTab = Section | 'chain';
 /** How thorough the fastest-route search is: descent (Smart) or every route in a box (full). */
 export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
@@ -54,7 +65,11 @@ export interface SiteRoute {
 
 export const NAMES = {
   manual: 'Manual Planner',
+  /** Joo's simulator alone since Chain Finder took Fastest and By a date (12 Nov 2026), as on Joo's site. */
   auto: 'Auto Planner',
+  /** Fastest to 490 TE and Highest TE by a date, under one "Target TE | By a date" switch (spec-chainfinder, Jordan
+   *  12 Nov 2026; Joo's tab name). DRAFT for Words. */
+  chainFinder: CHAIN_FINDER_TAB,
   /** The shared board and its charts (#/compare: the address kept its old name). Was "Compare" until
    *  16 Oct 2026. */
   compare: 'Leaderboard',
@@ -73,9 +88,10 @@ export const NAMES = {
   start: 'When should I start?',
   /** Science › How it works: what the searches and the instant answer do, and how they were checked. */
   how: 'How it works',
-  /** Joo's single-plan simulator (Classic), the Auto Planner's first screen. Was "Your plan" until 15 Oct
-   *  2026; the intro named the old name too until 5 Nov 2026 (UX fluff review 2, item S-1: a month after the rename). */
-  classic: 'Single run',
+  /** Joo's single-plan simulator (Classic), the Auto Planner tab's one screen. Was "Your plan" until 15 Oct 2026 (the
+   *  intro named the old name too until 5 Nov 2026, UX fluff review 2, item S-1), then "Single run" until 12 Nov 2026,
+   *  when the name was dropped and the screen is just the Auto Planner (Jordan, spec-chainfinder). DRAFT for Words. */
+  classic: 'Auto Planner',
   classicWas: 'Your plan',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
@@ -92,7 +108,7 @@ export const NAMES = {
   fullFirst: 'Custom',
   /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
   study: 'Help improve the planner',
-  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner and My runs. */
+  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner, Chain Finder and My runs. */
   setup: 'Setup',
 } as const;
 
@@ -123,7 +139,7 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
 
 /**
  * Where a NEW player lands once their save is in (Jordan, 25 Oct 2026, the UX review's item 2/A): the
- * instant answer, on Auto Planner › Highest TE by a date with Egg Day picked, rather than the Manual
+ * instant answer, on Chain Finder › By a date (Auto Planner › Highest TE by a date until 12 Nov 2026) with Egg Day picked, rather than the Manual
  * Planner's empty cards. App.vue also presets Egg Day on that screen (lib/byDateForm.ts).
  */
 export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
@@ -165,6 +181,12 @@ export function firstVisitShows(p: { hasAccount: boolean; hasSaveFile: boolean; 
   return !p.hasAccount && !p.hasSaveFile && p.tab === 'manual' && !p.manualAsked;
 }
 
+/** Which top tab a route lights: the Auto Planner for Joo's simulator, Chain Finder for Fastest and By a date. */
+export function topTabOf(r: SiteRoute): TopTab {
+  if (r.section !== 'auto') return r.section;
+  return r.auto === 'classic' ? 'auto' : 'chain';
+}
+
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
   if (r.section === 'compare') return !r.compare || r.compare === 'eggday' ? '#/compare' : `#/compare/${r.compare}`;
@@ -176,11 +198,19 @@ export function hashFor(r: SiteRoute): string {
   return `#/auto/${r.auto}`;
 }
 
+/** Joo's `?tab=` values that open Chain Finder (`instant-search` was its name before his tabs were renamed). */
+const CHAIN_FINDER_TABS = ['chain-finder', 'instant-search'];
+
 /**
  * The route a URL asks for, or null when it asks for none (the page opens on its default, and a
- * plain `#some-anchor` inside a panel is not a route). A new-style hash wins over the old flags.
+ * plain `#some-anchor` inside a panel is not a route). A new-style hash wins over the old flags, and they win over
+ * Joo's `?tab=`. `chainGoal` is Chain Finder's remembered goal (lib/autoScreen.ts), where `?tab=chain-finder` lands.
  */
-export function routeFromLocation(search: string, hash: string): Required<SiteRoute> | null {
+export function routeFromLocation(
+  search: string,
+  hash: string,
+  chainGoal: { view: ChainView; depth: Depth } = { view: 'fastest', depth: 'smart' }
+): Required<SiteRoute> | null {
   const h = hash.replace(/^#/, '');
   if (h.startsWith('/')) {
     const [section, sub, depth] = h.slice(1).split('/');
@@ -199,7 +229,8 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
       return { ...DEFAULT_ROUTE, section, science };
     }
     if (section === 'auto') {
-      // A bare #/auto opens the first sub-tab, Fastest to 490 TE; Single run keeps its own address, #/auto/classic.
+      // A bare #/auto opens Chain Finder on Fastest to 490 TE; the Auto Planner (Joo's simulator) keeps its own address,
+      // #/auto/classic.
       const auto: AutoView = sub === 'by-date' ? 'by-date' : sub === 'classic' ? 'classic' : 'fastest';
       return {
         ...DEFAULT_ROUTE,
@@ -214,11 +245,20 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
   const deadline = params.get('goal') === 'deadline' || h === 'deadline' || h === '/deadline';
   if (deadline) return { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
   if (insane) return { ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest', depth: 'full' };
+  const tab = params.get('tab');
+  if (tab && CHAIN_FINDER_TABS.includes(tab))
+    return {
+      ...DEFAULT_ROUTE,
+      section: 'auto',
+      auto: chainGoal.view,
+      depth: chainGoal.view === 'fastest' ? chainGoal.depth : 'smart',
+    };
+  if (tab === 'auto-planner') return { ...DEFAULT_ROUTE, section: 'auto', auto: 'classic' };
   return null;
 }
 
 /**
- * The URL to show once an old-style link has been read: `insane` and `goal` dropped (the hash says
+ * The URL to show once an old-style link has been read: `insane`, `goal` and Joo's `tab` dropped (the hash says
  * it now), everything else kept -- the sweep and Egg Day parameters are read by the panels
  * themselves, and `playerId` by the page.
  */
@@ -226,6 +266,7 @@ export function canonicalUrl(href: string, r: SiteRoute): string {
   const url = new URL(href);
   url.searchParams.delete('insane');
   url.searchParams.delete('goal');
+  url.searchParams.delete('tab');
   url.hash = hashFor(r);
   return url.toString();
 }

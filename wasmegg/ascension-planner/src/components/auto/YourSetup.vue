@@ -211,7 +211,7 @@
       >
         <h3 class="text-slate-500 label">Awake hours</h3>
         <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-          {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
+          The {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
         </p>
         <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
         <!-- Two 44 px choices and one line under them (UX fluff review 2, S13; DRAFT): the blurbs said the same twice. -->
@@ -341,7 +341,7 @@
         >
           <TimeOffEditor kind="noPrestige" />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-            {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
+            The {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
           </p>
         </fieldset>
 
@@ -350,7 +350,7 @@
         <fieldset id="your-setup-time-off" :disabled="locked" class="scroll-mt-4 rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
-            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
+            The {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
@@ -613,12 +613,12 @@
                   </span>
                 </label>
                 <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
-                  Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+                  Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
                   Choosing here changes it there too.
                 </p>
                 <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
                   The plan starts more than an hour from now, so there's no current ascension to continue then: the first
-                  ascension starts fresh, as in {{ NAMES.classic }}.
+                  ascension starts fresh, as in the {{ NAMES.classic }}.
                 </p>
               </div>
             </fieldset>
@@ -697,7 +697,7 @@
                 </div>
               </div>
               <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-                Not used by {{ NAMES.classic }}: it builds one plan, no search.
+                Not used by the {{ NAMES.classic }}: it builds one plan, no search.
               </p>
               <WorkerSlider />
               <BackgroundSpeed />

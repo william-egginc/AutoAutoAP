@@ -169,7 +169,7 @@
         v-if="playerId"
         class="mt-4"
         :tabs="topTabs"
-        :current="plannerTab"
+        :current="currentTopTab"
         @select="selectSection"
       />
 
@@ -413,44 +413,12 @@
       />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <template v-if="plannerTab === 'automatic'">
-          <div class="flex justify-center">
-            <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
-                 cell, so the underline stays on one line; from sm up, a centred row. Each at least
-                 44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
-                 My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
-                 appeared after the first answer). -->
-            <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
-            >
-              <button
-                v-for="v in autoTabs"
-                :key="v.id"
-                type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
-                :class="
-                  autoView === v.id
-                    ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                "
-                @click="onAutoTab(v.id)"
-              >
-                {{ v.label }}
-                <span
-                  v-if="
-                    activeScreen &&
-                    chainSearchStore.runProgress?.kind !== 'start-times' &&
-                    (v.id === 'by-date'
-                      ? activeScreen === 'by-date'
-                      : v.id === 'fastest' && (activeScreen === 'smart' || activeScreen === 'full'))
-                  "
-                  class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
-                  title="A search is running here"
-                ></span>
-              </button>
-            </div>
-          </div>
-        </template>
+        <!-- Chain Finder's goal switch, "Target TE | By a date" (spec-chainfinder, Jordan 12 Nov 2026: Joo's one page with a
+             switch, not the old two goal tabs; GoalSwitch.vue). Each side is an address (#/auto/fastest, #/auto/by-date),
+             set through onAutoTab as the old tabs were. None on the Auto Planner tab (Joo's simulator, #/auto/classic). -->
+        <div v-if="plannerTab === 'automatic' && autoView !== 'classic'" class="flex justify-center">
+          <GoalSwitch :current="autoView" :running="runningGoal" @select="onAutoTab" />
+        </div>
 
         <div v-else-if="plannerTab === 'science'" class="flex justify-center">
           <div
@@ -643,10 +611,7 @@
           <template v-if="autoView === 'classic'">
             <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-body text-slate-600">
-              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's original planner: type the TE you want
-              to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the stops found for you, use
-              {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
+              {{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}
             </p>
             <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): said above the planner too, as on
                  the other screens. -->
@@ -880,12 +845,17 @@ import {
   firstVisitShows,
   openingRoute,
   routeFromLocation,
+  topTabOf,
   type AutoView,
+  type ChainView,
   type Depth,
   type ScienceView,
   type Section,
   type SiteRoute,
+  type TopTab,
 } from '@/lib/siteNav';
+import { CHAIN_FINDER_WORDS } from '@/lib/chainFinderWords';
+import GoalSwitch from '@/components/auto/GoalSwitch.vue';
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
@@ -1125,7 +1095,8 @@ const NARROW_PILL_ROOM = 'clamp(0px, (320px - 100vw) * 1000, 3rem)';
  * reload or a copied link opens the same screen; old `?insane=1` / `#deadline` links are read once
  * and rewritten to the new address.
  */
-const initialRoute = routeFromLocation(window.location.search, window.location.hash);
+// Joo's ?tab=chain-finder lands on Chain Finder's remembered goal (lib/autoScreen.ts, the store's chainView).
+const initialRoute = routeFromLocation(window.location.search, window.location.hash, { view: uiStore.chainView, depth: uiStore.fastestDepth });
 const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
 /** Single run's fixed bar of totals (ChainSummaryBar.vue) and its fold tab, px: the Setup pill sits above them. */
 const singleRunBarRoom = useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'));
@@ -1384,15 +1355,20 @@ function goTo(r: SiteRoute): void {
   const pickedSave = uiStore.runSaveLoaded?.from === 'entry' || uiStore.runSaveLoaded?.from === 'file';
   if (enteringAuto && !searchActive.value && !pickedSave) void handleAutoPlannerTabClick();
 }
-/** A top tab: that section, as it was last left. */
-function selectSection(section: Section): void {
-  goTo({ ...currentRoute(), section });
+/** A top tab: that section, as it was last left. The Auto Planner always opens Joo's simulator; Chain Finder opens its
+ *  remembered goal (the store's chainView), on the running depth if a Fastest search runs (spec-chainfinder). */
+function selectSection(tab: TopTab): void {
+  if (tab === 'auto') goAuto('classic');
+  else if (tab === 'chain') onAutoTab(uiStore.chainView);
+  else goTo({ ...currentRoute(), section: tab });
 }
+/** The top tab lit (SiteTabs.vue): from the route, as plannerTab is 'automatic' for the Auto Planner and Chain Finder. */
+const currentTopTab = computed(() => topTabOf(currentRoute()));
 function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
   goTo({ section: 'auto', auto, depth });
 }
 
-/** An Auto Planner sub-tab. "Fastest route" opens the depth that's running, if one is. */
+/** A side of Chain Finder's goal switch (was an Auto Planner sub-tab). Fastest opens the depth that's running, if one is. */
 function onAutoTab(auto: AutoView): void {
   const a = activeScreen.value;
   if (auto === 'fastest' && (a === 'smart' || a === 'full')) goAuto('fastest', a);
@@ -1526,39 +1502,42 @@ watch(
  * the loading watcher does not re-run it, and never over a load already in progress.
  */
 
+/** The top tabs, in Joo's order (Jordan, 12 Nov 2026): Manual Planner, Auto Planner, Chain Finder, My runs, then
+ *  Leaderboard, then Science. Which one is lit comes from the route (currentTopTab). */
 const topTabs = computed(() => [
   {
     id: 'manual' as const,
-    tab: 'manual',
     label: NAMES.manual,
     on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
   },
   {
     id: 'auto' as const,
-    tab: 'automatic',
     label: NAMES.auto,
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
-  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
-  ...(optionalShown.value.leaderboard
-    ? [
-        {
-          id: 'compare' as const,
-          tab: 'leaderboard',
-          label: NAMES.compare,
-          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
-        },
-      ]
-    : []),
+  {
+    id: 'chain' as const,
+    label: NAMES.chainFinder,
+    on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
+  },
   // My runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
   // no collector.
   ...(myRunsTabShown.value
     ? [
         {
           id: 'myruns' as const,
-          tab: 'myruns',
           label: NAMES.myRuns,
           on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
+        },
+      ]
+    : []),
+  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
+  ...(optionalShown.value.leaderboard
+    ? [
+        {
+          id: 'compare' as const,
+          label: NAMES.compare,
+          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
         },
       ]
     : []),
@@ -1566,20 +1545,21 @@ const topTabs = computed(() => [
     ? [
         {
           id: 'science' as const,
-          tab: 'science',
           label: NAMES.science,
           on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
         },
       ]
     : []),
 ]);
-/** "Fastest to 490 TE", following the Final target TE when it isn't 490. In this order (Jordan, 26 Oct 2026):
- *  the two instant-answer screens first, Single run (Joo's planner) last. */
-const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
-  { id: 'fastest', label: fastestName(chainSearchStore.finalTE), screen: null },
-  { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
-  { id: 'classic', label: NAMES.classic, screen: null },
-]);
+
+/** The goal a search is running on, for the switch's dot (the old goal tabs' rule): By a date's run, or a Fastest one
+ *  (either depth); none for a start-time sweep (Science's). */
+const runningGoal = computed<ChainView | null>(() => {
+  const a = activeScreen.value;
+  if (!a || chainSearchStore.runProgress?.kind === 'start-times') return null;
+  return a === 'by-date' ? 'by-date' : a === 'smart' || a === 'full' ? 'fastest' : null;
+});
+
 /**
  * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when
  * it sets the save up (initialState + rollUpPendingTE: per egg, the claimed TE or the thresholds

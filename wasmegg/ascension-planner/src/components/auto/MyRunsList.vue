@@ -27,7 +27,7 @@
     />
 
     <p v-if="!lines.length" class="text-body text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
-      None of the runs on the Leaderboard are yours yet. Share a result from the Auto Planner and it shows up here.
+      None of the runs on the Leaderboard are yours yet. Share a result from Chain Finder and it shows up here.
     </p>
     <p
       v-else-if="!shown.length"
@@ -143,7 +143,7 @@
                 <button
                   type="button"
                   class="px-2 py-0.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                  :title="`Open ${l.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
+                  :title="`Open ${l.row.chain.join(' ')} in the Auto Planner, without running it. The Auto Planner doesn't use your awake hours.`"
                   @click="emit('use', l.row.chain)"
                 >
                   Use

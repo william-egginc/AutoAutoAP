@@ -185,14 +185,14 @@ describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
     expect(clash.map(l => `${l.at}: ${l.toks.join(' ')}`)).toEqual([]);
   });
 
-  it('buttons are sentence case: a <button> carries the caps label only as a tab (underline tab, role="tab", SiteTabs)', () => {
+  it('buttons are sentence case: a <button> carries the caps label only as a tab (underline tab, role="tab", SiteTabs) or a segmented switch\'s side (role="radio", GoalSwitch)', () => {
     const bad: string[] = [];
     for (const { rel, src } of FILES)
       for (const m of src.matchAll(/<button\b[^>]*>/g)) {
         const tag = m[0];
         const cls = (tag.match(/\sclass="([^"]*)"/)?.[1] ?? '').split(/\s+/);
         if (!cls.includes('label')) continue;
-        if (cls.includes('border-b-2') || /role="tab"/.test(tag) || rel.endsWith('SiteTabs.vue')) continue;
+        if (cls.includes('border-b-2') || /role="(?:tab|radio)"/.test(tag) || rel.endsWith('SiteTabs.vue')) continue;
         bad.push(`${rel}:${src.slice(0, m.index).split('\n').length}`);
       }
     expect(bad).toEqual([]);
