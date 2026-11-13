@@ -184,9 +184,9 @@ up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with 
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
 rule, which used the rounds only below TE 120. Joo's own Chain Finder and Table Builder screens were left out of
-this merge; our Chain Finder tab is the Fastest and Highest TE by a date screens. It does **not** plan around Awake hours (the searches hold for them, via
-`search/leg.ts`, and the instant answer prices them) or Continue my
-build-up, and does not find stops for you. Full list:
+this merge; our Chain Finder tab is our own Fastest and Highest TE by a date screens, not his. The Auto Planner
+does **not** plan around Awake hours (the searches hold for them, via `search/leg.ts`, and the instant answer
+prices them) or Continue my build-up, and does not find stops for you. Full list:
 [Auto Planner vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
 ---
