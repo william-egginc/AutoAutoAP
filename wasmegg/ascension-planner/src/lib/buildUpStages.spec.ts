@@ -95,7 +95,7 @@ describe('Tier 13 wherever the plan unlocks it, whatever its variant (Jordan, 13
 
 describe('the check-in that holds the unlock (5.1: a check-in that crosses a boundary)', () => {
   // One check-in: the buy that takes tiers 1-12 to 1,655 levels, then ROI buys in the same minute (Sample's first check-in).
-  const plan = [buy(at(4, 15, 0), 'comfy_nests', 0, 22), buy(at(4, 15, 0) + 20, 'nutritional_sup', 0, 5), buy(at(4, 16, 0), 'comfy_nests', 22, 30)];
+  const plan = [buy(at(4, 15, 0), 'comfy_nests', 0, 22), buy(at(4, 15, 0), 'nutritional_sup', 0, 5), buy(at(4, 16, 0), 'comfy_nests', 22, 30)];
   const ls = linesOf(plan);
   it('reads Buying to Tier 13 (it is the check-in that unlocks it, and carries the marker), not the stage of its last buy', () => {
     expect(ls.filter(l => l.kind === 'research')).toHaveLength(2);
