@@ -368,7 +368,7 @@
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
                  same legs as When each step happens below. Since 12 Nov 2026 pm (Jordan, phone proposal question 3) one
-                 short sentence ("… sharp.", `firstStepShort`) with today's whole sentence, its awake-hours clause
+                 short sentence ("… sharp.", `firstStepShortText`) with today's whole sentence, its awake-hours clause
                  included, behind the card's "?" (CardHelp). The build-up-missing warning is drawn as before. -->
             <p
               v-if="firstStep"
@@ -378,7 +378,7 @@
             >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-              ><template v-else>{{ firstStepShort }}{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template>
+              ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -598,7 +598,7 @@
           >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-            ><template v-else>{{ firstStepShort }}{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template>
+            ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1098,7 +1098,7 @@ import {
   buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
-  firstStepShortLine,
+  firstStepShort,
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
@@ -1748,25 +1748,29 @@ const firstStep = computed(() => {
   return line.slice(FIRST_STEP_LABEL.length + 1);
 });
 /**
- * First step's short form on the card (Jordan, 12 Nov 2026 pm, phone proposal question 3; lib/instantWords.ts
- * firstStepShortLine, DRAFT): one sentence, the prestige always with its date and without this year's year
- * (./instantCardTime.ts), "sharp" when the hours limit it; `firstStep` above, today's whole sentence, sits behind its "?".
+ * First step's short form on the card (Jordan, 12 Nov 2026 pm, phone proposal question 3; Words' lib/instantWords.ts
+ * firstStepShort): one sentence, "sharp" when the hours limit it; `firstStep` above, today's whole sentence, sits behind
+ * its "?". The prestige always with its date (`sameDay: false`), without this year's year (./instantCardTime.ts); no
+ * reached time, so a one-ascension First step has no "(time)".
  */
-const firstStepShort = computed(() => {
+const firstStepShortText = computed(() => {
   const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
   const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
   if (!a || !legs?.length) return '';
   const kind = firstStepKind(legs[0].label);
   const near = (t: number) => cardTime(t, zone.value, { at: true });
-  const line = firstStepShortLine({
+  const { short } = firstStepShort({
     kind,
     start: kind === 'fresh' && !a.now ? near(a.prestigeAt) : null,
     stopTE: a.stopTE,
+    reached: near(a.reachedAt),
     prestigeDate: b ? near(b.prestigeAt) : null,
+    prestigeTime: null,
+    sameDay: false,
     hours: hoursLimited.value,
     buildUpMissing: answerBuildUpMissing.value,
   });
-  return line.slice(FIRST_STEP_LABEL.length + 1);
+  return short.slice(FIRST_STEP_LABEL.length + 1);
 });
 /** First step is a build-up-could-not-be-worked-out line (a fresh start or, spec-buildupmissing-continue, the ascension
  *  you are in): its part after the bold lead, drawn amber (spec-buildupmissing-words); '' otherwise. */

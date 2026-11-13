@@ -133,7 +133,7 @@ function ctxOf(s: State): Record<string, unknown> {
     FIRST_STEP_LABEL: 'First step:',
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
-    firstStepShort: '',
+    firstStepShortText: '',
     firstStepWarn: '',
     nightBuyNote: false,
     stepCaveat: { step: '', note: null },
@@ -1068,7 +1068,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
     });
     it(`${name}: First step is the short sentence, today's whole sentence behind its "?" (Jordan, 12 Nov 2026 pm)`, async () => {
       const SHORT = 'continue your current ascension to 218 TE, then prestige Dec 22 at 9:00 PM sharp.';
-      const html = (await draw(at(answer, deadline), { ...slim, firstStepShort: SHORT })).replace(/<!--[\s\S]*?-->/g, '');
+      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: SHORT })).replace(/<!--[\s\S]*?-->/g, '');
       const box = html.slice(html.indexOf('data-testid="instant-box"'));
       const i = box.indexOf('data-testid="box-first-step"');
       const p = box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
@@ -1079,6 +1079,12 @@ describe('the slim card: one line under the title, First step in the box', () =>
       // Behind the "?": today's whole sentence, word for word, with its label.
       expect(textOf(p.slice(p.indexOf('>', help) + 1))).toBe(`First step: ${STEP}`);
       expect(p).toContain('text-body text-slate-800');
+    });
+    it(`${name}: no "?" when the short sentence is the whole sentence (Words: draw it only when they differ)`, async () => {
+      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: STEP })).replace(/<!--[\s\S]*?-->/g, '');
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      const i = box.indexOf('data-testid="box-first-step"');
+      expect(box.slice(i, box.indexOf('</p>', i))).not.toContain('data-part="CardHelp"');
     });
     it(`${name}: no line with no box; no First step without one`, async () => {
       expect(await draw(at(answer, deadline), { ...slim, boxShown: false, result: null })).not.toContain('data-testid="instant-header"');
@@ -1142,12 +1148,15 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
   it('the page: First step reads the kind from the first leg and the answer\'s buildUpMissing', () => {
     expect(script).toContain('const kind = firstStepKind(legs[0].label);');
     expect(script).toMatch(/firstStepLine\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
-    // The short form (12 Nov 2026 pm): the same legs and flags, times without this year's year, the date always named.
-    const short = script.slice(script.indexOf('const firstStepShort = computed'), script.indexOf('\n});', script.indexOf('const firstStepShort = computed')));
-    expect(short).toMatch(/firstStepShortLine\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
+    // The short form (12 Nov 2026 pm, Words' firstStepShort): the same legs and flags, times without this year's year,
+    // the date always named (sameDay false), the "?" only when the full sentence says more.
+    const short = script.slice(script.indexOf('const firstStepShortText = computed'), script.indexOf('\n});', script.indexOf('const firstStepShortText = computed')));
+    expect(short).toMatch(/firstStepShort\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
     expect(short).toContain('hours: hoursLimited.value,');
     expect(short).toContain('cardTime(t, zone.value, { at: true })');
     expect(short).toContain('prestigeDate: b ? near(b.prestigeAt) : null,');
+    expect(short).toContain('sameDay: false,');
+    expect(source).toContain('<template v-if="firstStepShortText !== stepCaveat.step">');
   });
 
   for (const [name, answer, deadline] of [
