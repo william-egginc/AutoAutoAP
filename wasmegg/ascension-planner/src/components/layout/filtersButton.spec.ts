@@ -5,8 +5,8 @@
  * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795, made precise the same
  * day): right ABOVE the instant answer card, on By a date below the date picker and its "N days from your plan start"
  * line, on Fastest in the same spot; not inside the card, not after the Auto Planner tabs, not beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
- * Side (Jordan, 13 Nov 2026): right-aligned from sm up; LEFT on phones, because the floating Setup pill (fixed,
- * bottom-right) sat over a right-aligned button at 390 px.
+ * Side (Jordan, 12 Nov 2026 pm: centred or on the left, not right-aligned): LEFT at every width (the floating Setup
+ * pill, fixed bottom-right, sat over a right-aligned button at 390 px).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -55,14 +55,14 @@ describe('where it sits', () => {
     expect(f).toBeGreaterThan(t.indexOf('from your plan start.'));
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
     expect(t.slice(f, t.indexOf('data-testid="section-instant"'))).not.toMatch(/<(p|section|InstantRoute)\b/);
-    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start sm:justify-end">');
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start">');
   });
   it('Fastest: the same spot, right above its instant answer card', () => {
     const t = tplOf(read('components/auto/FastestRoute.vue'));
     const f = t.indexOf('<FiltersButton');
     expect(f).toBeGreaterThan(t.indexOf('<YourSetup'));
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
-    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start sm:justify-end">');
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start">');
   });
   it('not in the card, not beside the Auto Planner tabs, not beside My runs\' title (one place per screen)', () => {
     expect(tplOf(read('components/auto/InstantRoute.vue'))).not.toContain('<FiltersButton');

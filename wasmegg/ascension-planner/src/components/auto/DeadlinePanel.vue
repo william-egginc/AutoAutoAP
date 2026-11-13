@@ -123,8 +123,8 @@
     </p>
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
-         where the Setup pill is mounted (a player ID). Left on phones, right from sm up: the fixed Setup pill (bottom-right) covered it at 390 px. -->
-    <div v-if="initialState.playerId" class="flex justify-start sm:justify-end">
+         where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
+    <div v-if="initialState.playerId" class="flex justify-start">
       <FiltersButton />
     </div>
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
