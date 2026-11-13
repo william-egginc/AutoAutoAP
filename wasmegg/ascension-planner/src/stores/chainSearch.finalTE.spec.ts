@@ -47,11 +47,11 @@ describe('commitFinalTE', () => {
     }
   });
   it("the words are Joo's, plus the value kept", () => {
-    expect(atTE(197).commitFinalTE(600)).toBe('Pick a target TE above 197, up to 490. Kept 490.');
+    expect(atTE(197).commitFinalTE(600)).toBe('Pick a target TE above 197, up to 490. The target stays 490.');
   });
   it('at 490 or past it nothing fits', () => {
     const store = atTE(490);
-    expect(store.commitFinalTE(490)).toBe('Your TE is already 490, so there is no higher target. Kept 490.');
+    expect(store.commitFinalTE(490)).toBe('Your TE is already 490, so there is no higher target. The target stays 490.');
     expect(store.finalTE).toBe(490);
   });
   it('never while a search runs', () => {

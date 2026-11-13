@@ -78,7 +78,7 @@ describe("the box's draft on the real store (what the template wires)", () => {
       d.commit();
       expect(store.finalTE, bad).toBe(300);
       expect(d.draft.value, bad).toBe('300');
-      expect(d.error.value, bad).toBe('Pick a target TE above 197, up to 490. Kept 300.');
+      expect(d.error.value, bad).toBe('Pick a target TE above 197, up to 490. The target stays 300.');
     }
   });
 });
