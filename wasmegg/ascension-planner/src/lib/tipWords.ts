@@ -5,7 +5,6 @@
  * lists old and new). Wording only (a *Words.ts file is out of the result code
  * hash, lib/resultCodeHash.ts `isWordingOnly`).
  */
-import { NAMES } from '@/lib/siteNav';
 
 /** "Follow this route" (FollowButton.vue). Was: "Right now (My runs) follows this route for <goal> instead of the
  *  checked one". Allan: "Set as active for My Runs" (written with the site's "My runs"). */
@@ -16,7 +15,7 @@ export const TIP_FOLLOWING = 'Active for My runs';
 /** "Simulate this plan" (the answer, its table rows, the result cards, More routes). Was lib/siteNav.ts
  *  SIMULATE_TITLE: "Opens this route in Single run (Joo's original planner) and simulates every shift on your save";
  *  Allan: cut "and simulates every shift on your save". */
-export const TIP_SIMULATE = `Opens this route in ${NAMES.classic}`;
+export const TIP_SIMULATE = 'Opens this route in the Auto Planner';
 
 /** The run button (FindBar.vue), named by the option picked. No title before; from the tour's words (firstTourWords). */
 export const TIP_RUN_FAST = 'Checks routes near the instant answer. You can stop and keep the best.';

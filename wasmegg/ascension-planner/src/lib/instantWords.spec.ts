@@ -5,7 +5,7 @@
  * the awake-hours clause that was the HOURS_NOTE paragraph under it). Wording only: never a result code input.
  */
 import { describe, expect, it } from 'vitest';
-import { FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, firstStepLine, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
+import { FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, firstStepLine, firstStepShort, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
 import { INSTANT_NIGHT_BUY_NOTE } from './nightBuyWords';
 import { isWordingOnly } from './resultCodeHash';
 
@@ -81,5 +81,24 @@ describe('First step: the hours clause and the night-buy note as ONE line (spec-
     expect(mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, false)).toEqual({ step: `${STEP} ${FIRST_STEP_HOURS}`, note: null });
     expect(mergeFirstStepCaveats(STEP, true)).toEqual({ step: STEP, note: INSTANT_NIGHT_BUY_NOTE });
     expect(mergeFirstStepCaveats(STEP, false)).toEqual({ step: STEP, note: null });
+  });
+});
+
+describe('The short First step (Jordan, 12 Nov 2026, pm)', () => {
+  const at = { reached: 'Nov 20 at 8:11 PM', prestigeDate: 'Nov 21 at 9:00 AM', prestigeTime: '9:00 AM' };
+  it('one sentence, "sharp" with awake hours; the full sentence for the "?"', () => {
+    const r = firstStepShort({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true });
+    expect(r.short).toBe('First step: continue your build-up to 203 TE, then prestige Nov 21 at 9:00 AM sharp.');
+    expect(r.full).toBe(firstStepLine({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true }));
+    expect(r.full).toContain('a few minutes late can cost days');
+  });
+  it('no "sharp" without awake hours; the same day gives only the time', () => {
+    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: false }).short).toBe(
+      'First step: continue your current ascension to 218 TE, then prestige at 9:00 AM.'
+    );
+  });
+  it('a build-up that could not be worked out: nothing to shorten', () => {
+    const r = firstStepShort({ kind: 'fresh', stopTE: 203, ...at, sameDay: false, hours: true, buildUpMissing: true });
+    expect(r.short).toBe(r.full);
   });
 });
