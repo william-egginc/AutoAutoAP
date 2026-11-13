@@ -124,10 +124,10 @@
       Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
+    <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
-      <span>{{ loadingText }}<AnimatedDots v-if="loadingText" />{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
+      <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template>{{ result && !staleAt && !deadlineStale ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -337,7 +337,7 @@
       <!-- THE INSTANT CARD (wireframes/price-route-v2, Jordan 23 Oct 2026): the green box and the counts list show the
            instant answer only, and never change by themselves (nothing on this card prices a route). A search below has
            its own result card; once it has one for this goal, the pointer line at the bottom points to it. -->
-      <template v-if="result && deadline">
+      <template v-if="result && deadline && !deadlineStale">
         <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700"
@@ -1129,7 +1129,7 @@ import {
   noPrestigeDayCount,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import { DATE_CHANGED_WORKING, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
 import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import { instantSteps } from '@/lib/instantSteps';
@@ -1237,6 +1237,16 @@ const below = ref<{ from: number; te: number } | null>(null);
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
+/**
+ * The date `result` was worked out for (By a date; null: not a date answer, or not known yet). A new date picked leaves
+ * the old answer in `result` until the run for it is in, and the card draws "Highest TE by <new date>" with the old
+ * TE and a spare counted from the new date (QA, 13 Nov 2026: "-235d to spare"). While the two differ the answer is not
+ * drawn at all (`deadlineStale`), only the working line.
+ */
+const answerDeadline = ref<number | null>(null);
+const deadlineStale = computed(
+  () => !!props.deadline && !!result.value && answerDeadline.value !== null && answerDeadline.value !== props.deadline
+);
 /**
  * BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags; 6 Nov 2026, Jordan's phone: "prestige now and reach 220"
  * mid build-up, when continuing reached it 4 days 19 h sooner): the answer in `result` was worked out with the
@@ -2096,6 +2106,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     return;
   }
   const id = ++runs;
+  // The date this run answers (a date picked while it works must not label its answer).
+  const askedDeadline = props.deadline ?? null;
   const bid = ++bracketRuns;
   whatIfResult.value = null;
   keptSearch.value = null;
@@ -2268,6 +2280,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
     answerBuildUpMissing.value = missing;
+    answerDeadline.value = askedDeadline;
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
@@ -3159,6 +3172,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
+  answerDeadline.value = props.deadline ?? null;
   answerBuildUpMissing.value = s.buildUpMissing === true;
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
   ms.value = typeof s.ms === 'number' ? s.ms : null;

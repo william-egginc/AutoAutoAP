@@ -287,6 +287,8 @@ function ctxOf(s: State): Record<string, unknown> {
     // The near-target note under Every number of ascensions (off unless a test turns it on).
     nearTarget: false,
     TARGET_TE_WORDS,
+    // The answer on screen was worked out for another date than the one now picked (off unless a test turns it on).
+    deadlineStale: false,
   };
 }
 
@@ -1388,5 +1390,39 @@ describe('the near-target note under Every number of ascensions', () => {
     const script = source.slice(source.indexOf('<script setup'));
     expect(script).toContain('const nearTarget = computed(() => isNearTarget(target.value, store.currentTE));');
     expect(script).toContain('const target = computed(() => (props.deadline ? 490 : store.finalTE));');
+  });
+});
+
+describe('By a date: an answer for the old date is never shown under the new date (13 Nov 2026, QA)', () => {
+  const base: State = {
+    answer: 'date',
+    status: 'loading',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: true,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  };
+  it('control: a current answer under the new date still shows its box', async () => {
+    const html = await draw({ ...base, status: 'done' }, { deadlineStale: false });
+    expect(html).toContain('data-testid="instant-box"');
+  });
+  it('an answer for the old date, with the new date picked: no box, no TE, no spare; the working line instead', async () => {
+    const html = (await draw(base, { deadlineStale: true })).replace(/<!--[\s\S]*?-->/g, '');
+    expect(html).not.toContain('data-testid="instant-box"');
+    expect(html).not.toContain('314 TE');
+    expect(html).not.toContain('to spare');
+    expect(html).not.toContain('Highest TE by');
+    expect(html).toContain('data-testid="instant-loading"');
+    expect(html).not.toContain('The answer below is the previous one');
+  });
+  it('and in the moment before the run starts (not loading yet): still the working line, not the old answer', async () => {
+    const html = await draw({ ...base, status: 'done' }, { deadlineStale: true });
+    expect(html).not.toContain('data-testid="instant-box"');
+    expect(html).toContain('data-testid="instant-loading"');
   });
 });
