@@ -69,7 +69,7 @@ describe('the Single run name', () => {
         strip(fs.readFileSync(f, 'utf8'))
           .split('\n')
           // The README's history mentions: "(was Your plan)" and "(formerly Your plan, formerly Classic)".
-          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', ''))
+          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', '').replace('(was Single run, before that Your plan, Classic)', '').replace('(formerly Single run, Your plan and Classic)', ''))
           .filter(l => named.test(l))
           .map(l => `${path.relative(root, f)}: ${l.trim()}`)
       );
@@ -83,9 +83,9 @@ describe('the Single run name', () => {
 
   it("Simulate this plan's line says what it does, in Single run (Joo's original planner)", () => {
     expect(simulateNote()).toBe(
-      "Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
+      "Simulate this plan opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
     );
-    expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in Single run/);
+    expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in the Auto Planner/);
     for (const f of ['InstantRoute.vue']) {
       const src = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
       expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);

@@ -138,40 +138,24 @@ export function firstStepLine(o: {
   return `${FIRST_STEP_LABEL} ${first} (${o.reached})${next}.${o.hours && timed ? ` ${FIRST_STEP_HOURS}` : ''}`;
 }
 
-/** The cue that the prestige time matters, after the last named prestige in First step's short form, only when the
- *  long form would carry its hours clause (FIRST_STEP_HOURS). DRAFT (Words; the proposal also offered "on time"). */
-export const FIRST_STEP_SHARP = 'sharp';
-
 /**
- * FIRST STEP, THE SHORT FORM on the card (Jordan, 12 Nov 2026 pm, phone proposal question 3; DRAFT): one sentence, the
- * card's "?" after it holding today's whole sentence (`firstStepLine`) word for word, so "a few minutes late can cost
- * days" stays one tap away.
- *   "First step: continue your build-up to 222 TE, then prestige Jan 1, 2027 at 7:00 AM sharp."
- * - No reached time: it is in the "?" and in When each step happens (and a one-ascension route's Reached line above).
- * - The prestige always with its date (`prestigeDate`, " at " between date and time), even on the same day: the reached
- *   date that gave a bare time its day is gone.
- * - FIRST_STEP_SHARP after the last named prestige when the hours limit the answer (`hours`) and a prestige time is named
- *   (the clause's own rule).
- * - The build-up-missing warnings: the same lines as `firstStepLine` (drawn amber, unchanged).
+ * THE SHORT FIRST STEP (Jordan, 12 Nov 2026, pm): one sentence on the card, the full sentence behind its "?".
+ *   short: "First step: continue your build-up to 203 TE, then prestige Nov 20 at 9:00 AM sharp."
+ *   full:  `firstStepLine` (with when each TE is reached and the awake-hours clause).
+ * "sharp" only where the awake-hours clause would show (`hours` and a prestige time): a few minutes late can cost days. The
+ * "?" is for the caller to draw when `full !== short`. A build-up that could not be worked out has nothing to shorten.
  */
-export function firstStepShortLine(o: {
-  kind: 'continue' | 'buildup' | 'fresh';
-  start?: string | null;
-  stopTE: number;
-  prestigeDate: string | null;
-  hours: boolean;
-  buildUpMissing?: boolean;
-}): string {
-  if (o.buildUpMissing && o.kind === 'fresh') return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`;
-  if (o.buildUpMissing && o.kind === 'continue') return `${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`;
-  const sharp = o.hours ? ` ${FIRST_STEP_SHARP}` : '';
-  const heldStart = o.kind === 'fresh' && !!o.start;
+export function firstStepShort(o: Parameters<typeof firstStepLine>[0]): { short: string; full: string } {
+  const full = firstStepLine(o);
+  if (o.buildUpMissing && o.kind !== 'buildup') return { short: full, full };
   const first =
     o.kind === 'buildup'
       ? `continue your build-up to ${o.stopTE} TE`
       : o.kind === 'continue'
         ? `continue your current ascension to ${o.stopTE} TE`
-        : `prestige ${heldStart ? `${o.start}${o.prestigeDate ? '' : sharp}` : 'now'} and reach ${o.stopTE} TE`;
-  const next = o.prestigeDate ? `, then prestige ${o.prestigeDate}${sharp}` : '';
-  return `${FIRST_STEP_LABEL} ${first}${next}.`;
+        : `prestige ${o.start ? o.start : 'now'} and reach ${o.stopTE} TE`;
+  const timed = !!o.prestigeDate || (o.kind === 'fresh' && !!o.start);
+  const sharp = o.hours && timed && !!o.prestigeDate ? ' sharp' : '';
+  const next = o.prestigeDate ? `, then prestige ${o.sameDay && o.prestigeTime ? `at ${o.prestigeTime}` : o.prestigeDate}${sharp}` : '';
+  return { short: `${FIRST_STEP_LABEL} ${first}${next}.`, full };
 }

@@ -8,7 +8,7 @@ describe('tip words', () => {
   it('Follow and Simulate, as Allan asked', () => {
     expect(T.TIP_FOLLOW).toBe('Set as active for My runs');
     expect(T.TIP_FOLLOWING).toBe('Active for My runs');
-    expect(T.TIP_SIMULATE).toBe('Opens this route in Single run');
+    expect(T.TIP_SIMULATE).toBe('Opens this route in the Auto Planner');
   });
   it('the run button and the three choices', () => {
     expect(T.TIP_RUN_FAST).toBe('Checks routes near the instant answer. You can stop and keep the best.');
