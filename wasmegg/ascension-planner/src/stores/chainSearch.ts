@@ -8207,8 +8207,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           // guess on its own worker, or one worker gets them all and the rest wait.
           const shapes = new Set(chains.map(c => c.slice(0, -1).join(','))).size;
           const dealt = shapes >= workers.size;
+          // This batch's routes that came straight back from the checkpoint (a carry-on): in the count
+          // now, not only once the whole batch is back. A round is one batch, so a carry-on's bar used to
+          // drop to the routes of the rounds before it (13 Nov 2026: "104 of ~1,540" after "done 293").
+          const replayedNow = replay.replayed();
+          const head = Math.max(0, replayedNow - deadlineReplayed.value);
+          deadlineReplayed.value = replayedNow;
+          deadlineInBatch.value = head;
           const r = dealt
-            ? await workers.evaluate(chains, done => (deadlineInBatch.value = done), {
+            ? await workers.evaluate(chains, done => (deadlineInBatch.value = head + done), {
                 workerOf: (cs, n) => dealer.deal(cs, n),
                 onResult: (c, res) => {
                   onResult?.(c, res);
@@ -8219,7 +8226,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
                 shouldStop: () => deadlineStop,
                 memo,
               })
-            : await workers.evaluate(chains, done => (deadlineInBatch.value = done), { spreadOut: true, memo });
+            : await workers.evaluate(chains, done => (deadlineInBatch.value = head + done), { spreadOut: true, memo });
           if (!dealt) deadlineLegSims.value += r.legSims;
           deadlineInBatch.value = 0;
           return r.results;
