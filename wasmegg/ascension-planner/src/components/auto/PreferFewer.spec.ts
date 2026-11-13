@@ -112,12 +112,12 @@ describe('PreferFewerNote (the green box)', () => {
 });
 
 describe('InstantRoute wiring', () => {
-  it('the control sits in both counts cards, above the table, with the per-screen value', () => {
-    expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="fastest" />');
-    expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="date" />');
-    expect(route.indexOf('<PreferFewerControl v-model="preferMargin" goal="date" />')).toBeLessThan(
-      route.indexOf('<span>Highest TE</span>')
-    );
+  it('the control sits once, with the filters under Filters (Jordan, 12 Nov 2026 pm), above the box and the table, with the per-screen value', () => {
+    expect(route.match(/<PreferFewerControl/g)).toHaveLength(1);
+    expect(route).toContain(`:goal="deadline ? 'date' : 'fastest'"`);
+    expect(route).toContain('v-if="deadline ? !!result.byDate && dateRows.length > 1 : !!boxLead"');
+    expect(route.indexOf('<PreferFewerControl')).toBeLessThan(route.indexOf('data-testid="instant-box"'));
+    expect(route.indexOf('<PreferFewerControl')).toBeLessThan(route.indexOf('<span>Highest TE</span>'));
     expect(route).toContain('get: () => preferSetting.value[preferGoal.value],');
     // Only the screen picked on is remembered; the other keeps its default (preferFewer.ts PREFER_DEFAULTS).
     expect(route).toContain('const preferSetting = ref<PreferSetting>(readPreferFewer());');

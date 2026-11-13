@@ -55,14 +55,14 @@ describe('where it sits', () => {
     expect(f).toBeGreaterThan(t.indexOf('from your plan start.'));
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
     expect(t.slice(f, t.indexOf('data-testid="section-instant"'))).not.toMatch(/<(p|section|InstantRoute)\b/);
-    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start">');
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div class="flex justify-start">');
   });
   it('Fastest: the same spot, right above its instant answer card', () => {
     const t = tplOf(read('components/auto/FastestRoute.vue'));
     const f = t.indexOf('<FiltersButton');
     expect(f).toBeGreaterThan(t.indexOf('<YourSetup'));
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
-    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div v-if="initialState.playerId" class="flex justify-start">');
+    expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div class="flex justify-start">');
   });
   it('not in the card, not beside the Auto Planner tabs, not beside My runs\' title (one place per screen)', () => {
     expect(tplOf(read('components/auto/InstantRoute.vue'))).not.toContain('<FiltersButton');

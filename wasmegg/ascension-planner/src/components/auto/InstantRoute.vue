@@ -221,13 +221,13 @@
     <!-- No routes while the integrity check holds them back (search/instantIntegrity.ts). -->
     <template v-if="!integrityHold">
 
-      <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
-      <div v-if="result" class="space-y-1">
-        <!-- With a More on the screen (`moreTo`, the simpler default page, 9 Nov 2026): the line under the title, its
-             Why?, the awake-hours tick and the ascensions range go into More, above the table (moreEl). They change the
-             answer above, so More's line names any that isn't at its default (`moreChanges`). -->
+      <!-- The filters (remembered in this browser): the routes and the headline come from what is left. Not drawn when
+           everything in it has gone to the screen's targets (`empty:hidden`: a Teleport leaves only comments behind;
+           phone proposal item b, 12 Nov 2026). -->
+      <div v-if="result" class="space-y-1 empty:hidden">
+        <!-- With a More on the screen (`moreTo`, the simpler default page, 9 Nov 2026): the line under the title and its
+             Why? go into More (moreEl). -->
         <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
-        <div class="space-y-1" data-testid="instant-filters">
         <!-- THE ONE LINE UNDER THE TITLE (spec-slimcard; wireframes/instant-slim-v1, Jordan 5 Nov 2026; DRAFT words in
              lib/instantWords.ts): in place of the estimate line in the box, "These are instant answers…" (lib/searchPointer.ts
              INSTANT_ONE_LINE, no longer drawn), "Each prestige waits for your awake hours…" and "Your no-prestige days are
@@ -250,6 +250,13 @@
             </ul>
           </details>
         </div>
+        </Teleport>
+        <!-- THE FILTERS UNDER THE FILTERS BUTTON (Jordan, 12 Nov 2026 pm: always shown just below Filters, not in More;
+             Filters itself still opens Setup): the awake-hours tick, the ascensions range and its line, and Prefer fewer
+             ascensions, one place each (`filtersTo`, the screen's target under the button; without one, More; without
+             that, here). -->
+        <Teleport :to="filtersHome ?? 'body'" :disabled="!filtersHome">
+        <div class="space-y-1" data-testid="instant-filters">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-slate-600">
           <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
             <input
@@ -295,6 +302,13 @@
         <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
+        <!-- Prefer fewer ascensions (was above the table in More): the same control, its goal's margin (TE on By a date,
+             time on Fastest), when there is more than one count to choose from. -->
+        <PreferFewerControl
+          v-if="deadline ? !!result.byDate && dateRows.length > 1 : !!boxLead"
+          v-model="preferMargin"
+          :goal="deadline ? 'date' : 'fastest'"
+        />
         </div>
         </Teleport>
         <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
@@ -456,9 +470,7 @@
              route wraps onto a second line inside the row; from md up it has its own column. The column names are for
              the eye (aria-hidden); each head says them to a screen reader itself. No rem min/max variant (Tailwind 3
              "mixed units" drops them all: countsPhone.spec.ts). -->
-        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
-          <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
@@ -544,8 +556,12 @@
             </ul>
           </div>
           </PanelFold>
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+        </div>
+        <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
           <MaxedWhatIf
-            v-if="whatIf"
+            v-if="whatIf && result.byDate && dateRows.length > 1"
             v-bind="whatIf"
             @result="onWhatIf"
             :table-url="TABLE_URL"
@@ -556,8 +572,6 @@
             :at-least="filters.minAscensions"
             :deadline="deadline"
           />
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
-        </div>
         </Teleport>
       </template>
 
@@ -666,9 +680,7 @@
           }}.
         </p>
         <!-- Every number of ascensions, instant numbers only: rows that open on tap, as By a date's above. -->
-        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
-          <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
@@ -768,8 +780,12 @@
             extra stop only adds a prestige.
           </p>
           </PanelFold>
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+        </div>
+        <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
           <MaxedWhatIf
-            v-if="whatIf"
+            v-if="whatIf && boxLead"
             v-bind="whatIf"
             @result="onWhatIf"
             :table-url="TABLE_URL"
@@ -779,8 +795,6 @@
             :at-most="filters.maxAscensions"
             :at-least="filters.minAscensions"
           />
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
-        </div>
         </Teleport>
       </template>
 
@@ -1133,6 +1147,9 @@ const props = defineProps<{
   /** The Following bar's slot (layout/NowLine.vue `now-offer-<screen>`): the better-route line goes there. Without one
    *  it stays under the box's buttons. */
   nowTo?: string;
+  /** The screen's slot just below its Filters button (Jordan, 12 Nov 2026 pm): the awake-hours tick, the ascensions
+   *  range and Prefer fewer go there, always shown. Without one they go to More (`moreTo`), else stay on this card. */
+  filtersTo?: string;
 }>();
 /** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
 const sectionHide = inject(SECTION_HIDE, null);
@@ -3323,18 +3340,26 @@ const moreEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}` : unde
 /** The Following bar's slot for the better-route line (`nowTo`, layout/NowLine.vue): looked up as More's. */
 const nowEl = useTeleportTarget(() => (props.nowTo ? `#${props.nowTo}` : undefined), () => !!result.value);
 const moreHowEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}-how` : undefined), () => !!result.value);
-/** More's line names these when they aren't at their default (lib/moreChanges.ts, DRAFT words). */
+/** The Filters slot (`filtersTo`), looked up as More's. */
+const filtersEl = useTeleportTarget(() => (props.filtersTo ? `#${props.filtersTo}` : undefined), () => !!result.value);
+/** Where the filters go: the Filters slot, else More, else (null) this card. */
+const filtersHome = computed(() => filtersEl.value ?? moreEl.value);
+/** More's line names these when they aren't at their default (lib/moreChanges.ts), only while they are in More: under
+ *  the Filters button they are always in sight, so More's line names none (Jordan, 12 Nov 2026 pm). */
 watch(
   () =>
-    instantMoreChanges({
-      goal: preferGoal.value,
-      margin: preferMargin.value,
-      minAscensions: filters.value?.minAscensions ?? null,
-      maxAscensions: filters.value?.maxAscensions ?? null,
-      hoursOn: !!hoursOn.value,
-      inHours: filters.value?.inHours ?? true,
-    }),
-  c => emit('more-changes', c),
+    [
+      !!filtersEl.value,
+      instantMoreChanges({
+        goal: preferGoal.value,
+        margin: preferMargin.value,
+        minAscensions: filters.value?.minAscensions ?? null,
+        maxAscensions: filters.value?.maxAscensions ?? null,
+        hoursOn: !!hoursOn.value,
+        inHours: filters.value?.inHours ?? true,
+      }),
+    ] as const,
+  ([, c]) => emit('more-changes', filtersEl.value ? [] : c),
   { immediate: true }
 );
 /** "See it ↓": the part of the search panel that holds the result, shown, then scrolled to its result card. */

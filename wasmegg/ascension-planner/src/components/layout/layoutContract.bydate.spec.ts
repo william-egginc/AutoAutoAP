@@ -24,6 +24,16 @@ describe('By a date: the regions in their fixed order', () => {
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
+  it('the answer\'s filters sit just below Filters, always shown, not in More (Jordan, 12 Nov 2026 pm)', () => {
+    const f = panel.indexOf('<FiltersButton');
+    const under = panel.indexOf('id="filters-bydate-answer"');
+    expect(under).toBeGreaterThan(f);
+    expect(under).toBeLessThan(panel.indexOf('data-region="answer"'));
+    expect(panel.slice(panel.lastIndexOf('<div', under), panel.indexOf('>', under))).toContain('data-testid="filters-under"');
+    expect(panel).toContain('filters-to="filters-bydate-answer"');
+    const more = panel.slice(panel.indexOf('<MoreFold'), panel.indexOf('</MoreFold>'));
+    expect(more).not.toContain('filters-bydate-answer');
+  });
   it('the search and the instant answer\'s extras are inside More; the save strip, the explainer fold and Hide are gone', () => {
     const more = panel.slice(panel.indexOf('<MoreFold'), panel.indexOf('</MoreFold>'));
     expect(more).toContain('<SearchPanel');
@@ -47,6 +57,7 @@ describe('By a date: the regions in their fixed order', () => {
   it('More opens with a run going or one to carry on, and its line names what is not at its default', () => {
     const tag = panel.slice(panel.indexOf('<MoreFold'), panel.indexOf('>', panel.indexOf('<MoreFold')));
     expect(tag).toContain('section="moreByDate"');
+    // The card names changed filters only while they are in More (no Filters target: InstantRoute `more-changes`).
     expect(tag).toContain(':line="moreLineWithChanges(MORE_LINE_AUTO, moreChanges)"');
     expect(tag).toContain(':running="!!runKind"');
     expect(tag).toContain(':unfinished="!!store.deadlineUnfinished"');

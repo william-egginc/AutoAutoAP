@@ -173,6 +173,8 @@ function ctxOf(s: State): Record<string, unknown> {
     // The screen's More (the simpler default page, 9 Nov 2026): none here, so everything stays on the card.
     moreTo: undefined,
     moreEl: null,
+    filtersEl: null,
+    filtersHome: null,
     moreHowEl: null,
     nowEl: null,
     ROW_HINT: 'Open a row to follow or simulate that route instead.',
@@ -623,17 +625,62 @@ describe('the screens put the card in the guard', () => {
   }
 });
 
+describe('the filters under Filters, the table on the card (Jordan, 12 Nov 2026 pm)', () => {
+  const tpl = source.slice(0, source.indexOf('<script setup'));
+  const block = (from: number) => tpl.slice(from, tpl.indexOf('</Teleport>', from));
+  it('one Teleport to the Filters target (else More, else here): the tick, the range, its line and Prefer fewer, in that order', () => {
+    const at = tpl.indexOf(`<Teleport :to="filtersHome ?? 'body'"`);
+    expect(at).toBeGreaterThan(-1);
+    const b = block(at);
+    const order = ['data-testid="inside-hours"', 'data-testid="instant-asc-range"', 'data-testid="instant-range-note"', '<PreferFewerControl'].map(m => b.indexOf(m));
+    expect(order.every(i => i > -1), String(order)).toBe(true);
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    // The one line under the title stays in More, not with the filters.
+    expect(b).not.toContain('data-testid="instant-header"');
+    // One place per control.
+    expect(tpl.match(/<PreferFewerControl/g)).toHaveLength(1);
+    expect(tpl.match(/data-testid="inside-hours"/g)).toHaveLength(1);
+  });
+  it('Every number of ascensions is drawn on the card, not teleported; the maxed-gear what-if goes to More', () => {
+    for (const m of tpl.matchAll(/data-testid="counts-card"/g)) {
+      const before = tpl.slice(0, m.index);
+      expect(before.lastIndexOf('<Teleport')).toBeLessThan(before.lastIndexOf('</Teleport>'));
+    }
+    for (const m of tpl.matchAll(/<MaxedWhatIf/g)) {
+      const before = tpl.slice(0, m.index);
+      expect(before.slice(before.lastIndexOf('<Teleport'))).toContain(`:to="moreEl ?? 'body'"`);
+      expect(before.lastIndexOf('<Teleport')).toBeGreaterThan(before.lastIndexOf('</Teleport>'));
+    }
+  });
+  it('drawn with no screen targets: the filters and Prefer fewer on the card, Prefer fewer once per goal', async () => {
+    const st = (answer: Answer, deadline: boolean): State => ({ answer, status: 'done', below: false, noTable: false, hold: false, deadline, hours: true, waiting: false, saveWait: false, atTarget: false, saved: false });
+    for (const [a, d] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(st(a, d));
+      expect(html.match(/data-part="PreferFewerControl"/g), a).toHaveLength(1);
+      expect(html).toContain('data-testid="inside-hours"');
+      expect(html).toContain('data-testid="counts-card"');
+    }
+  });
+  it('More\'s line names changed filters only while they are in More (no Filters target)', () => {
+    const script = source.slice(source.indexOf('<script setup'));
+    expect(script).toContain('const filtersHome = computed(() => filtersEl.value ?? moreEl.value);');
+    expect(script).toContain("const filtersEl = useTeleportTarget(() => (props.filtersTo ? `#${props.filtersTo}` : undefined), () => !!result.value);");
+    expect(script).toContain("emit('more-changes', filtersEl.value ? [] : c)");
+  });
+});
+
 describe('the share Teleport lives as long as the card', () => {
   it('not inside the answer or the integrity hold; only its content comes and goes', () => {
     const tpl = source.slice(0, source.indexOf('<script setup'));
     // The More parts' Teleports (the simpler page, 9 Nov 2026) come first: never deferred, to looked-up elements
     // (moreEl, moreHowEl) and disabled without one, as this one. The share line's is the last.
-    // The better-route line's two (to the Following bar, nowEl; the card clean-up, 12 Nov 2026) are the same kind.
+    // The better-route line's two (to the Following bar, nowEl; the card clean-up, 12 Nov 2026) are the same kind, and
+    // the filters' one (to the Filters slot, else More; 12 Nov 2026 pm).
     const more = tpl.match(/<Teleport [^>]*>/g)!.slice(0, -1);
-    expect(more.length).toBe(6);
+    expect(more.length).toBe(7);
     for (const t of more) {
       expect(t).not.toContain('defer');
-      expect(t).toMatch(/:to="(more(How)?|now)El \?\? 'body'" :disabled="!(more(How)?|now)El"/);
+      expect(t).toMatch(/:to="((more(How)?|now)El|filtersHome) \?\? 'body'" :disabled="!((more(How)?|now)El|filtersHome)"/);
     }
     const at = tpl.lastIndexOf('<Teleport');
     // After both sections: a sibling of the card, not inside it.

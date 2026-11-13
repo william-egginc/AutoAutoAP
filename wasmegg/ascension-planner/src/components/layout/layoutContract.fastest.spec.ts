@@ -25,7 +25,15 @@ describe('Fastest: the regions in their fixed order', () => {
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
-  it('the search, the table and How this is worked out are inside More; the save strip and Hide are gone', () => {
+  it('the answer\'s filters sit just below Filters, always shown, not in More (Jordan, 12 Nov 2026 pm)', () => {
+    const f = t.indexOf('<FiltersButton');
+    const under = t.indexOf('id="filters-fastest-answer"');
+    expect(under).toBeGreaterThan(f);
+    expect(under).toBeLessThan(t.indexOf('data-region="answer"'));
+    expect(t.slice(t.lastIndexOf('<div', under), t.indexOf('>', under))).toContain('data-testid="filters-under"');
+    expect(t).toContain('filters-to="filters-fastest-answer"');
+  });
+  it('the search and How this is worked out are inside More (the table is on the card since 12 Nov 2026 pm); the save strip and Hide are gone', () => {
     const more = t.slice(t.indexOf('<MoreFold'), t.indexOf('</MoreFold>'));
     expect(more).toContain('<SearchPanel');
     expect(more).toContain('id="more-fastest-answer"');
@@ -58,8 +66,15 @@ describe('the answer card (InstantRoute.vue) with a More', () => {
       expect(box.slice(follow, box.indexOf('/>', follow))).toMatch(/\smain\s/);
     }
   });
-  it('the filters, the table and How this is worked out move into More; no row opens by itself under the box', () => {
+  it('the one line under the title, the maxed-gear what-if and How this is worked out move into More; the filters go under Filters; the table stays on the card (Jordan, 12 Nov 2026 pm)', () => {
+    // The header line and the two what-ifs (By a date's, Fastest's).
     expect(t.match(/<Teleport :to="moreEl \?\? 'body'" :disabled="!moreEl">/g)).toHaveLength(3);
+    expect(t.match(/<Teleport :to="filtersHome \?\? 'body'" :disabled="!filtersHome">/g)).toHaveLength(1);
+    // Every number of ascensions: not inside any Teleport.
+    for (const m of t.matchAll(/data-testid="counts-card"/g)) {
+      const before = t.slice(0, m.index);
+      expect(before.lastIndexOf('<Teleport')).toBeLessThan(before.lastIndexOf('</Teleport>'));
+    }
     expect(t).toContain(`<Teleport :to="moreHowEl ?? 'body'" :disabled="!moreHowEl">`);
     const src = read('auto/InstantRoute.vue');
     expect(src).toContain('return props.moreTo ? false : countLit(r);');

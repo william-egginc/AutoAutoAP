@@ -11,9 +11,9 @@
 /** The one closed fold at the foot of each screen (Setup keeps its own "More options"). */
 export const MORE_TITLE = 'More';
 
-/** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default. */
-export const MORE_LINE_AUTO =
-  'Every number of ascensions, run a search (Fast, Exact or Custom), maxed gear, how it works';
+/** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default.
+ *  DRAFT (Words), 12 Nov 2026 pm: "Every number of ascensions, " dropped, the table is on the answer card now (Jordan). */
+export const MORE_LINE_AUTO = 'Run a search (Fast, Exact or Custom), maxed gear, how it works';
 /** My runs. */
 /** My runs' More line: Your eggs and the timeline moved above More, so they are not named here (spec-simpler2). */
 export const MORE_LINE_MYRUNS = 'Change route, gear, saved answer, try next, your runs';
