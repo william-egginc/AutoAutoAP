@@ -33,11 +33,23 @@ import { calculateLayRate } from 'lib/planners/calculations/layRate';
 import { calculateShippingCapacity } from 'lib/planners/calculations/shippingCapacity';
 import { calculateIHR } from 'lib/planners/calculations/internalHatcheryRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
-import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
+import { nextTEThreshold } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
 import { compactDuration } from './duration';
 import { roundToHourIn } from './nowWords';
-import { eggGoalTE, NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
+import { nextTeLine, NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
+import {
+  AFTER_SHIFT_NOT_AT_THIS_RATE,
+  afterShiftWords,
+  EGG_LINE,
+  GOAL_NO_SHIFT_WORDS,
+  GOAL_ON_EGG_WORDS,
+  goalPlanWords,
+  goalShiftWords,
+  nextClockIfNowWords,
+  nextClockWords,
+  type EggLineKind,
+} from './yourEggsWords';
 
 /** Above this many TE in all the habs are taken as full straight after a shift (Jordan, 26 Oct 2026). */
 export const RAMP_TE_LIMIT = 100;
@@ -156,8 +168,8 @@ export function aboutWords(seconds: number): string {
 /** The line under an egg the player isn't on; null: say nothing (no time). */
 export function afterShiftLine(seconds: number | null): string | null {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
-  if (seconds > NEXT_TE_CAP_DAYS * 86400) return 'next TE after you shift here: not at this rate (over 10 years)';
-  return `next TE in ${aboutWords(seconds)} after you shift here`;
+  if (seconds > NEXT_TE_CAP_DAYS * 86400) return AFTER_SHIFT_NOT_AT_THIS_RATE;
+  return afterShiftWords(aboutWords(seconds));
 }
 
 /** The one note under the eggs: what the after-shift times are and where from. */
@@ -189,121 +201,107 @@ export function afterShiftLines(o: {
 }
 
 /**
- * YOUR EGGS, TO GOAL (28 Oct 2026, pieha: the total time to the goal, not only the next TE). Every egg's line in the
- * "to goal" view, by egg:
- *   Fastest to N TE (`teLeft`, the goal's TE less the save's): if every TE still to earn came from this egg, up to its
- *     last TE (farmFacts `eggGoalTE`: a bigger goal takes it to its last TE, the rest from the others), by its own
- *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal ~4d 5h at this
- *     rate"; every other egg from a shift to it (the after-shift model above), "to goal ~4d 5h after you shift
- *     here". An egg with no TE left, or over about 10 years, says so.
- *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h"); to the hour when the
- *     plan isn't exact, as Right now shows it (`rounded`).
- * Empty without a goal (or a By a date goal without a plan). Pure.
+ * YOUR EGGS, TO GOAL (spec-myruns-fix2, 13 Nov 2026; Jordan: "what your plan says", no "if you shift here"
+ * hypotheticals). The followed plan's goal: its TE and when it gets there, the same line for every egg, so the card
+ * says it once above the eggs (the By a date line, now for any plan: "to goal: 412 TE <when>, in ~5d 3h"); to the hour
+ * when the plan isn't exact, as Right now shows it (`rounded`, lib/nowWords.ts `roundedAt`; spec-myruns-fix).
+ * Empty without a plan (the card then has no "to goal" view). Before 13 Nov a Fastest goal gave every egg "if every TE
+ * still to earn came from this egg" times (28 Oct, pieha): gone, they were hypotheticals, and with a goal bigger than
+ * one egg's room every egg was timed to its own last TE, so all five said about the same time. Pure.
  */
 export function eggGoalLines(o: {
   eggs: readonly EggLine[];
-  delivered: Partial<Record<string, number>>;
-  totalTe: number;
-  rates: ShiftRates | null;
-  /** `rounded`: the plan isn't exact (the instant answer's, or a route estimated on its data): its finish to the hour,
-   *  as Right now's timeline and events table show it (lib/nowWords.ts `roundedAt`; spec-myruns-fix). */
-  goal: { kind: 'te'; teLeft: number } | { kind: 'date'; endTE: number; finish: number; zone: string; rounded?: boolean } | null;
+  goal: { endTE: number; finish: number; zone: string; rounded?: boolean } | null;
   now: number;
-  saveSeconds: number;
 }): Record<string, string> {
   const out: Record<string, string> = {};
   const g = o.goal;
-  if (!g) return out;
-  const since = Math.max(0, o.now - o.saveSeconds);
-  const cap = NEXT_TE_CAP_DAYS * 86400;
-  if (g.kind === 'date') {
-    if (!Number.isFinite(g.finish) || !(g.finish > o.now)) return out;
-    const finish = g.rounded ? roundToHourIn(g.finish, g.zone) : g.finish;
-    const line = `to goal: ${g.endTE} TE ${dateAt(finish, o.now, g.zone)}, in ~${compactDuration(finish - o.now)}`;
-    for (const e of o.eggs) out[e.egg] = line;
-    return out;
-  }
-  if (!(g.teLeft > 0)) return out;
-  for (const e of o.eggs) {
-    const d = o.delivered[e.egg] ?? 0;
-    const need = eggGoalTE(countTEThresholdsPassed(d), g.teLeft);
-    if (need == null) {
-      out[e.egg] = 'to goal: more TE than this egg has left';
-      continue;
-    }
-    if (e.current) {
-      if (e.goalInSeconds == null) continue;
-      const left = e.goalInSeconds - since;
-      out[e.egg] = left > cap ? 'to goal: not at this rate (over 10 years)' : `to goal ${aboutWords(left)} at this rate`;
-      continue;
-    }
-    const r = o.rates;
-    if (!r) continue;
-    const t = goalAfterShiftSeconds(d, need, o.totalTe, r);
-    if (!Number.isFinite(t) || t > cap) out[e.egg] = 'to goal after you shift here: not at this rate (over 10 years)';
-    else out[e.egg] = `to goal ${aboutWords(t)} after you shift here`;
-  }
+  if (!g || !Number.isFinite(g.finish) || !(g.finish > o.now)) return out;
+  const finish = g.rounded ? roundToHourIn(g.finish, g.zone) : g.finish;
+  const line = goalPlanWords(g.endTE, dateAt(finish, o.now, g.zone), compactDuration(finish - o.now));
+  for (const e of o.eggs) out[e.egg] = line;
   return out;
 }
 
-/** Seconds from a shift to an egg until its `need`th TE (the after-shift model above); Infinity when never. */
-function goalAfterShiftSeconds(delivered: number, need: number, totalTe: number, r: ShiftRates): number {
-  const remaining = Math.max(0, getThresholdForTE(need) - delivered);
-  return totalTe > RAMP_TE_LIMIT ? remaining / r.maxElr : rampSeconds(remaining, { ...r, pop0: 0 });
-}
-
 /**
- * THE CLOCK TIME PER EGG (ux34-a, 28 Oct 2026): beside each egg's "next TE in ~2d 11h" (and its "to goal" line), the
- * day and time in the browser's own format, with the weekday (lib/eventWhen.ts `dateAt`): "next TE about Wed, Oct 30
- * at 11:00 AM". The egg being laid: the save's rate, from the save. Every other egg: from a shift to it now ("… if you
- * shift now"), or, when the plan's Next shifts (lib/nextAction.ts `nextShifts`) has a shift to it, from the first one:
- * that shift's time + the egg's after-shift time ("… after your planned shift here on Thu, Nov 5 at 1:00 PM"). The
- * "to goal" lines only for a Fastest to N TE goal (`teLeft`; a By a date goal's line has its date already). Eggs with
- * no time (at the TE cap, no rates, over about 10 years, reached since the save) are left out. `rounded` (the plan isn't
- * exact, as for `eggGoalLines`): each "to goal" time to the hour, as the Full timeline shows such estimates (QA, 12 Nov
- * 2026: "Wed, Feb 21, 2029 at 5:28 AM" beside the timeline's "about Mar 5, 2027, 9:00 PM"). Pure.
+ * THE CLOCK TIME PER EGG (ux34-a, 28 Oct 2026; spec-myruns-fix2, 13 Nov 2026). `next`, the "next TE" view: the day
+ * and time of each egg's next TE in the browser's own format, with the weekday (lib/eventWhen.ts `dateAt`): the egg
+ * being laid at the save's rate, from the save; every other egg from a shift to it NOW (never from the plan's shift:
+ * that view is "if you switched now"). `goal`, the "to goal" view (with a followed plan, `plan`): when the plan's Next
+ * shifts (lib/nextAction.ts `nextShifts`) shifts to the egg, the first one; the egg you are on with no shift back to it
+ * listed; or no shift to it in those next shifts. Eggs with no time (at the TE cap, no rates, over about 10 years,
+ * reached since the save) have no next line. Pure.
  */
 export function eggClockLines(o: {
   eggs: readonly EggLine[];
   delivered: Partial<Record<string, number>>;
   totalTe: number;
   rates: ShiftRates | null;
-  teLeft: number | null;
   now: number;
   saveSeconds: number;
   zone: string;
   shifts: readonly { kind: string; egg?: string; at: number }[];
-  rounded?: boolean;
+  /** A followed plan is shown: the "to goal" lines. */
+  plan?: boolean;
 }): { next: Record<string, string>; goal: Record<string, string> } {
   const next: Record<string, string> = {};
   const goal: Record<string, string> = {};
   const cap = NEXT_TE_CAP_DAYS * 86400;
   const when = (at: number) => dateAt(at, o.now, o.zone, true);
-  const goalWhen = (at: number) => when(o.rounded ? roundToHourIn(at, o.zone) : at);
   const planned = (egg: string) => o.shifts.find(s => s.kind === 'shift' && s.egg === egg && s.at > o.now)?.at ?? null;
   for (const e of o.eggs) {
-    const d = o.delivered[e.egg] ?? 0;
+    if (o.plan) {
+      const s = planned(e.egg);
+      if (s != null && when(s)) goal[e.egg] = goalShiftWords(when(s));
+      else goal[e.egg] = e.current ? GOAL_ON_EGG_WORDS : GOAL_NO_SHIFT_WORDS;
+    }
     if (e.current) {
-      const at = (s: number | null | undefined) => (s != null && Number.isFinite(s) ? o.saveSeconds + s : null);
-      const n = at(e.nextInSeconds);
-      if (n != null && n > o.now && n - o.now <= cap && when(n)) next[e.egg] = `next TE about ${when(n)}`;
-      const g = o.teLeft != null && o.teLeft > 0 ? at(e.goalInSeconds) : null;
-      if (g != null && g > o.now && g - o.now <= cap && when(g)) goal[e.egg] = `to goal about ${goalWhen(g)}`;
+      const n = e.nextInSeconds != null && Number.isFinite(e.nextInSeconds) ? o.saveSeconds + e.nextInSeconds : null;
+      if (n != null && n > o.now && n - o.now <= cap && when(n)) next[e.egg] = nextClockWords(when(n));
       continue;
     }
-    const s = planned(e.egg);
-    const from = s ?? o.now;
-    const tail = s != null ? ` after your planned shift here on ${when(s)}` : ' if you shift now';
+    const d = o.delivered[e.egg] ?? 0;
     const t = eggNextTeSeconds({ delivered: d, current: false, population: 0, totalTe: o.totalTe, rates: o.rates });
-    if (t != null && Number.isFinite(t) && t <= cap && when(from + t)) next[e.egg] = `next TE about ${when(from + t)}${tail}`;
-    if (o.teLeft != null && o.teLeft > 0 && o.rates) {
-      const need = eggGoalTE(countTEThresholdsPassed(d), o.teLeft);
-      if (need == null) continue;
-      const tg = goalAfterShiftSeconds(d, need, o.totalTe, o.rates);
-      if (Number.isFinite(tg) && tg <= cap && when(from + tg)) goal[e.egg] = `to goal about ${goalWhen(from + tg)}${tail}`;
-    }
+    if (t != null && Number.isFinite(t) && t <= cap && when(o.now + t)) next[e.egg] = nextClockIfNowWords(when(o.now + t));
   }
   return { next, goal };
+}
+
+export interface EggViewLine {
+  kind: EggLineKind;
+  text: string;
+}
+
+/**
+ * The lines under one egg for a view (YourEggs.vue renders exactly these; spec-myruns-fix2). Each view only its own
+ * kinds (lib/yourEggsWords.ts `EGG_VIEW_LINES`):
+ *   next: the egg being laid, its next TE at the save's rate WITHOUT the goal (farmFacts `nextTeLine` with no goal
+ *     time); every other egg its after-shift time, or how far it is to its next TE when it has none; then its clock.
+ *   goal: the egg's plan line (`clockLines.goal`): when the plan shifts here, on it now, or no shift in the next shifts.
+ */
+export function eggViewLines(
+  view: EggsView,
+  e: EggLine,
+  o: {
+    now: number;
+    saveSeconds: number;
+    afterShift?: Record<string, string> | null;
+    clockLines?: { next: Record<string, string>; goal: Record<string, string> } | null;
+  }
+): EggViewLine[] {
+  const out: EggViewLine[] = [];
+  if (view === 'goal') {
+    const g = o.clockLines?.goal[e.egg];
+    if (g) out.push({ kind: g === GOAL_ON_EGG_WORDS ? EGG_LINE.goalOnEgg : g === GOAL_NO_SHIFT_WORDS ? EGG_LINE.goalNoShift : EGG_LINE.goalShift, text: g });
+    return out;
+  }
+  const shift = e.current ? '' : (o.afterShift?.[e.egg] ?? '');
+  if (e.current) out.push({ kind: EGG_LINE.nextAtSaveRate, text: nextTeLine({ ...e, goalInSeconds: null }, o.now, o.saveSeconds) });
+  else if (shift) out.push({ kind: EGG_LINE.nextAfterShift, text: shift });
+  else out.push({ kind: EGG_LINE.nextProgress, text: nextTeLine(e, o.now, o.saveSeconds) });
+  const c = o.clockLines?.next[e.egg];
+  if (c) out.push({ kind: EGG_LINE.nextClock, text: c });
+  return out;
 }
 
 /** Your eggs' view, remembered in this browser: 'next' (next TE, the default) or 'goal'. */
