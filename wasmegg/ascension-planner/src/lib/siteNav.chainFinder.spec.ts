@@ -98,7 +98,7 @@ describe("Joo's ?tab= links", () => {
   });
   it('counts as a tab from the address: not a new player, and it wins over the remembered tab', () => {
     const fromUrl = routeFromLocation('?tab=auto-planner', '');
-    expect(openingRoute({ fromUrl, stored: '#/myruns', savedPlayerId: null })).toEqual({ route: R('auto', 'classic'), newPlayer: false });
+    expect(openingRoute({ fromUrl, stored: '#/myruns', savedPlayerId: null })).toEqual({ route: R('auto', 'classic'), newPlayer: false, eggDay: false });
   });
   it('the address then says the hash and drops ?tab= (the rest kept)', () => {
     const r = routeFromLocation('?tab=chain-finder&eggday=1', '')!;
@@ -110,6 +110,8 @@ describe("Joo's ?tab= links", () => {
     );
   });
   it('stored addresses are never read as ?tab= (only a real address is)', () => {
-    expect(openingRoute({ fromUrl: null, stored: '?tab=chain-finder', savedPlayerId: ID }).route).toBeNull();
+    expect(openingRoute({ fromUrl: null, stored: '?tab=chain-finder', savedPlayerId: '' }).route).toBeNull();
+    // With a saved ID it is no remembered tab either: the first-load landing (By a date), not ?tab='s goal.
+    expect(openingRoute({ fromUrl: null, stored: '?tab=chain-finder', savedPlayerId: ID }).route).toEqual(R('auto', 'by-date'));
   });
 });

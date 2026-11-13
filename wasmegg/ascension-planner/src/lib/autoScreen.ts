@@ -27,6 +27,23 @@ export function readAutoScreen(): { view: ChainView; depth: Depth } | null {
   }
 }
 
+/**
+ * The goal the player picked on Chain Finder's switch (Target TE or By a date, with Fastest's depth), or null when there
+ * is none: a first visit, storage empty, blocked or garbled, or only a 'classic' from before Chain Finder (Joo's
+ * simulator, which was never a goal picked here). Where a first load lands (lib/siteNav.ts firstLoadRoute,
+ * spec-startchain2, 12 Nov 2026): this goal, else By a date with Egg Day.
+ */
+export function rememberedChainGoal(): { view: ChainView; depth: Depth } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(AUTO_SCREEN_KEY) ?? 'null') as { view?: unknown; depth?: unknown } | null;
+    const view = (['fastest', 'by-date'] as const).find(x => x === v?.view);
+    const depth = DEPTHS.find(x => x === v?.depth);
+    return view && depth ? { view, depth } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function writeAutoScreen(view: AutoView, depth: Depth): void {
   if (view === 'classic') return;
   try {

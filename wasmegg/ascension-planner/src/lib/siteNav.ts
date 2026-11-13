@@ -138,12 +138,21 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
 };
 
 /**
- * Where a NEW player lands once their save is in: the instant answer on Chain Finder with Target TE lit
- * (#/auto/fastest, Fastest to 490 TE; spec-startchain, 12 Nov 2026), rather than the Manual Planner's empty cards. It was
- * By a date with Egg Day preset (Jordan, 25 Oct 2026, the UX review's item 2/A) until then. Returning players (a
- * remembered tab) and links (a #/ hash, ?tab=) never land here (openingRoute).
+ * Where Chain Finder opens for a player with no remembered tab, when they have no goal remembered there either: By a
+ * date with Egg Day picked (#/auto/by-date; Jordan, 25 Oct 2026, the UX review's item 2/A, kept on 12 Nov 2026 late),
+ * rather than the Manual Planner's empty cards. App.vue presets Egg Day on that screen (lib/byDateForm.ts).
+ * spec-startchain (12 Nov 2026) had made it Target TE for a few hours; reverted (spec-startchain2).
  */
-export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest', depth: 'smart' };
+export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
+
+/**
+ * Where a first load lands (openingRoute): Chain Finder on the goal the player used last (lib/autoScreen.ts
+ * rememberedChainGoal, the Target TE | By a date switch, with Fastest's depth), else FIRST_LOAD_ROUTE.
+ */
+export function firstLoadRoute(goal: { view: ChainView; depth: Depth } | null | undefined): Required<SiteRoute> {
+  if (!goal) return FIRST_LOAD_ROUTE;
+  return { ...DEFAULT_ROUTE, section: 'auto', auto: goal.view, depth: goal.view === 'fastest' ? goal.depth : 'smart' };
+}
 
 /** The browser's memory of the last tab (its hash), so a returning player opening the bare address
  *  lands where they left off. */
@@ -155,22 +164,28 @@ export function storedRoute(stored: string | null | undefined): Required<SiteRou
 }
 
 /**
- * How the page opens, before any save is loaded:
- * - the address names a tab (a link, a reload): that tab, for anyone;
- * - else the browser remembers a last tab (a returning player): that tab;
- * - else the default (the Manual Planner shell under the ID box), and `newPlayer` says whether the
- *   first save that loads should take them to FIRST_LOAD_ROUTE. A player is new when nothing says
- *   otherwise: no tab in the address, none remembered, and no player ID saved in this browser.
+ * How the page opens, before any save is loaded (spec-startchain2, Jordan 12 Nov 2026 late):
+ * - the address names a tab (a link, a reload, ?tab=, the old ?insane / ?goal flags): that tab, for anyone;
+ * - else the browser remembers a last tab (aap.lastRoute): that tab, where the player left off;
+ * - else, with a player ID saved in this browser (from before lastRoute existed; they opened the Manual Planner):
+ *   the first-load landing at once, firstLoadRoute(goal);
+ * - else a new player: the default (the Manual Planner shell under the ID box) until their first save loads, then
+ *   firstLoadRoute(goal) (`newPlayer`).
+ * `goal` is Chain Finder's remembered goal (lib/autoScreen.ts rememberedChainGoal). `eggDay` says the landing, now or
+ * after the first save, is the default By a date, on which App.vue presets Egg Day; never over a remembered goal.
  */
 export function openingRoute(p: {
   fromUrl: Required<SiteRoute> | null;
   stored: string | null | undefined;
   savedPlayerId: string | null | undefined;
-}): { route: Required<SiteRoute> | null; newPlayer: boolean } {
-  if (p.fromUrl) return { route: p.fromUrl, newPlayer: false };
+  goal?: { view: ChainView; depth: Depth } | null;
+}): { route: Required<SiteRoute> | null; newPlayer: boolean; eggDay: boolean } {
+  if (p.fromUrl) return { route: p.fromUrl, newPlayer: false, eggDay: false };
   const kept = storedRoute(p.stored);
-  if (kept) return { route: kept, newPlayer: false };
-  return { route: null, newPlayer: !p.savedPlayerId };
+  if (kept) return { route: kept, newPlayer: false, eggDay: false };
+  const eggDay = !p.goal;
+  if (p.savedPlayerId) return { route: firstLoadRoute(p.goal), newPlayer: false, eggDay };
+  return { route: null, newPlayer: true, eggDay };
 }
 
 /**
