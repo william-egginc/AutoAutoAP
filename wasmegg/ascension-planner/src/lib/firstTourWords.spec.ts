@@ -45,7 +45,7 @@ describe('first tour words', () => {
       'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.'
     );
     expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
-      'Inside More: the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
+      'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
     );
     expect(FIRST_TOUR_STEPS.fast.body).toBe(
       'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.'

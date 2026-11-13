@@ -49,7 +49,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   moreInside: {
     title: 'Inside More',
-    body: 'Inside More: the Search card, which checks the answer on your save with a Fast, Exact or Custom search.',
+    body: 'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.',
   },
   fast: {
     title: 'A Fast search',
@@ -96,14 +96,14 @@ export const FIRST_TOUR_WELCOME = {
 export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
   goal: "Chain Finder's goal switch, highlighted: Target TE | By a date.",
-  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the short first step, with the Filters button above it.',
+  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the short first step.',
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
   follow: 'The Follow this route button under the instant answer, highlighted.',
   myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
   setupWhere: 'The round gear Setup button at the bottom of the screen, highlighted.',
-  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours, and the Filters button that opens it.',
+  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
   moreWhere: 'The closed More fold at the bottom of Fastest to 490 TE, highlighted.',
-  moreInside: "More open, highlighted: the Search card.",
+  moreInside: "More open, with the Search card highlighted.",
   fast: 'The Fast choice in the Search card inside More, highlighted, with its time shown.',
   custom: 'The Custom choice in the Search card inside More, highlighted.',
 };
