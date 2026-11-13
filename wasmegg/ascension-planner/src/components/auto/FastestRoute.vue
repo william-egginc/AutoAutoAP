@@ -14,13 +14,9 @@
        goal tabs above (App.vue), then here, always in this order: the title and its one line, the answer with Follow this
        route as its one main button, what to do now, then the one closed More (everything else, in its old order), then
        the footer (App.vue). A new control goes inside More unless Jordan gives it a place. One has a place outside More:
-       the target box, first, right under the Target TE | By a date switch (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE
-       as soon as possible"). -->
+       the target box, first in the one card ("The target"), under the title and the Target TE | By a date switch
+       (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE as soon as possible"; in the card like By a date's date, 13 Nov 2026). -->
   <div class="max-w-4xl mx-auto space-y-4">
-    <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
-         box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
-    <TargetTeBox />
-
     <div data-region="title">
       <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
       <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
@@ -34,6 +30,15 @@
          floating Setup button (SetupDock.vue): here only the save's problems, if any. "When should I
          start?" is in Science (#/science/start). -->
     <YourSetup screen="fastest" issues-only />
+
+    <!-- THE ONE CARD, like By a date's (DeadlinePanel.vue, Jordan 13 Nov 2026: "fix the target TE to match the by date"): a
+         small caps label, the target box, Filters and its row, the answer, What to do now, then More. A frame from sm up
+         only, as By a date's is (ByDateScreen.frame.spec). The title, the banner and the save's problems stay above it. -->
+    <div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4" data-testid="target-card">
+    <h3 class="text-slate-500 label">The target</h3>
+    <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
+         box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
+    <TargetTeBox />
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
          where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
@@ -131,6 +136,7 @@
     <div id="more-fastest-answer-how"></div>
     <a href="#/science/how" class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900" data-testid="how-it-works-link">{{ HOW_IT_WORKS_LINK }}</a>
     </MoreFold>
+    </div>
   </div>
 </template>
 
