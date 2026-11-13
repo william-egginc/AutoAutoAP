@@ -10,7 +10,9 @@
  *  - Delivery research: the unbroken final run of research buys in a delivery-impact category (DELIVERY_IMPACT_CATEGORIES;
  *    a research can list two, any counts), from no earlier than the start of the sale that holds the last buy.
  *  - Focus on ROI: everything else. The "cheap" tag is NOT a stage marker.
- *  - A check-in takes the stage of its last research buy; one with none (habs, vehicles, silos, shifts, waits, the swap)
+ *  - A check-in takes the stage of its last research buy, except the one that holds the Tier 13 unlock buy: it reads Buying to
+ *    Tier 13 whatever follows it in the same check-in (the game expert's 5.1 boundary case, decided here: it is the check-in
+ *    that unlocks the tier and carries its marker; Sample's first check-in unlocks Tier 13 and then buys ROI research); one with none (habs, vehicles, silos, shifts, waits, the swap)
  *    takes the stage of the one before, the first stage of the plan if it is first. Stages only move forward.
  * A buy's time is its check-in's (the line's `at`). Without start levels no Tier 13 stage is guessed.
  *
@@ -94,12 +96,12 @@ export function buildUpStages(startLevels: Readonly<Record<string, number>> | nu
   const byCheckIn = new Map<number, Stage>();
   for (const b of buys) {
     const c = lines[b.line].checkIn;
-    if (c >= 0) byCheckIn.set(c, stageOfBuy(b));
+    if (c >= 0) byCheckIn.set(c, byCheckIn.get(c) === 'tier13' ? 'tier13' : stageOfBuy(b));
   }
   const raw: (Stage | null)[] = lines.map((l, i) => {
     if (l.kind === 'research') {
       const mine = buys.filter(b => b.line === i);
-      return mine.length ? stageOfBuy(mine[mine.length - 1]) : null;
+      return mine.length ? (mine.some(b => stageOfBuy(b) === 'tier13') ? 'tier13' : stageOfBuy(mine[mine.length - 1])) : null;
     }
     return l.checkIn >= 0 ? (byCheckIn.get(l.checkIn) ?? null) : null;
   });
