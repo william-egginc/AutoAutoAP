@@ -151,3 +151,13 @@ describe('the goal row says what the spare is measured against (Jordan, 12 Nov 2
     expect(howFar(e, NOW, ZONE, true)).toBe("in 244d · 2d 17h spare before this date, on the instant answer's plan");
   });
 });
+
+describe('chainLead (13 Nov 2026): "Following" only when the route is followed', () => {
+  it('words', async () => {
+    const { chainLead } = await import('./nowWords');
+    expect(chainLead({ followed: true })).toBe('Following');
+    expect(chainLead({ followed: false })).toBe("The instant answer's route:");
+    expect(chainLead({ followed: true, notOnVirtue: true })).toBe('If you start then: Following');
+    expect(chainLead({ followed: false, notOnVirtue: true })).toBe("If you start then, the instant answer's route:");
+  });
+});

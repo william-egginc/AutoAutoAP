@@ -14,6 +14,7 @@
  * itself calls is already Pinia-free.
  */
 import { plainError } from '@/lib/plainError';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
@@ -539,6 +540,28 @@ const SEND_TE_TOLERANCE = 3;
 /** Sum a per-virtue TE map; 0 for none. */
 function sumTE(earned: Record<string, number> | null | undefined): number {
   return earned ? (Object.values(earned) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) : 0;
+}
+/** The highest target TE: the tables, the store's restore, online Setup and the collector all stop at 490. */
+export const TARGET_TE_MAX = 490;
+/**
+ * The targets a player can pick (`commitFinalTE`, the target box on Chain Finder > Target TE): their TE + 1 (a part TE
+ * counts as the TE below it, as the instant answer's "already at" check does) up to 490; with no save yet, from 1.
+ */
+export function targetTeRange(currentTE: number): { min: number; max: number } {
+  const te = Number.isFinite(currentTE) && currentTE > 0 ? Math.floor(currentTE) : 0;
+  return { min: Math.max(1, te + 1), max: TARGET_TE_MAX };
+}
+/**
+ * How near the target is "near" for Every number of ascensions' note (game expert, 13 Nov 2026): within about 25 TE of
+ * the player's TE, rows with 3 or more tiny ascensions can be priced 8-23% too fast (205 from 200 in 3: 19.6 d in the
+ * table, 25.5 d simulated). They never win, but they show as rows.
+ */
+export const NEAR_TARGET_TE = 25;
+/** The target is within NEAR_TARGET_TE above the player's TE (target - TE <= 25; a part TE counts as the TE below it). */
+export function isNearTarget(target: number, currentTE: number): boolean {
+  if (!(Number.isFinite(currentTE) && currentTE > 0)) return false;
+  const te = Math.floor(currentTE);
+  return target > te && target - te <= NEAR_TARGET_TE;
 }
 /** The TE of a state the workers price: what a run's `currentTE` must be. */
 export function pricedTE(state: { teEarned?: Record<string, number> } | null | undefined): number {
@@ -2288,6 +2311,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * (`pricedTE`), so the number on the screen is the number the run uses.
    */
   const currentTE = computed(() => sumTE(useInitialStateStore().initialTeEarned));
+  /**
+   * The target box's commit (TargetTeBox.vue; spec-targette, 13 Nov 2026): the guard is here, not only in the box. A
+   * whole number from your TE + 1 up to 490 becomes the target; anything else, or any value while a search runs, changes
+   * nothing (the last good target is kept) and comes back as the words to show. '' when taken.
+   */
+  function commitFinalTE(n: number): string {
+    if (isRunning.value) return TARGET_TE_WORDS.running;
+    const range = targetTeRange(currentTE.value);
+    if (!(Number.isInteger(n) && n >= range.min && n <= range.max)) return TARGET_TE_WORDS.invalid(range, finalTE.value);
+    if (finalTE.value !== n) finalTE.value = n;
+    return '';
+  }
 
   /**
    * The TE the planner treats as NOW: its initial snapshot (what `setInitialSnapshot` and `importPlan`
@@ -10111,6 +10146,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // settings
     effort,
     finalTE,
+    commitFinalTE,
     firstAscension,
     firstAscensionChoice,
     firstAscensionFromClassic,

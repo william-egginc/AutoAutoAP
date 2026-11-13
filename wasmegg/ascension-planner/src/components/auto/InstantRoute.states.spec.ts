@@ -48,6 +48,7 @@ import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const { descriptor } = parse(source);
@@ -281,6 +282,9 @@ function ctxOf(s: State): Record<string, unknown> {
     whatIf: null,
     whileWaiting: (has: boolean) => ({ text: has ? 'The answer below is from before your search.' : 'Waits for your search to end.' }),
     zone: 'America/Los_Angeles',
+    // The near-target note under Every number of ascensions (off unless a test turns it on).
+    nearTarget: false,
+    TARGET_TE_WORDS,
   };
 }
 
@@ -1342,5 +1346,35 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
       expect(tag).toMatch(/<CardHelp[^>]*>\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}\{\{ INSTANT_NIGHT_BUY_TIP \}\}<\/CardHelp>/);
     }
+  });
+});
+
+/** The near-target note (game expert, 13 Nov 2026): rows with many short ascensions near the player's TE can be priced a
+ *  little fast. Under Every number of ascensions, plain text (no live region), only when the target is near
+ *  (stores/chainSearch.finalTE.spec.ts pins the rule). */
+describe('the near-target note under Every number of ascensions', () => {
+  const st = (answer: Answer, deadline: boolean): State => ({ answer, status: 'done', below: false, noTable: false, hold: false, deadline, hours: true, waiting: false, saveWait: false, atTarget: false, saved: false });
+  const note = (html: string) => html.match(/<p[^>]*data-testid="counts-near-note"[^>]*>[\s\S]*?<\/p>/)?.[0];
+  it('shown under the table on both goals when near, as plain text', async () => {
+    for (const [a, d] of [['fastest', false], ['date', true]] as const) {
+      const html = await draw(st(a, d), { nearTarget: true, TARGET_TE_WORDS });
+      const p = note(html);
+      expect(p, a).toBeDefined();
+      expect(textOf(p!)).toBe(TARGET_TE_WORDS.nearRows);
+      expect(p).not.toMatch(/aria-live|role=/);
+      // Inside the table's card, after the table.
+      const card = html.indexOf('data-testid="counts-card"');
+      expect(card).toBeGreaterThan(-1);
+      expect(html.indexOf('data-testid="counts-near-note"')).toBeGreaterThan(html.indexOf('data-testid="counts-list"', card));
+    }
+  });
+  it('hidden when not near', async () => {
+    for (const [a, d] of [['fastest', false], ['date', true]] as const)
+      expect(note(await draw(st(a, d), { nearTarget: false, TARGET_TE_WORDS })), a).toBeUndefined();
+  });
+  it("the rule is the store's, on the screen's own target (By a date: 490)", () => {
+    const script = source.slice(source.indexOf('<script setup'));
+    expect(script).toContain('const nearTarget = computed(() => isNearTarget(target.value, store.currentTE));');
+    expect(script).toContain('const target = computed(() => (props.deadline ? 490 : store.finalTE));');
   });
 });

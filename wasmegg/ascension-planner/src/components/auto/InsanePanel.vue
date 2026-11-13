@@ -331,13 +331,8 @@
                   the ranges below.</HelpTip
                 >
               </span>
-              <input
-                v-model.number="store.finalTE"
-                type="number"
-                min="1"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
-              />
+              <!-- The store's one rule, on Enter or leaving the box (FinalTargetInput.vue, 13 Nov 2026). -->
+              <FinalTargetInput input-class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50" />
             </label>
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
@@ -1144,6 +1139,7 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import FinalTargetInput from './FinalTargetInput.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { pricedWithShort } from '@/lib/pricedWithWords';
 import { longerRouteHints } from '@/lib/longerRouteHint';
