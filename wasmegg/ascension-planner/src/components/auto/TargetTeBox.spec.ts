@@ -20,7 +20,7 @@ const src = fs.readFileSync(path.resolve(__dirname, 'TargetTeBox.vue'), 'utf8');
 const tpl = src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>'));
 
 describe('TargetTeBox', () => {
-  it('reads "Reach [490] TE as soon as possible" by default, with no note', async () => {
+  it('reads "Reach [490] TE as soon as possible" by default, with no message and no note', async () => {
     const html = await renderHtml(TargetTeBox, {});
     expect(textOf(html)).toBe(`${TARGET_TE_WORDS.before} ${TARGET_TE_WORDS.after}`);
     const box = input(html);
@@ -30,16 +30,14 @@ describe('TargetTeBox', () => {
     expect(box).toContain('aria-invalid="false"');
     expect(box).not.toContain('aria-describedby');
     expect(box).not.toMatch(DISABLED);
-    expect(html).not.toContain(TARGET_TE_WORDS.checkedMost);
   });
-  it('another target shows it, with the quiet note (until the game expert answers), named by the box', async () => {
+  it('another target shows it, with no caveat under it (the game expert: targets below 490 are fine, 13 Nov 2026)', async () => {
     const store = useChainSearchStore();
     store.finalTE = 300;
     const html = await renderHtml(TargetTeBox, {});
     expect(input(html)).toContain('value="300"');
-    expect(textOf(html)).toContain(TARGET_TE_WORDS.checkedMost);
-    expect(input(html)).toContain('aria-describedby="target-te-note"');
-    expect(html).toContain('id="target-te-note"');
+    expect(textOf(html)).toBe(`${TARGET_TE_WORDS.before} ${TARGET_TE_WORDS.after}`);
+    expect(html).not.toContain('target-te-note');
   });
   it('disabled while a search runs (as More\'s boxes are)', async () => {
     const store = useChainSearchStore();
@@ -62,6 +60,9 @@ describe('TargetTeBox', () => {
     expect(box).toContain(':aria-invalid="d.error.value ? \'true\' : \'false\'"');
     // The message is what the box is described by while it shows.
     expect(tpl).toContain('id="target-te-msg"');
-    expect(src).toContain("d.error.value ? 'target-te-msg'");
+    expect(box).toContain(":aria-describedby=\"d.error.value ? 'target-te-msg' : undefined\"");
+    // The range check is the store's (chainSearch.ts commitFinalTE), not the box's.
+    expect(src).toContain('store.commitFinalTE(n)');
+    expect(src).not.toMatch(/store\.finalTE\s*=/);
   });
 });
