@@ -85,7 +85,7 @@ describe('List', () => {
     const b = bands(await render());
     expect(b.map(x => x[0])).toEqual(['tier13', 'roi', 'delivery']);
     expect(b[0][1]).toBe(`Buying to Tier 13 from ${stages.starts[0].time}`);
-    expect(b[2][1]).toBe(`Delivery research from ${stages.starts[2].time}`);
+    expect(b[2][1]).toBe(`Delivery research from Fri Nov 6 at ${stages.starts[2].time}`);
   });
   it('labels only: no button in a band, and the Tier 13 marker is still on its check-in', async () => {
     const html = await render();
@@ -166,5 +166,70 @@ describe('colour by stage (Jordan, 13 Nov 2026): a coloured line down the left o
     const html = await render();
     expect(textOf(html)).toContain('now: Buying to Tier 13');
     expect(bands(html).length).toBe(3);
+  });
+});
+
+describe('a band names its day when it is not today (QA, 13 Nov 2026)', () => {
+  it('today\'s band says the time; a later day\'s says the day and the time', async () => {
+    const b = bands(await render());
+    expect(b[0][1]).toBe(`Buying to Tier 13 from ${stages.starts[0].time}`);
+    expect(b[2][1]).toMatch(/^Delivery research from Fri Nov 6 at \d+:\d\d [AP]M$/);
+  });
+});
+
+describe('Compact splits a day by stage (QA, 13 Nov 2026)', () => {
+  const day = async (): Promise<string> => {
+    const html = await render({ compact: true });
+    return html.match(/<section[^>]*data-testid="buildup-cday-2026-11-04"[\s\S]*?<\/section>/)?.[0] ?? '';
+  };
+  it('Nov 4 holds both Tier 13 and ROI: each band comes before its own chips and ranges', async () => {
+    const d = await day();
+    const t13 = d.indexOf('data-testid="buildup-stage-tier13"');
+    const roi = d.indexOf('data-testid="buildup-stage-roi"');
+    const tierChip = d.search(/Tier \d+ unlocks/);
+    expect(t13).toBeGreaterThan(-1);
+    expect(roi).toBeGreaterThan(t13);
+    // The Tier 13 stage's own marker is before the ROI band, not under it.
+    expect(tierChip).toBeGreaterThan(t13);
+    expect(tierChip).toBeLessThan(roi);
+  });
+  it('the ranges are split too: comfy_nests (0 → 22) under Tier 13, (22 → 30) under ROI', async () => {
+    const d = await day();
+    const roi = d.indexOf('data-testid="buildup-stage-roi"');
+    const before = textOf(d.slice(0, roi));
+    const after = textOf(d.slice(roi));
+    expect(before).toContain('comfy_nests (0 → 22)');
+    expect(before).not.toContain('(22 → 30)');
+    expect(after).toContain('comfy_nests (22 → 30)');
+  });
+  it('the two bands are not stacked at the top: something sits between them', async () => {
+    const d = await day();
+    const t13 = d.indexOf('data-testid="buildup-stage-tier13"');
+    const roi = d.indexOf('data-testid="buildup-stage-roi"');
+    expect(textOf(d.slice(t13, roi)).length).toBeGreaterThan(80);
+  });
+  it('a day in one stage looks as before: one band, then its chips and ranges', async () => {
+    const html = await render({ compact: true });
+    const d = html.match(/<section[^>]*data-testid="buildup-cday-2026-11-06"[\s\S]*?<\/section>/)?.[0] ?? '';
+    expect((d.match(/data-testid="buildup-stage-/g) ?? []).length).toBeGreaterThan(0);
+  });
+});
+
+describe('the key with fewer stages (QA could not make one on Sample)', () => {
+  const key = (html: string) => textOf(html.match(/data-testid="buildup-key">([\s\S]*?)<\/ul>/)?.[1] ?? '');
+  it('a plan with Tier 13 already open: Focus on ROI and Delivery research only', async () => {
+    const open = buildUpStages({ ...START, comfy_nests: 50, nutritional_sup: 40 }, result.lines);
+    expect(open.starts.map(x => x.stage)).toEqual(['roi', 'delivery']);
+    const html = await render({ stages: open });
+    expect(key(html)).toBe('Focus on ROI Delivery research');
+    expect(html).not.toContain('bg-violet-600');
+  });
+  it('a plan with no delivery run: Buying to Tier 13 and Focus on ROI only', async () => {
+    const early = result.lines.filter(l => l.at < at(6, 0, 0));
+    const two = buildUpStages(START, early);
+    expect(two.starts.map(x => x.stage)).toEqual(['tier13', 'roi']);
+    const html = await render({ stages: two });
+    expect(key(html)).toBe('Buying to Tier 13 Focus on ROI');
+    expect(html).not.toContain('bg-orange-600');
   });
 });

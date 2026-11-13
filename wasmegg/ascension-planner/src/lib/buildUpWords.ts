@@ -137,5 +137,7 @@ export function tierAheadWords(tiers: readonly number[], when: string): string {
 export const STAGE_WORDS = { tier13: 'Buying to Tier 13', roi: 'Focus on ROI', delivery: 'Delivery research' } as const;
 /** The header line's part: "now: Buying to Tier 13". */
 export const stageNowWords = (stage: keyof typeof STAGE_WORDS): string => `now: ${STAGE_WORDS[stage]}`;
-/** A stage's band: "Focus on ROI from 11:16 AM" (the time the stage's first line has; none: the name alone). */
-export const stageStartWords = (stage: keyof typeof STAGE_WORDS, time: string): string => `${STAGE_WORDS[stage]}${time ? ` from ${time}` : ''}`;
+/** A stage's band: "Focus on ROI from 11:16 AM" (the time the stage's first line has; none: the name alone). When it starts
+ *  on another day than today, the day too: "Delivery research from Fri Nov 20 at 10:00 AM" (QA, 13 Nov 2026). */
+export const stageStartWords = (stage: keyof typeof STAGE_WORDS, time: string, day = ''): string =>
+  `${STAGE_WORDS[stage]}${time ? ` from ${day ? `${day} at ` : ''}${time}` : day ? ` from ${day}` : ''}`;

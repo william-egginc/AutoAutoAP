@@ -139,4 +139,8 @@ describe('the words (DRAFT, Words)', () => {
     expect(stageStartWords('roi', '11:16 AM')).toBe('Focus on ROI from 11:16 AM');
     expect(stageStartWords('roi', '')).toBe('Focus on ROI');
   });
+  it('a band that starts on another day than today names it: "from Fri Nov 20 at 10:00 AM"', () => {
+    expect(stageStartWords('delivery', '10:00 AM', 'Fri Nov 20')).toBe('Delivery research from Fri Nov 20 at 10:00 AM');
+    expect(stageStartWords('delivery', '', 'Fri Nov 20')).toBe('Delivery research from Fri Nov 20');
+  });
 });

@@ -247,7 +247,7 @@
                 </li>
                 <!-- A stage starts here (lib/buildUpStages.ts): a label, not a control. -->
                 <li v-if="stageAt.get(l.key)" class="pl-[44px] pt-2" data-testid="buildup-stage-row">
-                  <p class="label" :class="STAGE_STYLE[stageAt.get(l.key)!.stage].text" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ stageStartWords(stageAt.get(l.key)!.stage, stageAt.get(l.key)!.time) }}</p>
+                  <p class="label" :class="STAGE_STYLE[stageAt.get(l.key)!.stage].text" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ bandWords(stageAt.get(l.key)!) }}</p>
                 </li>
                 <li
                   class="flex items-start gap-x-1 rounded-md pr-1.5"
@@ -429,19 +429,20 @@
                 />
                 <p class="label mt-2 text-slate-500">{{ STILL_TO_BUY }}</p>
               </template>
-              <!-- Where a stage starts on this day (lib/buildUpStages.ts): labels. -->
+              <!-- The day split by stage (lib/buildUpStages.ts): each stage's band above its own chips and ranges, so the Tier 13
+                   marker sits under the Tier 13 band. A day in one stage (or no stages) is one block, as before. -->
+              <template v-for="(seg, si) in compactSegments(d)" :key="si">
               <p
-                v-for="st in dayStageStarts(d)"
-                :key="st.key"
+                v-if="seg.band"
                 class="label mt-1"
-                :class="STAGE_STYLE[st.stage].text"
-                :data-testid="`buildup-stage-${st.stage}`"
+                :class="STAGE_STYLE[seg.band.stage].text"
+                :data-testid="`buildup-stage-${seg.band.stage}`"
               >
-                {{ stageStartWords(st.stage, st.time) }}
+                {{ bandWords(seg.band) }}
               </p>
-              <ul v-if="compactChips(d).length" class="mt-1 flex flex-wrap gap-1.5">
+              <ul v-if="seg.chips.length" class="mt-1 flex flex-wrap gap-1.5">
                 <li
-                  v-for="c in compactChips(d)"
+                  v-for="c in seg.chips"
                   :key="c.key"
                   class="rounded-lg border px-2.5 py-0.5 text-small"
                   :class="c.event ? 'border-indigo-300 text-indigo-700' : c.done ? 'border-slate-200 text-slate-500' : 'border-slate-400 font-bold text-slate-900'"
@@ -451,9 +452,9 @@
                   }}<span v-if="c.done" class="sr-only">{{ ' ' }}{{ COMPACT_DONE_SR }}</span>
                 </li>
               </ul>
-              <ul v-if="compactRanges(d).length" class="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-3">
+              <ul v-if="seg.ranges.length" class="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-3">
                 <li
-                  v-for="r in compactRanges(d)"
+                  v-for="r in seg.ranges"
                   :key="r.id"
                   class="flex items-baseline gap-x-2 text-small tabular-nums"
                   :class="r.done ? 'text-slate-500' : 'text-slate-700'"
@@ -464,6 +465,7 @@
                   ><span>{{ r.words }}<span v-if="r.done" class="sr-only">{{ ' ' }}{{ COMPACT_BOUGHT_SR }}</span></span>
                 </li>
               </ul>
+              </template>
               <!-- The silo trick hint under the chips of the day with its first "go offline" line, as in List (spec-silotrick-ui). -->
               <div v-if="siloTrickHintKey && d.lines.some(l => l.key === siloTrickHintKey)" class="mt-1">
                   <p class="text-small text-amber-800" data-testid="buildup-silo-trick-hint">
@@ -641,10 +643,6 @@ const hint = computed(() => {
 
 /** The stages' first lines by key (a band goes before each). */
 const stageAt = computed(() => new Map((props.stages?.starts ?? []).map(x => [x.key, x] as const)));
-/** Where a stage starts on this day (Compact's bands). */
-function dayStageStarts(d: TrackerDay): StageStart[] {
-  return d.lines.map(l => stageAt.value.get(l.key)).filter((x): x is StageStart => !!x);
-}
 /** A List row's left line: its stage's colour (nothing without stages). */
 function stageLine(l: TrackerLine): string {
   const st = props.stages?.stageOf.get(l.key);
@@ -858,9 +856,9 @@ function compactRest(d: TrackerDay): TrackerLine[] {
   const run = new Set(compactRun(d).map(l => l.key));
   return run.size ? d.lines.filter(l => !run.has(l.key)) : d.lines;
 }
-function compactChips(d: TrackerDay): { key: string; text: string; done: boolean; event: boolean }[] {
+function compactChips(lines: readonly TrackerLine[]): { key: string; text: string; done: boolean; event: boolean }[] {
   const out: { key: string; text: string; done: boolean; event: boolean }[] = [];
-  for (const l of compactRest(d)) {
+  for (const l of lines) {
     if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
     else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
     const tiers = tierAt.value.get(l.key);
@@ -868,8 +866,31 @@ function compactChips(d: TrackerDay): { key: string; text: string; done: boolean
   }
   return out;
 }
-function compactRanges(d: TrackerDay): RangeItem[] {
-  return researchRanges(compactRest(d), ticked.value);
+function compactRanges(lines: readonly TrackerLine[]): RangeItem[] {
+  return researchRanges(lines, ticked.value);
+}
+/** A Compact day split into its stages, in order: the band where the stage starts (none where it continues from the day
+ *  before, or without stages), and the chips and ranges of that stage's lines. One block without stages. */
+function compactSegments(d: TrackerDay): { band: StageStart | null; chips: ReturnType<typeof compactChips>; ranges: RangeItem[] }[] {
+  const rest = compactRest(d);
+  const so = props.stages?.stageOf;
+  const groups: TrackerLine[][] = [];
+  for (const l of rest) {
+    const last = groups[groups.length - 1];
+    if (last && (!so || so.get(last[0].key) === so.get(l.key))) last.push(l);
+    else groups.push([l]);
+  }
+  if (!groups.length) groups.push([]);
+  return groups.map(g => ({
+    band: (g.length && g.map(l => stageAt.value.get(l.key)).find(x => !!x)) || null,
+    chips: compactChips(g),
+    ranges: compactRanges(g),
+  }));
+}
+/** A band's words, with the day when it starts on another day than today ("Delivery research from Fri Nov 20 at 10:00 AM"). */
+function bandWords(st: StageStart): string {
+  const day = dayTitle(st.at, props.zone, props.now);
+  return stageStartWords(st.stage, st.time, day === dayTitle(props.now, props.zone, props.now) ? '' : day);
 }
 function compactKind(d: TrackerDay, kind: 'note' | 'warning'): TrackerLine[] {
   return d.lines.filter(l => l.kind === kind);
