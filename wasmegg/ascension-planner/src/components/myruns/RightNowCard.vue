@@ -104,7 +104,7 @@
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
     <p v-if="shownChain.length" class="text-body text-slate-700 break-words" data-testid="now-chain">
-      <template v-if="notOnVirtue">If you start then:{{ ' ' }}</template>Following<template v-for="(s, i) in stops" :key="i"
+      {{ chainLead({ followed: !!follow || !!card?.followed, notOnVirtue }) }}<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
           :class="
@@ -615,7 +615,7 @@ import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
-import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
+import { chainLead, chainStops, followingLine, nextStepText } from '@/lib/nowWords';
 import { followedLateLine } from '@/lib/followedLateWords';
 import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';

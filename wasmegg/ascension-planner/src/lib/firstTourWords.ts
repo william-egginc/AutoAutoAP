@@ -14,7 +14,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   goal: {
     title: 'Pick a goal',
-    body: 'You start on Chain Finder, on By a date with Egg Day picked: the most TE by that date. The switch changes the goal: Target TE finds the quickest way to a TE such as 490.',
+    body: 'You start on Chain Finder, on By a date with Egg Day picked. Target TE has a box for the TE you want, such as 490, and finds the quickest way there.',
   },
   answer: {
     title: 'The instant answer',

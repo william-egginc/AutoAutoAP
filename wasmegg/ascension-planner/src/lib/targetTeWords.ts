@@ -1,7 +1,7 @@
 /**
  * The target box's words on Chain Finder > Target TE, "Reach [490] TE as soon as possible" (TargetTeBox.vue; spec-targette,
- * Jordan 12 Nov 2026, Joo's layout), and the store's refusal (chainSearch.ts `commitFinalTE`). DRAFT for Words: every
- * string here is new.
+ * Jordan 12 Nov 2026, Joo's layout), and the store's refusal (chainSearch.ts `commitFinalTE`). Words reviewed 13 Nov 2026 ("Kept N" became "The target stays N";
+ * the running line says to change it after the search, as nothing is queued).
  *
  * A *Words.ts file: wording only, never part of the result code hash. Imports nothing.
  */
@@ -20,8 +20,8 @@ export const TARGET_TE_WORDS = {
    */
   invalid: (range: { min: number; max: number }, kept: number): string =>
     range.min > range.max
-      ? `Your TE is already ${range.min - 1}, so there is no higher target. Kept ${kept}.`
-      : `Pick a target TE above ${range.min - 1}, up to ${range.max}. Kept ${kept}.`,
+      ? `Your TE is already ${range.min - 1}, so there is no higher target. The target stays ${kept}.`
+      : `Pick a target TE above ${range.min - 1}, up to ${range.max}. The target stays ${kept}.`,
   /** A commit while a search runs (the box is disabled then, so a player should not see it). DRAFT. */
-  running: 'A search is running: the target changes once it ends.',
+  running: 'A search is running. Change the target after it ends.',
 } as const;

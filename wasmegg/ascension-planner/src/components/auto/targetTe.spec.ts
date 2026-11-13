@@ -56,7 +56,7 @@ describe('useTargetDraft: commit on Enter or leaving the box, not per keystroke'
       expect(d.commit()).toBe(false);
       expect(store.finalTE).toBe(300);
       expect(d.draft.value).toBe('300');
-      expect(d.error.value).toBe('Pick a target TE above 197, up to 490. Kept 300.');
+      expect(d.error.value).toBe('Pick a target TE above 197, up to 490. The target stays 300.');
       // Leaving the box after Enter keeps the words (the box holds the last good value again).
       d.commit();
       expect(d.error.value).not.toBe('');

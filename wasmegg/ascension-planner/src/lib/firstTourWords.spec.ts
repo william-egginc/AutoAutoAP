@@ -15,7 +15,7 @@ describe('first tour words', () => {
       body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'You start on Chain Finder, on By a date with Egg Day picked: the most TE by that date. The switch changes the goal: Target TE finds the quickest way to a TE such as 490.'
+      'You start on Chain Finder, on By a date with Egg Day picked. Target TE has a box for the TE you want, such as 490, and finds the quickest way there.'
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(

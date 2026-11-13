@@ -173,6 +173,17 @@ export function followingLine(chain: readonly number[], goalName: string): strin
   return `Following ${chain.join(' → ')}${goalName ? ` (${goalName})` : ''}`;
 }
 
+/**
+ * The words before Right now's chain of stops (13 Nov 2026): "Following" only when the route is really followed. Before
+ * a Follow press the chain is the instant answer's, and "Following 223 → 248 → 283 → 300" read as if it had been kept.
+ *   followed:  "Following 223 → …"          not followed: "The instant answer's route: 223 → …"
+ *   not on virtue: "If you start then: Following …" / "If you start then, the instant answer's route: …"
+ */
+export function chainLead(o: { followed: boolean; notOnVirtue?: boolean }): string {
+  if (o.followed) return o.notOnVirtue ? 'If you start then: Following' : 'Following';
+  return o.notOnVirtue ? "If you start then, the instant answer's route:" : "The instant answer's route:";
+}
+
 /** Each stop of the route against the clock: 'passed' before the ascension the save is in (`ascNow`, 1-based;
  *  0 before the plan starts), 'now' for that one, 'ahead' after. */
 export function chainStops(chain: readonly number[], ascNow: number): { te: number; state: 'passed' | 'now' | 'ahead' }[] {
