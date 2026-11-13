@@ -27,7 +27,7 @@ export const TARGET_TE_WORDS = {
    * goals, By a date's target being 490): rows with 3 or more tiny ascensions can be priced 8-23% too fast there. They
    * never win. DRAFT (added after Words' review of 13 Nov 2026).
    */
-  nearRows: 'Rows with many short hops can look a little faster than they really are.',
+  nearRows: 'Rows with several short ascensions can look a little faster than they really are.',
   /** A commit while a search runs (the box is disabled then, so a player should not see it). DRAFT. */
   running: 'A search is running. Change the target after it ends.',
 } as const;
