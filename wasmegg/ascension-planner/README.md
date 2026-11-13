@@ -31,8 +31,11 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The tabs are **Manual Planner**, **Auto Planner** and **My runs** (shown once the account has something there, or
-while a search runs). **Leaderboard** and **Science** are off
+The tabs are **Manual Planner**, **Auto Planner**, **Chain Finder** and **My runs** (shown once the account has
+something there, or while a search runs), in that order, as on Joo's site (12 Nov 2026; Fastest and Highest TE by a date
+were under the Auto Planner until then, and their addresses `#/auto/fastest`, `#/auto/fastest/full` and `#/auto/by-date`
+did not change). Joo's `?tab=chain-finder` (and `?tab=instant-search`) links open Chain Finder, `?tab=auto-planner` the
+Auto Planner. **Leaderboard** and **Science** are off
 until you tick them in Setup › How the site shows things (kept in this browser). A link to one of them still
 opens it, for that visit. Both need the collector: a build without one never shows them.
 
@@ -51,8 +54,12 @@ that choice.
 
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
-- **Auto Planner**
-  - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
+- **Auto Planner** (`#/auto/classic`; was **Single run** until 12 Nov 2026): Joo's Classic auto planner. Type
+  the TEs to ascend at and it lays out every ascension. Joo's artifact and stone editor sets the earnings and delivery
+  sets for the whole plan or for one ascension.
+- **Chain Finder**: one page with a **Target TE | By a date** switch on top, which picks between its two screens (and
+  their addresses). It opens on the goal you were last on (Fastest on a first visit).
+  - **Target TE**, the screen **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
     **Search** card: **Fast**, **Exact** or **Custom**. One button runs it, named after the strength picked
     (**Run Fast**, **Run Exact**, **Run Custom**), with the tick **Send the result to the Leaderboard when it
     finishes** under it: on by default for a player who said yes to sharing, off otherwise, and your own tick or
@@ -63,14 +70,12 @@ that choice.
     before these defaults is dropped once (`aap-prefer-fewer-v2`). Under a search result, **Try waiting before each
     prestige** prices the route with waits of 1 to 24 hours, on Setup's Awake hours, and suggests a wait only
     when it gains over half an hour and being 2 hours off costs under three times that.
-  - **Highest TE by a date**: the same layout (Prefer fewer: same TE by default; Off, within 1 or 2 TE). With no instant
+  - **By a date**, the screen **Highest TE by a date**: the same layout (Prefer fewer: same TE by default; Off, within 1 or 2 TE). With no instant
     answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 10
     to 15 minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
   - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
-  - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
-    Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
-- **Setup** (the Setup button on the Auto Planner and My runs) holds the three kinds of "not now":
+- **Setup** (the Setup button on Chain Finder, the Auto Planner and My runs) holds the three kinds of "not now":
   - **Awake hours**: you are on the virtue farm, but a shift or a prestige waits until you are back inside
     them; the farm keeps laying meanwhile, and those eggs count.
   - **No prestige days**: whole dates with no prestige. You stay on virtue, a prestige waits for the next
@@ -80,7 +85,7 @@ that choice.
     in progress ends when the time off starts, nothing is earned on virtue while away, and you come back to a
     complete rebuild toward the same stop.
   - Fast, Exact and Custom use all three. The instant answer uses Awake hours and No prestige days but does not
-    price Time off, and says so; its "Prestige by" line knows Awake hours only. Single run does not hold for
+    price Time off, and says so; its "Prestige by" line knows Awake hours only. The Auto Planner does not hold for
     Awake hours.
 - **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Fastest to 490 TE, All runs, Other dates, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
@@ -88,7 +93,7 @@ that choice.
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
 - **My runs** (a top tab): the "where am I now" page. One quiet save line (its age) and a small silo line (when the silos run out, as of the save; amber under 30% of the
-  silo time), also on Fastest, Highest TE by a date and Single run's Setup bar (`lib/saveFreshness.ts`,
+  silo time), also on Fastest, Highest TE by a date and the Auto Planner's Setup bar (`lib/saveFreshness.ts`,
   `lib/saveBanner.ts`): once the save is getting old (half the virtue farm's silo time used, or nine tenths for out of
   date; neither before 1 hour; 3 hours of silos when the save doesn't say) it adds **Why is my save out of date?** and
   **Details ›**, and past a day old its text turns amber and asks you to let the game sync; yellow **Check your clock**

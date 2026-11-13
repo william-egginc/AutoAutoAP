@@ -12,18 +12,20 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'Load your save',
     body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
   },
+  // DRAFT (Words, spec-chainfinder 12 Nov 2026): the goal tabs became Chain Finder's switch, Target TE | By a date.
   goal: {
     title: 'Pick a goal',
-    body: 'Highest TE by a date plans for the most TE by a date such as Egg Day. Fastest to 490 TE finds the quickest way to 490 TE. You can switch any time.',
+    body: 'Chain Finder finds your route. By a date plans for the most TE by a date such as Egg Day; Target TE finds the quickest way to 490 TE. You can switch any time.',
   },
   answer: {
     title: 'The instant answer',
     body: "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More.",
   },
   // The button beside Follow this route on the answer (spec-simpler2).
+  // DRAFT (spec-chainfinder): "in Single run" became "in the Auto Planner".
   simulate: {
     title: 'Simulate this plan',
-    body: "Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
+    body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
   },
   follow: {
     title: 'Follow this route',
@@ -34,9 +36,10 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     body: 'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.',
   },
   // Setup as two slides, where it is, then what is inside (spec-simpler2).
+  // DRAFT (spec-chainfinder): Chain Finder added.
   setupWhere: {
     title: 'Where Setup is',
-    body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
+    body: 'Setup is the button at the bottom of the screen (at the right on a computer), on Chain Finder, the Auto Planner and My runs. Press it any time.',
   },
   setup: {
     title: 'Inside Setup',
@@ -95,7 +98,8 @@ export const FIRST_TOUR_WELCOME = {
 /** Each picture's alt text: what is highlighted, on the sample account; no numbers from the sample (v2). */
 export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
-  goal: 'The goal tabs, highlighted: Fastest to 490 TE, Highest TE by a date and Single run.',
+  // DRAFT (spec-chainfinder): the picture still shows the old goal tabs until it is shot again (notes/spec-chainfinder.md).
+  goal: 'The goal switch on Chain Finder, highlighted: Target TE and By a date.',
   answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the first step.',
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
   follow: 'The Follow this route button under the instant answer, highlighted.',

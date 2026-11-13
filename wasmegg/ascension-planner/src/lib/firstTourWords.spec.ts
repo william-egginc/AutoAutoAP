@@ -15,7 +15,7 @@ describe('first tour words', () => {
       body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'Highest TE by a date plans for the most TE by a date such as Egg Day. Fastest to 490 TE finds the quickest way to 490 TE. You can switch any time.'
+      'Chain Finder finds your route. By a date plans for the most TE by a date such as Egg Day; Target TE finds the quickest way to 490 TE. You can switch any time.'
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
@@ -30,11 +30,11 @@ describe('first tour words', () => {
     // DRAFT (spec-simpler2, 9 Nov 2026), for Words: Simulate this plan after the answer, and Setup as two slides.
     expect(FIRST_TOUR_STEPS.simulate).toEqual({
       title: 'Simulate this plan',
-      body: 'Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
+      body: 'Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
     });
     expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
       title: 'Where Setup is',
-      body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
+      body: 'Setup is the button at the bottom of the screen (at the right on a computer), on Chain Finder, the Auto Planner and My runs. Press it any time.',
     });
     expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
