@@ -22,14 +22,15 @@ const tpl = src.slice(src.indexOf('<template>'), src.indexOf('<script setup'));
 const tagOf = (id: string) => tpl.slice(tpl.lastIndexOf('<', tpl.indexOf(`testid="${id}"`)), tpl.indexOf('>', tpl.indexOf(`testid="${id}"`)));
 
 describe('the save line never squeezes its text to a sliver', () => {
-  it('a centred column (Jordan, 13 Nov 2026), the name INSIDE Change player since 12 Nov 2026 (Jordan: a small chevron, then the name)', () => {
+  it('a centred column (Jordan, 13 Nov 2026), the name INSIDE Change player since 12 Nov 2026, its chevron BELOW the name (Jordan, 12 Nov 2026 pm: above or below, not beside)', () => {
     const line = tagOf('save-line');
     expect(line).toMatch(/class="[^"]*\bflex flex-col items-center\b/);
     expect(line).toContain('text-center');
     // The name is in the button, after its chevron; no name above it any more.
     const btn = tpl.slice(tpl.lastIndexOf('<button', tpl.indexOf('testid="save-line-switch"')), tpl.indexOf('</button>'));
     expect(btn).toContain('testid="save-line-who"');
-    expect(btn.indexOf('<svg')).toBeLessThan(btn.indexOf('testid="save-line-who"'));
+    expect(btn.indexOf('<svg')).toBeGreaterThan(btn.indexOf('testid="save-line-who"'));
+    expect(tagOf('save-line-switch')).toMatch(/class="[^"]*\binline-flex flex-col items-center\b/);
     expect(tpl.match(/testid="save-line-who"/g) ?? []).toHaveLength(1);
     // On every screen with the bar, name only: no `who` gate, no TE.
     expect(tpl).not.toContain('currentTE');
@@ -62,7 +63,7 @@ describe('the save line never squeezes its text to a sliver', () => {
 });
 
 describe('the switch-account control on the line', () => {
-  it('closed: its arrow then the name, named "Change player: <name>", aria-expanded false; open: "Close player box", aria-expanded true', async () => {
+  it('closed: the name with its arrow under it, named "Change player: <name>", aria-expanded false; open: "Close player box", aria-expanded true', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     useInitialStateStore().nickname = 'Williamthe5thc';

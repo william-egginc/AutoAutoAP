@@ -1,7 +1,7 @@
 <!--
   THE SAVE LINE (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026, Q6): region 1 on Fastest, By a
   date and My runs, under the top tabs, always in the same place. Whose save: since 12 Nov 2026 the name is INSIDE the
-  Change player button, after its chevron (Jordan: no separate name above it), centred (13 Nov 2026); the TE is on My
+  Change player button, its chevron under the name (Jordan, 12 Nov 2026 pm: not beside it; no separate name above it), centred (13 Nov 2026); the TE is on My
   runs' player line; the save-age banner and the silo line are layout/SaveSide.vue (Fastest, By a date) and Right now's
   header (My runs). It replaces the chevron that hid the player ID box: the button opens the box above (Setup's
   "Change player" does too); while it is open, Close here folds it again.
@@ -17,13 +17,16 @@
          player box above (the ID box and the save file) with the cursor in the ID box; while it is open it folds it. -->
     <button
       type="button"
-      class="flex-none max-w-full inline-flex min-h-[44px] items-center gap-1.5 px-3 rounded-lg border border-slate-300 bg-white text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      class="flex-none max-w-full inline-flex flex-col items-center justify-center min-h-[44px] gap-0 px-3 py-1 leading-tight rounded-lg border border-slate-300 bg-white text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
       :aria-expanded="!ui.isHeaderCollapsed"
       :aria-label="ui.isHeaderCollapsed ? changePlayerLabel(name) : undefined"
       :title="name"
       data-testid="save-line-switch"
       @click="toggle"
     >
+      <span v-if="ui.isHeaderCollapsed" class="min-w-0 max-w-full truncate" data-testid="save-line-who">{{ name }}</span>
+      <template v-else>{{ SAVE_LINE_CLOSE }}</template>
+      <!-- The chevron under the name (Jordan, 12 Nov 2026 pm: above or below the name, not beside it). -->
       <svg
         class="w-3.5 h-3.5 shrink-0 transition-transform"
         :class="ui.isHeaderCollapsed ? 'rotate-180' : ''"
@@ -34,8 +37,6 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
       </svg>
-      <span v-if="ui.isHeaderCollapsed" class="min-w-0 truncate" data-testid="save-line-who">{{ name }}</span>
-      <template v-else>{{ SAVE_LINE_CLOSE }}</template>
     </button>
   </div>
 </template>
