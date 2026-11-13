@@ -5,7 +5,7 @@
  * the awake-hours clause that was the HOURS_NOTE paragraph under it). Wording only: never a result code input.
  */
 import { describe, expect, it } from 'vitest';
-import { FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, firstStepLine, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
+import { FIRST_STEP_BUILDUP_MISSING, FIRST_STEP_BUILDUP_MISSING_CONTINUE, FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, FIRST_STEP_SHARP, firstStepLine, firstStepShortLine, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
 import { INSTANT_NIGHT_BUY_NOTE } from './nightBuyWords';
 import { isWordingOnly } from './resultCodeHash';
 
@@ -81,5 +81,49 @@ describe('First step: the hours clause and the night-buy note as ONE line (spec-
     expect(mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, false)).toEqual({ step: `${STEP} ${FIRST_STEP_HOURS}`, note: null });
     expect(mergeFirstStepCaveats(STEP, true)).toEqual({ step: STEP, note: INSTANT_NIGHT_BUY_NOTE });
     expect(mergeFirstStepCaveats(STEP, false)).toEqual({ step: STEP, note: null });
+  });
+});
+
+describe('First step, the short form (Jordan, 12 Nov 2026 pm, phone proposal question 3; DRAFT)', () => {
+  // One sentence ending "… sharp ?" on the card; today's whole sentence (firstStepLine) goes behind the card's "?".
+  const base = { stopTE: 222, prestigeDate: 'Jan 1, 2027 at 7:00 AM', sameDay: true, hours: true };
+  it('as in the proposal: no reached time, the prestige with its date, "sharp" with the hours clause', () => {
+    expect(firstStepShortLine({ ...base, kind: 'buildup' })).toBe('First step: continue your build-up to 222 TE, then prestige Jan 1, 2027 at 7:00 AM sharp.');
+    expect(firstStepShortLine({ ...base, kind: 'continue', prestigeDate: 'Nov 13 at 7:00 AM' })).toBe(
+      'First step: continue your current ascension to 222 TE, then prestige Nov 13 at 7:00 AM sharp.'
+    );
+    expect(FIRST_STEP_SHARP).toBe('sharp');
+  });
+  it('the prestige always carries its date, even on the same day', () => {
+    expect(firstStepShortLine({ ...base, kind: 'buildup', hours: false })).toBe('First step: continue your build-up to 222 TE, then prestige Jan 1, 2027 at 7:00 AM.');
+  });
+  it('"sharp" only when the clause would show today: hours on AND a prestige time named', () => {
+    expect(firstStepShortLine({ ...base, kind: 'buildup', hours: false })).not.toContain('sharp');
+    // One ascension: no prestige named, no "sharp", and no "(time)" (the Reached line above says it).
+    expect(firstStepShortLine({ ...base, kind: 'buildup', prestigeDate: null })).toBe('First step: continue your build-up to 222 TE.');
+    expect(firstStepShortLine({ ...base, kind: 'continue', prestigeDate: null })).toBe('First step: continue your current ascension to 222 TE.');
+  });
+  it('a fresh start: now, or held to a time (that time is a prestige: "sharp" with the hours)', () => {
+    expect(firstStepShortLine({ ...base, kind: 'fresh', prestigeDate: null })).toBe('First step: prestige now and reach 222 TE.');
+    expect(firstStepShortLine({ ...base, kind: 'fresh', start: 'Nov 13 at 7:00 AM', prestigeDate: null })).toBe(
+      'First step: prestige Nov 13 at 7:00 AM sharp and reach 222 TE.'
+    );
+    expect(firstStepShortLine({ ...base, kind: 'fresh', start: 'Nov 13 at 7:00 AM', prestigeDate: null, hours: false })).toBe(
+      'First step: prestige Nov 13 at 7:00 AM and reach 222 TE.'
+    );
+    // Both named: "sharp" once, on the last prestige.
+    expect(firstStepShortLine({ ...base, kind: 'fresh', start: 'Nov 13 at 7:00 AM' })).toBe(
+      'First step: prestige Nov 13 at 7:00 AM and reach 222 TE, then prestige Jan 1, 2027 at 7:00 AM sharp.'
+    );
+  });
+  it('the build-up-missing warnings: the same lines as firstStepLine (amber form unchanged)', () => {
+    expect(firstStepShortLine({ ...base, kind: 'fresh', buildUpMissing: true })).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
+    expect(firstStepShortLine({ ...base, kind: 'continue', buildUpMissing: true })).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`);
+    expect(firstStepShortLine({ ...base, kind: 'buildup', buildUpMissing: true })).toBe('First step: continue your build-up to 222 TE, then prestige Jan 1, 2027 at 7:00 AM sharp.');
+  });
+  it('firstStepLine (behind the "?") is unchanged', () => {
+    expect(
+      firstStepLine({ kind: 'buildup', stopTE: 222, reached: 'Jan 1, 2027 at 2:36 AM', prestigeDate: 'Jan 1, 2027 at 7:00 AM', prestigeTime: '7:00 AM', sameDay: true, hours: true })
+    ).toBe(`First step: continue your build-up to 222 TE (Jan 1, 2027 at 2:36 AM), then prestige at 7:00 AM. ${FIRST_STEP_HOURS}`);
   });
 });

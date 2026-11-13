@@ -367,8 +367,9 @@
             <AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
-                 same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
-                 the box; lib/hoursNote.ts). -->
+                 same legs as When each step happens below. Since 12 Nov 2026 pm (Jordan, phone proposal question 3) one
+                 short sentence ("… sharp.", `firstStepShort`) with today's whole sentence, its awake-hours clause
+                 included, behind the card's "?" (CardHelp). The build-up-missing warning is drawn as before. -->
             <p
               v-if="firstStep"
               :class="firstStepWarn ? 'text-body text-amber-800' : 'text-body text-slate-800'"
@@ -377,7 +378,7 @@
             >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-              ><template v-else>{{ stepCaveat.step }}</template>
+              ><template v-else>{{ firstStepShort }}{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -597,7 +598,7 @@
           >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-            ><template v-else>{{ stepCaveat.step }}</template>
+            ><template v-else>{{ firstStepShort }}{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1097,6 +1098,7 @@ import {
   buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
+  firstStepShortLine,
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
@@ -1740,6 +1742,27 @@ const firstStep = computed(() => {
     prestigeDate: b ? showAt(b.prestigeAt) : null,
     prestigeTime: b && dateStyle.value !== 'iso' ? formatClock(b.prestigeAt * 1000, zone.value) || null : null,
     sameDay: !!b && day(a.reachedAt) !== '' && day(a.reachedAt) === day(b.prestigeAt),
+    hours: hoursLimited.value,
+    buildUpMissing: answerBuildUpMissing.value,
+  });
+  return line.slice(FIRST_STEP_LABEL.length + 1);
+});
+/**
+ * First step's short form on the card (Jordan, 12 Nov 2026 pm, phone proposal question 3; lib/instantWords.ts
+ * firstStepShortLine, DRAFT): one sentence, the prestige always with its date and without this year's year
+ * (./instantCardTime.ts), "sharp" when the hours limit it; `firstStep` above, today's whole sentence, sits behind its "?".
+ */
+const firstStepShort = computed(() => {
+  const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
+  const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
+  if (!a || !legs?.length) return '';
+  const kind = firstStepKind(legs[0].label);
+  const near = (t: number) => cardTime(t, zone.value, { at: true });
+  const line = firstStepShortLine({
+    kind,
+    start: kind === 'fresh' && !a.now ? near(a.prestigeAt) : null,
+    stopTE: a.stopTE,
+    prestigeDate: b ? near(b.prestigeAt) : null,
     hours: hoursLimited.value,
     buildUpMissing: answerBuildUpMissing.value,
   });
