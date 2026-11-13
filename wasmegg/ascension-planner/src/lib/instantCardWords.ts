@@ -70,3 +70,9 @@ export function betterAboveLine(o: {
 export function fasterAboveLine(o: { better: string; yours: string }): string {
   return `The answer above is faster: ${o.better} (yours: ${o.yours}).`;
 }
+
+/**
+ * 7. By a date, a new date picked while the answer on screen is still the old date's (QA, 13 Nov 2026): the old answer
+ * goes, and this line stands where it was until the new one is in. DRAFT (Words).
+ */
+export const DATE_CHANGED_WORKING = 'Working out the answer for the new date';
