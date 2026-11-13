@@ -65,6 +65,14 @@ describe('the instant card on a phone', () => {
     expect(t).toContain('sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0');
     expect(src).toMatch(/<span\s+class="px-2 py-0\.5 rounded-full border border-slate-200 bg-white[^"]*"\s*>Hide<\/span/);
   });
+  it('My runs: the "?" after Right now\'s save line (SaveHeadHelp, 12 Nov 2026): CardHelp\'s 14 px look and 44 px area', () => {
+    const t = tagWith(read('myruns/SaveHeadHelp.vue'), 'data-testid="now-save-help"');
+    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain("relative self-center before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
+    expect(t).toContain(':aria-expanded=');
+    expect(t).toContain(':aria-controls="id"');
+    expect(t).toContain('focus-visible:ring-2');
+  });
   it('the instant card\'s "?" (CardHelp, the card clean-up 12 Nov 2026): HelpTip\'s 14 px look and 44 px area; Work it out again 44 px', () => {
     const t = tagWith(read('auto/CardHelp.vue'), 'data-testid="card-help"');
     expect(t).toContain('w-3.5 h-3.5');

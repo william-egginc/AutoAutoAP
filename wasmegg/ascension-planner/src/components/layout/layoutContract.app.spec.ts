@@ -30,6 +30,17 @@ describe('App: the regions in their fixed order', () => {
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
     expect(app).toContain("(plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))");
   });
+  it("Fastest and By a date: the save strip and the silo line in the screen's own column, never wider (Jordan's 1740 px shot, 12 Nov 2026)", () => {
+    // App's wrapper is max-w-6xl (72rem); both screens draw in max-w-4xl (56rem), centred. In the wrapper the strip
+    // started up to 8rem left of the screen's content and ran off a crop of the page. Same column as the screens.
+    const tag = tpl.slice(tpl.indexOf('<SaveSide'), tpl.indexOf('/>', tpl.indexOf('<SaveSide')));
+    expect(tag).toContain("plannerTab !== 'myruns'");
+    expect(tag).toMatch(/class="[^"]*\bmax-w-4xl mx-auto\b/);
+    for (const f of ['components/auto/FastestRoute.vue', 'components/auto/ByDateScreen.vue']) {
+      const t = read(f).replace(/<!--[\s\S]*?-->/g, '');
+      expect(t.slice(t.indexOf('<template>'), t.indexOf('<template>') + 80), f).toMatch(/<template>\s*<div class="max-w-4xl mx-auto\b/);
+    }
+  });
   it('My runs is always in the top tabs, whatever the account has', () => {
     for (const content of ['none', 'unknown', 'some'] as const) expect(myRunsTab({ content, running: false, onIt: false }).shown).toBe(true);
   });
@@ -55,7 +66,9 @@ describe('the save line', () => {
     const who = html.match(/<[^>]*data-testid="save-line-who"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '';
     expect(textOf(who)).toBe('Williamthe5thc');
     expect(textOf(html)).not.toContain('TE');
-    expect(html.indexOf('save-line-who')).toBeLessThan(html.indexOf('save-line-switch'));
+    // Inside Change player since 12 Nov 2026 (Jordan): the button holds the name, nothing above it.
+    expect(html.indexOf('save-line-switch')).toBeLessThan(html.indexOf('save-line-who'));
+    expect(textOf(html)).toBe('Williamthe5thc');
     // The save age left the bar (12 Nov 2026): layout/SaveSide.vue, under it on Fastest and By a date (saveSide.spec.ts).
     expect(html).not.toContain('data-testid="save-line-age"');
     expect(html).toContain('data-testid="save-line-switch"');

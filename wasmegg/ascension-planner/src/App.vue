@@ -198,8 +198,10 @@
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
       <SaveLine v-if="saveLineShown" />
       <!-- The save strip and the silo line, small, out of the bar (layout/SaveSide.vue, Jordan 12 Nov 2026). On My runs
-           they sit beside Right now instead (MyRunsView.vue). -->
-      <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2" />
+           they sit beside Right now instead (MyRunsView.vue). In the screens' own column (max-w-4xl, as FastestRoute.vue
+           and ByDateScreen.vue): in this 72rem wrapper they started up to 8rem left of the screen (Jordan's 1740 px
+           shot, 12 Nov 2026, cut off at the left). -->
+      <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2 max-w-4xl mx-auto" />
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->

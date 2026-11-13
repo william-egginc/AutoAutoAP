@@ -14,7 +14,8 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { headlineGap } from '@/lib/format';
-import { FOLLOW_THIS_ROUTE_INSTEAD, betterAboveLine } from '@/lib/instantCardWords';
+import { FOLLOW_THIS_ROUTE_INSTEAD, betterAboveLine, fasterAboveLine } from '@/lib/instantCardWords';
+import { dateAt } from '@/lib/eventWhen';
 import BetterRoutePrompt from '@/components/BetterRoutePrompt.vue';
 import FollowButton from '@/components/FollowButton.vue';
 
@@ -93,6 +94,37 @@ describe('the instant card\'s line (`line`)', () => {
     expect(html).toContain('data-testid="better-route-follow"');
     expect(html).toMatch(/rounded-xl border border-indigo-300/);
     expect(textOf(html)).toContain('This is a better route than the one you');
+  });
+});
+
+describe("Fastest's line (Words' fasterAboveLine, 12 Nov 2026)", () => {
+  const ZONE = 'America/Los_Angeles';
+  const FAST_GOAL = 'fastest-490';
+  /** The answer finishes 8 days sooner than the followed route's saved finish. */
+  const yoursEnd = () => now() + 40 * 86400;
+  const betterEnd = () => now() + 32 * 86400;
+  async function fastest() {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    defineStore('chainSearch', () => ({ submitUrl: SUBMIT, availability: null }))();
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    expect(await useFollowStore().follow(FAST_GOAL, [198, 490], 'answer', undefined, { finish: yoursEnd(), endTE: 490, planStart: now() - H })).toBe(true);
+    const cand = { chain: [490], end: betterEnd(), endTE: 490, at: CLOCK + 1000, source: 'instant' as const, planStart: now() };
+    return renderHtml(BetterRoutePrompt, { goalKey: FAST_GOAL, goal: 'fastest', deadline: null, candidate: cand, zone: ZONE, line: true }, {}, [pinia]);
+  }
+  it('"The answer above is faster: <its finish> (yours: <your finish>)." with the times as the card writes them; Keep mine, no Follow it', async () => {
+    const html = await fastest();
+    expect(html).toContain('data-variant="line"');
+    const words = fasterAboveLine({ better: dateAt(betterEnd(), now(), ZONE), yours: dateAt(yoursEnd(), now(), ZONE) });
+    expect(words).toMatch(/^The answer above is faster: /);
+    expect(textOf(html)).toBe(`${words} Keep mine`);
+    expect(html).not.toContain('data-testid="better-route-follow"');
+    expect(html.match(/<button[^>]*data-testid="better-route-keep"[^>]*>/)![0]).toContain('min-h-[44px]');
+  });
+  it('no player words in BetterRoutePrompt for it: the line is fasterAboveLine\'s', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'BetterRoutePrompt.vue'), 'utf8');
+    expect(src).toMatch(/fasterAboveLine\(\{\s*better: dateAt\(p\.end, /);
+    expect(src).not.toContain('is faster');
   });
 });
 

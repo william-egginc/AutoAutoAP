@@ -47,13 +47,22 @@
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
-      <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
+      <div class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3" data-testid="now-head">
         <p class="label text-slate-500">Right now</p>
         <!-- With the source pill below, only when (UX fluff review 2, 5 Nov 2026, item R1: the pill's line says the
-             source, the hours and the save, and the goal switch the goal). -->
-        <p v-if="card && pill" class="text-body text-slate-500" data-testid="now-calculated">
-          Calculated {{ calculatedWhen }}
-        </p>
+             source, the hours and the save, and the goal switch the goal). The save in it since 12 Nov 2026 (Jordan: the
+             save box beside the card went), Words' lib/calculatedFromWords.ts; amber once the loaded save is out of date,
+             as the strip's own line; nothing when the save's time is unknown. -->
+        <template v-if="card && pill">
+          <p
+            v-if="fromSaveLine"
+            class="min-w-0 break-words text-body tabular-nums"
+            :class="saveOld ? 'text-amber-800' : 'text-slate-500'"
+            data-testid="now-calculated"
+          >
+            {{ fromSaveLine }}
+          </p>
+        </template>
         <p v-else-if="card" class="text-body text-slate-500" data-testid="now-calculated">
           Plan for {{ goalOnlyName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
@@ -61,6 +70,8 @@
           >
           · from your save of {{ planSaveWhen }}
         </p>
+        <!-- My runs: the "?" that opens the save strip (myruns/SaveHeadHelp.vue), right after the line. -->
+        <slot name="save" />
       </div>
     </div>
     <!-- Which plan: a radiogroup, one option per goal (lib/planGoals.ts goalOptions); arrows move and pick. -->
@@ -631,6 +642,7 @@ import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { FollowCard } from '@/composables/useNowPage';
 import { useTeleportTarget } from '@/composables/useTeleportTarget';
 import { STOP_FOLLOWING } from '@/lib/layoutWords';
+import { calculatedFromLine } from '@/lib/calculatedFromWords';
 
 const props = defineProps<{
   /** My runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
@@ -698,6 +710,8 @@ const props = defineProps<{
   /** Setup's awake hours (the store's `availability`; null or absent: none): with hours that rule something out and a
    *  build-up's finish in Next step, the night-buy note (spec-nightbuynote). */
   awakeHours?: Availability | null;
+  /** The loaded save is out of date (lib/saveBanner.ts `outOfDate`, past a day): the header's save line turns amber. */
+  saveOld?: boolean;
   /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
   ascensions?: AscensionStep[];
   /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
@@ -922,6 +936,12 @@ const hereRow = computed(() =>
     ? { egg: props.currentEgg, te: props.teSoFar, saveWhen: dateAt(props.saveSeconds, props.now, props.zone) }
     : null
 );
+/** The header's line: the plan's save and when the plan was calculated, in Words' shape; '' when the save time is unknown. */
+const fromSaveLine = computed(() => {
+  const p = props.card?.plan;
+  if (!p) return '';
+  return calculatedFromLine({ saveSeconds: p.meta?.backupTime || props.saveSeconds, nowSeconds: p.calculatedAt / 1000, zone: props.zone });
+});
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
 const secondaryText = computed(() => {
   const sec = props.card?.secondary;

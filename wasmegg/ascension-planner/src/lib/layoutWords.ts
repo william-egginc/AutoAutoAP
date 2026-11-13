@@ -87,6 +87,14 @@ export const SHOW_EVERYTHING_LINE = 'Every More fold starts open, like the old p
 export const SAVE_LINE_CLOSE = 'Close player box';
 /** Setup's button that opens the player ID box. */
 export const CHANGE_PLAYER = 'Change player';
+/** The save line's stand-in for a save with no name (moved from layout/SaveLine.vue unchanged). */
+export const YOUR_ACCOUNT = 'Your account';
+/** The save line's button holds the player's name (Jordan, 12 Nov 2026: "▾ Williamthe5thc"); its name for a screen reader
+ *  still starts with Change player. DRAFT (spec-header), for Words. */
+export const changePlayerLabel = (name: string): string => `${CHANGE_PLAYER}: ${name}`;
+/** My runs: the "?" after Right now's "Calculated from your … save" line, for a screen reader. It opens the save strip
+ *  (its age, Why is my save out of date?, Details, Load latest save). DRAFT (spec-header, 12 Nov 2026), for Words. */
+export const SAVE_DETAILS_LABEL = 'Your save: its age and details';
 
 // ---------------------------------------------------------------------------------------- the "?" texts
 
