@@ -19,6 +19,7 @@
 import { formatNumber } from './format';
 import type { SetMatch } from './gearMatch';
 import { ascensionAt, type NowPlan } from './nowPlan';
+import { phaseRateWords } from './phaseRateWords';
 import { planEggAt } from './planPace';
 
 export interface PhaseBadge {
@@ -82,10 +83,14 @@ export function phaseNow(o: {
   return { phase, elr: null, elrFrom: null };
 }
 
-/** The badge's words: "Building", "Producing"; the rate "1.234Q/hr · from your save" or "… · projected". */
+/** The badge's words: "Building", "Producing"; the rate "1.234Q/hr with your earnings set" or "… · projected". */
 export function phaseWords(b: PhaseBadge): { title: string; rate: string } {
   const title = b.phase === 'building' ? 'Building' : 'Producing';
   if (b.elr == null) return { title, rate: '' };
-  const rate = `${formatNumber(b.elr * 3600, 3)}/hr`;
-  return { title, rate: b.elrFrom === 'projected' ? `${rate} · projected` : `${rate} · from your save` };
+  const rate = phaseRateWords({
+    phase: b.phase,
+    rate: formatNumber(b.elr * 3600, 3),
+    from: b.elrFrom === 'projected' ? 'projected' : 'save',
+  });
+  return { title, rate };
 }

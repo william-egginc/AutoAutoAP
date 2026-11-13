@@ -230,7 +230,7 @@ describe('the corner badge and the gear', () => {
     expect(b).toContain('data-phase="building"');
     expect(textOf(b.match(/<span[^>]*data-testid="now-phase"[\s\S]*?<\/span>/)![0])).toBe('Building');
     // The rate sits smaller underneath the badge, on the egg's own line (16 Oct 2026, Jordan).
-    expect(textOf(b.match(/<span[^>]*data-testid="now-phase-rate"[\s\S]*?<\/span>/)![0])).toMatch(/^.+\/hr · from your save$/);
+    expect(textOf(b.match(/<span[^>]*data-testid="now-phase-rate"[\s\S]*?<\/span>/)![0])).toMatch(/^.+\/hr with your earnings set$/);
     const p = textOf(
       await renderHtml(RightNowCard, cardProps({ phase: { phase: 'producing', elr: 2e12, elrFrom: 'projected' } }))
     );
