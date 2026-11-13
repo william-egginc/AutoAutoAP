@@ -507,6 +507,7 @@ import {
   compactNextWords,
   compactSaleWords,
   tierAheadWords,
+  tierUnlocksChipWords,
   tierUnlocksWords,
 } from '@/lib/buildUpWords';
 import type { TierUnlock } from '@/lib/buildUpTiers';
@@ -804,7 +805,7 @@ function compactChips(d: TrackerDay): { key: string; text: string; done: boolean
     if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
     else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
     const tiers = tierAt.value.get(l.key);
-    if (tiers) out.push({ key: `tier-${l.key}`, text: tierUnlocksWords(tiers), done: false, event: true });
+    if (tiers) out.push({ key: `tier-${l.key}`, text: tierUnlocksChipWords(tiers, l.time), done: false, event: true });
   }
   return out;
 }

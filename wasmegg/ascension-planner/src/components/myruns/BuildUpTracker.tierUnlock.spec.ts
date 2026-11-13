@@ -86,10 +86,10 @@ describe('List', () => {
 });
 
 describe('Compact', () => {
-  it('a chip "Tier 2 unlocks" in the day, not a range or a box', async () => {
+  it('a chip "Tier 2 unlocks <time>" in the day (Compact has no times of its own, as the sale chips), not a range or a box', async () => {
     const html = await render({ compact: true });
     const chips = [...html.matchAll(/<li[^>]*data-testid="buildup-chip"[^>]*>([\s\S]*?)<\/li>/g)].map(m => textOf(m[1]));
-    expect(chips).toContain('Tier 2 unlocks');
+    expect(chips).toContain(`Tier 2 unlocks ${unlockLine.time}`);
     expect(html).not.toMatch(/type="checkbox"/);
   });
 });

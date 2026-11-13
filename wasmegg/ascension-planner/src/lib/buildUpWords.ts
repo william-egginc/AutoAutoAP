@@ -121,6 +121,10 @@ const tiersList = (tiers: readonly number[]): string =>
 export function tierUnlocksWords(tiers: readonly number[]): string {
   return tiers.length === 1 ? `Tier ${tiers[0]} unlocks` : `Tiers ${tiersList(tiers)} unlock`;
 }
+/** Compact's chip, with the check-in's time (Compact shows no time per check-in; the sale chips say theirs): "Tier 13 unlocks 4:41 PM". */
+export function tierUnlocksChipWords(tiers: readonly number[], time: string): string {
+  return `${tierUnlocksWords(tiers)}${time ? ` ${time}` : ''}`;
+}
 /** In the header, after the check-in count: "Tier 13 at 4:41 PM". `when` is the time as the tracker's lines write it. */
 export function tierAheadWords(tiers: readonly number[], when: string): string {
   return `${tiers.length === 1 ? 'Tier' : 'Tiers'} ${tiersList(tiers)} at ${when}`;

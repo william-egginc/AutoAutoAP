@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildUpTracker, type TrackerLine } from './buildUpTracker';
 import { tierUnlocks } from './buildUpTiers';
-import { tierAheadWords, tierUnlocksWords } from './buildUpWords';
+import { tierAheadWords, tierUnlocksChipWords, tierUnlocksWords } from './buildUpWords';
 import type { BuildUpAction } from '@/search/buildUpActions';
 
 const ZONE = 'America/Denver';
@@ -64,6 +64,10 @@ describe('the words (DRAFT, Words)', () => {
   it('on the check-in', () => {
     expect(tierUnlocksWords([13])).toBe('Tier 13 unlocks');
     expect(tierUnlocksWords([12, 13])).toBe('Tiers 12 and 13 unlock');
+  });
+  it('as a Compact chip, with its time (as the sale chips)', () => {
+    expect(tierUnlocksChipWords([13], '4:41 PM')).toBe('Tier 13 unlocks 4:41 PM');
+    expect(tierUnlocksChipWords([12, 13], '4:41 PM')).toBe('Tiers 12 and 13 unlock 4:41 PM');
   });
   it('in the header, with the time as the tracker writes it', () => {
     expect(tierAheadWords([13], '4:41 PM')).toBe('Tier 13 at 4:41 PM');
