@@ -15,7 +15,6 @@ const NOW = 1_800_000_000;
 const ZONE = 'America/Los_Angeles';
 const at30 = getThresholdForTE(30);
 const delivered = { curiosity: at30, kindness: at30, integrity: at30, humility: at30, resilience: at30 };
-const rates = { maxHabs: 1e10, perChicken: 200, maxElr: 2e12, ihr: 1e4 };
 const eggs = eggLines(delivered, {}, 'curiosity', 1e12, null);
 // 247 days on, 51 minutes past an hour on the planner's clock (an hour boundary in Los Angeles is one in UTC too).
 const FINISH = Math.floor((NOW + 247 * 86400) / 3600) * 3600 + 51 * 60;
@@ -23,12 +22,8 @@ const FINISH = Math.floor((NOW + 247 * 86400) / 3600) * 3600 + 51 * 60;
 function line(rounded?: boolean): string {
   return eggGoalLines({
     eggs,
-    delivered,
-    totalTe: 150,
-    rates,
-    goal: { kind: 'date', endTE: 313, finish: FINISH, zone: ZONE, ...(rounded === undefined ? {} : { rounded }) },
+    goal: { endTE: 313, finish: FINISH, zone: ZONE, ...(rounded === undefined ? {} : { rounded }) },
     now: NOW,
-    saveSeconds: NOW,
   }).kindness;
 }
 

@@ -9,10 +9,13 @@
   line; without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
   counts the shifts listed plus each fresh ascension's build-up shifts, estimated (lib/openingShifts.ts, 27 Oct 2026),
   and says so.
-  THE CLOCK TIME (ux34-a): under each egg's line its day and time in the browser's format, from now or from the plan's
-  next shift to that egg (lib/nextTeEgg.ts `eggClockLines`), in both views.
-  NEXT TE | TO GOAL (28 Oct 2026, pieha): a two-way switch; "to goal" gives every egg its time to the goal
-  (lib/nextTeEgg.ts `eggGoalLines`). Remembered in this browser; "next TE" by default; no switch without a goal.
+  THE CLOCK TIME (ux34-a): under each egg's line its day and time in the browser's format, from now (lib/nextTeEgg.ts
+  `eggClockLines`), in "next TE".
+  NEXT TE | TO GOAL (28 Oct 2026, pieha; each view only its own lines, spec-myruns-fix2, 13 Nov 2026): a two-way
+  switch. "next TE": if you switched to the egg now, its next TE, nothing else. "to goal": the followed plan's goal once
+  above the eggs (lib/nextTeEgg.ts `eggGoalLines`) and each egg's plan line. Every line carries its kind (data-line,
+  lib/yourEggsWords.ts) and lib/nextTeEgg.ts `eggViewLines` picks them. Remembered in this browser; "next TE" by
+  default; no switch without a plan.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4" data-testid="now-eggs">
@@ -39,9 +42,8 @@
         </button>
       </div>
     </div>
-    <!-- The same goal line for every egg (a By a date goal: the plan's finish): once for the block, not five times
-         (spec-uxpass item 5, 8 Nov 2026). -->
-    <p v-if="goalOnce" class="mt-1.5 text-body tabular-nums text-slate-600 break-words" data-testid="now-eggs-goal-once">{{ goalOnce }}</p>
+    <!-- The plan's goal, the same for every egg: once for the block (spec-uxpass item 5, 8 Nov 2026). -->
+    <p v-if="goalOnce" class="mt-1.5 text-body tabular-nums text-slate-600 break-words" data-testid="now-eggs-goal-once" :data-line="EGG_LINE.goalPlan">{{ goalOnce }}</p>
     <div class="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2.5">
       <div v-for="e in eggs" :key="e.egg" data-testid="now-egg">
         <p class="text-body" :class="e.current ? 'font-bold text-slate-900' : 'text-slate-700'">
@@ -50,17 +52,20 @@
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <!-- With the goal line shown once above, each egg keeps the next view's lines (spec-myruns-fix). -->
-        <p v-if="perEggGoal" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
-          {{ goalLines?.[e.egg] || nextLine(e) }}
+        <p
+          v-for="l in linesOf(e)"
+          :key="l.kind"
+          class="text-body tabular-nums break-words"
+          :class="LINE_STYLE[l.kind]?.cls ?? 'text-slate-600'"
+          :data-testid="LINE_STYLE[l.kind]?.testid"
+          :data-line="l.kind"
+        >
+          {{ l.text }}
         </p>
-        <p v-else-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
-        <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
-        <p v-if="clockLine(e.egg)" class="text-body tabular-nums text-slate-500 break-words" data-testid="now-egg-when">{{ clockLine(e.egg) }}</p>
       </div>
     </div>
     <!-- "estimated from your save" once; how, and which save, behind the "?" (UX fluff review 2, item R16). DRAFT. -->
-    <p v-if="afterShift" class="mt-1.5 flex items-center gap-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">
+    <p v-if="afterShift && shownView === 'next'" class="mt-1.5 flex items-center gap-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">
       After a shift: estimated from your save.{{ ' ' }}<HelpTip>{{ afterShift.note }}</HelpTip>
     </p>
     <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -78,10 +83,11 @@ import { computed, ref } from 'vue';
 import { formatNumber } from '@/lib/format';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { formatSiloTime } from 'lib/planners/stores/silos';
-import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
+import { type EggLine, type FarmFacts } from '@/lib/farmFacts';
 import { siloNow, siloNowWords } from '@/lib/farmNow';
 import HelpTip from '@/components/auto/HelpTip.vue';
-import { readEggsView, writeEggsView, type EggsView } from '@/lib/nextTeEgg';
+import { eggViewLines, readEggsView, writeEggsView, type EggsView, type EggViewLine } from '@/lib/nextTeEgg';
+import { EGG_LINE, type EggLineKind } from '@/lib/yourEggsWords';
 import { plannedShiftsWords } from '@/lib/soulEggs';
 
 const props = defineProps<{
@@ -98,14 +104,14 @@ const props = defineProps<{
   saveSeconds: number;
   /** The planner's time zone, for "empty since" (the browser's when not given). */
   zone?: string;
-  /** Each egg the player isn't on: "next TE in ~2d 4h after you shift here", by egg, and the note on where from
-   *  (lib/nextTeEgg.ts). It stands in for the egg's "N% to the next TE · after a shift" line; an egg left out (at the
-   *  TE cap, no data) keeps that line. */
+  /** Each egg the player isn't on: its next TE after a shift to it now, by egg, and the note on where from
+   *  (lib/nextTeEgg.ts). An egg left out (at the TE cap, no data) says how far it is to its next TE instead. */
   afterShift?: { lines: Record<string, string>; note: string } | null;
-  /** Each egg's time to the goal, by egg (lib/nextTeEgg.ts `eggGoalLines`); empty or absent: no switch. */
+  /** The followed plan's goal line, the same for every egg (lib/nextTeEgg.ts `eggGoalLines`); empty or absent: no plan,
+   *  no switch. */
   goalLines?: Record<string, string> | null;
-  /** Each egg's day and time beside its line, by view and egg (lib/nextTeEgg.ts `eggClockLines`, ux34-a): "next TE
-   *  about Wed, Oct 30 at 11:00 AM", "… if you shift now", "… after your planned shift here on …". */
+  /** By view and egg (lib/nextTeEgg.ts `eggClockLines`): `next` each egg's next TE day and time from now; `goal` each
+   *  egg's plan line (a planned shift to it, on it now, or none in the plan's next shifts). */
   clockLines?: { next: Record<string, string>; goal: Record<string, string> } | null;
   /** The view to start on (specs); absent: the one remembered in this browser. */
   view?: EggsView;
@@ -117,38 +123,37 @@ const VIEWS: { value: EggsView; label: string }[] = [
 ];
 const view = ref<EggsView>(props.view ?? readEggsView());
 const hasGoal = computed(() => !!props.goalLines && Object.keys(props.goalLines).length > 0);
-/** Every egg's goal line when they are all the same (a By a date goal), said once above the eggs; '' otherwise. */
+/** The view shown: "next TE" when there is no plan (no switch), whatever was remembered. */
+const shownView = computed<EggsView>(() => (hasGoal.value ? view.value : 'next'));
+/** The plan's goal line, the same for every egg, said once above the eggs; '' outside "to goal". */
 const goalOnce = computed(() => {
-  if (view.value !== 'goal' || !hasGoal.value || !props.eggs.length) return '';
-  const first = props.goalLines?.[props.eggs[0].egg] ?? '';
-  return first && props.eggs.every(e => props.goalLines?.[e.egg] === first) ? first : '';
+  if (shownView.value !== 'goal' || !props.eggs.length) return '';
+  return props.goalLines?.[props.eggs[0].egg] ?? '';
 });
-/**
- * Each egg its own goal line: the goal view with lines that differ by egg (a Fastest goal). With the goal line shown once
- * (a By a date goal, Egg Day too), the eggs keep the next view's lines and clock lines, never a name over a bar alone
- * (spec-myruns-fix, 12 Nov 2026).
- */
-const perEggGoal = computed(() => view.value === 'goal' && hasGoal.value && !goalOnce.value);
 function pick(v: EggsView): void {
   view.value = v;
   writeEggsView(v);
 }
 
-/** lib/farmFacts.ts `nextTeLine`: capped at about 10 years ("not at this rate"). */
-function nextLine(e: EggLine): string {
-  return nextTeLine(e, props.now, props.saveSeconds);
-}
+/** Each kind's look and test id (the ids the page specs and the harness already read). */
+const LINE_STYLE: Partial<Record<EggLineKind, { cls: string; testid?: string }>> = {
+  [EGG_LINE.nextAtSaveRate]: { cls: 'text-slate-500' },
+  [EGG_LINE.nextAfterShift]: { cls: 'text-slate-600', testid: 'now-egg-after-shift' },
+  [EGG_LINE.nextProgress]: { cls: 'text-slate-500' },
+  [EGG_LINE.nextClock]: { cls: 'text-slate-500', testid: 'now-egg-when' },
+  [EGG_LINE.goalShift]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalOnEgg]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalNoShift]: { cls: 'text-slate-500', testid: 'now-egg-to-goal' },
+};
 
-/** The egg's day and time for the view shown; '' says nothing. */
-function clockLine(egg: string): string {
-  const c = props.clockLines;
-  if (!c) return '';
-  return (perEggGoal.value ? c.goal[egg] : c.next[egg]) ?? '';
-}
-
-/** The egg's next TE after a shift to it; '' says nothing (the egg being laid, at the TE cap, no data). */
-function shiftLine(egg: string): string {
-  return props.afterShift?.lines[egg] ?? '';
+/** The egg's lines for the view shown (lib/nextTeEgg.ts `eggViewLines`). */
+function linesOf(e: EggLine): EggViewLine[] {
+  return eggViewLines(shownView.value, e, {
+    now: props.now,
+    saveSeconds: props.saveSeconds,
+    afterShift: props.afterShift?.lines ?? null,
+    clockLines: props.clockLines ?? null,
+  });
 }
 
 /**

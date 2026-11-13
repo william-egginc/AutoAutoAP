@@ -2041,11 +2041,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const eggs = computed(() => {
     if (!hasSave.value) return [];
     const { delivered, earned } = saveEggCountsOf(raw.value);
-    // "to goal" beside next TE (ux29-d): Fastest to N TE's own target only; a By a date goal has no TE to reach.
-    const shown = shownTile.value;
-    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
-    const teLeft = shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null;
-    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null, teLeft);
+    // No goal TE: "next TE" says nothing of the goal, and "to goal" is the plan's (spec-myruns-fix2, 13 Nov 2026).
+    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null, null);
   });
   /** Each egg the player isn't on: its next TE after a shift to it (lib/nextTeEgg.ts), by egg, and the one note under
    *  them. The save's farm at full habs, the habs refilling at the hatchery rate at or below 100 TE in all. */
@@ -2057,49 +2054,32 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!Object.keys(lines).length) return null;
     return { lines, note: afterShiftNote(totalTe, saveSeconds.value, now.value, zone.value) };
   });
-  /** Your eggs' "to goal" view (28 Oct 2026, pieha; lib/nextTeEgg.ts `eggGoalLines`): every egg's time to the goal
-   *  picked on Right now. Fastest to N TE: its TE left; By a date: the plan's finish (none without a plan). */
+  /** Your eggs' "to goal" view (28 Oct 2026, pieha; spec-myruns-fix2, 13 Nov 2026: what the plan says, lib/nextTeEgg.ts
+   *  `eggGoalLines`): the plan shown on Right now, its goal TE and finish, any goal; none without a plan. */
   const goalLines = computed<Record<string, string>>(() => {
     if (!hasSave.value || !onVirtue.value) return {};
-    const shown = shownTile.value;
-    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
     const p = cardPlan.value?.plan;
-    const goal =
-      shown.goal === 'fastest'
-        ? shown.target > totalTe
-          ? { kind: 'te' as const, teLeft: shown.target - totalTe }
-          : null
-        : p
-          ? { kind: 'date' as const, endTE: p.endTE, finish: planFinish(p), zone: zone.value, rounded: !p.exact }
-          : null;
     return eggGoalLines({
       eggs: eggs.value,
-      delivered: saveEggCountsOf(raw.value).delivered,
-      totalTe,
-      rates: fullHabRates.value,
-      goal,
+      goal: p ? { endTE: p.endTE, finish: planFinish(p), zone: zone.value, rounded: !p.exact } : null,
       now: now.value,
-      saveSeconds: saveSeconds.value,
     });
   });
-  /** Each egg's day and time beside its line, both views (ux34-a, lib/nextTeEgg.ts `eggClockLines`): from now, or from
-   *  the plan's next shift to that egg in Next shifts. The "to goal" times for a Fastest to N TE goal only. */
+  /** Your eggs' lines beside each egg (lib/nextTeEgg.ts `eggClockLines`): "next TE", each egg's next TE day and time
+   *  from now; "to goal", the plan's Next shifts to each egg. */
   const clockLines = computed<{ next: Record<string, string>; goal: Record<string, string> } | null>(() => {
     if (!hasSave.value || !onVirtue.value) return null;
-    const shown = shownTile.value;
     const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
     return eggClockLines({
       eggs: eggs.value,
       delivered: saveEggCountsOf(raw.value).delivered,
       totalTe,
       rates: fullHabRates.value,
-      teLeft: shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null,
       now: now.value,
       saveSeconds: saveSeconds.value,
       zone: zone.value,
       shifts: nextShiftLines.value,
-      // To the hour unless the plan is exact, as the Full timeline and the goal line (QA, 12 Nov 2026).
-      rounded: cardPlan.value?.plan.exact !== true,
+      plan: !!cardPlan.value?.plan,
     });
   });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
