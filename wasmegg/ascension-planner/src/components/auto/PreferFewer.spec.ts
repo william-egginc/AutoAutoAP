@@ -80,10 +80,15 @@ describe('PreferFewerNote (the green box)', () => {
     muted: '',
   };
 
-  it('a different route: what the box shows, the line, then "Show the fastest instead ›"', async () => {
+  it('a different route: the line with what the box shows behind its "?" (Jordan, 12 Nov 2026 pm; phone proposal item g), then "Show the fastest instead ›"', async () => {
     const html = await renderHtml(PreferFewerNote, { copy: picked, goal: 'fastest', showingBest: false });
-    expect(textOf(html)).toBe(`${picked.what} ${picked.line} Show the fastest instead ›`);
-    expect(html).toContain('data-testid="prefer-fewer-what"');
+    // The "?" bubble (CardHelp) is teleported to <body>: not in the note's own text.
+    expect(textOf(html)).toBe(`${picked.line} ? Show the fastest instead ›`);
+    expect(html).not.toContain('data-testid="prefer-fewer-what"');
+    const line = html.slice(html.indexOf('data-testid="prefer-fewer-line"'), html.indexOf('</p>', html.indexOf('data-testid="prefer-fewer-line"')));
+    expect(line).toContain('data-testid="card-help"');
+    const src = fs.readFileSync(path.join(__dirname, 'PreferFewerNote.vue'), 'utf8');
+    expect(src).toContain('<CardHelp>{{ copy.what }}</CardHelp>');
     expect(html).toContain('aria-pressed="false"');
   });
 
