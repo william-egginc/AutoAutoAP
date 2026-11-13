@@ -22,7 +22,7 @@ const R = (section: SiteRoute['section'], auto: SiteRoute['auto'] = 'classic', d
   auto,
   depth,
 });
-const ID = 'EI0000000000000007';
+const ID = 'EI1234567890123456';
 
 describe('the names', () => {
   it('Chain Finder is its own name; the Auto Planner keeps its own', () => {
