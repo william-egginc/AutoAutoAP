@@ -24,7 +24,7 @@
             ? 'pb-8'
             : 'pb-24',
     ]"
-    :style="setupDockShown ? { paddingBottom: pageBottomRoom } : undefined"
+    :style="setupDockShown ? { paddingBottom: pageRoom } : undefined"
   >
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
@@ -712,12 +712,18 @@
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. On Single run it
            sits above Joo's fixed bar of totals (measured: it wraps on a phone and folds), not over it. -->
-      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" />
+      <SetupDock
+        v-if="plannerTab === 'automatic' && playerId && !loading"
+        :screen="autoView"
+        :bottom-offset="singleRunBarRoom"
+        @height="setupPillHeight = $event"
+      />
       <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
       <SetupDock
         v-else-if="plannerTab === 'myruns' && playerId && !loading"
         screen="fastest"
         :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"
+        @height="setupPillHeight = $event"
       />
 
       <!-- The undo, clear-all and unsaved-changes confirmations: Joo's shared state (usePlanDialogs, PR 731), our
@@ -861,7 +867,7 @@ import { isNewVisitor } from '@/lib/firstTour';
 import TourModal from '@/components/TourModal.vue';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
-import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, watchEffect, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
   LAST_ROUTE_KEY,
@@ -927,7 +933,7 @@ import { scrollToRun } from '@/lib/runAnchor';
 import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
-import { useBottomBarRoom } from '@/composables/useBottomBarRoom';
+import { pillPageRoom, useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
@@ -1127,6 +1133,17 @@ const pageBottomRoom = computed(() =>
     ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`
     : `calc(${SETUP_DOCK_CLEARANCE} + ${NARROW_PILL_ROOM})`
 );
+/** The pill's height as measured (SetupDock emits it; 0 until then): taller than one row on My runs with a long summary
+ *  or during a search when its workers wrap, so the room follows it (Jordan, 12 Nov 2026: no control the pill covers
+ *  for good). Never less than pageBottomRoom. */
+const setupPillHeight = ref(0);
+const pageRoom = computed(() => pillPageRoom(pageBottomRoom.value, setupPillHeight.value, singleRunBarRoom.value));
+/** The same room as the page's scroll padding at the bottom while the pill shows: whatever the browser or the planner
+ *  scrolls into view (Tab to a button, Find in page, a scrollIntoView) stops above the pill, not under it. */
+watchEffect(() => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.style.scrollPaddingBottom = setupDockShown.value ? pageRoom.value : '';
+});
 /** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
 function readLastRoute(): string | null {
   try {

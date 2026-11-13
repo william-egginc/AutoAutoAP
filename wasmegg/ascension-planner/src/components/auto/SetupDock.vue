@@ -46,6 +46,7 @@
          and its summary take what the row leaves (basis-0 grow), so the summary wraps under Setup and the workers stay
          on the row while Setup's longest word fits; − and + never shrink below 44 px (at 342 px they were 34), nor the gear. -->
     <div
+      ref="pillEl"
       class="flex flex-wrap items-center justify-center gap-1 rounded-[1.75rem] bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5 max-w-[calc(100vw-2rem)]"
       :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl'"
       data-testid="setup-dock-pill"
@@ -140,6 +141,11 @@ const props = defineProps<{
    *  useBottomBarRoom), so the pill sits 1rem above the bar instead of cut off over it (Jordan, 27 Oct 2026). */
   bottomOffset?: number;
 }>();
+/** The pill's height, px, whenever it changes (App.vue sizes the room under the page by it: on My runs its summary
+ *  wraps to two or three lines, and during a search its workers can wrap to a second row; Jordan, 12 Nov 2026). */
+const emit = defineEmits<{ height: [px: number] }>();
+const pillEl = ref<HTMLElement | null>(null);
+let pillObserver: ResizeObserver | null = null;
 /** Stacked in two rows from xl (see the pill): every screen but My runs (its summary needs the width). */
 const stacked = computed(() => !props.summary);
 const store = useChainSearchStore();
@@ -253,8 +259,15 @@ function onKey(e: KeyboardEvent): void {
 onMounted(() => {
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
+  if (pillEl.value && typeof ResizeObserver !== 'undefined') {
+    const el = pillEl.value;
+    pillObserver = new ResizeObserver(() => emit('height', el.offsetHeight));
+    pillObserver.observe(el);
+  }
 });
 onUnmounted(() => {
+  pillObserver?.disconnect();
+  emit('height', 0);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('pointermove', onDrag);
