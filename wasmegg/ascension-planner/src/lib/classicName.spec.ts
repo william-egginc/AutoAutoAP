@@ -69,7 +69,7 @@ describe('the Single run name', () => {
         strip(fs.readFileSync(f, 'utf8'))
           .split('\n')
           // The README's history mentions: "(was Your plan)" and "(formerly Your plan, formerly Classic)".
-          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', ''))
+          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', '').replace('(was Single run, before that Your plan, Classic)', '').replace('(formerly Single run, Your plan and Classic)', ''))
           .filter(l => named.test(l))
           .map(l => `${path.relative(root, f)}: ${l.trim()}`)
       );
