@@ -98,6 +98,6 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
 describe('3. the button says what to do', () => {
   it('Click to open more filters in Setup: Jordan\'s wording, Words\' default (alternative for Jordan: "Press to open more filters in Setup")', () => {
     expect(FILTERS).toBe('Click to open more filters in Setup');
-    expect(read('lib/firstTourWords.ts')).toContain('The button just above the answer opens it too.');
+    expect(read('lib/firstTourWords.ts')).toContain('The filters button just above the answer opens it too.');
   });
 });
