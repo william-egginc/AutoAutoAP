@@ -204,7 +204,7 @@
       <main id="main-content">
       <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
       <RunAnnouncer />
-      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-headline font-black text-slate-900">
+      <h1 v-if="plannerTab === 'manual' && playerId" class="sr-only">
         {{ NAMES.manual }}
       </h1>
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
@@ -605,7 +605,7 @@
           :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
         >
           <template v-if="autoView === 'classic'">
-            <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
+            <h1 class="sr-only">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-body text-slate-600">
               {{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}
             </p>

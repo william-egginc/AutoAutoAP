@@ -31,7 +31,7 @@
        the routes at a glance, Your runs), then the footer. -->
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div data-region="title">
-      <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
+      <h1 class="sr-only">{{ NAMES.myRuns }}</h1>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -125,6 +125,7 @@
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
         <template #buildUp>
           <BuildUpTracker
+            v-if="!(tracker.state.value === 'notBuilding' && !tracker.finishChosen.value)"
             :state="tracker.state.value"
             :open="tracker.open.value"
             :result="tracker.result.value"

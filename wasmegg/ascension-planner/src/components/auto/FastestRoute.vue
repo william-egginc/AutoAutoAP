@@ -18,7 +18,7 @@
        (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE as soon as possible"; in the card like By a date's date, 13 Nov 2026). -->
   <div class="max-w-4xl mx-auto space-y-4">
     <div data-region="title">
-      <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
+      <h1 class="sr-only">{{ fastestName(store.finalTE) }}</h1>
       <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
     </div>
 
