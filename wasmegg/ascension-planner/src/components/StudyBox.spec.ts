@@ -37,7 +37,8 @@ beforeEach(() => {
   resetStudy(st);
 });
 
-const box = () => renderHtml(StudyBox, {}, {}, [pinia]);
+/** The box with its full form open (it opens on Yes; one line by default since 14 Nov 2026: headerRound2.spec.ts). */
+const box = () => renderHtml(StudyBox, { startOpen: true }, {}, [pinia]);
 const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
 
 /** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
@@ -104,8 +105,9 @@ describe('the box', () => {
     );
     expect(t).not.toContain('Anything you untick');
     // Nothing ticked: Yes waits for a tick, and says so.
-    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="study-yes"/);
-    expect(t).toContain('Tick at least one to say yes, or press No thanks.');
+    expect(html).toMatch(/<button[^>]*data-testid="study-yes"[^>]*aria-disabled="true"/);
+    // ...but says so only after a press on Yes (Jordan, 14 Nov 2026; StudyForm `triedYes`).
+    expect(t).not.toContain('Tick at least one to say yes, or press No thanks.');
     expect(html).not.toMatch(/EI\d{16}/);
   });
 
@@ -340,7 +342,7 @@ describe('wiring', () => {
 
   it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector (on Fastest and By a date it is below the answer since the simpler page, 9 Nov 2026: layoutContract.consent.spec.ts)', () => {
     const app = read('../App.vue');
-    const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer"');
+    const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl"');
     expect(at).toBeGreaterThan(0);
     expect(app.match(/<StudyBox\b/g)).toHaveLength(1);
     // Page level (6-space indent, like SiteTabs), not inside a tab's own block.
@@ -367,12 +369,12 @@ describe('wiring', () => {
     );
   });
 
-  it('Yes is disabled until at least one tick is on, and then says nothing more', () => {
+  it('Yes does nothing until at least one tick is on (aria-disabled); a press then says why, and nothing more once a tick is on', () => {
     const f = read('./StudyForm.vue');
-    expect(f).toContain(':disabled="!canSayYes"');
+    expect(f).toContain(':aria-disabled="!canSayYes"');
     expect(f).toContain('const canSayYes = computed(() => anyTick(ticks));');
-    expect(f).toMatch(/<p\s+v-if="!canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
-    expect(f).toContain('if (!canSayYes.value) return;');
+    expect(f).toMatch(/<p\s+v-if="triedYes && !canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
+    expect(f).toMatch(/if \(!canSayYes\.value\) \{\s*triedYes\.value = true;\s*return;\s*\}/);
   });
 
   it('both name boxes cap a paste at once, not only typed keys (maxlength)', () => {
@@ -402,11 +404,11 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
   const strip = (html: string) => html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
   const formWrap = (html: string) => html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0] ?? '';
 
-  it('folded (Hide): one line with the name, Choose… and No thanks, the form mounted but hidden', async () => {
+  it('folded (the default, and after Hide): one line, the question, Yes, No and Later, the form mounted but hidden', async () => {
     await setConsentAccount(A);
     const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const s = strip(html);
-    expect(textOf(s)).toBe('Help improve the planner Choose… No thanks');
+    expect(textOf(s)).toBe('Help improve the planner? Yes No Later');
     const choose = s.match(/<button[^>]*data-testid="study-choose"[^>]*>/)?.[0] ?? '';
     expect(choose).toContain('aria-expanded="false"');
     expect(choose).toContain('aria-controls="study-box-form"');
@@ -422,7 +424,7 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
     expect(section).not.toContain('p-4');
   });
 
-  it('open by default: the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
+  it('open (after Yes): the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
     await setConsentAccount(A);
     const html = await box();
     expect(formWrap(html)).not.toContain('display:none');
@@ -466,9 +468,10 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
     expect(classes(strip)).not.toContain('flex-col');
     const hide = tag(html, 'study-choose');
     expect(classes(hide)).not.toContain('w-full');
-    // Folded, a phone still stacks Choose… and No thanks under the heading (fine at 390, note 5).
+    // Folded (one line since 14 Nov 2026): the question and the buttons wrap in a row, nothing stacks full width.
     const folded = tag(await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]), 'study-box-strip');
-    expect(classes(folded)).toEqual(expect.arrayContaining(['flex-col', 'sm:flex-row']));
+    expect(classes(folded)).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(classes(folded)).not.toContain('flex-col');
   });
 
   it('Hide is the quiet one: a small slate underlined text button, 44 px tall, at every width; Choose… stays filled', async () => {
@@ -528,7 +531,7 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
     expect(phone(all).join(' ')).not.toMatch(/indigo/);
     // Yes, help improve it (needs a tick) and "Tick at least one" show with the ticks only.
     expect(classes(tag(html, 'study-yes'))).toEqual(expect.arrayContaining(['hidden', 'sm:inline-block', 'col-span-2']));
-    expect(classes(tag(html, 'study-yes-why'))).toEqual(expect.arrayContaining(['hidden', 'sm:block']));
+    expect(html).not.toContain('data-testid="study-yes-why"');
     // What a phone shows of the form: the link, the row and two buttons.
     expect(phone(tag(html, 'study-choices-toggle'))).not.toContain('hidden');
     expect(phone(all)).not.toContain('hidden');

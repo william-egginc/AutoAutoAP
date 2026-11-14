@@ -22,29 +22,18 @@ const STATE = {
 } as never;
 
 describe('H4: the button is named for what it opens', () => {
-  it('"More filters in Setup" (DRAFT, Words to confirm)', () => {
-    expect(FILTERS).toBe('More filters in Setup');
+  it('an instruction (round 2, 14 Nov 2026), confirmed by Words', () => {
+    expect(FILTERS).toBe('Click to open more filters in Setup');
   });
-  it('the tour names the same button', () => {
-    expect(read('lib/firstTourWords.ts')).toContain('“More filters in Setup” opens it too.');
+  it('the tour points at the button without quoting its label', () => {
+    expect(read('lib/firstTourWords.ts')).toContain('The button just above the answer opens it too.');
     expect(read('lib/firstTourWords.ts')).not.toContain('The Filters button');
-    expect(FILTERS).toBe('More filters in Setup');
   });
 });
 
-describe('H1 desktop: the save and silo lines in the upper right', () => {
-  const app = tplOf(read('App.vue'));
-  const side = app.slice(app.indexOf('<SaveSide'), app.indexOf('/>', app.indexOf('<SaveSide')));
-  const wrap = app.slice(app.lastIndexOf('<div', app.indexOf('<SaveSide')), app.indexOf('<SaveSide'));
-  it('a zero-height row on md and up, so the block floats over the title\'s empty right side, in the screens\' column', () => {
-    expect(wrap).toMatch(/class="[^"]*\bmax-w-4xl mx-auto\b[^"]*\bmd:relative\b/);
-    expect(side).toMatch(/class="[^"]*\bmd:absolute md:right-0\b/);
-    expect(side).toMatch(/\bmd:w-/);
-    expect(wrap).toContain("v-if=\"saveLineShown && plannerTab !== 'myruns'\"");
-  });
-  it('still after the save line and before the site tabs and the screen', () => {
-    expect(app.indexOf('<SaveSide')).toBeGreaterThan(app.indexOf('<SaveLine'));
-    expect(app.indexOf('<SaveSide')).toBeLessThan(app.indexOf('<main'));
+describe('H1 desktop: the save and silo lines (round 2: inside the target card, top right: headerRound2.spec.ts)', () => {
+  it('SaveSide is not drawn by App.vue any more', () => {
+    expect(tplOf(read('App.vue'))).not.toContain('<SaveSide');
   });
 });
 

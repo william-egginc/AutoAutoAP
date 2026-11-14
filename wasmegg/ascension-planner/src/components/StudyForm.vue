@@ -69,11 +69,11 @@
     <div :class="compact ? 'grid grid-cols-2 sm:flex sm:flex-row gap-2' : 'flex flex-col sm:flex-row gap-2'">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-indigo-600"
         :class="[BUTTON_TEXT, compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : '']"
         data-testid="study-yes"
-        :disabled="!canSayYes"
-        :aria-describedby="canSayYes ? undefined : 'study-yes-why'"
+        :aria-disabled="!canSayYes"
+        :aria-describedby="triedYes && !canSayYes ? 'study-yes-why' : undefined"
         @click="yes"
       >
         Yes, help improve it
@@ -106,7 +106,7 @@
     </div>
     <!-- With nothing ticked Yes would record a yes that shares nothing, so it waits for a tick. -->
     <p
-      v-if="!canSayYes"
+      v-if="triedYes && !canSayYes"
       id="study-yes-why"
       class="text-body text-amber-700"
       :class="folded ? 'hidden sm:block' : ''"
@@ -146,6 +146,8 @@ const names = useShareNameStore();
 const account = computed(() => consentState.account);
 const ticks = reactive({ ...DEFAULT_TICKS });
 const canSayYes = computed(() => anyTick(ticks));
+/** Yes pressed with nothing ticked: only then the orange line (Jordan, 14 Nov 2026), until a tick is on. */
+const triedYes = ref(false);
 /** Picked here, or null to follow the account (anonymous unless it has a name and didn't pick anonymous). */
 const picked = ref<StudyCredit | null>(null);
 const credit = computed<StudyCredit>({
@@ -173,7 +175,10 @@ watch(
 );
 
 function yes(): void {
-  if (!canSayYes.value) return;
+  if (!canSayYes.value) {
+    triedYes.value = true;
+    return;
+  }
   answerYes({ ...ticks }, credit.value, nickname.value);
   emit('answered', 'yes');
 }

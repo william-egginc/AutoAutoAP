@@ -38,7 +38,7 @@ describe('first tour words', () => {
     });
     expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. “More filters in Setup” opens it too.'
+      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The button just above the answer opens it too.'
     );
     // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
     expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(

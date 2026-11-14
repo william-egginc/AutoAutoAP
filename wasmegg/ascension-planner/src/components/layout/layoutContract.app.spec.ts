@@ -30,12 +30,10 @@ describe('App: the regions in their fixed order', () => {
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
     expect(app).toContain("(plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))");
   });
-  it("Fastest and By a date: the save strip and the silo line in the screen's own column, never wider (Jordan's 1740 px shot, 12 Nov 2026)", () => {
-    // App's wrapper is max-w-6xl (72rem); both screens draw in max-w-4xl (56rem), centred. In the wrapper the strip
-    // started up to 8rem left of the screen's content and ran off a crop of the page. Same column as the screens.
-    const tag = tpl.slice(tpl.lastIndexOf('<div', tpl.indexOf('<SaveSide')), tpl.indexOf('/>', tpl.indexOf('<SaveSide')));
-    expect(tag).toContain("plannerTab !== 'myruns'");
-    expect(tag).toMatch(/class="[^"]*\bmax-w-4xl mx-auto\b/);
+  it("Fastest and By a date: the save strip and the silo line are inside the screen's own card (Jordan, 14 Nov 2026), not drawn by App.vue; the screens draw in max-w-4xl, centred", () => {
+    // Round 1 (13 Nov) floated them over the title from App.vue; round 2 put them inside the target card, top right
+    // (headerRound2.spec.ts). The screens' own column keeps them from running wider than the content (Jordan's 1740 px shot).
+    expect(tpl).not.toContain('<SaveSide');
     for (const f of ['components/auto/FastestRoute.vue', 'components/auto/ByDateScreen.vue']) {
       const t = read(f).replace(/<!--[\s\S]*?-->/g, '');
       expect(t.slice(t.indexOf('<template>'), t.indexOf('<template>') + 80), f).toMatch(/<template>\s*<div class="max-w-4xl mx-auto\b/);

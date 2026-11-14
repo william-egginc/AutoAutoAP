@@ -197,16 +197,7 @@
       </div>
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
       <SaveLine v-if="saveLineShown" />
-      <!-- The save strip and the silo line, small, out of the bar (layout/SaveSide.vue, Jordan 12 Nov 2026). On My runs
-           they sit beside Right now instead (MyRunsView.vue). In the screens' own column (max-w-4xl, as FastestRoute.vue
-           and ByDateScreen.vue): in this 72rem wrapper they started up to 8rem left of the screen (Jordan's 1740 px
-           shot, 12 Nov 2026, cut off at the left). -->
-      <!-- From md up (H1, Jordan 13 Nov 2026: "to like the upper right hand corner"): a zero-height row, so the block floats
-           over the empty right side of the title (and the target card's corner) in the screens' column; a compact two-line
-           block. Below md it is one merged line in the flow, the silo line inside Details unless it is low. -->
-      <div v-if="saveLineShown && plannerTab !== 'myruns'" class="max-w-4xl mx-auto md:relative">
-      <SaveSide class="mt-2 md:absolute md:right-0 md:top-3 md:z-10 md:mt-0 md:w-72" />
-      </div>
+      <!-- The save strip and the silo line are inside the target card, top right (FastestRoute.vue, DeadlinePanel.vue; Jordan, 14 Nov 2026). -->
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->
@@ -219,9 +210,9 @@
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
            first), above every tab's own content, at the page level so it is the same place on every tab. Once an
            account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
-      <!-- On Fastest and By a date it sits below the answer since the simpler page (Jordan, 9 Nov 2026, Q2: the first
-           load shows the answer first; words unchanged): those screens draw it under What to do now (`studyBelowAnswer`). -->
-      <StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer" class="mt-3" />
+      <!-- One line since 14 Nov 2026 (Jordan: "Help improve the planner? Yes / No / Later", opening the full form), and at the
+           top of every tab again, Chain Finder included: the first thing people see. -->
+      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-3" />
 
       <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
       <div
@@ -915,7 +906,6 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import SiteHomeMenu from '@/components/layout/SiteHomeMenu.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
-import SaveSide from '@/components/layout/SaveSide.vue';
 import { formatClockTime } from '@/lib/timeStyleWords';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
@@ -1473,8 +1463,6 @@ const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
-/** Help improve the planner below the answer, on the two answer screens (FastestRoute.vue, DeadlinePanel.vue). */
-const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && autoView.value !== 'classic');
 /** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
  *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
 const saveLineShown = computed(

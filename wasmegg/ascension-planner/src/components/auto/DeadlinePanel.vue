@@ -50,7 +50,9 @@
       </template>
     </CarryOnOffer>
 
-    <h3 class="text-slate-500 label">The date</h3>
+    <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026), as on Fastest's (FastestRoute.vue). -->
+    <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
+    <h3 class="text-slate-500 label md:!mt-0">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
@@ -212,10 +214,6 @@
     </div>
 
     <NowLine screen="by-date" :goal-key="goalKey" @show-search="showSearch" />
-
-    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2: a new player lands here; App.vue
-         draws it at the top of the other screens), until answered. Its words are unchanged (StudyBox.vue). -->
-    <StudyBox v-if="store.submitUrl" />
 
     <MoreFold
       ref="more"
@@ -1195,7 +1193,7 @@ import {
 } from '@/search/byDateKinds';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
-import StudyBox from '@/components/StudyBox.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
 import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';

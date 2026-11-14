@@ -16,7 +16,7 @@
        with the name, "Choose…" (opens the full form here, in place) and "No thanks".
        The form stays mounted (v-show), so what it does is unchanged; its own No thanks is there when open. -->
   <section
-    v-if="step === 'ask-box'"
+    v-if="step === 'ask-box' && !later"
     class="rounded-xl border border-indigo-200 bg-white shadow-sm px-4 py-2 overflow-hidden"
     aria-labelledby="study-heading"
     data-testid="study-box"
@@ -26,33 +26,42 @@
          filled Choose… is the main action again, with No thanks, under the heading on a phone and beside it from sm up. -->
     <div
       class="flex gap-2"
-      :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
+      :class="open ? 'flex-row items-center' : 'flex-row flex-wrap items-center'"
       data-testid="study-box-strip"
     >
-      <h2 id="study-heading" class="text-body font-bold text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
-      <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
+      <h2 id="study-heading" class="text-body font-bold text-slate-800 flex-1 basis-40 break-words">{{ open ? NAMES.study : STUDY_STRIP_WORDS.question }}</h2>
+      <div class="flex flex-row flex-wrap gap-2">
         <button
           type="button"
           :class="
             open
               ? 'min-h-[44px] px-2 py-3 text-body font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900'
-              : 'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700'
+              : 'min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700'
           "
           :aria-expanded="open"
           aria-controls="study-box-form"
           data-testid="study-choose"
           @click="open = !open"
         >
-          {{ open ? 'Hide' : 'Choose…' }}
+          {{ open ? 'Hide' : STUDY_STRIP_WORDS.yes }}
         </button>
         <button
           v-if="!open"
           type="button"
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-50"
+          class="min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-50"
           data-testid="study-strip-no-thanks"
           @click="answerNo"
         >
-          No thanks
+          {{ STUDY_STRIP_WORDS.no }}
+        </button>
+        <button
+          v-if="!open"
+          type="button"
+          class="min-h-[44px] sm:min-h-0 px-2 py-1.5 text-body font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900"
+          data-testid="study-later"
+          @click="later = true"
+        >
+          {{ STUDY_STRIP_WORDS.later }}
         </button>
       </div>
     </div>
@@ -115,6 +124,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watchEffect } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { STUDY_STRIP_WORDS } from '@/lib/studyWords';
 import {
   answerNo,
   closeThanks,
@@ -127,13 +137,15 @@ import {
 import StudyForm from './StudyForm.vue';
 
 const props = withDefaults(
-  defineProps<{ /** Open the full form at once (the default; the specs pass false for the strip). */ startOpen?: boolean }>(),
+  defineProps<{ /** Open the full form at once (not the default since 14 Nov 2026: one line, Yes opens it). */ startOpen?: boolean }>(),
   {
-    startOpen: true,
+    startOpen: false,
   }
 );
 /** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */
 const open = ref(props.startOpen);
+/** Later: hidden for this visit only (a reload asks again). */
+const later = ref(false);
 // The first-visit tour waits while this box asks with its form open (composables/useStudy.ts `studyBoxOpen`).
 watchEffect(() => {
   studyBoxOpen.value = step.value === 'ask-box' && open.value;

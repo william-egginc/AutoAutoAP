@@ -11,23 +11,14 @@ import { describe, expect, it } from 'vitest';
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', '..', f), 'utf8');
 const tpl = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
 
-describe('the consent box below the answer on the answer screens', () => {
-  for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue'])
-    it(f, () => {
-      const t = tpl(read(f));
-      const at = ['data-region="answer"', '<NowLine', '<StudyBox', '<MoreFold'].map(m => t.indexOf(m));
-      expect(at.every(i => i >= 0), String(at)).toBe(true);
-      expect([...at].sort((a, b) => a - b)).toEqual(at);
-      expect(t.match(/<StudyBox\b/g)).toHaveLength(1);
-      expect(t).toContain('<StudyBox v-if="store.submitUrl" />');
-    });
-  it('App.vue keeps it at the top of every other screen, and not on those two (one box at a time)', () => {
+describe('the consent box at the top of every tab (one line since 14 Nov 2026: Jordan wants it the first thing people see)', () => {
+  it('App.vue draws it once, at the top, Chain Finder included', () => {
     const app = read('App.vue');
-    expect(app).toContain('<StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer" class="mt-3" />');
-    expect(app).toContain("const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && autoView.value !== 'classic');");
+    expect(app).toContain('<StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-3" />');
+    expect(app).not.toContain('studyBelowAnswer');
+    expect(app.match(/<StudyBox\b/g)).toHaveLength(1);
   });
-  it('the box itself is unchanged: drawn the same way in both places, with no prop of its own', () => {
-    for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(read(f)).toContain('<StudyBox v-if="store.submitUrl" />');
-    expect(read('App.vue')).toMatch(/<StudyBox v-if="[^"]*" class="mt-3" \/>/);
+  it('the two answer screens do not draw it any more (one box on the page)', () => {
+    for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(read(f)).not.toContain('<StudyBox');
   });
 });

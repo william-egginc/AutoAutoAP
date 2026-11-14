@@ -35,7 +35,10 @@
          small caps label, the target box, Filters and its row, the answer, What to do now, then More. A frame from sm up
          only, as By a date's is (ByDateScreen.frame.spec). The title, the banner and the save's problems stay above it. -->
     <div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4" data-testid="target-card">
-    <h3 class="text-slate-500 label">The target</h3>
+    <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026: inside THE TARGET card, top right): floated
+         right from md up so the rows beside it wrap round it; in the flow, one merged line, below md (layout/SaveSide.vue). -->
+    <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
+    <h3 class="text-slate-500 label md:!mt-0">The target</h3>
     <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
          box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
     <TargetTeBox />
@@ -74,10 +77,6 @@
     </div>
 
     <NowLine screen="fastest" :goal-key="goalKey" @show-search="showSearch" />
-
-    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2; App.vue draws it at the top of
-         the other screens), until answered. Its words are unchanged (StudyBox.vue, lib/aboutPage.spec.ts). -->
-    <StudyBox v-if="store.submitUrl" />
 
     <MoreFold
       ref="more"
@@ -149,7 +148,7 @@ import { safeAsyncComponent } from 'lib/planners/import';
 import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
-import StudyBox from '@/components/StudyBox.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
 import { fastestLine as fastestLineWords, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';

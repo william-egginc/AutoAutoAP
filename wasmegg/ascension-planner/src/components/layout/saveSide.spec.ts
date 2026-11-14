@@ -67,11 +67,9 @@ describe('where it sits', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).toMatch(/<SaveSide v-if="!page\.hasSave\.value"/);
   });
-  it('App: SaveSide under the bar on Fastest and By a date, not on My runs (the save is in Right now\'s header there)', () => {
+  it('Fastest and By a date: SaveSide inside the target card, top right (headerRound2.spec.ts); not drawn by App.vue, not on My runs', () => {
     const app = read('App.vue');
-    const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');
-    expect(tpl).toContain(`v-if="saveLineShown && plannerTab !== 'myruns'" class="max-w-4xl mx-auto md:relative"><SaveSide`.replace('><SaveSide', '>\n      <SaveSide'));
-    expect(tpl.indexOf('<SaveSide')).toBeGreaterThan(tpl.indexOf('<SaveLine'));
-    expect(tpl.indexOf('<SaveSide')).toBeLessThan(tpl.indexOf('aria-label="Site"'));
+    expect(app.slice(0, app.indexOf('<script setup'))).not.toContain('<SaveSide');
+    for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(tplOf(read(f))).toContain('<SaveSide />');
   });
 });
