@@ -94,7 +94,7 @@ export function soulEggsAfterLine(p: {
 
 /**
  * The All planned shifts tile on Your eggs (ux34-a, 28 Oct 2026, plainer): "41 shifts" over "will cost about 2.3s soul
- * eggs (at today's prices), about 18 of them build-up shifts (estimated)". The same count and cost as
+ * eggs (at today's prices), about 18 of them while buying research in later ascensions (estimated)". The same count and cost as
  * `soulEggsAfterLine` above (both from useNowPage `plannedShifts`), the cost written as it writes it. `opening`: the
  * estimated build-up shifts included (lib/openingShifts.ts); `partial`: only the instant answer's shifts, none added.
  */
@@ -105,8 +105,8 @@ export function plannedShiftsWords(p: { count: number; cost: number; opening?: n
   const tail =
     opening > 0
       ? count === 1
-        ? ', including a build-up shift (estimated)'
-        : `, including about ${opening} build-up ${opening === 1 ? 'shift' : 'shifts'} (estimated)`
+        ? ', made while buying research in a later ascension (estimated)'
+        : `, about ${opening} of them while buying research in later ascensions (estimated)`
       : p.partial
         ? ", the shifts listed, without each new ascension's first hours"
         : '';

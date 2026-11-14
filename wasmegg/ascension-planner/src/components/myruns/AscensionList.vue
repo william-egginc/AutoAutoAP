@@ -57,7 +57,7 @@
         <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
         <!-- Its opening's shifts, when its list leaves them out: the simulator's standard count (lib/openingShifts.ts). -->
         <p v-if="l.openingShifts" class="ml-4 text-small text-slate-500" data-testid="now-ascension-opening">
-          Its first hours: about {{ l.openingShifts }} build-up shifts (estimated, not listed)
+          Its first hours: about {{ l.openingShifts }} shifts while buying research (estimated, not listed)
         </p>
         <!-- Its third Curiosity wait (C3), which can take 1 to 3 weeks (M13): the start of the ascension to its H1 (lib/c3WaitWords.ts). DRAFT words. -->
         <p v-if="c3Wait(l)" class="ml-4 text-small text-slate-500" data-testid="now-ascension-c3">
