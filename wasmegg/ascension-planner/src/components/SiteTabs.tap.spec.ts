@@ -29,7 +29,8 @@ describe('SiteTabs', () => {
       for (const b of buttons) {
         expect(b).toContain('min-h-[48px]');
         expect(b).toContain('sm:min-h-[48px]');
-        expect(b).toContain('text-body font-bold');
+        expect(b).toContain('lg:min-h-[56px]');
+        expect(b).toMatch(/text-body xl:text-title font-bold/);
         expect(b).toContain('py-2.5');
       }
       const spans = buttons.map(b => b.match(/col-span-\d/)?.[0]);

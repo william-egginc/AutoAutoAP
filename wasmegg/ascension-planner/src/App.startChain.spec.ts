@@ -49,7 +49,7 @@ describe("a new player's first save lands on Chain Finder › By a date with Egg
     // The lit top tab and the switch both follow the route.
     expect(script).toContain('const currentTopTab = computed(() => topTabOf(currentRoute()));');
     expect(script).toContain('autoView.value = r.auto;');
-    expect(app).toContain('<GoalSwitch :current="autoView"');
+    expect(app).toContain('<GoalSwitch class="min-w-0 flex-1 sm:flex-none" :current="autoView"');
   });
 
   it('the switch on that route has By a date checked', async () => {

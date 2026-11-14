@@ -58,6 +58,9 @@ export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 /** The button that opens Setup, above the answer. Was "Filters" (Jordan's word, 12 Nov 2026); renamed 13 Nov 2026 because it opens Setup,
  *  and the real filters sit under it (UX review H4). Round 2, 14 Nov 2026: an instruction (Jordan: "Click to open more filters in Setup").
  *  Words owns the final text (click or tap on a phone). */
+/** The "?" beside the Target TE | By a date switch (layout/GoalHelp.vue): its accessible name. DRAFT: Words owns it. */
+export const GOAL_HELP_LABEL = 'About this page';
+
 export const FILTERS = 'Click to open more filters in Setup';
 
 export const STOP_FOLLOWING = 'Stop following';

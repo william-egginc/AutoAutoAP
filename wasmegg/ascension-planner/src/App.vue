@@ -412,8 +412,13 @@
         <!-- Chain Finder's goal switch, "Target TE | By a date" (spec-chainfinder, Jordan 12 Nov 2026: Joo's one page with a
              switch, not the old two goal tabs; GoalSwitch.vue). Each side is an address (#/auto/fastest, #/auto/by-date),
              set through onAutoTab as the old tabs were. None on the Auto Planner tab (Joo's simulator, #/auto/classic). -->
-        <div v-if="plannerTab === 'automatic' && autoView !== 'classic'" class="flex justify-center">
-          <GoalSwitch :current="autoView" :running="runningGoal" @select="onAutoTab" />
+        <div v-if="plannerTab === 'automatic' && autoView !== 'classic'" class="flex flex-wrap items-center justify-center gap-x-1">
+          <GoalSwitch class="min-w-0 flex-1 sm:flex-none" :current="autoView" :running="runningGoal" @select="onAutoTab" />
+          <!-- The screens' intro line, in a "?" beside the switch (Jordan, 14 Nov 2026; layout/GoalHelp.vue). -->
+          <GoalHelp
+            :text="autoView === 'fastest' ? fastestLine(chainSearchStore.finalTE) : BYDATE_LINE"
+            :testid="autoView === 'fastest' ? 'fastest-line' : 'bydate-line'"
+          />
         </div>
 
         <div v-else-if="plannerTab === 'science'" class="flex justify-center">
@@ -904,6 +909,8 @@ import { pillPageRoom, useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SiteHomeMenu from '@/components/layout/SiteHomeMenu.vue';
+import GoalHelp from '@/components/layout/GoalHelp.vue';
+import { BYDATE_LINE, fastestLine } from '@/lib/layoutWords';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
 import { formatClockTime } from '@/lib/timeStyleWords';

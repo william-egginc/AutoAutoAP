@@ -27,9 +27,8 @@ describe('the tab is the heading: the screen\'s h1 is visually hidden', () => {
       expect(h!).toMatch(/class="[^"]*\bsr-only\b/);
       expect(h!).not.toMatch(/text-headline|font-black/);
     });
-  it('the intro lines stay visible under the switch', () => {
-    expect(tplOf(read('components/auto/FastestRoute.vue'))).toMatch(/<p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">/);
-    expect(tplOf(read('components/auto/ByDateScreen.vue'))).toMatch(/<p class="text-body text-slate-600 max-w-prose" data-testid="bydate-line">/);
+  it('the intro lines are in the "?" beside the switch (tabsBigGoalHelp.spec.ts)', () => {
+    expect(tplOf(read('components/layout/GoalHelp.vue'))).toMatch(/<p class="mx-auto text-body text-slate-600 max-w-prose" :data-testid="testid">/);
   });
   it('the Target TE | By a date switch comes right after the tabs, before the screen', () => {
     const app = tplOf(read('App.vue'));

@@ -19,7 +19,6 @@
   <div class="max-w-4xl mx-auto space-y-4">
     <div data-region="title">
       <h1 class="sr-only">{{ fastestName(store.finalTE) }}</h1>
-      <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -149,7 +148,7 @@ import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
-import { fastestLine as fastestLineWords, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
@@ -198,7 +197,6 @@ const stronger = useStrongerStore();
 // The hidden sections' one-line results (CollapsibleSection.vue).
 useSearchSnapshots('fastest');
 /** The line under the tabs, for the player's own target (490 or another). */
-const fastestLine = computed(() => fastestLineWords(store.finalTE));
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
