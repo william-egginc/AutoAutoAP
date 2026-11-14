@@ -69,10 +69,10 @@
     <div :class="compact ? 'grid grid-cols-2 sm:flex sm:flex-row gap-2' : 'flex flex-col sm:flex-row gap-2'">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-indigo-600"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
         :class="[BUTTON_TEXT, compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : '']"
         data-testid="study-yes"
-        :aria-disabled="!canSayYes"
+        :aria-invalid="triedYes && !canSayYes"
         :aria-describedby="triedYes && !canSayYes ? 'study-yes-why' : undefined"
         @click="yes"
       >

@@ -16,7 +16,7 @@
        with the name, "Choose…" (opens the full form here, in place) and "No thanks".
        The form stays mounted (v-show), so what it does is unchanged; its own No thanks is there when open. -->
   <section
-    v-if="step === 'ask-box' && !later"
+    v-if="step === 'ask-box'"
     class="rounded-xl border border-indigo-200 bg-white shadow-sm px-4 py-2 overflow-hidden"
     aria-labelledby="study-heading"
     data-testid="study-box"
@@ -29,7 +29,10 @@
       :class="open ? 'flex-row items-center' : 'flex-row flex-wrap items-center'"
       data-testid="study-box-strip"
     >
-      <h2 id="study-heading" class="text-body font-bold text-slate-800 flex-1 basis-40 break-words">{{ open ? NAMES.study : STUDY_STRIP_WORDS.question }}</h2>
+      <div class="flex-1 basis-40 break-words">
+        <h2 id="study-heading" class="inline text-body font-bold text-slate-800">{{ NAMES.study }}</h2
+        ><span v-if="!open" class="text-body text-slate-600" data-testid="study-quiet">. {{ STUDY_STRIP_WORDS.quiet }}</span>
+      </div>
       <div class="flex flex-row flex-wrap gap-2">
         <button
           type="button"
@@ -43,7 +46,7 @@
           data-testid="study-choose"
           @click="open = !open"
         >
-          {{ open ? 'Hide' : STUDY_STRIP_WORDS.yes }}
+          {{ open ? 'Hide' : STUDY_STRIP_WORDS.choose }}
         </button>
         <button
           v-if="!open"
@@ -53,15 +56,6 @@
           @click="answerNo"
         >
           {{ STUDY_STRIP_WORDS.no }}
-        </button>
-        <button
-          v-if="!open"
-          type="button"
-          class="min-h-[44px] sm:min-h-0 px-2 py-1.5 text-body font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900"
-          data-testid="study-later"
-          @click="later = true"
-        >
-          {{ STUDY_STRIP_WORDS.later }}
         </button>
       </div>
     </div>
@@ -144,8 +138,6 @@ const props = withDefaults(
 );
 /** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */
 const open = ref(props.startOpen);
-/** Later: hidden for this visit only (a reload asks again). */
-const later = ref(false);
 // The first-visit tour waits while this box asks with its form open (composables/useStudy.ts `studyBoxOpen`).
 watchEffect(() => {
   studyBoxOpen.value = step.value === 'ask-box' && open.value;

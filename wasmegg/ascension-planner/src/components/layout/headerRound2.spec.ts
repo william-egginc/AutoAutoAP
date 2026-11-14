@@ -52,23 +52,23 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
     resetConsents(st);
     resetStudy(st);
   });
-  it('the words (DRAFT, Words)', () => {
-    expect(STUDY_STRIP_WORDS).toEqual({ question: 'Help improve the planner?', yes: 'Yes', no: 'No', later: 'Later' });
+  it('the words (Words, 14 Nov 2026)', () => {
+    expect(STUDY_STRIP_WORDS).toEqual({ quiet: 'You choose what to share.', choose: 'Choose what to share', no: 'No thanks' });
   });
-  it('shown folded by default: the question, Yes, No, Later, the form mounted but hidden', async () => {
+  it('shown folded by default: the name, the quiet line, Choose what to share and No thanks, the form mounted but hidden', async () => {
     await setConsentAccount('EI1234567890123456');
     const html = await renderHtml(StudyBox, {}, {}, [pinia]);
     const strip = html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
-    expect(textOf(strip)).toBe('Help improve the planner? Yes No Later');
-    expect(html).toContain('data-testid="study-later"');
+    expect(textOf(strip)).toBe('Help improve the planner . You choose what to share. Choose what to share No thanks');
+    expect(html).not.toContain('study-later');
     expect(html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0]).toContain('display:none');
   });
-  it('Later hides it for this visit only; No answers no; Yes opens the form', () => {
+  it('No thanks answers no; Choose what to share opens the form in place (Hide when open); no Later any more', () => {
     const src = read('components/StudyBox.vue');
-    expect(src).toMatch(/data-testid="study-later"[\s\S]{0,80}@click="later = true"/);
+    expect(src).not.toContain('study-later');
     expect(src).toMatch(/data-testid="study-strip-no-thanks"\s+@click="answerNo"/);
     expect(src).toMatch(/data-testid="study-choose"[\s\S]{0,200}@click="open = !open"/);
-    expect(src).toContain('step === \'ask-box\' && !later');
+    expect(src).toContain("v-if=\"step === 'ask-box'\"");
   });
   it('on a phone the folded strip stays short: the buttons in a row, never stacked full width', async () => {
     await setConsentAccount('EI1234567890123456');
@@ -76,7 +76,7 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
     const tag = (id: string) => html.match(new RegExp(`<[a-z]+\\b[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
     expect(tag('study-box-strip')).toContain('flex-wrap');
     expect(tag('study-box-strip')).not.toContain('flex-col');
-    for (const id of ['study-choose', 'study-strip-no-thanks', 'study-later']) expect(tag(id), id).not.toContain('w-full');
+    for (const id of ['study-choose', 'study-strip-no-thanks']) expect(tag(id), id).not.toContain('w-full');
   });
   it('App.vue draws it at the top of every tab, Chain Finder too; the two answer screens do not', () => {
     const app = read('App.vue');
@@ -84,18 +84,19 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
     expect(app).not.toContain('studyBelowAnswer');
     for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(read(f)).not.toContain('<StudyBox');
   });
-  it('the orange line shows only after a press on Yes with nothing ticked', () => {
+  it('the orange line shows only after a press on Yes with nothing ticked: Yes is always enabled (Words)', () => {
     const f = read('components/StudyForm.vue');
     expect(f).toContain('const triedYes = ref(false);');
     expect(f).toMatch(/<p\s+v-if="triedYes && !canSayYes"/);
-    expect(f).toContain(':aria-disabled="!canSayYes"');
+    expect(f).toContain(':aria-invalid="triedYes && !canSayYes"');
+    expect(f).not.toContain('aria-disabled');
     expect(f).not.toContain(':disabled="!canSayYes"');
     expect(f).toMatch(/if \(!canSayYes\.value\) \{\s*triedYes\.value = true;\s*return;\s*\}/);
   });
 });
 
 describe('3. the button says what to do', () => {
-  it('Click to open more filters in Setup (DRAFT, Words)', () => {
+  it('Click to open more filters in Setup: Jordan\'s wording, Words\' default (alternative for Jordan: "Press to open more filters in Setup")', () => {
     expect(FILTERS).toBe('Click to open more filters in Setup');
     expect(read('lib/firstTourWords.ts')).toContain('The button just above the answer opens it too.');
   });

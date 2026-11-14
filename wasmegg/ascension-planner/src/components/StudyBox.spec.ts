@@ -105,7 +105,7 @@ describe('the box', () => {
     );
     expect(t).not.toContain('Anything you untick');
     // Nothing ticked: Yes waits for a tick, and says so.
-    expect(html).toMatch(/<button[^>]*data-testid="study-yes"[^>]*aria-disabled="true"/);
+    expect(html).not.toMatch(/<button[^>]*data-testid="study-yes"[^>]*(disabled|aria-disabled)/);
     // ...but says so only after a press on Yes (Jordan, 14 Nov 2026; StudyForm `triedYes`).
     expect(t).not.toContain('Tick at least one to say yes, or press No thanks.');
     expect(html).not.toMatch(/EI\d{16}/);
@@ -369,9 +369,9 @@ describe('wiring', () => {
     );
   });
 
-  it('Yes does nothing until at least one tick is on (aria-disabled); a press then says why, and nothing more once a tick is on', () => {
+  it('Yes is always enabled and records nothing until at least one tick is on; a press then says why, and nothing more once a tick is on', () => {
     const f = read('./StudyForm.vue');
-    expect(f).toContain(':aria-disabled="!canSayYes"');
+    expect(f).toContain(':aria-invalid="triedYes && !canSayYes"');
     expect(f).toContain('const canSayYes = computed(() => anyTick(ticks));');
     expect(f).toMatch(/<p\s+v-if="triedYes && !canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
     expect(f).toMatch(/if \(!canSayYes\.value\) \{\s*triedYes\.value = true;\s*return;\s*\}/);
@@ -408,7 +408,7 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
     await setConsentAccount(A);
     const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const s = strip(html);
-    expect(textOf(s)).toBe('Help improve the planner? Yes No Later');
+    expect(textOf(s)).toBe('Help improve the planner . You choose what to share. Choose what to share No thanks');
     const choose = s.match(/<button[^>]*data-testid="study-choose"[^>]*>/)?.[0] ?? '';
     expect(choose).toContain('aria-expanded="false"');
     expect(choose).toContain('aria-controls="study-box-form"');
