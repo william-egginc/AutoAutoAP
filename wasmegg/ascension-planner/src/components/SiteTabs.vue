@@ -23,12 +23,12 @@
             i === tabs.length - 1 && tabs.length % 2 === 1 ? 'col-span-2' : 'col-span-1',
             current === t.id ? [t.on, 'ring-2 ring-indigo-200'] : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
           ]"
-          class="min-w-0 min-h-[48px] sm:min-h-[48px] lg:min-h-[56px] px-2 sm:px-4 lg:px-4 xl:px-3 py-2.5 rounded-xl text-body xl:text-title font-bold transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
+          class="min-w-0 min-h-[48px] sm:min-h-[48px] px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl text-body font-bold transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
           :aria-current="current === t.id ? 'page' : undefined"
           @click="emit('select', t.id)"
         >
           <svg
-            class="hidden sm:block w-3.5 h-3.5 xl:w-4 xl:h-4 shrink-0"
+            class="hidden sm:block w-3.5 h-3.5 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

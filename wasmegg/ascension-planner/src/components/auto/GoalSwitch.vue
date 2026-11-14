@@ -9,7 +9,7 @@
     ref="root"
     role="radiogroup"
     :aria-label="CHAIN_FINDER_WORDS.switchLabel"
-    class="grid grid-cols-2 w-full max-w-sm sm:w-auto gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/60"
+    class="grid grid-cols-2 w-full max-w-md sm:w-auto gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/60"
     @keydown="onKey"
   >
     <button
@@ -20,7 +20,7 @@
       :aria-checked="current === g ? 'true' : 'false'"
       :tabindex="current === g ? 0 : -1"
       :data-goal="g"
-      class="min-w-0 min-h-[44px] sm:min-h-0 px-3 sm:px-5 py-2 rounded-lg label text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      class="min-w-0 min-h-[48px] px-5 sm:px-8 py-2 rounded-lg text-title font-bold text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
       :class="current === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
       @click="emit('select', g)"
     >

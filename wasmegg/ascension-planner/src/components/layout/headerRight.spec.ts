@@ -65,7 +65,7 @@ describe('the top tabs, a little bigger', () => {
   it('body-size bold words, taller buttons, wider padding', () => {
     const src = tplOf(read('components/SiteTabs.vue'));
     const btn = src.slice(src.indexOf('<button'), src.indexOf('>', src.indexOf('<button')));
-    expect(btn).toMatch(/text-body xl:text-title font-bold/);
+    expect(btn).toMatch(/text-body font-bold/);
     expect(btn).not.toMatch(/\blabel\b/);
     expect(btn).toContain('min-h-[48px]');
     expect(btn).toContain('sm:min-h-[48px]');

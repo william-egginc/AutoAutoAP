@@ -29,8 +29,7 @@ describe('SiteTabs', () => {
       for (const b of buttons) {
         expect(b).toContain('min-h-[48px]');
         expect(b).toContain('sm:min-h-[48px]');
-        expect(b).toContain('lg:min-h-[56px]');
-        expect(b).toMatch(/text-body xl:text-title font-bold/);
+        expect(b).toMatch(/text-body font-bold/);
         expect(b).toContain('py-2.5');
       }
       const spans = buttons.map(b => b.match(/col-span-\d/)?.[0]);
@@ -56,9 +55,9 @@ describe('SiteTabs', () => {
 describe("Chain Finder's goal switch (GoalSwitch.vue; was the Auto Planner sub-tabs in App.vue)", () => {
   const sw = fs.readFileSync(path.resolve(__dirname, 'auto/GoalSwitch.vue'), 'utf8');
 
-  it('Target TE and By a date: at least 44 px below sm, the old size from sm', () => {
+  it('Target TE and By a date: 48 px at every width since 14 Nov 2026 (the page\'s subheading; tabsBigGoalHelp.spec.ts)', () => {
     const buttons = sw.match(/<button\b[\s\S]*?>/g) ?? [];
     expect(buttons).toHaveLength(1); // the v-for
-    expect(buttons[0]).toContain('min-h-[44px] sm:min-h-0');
+    expect(buttons[0]).toContain('min-h-[48px]');
   });
 });

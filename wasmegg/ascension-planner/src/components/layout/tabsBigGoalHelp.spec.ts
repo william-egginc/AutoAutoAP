@@ -15,25 +15,40 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', '..', 
 const tplOf = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
 const tab = (id: string, label: string) => ({ id, label, on: 'bg-indigo-600 text-white' });
 
-describe('bigger tabs', () => {
-  it('from lg: 56 px tall, from xl (1280) text-title (18 px), padding trimmed so six tabs stay on one row; the phone keeps 48 px and its grid', async () => {
-    const html = await renderHtml(SiteTabs, { tabs: [tab('manual', 'Manual Planner'), tab('chain', 'Chain Finder')], current: 'chain' });
-    const buttons = html.match(/<button\b[^>]*>/g) ?? [];
-    expect(buttons).toHaveLength(2);
-    for (const b of buttons) {
-      expect(b).toContain('lg:min-h-[56px]');
-      expect(b).toContain('xl:text-title');
-      expect(b).toContain('min-h-[48px]');
-    }
-    expect(html).toContain('grid grid-cols-2 w-full');
-  });
-  it('the picked tab is the strongest: its fill and a ring (the type scale has no heavier weight at this size)', async () => {
+describe('the site tabs are back at their round-2 size (Jordan: "not the chain finder tabs, those were fine")', () => {
+  it('48 px at every width from sm, body-size bold; the picked tab keeps its ring', async () => {
     const html = await renderHtml(SiteTabs, { tabs: [tab('manual', 'Manual Planner'), tab('chain', 'Chain Finder')], current: 'chain' });
     const [off, on] = html.match(/<button\b[^>]*>/g) ?? [];
+    for (const b of [off, on]) {
+      expect(b).toContain('min-h-[48px] sm:min-h-[48px]');
+      expect(b).not.toContain('lg:min-h-[56px]');
+      expect(b).not.toContain('xl:text-title');
+      expect(b).toMatch(/text-body font-bold/);
+    }
     expect(on).toContain('ring-2 ring-indigo-200');
-    expect(on).toContain('bg-indigo-600');
     expect(off).not.toContain('ring-2');
-    expect(off).toContain('text-slate-500');
+    expect(html).toContain('grid grid-cols-2 w-full');
+  });
+});
+
+describe('the Target TE | By a date switch is the page\'s subheading: bigger', () => {
+  const sw = tplOf(read('components/auto/GoalSwitch.vue'));
+  const btn = sw.match(/<button\b[^>]*>/)?.[0] ?? '';
+  it('each side 48 px tall at every width, title-size bold words in mixed case (no caps label)', () => {
+    expect(btn).toContain('min-h-[48px]');
+    expect(btn).not.toContain('sm:min-h-0');
+    expect(btn).toMatch(/text-title font-bold/);
+    expect(btn).not.toMatch(/\blabel\b/);
+  });
+  it('wider sides, the picked one white and shadowed on the slate track, the other slate-600', () => {
+    expect(btn).toMatch(/px-5 sm:px-8/);
+    expect(sw).toContain("'bg-white text-slate-900 shadow-sm'");
+    expect(sw).toContain("'text-slate-600 hover:text-slate-900'");
+    expect(sw).toContain('bg-slate-100');
+  });
+  it('the words are Words\' own, as typed (Target TE, By a date)', async () => {
+    const { GOAL_SWITCH } = await import('@/lib/chainFinderWords');
+    expect([GOAL_SWITCH.target, GOAL_SWITCH.byDate]).toEqual(['Target TE', 'By a date']);
   });
 });
 

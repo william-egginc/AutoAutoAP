@@ -70,9 +70,9 @@ describe('GoalSwitch.vue', () => {
     expect(radios[1]).toContain('tabindex="-1"');
   });
 
-  it('44 px tap targets on a phone, a visible focus ring', async () => {
+  it('48 px tap targets (over the 44 px floor; bigger since 14 Nov 2026), a visible focus ring', async () => {
     for (const b of (await render('fastest')).match(/<button\b[^>]*>/g) ?? []) {
-      expect(b).toContain('min-h-[44px]');
+      expect(b).toContain('min-h-[48px]');
       expect(b).toContain('focus-visible:ring-2');
     }
   });
