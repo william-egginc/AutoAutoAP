@@ -55,8 +55,9 @@ export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 
 // ---------------------------------------------------------------------------------------- My runs
 
-/** The button that opens Setup, after the Auto Planner tabs and beside My runs' title (Jordan's word, 12 Nov 2026). */
-export const FILTERS = 'Filters';
+/** The button that opens Setup, above the answer. Was "Filters" (Jordan's word, 12 Nov 2026); renamed 13 Nov 2026 because it opens Setup,
+ *  and the real filters sit under it (UX review H4; Jordan: "open set up to filters" or similar). DRAFT: Words owns the final label. */
+export const FILTERS = 'More filters in Setup';
 
 export const STOP_FOLLOWING = 'Stop following';
 export const CHANGE_ROUTE = 'Change route';

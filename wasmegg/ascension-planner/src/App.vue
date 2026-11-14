@@ -201,7 +201,12 @@
            they sit beside Right now instead (MyRunsView.vue). In the screens' own column (max-w-4xl, as FastestRoute.vue
            and ByDateScreen.vue): in this 72rem wrapper they started up to 8rem left of the screen (Jordan's 1740 px
            shot, 12 Nov 2026, cut off at the left). -->
-      <SaveSide v-if="saveLineShown && plannerTab !== 'myruns'" class="mt-2 max-w-4xl mx-auto" />
+      <!-- From md up (H1, Jordan 13 Nov 2026: "to like the upper right hand corner"): a zero-height row, so the block floats
+           over the empty right side of the title (and the target card's corner) in the screens' column; a compact two-line
+           block. Below md it is one merged line in the flow, the silo line inside Details unless it is low. -->
+      <div v-if="saveLineShown && plannerTab !== 'myruns'" class="max-w-4xl mx-auto md:relative">
+      <SaveSide class="mt-2 md:absolute md:right-0 md:top-3 md:z-10 md:mt-0 md:w-72" />
+      </div>
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->

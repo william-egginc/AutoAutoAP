@@ -71,10 +71,11 @@
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-sync-how-summary">How to sync ›</summary>
         <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
       </details>
-      <details v-if="state && (state.tone !== 'green' || state.old)" data-testid="save-details">
+      <details v-if="state && (state.tone !== 'green' || state.old || siloDetail)" data-testid="save-details">
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-details-summary">Details ›</summary>
         <ul class="mt-1 mb-1 space-y-0.5 text-small tabular-nums">
           <li v-if="server.kind === 'newest'" data-testid="now-save-newest">{{ newestOnServerLine(server.serverSeconds, now) }}</li>
+          <li v-if="siloDetail" class="md:hidden" data-testid="save-details-silo">{{ siloDetail }}</li>
           <li v-for="d in state.details" :key="d">{{ d }}</li>
         </ul>
       </details>
@@ -99,6 +100,8 @@ const props = withDefaults(
     slim?: boolean;
     /** Small text (layout/SaveSide.vue, myruns/SaveHeadHelp.vue; Jordan 12 Nov 2026: "make them small"). Same content. */
     small?: boolean;
+    /** The silo line's words, folded into Details on a phone (layout/SaveSide.vue: one merged line below md; a low or past silo line stays its own line). */
+    siloDetail?: string;
     /** The button's words when the server has nothing newer known; the state's own link words without. */
     loadWords?: string;
   }>(),
@@ -109,6 +112,7 @@ const props = withDefaults(
     slim: false,
     small: false,
     loadWords: '',
+    siloDetail: '',
   }
 );
 /** Green: the one quiet line, its button on the same line. */

@@ -19,9 +19,10 @@
       slim
       small
       :load-words="LOAD_LATEST_SAVE"
+      :silo-detail="silo && !silo.low ? silo.text : ''"
       @fresh="load"
     />
-    <SiloLine v-if="withSilo" class="basis-full" :silo="silo" />
+    <SiloLine v-if="withSilo" class="basis-full" :class="silo?.low ? '' : 'hidden md:block'" :silo="silo" />
   </div>
 </template>
 

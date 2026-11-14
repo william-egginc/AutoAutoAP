@@ -40,7 +40,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   setup: {
     title: 'Inside Setup',
-    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The Filters button above the answer opens it too.',
+    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. “More filters in Setup” opens it too.',
   },
   // More, then the Fast and Custom searches inside it (spec-tourmore).
   moreWhere: {

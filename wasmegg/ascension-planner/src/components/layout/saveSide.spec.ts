@@ -70,7 +70,7 @@ describe('where it sits', () => {
   it('App: SaveSide under the bar on Fastest and By a date, not on My runs (the save is in Right now\'s header there)', () => {
     const app = read('App.vue');
     const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');
-    expect(tpl).toContain(`<SaveSide v-if="saveLineShown && plannerTab !== 'myruns'"`);
+    expect(tpl).toContain(`v-if="saveLineShown && plannerTab !== 'myruns'" class="max-w-4xl mx-auto md:relative"><SaveSide`.replace('><SaveSide', '>\n      <SaveSide'));
     expect(tpl.indexOf('<SaveSide')).toBeGreaterThan(tpl.indexOf('<SaveLine'));
     expect(tpl.indexOf('<SaveSide')).toBeLessThan(tpl.indexOf('aria-label="Site"'));
   });

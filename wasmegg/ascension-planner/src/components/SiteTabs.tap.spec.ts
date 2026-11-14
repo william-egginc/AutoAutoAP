@@ -21,14 +21,15 @@ const ALL = [
 
 describe('SiteTabs', () => {
   for (const n of [3, 4, 5, 6])
-    it(`${n} tabs: each at least 44 px below sm, the old size from sm, two a row`, async () => {
+    it(`${n} tabs: each at least 48 px (a little bigger, 13 Nov 2026), body-size bold words, two a row below lg`, async () => {
       const html = await renderHtml(SiteTabs, { tabs: ALL.slice(0, n), current: 'auto' });
       expect(html).toContain('grid grid-cols-2 w-full');
       const buttons = html.match(/<button\b[^>]*>/g) ?? [];
       expect(buttons).toHaveLength(n);
       for (const b of buttons) {
-        expect(b).toContain('min-h-[44px]');
-        expect(b).toContain('sm:min-h-0');
+        expect(b).toContain('min-h-[48px]');
+        expect(b).toContain('sm:min-h-[48px]');
+        expect(b).toContain('text-body font-bold');
         expect(b).toContain('py-2.5');
       }
       const spans = buttons.map(b => b.match(/col-span-\d/)?.[0]);

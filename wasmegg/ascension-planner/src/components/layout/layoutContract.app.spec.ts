@@ -33,7 +33,7 @@ describe('App: the regions in their fixed order', () => {
   it("Fastest and By a date: the save strip and the silo line in the screen's own column, never wider (Jordan's 1740 px shot, 12 Nov 2026)", () => {
     // App's wrapper is max-w-6xl (72rem); both screens draw in max-w-4xl (56rem), centred. In the wrapper the strip
     // started up to 8rem left of the screen's content and ran off a crop of the page. Same column as the screens.
-    const tag = tpl.slice(tpl.indexOf('<SaveSide'), tpl.indexOf('/>', tpl.indexOf('<SaveSide')));
+    const tag = tpl.slice(tpl.lastIndexOf('<div', tpl.indexOf('<SaveSide')), tpl.indexOf('/>', tpl.indexOf('<SaveSide')));
     expect(tag).toContain("plannerTab !== 'myruns'");
     expect(tag).toMatch(/class="[^"]*\bmax-w-4xl mx-auto\b/);
     for (const f of ['components/auto/FastestRoute.vue', 'components/auto/ByDateScreen.vue']) {

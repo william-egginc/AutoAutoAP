@@ -21,9 +21,9 @@ const tplOf = (src: string) => src.slice(src.indexOf('<template>'), src.lastInde
 
 describe('the button', () => {
   it('Jordan\'s word, in a *Words.ts file', () => {
-    expect(FILTERS).toBe('Filters');
+    expect(FILTERS).toBe('More filters in Setup');
   });
-  it('a real button, named Filters, 44 px at every width, focus ring, aria-expanded and aria-haspopup', async () => {
+  it('a real button, named for Setup, 44 px at every width, focus ring, aria-expanded and aria-haspopup', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     const { default: FiltersButton } = await import('./FiltersButton.vue');
