@@ -1,9 +1,4 @@
 <template>
-  <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
-  <!-- use-absolute-urls: the planner is served alone (egg-beta, the live site), so the other tools' links, '/rockets-tracker/'
-       and the like, are sent to wasmegg-carpet.netlify.app, which hosts them, rather than to 404s here (spec-betaurls). -->
-  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" use-absolute-urls /></div>
-
   <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
        44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
@@ -165,13 +160,18 @@
         >
       </p>
 
-      <SiteTabs
-        v-if="playerId"
-        class="mt-4"
-        :tabs="topTabs"
-        :current="currentTopTab"
-        @select="selectSection"
-      />
+      <!-- Home and the site menu at the tab row's left end (above it below lg), in place of the dark top bar (H1, Jordan 13 Nov
+           2026: the tabs replace the header; layout/SiteHomeMenu.vue). Shown without an account too: the tabs are not. -->
+      <div class="mt-4 flex flex-col gap-2 lg:flex-row lg:items-start" data-testid="site-row">
+        <SiteHomeMenu />
+        <SiteTabs
+          v-if="playerId"
+          class="min-w-0 flex-1"
+          :tabs="topTabs"
+          :current="currentTopTab"
+          @select="selectSection"
+        />
+      </div>
 
       <!-- The chevron: one fixed place, just under the tabs (it used to jump between above and below the Auto Planner).
            Gone from Fastest, By a date and My runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
@@ -862,7 +862,6 @@ import {
 import { CHAIN_FINDER_WORDS } from '@/lib/chainFinderWords';
 import GoalSwitch from '@/components/auto/GoalSwitch.vue';
 import { storeToRefs } from 'pinia';
-import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
 import { noteServerSave } from '@/lib/serverSave';
 import { errorAfterSaveLoaded, LATEST_SAVE_FAILED, requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
@@ -913,6 +912,7 @@ import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import { pillPageRoom, useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
+import SiteHomeMenu from '@/components/layout/SiteHomeMenu.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
@@ -2324,24 +2324,3 @@ ChevronIcon.props = { expanded: Boolean };
 }
 </style>
 
-<style>
-/* The shared nav bar's home and menu icons (ui/components/NavBar.vue, 20 x 20 px in a bar with 12 px padding): on a
-   phone each gets a 44 x 44 px tap area (UX review 26 Oct 2026, #12), drawn by an invisible ::before 12 px round the
-   icon, so the icons, the bar's height and the menu's green dot stay as they are. The menu moves 12 px further right
-   so the two areas never overlap. Not scoped: the bar is another component's markup. */
-@media (max-width: 639.98px) {
-  .aap-navbar nav > div > a,
-  .aap-navbar nav > div > button {
-    position: relative;
-  }
-  .aap-navbar nav > div > a::before,
-  .aap-navbar nav > div > button::before {
-    content: '';
-    position: absolute;
-    inset: -12px;
-  }
-  .aap-navbar nav > div > a + button {
-    margin-left: 1.5rem !important;
-  }
-}
-</style>

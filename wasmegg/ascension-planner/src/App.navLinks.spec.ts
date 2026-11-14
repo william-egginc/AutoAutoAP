@@ -10,12 +10,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { idToTool } from 'lib/tools';
 
-const app = fs.readFileSync(path.resolve(__dirname, 'App.vue'), 'utf8');
-const navTag = app.match(/<the-nav-bar\b[^>]*>/)?.[0] ?? '';
+// Since 13 Nov 2026 the shared bar is not mounted; layout/SiteHomeMenu.vue opens the same sidebar.
+const app = fs.readFileSync(path.resolve(__dirname, 'components/layout/SiteHomeMenu.vue'), 'utf8');
+const navTag = app.match(/<NavBarSidebar\b[^>]*>/)?.[0] ?? '';
 
 describe("App.vue's nav bar", () => {
   it('is there, once', () => {
-    expect(app.match(/<the-nav-bar\b/g)).toHaveLength(1);
+    expect(app.match(/<NavBarSidebar\b/g)).toHaveLength(1);
   });
 
   it('asks for absolute links, so other tools open on wasmegg-carpet, not on this host', () => {

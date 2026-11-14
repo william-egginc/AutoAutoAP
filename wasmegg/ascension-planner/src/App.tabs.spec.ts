@@ -37,8 +37,10 @@ describe('App.vue header layout', () => {
     const folds = [...app.matchAll(/isHeaderCollapsed \? 'grid-rows-\[0fr\] opacity-0'/g)].map(m => m.index!);
     const tabs = app.indexOf('<SiteTabs');
     // Everything from the first folding grid's opening to the tabs must have closed it: the form comes first
-    // and the tabs tag is at the page level (a 6-space indent, like the cards around it).
-    expect(app.slice(app.lastIndexOf('\n', tabs) + 1, tabs)).toBe('      ');
+    // and the tabs tag is at the page level: inside the site row (a 6-space div, like the cards around it, since the
+    // dark bar's Home and menu joined the row, 13 Nov 2026), so an 8-space indent.
+    expect(app.slice(app.lastIndexOf('\n', tabs) + 1, tabs)).toBe('        ');
+    expect(app.slice(app.lastIndexOf('\n', app.lastIndexOf('<div class="mt-4 flex flex-col gap-2 lg:flex-row', tabs)) + 1, app.lastIndexOf('<div class="mt-4 flex flex-col gap-2 lg:flex-row', tabs))).toBe('      ');
     expect(tabs).toBeGreaterThan(folds[0]);
     expect(tabs).toBeLessThan(folds[1]);
   });
