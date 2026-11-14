@@ -21,7 +21,7 @@ const legs = [
 describe('Full timeline: the C3 wait line', () => {
   it('"Wait on Curiosity (C3): about Dec 22 to Jan 1", after its first hours', async () => {
     const t = textOf(await renderHtml(AscensionList, { lines: ascensionSteps(legs, null, null), zone: 'America/Los_Angeles' }));
-    expect(t).toMatch(/Its first hours: about 6 build-up shifts/);
+    expect(t).toMatch(/Its first hours: about 6 shifts while buying research/);
     expect(t).toMatch(/Wait on Curiosity \(C3\): about Dec 22 to Jan 1/);
     expect(t.indexOf('Its first hours')).toBeLessThan(t.indexOf('Wait on Curiosity (C3)'));
   });

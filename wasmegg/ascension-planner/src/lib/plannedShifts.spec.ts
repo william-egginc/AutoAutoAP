@@ -126,12 +126,12 @@ describe('where the count is shown', () => {
     const base = { eggs: [], facts: null, shiftsDone: 100, nextShiftCost: null, clothedEquipped: null, clothedEarnings: null, now: T0, saveSeconds: T0 };
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 40, cost: 1e18, opening: 24 } }));
     expect(t).toContain('40 shifts');
-    expect(t).toContain('including about 24 build-up shifts (estimated)');
+    expect(t).toContain('about 24 of them while buying research in later ascensions (estimated)');
     const none = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 12, cost: 1e18, opening: 0 } }));
-    expect(none).not.toContain('build-up shifts (estimated)');
+    expect(none).not.toContain('while buying research');
   });
 
-  it('the Full timeline says "about 6 build-up shifts" only where the ascension lists none of them', async () => {
+  it('the Full timeline says "about 6 shifts while buying research" only where the ascension lists none of them', async () => {
     const a = fresh(0, 300);
     const listed = { ...fresh(1, 330), shifts: [...opening(T0 + H + 4 * D), ...tail(T0 + H + 4 * D)] };
     const cont = { ...fresh(2, 360), label: 'continue' };
@@ -145,7 +145,7 @@ describe('where the count is shown', () => {
     const html = await renderHtml(AscensionList, { lines, zone: ZONE });
     const t = textOf(html);
     expect(t).toContain('You do the build-up for 2 sales');
-    expect(t).toContain('Its first hours: about 6 build-up shifts (estimated, not listed)');
-    expect(t.match(/build-up shifts \(estimated/g)).toHaveLength(1);
+    expect(t).toContain('Its first hours: about 6 shifts while buying research (estimated, not listed)');
+    expect(t.match(/while buying research \(estimated/g)).toHaveLength(1);
   });
 });
