@@ -35,15 +35,19 @@ export interface SiloLineState {
 
 /**
  * The save banner's state: `saveState` with the silo rule above. Null without a save time. Pure. Its Details sentence about
- * the thresholds is `thresholdsDetail` (lib/saveFreshnessWords.ts), not saveFreshness.ts's older one: that file is hashed,
- * so its sentence stays as it was (12 Nov 2026, no hash change for wording).
+ * the thresholds is `thresholdsDetail` (lib/saveFreshnessWords.ts); saveFreshness.ts, which is hashed, no longer has one.
  */
 export function saveBannerState(i: SaveStateInput): SaveBannerState | null {
   const s = bannerStateOf(i);
   if (!s) return s;
   const lines = toneLines(s.siloSeconds);
   const sentence = thresholdsDetail(ageWords(lines.yellowAt), ageWords(lines.redAt), s.clockBehindSeconds > 0);
-  return { ...s, details: s.details.map(d => (d.startsWith('Getting old after ') ? sentence : d)) };
+  // The thresholds sentence is not in saveFreshness.ts any more (hash change, 14 Nov 2026): it goes in here, before the
+  // catch-up line when there is one, else last.
+  const at = s.details.findIndex(d => d.startsWith('Catch-up'));
+  const details = [...s.details];
+  details.splice(at < 0 ? details.length : at, 0, sentence);
+  return { ...s, details };
 }
 
 function bannerStateOf(i: SaveStateInput): SaveBannerState | null {

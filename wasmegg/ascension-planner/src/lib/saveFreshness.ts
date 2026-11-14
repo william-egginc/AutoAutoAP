@@ -149,11 +149,11 @@ export function saveState(i: SaveStateInput): SaveState | null {
     if (driver === 'silo' && used != null && left != null) {
       const subject = namesFarm ? `Your virtue farm last ran ${ageAgo(used)}` : `Your save is ${ageWords(saveAge)} old`;
       if (tone === 'yellow')
-        reason = `${subject}, and your silos run out in ${ageWords(left)}: after that the farm earns nothing until the game syncs.`;
+        reason = `${subject}, and your silos run out in ${ageWords(left)}: after that the planner counts no earnings until the game syncs.`;
       else if (left > 0)
-        reason = `${subject}, and your silos run out in ${ageWords(left)}: after that the farm earns nothing, so the answers here stop being right.`;
+        reason = `${subject}, and your silos run out in ${ageWords(left)}: after that the planner counts no earnings, so the answers here stop being right.`;
       else
-        reason = `${subject}, and your silos ran out ${ageAgo(used - silo)}: the farm has earned nothing since, so the answers here are probably wrong.`;
+        reason = `${subject}, and your silos ran out ${ageAgo(used - silo)}: the planner counts no earnings since, so the answers here may be wrong. If you've opened the game since, load a fresh save.`;
     } else {
       reason =
         tone === 'yellow'
@@ -176,9 +176,6 @@ export function saveState(i: SaveStateInput): SaveState | null {
   } else {
     details.push(`No virtue ascension under way, so silo time doesn't apply: this follows your save's age alone, against ${ageWords(silo)}.`);
   }
-  details.push(
-    `Getting old after ${ageWords(lines.yellowAt)}, out of date after ${ageWords(lines.redAt)}: for both the save's age and the silo time used.`
-  );
   if (farmAt != null)
     details.push(
       'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.'
@@ -221,9 +218,6 @@ function clockBehindState(o: {
   const lines = toneLines(o.silo);
   const details = [`Save: from ${o.when}, ${ageWords(o.behind)} ahead of your device's clock.`];
   if (o.farmAt != null) details.push(`Virtue farm last ran: ${dateAt(o.farmAt, o.i.nowSeconds, o.i.zone)}.`);
-  details.push(
-    `Getting old after ${ageWords(lines.yellowAt)}, out of date after ${ageWords(lines.redAt)}: for both the save's age and the silo time used, once the clock is right.`
-  );
   return {
     tone: 'yellow',
     word: 'Check your clock',

@@ -30,6 +30,8 @@ describe('the save banner words', () => {
     expect(ok?.details.filter(d => /silo line turns amber/.test(d))).toHaveLength(1);
     expect(ok?.details.filter(d => d.startsWith('Getting old after'))).toHaveLength(1);
     expect(ok?.details[0]).toMatch(/^Save: from /);
+    // Before the catch-up line (saveFreshness.ts no longer has the sentence).
+    expect(ok?.details.findIndex(d => d.startsWith('Getting old after'))).toBe((ok?.details.findIndex(d => d.startsWith('Catch-up')) ?? 0) - 1);
     const behind = saveBannerState({ ...base, backupSeconds: NOW + 2 * H, farmStepSeconds: NOW + 2 * H, siloSeconds: 24 * H, siloCount: 3 });
     expect(behind?.clockBehindSeconds).toBeGreaterThan(0);
     expect(behind?.details.some(d => /once your clock is right\./.test(d))).toBe(true);

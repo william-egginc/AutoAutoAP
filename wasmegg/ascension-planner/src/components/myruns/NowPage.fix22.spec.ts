@@ -146,7 +146,7 @@ describe('two shifts at the same minute: one row', () => {
     const card = cardOf();
     const html = await renderHtml(RightNowCard, cardProps(card));
     const t = textOf(html);
-    const pair = "Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness";
+    const pair = "Shift to Humility (to swap artifacts), then straight to Kindness";
     expect(t).toContain(`${pair} tomorrow at 4:16 AM`);
     expect(t.split(pair).length - 1).toBe(2); // Next step and the table, once each
     expect(t).not.toContain('Shift to Kindness');
