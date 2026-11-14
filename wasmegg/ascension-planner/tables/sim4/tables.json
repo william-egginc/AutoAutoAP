@@ -24,7 +24,7 @@
    "combo": "maxed",
    "from": 55,
    "to": 489,
-   "status": "todo",
+   "status": "done",
    "reference": true
   },
   {
@@ -233,7 +233,7 @@
    "combo": "carpet-9a66a47c",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "done"
   },
   {
    "name": "carpet-529b409d-full",
