@@ -25,7 +25,7 @@ describe('soulEggsAfterLine (lib/soulEggs.ts)', () => {
     const spent = plannedShiftsCost(SE, 20, 48);
     const line = soulEggsAfterLine({ soulEggs: SE, done: 20, planned: { count: 48 } })!;
     expect(line.text).toBe(
-      `You'll have about ${formatNumber(SE - spent, 1)} soul eggs left when this plan is done (about ${formatNumber(spent, 1)} goes on 48 shifts)`
+      `You'll have about ${formatNumber(SE - spent, 1)} soul eggs left at the end of this plan. Shifts on the way cost about ${formatNumber(spent, 1)} (about 48 shifts).`
     );
     expect(line.amber).toBe(false);
   });
@@ -33,18 +33,18 @@ describe('soulEggsAfterLine (lib/soulEggs.ts)', () => {
   it('says how many of the shifts are the estimated build-up shifts', () => {
     const line = soulEggsAfterLine({ soulEggs: SE, done: 0, planned: { count: 48, opening: 24 } })!;
     expect(line.text).toMatch(
-      /^You'll have about \d+\.\ds soul eggs left when this plan is done \(about \d+\.\d[a-zA-Z]+ goes on 48 shifts, including about 24 build-up shifts \(estimated\)\)$/
+      /^You'll have about \d+\.\ds soul eggs left at the end of this plan\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 48 shifts, 24 of them while buying research in later ascensions; estimated\)\.$/
     );
   });
 
   it("formats like Single run's Spent / Remaining: 's' for sextillions, one decimal", () => {
     const line = soulEggsAfterLine({ soulEggs: 12.7e21, done: 0, planned: { count: 1 } })!;
-    expect(line.text).toMatch(/^You'll have about 12\.\ds soul eggs left when this plan is done \(about \d+\.\d[a-zA-Z]+ goes on 1 shift\)$/);
+    expect(line.text).toMatch(/^You'll have about 12\.\ds soul eggs left at the end of this plan\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 1 shift\)\.$/);
   });
 
   it('no shifts planned', () => {
     expect(soulEggsAfterLine({ soulEggs: 12.7e21, done: 0, planned: { count: 0 } })!.text).toBe(
-      "You'll have about 12.7s soul eggs left when this plan is done (no shifts planned)"
+      "You'll have about 12.7s soul eggs left at the end of this plan. No shifts are planned."
     );
   });
 

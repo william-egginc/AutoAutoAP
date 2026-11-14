@@ -53,11 +53,11 @@ describe("the same figures as Right now's soul eggs line", () => {
     const line = soulEggsAfterLine({ soulEggs: SE, done: DONE, planned: p })!.text;
     const cost = formatNumber(p.cost, 1);
     expect(w.note).toContain(`about ${cost} soul eggs`);
-    expect(line).toContain(`about ${cost} goes on 41 shifts`);
+    expect(line).toContain(`cost about ${cost} (about 41 shifts, 18 of them while buying research in later ascensions; estimated)`);
   });
   it("the line takes the tile's cost when given (one source)", () => {
     const line = soulEggsAfterLine({ soulEggs: SE, done: DONE, planned: { count: 41, cost: 2.3e21 } })!.text;
-    expect(line).toContain('about 2.3s goes on 41 shifts');
+    expect(line).toContain('cost about 2.3s (about 41 shifts)');
     expect(line).toContain(`about ${formatNumber(SE - 2.3e21, 1)} soul eggs left`);
   });
 });
