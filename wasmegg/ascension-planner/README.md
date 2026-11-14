@@ -115,7 +115,8 @@ that choice.
   times, grouped by day. A line under the plan says the buys follow Joo's Smart Buy set to the build's sales ("Buys
   follow Smart Buy, set to 3 sales"); research that cost 10 seconds of income or less is marked "(cheap sweep)". Research levels read like the Manual Planner's summary, "Comfortable Nests (0 → 7)", with the tier first for the two Internal Hatchery Expansions (`lib/buildUpWords.ts`). It
   plans the silo trick for each Monday 2x event where it fits (or says why not), keeps artifact set swaps to
-  Humility, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
+  Humility, splits the list into stages (Buying to Tier 13, Focus on ROI, Delivery research; `lib/buildUpStages.ts`,
+  words in `lib/buildUpWords.ts`) with a colour each, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
   and offers **Re-plan from this save** when the save is over an hour behind the plan or has bought things off plan.
   The ascension you are in is simulated on your loaded save in the background ("Working out your shifts…"), so
   its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends

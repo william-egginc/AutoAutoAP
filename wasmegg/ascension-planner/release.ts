@@ -33,6 +33,10 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-13T22:00:03Z', note: 'Build-up tracker stages: Buying to Tier 13, Focus on ROI and Delivery research, each with its colour, a key and the day on a later band; Compact splits a day by stage; Tier 13 shows where it unlocks' },
+  { at: '2026-11-13T22:00:02Z', note: 'A By a date answer with under about 2 days to spare is a close call and says it may miss; a lower TE Custom found is named as confirmed. No answer for an old date shows under a new date' },
+  { at: '2026-11-13T22:00:01Z', note: 'Target TE sits in one card like By a date; My runs’ rate says which set it is for (“with your earnings set”); Your eggs show when each reaches its goal' },
+  { at: '2026-11-13T22:00:00Z', note: 'The diagnostics download now covers a reload and a carry-on, and a By a date carry-on counts its saved routes' },
   { at: '2026-11-13T06:00:01Z', note: 'Times read the same everywhere: 9:00 AM, with the minutes and capitals' },
   { at: '2026-11-13T06:00:00Z', note: 'The save line stays small at any age, and a small silo line says when your silos run out as of your save (amber when low)' },
   { at: '2026-11-10T21:00:00Z', note: 'A Silo trick setting in Setup › Awake hours (off to start): count the extra cash from collecting inside Monday’s 2x event' },
