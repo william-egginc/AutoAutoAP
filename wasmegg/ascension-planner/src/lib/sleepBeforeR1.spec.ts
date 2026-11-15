@@ -83,4 +83,17 @@ describe('sleepBeforeR1', () => {
   it('a fresh table-priced leg whose opening ends before 11:00 PM: no flag', () => {
     expect(sleepBeforeR1({ start: at(18, '09:00'), fresh: true, startTE: 200, hours: HOURS })).toBeNull();
   });
+  it("buys done exactly when the hours end: no flag (sleepAt is always before doneBy)", () => {
+    // R1 at 10:30 PM, next shift (C3) at 11:00 PM: done by 11:00 PM, as the hours end.
+    expect(sleepBeforeR1({ start: at(18, '20:00'), shifts: shifts(at(18, '22:30'), 1800), hours: HOURS })).toBeNull();
+  });
+
+  it('a prestige after the hours have ended (staying up): sleepAt is when the hours ended, not the prestige', () => {
+    const r = sleepBeforeR1({ start: at(18, '23:30'), shifts: shifts(at(19, '00:30')), hours: HOURS });
+    expect(r).toEqual({ r1At: at(19, '00:30'), doneBy: at(19, '01:00'), sleepAt: at(18, '23:00'), exact: true });
+  });
+  it('a start off the quarter hour still reports the hours ending on the hour', () => {
+    const r = sleepBeforeR1({ start: at(18, '22:37'), shifts: shifts(at(19, '00:10')), hours: HOURS });
+    expect(r?.sleepAt).toBe(at(18, '23:00'));
+  });
 });

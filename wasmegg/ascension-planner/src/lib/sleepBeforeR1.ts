@@ -73,8 +73,20 @@ export function sleepBeforeR1(x: {
     exact = false;
   } else return null;
   if (!(doneBy > x.start)) return null;
-  for (let t = x.start; ; t = Math.min(t + STEP, doneBy)) {
-    if (!isAvailable(t, hours)) return { r1At, doneBy, sleepAt: t, exact };
-    if (t >= doneBy) return null;
+  // The first instant outside the hours before the buys are done (one AT doneBy is fine: they're done). Strictly
+  // before `doneBy`, so a warning always has sleepAt < doneBy.
+  for (let t = x.start; t < doneBy; t = Math.min(t + STEP, doneBy)) {
+    if (!isAvailable(t, hours)) return { r1At, doneBy, sleepAt: hoursEndedAt(t, hours), exact };
   }
+  return null;
+}
+
+/** When the stretch outside the hours that holds `t` began (`t` itself when it just began; a player who prestiges
+ *  after their hours ended is told when they ended). At most a week back. */
+function hoursEndedAt(t: number, hours: Availability): number {
+  let s = t;
+  for (let i = 0; i < (7 * 86400) / STEP && !isAvailable(s - STEP, hours); i++) s -= STEP;
+  // To the minute: the scan's steps start wherever the leg starts, not on the hour.
+  for (let i = 0; i < STEP / 60 && !isAvailable(s - 60, hours); i++) s -= 60;
+  return s;
 }
