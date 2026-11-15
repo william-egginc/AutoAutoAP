@@ -186,6 +186,7 @@ import { usePlanStore } from '@planner/stores/plan';
 import { formatNumber } from '@planner/lib/format';
 import { isTestingEnvironment } from '@planner/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
+import { onPlanImported } from '@planner/lib/actions/plannerRules';
 import PlannerSummaryStats from '@planner/components/PlannerSummaryStats.vue';
 
 const actionsStore = useActionsStore();
@@ -310,6 +311,7 @@ async function handleImport(event: Event) {
 
     // A file's results are recalculated, never trusted (io.ts `dropFileResults`).
     await actionsStore.importPlan(JSON.stringify(dropFileResults(data)));
+    onPlanImported();
   } catch (error) {
     console.error(error);
     // importPlan is all or nothing: the plan on screen was kept.

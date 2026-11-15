@@ -10,6 +10,7 @@ import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanDa
 // Downloads go through the app's scrubbing wrapper (utils/export.ts: the stand-in ID, never the player's).
 import { downloadGzipped } from '@/utils/export';
 import { importedPlanName } from 'lib/planners/utils/export';
+import { buildStamp } from 'lib/planners/diagnostics';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@planner/lib/format';
 import { initLoadPlan, initPlanFuture } from '@planner/lib/modes';
 import { useInitialStateStore } from '@planner/stores/initialState';
@@ -190,6 +191,7 @@ async function exportPlan(plan: PlanData) {
     type: 'plan',
     name: plan.name,
     timestamp: plan.timestamp,
+    exportedBy: buildStamp(),
     data: plan.data,
   };
   const jsonString = JSON.stringify(exportData, null, 2);
@@ -204,6 +206,7 @@ async function exportAll() {
     version: 1,
     type: 'library',
     timestamp: Date.now(),
+    exportedBy: buildStamp(),
     plans: plans.value.map(p => ({
       name: p.name,
       timestamp: p.timestamp,

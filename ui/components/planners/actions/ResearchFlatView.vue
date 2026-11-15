@@ -118,9 +118,9 @@
             <span class="font-semibold text-indigo-800">Or unlock tier {{ habSpaceTierRecommendation.tier }} first.</span>
             It takes {{ habSpaceTierRecommendation.purchasesNeeded }} more
             {{ habSpaceTierRecommendation.purchasesNeeded === 1 ? 'purchase' : 'purchases' }}, about
-            <span class="font-mono font-semibold">{{ formatDuration(habSpaceTierRecommendation.pathSeconds) }}</span>
+            <span class="font-bold tabular-nums">{{ formatDuration(habSpaceTierRecommendation.pathSeconds) }}</span>
             on the Milestones path, and your habs fill in
-            <span class="font-mono font-semibold">{{ formatDuration(habSpaceTierRecommendation.fullAtSeconds) }}</span>.
+            <span class="font-bold tabular-nums">{{ formatDuration(habSpaceTierRecommendation.fullAtSeconds) }}</span>.
             The new tier's earnings research would then be available here.
           </p>
           <button

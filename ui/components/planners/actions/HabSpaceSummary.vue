@@ -16,48 +16,48 @@
 
     <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
       <div class="flex flex-col">
-        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Hab Space In</span>
+        <span class="text-gray-400 leading-none mb-1 label">Hab Space In</span>
         <span
           v-tippy="`Hab space bought ${summary.finishAbsoluteTime}.`"
-          class="text-sm font-mono font-bold text-gray-900 leading-none py-1 cursor-help"
+          class="text-body font-bold text-gray-900 leading-none py-1 cursor-help tabular-nums"
         >
           {{ summary.totalSeconds < 1 ? 'Now' : formatDuration(summary.totalSeconds) }}
         </span>
       </div>
       <div v-if="summary.slackSeconds !== null && !summary.habsFullAtStart" class="flex flex-col">
-        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
+        <span class="text-gray-400 leading-none mb-1 label">
           {{ summary.slackSeconds >= 0 ? 'Before Full' : 'Full For' }}
         </span>
         <span
-          class="text-sm font-mono font-bold leading-none py-1"
+          class="text-body font-bold leading-none py-1 tabular-nums"
           :class="summary.slackSeconds >= 0 ? 'text-emerald-600' : 'text-red-600'"
         >
           {{ formatDuration(Math.abs(summary.slackSeconds)) }}
         </span>
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+        <span class="text-gray-500 leading-none mb-1 label"
           >Bought First</span
         >
         <span
           v-tippy="'Earnings research and vehicles bought before the hab space.'"
-          class="text-sm font-mono font-bold text-gray-900 leading-none py-1 cursor-help"
+          class="text-body font-bold text-gray-900 leading-none py-1 cursor-help tabular-nums"
           >{{ summary.researchCount }}</span
         >
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+        <span class="text-gray-500 leading-none mb-1 label"
           >{{ currency.title }} Spent</span
         >
-        <span class="text-sm font-mono font-bold text-gray-900 leading-none py-1">
+        <span class="text-body font-bold text-gray-900 leading-none py-1 tabular-nums">
           {{ formatPrice(summary.totalSpent) }}
         </span>
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1">Earnings</span>
+        <span class="text-gray-500 leading-none mb-1 label">Earnings</span>
         <span
           v-tippy="'Offline earnings per hour now, and once the whole chain is bought.'"
-          class="text-sm font-mono font-bold text-gray-900 leading-none py-1 cursor-help"
+          class="text-body font-bold text-gray-900 leading-none py-1 cursor-help tabular-nums"
         >
           {{ formatPrice(summary.earningsBeforePerHour) }} → {{ formatPrice(summary.earningsAfterPerHour) }}/hr
         </span>

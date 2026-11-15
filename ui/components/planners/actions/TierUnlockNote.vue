@@ -13,7 +13,7 @@
           >: about
           <span
             v-tippy="'Time to unlock it on the Milestones path, buying whatever pays for itself fastest along the way.'"
-            class="font-mono font-semibold text-gray-900 cursor-help"
+            class="font-bold text-gray-900 cursor-help tabular-nums"
             >{{ formatDuration(note.pathSeconds) }}</span
           ></template
         ><template v-else-if="!computing && note.pathTruncated">, too far off to time</template>.
