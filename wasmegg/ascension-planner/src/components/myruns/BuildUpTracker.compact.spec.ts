@@ -121,7 +121,7 @@ describe('Compact: a day at a glance', () => {
     expect(ranges(b)).toContain('✓ Grav Plating (17 → 18) (bought)');
     expect(ranges(b)).toContain('Comfortable Nests (0 → 50)');
     expect(chips(b)).toContain('✓ shift to Kindness (done)');
-    expect(b).toMatch(/<li[^>]*class="[^"]*text-slate-500[^"]*"[^>]*data-testid="buildup-range"[^>]*>\s*<span aria-hidden="true"[^>]*>✓<\/span>/);
+    expect(b).toMatch(/<li[^>]*class="[^"]*text-slate-600[^"]*"[^>]*data-testid="buildup-range"[^>]*>\s*<span aria-hidden="true"[^>]*>✓<\/span>/);
   });
   it('a day partly done says how far in its header (a day all done is one green line: BuildUpTracker.done.spec)', async () => {
     const second = result.days[1].lines.filter(l => l.tickable)[1].key;

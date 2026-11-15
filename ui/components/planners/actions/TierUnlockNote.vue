@@ -20,7 +20,7 @@
       </span>
       <svg
         v-if="computing"
-        class="animate-spin h-3 w-3 text-gray-400"
+        class="animate-spin h-3 w-3 text-gray-600"
         viewBox="0 0 24 24"
         fill="none"
         aria-label="Working out the time to unlock"

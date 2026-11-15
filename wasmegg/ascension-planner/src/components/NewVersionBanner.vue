@@ -30,11 +30,11 @@
     <p class="text-body max-w-prose"><span class="font-bold text-slate-900">Small update available</span>.</p>
     <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5 [overflow-wrap:anywhere]" data-testid="update-notes">
       <li v-for="n in shown" :key="n.key" data-testid="update-note">
-        <span class="tabular-nums text-slate-500">{{ n.date }}</span
+        <span class="tabular-nums text-slate-600">{{ n.date }}</span
         >{{ ' '
         }}{{ n.note }}
       </li>
-      <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
+      <li v-if="more > 0" class="list-none -ml-4 text-slate-600 tabular-nums">+{{ more }} more</li>
     </ul>
     <p class="mt-1 text-body max-w-prose">No need to reload: you'll get it on your next visit.</p>
     <div class="mt-1 flex justify-end gap-2">

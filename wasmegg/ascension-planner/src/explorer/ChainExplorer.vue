@@ -25,7 +25,7 @@
       <template v-if="!embedded">
         <header class="space-y-1">
           <h1 class="text-headline font-black text-slate-900">Insights</h1>
-          <p class="text-body text-slate-500 max-w-3xl">
+          <p class="text-body text-slate-600 max-w-3xl">
             Every run submitted to the planner's server, grouped by how many ascensions it takes. Pick a count to see where
             each ascension lands, how long each one runs, and whether the shape repeats across accounts.
           </p>
@@ -50,7 +50,7 @@
       <section v-if="part === 'insights'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
           <p class="text-body font-bold text-slate-700">No server configured for this copy of the page.</p>
-          <p class="text-body text-slate-500 max-w-prose">
+          <p class="text-body text-slate-600 max-w-prose">
             Paste the planner's server base URL: the same Worker the planner's Submit button posts to, without the
             <code class="tabular-nums">/submit</code>. It is remembered in this browser, and
             <code class="tabular-nums">?collector=…</code> on this page's own URL does the same thing for a link
@@ -74,7 +74,7 @@
 
         <div v-else class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <p v-if="loading" class="text-body font-bold text-slate-500">Loading the runs<AnimatedDots /></p>
+            <p v-if="loading" class="text-body font-bold text-slate-600">Loading the runs<AnimatedDots /></p>
             <p v-else-if="error" class="text-body font-bold text-rose-700">{{ error }}</p>
             <p v-else-if="allSimHidden" class="text-body font-bold text-amber-700" data-testid="sim-all-hidden">
               {{ allSimHidden }}
@@ -89,11 +89,11 @@
                 ></template
               >
             </p>
-            <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-500 max-w-prose">
+            <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-600 max-w-prose">
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
-            <div v-if="!loading" class="space-y-0.5 text-body text-slate-500">
+            <div v-if="!loading" class="space-y-0.5 text-body text-slate-600">
               <p v-if="folded.hidden.size">
                 {{ folded.hidden.size }} repeat send{{ folded.hidden.size === 1 ? '' : 's' }} of a result already listed
                 {{ folded.hidden.size === 1 ? 'is' : 'are' }} counted once (the same plan from the same save, sent twice
@@ -126,7 +126,7 @@
           <div class="flex gap-2">
             <button
               type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-600 hover:border-slate-300"
               :disabled="loading"
               @click="load"
             >
@@ -135,7 +135,7 @@
             <button
               v-if="!embedded"
               type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-600 hover:border-slate-300"
               @click="forgetBase"
             >
               Change server
@@ -176,7 +176,7 @@
 
       <p
         v-if="part === 'insights' && simHidden && !allSimHidden"
-        class="text-body text-slate-500"
+        class="text-body text-slate-600"
         data-testid="sim-hidden"
       >
         {{ simHidden }}
@@ -184,8 +184,8 @@
 
       <template v-if="part === 'insights' && rows.length">
         <!-- The caveats, folded and first: "accounts are a guess" matters before reading any account row. -->
-        <details class="rounded-xl border border-slate-200 bg-white p-4 text-body text-slate-500">
-          <summary class="cursor-pointer text-body font-bold text-slate-500">
+        <details class="rounded-xl border border-slate-200 bg-white p-4 text-body text-slate-600">
+          <summary class="cursor-pointer text-body font-bold text-slate-600">
             How to read all of this
           </summary>
           <div class="mt-2 space-y-2">
@@ -227,23 +227,23 @@
                 :class="
                   finalTE === target.finalTE
                     ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 "
                 @click="finalTE = target.finalTE"
               >
                 {{ target.finalTE }} <span class="opacity-60">({{ target.runs }})</span>
               </button>
             </div>
-            <label class="flex items-center gap-2 text-slate-500 label">
+            <label class="flex items-center gap-2 text-slate-600 label">
               <input
                 v-model="exhaustiveOnly"
                 type="checkbox"
-                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                class="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               Proofs only
             </label>
           </div>
-          <p class="text-body text-slate-500 max-w-prose">
+          <p class="text-body text-slate-600 max-w-prose">
             One target at a time, because a 300 route and a 490 route are different problems and their stops do not sit
             in the same places.
             <template v-if="exhaustiveOnly">
@@ -264,7 +264,7 @@
             <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-body text-slate-500 max-w-3xl">
+            <p class="mt-1 text-body text-slate-600 max-w-3xl">
               One row per account, one column per ascension count tried at this target. Each cell is that account's best
               plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
               runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
@@ -364,7 +364,7 @@
                 {{ selected.accounts }} account{{ selected.accounts === 1 ? '' : 's' }}
               </span>
             </h2>
-            <span class="text-body text-slate-500 max-w-md">
+            <span class="text-body text-slate-600 max-w-md">
               No "fastest" across accounts: gear decides that. Each account's earliest finish is named in the table.
             </span>
           </div>
@@ -383,7 +383,7 @@
 
             <!-- Interesting, but no decision depends on it: folded (review, 30 Sept). -->
             <details>
-              <summary class="cursor-pointer text-body font-bold text-slate-500">
+              <summary class="cursor-pointer text-body font-bold text-slate-600">
                 How each ascension goes
               </summary>
               <div class="mt-2">
@@ -395,7 +395,7 @@
               </div>
             </details>
           </template>
-          <p v-else class="text-body text-slate-500 max-w-prose">
+          <p v-else class="text-body text-slate-600 max-w-prose">
             Pick one count to see where its stops land and how each ascension goes: the third ascension of a 4-ascension
             plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a time.
           </p>
@@ -403,12 +403,12 @@
           <!-- Every run, folded: twelve columns and a long explainer, for the few who want them (review,
                30 Sept). -->
           <details id="the-runs" class="scroll-mt-4">
-            <summary class="cursor-pointer text-body font-bold text-slate-500">
+            <summary class="cursor-pointer text-body font-bold text-slate-600">
               Show every run
             </summary>
             <div class="mt-2 space-y-2">
               <h3 class="text-slate-600 label">The runs</h3>
-              <p class="text-body text-slate-500 max-w-3xl">
+              <p class="text-body text-slate-600 max-w-3xl">
                 Grouped by account, earliest finish first unless you pick another order below; click an account's name
                 to fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone
                 (the player's own is on hover): it is the same whenever the same plan is run, so it is what compares
@@ -440,7 +440,7 @@
                   :class="
                     activeSort.by === opt.by
                       ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                   "
                   :aria-pressed="activeSort.by === opt.by"
                   @click="sortRunsBy(opt.by)"
@@ -458,7 +458,7 @@
                 <span class="grow" />
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:opacity-40"
                   :disabled="runBlocks.every(b => collapsed.has(b.key))"
                   @click="
                     setCollapsed(
@@ -471,7 +471,7 @@
                 </button>
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:opacity-40"
                   :disabled="!runBlocks.some(b => collapsed.has(b.key))"
                   @click="
                     setCollapsed(
@@ -571,7 +571,7 @@
                   </thead>
                   <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
                     <tr class="bg-slate-50">
-                      <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-small text-slate-500">
+                      <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-small text-slate-600">
                         <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
                            the table is wider than the screen, and a line spanning all of it put the
                            route and the "not listed here" note off-screen. It wraps on screen instead. -->
@@ -587,7 +587,7 @@
                           >
                             <span
                               aria-hidden="true"
-                              class="inline-block w-3.5 text-small leading-none align-middle text-slate-500"
+                              class="inline-block w-3.5 text-small leading-none align-middle text-slate-600"
                               >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
                             >
                             <AccountDot :index="accountColors.get(block.key) ?? 0" class="mr-1.5" />
@@ -631,7 +631,7 @@
                         </span>
                         <span
                           v-if="stateOf(row)"
-                          class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-small font-bold text-slate-500"
+                          class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-small font-bold text-slate-600"
                           :title="judged.byId.get(row.id)?.reason"
                         >
                           {{ stateOf(row) }}
@@ -668,7 +668,7 @@
                       <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
                         {{ row.ascensions }}
                       </td>
-                      <td class="py-1.5 pr-3 tabular-nums text-slate-500 whitespace-nowrap">
+                      <td class="py-1.5 pr-3 tabular-nums text-slate-600 whitespace-nowrap">
                         {{ row.currentTE }} → {{ row.finalTE }}
                       </td>
                       <td
@@ -703,7 +703,7 @@
                         </template>
                         <span v-else class="text-slate-300">—</span>
                       </td>
-                      <td class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap">
+                      <td class="py-1.5 pr-3 text-right text-slate-600 whitespace-nowrap">
                         {{ row.durationDays.toFixed(2) }} d
                       </td>
                       <td class="py-1.5 pr-3" :title="searched.get(row.id)?.title">
@@ -713,7 +713,7 @@
                               ? searched.get(row.id)?.finished
                                 ? 'font-bold text-emerald-700'
                                 : 'font-bold text-amber-700'
-                              : 'text-slate-500'
+                              : 'text-slate-600'
                           "
                           >{{ searched.get(row.id)?.how }}</span
                         >
@@ -721,14 +721,14 @@
                            copies as the text a player would type into the planner. -->
                         <div
                           v-if="searched.get(row.id)?.pieces.length"
-                          class="tabular-nums text-small text-slate-500 max-w-[17rem]"
+                          class="tabular-nums text-small text-slate-600 max-w-[17rem]"
                         >
                           <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
                             >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
                           >
                         </div>
                       </td>
-                      <td class="py-1.5 pr-3 text-right text-slate-500">{{ routesText(row.chainsPriced) }}</td>
+                      <td class="py-1.5 pr-3 text-right text-slate-600">{{ routesText(row.chainsPriced) }}</td>
                       <td
                         class="py-1.5 pr-3 text-right whitespace-nowrap"
                         :title="
@@ -754,7 +754,7 @@
                         <span v-else class="text-slate-300">—</span>
                       </td>
                       <td
-                        class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap"
+                        class="py-1.5 pr-3 text-right text-slate-600 whitespace-nowrap"
                         :title="row.run ? describeCompute(row.run.minutes, row.run.workers) : 'not recorded'"
                       >
                         {{ row.run ? `${formatMinutes(row.run.minutes)} × ${row.run.workers ?? 1}` : '—' }}
@@ -763,7 +763,7 @@
                         <button
                           v-if="row.hasCsv"
                           type="button"
-                          class="px-2 py-0.5 rounded-md border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                          class="px-2 py-0.5 rounded-md border border-slate-200 text-body font-bold text-slate-600 hover:border-slate-300 disabled:opacity-40"
                           :disabled="csvLoadingId === row.id"
                           @click="openTable(row, $event)"
                         >
@@ -791,7 +791,7 @@
             <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-body text-slate-500 max-w-3xl">
+            <p class="mt-1 text-body text-slate-600 max-w-3xl">
               One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
               research and starting TE at least as much as on the route, so the fair way to ask this is to hold one
               account still and vary the count. Each point is how many days after that account's earliest finish the
@@ -822,7 +822,7 @@
             <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-body text-slate-500 max-w-3xl">
+            <p class="mt-1 text-body text-slate-600 max-w-3xl">
               Runs to 490 only, whatever target is picked above. For each TE at the picked stop (the last by default),
               how far the best plan through it is behind that run's own best, as a percent of it, one line per run. Each
               line is one table priced from one save, so its shape is exact, and as a percent of its own best it
@@ -853,7 +853,7 @@
                 :class="
                   gearView === v.id
                     ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 "
                 :aria-pressed="gearView === v.id"
                 @click="gearView = v.id"
@@ -871,7 +871,7 @@
               <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                 How this is worked out
               </summary>
-              <p class="mt-1 text-body text-slate-500 max-w-3xl">
+              <p class="mt-1 text-body text-slate-600 max-w-3xl">
                 Where the Leaderboard's accounts sit, and where it has no data. One mark per account, from its newest run that
                 recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
                 delivery set. Clothed TE is TE plus what the earnings set adds, and the accounts so far add between about
@@ -886,7 +886,7 @@
             <GearMap :accounts="accounts" :what-ifs="whatIfs" />
           </template>
           <template v-else>
-            <p class="text-body text-slate-500 max-w-3xl">
+            <p class="text-body text-slate-600 max-w-3xl">
               <b>Delivery set</b>: each account's delivery set as a percent of the best possible, bars from 0; the grey
               ticks are the best peak delivery any of that account's runs to 490 reached. <b>Earnings set</b>: what its
               earnings set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are in the tooltip: hover or
@@ -917,14 +917,14 @@
             <div class="flex gap-2">
               <a
                 href="#the-runs"
-                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-600 hover:border-slate-300"
                 @click.prevent="backToRuns"
               >
                 &uarr; Back to the runs
               </a>
               <button
                 type="button"
-                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-600 hover:border-slate-300"
                 @click="closeTable"
               >
                 Close
@@ -945,7 +945,7 @@
                 :class="
                   plateauTolerance === t.id
                     ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 "
                 :aria-pressed="plateauTolerance === t.id"
                 @click="plateauTolerance = t.id"
@@ -984,7 +984,7 @@
 
           <div class="space-y-2 border-t border-slate-100 pt-4">
             <h3 class="text-body font-bold text-slate-900">What missing a stop costs</h3>
-            <p class="text-body text-slate-500 max-w-3xl">
+            <p class="text-body text-slate-600 max-w-3xl">
               A plan rarely goes exactly to schedule: you are asleep when a stop arrives, or you ascend a little early.
               This reads what that costs off this run's own table, where every plan was priced from the same save, so
               the days compare directly. For each stop of the best plan and a miss of 1 or 2 TE either way, "keep" is
@@ -999,7 +999,7 @@
 
           <div class="space-y-2 border-t border-slate-100 pt-4">
             <h3 class="text-body font-bold text-slate-900">Every plan this run priced</h3>
-            <p class="text-body text-slate-500 max-w-3xl">
+            <p class="text-body text-slate-600 max-w-3xl">
               The run's whole table, fastest first: its top 10, 25 or 100, or every plan it checked, 100 to a page. All
               of them were priced from one save, so here, and only here, days compare directly: "vs best" is the gap
               between two plans and nothing else, and each finish date is this run's plan start plus that plan's days,
@@ -1037,7 +1037,7 @@
                 <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-body text-slate-500 max-w-3xl">
+                <p class="mt-1 text-body text-slate-600 max-w-3xl">
                   One mark per ascension, from ascension 2 on, of every plan whose finish still stands. Across is the TE the ascension
                   starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
                   for that ascension (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Ascension 1 is left
@@ -1061,7 +1061,7 @@
                 <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-body text-slate-500 max-w-3xl">
+                <p class="mt-1 text-body text-slate-600 max-w-3xl">
                   A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
                   runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables:
                   the list merges them and ranks every plan by finish date, the run's plan start plus the plan's days.
@@ -1094,7 +1094,7 @@
                 <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-body text-slate-500 max-w-3xl">
+                <p class="mt-1 text-body text-slate-600 max-w-3xl">
                   One account at a time. Each mark is a plan at the date it was made, measured by its finish date as
                   days after the account's earliest finish that still stands; totals never compare across starts. A line
                   joins the same plan each time it was priced: by a newer run of it, by a newer run with the stops since
@@ -1124,7 +1124,7 @@
                 <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-body text-slate-500 max-w-3xl">
+                <p class="mt-1 text-body text-slate-600 max-w-3xl">
                   One point per run to 490, whatever target is picked above. Across is the run's last stop; up is the
                   peak delivery its final ascension reached, as a percent of what its delivery set should reach from that
                   stop. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with the
@@ -1149,7 +1149,7 @@
             >
               <div class="space-y-1">
                 <h2 class="text-title font-bold text-slate-900">Runs the planner can't help yet</h2>
-                <p class="text-body text-slate-500 max-w-3xl">
+                <p class="text-body text-slate-600 max-w-3xl">
                   Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift
                   for over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
                   everything above, because they are not routes to copy, and shown anonymously, except runs sent from
@@ -1174,7 +1174,7 @@
         <!-- Inside the planner the Science tab's own heading says this. -->
         <div v-if="!embedded" class="space-y-1">
           <h2 class="text-title font-bold text-slate-900">Help fill the gaps</h2>
-          <p class="text-body text-slate-500 max-w-3xl">
+          <p class="text-body text-slate-600 max-w-3xl">
             What the collected runs are still short of, worked out from them: each item drops off once enough accounts
             have covered it. Every run helps, even if nothing here matches your account, but these are the gaps where
             one more account teaches the most.
@@ -1193,7 +1193,7 @@
           @run="r => emit('run-sweep', r)"
           @run-by-date="r => emit('run-by-date', r)"
         />
-        <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-body text-slate-500">
+        <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-body text-slate-600">
           <!-- One line (fluff review 2, 5 Nov 2026, Sc11). -->
           {{ error ? "Can't list the gaps without the Leaderboard." : 'No runs on the Leaderboard yet, so no gaps to list.' }}
           Any run you send still helps.
@@ -1208,7 +1208,7 @@
       >
         <div class="space-y-1">
           <h2 class="text-title font-bold text-slate-900">{{ NAMES.submit }}</h2>
-          <p class="text-body text-slate-500 max-w-3xl">
+          <p class="text-body text-slate-600 max-w-3xl">
             Ran a sweep and closed the tab, or ran it on another machine? Upload its two files here. They are checked
             before anything is sent.
           </p>

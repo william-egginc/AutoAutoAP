@@ -7,7 +7,7 @@
     >
       <div class="flex items-center gap-2 min-w-0">
         <svg
-          class="w-3 h-3 text-slate-400 transition-transform duration-200 flex-shrink-0"
+          class="w-3 h-3 text-slate-600 transition-transform duration-200 flex-shrink-0"
           :class="{ 'rotate-90': props.expanded }"
           fill="none"
           stroke="currentColor"
@@ -15,8 +15,8 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
-        <span class="text-body font-bold text-slate-500 truncate">{{ label }}</span>
-        <span class="text-small font-bold text-slate-500 shrink-0">
+        <span class="text-body font-bold text-slate-600 truncate">{{ label }}</span>
+        <span class="text-small font-bold text-slate-600 shrink-0">
           <template v-if="researchBuyCount > 0"
             >{{ researchBuyCount }} research buy{{ researchBuyCount === 1 ? '' : 's' }}</template
           >
@@ -24,7 +24,7 @@
         </span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <span v-if="eggsDelivered" class="text-small font-bold text-slate-400">
+        <span v-if="eggsDelivered" class="text-small font-bold text-slate-600">
           {{ formatNumber(eggsDelivered, 2) }} Eggs
         </span>
         <div v-if="totalCost > 0" class="flex items-center gap-1">

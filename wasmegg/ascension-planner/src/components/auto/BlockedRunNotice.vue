@@ -21,7 +21,7 @@
     </p>
     <button
       type="button"
-      class="text-body font-bold text-slate-500 hover:text-slate-700"
+      class="text-body font-bold text-slate-600 hover:text-slate-700"
       @click="store.discardCheckpoint()"
     >
       Discard it

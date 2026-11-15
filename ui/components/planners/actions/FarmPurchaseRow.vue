@@ -13,7 +13,7 @@
 
     <!-- Row 2: Detail, price -->
     <div class="flex items-start justify-between w-full pl-[38px] gap-4">
-      <div class="text-small text-gray-500 leading-snug">{{ item.detail }}</div>
+      <div class="text-small text-gray-600 leading-snug">{{ item.detail }}</div>
       <div class="text-right shrink-0">
         <div class="flex items-center justify-end gap-1 text-small text-amber-600 font-bold tabular-nums">
           {{ formatPrice(item.price) }}
@@ -42,7 +42,7 @@
     <div class="flex items-center justify-between w-full pl-[38px] gap-2">
       <div class="flex-1">
         <div class="flex items-end gap-2 whitespace-nowrap">
-          <div class="text-gray-400 label">Achieve ROI</div>
+          <div class="text-gray-600 label">Achieve ROI</div>
           <div
             v-tippy="formatAbsoluteTime(item.totalRoiSeconds, baseTimestamp, planStore.ascensionTimezone)"
             class="text-small text-gray-900 leading-none cursor-help tabular-nums"
@@ -59,7 +59,7 @@
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <div
-          class="text-small text-gray-400 whitespace-nowrap tabular-nums"
+          class="text-small text-gray-600 whitespace-nowrap tabular-nums"
           :class="{ 'cursor-help': timeCostTooltipSeconds !== undefined }"
           v-tippy="
             timeCostTooltipSeconds !== undefined

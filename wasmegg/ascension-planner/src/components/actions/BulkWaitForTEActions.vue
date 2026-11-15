@@ -6,7 +6,7 @@
         <label class="block label text-slate-600">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
-            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(-1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -24,7 +24,7 @@
             @blur="onBoxLeave"
           />
           <button 
-            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -74,7 +74,7 @@
               <div class="text-small tabular-nums text-slate-600 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
                 <span v-else>Shift on</span>
-                <span class="text-slate-500">&nbsp;{{ eggPlan.absoluteTime }}</span>
+                <span class="text-slate-600">&nbsp;{{ eggPlan.absoluteTime }}</span>
               </div>
             </div>
           </div>
@@ -103,14 +103,14 @@
             <!-- Reorder Controls -->
             <div v-if="!eggPlan.isCurrentEgg" class="flex flex-col gap-0.5">
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === 1 }"
                 @click="moveEgg(index, -1)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
               </button>
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === eggPlans.length - 1 }"
                 @click="moveEgg(index, 1)"
               >

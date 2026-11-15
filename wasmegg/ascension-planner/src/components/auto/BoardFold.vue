@@ -20,7 +20,7 @@
     <div
       :id="bodyId"
       :hidden.attr="open ? undefined : 'until-found'"
-      class="mt-1 text-small text-slate-500"
+      class="mt-1 text-small text-slate-600"
       @beforematch="open = true"
     >
       <slot />

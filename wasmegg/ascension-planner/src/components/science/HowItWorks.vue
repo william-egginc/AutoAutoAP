@@ -252,7 +252,7 @@
           <div v-for="c in CHECKS" :key="c.what" class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
             <p class="font-bold text-slate-800">{{ c.what }}</p>
             <p class="text-slate-700">{{ c.result }}</p>
-            <p class="text-body text-slate-500">How: {{ c.how }}</p>
+            <p class="text-body text-slate-600">How: {{ c.how }}</p>
           </div>
         </div>
 

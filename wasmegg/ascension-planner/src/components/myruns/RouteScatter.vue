@@ -20,8 +20,8 @@
     data-testid="my-runs-scatter"
     @toggle="open = ($event.target as HTMLDetailsElement).open"
   >
-    <summary class="cursor-pointer text-body font-bold text-slate-500">
-      Your routes at a glance<span class="ml-2 font-bold normal-case tracking-normal text-slate-500">{{
+    <summary class="cursor-pointer text-body font-bold text-slate-600">
+      Your routes at a glance<span class="ml-2 font-bold normal-case tracking-normal text-slate-600">{{
         countWords
       }}</span>
     </summary>
@@ -39,7 +39,7 @@
       <template v-else>
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-small" data-testid="my-runs-scatter-controls">
           <label class="flex items-center gap-1.5">
-            <span class="text-slate-500">Goal</span>
+            <span class="text-slate-600">Goal</span>
             <select
               v-model="goalKey"
               class="min-h-[44px] rounded-lg border-slate-200 py-1 pl-2 pr-7 text-body font-bold text-slate-700 sm:min-h-0"
@@ -65,12 +65,12 @@
             @mouseleave="!pinned && (sel = null)"
             @keydown.esc="clearSel"
           >
-            <span class="col-span-full pb-1 text-small font-bold text-slate-500" data-testid="my-runs-heat-ytitle">{{
+            <span class="col-span-full pb-1 text-small font-bold text-slate-600" data-testid="my-runs-heat-ytitle">{{
               Y_TITLE[scale]
             }}</span>
             <template v-for="ri in rowOrder" :key="`r${ri}`">
               <span
-                class="flex max-w-[4.75rem] items-center justify-end pr-1 text-right text-small leading-tight text-slate-500 sm:max-w-none sm:pr-2"
+                class="flex max-w-[4.75rem] items-center justify-end pr-1 text-right text-small leading-tight text-slate-600 sm:max-w-none sm:pr-2"
                 style="font-variant-numeric: tabular-nums"
                 data-testid="my-runs-heat-ylabel"
                 >{{ heat.rows[ri].label }}</span
@@ -108,14 +108,14 @@
             <span
               v-for="col in heat.cols"
               :key="`x${col.label}`"
-              class="pt-1 text-center text-small text-slate-500"
+              class="pt-1 text-center text-small text-slate-600"
               style="font-variant-numeric: tabular-nums"
               data-testid="my-runs-heat-xlabel"
               >{{ col.label }}</span
             >
             <span aria-hidden="true"></span>
             <span
-              class="text-center text-small font-bold text-slate-500"
+              class="text-center text-small font-bold text-slate-600"
               :style="{ gridColumn: `span ${heat.cols.length}` }"
               >Ascensions</span
             >
@@ -137,7 +137,7 @@
             <button
               v-if="selLine && pinned"
               type="button"
-              class="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg text-title font-bold text-slate-500"
+              class="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg text-title font-bold text-slate-600"
               aria-label="Clear the selected cell"
               data-testid="my-runs-heat-clear"
               @click="clearSel"
@@ -171,7 +171,7 @@
             </span>
           </div>
           <div role="group" aria-label="Levels counted" class="flex flex-wrap items-center gap-1.5" data-testid="my-runs-heat-levels">
-            <span class="text-slate-500">Levels:</span>
+            <span class="text-slate-600">Levels:</span>
             <button
               v-for="l in levelsIn"
               :key="l.level"
@@ -185,7 +185,7 @@
             </button>
           </div>
         </div>
-        <p v-for="n in notes" :key="n" class="text-body text-slate-500" data-testid="my-runs-scatter-note">{{ n }}</p>
+        <p v-for="n in notes" :key="n" class="text-body text-slate-600" data-testid="my-runs-scatter-note">{{ n }}</p>
 
         <details
           class="rounded-lg border border-slate-100 p-2"
@@ -195,7 +195,7 @@
           <summary class="cursor-pointer text-body font-bold text-indigo-700">The same routes as a list</summary>
           <div v-if="listOpen" class="mt-2 overflow-x-auto">
             <table class="min-w-full text-left text-small text-slate-700">
-              <thead class="text-slate-500">
+              <thead class="text-slate-600">
                 <tr>
                   <th class="py-1 pr-3 font-bold">Route</th>
                   <th class="py-1 pr-3 font-bold">Ascensions</th>
@@ -228,7 +228,7 @@
             </table>
           </div>
         </details>
-        <p class="text-body text-slate-500">Every run is also in Your runs below, with its filters.</p>
+        <p class="text-body text-slate-600">Every run is also in Your runs below, with its filters.</p>
       </template>
     </div>
   </details>

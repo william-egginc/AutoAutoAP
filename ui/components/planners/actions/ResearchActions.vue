@@ -19,7 +19,7 @@
 
     <ResearchViewSelector v-model="currentView" :views="VIEWS" />
 
-    <p class="text-body text-gray-500 mb-4 px-1">
+    <p class="text-body text-gray-600 mb-4 px-1">
       {{ viewDescription }}
     </p>
 
@@ -100,19 +100,19 @@
       <!-- Milestone Summary -->
       <div v-if="milestoneSummary" class="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
         <template v-if="milestoneSummary.truncated">
-          <p v-if="milestoneSummary.partialPurchaseCount > 0" class="text-body text-gray-500 text-center italic">
+          <p v-if="milestoneSummary.partialPurchaseCount > 0" class="text-body text-gray-600 text-center italic">
             This milestone takes at least {{ milestoneSummary.partialPurchaseCount }}
             {{ milestoneSummary.partialPurchaseCount === 1 ? 'purchase' : 'purchases' }} (at least
             {{ formatDuration(milestoneSummary.partialSeconds) }}) — too many to fully calculate right now.
           </p>
-          <p v-else class="text-body text-gray-500 text-center italic">
+          <p v-else class="text-body text-gray-600 text-center italic">
             Unable to find a path to this milestone from the current state.
           </p>
         </template>
         <template v-else>
           <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
             <div class="flex flex-col">
-              <span class="text-gray-400 label leading-none mb-1"
+              <span class="text-gray-600 label leading-none mb-1"
                 >Simple Path</span
               >
               <span
@@ -125,7 +125,7 @@
               </span>
             </div>
             <div class="flex flex-col">
-              <span class="text-gray-400 label leading-none mb-1"
+              <span class="text-gray-600 label leading-none mb-1"
                 >Payback First</span
               >
               <span
@@ -138,15 +138,15 @@
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-gray-500 label leading-none mb-1"
+              <span class="text-gray-600 label leading-none mb-1"
                 >Time Saved</span
               >
-              <span class="text-body tabular-nums font-bold text-emerald-600 leading-none py-1">
+              <span class="text-body tabular-nums font-bold text-emerald-700 leading-none py-1">
                 {{ formatDuration(Math.max(0, milestoneSummary.timeSavedSeconds)) }}
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-gray-500 label leading-none mb-1"
+              <span class="text-gray-600 label leading-none mb-1"
                 >{{ PROFILE.hasFarmPurchasesInRoi ? 'Purchases' : 'Researches Bought' }}</span
               >
               <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
@@ -154,7 +154,7 @@
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-gray-500 label leading-none mb-1"
+              <span class="text-gray-600 label leading-none mb-1"
                 >{{ currency.title }} Spent</span
               >
               <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
@@ -162,7 +162,7 @@
               </span>
             </div>
           </div>
-          <p class="mt-2 text-small text-gray-400 text-center">Finishes {{ milestoneSummary.finishAbsoluteTime }}</p>
+          <p class="mt-2 text-small text-gray-600 text-center">Finishes {{ milestoneSummary.finishAbsoluteTime }}</p>
         </template>
       </div>
 
@@ -182,7 +182,7 @@
 
       <!-- Event Crossing Details Toggle -->
       <div v-if="sortedResearches.length > 0" class="flex items-center justify-between mt-2 px-1">
-        <span class="text-small text-gray-500">See details of sale and earnings events</span>
+        <span class="text-small text-gray-600">See details of sale and earnings events</span>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
           :class="showEventCrossingDetails ? 'bg-indigo-500' : 'bg-slate-200'"
@@ -223,7 +223,7 @@
       </button>
 
       <div v-if="sortedResearches.length > 0" class="flex items-center justify-between mt-2 px-1">
-        <span class="text-xs text-gray-500">See details of sale and earnings events</span>
+        <span class="text-xs text-gray-600">See details of sale and earnings events</span>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
           :class="showEventCrossingDetails ? 'bg-indigo-500' : 'bg-slate-200'"
@@ -251,7 +251,7 @@
     >
       <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
         <div class="flex flex-col">
-          <span class="text-gray-400 label leading-none mb-1">Lay Rate</span>
+          <span class="text-gray-600 label leading-none mb-1">Lay Rate</span>
           <span
             v-tippy="'Optimal artifacts applied, max population assumed'"
             class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
@@ -260,7 +260,7 @@
           </span>
         </div>
         <div class="flex flex-col">
-          <span class="text-gray-400 label leading-none mb-1"
+          <span class="text-gray-600 label leading-none mb-1"
             >Shipping Cap</span
           >
           <span
@@ -271,7 +271,7 @@
           </span>
         </div>
         <div class="flex flex-col border-l border-gray-200 pl-6">
-          <span class="text-gray-500 label leading-none mb-1"
+          <span class="text-gray-600 label leading-none mb-1"
             >Delivery Rate</span
           >
           <span
@@ -282,7 +282,7 @@
           </span>
         </div>
       </div>
-      <p class="mt-2 text-small text-gray-400 text-center italic leading-tight px-2">
+      <p class="mt-2 text-small text-gray-600 text-center italic leading-tight px-2">
         Note: These stats reflect performance after maxing habs, vehicles, and equipping optimal stone layout.
       </p>
     </div>

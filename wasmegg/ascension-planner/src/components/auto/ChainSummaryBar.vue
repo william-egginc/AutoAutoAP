@@ -6,7 +6,7 @@
   >
     <button
       @click="$emit('toggle')"
-      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
+      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
     >
       <svg
         class="w-4 h-4 transition-transform duration-300"

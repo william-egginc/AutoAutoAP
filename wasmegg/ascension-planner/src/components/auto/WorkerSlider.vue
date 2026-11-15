@@ -16,7 +16,7 @@
       class="w-full accent-indigo-600"
       @input="setWorkers(($event.target as HTMLInputElement).value)"
     />
-    <span class="block text-small text-slate-500">
+    <span class="block text-small text-slate-600">
       <!-- One line (UX fluff review 2, S25; DRAFT). It said fewer keep the computer usable, that 12 workers were as
            fast as 19 on the one 20-thread PC measured, and that a change mid-run takes about a minute and loses no route. -->
       More finish sooner, up to a point. You can change it mid-run.

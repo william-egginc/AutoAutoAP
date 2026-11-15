@@ -10,7 +10,7 @@
       <div class="flex justify-between items-start mb-6 relative z-10">
         <div>
           <h4 class="text-slate-600 label mb-1">Shift Progress</h4>
-          <p class="text-body font-normal text-slate-500">Since {{ lastShiftLabel }}</p>
+          <p class="text-body font-normal text-slate-600">Since {{ lastShiftLabel }}</p>
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
           <span class="text-slate-600 label">Shifts:</span>

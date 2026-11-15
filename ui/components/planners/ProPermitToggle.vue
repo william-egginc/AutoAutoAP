@@ -5,7 +5,7 @@
     <div>
       <div class="text-body font-bold text-slate-700">Pro Permit</div>
       <div
-        class="hidden sm:block label text-slate-400 group-hover:text-slate-500 transition-colors"
+        class="hidden sm:block label text-slate-600 group-hover:text-slate-500 transition-colors"
       >
         {{ modelValue ? '4 artifacts · 10 silos' : 'Standard: half offline earnings · 2 artifacts · 2 silos' }}
       </div>

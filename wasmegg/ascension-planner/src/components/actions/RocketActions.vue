@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="text-body text-gray-500 max-w-prose">
+    <p class="text-body text-gray-600 max-w-prose">
       Plan rocket missions. Choose how many of each ship to send — fuel is drawn from your tank.
     </p>
 
@@ -61,7 +61,7 @@
         </label>
       </div>
 
-      <p class="text-body text-gray-500 italic border-l-2 border-gray-200 pl-3 py-0.5">
+      <p class="text-body text-gray-600 italic border-l-2 border-gray-200 pl-3 py-0.5">
         Use this when you launch right before a shift: the missions add no time to your plan.
       </p>
     </div>

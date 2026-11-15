@@ -203,11 +203,11 @@
               A{{ i + 1 }}
             </td>
             <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE ?? '—' }}</td>
-            <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ startOf(i) }}</td>
-            <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+            <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ startOf(i) }}</td>
+            <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
               {{ okNumber(leg.endTime) ? when(leg.endTime) : '—' }}
             </td>
-            <td class="py-1.5 pr-3 text-slate-500">
+            <td class="py-1.5 pr-3 text-slate-600">
               {{ okNumber(leg.durationSeconds) ? (leg.durationSeconds / 86400).toFixed(2) : '—' }}
             </td>
           </tr>

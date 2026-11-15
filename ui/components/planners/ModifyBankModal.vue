@@ -24,7 +24,7 @@
         <div class="p-5 flex flex-col gap-4">
           <!-- Current Value -->
           <div class="flex items-center justify-between bg-slate-50/50 rounded-xl p-3 border border-slate-100">
-            <span class="text-slate-400 label">Current Bank</span>
+            <span class="text-slate-600 label">Current Bank</span>
             <span class="tabular-nums text-body font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
           </div>
 
@@ -32,21 +32,21 @@
           <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
             <button
               class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
-              :class="mode === 'set' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
+              :class="mode === 'set' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-600'"
               @click="mode = 'set'"
             >
               Set Value
             </button>
             <button
               class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
-              :class="mode === 'delta' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
+              :class="mode === 'delta' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-600'"
               @click="mode = 'delta'"
             >
               Add / Subtract
             </button>
             <button
               class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
-              :class="mode === 'time' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
+              :class="mode === 'time' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-600'"
               @click="mode = 'time'"
             >
               By Time
@@ -55,7 +55,7 @@
 
           <!-- Set Value Mode -->
           <div v-if="mode === 'set'" class="flex flex-col gap-2">
-            <span class="text-slate-400 label">New Bank Value</span>
+            <span class="text-slate-600 label">New Bank Value</span>
             <input
               ref="inputEl"
               v-model="setInput"
@@ -68,7 +68,7 @@
 
           <!-- Delta Mode -->
           <div v-else-if="mode === 'delta'" class="flex flex-col gap-2">
-            <span class="text-slate-400 label">Amount</span>
+            <span class="text-slate-600 label">Amount</span>
             <input
               ref="inputEl"
               v-model="deltaInput"
@@ -81,7 +81,7 @@
 
           <!-- By Time Mode -->
           <div v-else class="flex flex-col gap-2">
-            <span class="text-slate-400 label">Duration</span>
+            <span class="text-slate-600 label">Duration</span>
             <input
               ref="inputEl"
               v-model="timeInput"
@@ -103,30 +103,30 @@
           <!-- Footer: same summary for every mode -->
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
             <div class="flex justify-between items-center text-small">
-              <span class="text-slate-400 label">Current Offline Rate</span>
+              <span class="text-slate-600 label">Current Offline Rate</span>
               <span class="tabular-nums font-bold text-slate-600"
                 >{{ formatNumber(offlineEarningsRate * 3600, 3) }}/hr</span
               >
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="text-slate-400 label">New Bank Value</span>
+              <span class="text-slate-600 label">New Bank Value</span>
               <span class="tabular-nums font-bold text-slate-800">{{
                 formatNumber(hasRawInput ? newValue : currentValue, 3)
               }}</span>
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="text-slate-400 label">Change</span>
+              <span class="text-slate-600 label">Change</span>
               <span
                 class="tabular-nums font-bold"
                 :class="
-                  hasRawInput && delta < 0 ? 'text-rose-500' : hasRawInput ? 'text-emerald-600' : 'text-slate-300'
+                  hasRawInput && delta < 0 ? 'text-rose-500' : hasRawInput ? 'text-emerald-700' : 'text-slate-300'
                 "
               >
                 {{ hasRawInput && delta >= 0 ? '+' : '' }}{{ formatNumber(hasRawInput ? delta : 0, 3) }}
               </span>
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="text-slate-400 label">Change (Time)</span>
+              <span class="text-slate-600 label">Change (Time)</span>
               <span
                 class="tabular-nums font-bold"
                 :class="hasRawInput && changeTimeSeconds !== null ? 'text-slate-600' : 'text-slate-300'"

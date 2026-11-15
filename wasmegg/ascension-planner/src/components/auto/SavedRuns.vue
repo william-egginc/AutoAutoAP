@@ -19,12 +19,12 @@
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-slate-500 label">{{ heading || 'Saved runs' }}</h3>
+      <h3 class="text-slate-600 label">{{ heading || 'Saved runs' }}</h3>
       <span class="text-small font-bold text-slate-600">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
     <!-- One line and a fold (UX fluff review 2, 5 Nov 2026, item C7); the run is saved from the result card's one Save
          (item C7b: the name box and "Save this run" here were a second Save for the same run). DRAFT (Words). -->
-    <div v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
+    <div v-if="!listOnly" class="text-body text-slate-600 max-w-prose">
       <p class="flex flex-wrap items-center gap-x-1">
         <span>Kept in this browser; past {{ MAX_RUNS }}, the oldest goes.</span>{{ ' ' }}<button
           type="button"
@@ -53,7 +53,7 @@
         <div class="flex-1 min-w-[14rem]">
           <div class="text-small font-bold text-slate-800">
             {{ run.label }}
-            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 label text-slate-500">{{
+            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 label text-slate-600">{{
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
@@ -106,7 +106,7 @@
         />
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-500 hover:border-red-300 hover:text-red-600"
+          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-red-300 hover:text-red-600"
           @click="store.deleteSavedRun(playerId, run.id)"
         >
           Delete

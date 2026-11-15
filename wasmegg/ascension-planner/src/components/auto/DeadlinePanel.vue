@@ -52,7 +52,7 @@
 
     <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026), as on Fastest's (FastestRoute.vue). -->
     <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
-    <h3 class="text-slate-500 label md:!mt-0">The date</h3>
+    <h3 class="text-slate-600 label md:!mt-0">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
@@ -114,7 +114,7 @@
         </select>
       </label>
     </div>
-    <p class="text-body text-slate-500 max-w-prose">
+    <p class="text-body text-slate-600 max-w-prose">
       <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
       <!-- One short line (UX fluff review 2, 5 Nov 2026, item D0b): the picker above already gives the time in your own
@@ -340,7 +340,7 @@
                 @click="openInAdvanced"
               >
                 Open in Custom</button
-              ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
+              ><span class="text-slate-600"> with these boxes filled in, to widen them or add your own.</span>
             </p>
           </div>
         </PanelFold>
@@ -359,7 +359,7 @@
       <p class="max-w-prose text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_LEAD }}</p>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
-        <h3 class="text-slate-500 label pt-1">The routes to try</h3>
+        <h3 class="text-slate-600 label pt-1">The routes to try</h3>
         <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
            me" is gone from the page; an unfinished run started in it can still be carried on, which is
            the only way `mode` becomes 'auto' now. -->
@@ -402,7 +402,7 @@
               <span v-if="instantNote(k)" class="block text-small text-indigo-700" data-test="instant-set-note">{{
                 instantNote(k)
               }}</span>
-              <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-small text-slate-500"
+              <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-small text-slate-600"
                 >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
                 wider ones.</span
               >
@@ -437,7 +437,7 @@
                   class="w-40 rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
                 />
               </label>
-              <span class="text-small pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
+              <span class="text-small pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-600' : 'text-rose-600'">
                 {{
                   lastTooHigh
                     ? LAST_TOO_HIGH
@@ -783,7 +783,7 @@
         <!-- Say whose results these are (the Stronger check box has its own heading above Light). -->
         <h4
           v-if="k === 'boxes' || stronger.level === 'light'"
-          class="label text-slate-500"
+          class="label text-slate-600"
           data-testid="exhaustive-results-heading"
         >
           {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's route` : 'Custom: the best routes in your boxes' }}
@@ -915,7 +915,7 @@
           <button
             v-if="chainsTruncated"
             type="button"
-            class="ml-1 font-bold text-body text-slate-500 hover:text-slate-800 underline"
+            class="ml-1 font-bold text-body text-slate-600 hover:text-slate-800 underline"
             @click="showAllChains = !showAllChains"
           >
             {{ showAllChains ? 'Show fewer' : 'Show all' }}
@@ -934,7 +934,7 @@
           <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
         </template>
         <template #default="{ row: r }">
-          <td class="pr-4 py-1 text-slate-500">{{ plural(r.chain.length, 'ascension') }}</td>
+          <td class="pr-4 py-1 text-slate-600">{{ plural(r.chain.length, 'ascension') }}</td>
           <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
           <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
           <td class="pr-4 py-1">

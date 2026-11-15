@@ -15,7 +15,7 @@
         </div>
         <div>
           <div class="text-body font-bold text-slate-800">Habitat Capacity</div>
-          <div class="text-slate-400 label">
+          <div class="text-slate-600 label">
             Filling to {{ formatNumber(habCapacity, 3) }}
           </div>
         </div>
@@ -23,8 +23,8 @@
 
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
-          <div class="text-slate-400 label">Metric</div>
-          <div class="text-slate-400 label text-right">Value</div>
+          <div class="text-slate-600 label">Metric</div>
+          <div class="text-slate-600 label text-right">Value</div>
 
           <div class="text-slate-600 label">Current Pop:</div>
           <div class="tabular-nums text-right text-slate-700 font-bold">
@@ -46,7 +46,7 @@
 
         <div class="pt-3 border-t border-slate-100/50">
           <div class="flex justify-between items-center text-small">
-            <span class="text-slate-400 label">Time Required:</span>
+            <span class="text-slate-600 label">Time Required:</span>
             <span class="tabular-nums font-bold text-slate-900 text-body">{{
               formatDuration(timeToGrowSeconds)
             }}</span>
@@ -69,7 +69,7 @@
       <span>Wait for Full Habs</span>
     </button>
 
-    <p class="text-small text-slate-400 font-bold opacity-60">
+    <p class="text-small text-slate-600 font-bold opacity-60">
       Time is based on your current offline internal hatchery rate.
     </p>
   </div>

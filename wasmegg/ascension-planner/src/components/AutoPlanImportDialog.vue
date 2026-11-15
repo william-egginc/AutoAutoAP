@@ -27,7 +27,7 @@ const emit = defineEmits<{
         </div>
         
         <h3 class="text-title font-bold text-slate-900 mb-2">Auto Planner file detected</h3>
-        <p class="text-slate-500 text-body mb-8">
+        <p class="text-slate-600 text-body mb-8">
           The file "<span class="font-bold text-slate-700">{{ planName }}</span>" has
           <span class="font-bold text-indigo-600">{{ plural(ascensionCount, 'ascension') }}</span>. 
           How would you like to import it?
@@ -45,7 +45,7 @@ const emit = defineEmits<{
             </div>
             <div>
               <div class="text-body font-bold text-slate-900">Open in the {{ NAMES.classic }}</div>
-              <div class="text-small font-normal text-slate-500">Restores all ascensions in the {{ NAMES.classic }}.</div>
+              <div class="text-small font-normal text-slate-600">Restores all ascensions in the {{ NAMES.classic }}.</div>
             </div>
           </button>
 
@@ -60,7 +60,7 @@ const emit = defineEmits<{
             </div>
             <div>
               <div class="text-body font-bold text-slate-900">Import into Library</div>
-              <div class="text-small font-normal text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
+              <div class="text-small font-normal text-slate-600">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
             </div>
           </button>
         </div>

@@ -169,7 +169,7 @@ const CONVERTED: [file: string, words: string, then?: string][] = [
   ['components/auto/RunProgressBar.vue', ' · measuring time left'],
   ['components/myruns/AscensionList.vue', '{{ noShifts(l) }}', '<AnimatedDots v-if="shiftsWorking(l)"'],
   ['components/charts/EChart.vue', 'Loading chart'],
-  ['components/myruns/FollowHistory.vue', 'text-slate-500">Loading'],
+  ['components/myruns/FollowHistory.vue', 'text-slate-600">Loading'],
   ['components/myruns/SaveAgeStrip.vue', 'Loading your save'],
   ['components/science/SweepRunner.vue', 'Loading your latest save'],
   ['components/science/SweepRunner.vue', 'Starting'],

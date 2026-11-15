@@ -36,7 +36,7 @@
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
     <TeOverrideBanner />
-    <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
+    <p v-if="page.saveWaiting.value" class="text-body text-slate-600" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
@@ -228,8 +228,8 @@
     <!-- 6. Your runs: one section. -->
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
       <div>
-        <p class="label text-slate-500">Your runs</p>
-        <p class="text-body text-slate-500 max-w-prose" data-testid="my-runs-baseline-intro">
+        <p class="label text-slate-600">Your runs</p>
+        <p class="text-body text-slate-600 max-w-prose" data-testid="my-runs-baseline-intro">
           Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>
       </div>
@@ -243,7 +243,7 @@
         <input v-model="shareBaseline.agreed.value" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300" />
         <span>
           <b>Share my instant answer with my runs</b>
-          <span class="block max-w-prose text-body text-slate-500"
+          <span class="block max-w-prose text-body text-slate-600"
             >Sends the instant answer's route and date beside each run you send, so the Leaderboard can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span
           >
@@ -281,7 +281,7 @@
         <p v-if="!hasBoard" class="text-body text-slate-600" data-testid="my-runs-no-board">
           {{ noBoard() }}
         </p>
-        <p v-if="hasBoard" class="text-body text-slate-500">The filters change this list only, not Right now above.</p>
+        <p v-if="hasBoard" class="text-body text-slate-600">The filters change this list only, not Right now above.</p>
         <details
           v-if="hasBoard"
           :open="open.board"
@@ -318,7 +318,7 @@
             Saved on {{ thisDevice() }}<span :class="COUNT">{{ countText(savedCount) }}</span>
           </summary>
           <div class="mt-3 space-y-3">
-            <p class="text-body text-slate-500 max-w-prose">
+            <p class="text-body text-slate-600 max-w-prose">
               Kept in this browser for this account. Open puts one back on its screen in {{ NAMES.chainFinder }}: runs on
               {{ fastestName(store.finalTE) }}, answers on {{ NAMES.byDate }}.
             </p>
@@ -352,11 +352,11 @@
             Not sent yet<span :class="COUNT">{{ countText(unsentCount) }}</span>
           </summary>
           <div class="mt-3 space-y-2">
-            <p class="text-body text-slate-500 max-w-prose">
+            <p class="text-body text-slate-600 max-w-prose">
               Finished results this browser kept because they didn't reach the Leaderboard (the page closed first, or nothing sent
               them). Each goes with its own route and CSV, whatever save is loaded now.
             </p>
-            <p v-if="store.isRunning || store.deadlineRunning" class="text-body text-slate-500">
+            <p v-if="store.isRunning || store.deadlineRunning" class="text-body text-slate-600">
               A search is running: these show again when it ends.
             </p>
             <UnsentResults :player-id="playerId" />
@@ -469,7 +469,7 @@ const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 const SUMMARY = 'min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer label text-slate-700';
-const COUNT = 'ml-2 font-bold normal-case tracking-normal text-slate-500';
+const COUNT = 'ml-2 font-bold normal-case tracking-normal text-slate-600';
 
 /** This build has a collector, so a board to read and send to. Without one the board's parts are one line and
  *  their rows are empty from the start (never "loading"). */

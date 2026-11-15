@@ -20,7 +20,7 @@
             v-tippy="'This set is currently equipped'"
           >
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-            <span class="text-body font-bold text-emerald-600 leading-none">Equipped</span>
+            <span class="text-body font-bold text-emerald-700 leading-none">Equipped</span>
           </div>
         </div>
 
@@ -56,7 +56,7 @@
                 Undo
               </button>
               <button
-                class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
+                class="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
                 @click="saveChanges"
               >
                 Save Changes
@@ -72,7 +72,7 @@
 
         <div v-if="selectedTab === 'elr'" class="flex flex-wrap items-center justify-end gap-y-2 gap-x-4 border-t border-gray-200/60 pt-2 -mt-1">
           <div class="flex items-center gap-2">
-            <span class="text-gray-500 label"
+            <span class="text-gray-600 label"
               >Exclude Gusset</span
             >
             <button
@@ -88,7 +88,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-gray-500 label"
+            <span class="text-gray-600 label"
               >Assume Max Habs/Vehicles</span
             >
             <button

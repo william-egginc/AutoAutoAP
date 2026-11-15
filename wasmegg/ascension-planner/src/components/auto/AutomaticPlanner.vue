@@ -49,7 +49,7 @@
                 <h3 class="text-slate-700 label">Ascension Targets</h3>
               </div>
               <div class="space-y-1.5">
-                <label class="text-slate-500 label px-1">Target TE(s)</label>
+                <label class="text-slate-600 label px-1">Target TE(s)</label>
                 <div class="flex items-center gap-3">
                   <div class="relative flex-1">
                     <input

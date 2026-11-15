@@ -34,7 +34,7 @@
         v-for="idx in indices"
         :key="idx"
         class="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-small font-bold"
-        :class="selected.has(idx) ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-500'"
+        :class="selected.has(idx) ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-600'"
       >
         <input
           type="checkbox"

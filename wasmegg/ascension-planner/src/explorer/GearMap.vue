@@ -25,7 +25,7 @@
           <EChart :option="option" :height="`${CHART_HEIGHT}px`" label="Chart: gear data still wanted" />
         </div>
         <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
+          class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-600"
           aria-label="How to read the marks"
         >
           <span class="inline-flex items-center gap-1.5">
@@ -100,7 +100,7 @@
                   <td class="py-1 pr-3 text-right">
                     {{ p.delivery === null ? '—' : `${(p.delivery * 100).toFixed(1)}%` }}
                   </td>
-                  <td class="py-1 text-slate-500">
+                  <td class="py-1 text-slate-600">
                     {{ p.exact ? 'recorded by the planner' : 'worked out afterwards (assumes a Pro permit)' }}
                   </td>
                 </tr>
@@ -112,7 +112,7 @@
 
       <aside class="space-y-2 text-body">
         <p class="label text-slate-600">Gear data still wanted</p>
-        <p v-if="!needList.length" class="text-slate-500">Every gear ask has enough accounts.</p>
+        <p v-if="!needList.length" class="text-slate-600">Every gear ask has enough accounts.</p>
         <ul v-else class="space-y-1.5">
           <li
             v-for="need in needList"
@@ -121,11 +121,11 @@
           >
             <div class="flex items-baseline justify-between gap-2">
               <span class="font-bold text-slate-800 leading-snug">{{ need.title }}</span>
-              <span class="shrink-0 text-small font-bold text-slate-500 tabular-nums"
+              <span class="shrink-0 text-small font-bold text-slate-600 tabular-nums"
                 >{{ need.have }} of {{ need.want }}</span
               >
             </div>
-            <p class="text-small text-slate-500">{{ need.where }}</p>
+            <p class="text-small text-slate-600">{{ need.where }}</p>
           </li>
         </ul>
         <p class="text-small text-slate-600">

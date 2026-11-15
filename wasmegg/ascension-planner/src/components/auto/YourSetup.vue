@@ -87,7 +87,7 @@
     <template v-if="!docked && !issuesOnly">
       <p
         v-if="store.setupIsRemembered"
-        class="text-body text-slate-500"
+        class="text-body text-slate-600"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
@@ -142,7 +142,7 @@
       <div class="space-y-1" data-testid="setup-save-line">
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <p class="min-w-0 text-body break-words">
-            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · {{ store.currentTE }} TE</span>{{ ' ' }}<span class="text-slate-500 tabular-nums">· {{ saveAgeLabel }}</span>
+            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · {{ store.currentTE }} TE</span>{{ ' ' }}<span class="text-slate-600 tabular-nums">· {{ saveAgeLabel }}</span>
           </p>
           <button
             type="button"
@@ -177,7 +177,7 @@
 
       <p
         v-if="store.setupIsRemembered"
-        class="text-body text-slate-500"
+        class="text-body text-slate-600"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
@@ -209,7 +209,7 @@
         class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
         :class="screen === 'classic' ? 'opacity-60' : ''"
       >
-        <h3 class="text-slate-500 label">Awake hours</h3>
+        <h3 class="text-slate-600 label">Awake hours</h3>
         <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
           The {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
         </p>
@@ -231,7 +231,7 @@
             <span class="text-body font-bold text-slate-800">My awake hours</span>
           </label>
         </div>
-        <p class="text-body text-slate-500" data-testid="setup-awake-line">
+        <p class="text-body text-slate-600" data-testid="setup-awake-line">
           Prestiges and egg shifts wait for your hours; the farm keeps laying meanwhile.
         </p>
         <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
@@ -301,7 +301,7 @@
           <p v-else-if="!store.availableDays.length" class="text-body font-bold text-amber-700">
             No days picked. Pick at least one, or nothing can be scheduled.
           </p>
-          <p v-else class="text-body text-slate-500">{{ scheduleText(store.availability) }}.</p>
+          <p v-else class="text-body text-slate-600">{{ scheduleText(store.availability) }}.</p>
           <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                still be in that state; say so, with a way back. -->
@@ -326,7 +326,7 @@
             />
             <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
           </label>
-          <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-500 max-w-prose">{{ SILO_TRICK_HELP }}</p>
+          <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-600 max-w-prose">{{ SILO_TRICK_HELP }}</p>
         </div>
       </fieldset>
 
@@ -394,7 +394,7 @@
           class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
           data-testid="share-instant"
         >
-          <h3 class="text-slate-500 label">Sharing</h3>
+          <h3 class="text-slate-600 label">Sharing</h3>
           <!-- The tick's label is the consent; what is sent is one tap away, opened in place, word for word (and read
                to a screen reader with the box, aria-describedby, even folded). -->
           <label class="flex items-start gap-3 cursor-pointer">
@@ -536,7 +536,7 @@
                 just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do
                 Not Track turns it off.
               </p>
-              <p class="text-body text-slate-500 max-w-prose">
+              <p class="text-body text-slate-600 max-w-prose">
                 Sending a result to the Leaderboard, its CSV and diagnostics are separate choices, in Before you send under Run.
               </p>
             </div>
@@ -591,7 +591,7 @@
           <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
             <!-- When the plan starts -->
             <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-              <h3 class="text-slate-500 label">When the plan starts</h3>
+              <h3 class="text-slate-600 label">When the plan starts</h3>
               <SchedulingInputs />
               <!-- An unset start means "now", which moves on every reload, and plan start is part of the
                    run fingerprint: a checkpoint saved before a refresh stops matching. -->
@@ -602,7 +602,7 @@
               <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
                    ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
               <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
-                <h3 class="text-slate-500 label">First ascension</h3>
+                <h3 class="text-slate-600 label">First ascension</h3>
                 <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
                 <label
                   v-for="c in FIRST_ASCENSION_CHOICES"
@@ -612,10 +612,10 @@
                 >
                   <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
                   <span class="text-body text-slate-600">
-                    <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-500">{{ c.blurb }}</span></template>
+                    <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-600">{{ c.blurb }}</span></template>
                   </span>
                 </label>
-                <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
+                <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-600 max-w-prose">
                   Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
                   Choosing here changes it there too.
                 </p>
@@ -628,7 +628,7 @@
 
             <!-- Your save file: Load a save file with its warning, and what the plan starts from. -->
             <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
-              <h3 class="text-slate-500 label">Your save file</h3>
+              <h3 class="text-slate-600 label">Your save file</h3>
               <!-- A save kept as a file ("Download this save" on a saved answer or run) back as the active save. -->
               <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
               <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
@@ -678,7 +678,7 @@
               data-testid="setup-this-computer"
             >
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-slate-500 label">{{ ThisDevice() }}</h3>
+                <h3 class="text-slate-600 label">{{ ThisDevice() }}</h3>
                 <div class="flex flex-wrap gap-1">
                   <button
                     v-for="p in PROFILES"
@@ -690,7 +690,7 @@
                     :class="
                       activeProfile === p.id
                         ? 'border-slate-800 bg-slate-800 text-white'
-                        : 'border-slate-200 text-slate-500 hover:text-slate-700'
+                        : 'border-slate-200 text-slate-600 hover:text-slate-700'
                     "
                     :title="p.blurb"
                     @click="applyProfile(p.id)"
@@ -725,7 +725,7 @@
               </label>
 
               <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
-                <summary class="cursor-pointer text-body font-bold text-slate-500">
+                <summary class="cursor-pointer text-body font-bold text-slate-600">
                   Memory · detail kept for
                   {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
                 </summary>
@@ -748,7 +748,7 @@
                       <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                     </div>
                   </dl>
-                  <p class="text-body text-slate-500 max-w-prose">
+                  <p class="text-body text-slate-600 max-w-prose">
                     Cores is the only hardware figure a web page gets accurately. Reported RAM is rounded and capped by the
                     browser on purpose, which is why the worker count is yours to choose rather than detected.
                   </p>
@@ -764,10 +764,10 @@
                         step="500"
                         class="w-32 min-w-0 max-w-full rounded-lg border-slate-200 text-body font-bold text-slate-800"
                       />
-                      <span class="text-small font-bold text-slate-500">fastest routes</span>
+                      <span class="text-small font-bold text-slate-600">fastest routes</span>
                     </span>
                   </label>
-                  <p class="text-body text-slate-500 max-w-prose">
+                  <p class="text-body text-slate-600 max-w-prose">
                     Holding detail for
                     <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                       heldMb
@@ -779,7 +779,7 @@
                   <p
                     v-if="spillLine"
                     class="text-body"
-                    :class="spillLine.warn ? 'font-bold text-amber-700' : 'text-slate-500'"
+                    :class="spillLine.warn ? 'font-bold text-amber-700' : 'text-slate-600'"
                     data-testid="leg-spill-note"
                   >
                     {{ spillLine.text }}
@@ -797,7 +797,7 @@
 
             <!-- Experimental: off for players until there is data to back it, on by default on the beta site (composables/usePrestigeBy.ts). -->
             <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
-              <h3 class="text-slate-500 label">Experimental</h3>
+              <h3 class="text-slate-600 label">Experimental</h3>
               <label class="flex items-start gap-3 cursor-pointer">
                 <input
                   v-model="prestigeBy.stored.value"
@@ -831,7 +831,7 @@
 
             <!-- How the site shows things -->
             <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
-              <h3 class="text-slate-500 label">How the site shows things</h3>
+              <h3 class="text-slate-600 label">How the site shows things</h3>
               <DateStyleToggle />
               <TabsToggle />
               <!-- Show everything (the simpler page, Jordan 9 Nov 2026, Q7): every screen's More starts open, as the page

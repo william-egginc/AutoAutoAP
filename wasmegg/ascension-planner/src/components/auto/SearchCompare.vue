@@ -8,7 +8,7 @@
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="search-compare">
-    <h3 class="text-slate-500 label">Compare the answers</h3>
+    <h3 class="text-slate-600 label">Compare the answers</h3>
     <div class="divide-y divide-slate-100">
       <div
         v-for="r in rows"
@@ -20,7 +20,7 @@
           {{ r.label }}
           <span
             v-if="r.best"
-            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white label"
+            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-white label"
             >Best</span
           >
         </span>
@@ -31,7 +31,7 @@
             >{{ spareLabel(r.entry.spare) }} spare</span
           >
           <span class="tabular-nums text-slate-700 break-all">{{ r.entry.chain.join(' ') }}</span>
-          <span class="text-small text-slate-500">{{ note(r) }}</span>
+          <span class="text-small text-slate-600">{{ note(r) }}</span>
         </template>
         <span v-else class="text-slate-600">not run yet</span>
       </div>

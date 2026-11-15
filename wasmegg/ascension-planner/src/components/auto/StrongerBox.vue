@@ -12,7 +12,7 @@
          front; stop any time and keep the best so far, and on Fastest a refresh is safe). DRAFT (Words). -->
     <div class="space-y-1 text-body" data-testid="level-in-view">
       <p class="text-slate-800">
-        <span class="label text-slate-500">How long</span>{{ ' ' }}<span data-testid="level-how-long">{{
+        <span class="label text-slate-600">How long</span>{{ ' ' }}<span data-testid="level-how-long">{{
           estimates?.[level]?.line ?? current.time
         }}</span>
       </p>
@@ -28,9 +28,9 @@
       class="rounded-xl border border-slate-200 bg-white px-3"
     >
       <dl class="mt-1 mb-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-body" data-testid="level-note">
-        <dt class="text-slate-500 label pt-0.5">What it does</dt>
+        <dt class="text-slate-600 label pt-0.5">What it does</dt>
         <dd class="text-slate-800">{{ current.does }}</dd>
-        <dt class="text-slate-500 label pt-0.5">What it finds</dt>
+        <dt class="text-slate-600 label pt-0.5">What it finds</dt>
         <dd class="text-slate-800">{{ current.finds }}</dd>
       </dl>
       <div
@@ -62,9 +62,9 @@
         />
         <span
           ><b>Exact (wider)</b
-          ><span v-if="estimates?.thorough" class="text-slate-500">{{ ' ' }}· {{ estimates.thorough.short }} here</span
-          ><span class="text-slate-500">{{ ' ' }}· if you're curious</span><br /><span
-            class="text-slate-500"
+          ><span v-if="estimates?.thorough" class="text-slate-600">{{ ' ' }}· {{ estimates.thorough.short }} here</span
+          ><span class="text-slate-600">{{ ' ' }}· if you're curious</span><br /><span
+            class="text-slate-600"
             data-testid="very-high-what"
             >{{ VERY_HIGH_WHAT[goal] }}</span
           ></span

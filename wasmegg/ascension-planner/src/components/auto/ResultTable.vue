@@ -10,7 +10,7 @@
 -->
 <template>
   <div class="overflow-x-auto">
-    <p v-if="title || $slots.title" class="label text-slate-500 pb-1">
+    <p v-if="title || $slots.title" class="label text-slate-600 pb-1">
       <slot name="title">{{ title }}</slot>
     </p>
     <table class="w-full text-small tabular-nums whitespace-nowrap">

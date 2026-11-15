@@ -137,7 +137,7 @@
         </text>
       </svg>
     </div>
-    <figcaption class="mt-2 px-1 text-body text-slate-500">
+    <figcaption class="mt-2 px-1 text-body text-slate-600">
       <slot />
     </figcaption>
   </figure>

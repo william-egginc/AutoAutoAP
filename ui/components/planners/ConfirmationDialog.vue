@@ -33,7 +33,7 @@
 
           <div class="mt-8 flex justify-end gap-3">
             <button
-              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-600 hover:text-slate-600 transition-colors"
               @click="$emit('cancel')"
             >
               {{ cancelLabel }}

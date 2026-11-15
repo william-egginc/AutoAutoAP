@@ -9,12 +9,12 @@
       >
         Unlock Tier {{ unlockNextTier.tier }}
       </button>
-      <div class="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-small text-gray-500">
+      <div class="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-small text-gray-600">
         <span>{{ unlockNextTier.purchaseCount }} {{ unlockNextTier.purchaseCount === 1 ? 'purchase' : 'purchases' }}</span>
-        <span class="text-gray-400">|</span>
+        <span class="text-gray-600">|</span>
         <span>{{ unlockNextTier.time }}</span>
         <template v-if="unlockNextTier.absoluteTime">
-          <span class="text-gray-400">|</span>
+          <span class="text-gray-600">|</span>
           <span>{{ unlockNextTier.absoluteTime }}</span>
         </template>
       </div>
@@ -85,7 +85,7 @@
       </template>
     </template>
 
-    <div v-if="sortedResearches.length === 0" class="px-4 py-8 text-center text-gray-500 italic bg-gray-50">
+    <div v-if="sortedResearches.length === 0" class="px-4 py-8 text-center text-gray-600 italic bg-gray-50">
       <div v-if="isMissingRealisticData" class="max-w-xs mx-auto">
         <p class="text-gray-900 font-bold not-italic mb-1 text-body">Artifact Data Required</p>
         <p class="text-body mb-4 not-italic max-w-prose">

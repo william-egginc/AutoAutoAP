@@ -22,14 +22,14 @@
   >
     <summary class="flex min-h-[44px] cursor-pointer flex-wrap items-center gap-x-2 px-4 py-2 text-body sm:min-h-0">
       <span class="font-bold text-slate-700">More routes ›</span>
-      <span class="text-slate-500">Best 5 routes · best per ascension count</span>
+      <span class="text-slate-600">Best 5 routes · best per ascension count</span>
     </summary>
 
     <div v-if="isOpen" class="space-y-5 border-t border-slate-100 px-4 pb-4 pt-3" data-testid="top-routes-body">
-      <p v-if="!top.length" class="text-body text-slate-500">No other route was priced.</p>
+      <p v-if="!top.length" class="text-body text-slate-600">No other route was priced.</p>
 
       <section v-if="top.length" aria-labelledby="top-routes-list-h" class="space-y-2">
-        <h4 id="top-routes-list-h" class="label text-slate-500">
+        <h4 id="top-routes-list-h" class="label text-slate-600">
           Best {{ top.length }} route{{ top.length === 1 ? '' : 's' }}
         </h4>
         <ol class="divide-y divide-slate-100" data-testid="top-routes-list">
@@ -41,9 +41,9 @@
             :data-best="r.best ? 'true' : undefined"
             data-testid="top-route-row"
           >
-            <div class="flex flex-wrap items-baseline gap-x-2 text-small text-slate-500">
+            <div class="flex flex-wrap items-baseline gap-x-2 text-small text-slate-600">
               <span class="font-bold text-slate-700 tabular-nums" :aria-label="`Rank ${r.rank}`">{{ r.rank }}.</span>
-              <span v-if="r.best" class="rounded bg-emerald-600 px-1.5 font-bold text-white">Best</span>
+              <span v-if="r.best" class="rounded bg-emerald-700 px-1.5 font-bold text-white">Best</span>
               <span>{{ plural(r.ascensions, 'ascension') }}</span>
               <span v-if="!r.best" class="tabular-nums" data-testid="top-route-behind">{{ behindLabel(goal, r) }}</span>
             </div>
@@ -81,8 +81,8 @@
       </section>
 
       <section v-if="perCount.length" aria-labelledby="top-routes-chart-h" class="space-y-2" data-testid="top-routes-chart">
-        <h4 id="top-routes-chart-h" class="label text-slate-500">Best per number of ascensions</h4>
-        <p class="text-small text-slate-500">
+        <h4 id="top-routes-chart-h" class="label text-slate-600">Best per number of ascensions</h4>
+        <p class="text-small text-slate-600">
           {{
             goal === 'date'
               ? 'The highest TE each number of ascensions reaches: further right is higher. Tap one for its route.'
@@ -124,7 +124,7 @@
           <p class="break-words text-small text-slate-600 tabular-nums">
             {{ whenLine(chosen) }}<template v-if="!chosen.best"> · {{ behindLabel(goal, chosen) }}</template>
           </p>
-          <p v-if="!chosen.hasLegs" class="text-small text-slate-500">
+          <p v-if="!chosen.hasLegs" class="text-small text-slate-600">
             Its time for each ascension wasn't kept; Simulate this plan works it out again.
           </p>
           <div class="flex flex-wrap gap-2">

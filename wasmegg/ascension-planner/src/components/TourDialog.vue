@@ -82,7 +82,7 @@
         </h2>
         <div id="tour-body" class="mt-1 space-y-1">
           <p class="text-body text-slate-700">{{ words ? words.body : FIRST_TOUR_STEPS[slide.id as TourStepId].body }}</p>
-          <p v-if="last" class="text-small text-slate-500">{{ mode === 'full' ? FULL_TOUR_CLOSING : FIRST_TOUR_CLOSING }}</p>
+          <p v-if="last" class="text-small text-slate-600">{{ mode === 'full' ? FULL_TOUR_CLOSING : FIRST_TOUR_CLOSING }}</p>
           <!-- The first tour's last card points on to the longer one (never on the full tour's own). -->
           <button
             v-if="last && mode !== 'full'"

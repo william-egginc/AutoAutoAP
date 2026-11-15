@@ -37,7 +37,7 @@
     <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026: inside THE TARGET card, top right): floated
          right from md up so the rows beside it wrap round it; in the flow, one merged line, below md (layout/SaveSide.vue). -->
     <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
-    <h3 class="text-slate-500 label md:!mt-0">The target</h3>
+    <h3 class="text-slate-600 label md:!mt-0">The target</h3>
     <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
          box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
     <TargetTeBox />

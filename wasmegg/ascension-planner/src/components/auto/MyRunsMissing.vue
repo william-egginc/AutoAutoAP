@@ -8,11 +8,11 @@
 <template>
   <details class="rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-body" data-testid="my-runs-missing">
     <!-- 44 px tall on a phone (ux review 26 Oct, row 12: it was 264×15), as it was from sm up. -->
-    <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-slate-500" data-testid="my-runs-missing-summary">
+    <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-slate-600" data-testid="my-runs-missing-summary">
       A run of yours isn’t here?
     </summary>
     <div class="mt-2 space-y-2">
-      <p class="text-slate-500 leading-relaxed">
+      <p class="text-slate-600 leading-relaxed">
         Type its id (the first 8 characters are enough; it is in the run’s CSV link on the {{ NAMES.compare }}) and this
         says why it isn’t counted as yours.
       </p>

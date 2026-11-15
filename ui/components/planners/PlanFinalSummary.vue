@@ -5,7 +5,7 @@
   >
     <button
       @click="toggleCollapse"
-      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
+      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
     >
       <svg
         class="w-4 h-4 transition-transform duration-300"
@@ -96,7 +96,7 @@
           </svg>
         </button>
 
-        <span class="ml-4 text-small text-slate-400 italic font-normal"
+        <span class="ml-4 text-small text-slate-600 italic font-normal"
           >Developed by
           <span @click="triggerCat" class="cursor-pointer select-none hover:text-slate-600 transition-colors"
             >joobrainie</span
@@ -146,7 +146,7 @@
                 <img src="/static/kofi_logo.png" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="Ko-fi" />
                 <div class="flex flex-col">
                   <span class="text-body font-bold text-slate-800">Support on Ko-fi</span>
-                  <span class="text-small font-normal text-slate-500">ko-fi.com/joobrainie</span>
+                  <span class="text-small font-normal text-slate-600">ko-fi.com/joobrainie</span>
                 </div>
               </a>
 
@@ -154,7 +154,7 @@
                 <img src="/static/paypal_logo.svg" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="PayPal" />
                 <div class="flex flex-col">
                   <span class="text-body font-bold text-slate-800">Support via PayPal</span>
-                  <span class="text-small font-normal text-slate-500">paypal.me/joobrainie</span>
+                  <span class="text-small font-normal text-slate-600">paypal.me/joobrainie</span>
                 </div>
               </a>
             </div>
@@ -361,7 +361,7 @@ function triggerCat() {
 }
 
 :deep(.summary-label) {
-  @apply text-slate-400 label leading-none;
+  @apply text-slate-600 label leading-none;
 }
 
 :deep(.summary-value) {
@@ -373,7 +373,7 @@ function triggerCat() {
 }
 
 .btn-icon-premium:not(.text-white) {
-  @apply text-slate-400 hover:text-indigo-600 hover:bg-white hover:border-indigo-100 hover:shadow-sm;
+  @apply text-slate-600 hover:text-indigo-600 hover:bg-white hover:border-indigo-100 hover:shadow-sm;
 }
 
 .animate-in {

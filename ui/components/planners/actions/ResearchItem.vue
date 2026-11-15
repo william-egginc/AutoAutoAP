@@ -16,16 +16,16 @@
       <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center justify-start gap-2">
           <span class="text-small font-bold text-gray-900 truncate">
-            <span v-if="showTier" class="text-gray-400 tabular-nums text-small mr-1">T{{ research.tier }}</span>
+            <span v-if="showTier" class="text-gray-600 tabular-nums text-small mr-1">T{{ research.tier }}</span>
             {{ research.name }}
           </span>
-          <span class="text-body font-normal text-gray-500 whitespace-nowrap hidden sm:inline-block">
+          <span class="text-body font-normal text-gray-600 whitespace-nowrap hidden sm:inline-block">
             <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
             <span v-else>Lv {{ currentLevel }}</span>
             / {{ research.levels }}
           </span>
         </div>
-        <span class="text-body font-normal text-gray-500 whitespace-nowrap sm:hidden">
+        <span class="text-body font-normal text-gray-600 whitespace-nowrap sm:hidden">
           <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
           <span v-else>Lv {{ currentLevel }}</span>
           / {{ research.levels }}
@@ -36,7 +36,7 @@
     <!-- Row 2: Description, Price -->
     <div class="flex items-start justify-between w-full pl-[38px] gap-4">
       <!-- Description -->
-      <div class="text-small text-gray-500">
+      <div class="text-small text-gray-600">
         {{ research.description }}
         
         <div
@@ -86,7 +86,7 @@
               v-for="(crossing, i) in eventCrossings?.sale ?? []"
               :key="`sale-${i}`"
               v-tippy="crossingTooltip('research sale', crossing)"
-              class="text-small font-bold text-gray-400 whitespace-nowrap cursor-help"
+              class="text-small font-bold text-gray-600 whitespace-nowrap cursor-help"
             >
               ⏳ Sale {{ crossing.togglesTo ? 'starts' : 'ends' }} in {{ formatDuration(crossing.waitSeconds) }}
             </span>
@@ -94,13 +94,13 @@
               v-for="(crossing, i) in eventCrossings?.boost ?? []"
               :key="`boost-${i}`"
               v-tippy="crossingTooltip('2x earnings boost', crossing)"
-              class="text-small font-bold text-gray-400 whitespace-nowrap cursor-help"
+              class="text-small font-bold text-gray-600 whitespace-nowrap cursor-help"
             >
               ⏳ 2x {{ crossing.togglesTo ? 'starts' : 'ends' }} in {{ formatDuration(crossing.waitSeconds) }}
             </span>
           </div>
         </template>
-        <div v-else class="text-emerald-600 label mt-0.5">Maxed</div>
+        <div v-else class="text-emerald-700 label mt-0.5">Maxed</div>
       </div>
     </div>
 
@@ -111,7 +111,7 @@
         <div v-if="extraStats" class="whitespace-nowrap">
           <div class="flex items-end gap-2">
             <div
-              class="text-gray-400 label"
+              class="text-gray-600 label"
               :class="{ 'cursor-help': hpp !== undefined }"
               v-tippy="
                 hpp === undefined
@@ -141,7 +141,7 @@
                 ⚠️
               </span>
             </div>
-            <div v-if="hpp !== undefined" class="text-small tabular-nums text-gray-400 leading-none pb-[1px]">
+            <div v-if="hpp !== undefined" class="text-small tabular-nums text-gray-600 leading-none pb-[1px]">
               <template v-if="roiDisplayMode === 'time'">
                 {{ formatDuration(timeRoiSeconds ?? Infinity) }}
               </template>
@@ -158,7 +158,7 @@
         <!-- Time Cost -->
         <div
           v-if="timeToBuy && !isMaxed"
-          class="text-small tabular-nums text-gray-400 whitespace-nowrap"
+          class="text-small tabular-nums text-gray-600 whitespace-nowrap"
           :class="{ 'cursor-help': timeCostTooltipSeconds !== undefined }"
           v-tippy="
             timeCostTooltipSeconds !== undefined
@@ -247,25 +247,25 @@
     <div v-if="realisticStats" class="mt-1 flex items-center justify-between w-full pl-[38px] py-1 border-t border-gray-50">
        <div class="flex items-center gap-6">
          <div class="flex flex-col">
-           <span class="text-gray-400 label leading-none mb-1 text-center tabular-nums">Lay Rate</span>
+           <span class="text-gray-600 label leading-none mb-1 text-center tabular-nums">Lay Rate</span>
            <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.layRate) }}/hr
            </span>
          </div>
          <div class="flex flex-col">
-           <span class="text-gray-400 label leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
+           <span class="text-gray-600 label leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
            <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.shippingRate) }}/hr
            </span>
          </div>
        </div>
        <div class="text-right">
-         <span class="text-gray-400 label leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
+         <span class="text-gray-600 label leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
          <div class="flex items-center justify-end gap-1 leading-none">
            <span class="text-small tabular-nums font-bold text-gray-900">
              {{ formatNumber(realisticStats.elr) }}/hr
            </span>
-           <span v-if="realisticStats.elrDelta > 0.001" class="text-small tabular-nums font-bold text-gray-400 ml-1">
+           <span v-if="realisticStats.elrDelta > 0.001" class="text-small tabular-nums font-bold text-gray-600 ml-1">
              (+{{ formatWithReference(realisticStats.elrDelta, realisticStats.elr) }})
            </span>
          </div>

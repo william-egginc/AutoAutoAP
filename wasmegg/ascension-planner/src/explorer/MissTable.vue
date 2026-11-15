@@ -15,7 +15,7 @@
   <div v-else-if="table" class="space-y-2">
     <p class="text-small text-slate-600">
       Days after this run's best,
-      <span class="tabular-nums text-slate-500">{{ table.best.chain.join(' ') }}</span>
+      <span class="tabular-nums text-slate-600">{{ table.best.chain.join(' ') }}</span>
       ({{ table.best.days.toFixed(2) }} d), looked up among {{ truncatedCount ? 'the' : 'its' }}
       {{ plural(table.priced, 'plan') }} at {{ plural(table.ascensions, 'ascension') }}{{
         truncatedCount ? ' this page read' : ''
@@ -78,8 +78,8 @@
       </table>
     </div>
     <p class="text-small text-slate-600 max-w-3xl">
-      <b class="text-slate-500">Keep</b>: the same plan with only that stop moved.
-      <b class="text-slate-500">Re-plan</b>: the fastest plan in this table with the same earlier stops and that one
+      <b class="text-slate-600">Keep</b>: the same plan with only that stop moved.
+      <b class="text-slate-600">Re-plan</b>: the fastest plan in this table with the same earlier stops and that one
       moved, whatever it does after. At the last stop they are the same plan.
       <span class="rounded bg-emerald-50 px-1 font-bold text-emerald-800">Green</span>: re-planning saves more than
       {{ REPLAN_WORTH_DAYS === 1 ? 'a day' : `${REPLAN_WORTH_DAYS} days` }}. <i>Same</i>: the same finish as the best,

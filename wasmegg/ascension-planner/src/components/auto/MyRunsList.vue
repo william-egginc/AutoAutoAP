@@ -42,7 +42,7 @@
       >Clear filters</button>
     </p>
     <!-- Every run a "maybe you": said once here, not tagged on each row (spec-uxpass item 6, 8 Nov 2026). DRAFT. -->
-    <p v-if="shown.length && allMaybe" class="text-small text-slate-500" data-testid="my-runs-maybe-note">
+    <p v-if="shown.length && allMaybe" class="text-small text-slate-600" data-testid="my-runs-maybe-note">
       None of these were sent from this browser: they are listed because their timezone and gear match your save.
     </p>
     <div v-if="shown.length" class="overflow-x-auto">
@@ -64,7 +64,7 @@
           <template v-for="l in shown" :key="l.key">
             <tr
               class="border-t border-indigo-50 align-top"
-              :class="l.hidden ? 'text-slate-500' : ''"
+              :class="l.hidden ? 'text-slate-600' : ''"
               data-testid="my-runs-row"
             >
               <td class="pr-2 py-1.5">
@@ -94,7 +94,7 @@
                 >
                 <span
                   v-if="l.maybe && !allMaybe"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-bold text-slate-500"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-bold text-slate-600"
                   title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it is yours."
                   >maybe you</span
                 >
@@ -115,7 +115,7 @@
               </td>
               <td class="pr-3 py-1.5 whitespace-nowrap" :title="resultTitle(l)">{{ resultText(l) }}</td>
               <td class="pr-3 py-1.5 text-right">{{ l.row.chain.length }}</td>
-              <td class="pr-3 py-1.5 whitespace-nowrap text-slate-500" :title="hoursTitle(l.row.window)">
+              <td class="pr-3 py-1.5 whitespace-nowrap text-slate-600" :title="hoursTitle(l.row.window)">
                 {{ hoursLabel(l.row.window) }}
               </td>
               <td class="pr-3 py-1.5 whitespace-nowrap" :title="sentTitle(l.row)">{{ sentText(l.row) }}</td>
@@ -165,7 +165,7 @@
         </tbody>
       </table>
     </div>
-    <p v-if="countText" class="text-small text-slate-500" data-testid="my-runs-count">{{ countText }}</p>
+    <p v-if="countText" class="text-small text-slate-600" data-testid="my-runs-count">{{ countText }}</p>
   </div>
 </template>
 

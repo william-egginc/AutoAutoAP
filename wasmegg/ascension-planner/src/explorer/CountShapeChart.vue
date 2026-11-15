@@ -46,7 +46,7 @@
           :class="
             view === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           :aria-pressed="view === mode.id"
           @click="view = mode.id"
@@ -111,14 +111,14 @@
             >
               {{ cp.slope == null ? '—' : cp.slope.toFixed(2) }}
             </td>
-            <td class="py-1 tabular-nums text-slate-500 whitespace-nowrap">
+            <td class="py-1 tabular-nums text-slate-600 whitespace-nowrap">
               <b class="text-slate-700">{{ pct(cp.share.mid) }}</b>
               <span class="text-slate-600"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-600 max-w-3xl">
         Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the stop moves for
         each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start (from
         {{ plural(summary[0]?.accounts ?? 0, 'account') }} at most, so it is only a rough trend). The narrower of the two ranges

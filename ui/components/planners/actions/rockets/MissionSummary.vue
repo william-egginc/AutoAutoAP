@@ -14,7 +14,7 @@
           Total Time: {{ formatDuration(schedule.totalSeconds) }}
         </span>
       </div>
-      <div class="text-small text-gray-500">{{ schedule.totalMissions }} missions</div>
+      <div class="text-small text-gray-600">{{ schedule.totalMissions }} missions</div>
     </div>
   </div>
 </template>

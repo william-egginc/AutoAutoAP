@@ -21,7 +21,7 @@
           <!-- In the Stronger check box: one line; the route to start from is in Start from a different route below. -->
           <p v-if="embedded" class="text-body text-slate-700 max-w-prose" data-testid="start-line">
             Starts from <span class="tabular-nums font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
-              class="text-slate-500"
+              class="text-slate-600"
               >({{ seedSource }})</span
             > · up to ~{{ store.estimateForCurrentSettings.toLocaleString() }} routes<template
               v-if="store.otherCountsPlan.chains"
@@ -33,7 +33,7 @@
           <div v-if="!levelElsewhere" class="space-y-3">
             <div class="flex items-center justify-between px-1">
               <span class="flex items-center gap-1.5">
-                <label for="effort-range" class="text-slate-500 label">
+                <label for="effort-range" class="text-slate-600 label">
                   Effort
                 </label>
                 <HelpTip
@@ -42,7 +42,7 @@
                   that level early gives the pairs' answer plus the triples found so far, without that check.)</HelpTip
                 >
               </span>
-              <span class="text-emerald-600 label">{{ note.label }}</span>
+              <span class="text-emerald-700 label">{{ note.label }}</span>
             </div>
 
             <input
@@ -60,7 +60,7 @@
                 v-for="tier in EFFORT_ORDER"
                 :key="tier"
                 class="label"
-                :class="tier === store.effort ? 'text-emerald-600' : 'text-slate-300'"
+                :class="tier === store.effort ? 'text-emerald-700' : 'text-slate-300'"
               >
                 {{ EFFORT_NOTES[tier].label }}
               </span>
@@ -68,7 +68,7 @@
 
             <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
               <p class="text-body text-slate-700">{{ note.adds }}</p>
-              <p class="text-body text-slate-500">
+              <p class="text-body text-slate-600">
                 <span class="label text-slate-600">Measured accuracy:</span>
                 {{ note.accuracy }}
               </p>
@@ -76,7 +76,7 @@
                 Measured on at most three players' accounts, against the best answer found (only one account has a
                 proven best), so there's no confidence percentage: that few cannot honestly be turned into one.
               </p>
-              <p class="text-body text-slate-500 max-w-prose">
+              <p class="text-body text-slate-600 max-w-prose">
                 <span class="label text-slate-600">Reference time:</span>
                 {{ note.typicalTime }} These come from players' runs (few of them for Fast and Exact (wider); the 8- and
                 16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
@@ -95,7 +95,7 @@
           <!-- Start from a different route (in the Stronger check box; the user, 12 Oct 2026): by default the
                instant answer's route; or another route it lists, one of yours, or one typed. -->
           <div v-if="embedded" class="p-4 rounded-xl border border-slate-200 bg-white space-y-2" data-testid="start-from">
-            <h3 class="text-slate-500 label">Start from a different route</h3>
+            <h3 class="text-slate-600 label">Start from a different route</h3>
             <select
               v-model="startPick"
               :disabled="store.isRunning"
@@ -118,7 +118,7 @@
               aria-label="Your starting route"
               class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
             />
-            <p class="text-body text-slate-500 max-w-prose">
+            <p class="text-body text-slate-600 max-w-prose">
               The search moves the stops of the route it starts from and adds at most one, so a route with too few
               stops can't reach a longer answer. Leave the final target off a typed route; it is added for you.
             </p>
@@ -137,7 +137,7 @@
 
           <!-- Limits. Both of these already governed the search; neither had a control. -->
           <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-            <h3 class="text-slate-500 label">Limits</h3>
+            <h3 class="text-slate-600 label">Limits</h3>
             <div class="flex flex-wrap items-end gap-5">
               <div>
                 <span class="flex items-center gap-1.5">
@@ -213,7 +213,7 @@
                 />
               </div>
             </div>
-            <p class="text-body text-slate-500 max-w-prose">
+            <p class="text-body text-slate-600 max-w-prose">
               Ascension count is the route length including your final target. It bounds Fast's check of the other
               counts and Exact's one-more-or-fewer step.
               <span v-if="store.pin > 0" class="font-bold text-slate-700">
@@ -300,7 +300,7 @@
           <div class="text-body font-bold text-slate-800 mt-1">~{{ store.estimateForCurrentSettings }}</div>
           <div
             v-if="store.otherCountsPlan.chains"
-            class="text-small text-slate-500 mt-0.5"
+            class="text-small text-slate-600 mt-0.5"
             data-test="other-counts-estimate"
           >
             incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions
@@ -726,19 +726,19 @@
                         A{{ i + 1 }}
                       </td>
                       <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                      <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
                         {{ leg.startTime ? stamp(leg.startTime) : '—' }}
                       </td>
-                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ stamp(leg.endTime) }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ leg.key }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
+                      <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ stamp(leg.endTime) }}</td>
+                      <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ leg.key }}</td>
+                      <td class="py-1.5 pr-3 text-slate-600">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
+                      <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
                       <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
                         <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-600"
                           >&mdash;</span
                         >
                         <template v-else>
-                          <span v-if="leg.sleepDelaySeconds" class="text-slate-500">
+                          <span v-if="leg.sleepDelaySeconds" class="text-slate-600">
                             <span class="text-slate-600 font-bold">P</span>
                             {{ (leg.sleepDelaySeconds / 3600).toFixed(1) }} h
                           </span>
@@ -785,7 +785,7 @@
                           >
                             <span class="font-bold capitalize">
                               {{ b.egg || 'shift' }}
-                              <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-600">(start)</span>
+                              <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-700">(start)</span>
                             </span>
                             <span class="tabular-nums">{{ stamp(b.at) }}</span>
                             <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-600' : 'text-emerald-500'">
@@ -793,7 +793,7 @@
                             </span>
                           </div>
                         </div>
-                        <p class="text-body text-slate-500 mt-2">
+                        <p class="text-body text-slate-600 mt-2">
                           One row per egg, with when you start laying it and how long you stay. The
                           <span class="font-bold text-emerald-700">first row is where the ascension begins</span>:
                           no action needed, you are already on it. Every row after it is one manual shift, which is why
@@ -856,7 +856,7 @@
           >
             Check start times for this route</button
           >
-          <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
+          <span class="text-slate-600"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
         </p>
 
         <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
@@ -941,7 +941,7 @@
             class="p-4 rounded-xl border border-slate-200 bg-white"
           >
             <template #csv>
-              <p class="text-body text-slate-500 flex-1 min-w-[16rem]">
+              <p class="text-body text-slate-600 flex-1 min-w-[16rem]">
                 {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per ascension.
                 <span v-if="store.isRunning" class="font-bold text-slate-600">Safe to download mid-run.</span>
               </p>
@@ -955,7 +955,7 @@
              one chain. Kept OUTSIDE the amber honesty block below: it was nested inside it, which
              rendered a black terminal panel in the middle of a warning box. -->
         <details v-if="ownRun && store.runLog.length" class="rounded-xl border border-slate-200 bg-white" data-testid="run-log">
-          <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-500">
+          <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-600">
             Run log (for checking) · {{ store.runLog.length }} lines
           </summary>
           <div class="max-h-80 overflow-y-auto border-t border-slate-100 bg-slate-900 px-4 py-3">

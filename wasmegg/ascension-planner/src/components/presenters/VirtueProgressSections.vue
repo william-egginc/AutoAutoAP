@@ -41,7 +41,7 @@
           <div class="relative">
             <div class="text-title tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
           </div>
-          <span class="text-slate-300 label mt-1">Max: 490</span>
+          <span class="text-slate-600 label mt-1">Max: 490</span>
         </div>
       </div>
 
@@ -82,7 +82,7 @@
               </div>
               <!-- TE -->
               <div class="flex flex-col gap-1">
-                <span class="text-slate-600 label truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
+                <span class="text-slate-600 label truncate">TE <span class="text-slate-600 font-bold ml-0.5">/ 98</span></span>
                 <input
                   type="number"
                   :value="teEarned[egg]"
@@ -128,7 +128,7 @@
           :class="[
             activeSetTab === setName
               ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50',
+              : 'text-slate-600 hover:text-slate-700 hover:bg-white/50',
           ]"
           @click="activeSetTab = setName"
         >

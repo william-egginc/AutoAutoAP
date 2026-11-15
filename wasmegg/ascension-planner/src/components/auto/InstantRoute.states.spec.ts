@@ -1195,7 +1195,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
   it('type: the line text-small slate-500, First step text-body; no px sizes, caps, medium/semibold or mono', () => {
     const t = source.slice(0, source.indexOf('<script'));
     const head = t.slice(t.lastIndexOf('<div', t.indexOf('data-testid="instant-header"')), t.indexOf('data-testid="instant-header"'));
-    expect(head).toContain('text-small text-slate-500');
+    expect(head).toContain('text-small text-slate-600');
     for (const m of t.matchAll(/<p[^>]*data-testid="box-first-step"[^>]*>/g)) {
       expect(m[0]).toContain('text-body');
       expect(m[0]).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
@@ -1376,7 +1376,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     const tags = [...t.matchAll(/<template v-if="stepCaveat\.note">[\s\S]*?<\/template>/g)].map(m => m[0]);
     expect(tags).toHaveLength(2);
     for (const tag of tags) {
-      expect(tag).toMatch(/<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">\{\{ QUICK_ESTIMATE_MARKER \}\}<\/span>/);
+      expect(tag).toMatch(/<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">\{\{ QUICK_ESTIMATE_MARKER \}\}<\/span>/);
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
       expect(tag).toMatch(/<CardHelp[^>]*>\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}\{\{ INSTANT_NIGHT_BUY_TIP \}\}<\/CardHelp>/);
     }

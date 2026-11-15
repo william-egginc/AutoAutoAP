@@ -10,7 +10,7 @@
       v-tippy="isCollapsed ? 'Expand Notes' : 'Collapse Notes'"
     >
       <!-- Chevron Indicator -->
-      <div class="text-slate-300 group-hover/toggle:text-slate-500 transition-colors mb-1">
+      <div class="text-slate-600 group-hover/toggle:text-slate-800 transition-colors mb-1">
         <svg
           class="w-4 h-4 transition-transform duration-300"
           :class="{ 'rotate-180': isCollapsed }"
@@ -63,7 +63,7 @@
           @dragenter.prevent
         >
           <!-- Drag Handle -->
-          <div class="absolute left-1 top-1 bottom-1 w-4 opacity-0 group-hover/note:opacity-40 hover:!opacity-100 cursor-grab active:cursor-grabbing flex flex-col justify-center items-center text-slate-400">
+          <div class="absolute left-1 top-1 bottom-1 w-4 opacity-0 group-hover/note:opacity-40 hover:!opacity-100 cursor-grab active:cursor-grabbing flex flex-col justify-center items-center text-slate-600">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
             </svg>
@@ -82,32 +82,32 @@
                 :ref="(el) => { if (el) (el as HTMLTextAreaElement).focus() }"
               ></textarea>
               <div class="flex justify-end gap-2 mt-2">
-                <button @click="cancelEdit" class="text-body text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
+                <button @click="cancelEdit" class="text-body text-slate-600 hover:text-slate-700 px-2 py-1">Cancel</button>
                 <button @click="saveEdit" class="text-body font-bold text-white bg-yellow-500 hover:bg-yellow-600 rounded px-2 py-1 shadow-sm">Save</button>
               </div>
             </template>
             <template v-else>
               <div 
                 class="text-body text-slate-800 whitespace-pre-wrap min-h-[20px]"
-                :class="{ 'line-through text-slate-500': note.completed }"
+                :class="{ 'line-through text-slate-600': note.completed }"
               >{{ note.text }}</div>
               
               <!-- Action Buttons -->
               <div :class="['absolute top-2 right-2 flex items-center gap-1 p-0.5 rounded-lg shadow-sm opacity-0 group-hover/note:opacity-100 transition-opacity z-10 border backdrop-blur-md', note.completed ? 'bg-slate-50/80 border-slate-200' : 'bg-yellow-50/80 border-yellow-200']">
                 <!-- Toggle Complete -->
-                <button @click="notesStore.toggleCompleted(note.id)" class="p-1 rounded hover:bg-black/5 text-slate-400 hover:text-emerald-500 transition-colors" v-tippy="note.completed ? 'Mark Incomplete' : 'Mark Complete'">
+                <button @click="notesStore.toggleCompleted(note.id)" class="p-1 rounded hover:bg-black/5 text-slate-600 hover:text-emerald-500 transition-colors" v-tippy="note.completed ? 'Mark Incomplete' : 'Mark Complete'">
                   <svg class="w-4 h-4" :class="{'text-emerald-500': note.completed}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
                 </button>
                 <!-- Edit -->
-                <button @click="startEdit(note)" class="p-1 rounded hover:bg-black/5 text-slate-400 hover:text-blue-500 transition-colors" v-tippy="'Edit (Cmd/Ctrl+Enter to save)'">
+                <button @click="startEdit(note)" class="p-1 rounded hover:bg-black/5 text-slate-600 hover:text-blue-500 transition-colors" v-tippy="'Edit (Cmd/Ctrl+Enter to save)'">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </button>
                 <!-- Delete -->
-                <button @click="notesStore.deleteNote(note.id)" class="p-1 rounded hover:bg-black/5 text-slate-400 hover:text-red-500 transition-colors" v-tippy="'Delete'">
+                <button @click="notesStore.deleteNote(note.id)" class="p-1 rounded hover:bg-black/5 text-slate-600 hover:text-red-500 transition-colors" v-tippy="'Delete'">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>

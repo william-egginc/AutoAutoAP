@@ -1,7 +1,7 @@
 <template>
   <label class="block">
     <span class="font-bold">Note on this run</span>
-    <span class="text-slate-500">
+    <span class="text-slate-600">
       (optional): what you were trying or testing. Kept with the run and its CSV, and sent with it when it goes to the
       board.</span
     >
@@ -14,7 +14,7 @@
       aria-label="Note on this run"
       class="mt-1 block w-full rounded-lg border-indigo-200 text-body font-normal text-slate-800 disabled:opacity-40"
     ></textarea>
-    <span class="block text-right text-small text-slate-500">{{ note.length }} / {{ MAX_NOTE }}</span>
+    <span class="block text-right text-small text-slate-600">{{ note.length }} / {{ MAX_NOTE }}</span>
   </label>
 </template>
 

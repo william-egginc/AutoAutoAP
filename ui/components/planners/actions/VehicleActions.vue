@@ -10,7 +10,7 @@
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></div>
-            <span class="text-slate-400 label leading-none"
+            <span class="text-slate-600 label leading-none"
               >Vehicle Sale</span
             >
           </div>
@@ -101,12 +101,12 @@
         class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:border-indigo-200 transition-all duration-300 hover:shadow-md"
       >
         <div class="flex items-center justify-between">
-          <span class="text-slate-400 label">Slot {{ index + 1 }}</span>
+          <span class="text-slate-600 label">Slot {{ index + 1 }}</span>
           <div v-if="slot.vehicleId !== null" class="flex flex-col items-end">
             <span class="text-body tabular-nums font-bold text-slate-900">
               {{ formatNumber(getVehicleCapacity(slot, index) * 3600, 0) }}
             </span>
-            <span class="text-slate-400 label opacity-60">eggs/hr</span>
+            <span class="text-slate-600 label opacity-60">eggs/hr</span>
           </div>
         </div>
 
@@ -121,7 +121,7 @@
         <div v-if="slot.vehicleId === 11" class="mt-2 pt-3 border-t border-slate-50">
           <div class="flex items-center justify-between gap-3">
             <div class="flex flex-col gap-0.5">
-              <span class="text-slate-400 label">Train Length</span>
+              <span class="text-slate-600 label">Train Length</span>
               <span class="text-small tabular-nums font-bold text-indigo-600"
                 >{{ slot.trainLength }} / {{ getMaxTrainLength() }}</span
               >
@@ -137,7 +137,7 @@
                 <span class="text-body font-bold text-blue-700 group-hover:text-blue-800"
                   >+1 Car ({{ formatPrice(getNextCarCost(slot)) }})</span
                 >
-                <span class="text-small font-normal text-slate-400 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
+                <span class="text-small font-normal text-slate-600 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
               </button>
 
               <!-- Max cars button -->
@@ -150,13 +150,13 @@
                   class="text-body font-bold text-indigo-700 group-hover:text-indigo-800"
                   >Max (+{{ getRemainingCars(slot, index) }}) ({{ formatPrice(getTotalCarsCost(slot)) }})</span
                 >
-                <span class="text-small font-normal text-slate-400 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
+                <span class="text-small font-normal text-slate-600 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
               </button>
             </div>
           </div>
 
           <!-- Capacity per car hints -->
-          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-small text-slate-400 italic font-normal">
+          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-small text-slate-600 italic font-normal">
             Each car adds +{{ formatNumber((getVehicleType(11)?.baseCapacityPerSecond ?? 0) * 3600, 0) }} eggs/hr before research and artifacts
           </div>
         </div>
@@ -166,7 +166,7 @@
     <!-- Note about fleet size -->
     <div class="flex items-center justify-between px-2">
       <div class="flex flex-col gap-0.5">
-        <p class="text-small font-bold text-slate-400">
+        <p class="text-small font-bold text-slate-600">
           Fleet Capacity: {{ activeVehicleCount }}/{{ maxVehicleSlots }} active
         </p>
         <p class="text-small text-indigo-400 italic font-normal">(Fleet Size research unlocks more slots)</p>

@@ -56,29 +56,29 @@
         </p>
         <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
         <!-- Its opening's shifts, when its list leaves them out: the simulator's standard count (lib/openingShifts.ts). -->
-        <p v-if="l.openingShifts" class="ml-4 text-small text-slate-500" data-testid="now-ascension-opening">
+        <p v-if="l.openingShifts" class="ml-4 text-small text-slate-600" data-testid="now-ascension-opening">
           Its first hours: about {{ l.openingShifts }} shifts while buying research (estimated, not listed)
         </p>
         <!-- Its third Curiosity wait (C3), which can take 1 to 3 weeks (M13): the start of the ascension to its H1 (lib/c3WaitWords.ts). DRAFT words. -->
-        <p v-if="c3Wait(l)" class="ml-4 text-small text-slate-500" data-testid="now-ascension-c3">
+        <p v-if="c3Wait(l)" class="ml-4 text-small text-slate-600" data-testid="now-ascension-c3">
           Wait on Curiosity (C3): about {{ dayOnly(c3Wait(l)!.from) }} to {{ dayOnly(c3Wait(l)!.to) }}
         </p>
         <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-small text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
           </li>
-          <li class="text-slate-500" data-testid="now-ascension-shifts-source">
+          <li class="text-slate-600" data-testid="now-ascension-shifts-source">
             {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
           </li>
         </ul>
-        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts"
+        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-600" data-testid="now-ascension-no-shifts"
           >{{ noShifts(l) }}<AnimatedDots v-if="shiftsWorking(l)"
         /></p>
         <!-- The ascension you are in with no shifts left: what to do until its prestige (lib/instantSteps.ts withStayLine). -->
         <p v-if="l.stay" class="mt-0.5 ml-4 text-body text-slate-700" data-testid="now-ascension-stay">{{ stayWords(l.stay, exact) }}</p>
       </li>
     </ol>
-    <p class="mt-1.5 text-body text-slate-500 max-w-prose" data-testid="now-ascensions-note">
+    <p class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">
       Times from the instant answer are to the hour. Its shifts start at each ascension's swap to Humility (H1): the
       first hours' shifts of a fresh ascension are not in it yet. For every shift on your account, use a run from Try
       next below.

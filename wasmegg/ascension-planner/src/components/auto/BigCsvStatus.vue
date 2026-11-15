@@ -9,7 +9,7 @@
   <div v-if="s" class="w-full space-y-2">
     <p
       class="text-body"
-      :class="s.state === 'failed' ? 'font-bold text-amber-700' : 'text-slate-500'"
+      :class="s.state === 'failed' ? 'font-bold text-amber-700' : 'text-slate-600'"
       data-testid="big-csv-status"
     >
       <PendingText :text="s.message" /><span v-if="s.state === 'building' || s.state === 'uploading'"> {{ progress }}</span>
@@ -24,7 +24,7 @@
       >
         {{ fullCsvGzButton(s.bytes ?? s.total) }}
       </button>
-      <p v-else-if="onDisk === false" class="text-body text-slate-500" data-testid="full-csv-gone">
+      <p v-else-if="onDisk === false" class="text-body text-slate-600" data-testid="full-csv-gone">
         {{ fullCsvGone() }}
       </p>
     </template>

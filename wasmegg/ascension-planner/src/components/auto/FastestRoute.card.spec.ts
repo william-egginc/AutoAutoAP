@@ -36,8 +36,8 @@ describe('Target TE: one card, like By a date', () => {
   });
   it('the card has By a date\'s frame (sm and up only) and a small caps label, "The target"', () => {
     expect(card.startsWith('<div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4"')).toBe(true);
-    expect(card).toContain('<h3 class="text-slate-500 label md:!mt-0">The target</h3>');
-    expect(date).toContain('<h3 class="text-slate-500 label md:!mt-0">The date</h3>');
+    expect(card).toContain('<h3 class="text-slate-600 label md:!mt-0">The target</h3>');
+    expect(date).toContain('<h3 class="text-slate-600 label md:!mt-0">The date</h3>');
   });
   it('the card holds the Reach box, Filters, the filter row, the answer, What to do now and More, in that order', () => {
     const at = ['<TargetTeBox', '<FiltersButton', 'id="filters-fastest-answer"', 'data-region="answer"', '<NowLine', '<MoreFold'].map(m => card.indexOf(m));

@@ -15,7 +15,7 @@
         <div
           v-if="badge"
           class="badge-premium transition-colors duration-300"
-          :class="badgeActive ? 'badge-brand' : 'bg-slate-100 text-slate-500'"
+          :class="badgeActive ? 'badge-brand' : 'bg-slate-100 text-slate-600'"
         >
           {{ badge }}
         </div>
@@ -30,7 +30,7 @@
       <slot />
 
       <!-- Note -->
-      <p v-if="note" class="text-small text-slate-500 text-center px-2 leading-tight">
+      <p v-if="note" class="text-small text-slate-600 text-center px-2 leading-tight">
         {{ note }}
       </p>
     </div>

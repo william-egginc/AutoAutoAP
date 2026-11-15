@@ -52,7 +52,7 @@
         </svg>
       </div>
       <h3 class="text-body font-bold text-slate-900 mb-2">No Active Missions</h3>
-      <p class="text-body text-slate-500 max-w-xs font-normal">
+      <p class="text-body text-slate-600 max-w-xs font-normal">
         No active {{ PROFILE.missions.noun }}s were found in your last save. Use the Rockets tab to plan new launches.
       </p>
     </div>

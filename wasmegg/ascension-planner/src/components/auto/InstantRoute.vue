@@ -40,7 +40,7 @@
       </h3>
       <!-- The saved answer (the card clean-up, Jordan 12 Nov 2026): one line beside the heading, its sentence behind the
            "?" word for word (lib/instantCardWords.ts), Work it out again beside it (44 px on a phone). -->
-      <p v-if="savedAt" class="flex flex-wrap items-center gap-x-2 text-small text-slate-500" data-testid="saved-answer">
+      <p v-if="savedAt" class="flex flex-wrap items-center gap-x-2 text-small text-slate-600" data-testid="saved-answer">
         <span>{{ savedAnswerLabel(showNear(savedAt / 1000)) }}</span
         >{{ ' '
         }}<CardHelp>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</CardHelp
@@ -54,13 +54,13 @@
         </button>
       </p>
       <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
-        <span v-if="ms !== null && !moreTo" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
+        <span v-if="ms !== null && !moreTo" class="text-small text-slate-600">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
         <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
              2026: it was a lone pill above the card). 44 px on a phone. -->
         <button
           v-if="sectionHide"
           type="button"
-          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-body text-slate-500 underline hover:text-slate-800 sm:min-h-0 sm:min-w-0 sm:px-0"
+          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-body text-slate-600 underline hover:text-slate-800 sm:min-h-0 sm:min-w-0 sm:px-0"
           aria-expanded="true"
           data-testid="hide-instant"
           @click="sectionHide()"
@@ -111,7 +111,7 @@
     >
       From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}<template v-if="status === 'loading'">, checking<AnimatedDots /></template>
     </p>
-    <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
+    <p v-if="saveWaitText" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <!-- search/startProvenance.ts keeps its "…" (a result-hash input): drawn as moving dots here (one flex item). -->
       <span><PendingText :text="saveWaitText" /></span>
@@ -124,7 +124,7 @@
       Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
+    <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
       <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template>{{ result && !staleAt && !deadlineStale ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
@@ -148,7 +148,7 @@
     <!-- Never nothing (search/instantDeferral.ts idleLine): no answer, nothing loading or waited for, no error. -->
     <p
       v-else-if="!result && !waiting"
-      class="text-body text-slate-500 flex flex-wrap items-center gap-2"
+      class="text-body text-slate-600 flex flex-wrap items-center gap-2"
       data-testid="instant-idle"
     >
       <span
@@ -193,7 +193,7 @@
       Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page.
       These routes and dates are not real answers.
     </p>
-    <p v-if="!confirming && runBusy && alongside" class="text-body text-slate-500" data-testid="instant-alongside">
+    <p v-if="!confirming && runBusy && alongside" class="text-body text-slate-600" data-testid="instant-alongside">
       Running alongside your search: this uses more memory.
     </p>
     <p
@@ -231,7 +231,7 @@
              lib/instantWords.ts): in place of the estimate line in the box, "These are instant answers…" (lib/searchPointer.ts
              INSTANT_ONE_LINE, no longer drawn), "Each prestige waits for your awake hours…" and "Your no-prestige days are
              kept…", which sit behind its "Why? ›". The line itself is the summary, as AnswerCaveatLine's. -->
-        <div v-if="boxShown && headerLine" class="text-small text-slate-500 max-w-prose" data-testid="instant-header">
+        <div v-if="boxShown && headerLine" class="text-small text-slate-600 max-w-prose" data-testid="instant-header">
           <details data-testid="instant-header-why">
             <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0">
               <span data-testid="instant-header-line">{{ headerLine }}</span
@@ -298,7 +298,7 @@
             />
           </span>
         </div>
-        <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
+        <p v-if="rangeText" class="text-body text-slate-600 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
         <!-- Prefer fewer ascensions (was above the table in More): the same control, its goal's margin (TE on By a date,
@@ -310,7 +310,7 @@
         />
         </div>
         </Teleport>
-        <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
+        <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-600 max-w-prose" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
           its first hours, and started that late some would fall after your awake hours end, which the instant answer can't
           time.
@@ -324,7 +324,7 @@
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
              the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
-        <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500 max-w-prose" data-testid="instant-bracket-running">
+        <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-600 max-w-prose" data-testid="instant-bracket-running">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site<AnimatedDots />
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
@@ -381,7 +381,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -487,7 +487,7 @@
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
             <div
-              class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label text-slate-500 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
+              class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label text-slate-600 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
               data-testid="counts-head"
             >
@@ -570,8 +570,8 @@
           </PanelFold>
           <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
                expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
-          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+          <p v-if="nearTarget" class="text-small text-slate-600" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
+          <p v-if="moreTo" class="text-small text-slate-600" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
         <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
         <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
@@ -606,7 +606,7 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -700,7 +700,7 @@
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
             <div
-              class="grid items-end gap-x-2 px-1 pb-1 label text-slate-500 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
+              class="grid items-end gap-x-2 px-1 pb-1 label text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
               data-testid="counts-head"
             >
@@ -733,7 +733,7 @@
                   {{ ' ' }}
                   <span class="font-bold text-slate-800 tabular-nums">{{ showFinish(r.end) }}<span class="sr-only">,</span></span>
                   {{ ' ' }}
-                  <span class="text-slate-500 tabular-nums"
+                  <span class="text-slate-600 tabular-nums"
                     ><span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span
                     ><span v-if="behind(r) !== 'fastest'" class="sr-only">{{ ' ' }}behind</span
                     ><span
@@ -784,21 +784,21 @@
           <button
             v-if="hiddenCounts || showMoreCounts"
             type="button"
-            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-body font-bold text-slate-500 underline hover:text-emerald-800"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-body font-bold text-slate-600 underline hover:text-emerald-800"
             data-testid="instant-more-counts"
             @click="showMoreCounts = !showMoreCounts"
           >
             {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
           </button>
-          <p v-else-if="moreDontHelp" class="mt-1 text-small text-slate-500" data-testid="instant-more-dont-help">
+          <p v-else-if="moreDontHelp" class="mt-1 text-small text-slate-600" data-testid="instant-more-dont-help">
             More ascensions don't help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
             extra stop only adds a prestige.
           </p>
           </PanelFold>
           <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
                expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
-          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+          <p v-if="nearTarget" class="text-small text-slate-600" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
+          <p v-if="moreTo" class="text-small text-slate-600" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
         </div>
         <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
         <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
@@ -840,7 +840,7 @@
         <!-- Folded (lib/panelFold.ts `howWorkedOut`). With a More on the screen it sits at More's foot (moreHowEl), with
              the timing that was in the heading row. -->
         <Teleport :to="moreHowEl ?? 'body'" :disabled="!moreHowEl">
-        <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-body text-slate-500" summary-class="text-slate-600">
+        <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-body text-slate-600" summary-class="text-slate-600">
           <p v-if="moreTo && ms !== null" class="mt-1 text-small" data-testid="instant-how-timing">every route checked in {{ (ms / 1000).toFixed(1) }} s</p>
           <!-- By a date's own explainer (it was a fold under the screen's title, "How Highest TE by a date works", until the
                simpler page, 9 Nov 2026), word for word. -->

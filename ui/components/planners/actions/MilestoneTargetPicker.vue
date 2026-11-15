@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2 mb-3" ref="containerRef">
-    <div class="label text-gray-400">Milestone Target</div>
+    <div class="label text-gray-600">Milestone Target</div>
     <div class="relative">
       <button
         @click="open = !open"
@@ -24,8 +24,8 @@
             }})</span
           >
         </template>
-        <span v-else class="flex-1 text-left text-gray-400">Select a milestone</span>
-        <ChevronDownIcon class="w-4 h-4 text-gray-400 shrink-0 transition-transform" :class="{ 'rotate-180': open }" />
+        <span v-else class="flex-1 text-left text-gray-600">Select a milestone</span>
+        <ChevronDownIcon class="w-4 h-4 text-gray-600 shrink-0 transition-transform" :class="{ 'rotate-180': open }" />
       </button>
 
       <div
@@ -45,7 +45,7 @@
             <div class="text-small font-bold" :class="kind === 'tier' ? 'text-blue-600' : 'text-gray-900'">
               Unlock Tier {{ nextLockedTier }}
             </div>
-            <div class="text-small text-gray-400">Fastest ROI-optimal path to unlock the next tier.</div>
+            <div class="text-small text-gray-600">Fastest ROI-optimal path to unlock the next tier.</div>
           </div>
         </button>
 
@@ -69,11 +69,11 @@
               >
                 {{ option.research.name }}
               </span>
-              <span class="text-small font-normal text-gray-400 whitespace-nowrap shrink-0">
+              <span class="text-small font-normal text-gray-600 whitespace-nowrap shrink-0">
                 Lv {{ option.currentLevel + 1 }}/{{ option.research.levels }}
               </span>
             </div>
-            <div class="text-small text-gray-400">{{ option.research.description }}</div>
+            <div class="text-small text-gray-600">{{ option.research.description }}</div>
           </div>
         </button>
       </div>

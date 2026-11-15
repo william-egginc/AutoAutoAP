@@ -46,7 +46,7 @@
       :running="running"
       :unfinished="canCarryOn || countdown > 0"
       :long-run="nudged"
-      summary-class="text-small text-slate-500"
+      summary-class="text-small text-slate-600"
       @player-toggle="onFoldToggle"
     >
       <div class="space-y-2 pt-1">
@@ -65,7 +65,7 @@
             <span
               ><span class="font-bold">Carry on by itself after a crash.</span> If the browser closes this page mid-run, the
               next time it opens it carries on after a {{ COUNTDOWN_SECONDS }}-second countdown, with fewer workers.
-              <span class="block text-slate-500">Doesn't slow the run.</span></span
+              <span class="block text-slate-600">Doesn't slow the run.</span></span
             >
           </template>
         </ConsentBox>
@@ -84,7 +84,7 @@
               ><span class="font-bold">Watch this run from a second tab and reopen it if it crashes.</span> Opens a small
               tab that reopens this page if the run goes quiet for 2 minutes (at most {{ MAX_REOPENS_PER_HOUR }} times an
               hour). Keep both tabs open.
-              <span class="block text-slate-500"
+              <span class="block text-slate-600"
                 >Doesn't slow the run: the watcher is a tiny page that checks in about once a minute.</span
               ></span
             >
@@ -132,9 +132,9 @@
                   @auxclick="onWatcherAux"
                   >Open the watcher tab</a
                 >
-                <span v-if="tip" class="text-small text-slate-500">{{ tip }}</span>
+                <span v-if="tip" class="text-small text-slate-600">{{ tip }}</span>
               </p>
-              <p class="text-slate-500">
+              <p class="text-slate-600">
                 <template v-for="(part, i) in [...help.keepAwake, ...(help.note ? [' ', ...help.note] : [])]" :key="i"
                   ><template v-if="typeof part === 'string'">{{ part }}</template
                   ><template v-else
@@ -173,8 +173,8 @@
                 it's going from anywhere. Every 5 minutes this tab sends its progress, time left and best so far, locked
                 with a key that's only in the link: the server stores it but can't read it. Never your save, player ID or
                 name.
-                <span class="block text-slate-500">Doesn't slow the run.</span>
-                <span v-if="!phoneAvailable" class="block text-slate-500"
+                <span class="block text-slate-600">Doesn't slow the run.</span>
+                <span v-if="!phoneAvailable" class="block text-slate-600"
                   >Needs a server for watch links, and this copy of the planner has none.</span
                 ></span
               >
@@ -217,9 +217,9 @@
                       >
                     </p>
                   </div>
-                  <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}<AnimatedDots v-if="phoneSending" /></p>
+                  <p v-if="phoneLine" class="text-slate-600" role="status">{{ phoneLine }}<AnimatedDots v-if="phoneSending" /></p>
                 </template>
-                <p v-else class="text-slate-500">The link appears here when the run starts.</p>
+                <p v-else class="text-slate-600">The link appears here when the run starts.</p>
                 <label class="flex flex-wrap items-center gap-2">
                   <span class="font-bold">Label</span>
                   <input
@@ -229,7 +229,7 @@
                     placeholder="optional, e.g. big sweep"
                     class="w-48 rounded border-slate-300 px-1 py-0 text-body"
                   />
-                  <span class="text-slate-500">Shown on the phone page. Leave it empty to send none.</span>
+                  <span class="text-slate-600">Shown on the phone page. Leave it empty to send none.</span>
                 </label>
                 <label class="flex items-start gap-2">
                   <input
@@ -261,7 +261,7 @@
                     </button>
                   </p>
                   <p v-if="!topicOk" class="font-bold text-amber-800">Letters, numbers, - and _ only.</p>
-                  <p class="text-slate-500">
+                  <p class="text-slate-600">
                     Install the free ntfy app and subscribe to this topic. Anyone who knows a topic can read it, so keep it
                     random.
                   </p>
@@ -324,7 +324,7 @@
               </select>
               <span class="font-bold">while this runs</span>
               (best so far, the CSV so far, and diagnostics if ticked)
-              <span class="block text-slate-500"
+              <span class="block text-slate-600"
                 >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
                 it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
                 CSV too" is ticked under Run, diagnostics when "Also send diagnostics" is. The finished run replaces it
@@ -333,7 +333,7 @@
             >
           </template>
           <template #aside>
-            <span v-if="options.autoSendBest && !autoHere" class="block pl-6 text-slate-500"
+            <span v-if="options.autoSendBest && !autoHere" class="block pl-6 text-slate-600"
               >It asks for your OK when a run starts, unless you start it with "Send the result to the Leaderboard" ticked.</span
             >
             <span

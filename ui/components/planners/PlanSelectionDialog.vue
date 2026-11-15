@@ -41,7 +41,7 @@ const emit = defineEmits(['select', 'cancel']);
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
       <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
         <h3 class="text-title font-bold text-slate-800">Select Plan to Reconcile</h3>
-        <button @click="emit('cancel')" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <button @click="emit('cancel')" class="text-slate-600 hover:text-slate-600 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -52,8 +52,8 @@ const emit = defineEmits(['select', 'cancel']);
         </div>
         
         <div v-else-if="plans.length === 0" class="text-center py-8">
-          <p class="text-slate-500 text-body">No plans found in your library.</p>
-          <p class="text-small text-slate-400 mt-1 font-bold">Save a plan first to use reconciliation</p>
+          <p class="text-slate-600 text-body">No plans found in your library.</p>
+          <p class="text-small text-slate-600 mt-1 font-bold">Save a plan first to use reconciliation</p>
         </div>
 
         <div v-else class="space-y-2">
@@ -69,7 +69,7 @@ const emit = defineEmits(['select', 'cancel']);
                 Open in another tab
               </span>
             </div>
-            <div class="text-body text-slate-400 mt-1 font-bold">
+            <div class="text-body text-slate-600 mt-1 font-bold">
               {{ formatMoment(plan.timestamp, { at: true }) }}
             </div>
           </button>
@@ -85,13 +85,13 @@ const emit = defineEmits(['select', 'cancel']);
               class="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500 transition-colors"
             ></div>
             <span
-              class="ml-2 text-slate-400 label group-hover/toggle:text-slate-600 transition-colors"
+              class="ml-2 text-slate-600 label group-hover/toggle:text-slate-600 transition-colors"
               >Incomplete Only</span
             >
           </label>
         </div>
 
-        <button @click="emit('cancel')" class="px-4 py-2 text-body font-bold text-slate-500 hover:text-slate-700">
+        <button @click="emit('cancel')" class="px-4 py-2 text-body font-bold text-slate-600 hover:text-slate-700">
           Cancel
         </button>
       </div>

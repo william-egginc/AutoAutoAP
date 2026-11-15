@@ -81,7 +81,7 @@
     </p>
 
     <!-- What goes in, and what does not. -->
-    <p v-if="accounts.length" class="text-small text-slate-500 px-1">
+    <p v-if="accounts.length" class="text-small text-slate-600 px-1">
       <span>{{ inputs.head }}</span>
       <template v-if="tables.left.length">
         <span>{{ '; left out: ' }}</span>
@@ -111,7 +111,7 @@
     <p v-if="error" class="text-body font-bold text-rose-700 px-1">{{ error }}</p>
 
     <template v-if="shown && view">
-      <p class="text-small text-slate-500 px-1">
+      <p class="text-small text-slate-600 px-1">
         <b v-if="view.partial" class="text-slate-700">{{ view.partial }}</b> {{ view.summary }}
       </p>
 
@@ -180,13 +180,13 @@
                 <span class="text-small text-slate-600"> · {{ p.how }}</span>
               </td>
               <td class="py-1.5 whitespace-nowrap text-small" :title="p.saveTitle">
-                <span v-if="p.save" class="font-bold text-slate-500">{{ p.save }}</span>
+                <span v-if="p.save" class="font-bold text-slate-600">{{ p.save }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-if="view.anchorNote" class="text-small text-slate-500 px-1">{{ view.anchorNote }}</p>
+      <p v-if="view.anchorNote" class="text-small text-slate-600 px-1">{{ view.anchorNote }}</p>
     </template>
   </div>
 </template>

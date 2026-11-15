@@ -42,7 +42,7 @@
           :class="
             limit === l
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           :aria-pressed="limit === l"
           @click="limit = l"
@@ -141,7 +141,7 @@
           <tr v-for="p in view.rows" :key="p.rank" class="hover:bg-slate-50">
             <td class="py-1 pr-5 text-right text-slate-600">{{ p.rank.toLocaleString() }}</td>
             <td class="py-1 pr-5 tabular-nums text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
-            <td class="py-1 pr-5 text-right text-slate-500">{{ p.ascensions }}</td>
+            <td class="py-1 pr-5 text-right text-slate-600">{{ p.ascensions }}</td>
             <td class="py-1 pr-5 text-right font-bold text-slate-700 whitespace-nowrap">{{ p.days.toFixed(2) }} d</td>
             <td class="py-1 pr-5 text-right whitespace-nowrap">
               <span
@@ -150,9 +150,9 @@
                 title="The fastest plan in this run's table"
                 >best</span
               >
-              <span v-else class="text-slate-500">{{ behindText(p.behind, false) }}</span>
+              <span v-else class="text-slate-600">{{ behindText(p.behind, false) }}</span>
             </td>
-            <td class="py-1 text-slate-500 whitespace-nowrap" :title="finishTitle(finishOf(p.days), run.timezone)">
+            <td class="py-1 text-slate-600 whitespace-nowrap" :title="finishTitle(finishOf(p.days), run.timezone)">
               {{ finishDateText(finishOf(p.days), viewZone) }}
             </td>
           </tr>
@@ -334,7 +334,7 @@ function pageButtonClass(current: boolean): string {
   return `min-w-[1.75rem] px-1.5 py-0.5 rounded-md border transition-colors disabled:opacity-40 ${
     current
       ? 'bg-slate-900 text-white border-slate-900'
-      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
   }`;
 }
 </script>

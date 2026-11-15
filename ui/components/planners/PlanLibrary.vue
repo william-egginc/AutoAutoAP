@@ -485,7 +485,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
       </div>
 
       <div v-else-if="plans.length === 0" class="text-center py-6">
-        <p class="text-gray-500 text-body">Your library is empty. Save your current plan to see it here.</p>
+        <p class="text-gray-600 text-body">Your library is empty. Save your current plan to see it here.</p>
       </div>
 
       <div v-else class="space-y-0.5 max-h-64 overflow-y-auto pr-2">
@@ -535,10 +535,10 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
           </div>
 
           <div class="flex items-center space-x-0 sm:space-x-2">
-            <span class="hidden sm:inline text-small text-gray-400 whitespace-nowrap mr-1">
+            <span class="hidden sm:inline text-small text-gray-600 whitespace-nowrap mr-1">
               Updated {{ formatMoment(plan.timestamp) }}
             </span>
-            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan'" @click="exportPlan(plan)">
+            <button class="p-0.5 sm:p-1 text-gray-600 hover:text-indigo-600" v-tippy="'Export this plan'" @click="exportPlan(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -548,7 +548,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
                 />
               </svg>
             </button>
-            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Rename this plan'" @click="startRename(plan)">
+            <button class="p-0.5 sm:p-1 text-gray-600 hover:text-indigo-600" v-tippy="'Rename this plan'" @click="startRename(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -558,12 +558,12 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
                 />
               </svg>
             </button>
-            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Copy this plan'" @click="promptCopy(plan)">
+            <button class="p-0.5 sm:p-1 text-gray-600 hover:text-indigo-600" v-tippy="'Copy this plan'" @click="promptCopy(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
               </svg>
             </button>
-            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-red-600" v-tippy="'Delete this plan'" @click="confirmDelete(plan, $event)">
+            <button class="p-0.5 sm:p-1 text-gray-600 hover:text-red-600" v-tippy="'Delete this plan'" @click="confirmDelete(plan, $event)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -636,7 +636,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
     @cancel="showCopyPrompt = false"
   >
     <div class="mt-3">
-      <label class="block text-gray-400 label mb-1">New Plan Name</label>
+      <label class="block text-gray-600 label mb-1">New Plan Name</label>
       <input
         v-model="copyName"
         class="block w-full text-body border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-2 px-3 shadow-sm"

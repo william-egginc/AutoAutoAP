@@ -83,7 +83,7 @@ describe("Right now's header: the save, in Words' line", () => {
   it('amber once the loaded save is out of date (saveOld), quiet slate otherwise', async () => {
     expect(calcTag(await renderHtml(RightNowCard, cardProps({ saveOld: true })))).toContain('text-amber-800');
     const quiet = calcTag(await renderHtml(RightNowCard, cardProps()));
-    expect(quiet).toContain('text-slate-500');
+    expect(quiet).toContain('text-slate-600');
     expect(quiet).not.toContain('text-amber-800');
   });
   it('the save time unknown: no line (the "?" still there)', async () => {

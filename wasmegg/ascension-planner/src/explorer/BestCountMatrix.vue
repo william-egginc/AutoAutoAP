@@ -24,7 +24,7 @@
         :class="
           order === opt.id
             ? 'bg-slate-900 text-white border-slate-900'
-            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         "
         :aria-pressed="order === opt.id"
         @click="order = opt.id"
@@ -115,7 +115,7 @@
                   <p class="grow whitespace-pre-line">{{ cellTitle(row, pickedCell, viewZone) }}</p>
                   <button
                     type="button"
-                    class="shrink-0 rounded px-1 text-small leading-none text-slate-500 hover:bg-indigo-100"
+                    class="shrink-0 rounded px-1 text-small leading-none text-slate-600 hover:bg-indigo-100"
                     aria-label="Close these details"
                     @click="picked = null"
                   >
@@ -127,7 +127,7 @@
           </template>
         </tbody>
         <tfoot>
-          <tr class="text-small text-slate-500">
+          <tr class="text-small text-slate-600">
             <th scope="row" class="sticky left-0 z-10 bg-white text-left font-bold pt-1 pr-3 whitespace-nowrap">
               Accounts that tried it
             </th>
@@ -148,7 +148,7 @@
 
     <div
       v-if="table.rows.length"
-      class="space-y-1.5 px-1 text-small text-slate-500"
+      class="space-y-1.5 px-1 text-small text-slate-600"
       aria-label="How to read the fills and borders"
     >
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">

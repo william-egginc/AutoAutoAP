@@ -33,7 +33,7 @@
       data-testid="pace-pill"
       >{{ words.badge }}</span
     >
-    <span v-if="words.asOf || words.greyed" class="text-slate-500" data-testid="pace-asof"
+    <span v-if="words.asOf || words.greyed" class="text-slate-600" data-testid="pace-asof"
       >{{ words.asOf }}<template v-if="words.asOf && words.greyed">{{ ' · ' }}</template
       ><template v-if="words.greyed">{{ NOT_FOLLOWED_WORDS }}</template></span
     >

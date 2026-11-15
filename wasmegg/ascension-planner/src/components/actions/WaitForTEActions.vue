@@ -32,7 +32,7 @@
 
           <div class="text-slate-600 label">Eggs Delivered:</div>
           <div class="tabular-nums text-right text-slate-700 font-bold">
-            <span class="text-slate-300 font-normal">{{ formatNumber(initialEggsDelivered, 2) }}</span>
+            <span class="text-slate-600 font-normal">{{ formatNumber(initialEggsDelivered, 2) }}</span>
             <span class="mx-1 text-slate-200 font-normal">→</span>
             <span>{{ formatNumber(currentEggsDelivered, 2) }}</span>
           </div>
@@ -61,7 +61,7 @@
           <div class="flex flex-col justify-end text-right">
             <span class="text-slate-600 label">Total Progress:</span>
             <span class="tabular-nums font-bold text-slate-900 text-body"
-              >{{ truthEggsStore.totalTE }} <span class="text-slate-300 font-normal">/ 490</span></span
+              >{{ truthEggsStore.totalTE }} <span class="text-slate-600 font-normal">/ 490</span></span
             >
           </div>
         </div>
@@ -142,13 +142,13 @@
             <div class="flex items-center gap-1">
               <span class="text-slate-600 label">Delivery Rate per hour:</span>
             </div>
-            <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerHour, 2) }}</span>
+            <span class="tabular-nums text-slate-600">{{ formatNumber(elrPerHour, 2) }}</span>
           </div>
           <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
               <span class="text-slate-600 label">Delivery Rate per day:</span>
             </div>
-            <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerDay, 2) }}</span>
+            <span class="tabular-nums text-slate-600">{{ formatNumber(elrPerDay, 2) }}</span>
           </div>
           <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
             <span class="text-slate-600 label">Time Required:</span>

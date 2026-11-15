@@ -67,7 +67,7 @@ function itemAttrs(s: DashStep) {
 
 /** 44 px tall on a phone (a tap target), compact beside the text from `sm` up. */
 const BUTTON =
-  'self-start sm:self-auto shrink-0 min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md text-body font-bold bg-emerald-600 text-white hover:bg-emerald-700';
+  'self-start sm:self-auto shrink-0 min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md text-body font-bold bg-emerald-700 text-white hover:bg-emerald-800';
 
 function act(s: DashStep): void {
   emit('act', s.action);

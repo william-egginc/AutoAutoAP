@@ -14,7 +14,7 @@
       <!-- On a phone only "What" showed, alone over rows that also hold the when (spec-tidy): the headers are for screen
            readers there, seen from sm up where each has its column. -->
       <thead class="sr-only sm:not-sr-only sm:table-header-group">
-        <tr class="label text-slate-500 text-left">
+        <tr class="label text-slate-600 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
           <th class="py-1.5 pr-2">What</th>
           <th class="py-1.5 pr-2 hidden sm:table-cell">When</th>
@@ -45,7 +45,7 @@
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
-            <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
+            <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-600" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
             ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
             <!-- Every ascension's prestige is listed (26 Oct 2026). One that waits: When and How far are the time it
                  happens; the note gives the time its stop is reached and why it waits (spec-uxpass item 10, 8 Nov
@@ -102,7 +102,7 @@
     </div>
     <!-- Rounded (the instant answer's): no footer; the card's tag line says it once (spec-uxpass item 1, 8 Nov 2026). -->
     <!-- One clause, the rest behind a "?" (UX fluff review 2, 5 Nov 2026, item R15). DRAFT (Words). -->
-    <p v-if="!rounded && upcoming.length" class="mt-1.5 flex items-center gap-1.5 text-body text-slate-500 max-w-prose">
+    <p v-if="!rounded && upcoming.length" class="mt-1.5 flex items-center gap-1.5 text-body text-slate-600 max-w-prose">
       If the plan changes, add them again.
       <HelpTip>
         Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};

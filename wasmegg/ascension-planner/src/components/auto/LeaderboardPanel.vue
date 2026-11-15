@@ -118,7 +118,7 @@
       aria-label="Who sees your runs"
     >
       <div class="flex flex-wrap items-center gap-2">
-        <h4 class="mr-auto label text-slate-500">Who sees your runs</h4>
+        <h4 class="mr-auto label text-slate-600">Who sees your runs</h4>
         <button
           v-if="myPublicCount"
           type="button"
@@ -140,7 +140,7 @@
       </div>
       <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
            maintainer" here to it. -->
-      <p class="text-slate-500">
+      <p class="text-slate-600">
         A hidden run leaves the public Leaderboard but stays here for you. Only you and the planner's maintainer will see it.
         Nothing is deleted, and you can show it again any time.
       </p>
@@ -148,7 +148,7 @@
         <p class="text-small font-bold text-slate-600 mb-1">
           Hidden from the public ({{ myHidden.length }})
         </p>
-        <ul class="divide-y divide-slate-100 text-slate-500">
+        <ul class="divide-y divide-slate-100 text-slate-600">
           <li v-for="h in myHidden" :key="h.id ?? contentFingerprint(h)" class="py-1.5">
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <button
@@ -244,7 +244,7 @@
           <input v-model="showOlder" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
           Show runs from older simulators
         </label>
-        <span v-if="simHidden && tab !== 'insights'" class="text-slate-500" data-testid="sim-hidden">{{
+        <span v-if="simHidden && tab !== 'insights'" class="text-slate-600" data-testid="sim-hidden">{{
           simHidden
         }}</span>
       </div>
@@ -374,7 +374,7 @@
                           {{ openPlayers[e.key] ? '⌄' : '›' }}
                         </button>
                       </td>
-                      <td class="py-2 pr-3 text-right font-bold text-slate-500">{{ e.rank }}</td>
+                      <td class="py-2 pr-3 text-right font-bold text-slate-600">{{ e.rank }}</td>
                       <td
                         class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
                         data-testid="row-open-name"
@@ -384,7 +384,7 @@
                           >{{ e.label }}
                           <span
                             v-if="isMe(e)"
-                            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white label"
+                            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-white label"
                             >you</span
                           ><span
                             v-else-if="whoIs(e) === 'maybe'"
@@ -439,7 +439,7 @@
                       >
                         {{ finishDateText(e.best.finish, viewZone) }}
                         <SimChip :stamp="e.best.row.simVersion" />
-                        <div v-if="narrow" class="font-normal text-slate-500">
+                        <div v-if="narrow" class="font-normal text-slate-600">
                           {{ daysLeftPhrase(e.best.finish, now, viewZone) }}
                         </div>
                       </td>
@@ -450,7 +450,7 @@
                       <!-- Short, on one line, with the numbers in the tooltip: wrapped, the on-track
                            figures made the row three lines tall. On your calendar, like Finishes. -->
                       <td
-                        class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                        class="py-2 pr-3 text-slate-600 whitespace-nowrap"
                         :title="plannedText(e.best, { zone: viewZone })"
                       >
                         {{ plannedText(e.best, { zone: viewZone, brief: true }) }}
@@ -458,7 +458,7 @@
                       <td class="py-2 pr-3 text-slate-600 whitespace-nowrap" :title="e.best.row.window || undefined">
                         {{ scheduleText(e.best.row.window) }}
                       </td>
-                      <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
+                      <td class="py-2 pr-3 text-right text-slate-600 whitespace-nowrap" :title="triedTitle(e)">
                         {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
                       </td>
                       <!-- Use and Follow this route are in the opened row (fluff review 2, L13): the plan list there has
@@ -537,12 +537,12 @@
             <ul class="mt-1 space-y-0.5">
               <li v-for="w in race.waiting" :key="w.key">
                 <span class="font-bold">{{ w.label }}</span>
-                <span class="text-slate-500">: {{ w.dropped[0]?.reason || 'no plan that counts' }}</span>
+                <span class="text-slate-600">: {{ w.dropped[0]?.reason || 'no plan that counts' }}</span>
               </li>
             </ul>
           </details>
 
-          <p class="text-small text-slate-500">
+          <p class="text-small text-slate-600">
             Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own.
           </p>
           <BoardFold :title="`How Fastest to ${target} TE is judged`" testid="race-judged">
@@ -647,7 +647,7 @@
         >
           <p class="text-small font-bold text-indigo-800">
             By {{ deadlineText(g.deadline) }}
-            <span v-if="g.deadline * 1000 < now" class="font-bold normal-case tracking-normal text-slate-500"
+            <span v-if="g.deadline * 1000 < now" class="font-bold normal-case tracking-normal text-slate-600"
               >· this date has passed</span
             >
           </p>
@@ -671,7 +671,7 @@
                 <template v-for="e in [...g.entries, ...g.anonymous]" :key="dateKey(g.deadline, e)">
                   <tr
                     class="border-t border-indigo-50 cursor-pointer hover:bg-indigo-50/40"
-                    :class="e.rank ? '' : 'text-slate-500'"
+                    :class="e.rank ? '' : 'text-slate-600'"
                     :title="
                       openDate === dateKey(g.deadline, e)
                         ? 'Hide the details'
@@ -760,7 +760,7 @@
               </tbody>
             </table>
           </div>
-          <p v-if="g.anonymous.length" class="text-small text-slate-500">Anonymous answers aren't ranked.</p>
+          <p v-if="g.anonymous.length" class="text-small text-slate-600">Anonymous answers aren't ranked.</p>
         </div>
       </template>
 
@@ -841,7 +841,7 @@
                              the run's detail. Text interpolation, so it is always escaped. -->
                         <span
                           v-if="line.row.note"
-                          class="block max-w-[12rem] truncate whitespace-nowrap text-small font-normal text-slate-500"
+                          class="block max-w-[12rem] truncate whitespace-nowrap text-small font-normal text-slate-600"
                           :title="line.row.note"
                           >{{ line.row.note }}</span
                         >
@@ -895,7 +895,7 @@
                       <td
                         v-else-if="c.key === 'finish'"
                         class="py-2 pr-3 whitespace-nowrap"
-                        :class="narrow ? 'text-slate-700 font-bold' : 'text-slate-500'"
+                        :class="narrow ? 'text-slate-700 font-bold' : 'text-slate-600'"
                         :title="finishTitle(line.finish, line.row.timezone)"
                       >
                         {{ finishDateText(line.finish, viewZone) }}

@@ -36,7 +36,7 @@
           <span class="text-slate-600 label leading-none mb-1">Silos</span>
           <div class="flex items-center gap-1.5">
             <span class="text-body tabular-nums font-bold text-slate-900">{{ silosPurchased }}</span>
-            <span class="text-slate-500 label">{{
+            <span class="text-slate-600 label">{{
               silosPurchased === 1 ? 'Silo' : 'Silos'
             }}</span>
           </div>

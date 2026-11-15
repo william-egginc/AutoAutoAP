@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2 mb-4" ref="containerRef">
-    <div class="label text-gray-400">Research View</div>
+    <div class="label text-gray-600">Research View</div>
     <div class="relative">
       <button
         @click="open = !open"
@@ -25,7 +25,7 @@
           <span class="text-body font-normal" :class="modelValue === v.id ? 'text-blue-600' : 'text-gray-700'">
             {{ v.label }}
           </span>
-          <span v-if="v.description" class="text-small text-gray-400">{{ v.description }}</span>
+          <span v-if="v.description" class="text-small text-gray-600">{{ v.description }}</span>
         </button>
       </div>
     </div>

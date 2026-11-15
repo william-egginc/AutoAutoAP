@@ -46,12 +46,12 @@
               </td>
               <td class="pr-3 py-1" :class="c.end == null ? 'text-slate-600' : ''">{{ compareFinish(c) }}</td>
               <td class="pr-3 py-1 font-bold" :class="c.tone === 'better' ? 'text-emerald-700' : 'text-slate-600'">{{ c.diff || '·' }}</td>
-              <td class="py-1 text-slate-500">{{ c.at ? whenText(c.at).main : c.label === 'Instant answer' ? 'worked out ahead' : '' }}</td>
+              <td class="py-1 text-slate-600">{{ c.at ? whenText(c.at).main : c.label === 'Instant answer' ? 'worked out ahead' : '' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="text-small text-slate-500">
+      <p class="text-small text-slate-600">
         The instant answer row is the one for this save when the run was sent, shared by the player. Every other row is
         the full simulator on the same save and hours.
       </p>
@@ -176,7 +176,7 @@
            this result the viewer sent goes together, or the line would stay up as the next copy.
            ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
            maintainer" below to it. -->
-      <div v-if="hide && ownIds.length" class="mt-2 text-small text-slate-500">
+      <div v-if="hide && ownIds.length" class="mt-2 text-small text-slate-600">
         <p v-if="allHidden">
           <span class="font-bold text-slate-600">Hidden from the public</span> ·
           <button
@@ -226,7 +226,7 @@
       </div>
       <div v-for="(slot, k) in setTab === 'earnings' ? row.earnings : row.delivery" :key="k" class="mb-1">
         <div class="font-bold text-slate-700">{{ slot.artifact }}</div>
-        <div v-if="slot.stones?.length" class="text-slate-500 ml-2">
+        <div v-if="slot.stones?.length" class="text-slate-600 ml-2">
           {{ slot.stones.join(', ') }}
         </div>
         <div v-else class="text-slate-600 ml-2">no stones</div>

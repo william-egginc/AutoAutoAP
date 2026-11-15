@@ -16,7 +16,7 @@
 
     <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
       <div class="flex flex-col">
-        <span class="text-gray-400 leading-none mb-1 label">Hab Space In</span>
+        <span class="text-gray-600 leading-none mb-1 label">Hab Space In</span>
         <span
           v-tippy="`Hab space bought ${summary.finishAbsoluteTime}.`"
           class="text-body font-bold text-gray-900 leading-none py-1 cursor-help tabular-nums"
@@ -25,18 +25,18 @@
         </span>
       </div>
       <div v-if="summary.slackSeconds !== null && !summary.habsFullAtStart" class="flex flex-col">
-        <span class="text-gray-400 leading-none mb-1 label">
+        <span class="text-gray-600 leading-none mb-1 label">
           {{ summary.slackSeconds >= 0 ? 'Before Full' : 'Full For' }}
         </span>
         <span
           class="text-body font-bold leading-none py-1 tabular-nums"
-          :class="summary.slackSeconds >= 0 ? 'text-emerald-600' : 'text-red-600'"
+          :class="summary.slackSeconds >= 0 ? 'text-emerald-700' : 'text-red-600'"
         >
           {{ formatDuration(Math.abs(summary.slackSeconds)) }}
         </span>
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-gray-500 leading-none mb-1 label"
+        <span class="text-gray-600 leading-none mb-1 label"
           >Bought First</span
         >
         <span
@@ -46,7 +46,7 @@
         >
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-gray-500 leading-none mb-1 label"
+        <span class="text-gray-600 leading-none mb-1 label"
           >{{ currency.title }} Spent</span
         >
         <span class="text-body font-bold text-gray-900 leading-none py-1 tabular-nums">
@@ -54,7 +54,7 @@
         </span>
       </div>
       <div class="flex flex-col border-l border-gray-200 pl-6">
-        <span class="text-gray-500 leading-none mb-1 label">Earnings</span>
+        <span class="text-gray-600 leading-none mb-1 label">Earnings</span>
         <span
           v-tippy="'Offline earnings per hour now, and once the whole chain is bought.'"
           class="text-body font-bold text-gray-900 leading-none py-1 cursor-help tabular-nums"
@@ -79,6 +79,6 @@ const props = defineProps<{ summary: HabSpaceSummary }>();
 const { currency } = usePlannerProfile();
 
 const statusClass = computed(() =>
-  props.summary.habsFullAtStart || !props.summary.beatsFull ? 'text-amber-700 font-semibold' : 'text-gray-500'
+  props.summary.habsFullAtStart || !props.summary.beatsFull ? 'text-amber-700 font-semibold' : 'text-gray-600'
 );
 </script>

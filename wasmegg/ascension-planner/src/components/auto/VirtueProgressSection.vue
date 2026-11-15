@@ -19,7 +19,7 @@
               >Clothed TE {{ Math.round(earningsClothedTe) }}</span
             >
             <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
-            <span class="text-small font-bold text-slate-500">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
+            <span class="text-small font-bold text-slate-600">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
           </div>
         </div>
       </div>
@@ -52,13 +52,13 @@
         >
           <div class="flex items-center gap-2 mb-2">
             <img :src="iconURL(`egginc/egg_${egg}.png`, 64)" class="w-4 h-4 object-contain" />
-            <span class="text-slate-500 label">{{ VIRTUE_EGG_NAMES[egg] }}</span>
+            <span class="text-slate-600 label">{{ VIRTUE_EGG_NAMES[egg] }}</span>
           </div>
           <div class="flex items-baseline gap-1">
             <span class="text-title tabular-nums font-bold text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
             <span class="text-slate-600 label">Claimed</span>
           </div>
-          <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-600' : 'text-slate-300'">
+          <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-700' : 'text-slate-300'">
             +{{ backupProgress.tePending[egg] }} Pending
           </div>
         </div>
@@ -66,7 +66,7 @@
       <p v-if="sinceSync" class="text-body font-bold text-slate-600 px-1 tabular-nums">
         <span class="font-bold text-indigo-600">+{{ formatNumber(sinceSync.eggs, 3) }}</span>
         {{ VIRTUE_EGG_NAMES[sinceSync.egg] }} eggs since your last sync {{ formatDuration(sinceSync.seconds) }} ago
-        <span v-if="sinceSync.te > 0" class="font-bold text-emerald-600">(+{{ sinceSync.te }} TE)</span>
+        <span v-if="sinceSync.te > 0" class="font-bold text-emerald-700">(+{{ sinceSync.te }} TE)</span>
       </p>
     </template>
 
@@ -84,7 +84,7 @@
           <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 group-hover:border-indigo-100 group-hover:bg-slate-50/80 transition-all duration-300">
             <div class="flex items-center gap-2 mb-2">
               <img :src="iconURL(`egginc/egg_${egg}.png`, 64)" class="w-4 h-4 object-contain grayscale group-hover:grayscale-0 transition-all" />
-              <span class="text-slate-500 label group-hover:text-indigo-400 transition-colors">
+              <span class="text-slate-600 label group-hover:text-indigo-400 transition-colors">
                 {{ VIRTUE_EGG_NAMES[egg] }}
               </span>
             </div>
@@ -111,7 +111,7 @@
       >
         <div class="min-w-0">
           <div class="text-body font-bold text-slate-700">Artifacts &amp; Stones</div>
-          <div class="text-small font-bold text-slate-500 truncate">{{ loadoutSummary }}</div>
+          <div class="text-small font-bold text-slate-600 truncate">{{ loadoutSummary }}</div>
         </div>
         <svg
           class="w-4 h-4 text-slate-600 flex-shrink-0 transition-transform"

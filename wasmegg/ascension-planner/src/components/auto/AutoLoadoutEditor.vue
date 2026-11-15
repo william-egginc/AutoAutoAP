@@ -4,7 +4,7 @@
       <!-- Earnings -->
       <div class="space-y-2">
         <div class="flex items-center justify-between px-1 h-7">
-          <h4 class="text-slate-500 label">Earnings Set</h4>
+          <h4 class="text-slate-600 label">Earnings Set</h4>
         </div>
         <ArtifactSelector
           :model-value="modelValue.earnings"
@@ -18,7 +18,7 @@
       <!-- Delivery -->
       <div class="space-y-2">
         <div class="flex items-center justify-between px-1 h-7">
-          <h4 class="text-slate-500 label">Delivery Set</h4>
+          <h4 class="text-slate-600 label">Delivery Set</h4>
           <div v-if="modelValue.delivery.mode === 'auto'" class="flex items-center gap-1.5">
             <button
               v-tippy="'Change which artifacts H1 can choose from'"
@@ -68,7 +68,7 @@
               <img :src="iconURL(getArtifact(view.artifactId)!.iconPath, 64)" class="w-7 h-7" />
               <div class="min-w-0">
                 <div class="text-small font-bold text-slate-800 truncate">{{ getArtifact(view.artifactId)!.label }}</div>
-                <div class="text-small text-slate-500">{{ getArtifact(view.artifactId)!.effect }}</div>
+                <div class="text-small text-slate-600">{{ getArtifact(view.artifactId)!.effect }}</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'choice'">
@@ -117,7 +117,7 @@
           <div v-if="isEditingCandidates" class="section-premium p-3 space-y-3">
             <div>
               <div class="text-small font-bold text-slate-700">Which artifacts can H1 choose from?</div>
-              <div class="text-small text-slate-500">
+              <div class="text-small text-slate-600">
                 Click to add or remove. Pick two of a family (e.g. T4R and T3E metronome) to see H1 choose between them.
               </div>
             </div>
@@ -125,7 +125,7 @@
             <div v-for="family in targetFamilies" :key="family.afxId" class="space-y-1">
               <div class="flex items-center gap-1.5">
                 <img :src="iconURL(family.iconPath, 64)" class="w-4 h-4" />
-                <span class="text-slate-500 label">{{ family.name }}</span>
+                <span class="text-slate-600 label">{{ family.name }}</span>
               </div>
               <div class="flex flex-wrap gap-1">
                 <button
@@ -148,7 +148,7 @@
             </div>
 
             <div class="space-y-1">
-              <div class="text-slate-500 label">Stone holders</div>
+              <div class="text-slate-600 label">Stone holders</div>
               <div class="flex flex-wrap gap-1.5">
                 <span
                   v-for="candidate in holderCandidates"
@@ -221,7 +221,7 @@
     <!-- Stones -->
     <div class="space-y-2">
       <div class="flex items-center justify-between px-1">
-        <h4 class="text-slate-500 label">Stones Available</h4>
+        <h4 class="text-slate-600 label">Stones Available</h4>
         <span class="text-small font-bold text-slate-600">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
       </div>
       <div class="overflow-x-auto">

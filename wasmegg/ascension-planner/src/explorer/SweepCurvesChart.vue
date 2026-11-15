@@ -52,7 +52,7 @@
 <template>
   <div class="space-y-3">
     <!-- The names are the older shared sweeps' (the Science tab no longer asks for them); players read them as codes. -->
-    <p v-if="groups.length" class="text-body text-slate-500 max-w-prose">
+    <p v-if="groups.length" class="text-body text-slate-600 max-w-prose">
       Each button is a group of runs, with how many there are. Named ones are sweeps from the older shared presets (the
       Science tab no longer asks for them): the M sweeps try a grid of TEs (M2 every 2nd TE, M4 every 5th), the F
       sweeps every TE where it matters most, and the rest are sweeps players designed themselves. "2 ascensions" and the like are the other runs, grouped by ascension count.
@@ -166,7 +166,7 @@
           :class="
             range === view.id
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           :aria-pressed="range === view.id"
           @click="range = view.id"
@@ -192,7 +192,7 @@
         be drawn.
       </template>
     </p>
-    <p v-if="curves.length && curves.length < shownRows.length" class="text-small text-slate-500 px-1">
+    <p v-if="curves.length && curves.length < shownRows.length" class="text-small text-slate-600 px-1">
       {{ curves.length }} of {{ plural(shownRows.length, 'run') }} drawn<template v-if="noTable"
         >; {{ noTable }} {{ noTable === 1 ? 'has' : 'have' }} no table stored</template
       ><template v-if="pending.length">; {{ pending.length }} not loaded yet</template

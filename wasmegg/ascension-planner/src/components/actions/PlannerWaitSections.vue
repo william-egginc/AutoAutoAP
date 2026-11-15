@@ -16,7 +16,7 @@
             class="w-full h-full object-contain"
           />
         </div>
-        <h3 class="label text-slate-500">Wait for TE</h3>
+        <h3 class="label text-slate-600">Wait for TE</h3>
       </div>
       <svg
         class="w-5 h-5 text-slate-300 transition-transform duration-300"
@@ -47,7 +47,7 @@
         >
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-full h-full object-contain" />
         </div>
-        <h3 class="label text-slate-500">Bulk Wait for TE</h3>
+        <h3 class="label text-slate-600">Bulk Wait for TE</h3>
       </div>
       <svg
         class="w-5 h-5 text-slate-300 transition-transform duration-300"

@@ -53,14 +53,14 @@
         :class="
           zoom === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
-            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         "
         :aria-pressed="zoom === mode.id"
         @click="zoom = mode.id"
       >
         {{ mode.label }}
       </button>
-      <span v-if="zoom === 'near' && clipped" class="text-small font-bold text-slate-500">
+      <span v-if="zoom === 'near' && clipped" class="text-small font-bold text-slate-600">
         {{ clipped }} point{{ clipped === 1 ? '' : 's' }} above {{ NEAR_DAYS }} days, drawn as ↑ at the top edge
       </span>
     </div>
@@ -78,7 +78,7 @@
     </p>
     <div
       v-if="comparisons.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-600"
       aria-label="How to read the lines and markers"
     >
       <span>—— one Custom run: every count timed from one save</span>
@@ -114,7 +114,7 @@
             </td>
             <td class="py-1.5 pr-3 whitespace-nowrap">
               <b class="text-slate-700">{{ plural(line.best.ascensions, 'ascension') }}</b>
-              <div class="text-small text-slate-500">
+              <div class="text-small text-slate-600">
                 {{ finishDateText(line.best.finish, viewZone) }} · {{ line.best.search.text }}
               </div>
               <!-- Under Proofs only, or on a line from one run, the account's earliest finish can be a
@@ -144,14 +144,14 @@
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-600 max-w-3xl">
         <b class="text-emerald-700">Settled</b>: the slower count lost by more than a finer search of it has ever made
         up (nothing for a box at every TE, {{ STEP_PENALTY_DAYS.fine }} days for every 2nd or 3rd TE,
         {{ STEP_PENALTY_DAYS.coarse }} days for every 4th or 5th; never for anything coarser, which has not been
         measured, or for a Fast or Exact search, whose shortfall is unknown). <b class="text-sky-700">Direction holds</b>: not
         settled, but the count that won was searched at least as coarsely as the other at every stop, counting back from
         the last, and more coarsely at one or more, so a finer search would more likely widen the gap than close it.
-        <b class="text-slate-500">Within search noise</b>: the gap could be how the two were searched rather than the
+        <b class="text-slate-600">Within search noise</b>: the gap could be how the two were searched rather than the
         count. All three are about the searches only; each side is still limited to the box of TEs it tried.
       </p>
     </div>

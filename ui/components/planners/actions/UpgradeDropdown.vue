@@ -14,7 +14,7 @@
         </div>
         <div class="flex flex-col flex-1 min-w-0 justify-center">
           <span class="text-body font-bold text-slate-900 truncate">{{ selectedOption.name }}</span>
-          <div class="text-small text-slate-500 truncate flex items-center mt-0.5 font-normal leading-none">
+          <div class="text-small text-slate-600 truncate flex items-center mt-0.5 font-normal leading-none">
             <span v-if="selectedOption.capacity">{{ selectedOption.capacity }}</span>
             <span v-if="selectedOption.capacity && selectedOption.price !== undefined" class="mx-1.5">•</span>
 
@@ -34,7 +34,7 @@
           </div>
         </div>
         <svg
-          class="w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-300"
+          class="w-5 h-5 text-slate-600 flex-shrink-0 transition-transform duration-300"
           :class="{ 'rotate-180': isOpen }"
           fill="none"
           stroke="currentColor"
@@ -43,7 +43,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </div>
-      <div v-else class="flex justify-between items-center text-slate-400 p-2">
+      <div v-else class="flex justify-between items-center text-slate-600 p-2">
         <span class="text-body font-bold">{{ placeholder || 'Select upgrade...' }}</span>
         <svg
           class="w-5 h-5 transition-transform duration-300"
@@ -80,7 +80,7 @@
             <div class="text-body font-bold truncate" :class="modelValue === opt.id ? 'text-blue-700' : 'text-slate-900'">
               {{ opt.name }}
             </div>
-            <div class="text-small sm:text-body text-slate-500 whitespace-normal flex flex-wrap items-center mt-0.5 font-normal">
+            <div class="text-small sm:text-body text-slate-600 whitespace-normal flex flex-wrap items-center mt-0.5 font-normal">
               <span v-if="opt.capacity">{{ opt.capacity }}</span>
               <span v-if="opt.capacity && opt.price !== undefined" class="mx-1.5">•</span>
 
@@ -102,7 +102,7 @@
           </div>
         </button>
 
-        <div v-if="options.length === 0" class="p-6 text-center text-body font-bold text-slate-400 text-small">
+        <div v-if="options.length === 0" class="p-6 text-center text-body font-bold text-slate-600 text-small">
           No upgrades available
         </div>
       </div>

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <button class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700" @click="showModal = true">
+    <button class="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-700" @click="showModal = true">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
@@ -22,7 +22,7 @@
         <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col" @click.stop>
           <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-sm font-semibold text-gray-900">Colleggtible Configuration</h2>
-            <button class="text-gray-400 hover:text-gray-600" @click="showModal = false">
+            <button class="text-gray-600 hover:text-gray-600" @click="showModal = false">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -44,7 +44,7 @@
             >
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-medium text-gray-800">{{ egg.name }}</div>
-                <div class="text-[10px] text-gray-400 italic">{{ egg.bonusText }} {{ egg.effect.toLowerCase() }}</div>
+                <div class="text-[10px] text-gray-600 italic">{{ egg.bonusText }} {{ egg.effect.toLowerCase() }}</div>
               </div>
               <select
                 :value="tiers[egg.id] ?? -1"
@@ -66,7 +66,7 @@
 
           <div class="px-4 py-3 border-t border-gray-200 flex justify-between items-center">
             <div class="flex gap-2">
-              <button class="text-xs text-gray-500 hover:text-gray-700" @click="resetTiers">Reset to Auto</button>
+              <button class="text-xs text-gray-600 hover:text-gray-700" @click="resetTiers">Reset to Auto</button>
               <button class="text-xs text-green-600 hover:text-green-800 font-medium" @click="maxAllTiers">
                 Max All
               </button>

@@ -15,13 +15,13 @@
         :aria-disabled="true"
       >
         <span
-          class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+          class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
           >{{ slotIndex + 1 }}</span
         >
-        <span v-if="slot.artifactId" class="text-small font-bold text-slate-500 line-through truncate">
+        <span v-if="slot.artifactId" class="text-small font-bold text-slate-600 line-through truncate">
           {{ getArtifact(slot.artifactId)?.label }}
         </span>
-        <span v-else class="text-small text-gray-400 italic">Empty slot</span>
+        <span v-else class="text-small text-gray-600 italic">Empty slot</span>
         <span
           class="ml-auto flex-shrink-0 whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-small font-bold text-amber-700"
         >
@@ -32,7 +32,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
           <div v-if="showSlotNumbers" class="flex items-center gap-2">
             <span
-              class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
+              class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
               >{{ slotIndex + 1 }}</span
             >
           </div>
@@ -100,7 +100,7 @@
             </div>
           </div>
         </div>
-        <div v-else class="ml-5 text-small text-gray-400 italic">
+        <div v-else class="ml-5 text-small text-gray-600 italic">
           {{ stones === 'hidden' ? 'Empty slot' : 'Select an artifact to configure stones' }}
         </div>
       </div>

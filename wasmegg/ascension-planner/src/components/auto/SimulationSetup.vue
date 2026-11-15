@@ -19,12 +19,12 @@
       :aria-expanded="open"
       @click="toggle"
     >
-      <h3 class="text-slate-500 label">What artifacts it will use</h3>
+      <h3 class="text-slate-600 label">What artifacts it will use</h3>
       <span class="text-small font-bold text-indigo-700">{{ open ? 'hide' : 'show' }}</span>
     </button>
 
     <div v-if="open && inventory" class="space-y-4">
-      <p class="text-body text-slate-500 max-w-prose">
+      <p class="text-body text-slate-600 max-w-prose">
         The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
         <span class="font-bold">every ascension</span> from your virtue inventory, and swap between two: the
         <span class="font-bold">delivery</span> set while they build the farm, and the
@@ -38,19 +38,19 @@
           :key="tab"
           type="button"
           class="px-4 py-1 text-body font-bold rounded-lg transition-all"
-          :class="setTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+          :class="setTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-700'"
           @click="setTab = tab"
         >
           {{ tab === 'elr' ? 'Delivery (ascension 1)' : 'Earnings' }}
         </button>
       </div>
       <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
-      <p v-if="setTab === 'elr'" class="text-body text-slate-500 max-w-prose">
+      <p v-if="setTab === 'elr'" class="text-body text-slate-600 max-w-prose">
         Solved against your research <span class="font-bold">as it is today</span>, so this is the set the first
         ascension runs with. Every later ascension re-solves against its own research and will pick something
         different.
       </p>
-      <p v-else class="text-body text-slate-500 max-w-prose">
+      <p v-else class="text-body text-slate-600 max-w-prose">
         The best earnings set your inventory can build. It doesn't depend on research, so it's the
         same in every ascension.
       </p>

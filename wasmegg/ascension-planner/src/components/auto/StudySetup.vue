@@ -19,7 +19,7 @@
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
-    <h3 class="text-slate-500 label">{{ NAMES.study }}</h3>
+    <h3 class="text-slate-600 label">{{ NAMES.study }}</h3>
 
     <template v-if="state === 'unanswered'">
       <p class="text-body text-slate-600">Not answered yet.</p>
@@ -88,7 +88,7 @@
 
     <p
       v-if="state === 'yes' || state === 'other-account' || (state !== 'unanswered' && anySharing)"
-      class="text-body text-slate-500 max-w-prose"
+      class="text-body text-slate-600 max-w-prose"
       data-testid="study-setup-withdraw-note"
     >
       <!-- One short line in view, the whole Withdraw paragraph word for word behind its "?" (spec-uxpass item 12, 8 Nov
