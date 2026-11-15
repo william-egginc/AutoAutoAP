@@ -2213,3 +2213,103 @@ describe('a Light row is a different measurement from a searched row of the same
     expect(race.entries.find(e => e.label === 'Willsalt')!.best.row.id).toBe('light');
   });
 });
+
+describe('one player, one line: a rename, three codes and an alt save (review 15 Nov 2026, LB-1 and L3)', () => {
+  // Invented players. One player sends from three browsers (three owner codes) under one name, and in
+  // the first browser sends one run under a renamed name. In a fourth browser an alt save at a far lower
+  // TE is sent under the main name.
+  const C1 = 'c1c1c1c1c1c1';
+  const C2 = 'c2c2c2c2c2c2';
+  const C3 = 'c3c3c3c3c3c3';
+  const ALT = 'a1a1a1a1a1a1';
+  const EGG_DAY = 1815926400;
+  const now = Date.parse('2026-10-07T12:00:00Z');
+  const sentAt = (local: string, tz = CHICAGO) => new Date(localToUtcMs(local, tz)! + 5 * 60_000).toISOString();
+  /** A By a date answer from `te`, sent five minutes after its start, ascending three days before Egg Day. */
+  const answer = (id: string, nickname: string, acct: string, te: number, startLocal: string, last: number, over: Partial<BoardRow> = {}) => {
+    const tz = over.timezone ?? CHICAGO;
+    return row({
+      id,
+      nickname,
+      acct,
+      currentTE: te,
+      chain: [te + 30, last],
+      finalTE: last,
+      startLocal,
+      submittedAt: sentAt(startLocal, tz),
+      deadline: EGG_DAY,
+      durationDays: (EGG_DAY * 1000 - 3 * DAY_MS - localToUtcMs(startLocal, tz)!) / DAY_MS,
+      legs: [],
+      ...over,
+    });
+  };
+  /** A run to 490 from `te`. */
+  const toRace = (id: string, nickname: string, acct: string, te: number, startLocal: string) =>
+    row({
+      id,
+      nickname,
+      acct,
+      currentTE: te,
+      chain: [te + 30, 490],
+      startLocal,
+      submittedAt: sentAt(startLocal),
+      durationDays: 600,
+      legs: [],
+    });
+  const LONDON = { timezone: 'Europe/London', artifacts: ['T3E Gusset'], window: null };
+  const brook = answer('brook', 'Brookline', 'b0b0b0b0b0b0', 190, '2026-10-03 10:00', 330, LONDON);
+  const ash = answer('ash', 'Ashgrove', 'a5a5a5a5a5a5', 185, '2026-10-03 11:00', 310, {
+    ...LONDON,
+    artifacts: ['T2 Compass'],
+  });
+  // The first browser's old name is only on a run to 490: the board joins on every row sent.
+  const c1race = toRace('c1race', 'riverbendhouse', C1, 200, '2026-10-01 10:00');
+  const c1date = answer('c1date', 'oriverbendhouse', C1, 201, '2026-10-05 10:00', 320);
+  const c2date = answer('c2date', 'riverbendhouse', C2, 200, '2026-10-02 10:00', 318);
+  const c3date = answer('c3date', 'riverbendhouse', C3, 201, '2026-10-04 10:00', 319);
+  const alt = answer('alt', 'riverbendhouse', ALT, 150, '2026-10-06 10:00', 300);
+  const lines = (rows: BoardRow[]) =>
+    buildDeadlineBoard(rows, { now })[0].entries.map(e => [e.rank, e.label, e.te, e.key]);
+
+  it('Egg Day board: three codes and a one-run rename are one line', () => {
+    expect(lines([brook, c1race, c1date, c2date, c3date, ash])).toEqual([
+      [1, 'Brookline', 330, 'acct:b0b0b0b0b0b0'],
+      [2, 'oriverbendhouse', 320, `acct:${C1}`],
+      [3, 'Ashgrove', 310, 'acct:a5a5a5a5a5a5'],
+    ]);
+    const main = buildDeadlineBoard([brook, c1race, c1date, c2date, c3date, ash], { now })[0].entries[1];
+    expect(main.others.map(r => r.id)).toEqual(['c3date', 'c2date']);
+  });
+
+  it('Egg Day board: an alt save under the main name from a lower TE stays its own line, labelled', () => {
+    expect(lines([brook, c1race, c1date, c2date, c3date, ash, alt])).toEqual([
+      [1, 'Brookline', 330, 'acct:b0b0b0b0b0b0'],
+      [2, 'oriverbendhouse', 320, `acct:${C1}`],
+      [3, 'Ashgrove', 310, 'acct:a5a5a5a5a5a5'],
+      [4, 'riverbendhouse (other code)', 300, `acct:${ALT}`],
+    ]);
+  });
+
+  it('Egg Day board: two codes left under one name read apart', () => {
+    // Another player called Brookline, on another account: not joined, and not shown as the same line twice.
+    const other = answer('brook2', 'Brookline', 'b9b9b9b9b9b9', 180, '2026-10-04 09:00', 305, {
+      ...LONDON,
+      artifacts: ['T1 Gusset'],
+    });
+    expect(lines([brook, other]).map(l => l[1])).toEqual(['Brookline', 'Brookline (other code)']);
+  });
+
+  it('the race: the rename joins the codes, and the alt save stays apart, labelled', () => {
+    const rows = [
+      c1race,
+      toRace('c1b', 'oriverbendhouse', C1, 201, '2026-10-05 10:00'),
+      toRace('c2', 'riverbendhouse', C2, 200, '2026-10-02 10:00'),
+      toRace('alt', 'riverbendhouse', ALT, 150, '2026-10-06 10:00'),
+    ];
+    const race = buildRace(rows, { target: 490, now });
+    expect(race.entries.map(e => [e.label, e.lines]).sort()).toEqual([
+      ['oriverbendhouse', [`acct:${C1}`, `acct:${C2}`]],
+      ['riverbendhouse (other code)', [`acct:${ALT}`]],
+    ]);
+  });
+});

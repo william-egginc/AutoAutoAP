@@ -72,3 +72,19 @@ describe('where you stand', () => {
     ]);
   });
 });
+
+describe('where you stand counts players, not browsers (review 15 Nov 2026, LB-1)', () => {
+  it('Egg Day: three codes and a one-run rename are one named player', () => {
+    const mine = (id: string, name: string, acct: string, te: number) => ({ ...dateRow(id, name, te, 5), acct });
+    const rows = [
+      dateRow('a', 'Ann', 250, 10, 'Europe/Paris'),
+      mine('m1', 'Mesaverde', 'k1k1k1k1k1k1', 247),
+      mine('m2', 'oMesaverde', 'k1k1k1k1k1k1', 249),
+      mine('m3', 'Mesaverde', 'k2k2k2k2k2k2', 246),
+      mine('m4', 'Mesaverde', 'k3k3k3k3k3k3', 245),
+      dateRow('b', 'Bob', 248, 20, 'Asia/Tokyo'),
+      dateRow('c', 'Cal', 240, 30, 'America/Chicago'),
+    ];
+    expect(dateStanding(rows, [rows[4]], DEADLINE, NOW, null)).toEqual({ place: 2, of: 4, wouldBe: false });
+  });
+});

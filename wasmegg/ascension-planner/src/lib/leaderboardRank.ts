@@ -1575,8 +1575,9 @@ export function deadlineOrder(a: BoardRow, b: BoardRow): number {
  * "The highest TE by this date", grouped by date, soonest first (a date that has passed goes after
  * the ones still ahead).
  *
- * One line per player per date, by the same identity the race uses (`fileRows`/`playerKey`), with
- * their best answer: the highest last stop reached in time, then the most time to spare. Answers
+ * One line per player per date, by the same identity the race uses (`fileRows`/`playerKey`, owner
+ * codes joined by `ownerGroups` over every row sent, lines left under a shared name told apart by
+ * `tellApart`), with their best answer: the highest last stop reached in time, then the most time to spare. Answers
  * from the same deadline on different saves compete as the race's plans do -- by what they reach by
  * the same instant, which, unlike days, IS comparable across plan starts.
  *
@@ -1619,8 +1620,22 @@ export function buildDeadlineBoard<T extends BoardRow>(
       isDeadlineRow(r) &&
       !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1)
   );
-  // Identity from every answer; the filter only decides which answers are ranked.
-  const filing = fileRows(usable);
+  // Identity from every row sent, runs to a target too; the filter only decides which answers are
+  // ranked. One player's owner codes are one line, as in the race (`ownerGroups`): a player who sent
+  // from three browsers, or renamed one run, was three or four lines here, and "Nth of M" counted
+  // each (review 15 Nov 2026, LB-1).
+  const history = rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length && !r.hidden);
+  const filing = fileRows(history);
+  const groups = ownerGroups(history, { filing });
+  const lineOf = new Map<string, string>();
+  const rootsOfLine = new Map<string, Set<string>>();
+  const firstOf = new Map<string, number>();
+  for (const { lead, members } of groups) {
+    for (const m of members) lineOf.set(m.key, lead.key);
+    rootsOfLine.set(lead.key, new Set(members.flatMap(m => [...m.roots])));
+    firstOf.set(lead.key, lead.first);
+  }
+  const heirs = new Set([...filing.heirs.values()].map(a => `acct:${a}`));
   const byDate = new Map<number, T[]>();
   for (const r of usable) {
     if (!inDeadlineFilter(r, opts.filter) || !madeDeadline(r)) continue;
@@ -1630,12 +1645,13 @@ export function buildDeadlineBoard<T extends BoardRow>(
   }
   const spareOf = deadlineSpare;
   const better = deadlineOrder;
-  const groups: DeadlineGroup<T>[] = [];
+  const boards: DeadlineGroup<T>[] = [];
   for (const [deadline, list] of byDate) {
     const players = new Map<string, T[]>();
     const anonymous: DeadlineEntry<T>[] = [];
     for (const r of list) {
-      const key = playerKey(filing, r);
+      const own = playerKey(filing, r);
+      const key = lineOf.get(own) ?? own;
       if (!key) {
         anonymous.push({
           key: '',
@@ -1654,21 +1670,30 @@ export function buildDeadlineBoard<T extends BoardRow>(
     const entries = [...players].map(([key, rs]) => {
       const sorted = [...rs].sort(better);
       const newest = [...rs].sort((a, b) => (sentMs(b) ?? 0) - (sentMs(a) ?? 0))[0];
+      let label = displayName(newest.nickname, newest.timezone);
+      // As in the race: a name an owner code sends under, used since without one.
+      if (isNoCodeLine(filing, key)) label = `${label} (no code)`;
       return {
         key,
-        label: displayName(newest.nickname, newest.timezone),
+        label,
         best: sorted[0],
         te: sorted[0].finalTE,
         spare: spareOf(sorted[0]),
         others: sorted.slice(1),
       };
     });
+    tellApart(
+      entries,
+      heirs,
+      e => rootsOfLine.get(e.key),
+      e => firstOf.get(e.key) ?? Math.min(...[e.best, ...e.others].map(r => sentMs(r) ?? Infinity))
+    );
     entries.sort((a, b) => better(a.best, b.best) || a.label.localeCompare(b.label));
     anonymous.sort((a, b) => better(a.best, b.best));
-    groups.push({ deadline, entries: entries.map((e, i) => ({ ...e, rank: i + 1 })), anonymous });
+    boards.push({ deadline, entries: entries.map((e, i) => ({ ...e, rank: i + 1 })), anonymous });
   }
   const nowS = opts.now / 1000;
-  return groups.sort((a, b) => {
+  return boards.sort((a, b) => {
     const pa = a.deadline < nowS;
     const pb = b.deadline < nowS;
     return pa !== pb ? (pa ? 1 : -1) : pa ? b.deadline - a.deadline : a.deadline - b.deadline;
@@ -1958,26 +1983,187 @@ export function buildRace<T extends BoardRow>(rows: readonly T[], opts: RankOpti
 }
 
 /** A run's start and TE, for telling whether two owner lines' TE histories fit together. */
-interface TEPoint {
+export interface TEPoint {
   start: number;
   te: number;
 }
 
+/** One owner code as `ownerGroups` sees it, from every row filed under it. */
+export interface OwnerInfo {
+  /** `acct:<code>`. */
+  key: string;
+  /** The root of the name it sent under most recently ('' for none). */
+  root: string;
+  /** Every name root it ever sent under. */
+  roots: Set<string>;
+  /** Every timezone and artifact set it sent from (`accountKeyOf`). */
+  accounts: Set<string>;
+  /** The TE each of its runs started from (`teHistory`). */
+  history: TEPoint[];
+  /** When it first sent a named run. */
+  first: number;
+}
+
+/** Owner codes that are one player: `lead` (whose key and name the line keeps) first in `members`. */
+export interface OwnerGroup {
+  lead: OwnerInfo;
+  members: OwnerInfo[];
+}
+
+/** Rows by `playerKey`, anonymous rows left out. */
+function fileByPlayer<T extends BoardRow>(rows: readonly T[], filing: Filing): Map<string, T[]> {
+  const filed = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = playerKey(filing, r);
+    if (!k) continue;
+    const g = filed.get(k);
+    if (g) g.push(r);
+    else filed.set(k, [r]);
+  }
+  return filed;
+}
+
+/** The TE each run started from, leaving out runs that say of themselves they are what-ifs. */
+function teHistory(mine: readonly BoardRow[]): TEPoint[] {
+  const history: TEPoint[] = [];
+  for (const r of mine) {
+    const start = startMs(r);
+    const te = r.currentTE;
+    if (start == null || typeof te !== 'number' || !Number.isFinite(te) || futureStart(r) || selfWhatIf(r)) continue;
+    history.push({ start, te });
+  }
+  return history;
+}
+
+/** Does `a` hold a run started more than an hour after one of `b`'s, from more than 1 TE lower? */
+function teClash(a: readonly TEPoint[], b: readonly TEPoint[]): boolean {
+  return a.some(x => b.some(y => x.start > y.start + LATER_MS && x.te < y.te - 1));
+}
+
 /**
- * One place per player, however many browsers they sent from.
+ * Which owner codes are one player, however many browsers they sent from.
  *
- * Owner codes are per browser, so one player on two devices is two `acct:` lines under the same name.
- * Two owner lines are joined when ALL of these hold:
- *   - the names they are called by now have the same root (`nameRoots`, as the line labels are made);
+ * Owner codes are per browser, so one player on two devices is two `acct:` lines. Two codes are one
+ * player when ALL of these hold:
+ *   - the names they sent under share a root (`nameRoots`), over EVERY named run each sent, so a
+ *     one-run rename in one browser (a name with one letter added, review 15 Nov 2026,
+ *     L3) does not split the player: the old name is still among that code's runs;
  *   - they share a timezone and artifact set (`accountKeyOf`) -- the same test that keeps "Kenzie Alt"
  *     apart from Kenzie;
  *   - their TE histories fit together: no run of one starts more than an hour after a run of the other
  *     from more than 1 TE lower (the what-if rule, across the two). A stranger dressed as the player
- *     from another TE is kept apart by this.
+ *     from another TE, or an alt save sent under the main name, is kept apart by this.
+ * Every member of a group fits every other (no chains through a third code).
+ *
+ * `rows` is the history the codes are judged on: every row the board has, at any target and By a
+ * date too. `keys` limits the codes grouped (the race groups only codes with plans at its target);
+ * by default every owner code in `rows`. Codes are taken first-sent first; a group's lead is the code
+ * first seen under the first code's newest name (the heir, `fileRows`), so a later code can neither
+ * rename nor re-key the line.
+ */
+export function ownerGroups<T extends BoardRow>(
+  rows: readonly T[],
+  opts: { keys?: readonly string[]; filing?: Filing } = {}
+): OwnerGroup[] {
+  const filing = opts.filing ?? fileRows(rows);
+  const filed = fileByPlayer(rows, filing);
+  const keys = opts.keys ?? [...filed.keys()].filter(k => k.startsWith('acct:'));
+  const owners: OwnerInfo[] = keys.map(key => {
+    const mine = filed.get(key) ?? [];
+    const owned = mine.filter(r => r.acct && r.nickname?.trim());
+    const newest = owned.reduce<T | null>(
+      (a, b) => (a && (sentMs(a) ?? -Infinity) >= (sentMs(b) ?? -Infinity) ? a : b),
+      null
+    );
+    return {
+      key,
+      root: newest ? rootKey(filing.roots, newest.nickname) : '',
+      roots: new Set(owned.map(r => rootKey(filing.roots, r.nickname)).filter(Boolean)),
+      accounts: new Set(mine.map(r => accountKeyOf(r))),
+      history: teHistory(mine),
+      first: Math.min(...owned.map(r => sentMs(r) ?? Infinity), Infinity),
+    };
+  });
+  const fits = (a: OwnerInfo, b: OwnerInfo) =>
+    [...a.roots].some(k => b.roots.has(k)) &&
+    [...a.accounts].some(k => b.accounts.has(k)) &&
+    !teClash(a.history, b.history) &&
+    !teClash(b.history, a.history);
+  const groups: OwnerInfo[][] = [];
+  for (const o of [...owners].sort((a, b) => a.first - b.first)) {
+    const home = groups.find(g => g.every(m => fits(m, o)));
+    if (home) home.push(o);
+    else groups.push([o]);
+  }
+  return groups.map(group => {
+    const heir = filing.heirs.get(group[0].root);
+    const lead = group.find(m => m.key === `acct:${heir}`) ?? group[0];
+    return { lead, members: [lead, ...group.filter(m => m !== lead)] };
+  });
+}
+
+/**
+ * No two lines read the same. Lines called the same, and owner lines whose codes sent under a shared
+ * name root (`roots`; an alt save kept apart from the player whose name it was sent under, while the
+ * player's line took a renamed name), are told apart: the name stays with the code first seen under
+ * it (the heir), then with the first owner line to send; a line without a code comes last. The others
+ * read "(other code)", or "(2)" for a line without a code.
+ */
+function tellApart<L extends { key: string; label: string }>(
+  lines: readonly L[],
+  heirs: ReadonlySet<string>,
+  rootsOf: (line: L) => ReadonlySet<string> | undefined,
+  firstOf: (line: L) => number
+): void {
+  const parent = lines.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const join = (a: number, b: number) => {
+    parent[find(a)] = find(b);
+  };
+  const byLabel = new Map<string, number>();
+  const byRoot = new Map<string, number>();
+  lines.forEach((line, i) => {
+    const held = byLabel.get(line.label);
+    if (held === undefined) byLabel.set(line.label, i);
+    else join(i, held);
+    if (!line.key.startsWith('acct:')) return;
+    for (const root of rootsOf(line) ?? []) {
+      const r = byRoot.get(root);
+      if (r === undefined) byRoot.set(root, i);
+      else join(i, r);
+    }
+  });
+  const clusters = new Map<number, L[]>();
+  lines.forEach((line, i) => {
+    const c = find(i);
+    const g = clusters.get(c);
+    if (g) g.push(line);
+    else clusters.set(c, [line]);
+  });
+  for (const same of clusters.values()) {
+    if (same.length < 2) continue;
+    const order = same
+      .map(line => ({
+        line,
+        rank: heirs.has(line.key) ? 0 : line.key.startsWith('acct:') ? 1 : 2,
+        first: firstOf(line),
+      }))
+      .sort((a, b) => a.rank - b.rank || a.first - b.first);
+    let codes = 0;
+    let others = 1;
+    for (const { line } of order.slice(1)) {
+      if (line.key.startsWith('acct:')) line.label += ` (other code${++codes > 1 ? ` ${codes}` : ''})`;
+      else line.label += ` (${++others})`;
+    }
+  }
+}
+
+/**
+ * One place per player, however many browsers they sent from: owner lines are joined as
+ * `ownerGroups` says, over the race's rows.
  *
  * The joined line is summarised again from both lines' plans, each already judged by its own code's
- * rows alone, so nothing a join adds can drop a plan. It keeps the key and name of the code first seen
- * under the name (the heir, `fileRows`), so a later code can neither rename nor re-key it.
+ * rows alone, so nothing a join adds can drop a plan. It keeps the key and name of the group's lead.
  *
  * A CODE-LESS LINE UNDER AN OWNER'S NAME -- the name's runs sent without a code since the collector
  * stamped rows, "(no code)" -- is folded into the line of the code first seen under that name, when
@@ -1990,95 +2176,43 @@ interface TEPoint {
  * that does not fit, or whose owner has no plan that counts (folding it would cost it its place and
  * gain nobody anything), stays a line of its own, as before.
  *
- * Any lines still called the same after that -- two codes under one name whose runs do not fit -- are
- * told apart: the first seen keeps the name, the others read "(other code)".
+ * Any lines still called the same after that, or owner lines left apart under a shared name, are told
+ * apart (`tellApart`).
  */
 function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], rows: readonly T[]): RaceLine<T>[] {
   const filing = fileRows(rows);
-  const filed = new Map<string, T[]>();
-  for (const r of rows) {
-    const k = playerKey(filing, r);
-    if (!k) continue;
-    const g = filed.get(k);
-    if (g) g.push(r);
-    else filed.set(k, [r]);
-  }
+  const filed = fileByPlayer(rows, filing);
   const firstSent = (p: PlayerPlans<T>) =>
     Math.min(...p.plans.flatMap(x => x.folded.copies.map(c => sentMs(c) ?? Infinity)), Infinity);
-  /** The TE each run started from, leaving out runs that say of themselves they are what-ifs. */
-  const historyOf = (mine: readonly T[]): TEPoint[] => {
-    const history: TEPoint[] = [];
-    for (const r of mine) {
-      const start = startMs(r);
-      const te = r.currentTE;
-      if (start == null || typeof te !== 'number' || !Number.isFinite(te) || futureStart(r) || selfWhatIf(r)) continue;
-      history.push({ start, te });
-    }
-    return history;
-  };
 
-  interface Owner {
-    player: PlayerPlans<T>;
-    root: string;
-    accounts: Set<string>;
-    history: TEPoint[];
-    first: number;
-  }
-  const owners: Owner[] = [];
   const out: RaceLine<T>[] = [];
   /** Lines under a name an owner code sends under, sent without one: the "(no code)" lines. */
   const codeless: PlayerPlans<T>[] = [];
+  const ownerLines = new Map<string, PlayerPlans<T>>();
   for (const player of players) {
     if (!player.key.startsWith('acct:')) {
       if (isNoCodeLine(filing, player.key)) codeless.push(player);
       else out.push({ ...player, lines: [player.key] });
       continue;
     }
-    const mine = filed.get(player.key) ?? [];
-    const owned = mine.filter(r => r.acct && r.nickname?.trim());
-    const newest = owned.reduce<T | null>(
-      (a, b) => (a && (sentMs(a) ?? -Infinity) >= (sentMs(b) ?? -Infinity) ? a : b),
-      null
-    );
-    owners.push({
-      player,
-      root: newest ? rootKey(filing.roots, newest.nickname) : '',
-      accounts: new Set(mine.map(r => accountKeyOf(r))),
-      history: historyOf(mine),
-      first: Math.min(...owned.map(r => sentMs(r) ?? Infinity), Infinity),
-    });
+    ownerLines.set(player.key, player);
   }
+  const groups = ownerGroups(rows, { keys: [...ownerLines.keys()], filing });
 
-  const clash = (a: TEPoint[], b: TEPoint[]) =>
-    a.some(x => b.some(y => x.start > y.start + LATER_MS && x.te < y.te - 1));
-  const fits = (a: Owner, b: Owner) =>
-    !!a.root &&
-    a.root === b.root &&
-    [...a.accounts].some(k => b.accounts.has(k)) &&
-    !clash(a.history, b.history) &&
-    !clash(b.history, a.history);
-  const groups: Owner[][] = [];
-  for (const o of [...owners].sort((a, b) => a.first - b.first)) {
-    const home = groups.find(g => g.every(m => fits(m, o)));
-    if (home) home.push(o);
-    else groups.push([o]);
-  }
-  const joined: { line: RaceLine<T>; members: Owner[]; folded: PlayerPlans<T>[] }[] = [];
-  for (const group of groups) {
-    const heir = filing.heirs.get(group[0].root);
-    const lead = group.find(m => m.player.key === `acct:${heir}`) ?? group[0];
-    const members = [lead, ...group.filter(m => m !== lead)];
+  const joined: { line: RaceLine<T>; members: OwnerInfo[]; folded: PlayerPlans<T>[] }[] = [];
+  for (const { lead, members } of groups) {
+    const leadPlayer = ownerLines.get(lead.key)!;
     const line: RaceLine<T> =
       members.length === 1
-        ? { ...lead.player, lines: [lead.player.key] }
+        ? { ...leadPlayer, lines: [lead.key] }
         : {
             ...summarise(
-              lead.player.key,
-              lead.player.label,
+              lead.key,
+              leadPlayer.label,
               true,
-              members.flatMap(m => m.player.plans)
+              members.flatMap(m => ownerLines.get(m.key)!.plans)
             ),
-            lines: members.map(m => m.player.key),
+            lines: members.map(m => m.key),
           };
     joined.push({ line, members, folded: [] });
   }
@@ -2086,25 +2220,27 @@ function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], ro
   // The "(no code)" lines: into the line of the code first seen under the name, when they fit it.
   for (const nc of codeless) {
     const heirKey = `acct:${filing.heirs.get(nc.key.slice('name:'.length))}`;
-    const home = joined.find(j => j.members.some(m => m.player.key === heirKey));
+    const home = joined.find(j => j.members.some(m => m.key === heirKey));
     const mine = filed.get(nc.key) ?? [];
     const accounts = new Set(mine.map(r => accountKeyOf(r)));
-    const history = historyOf(mine);
+    const history = teHistory(mine);
     const fold =
       !!home?.line.best &&
       accounts.size > 0 &&
       [...accounts].every(k => home.members.some(m => m.accounts.has(k))) &&
-      home.members.every(m => !clash(m.history, history) && !clash(history, m.history));
+      home.members.every(m => !teClash(m.history, history) && !teClash(history, m.history));
     if (fold) home!.folded.push(nc);
     else out.push({ ...nc, lines: [nc.key] });
   }
+  const rootsOfLine = new Map<string, Set<string>>();
   for (const { line, members, folded } of joined) {
+    rootsOfLine.set(line.key, new Set(members.flatMap(m => [...m.roots])));
     if (!folded.length) {
       out.push(line);
       continue;
     }
     const noCode: ReadonlySet<Plan<T>> = new Set(folded.flatMap(nc => nc.plans));
-    const own = members.flatMap(m => m.player.plans);
+    const own = members.flatMap(m => ownerLines.get(m.key)!.plans);
     out.push({
       ...summarise(line.key, line.label, true, [...own, ...noCode], noCode),
       lines: [...line.lines, ...folded.map(nc => nc.key)],
@@ -2112,32 +2248,14 @@ function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], ro
     });
   }
 
-  // No two lines read the same. The name stays with the code first seen under it (the heir), then with
-  // the first owner line to send, over every target; a line without a code comes last.
   const heirs = new Set([...filing.heirs.values()].map(a => `acct:${a}`));
-  const firstOf = new Map(owners.map(o => [o.player.key, o.first]));
-  const byLabel = new Map<string, RaceLine<T>[]>();
-  for (const line of out) {
-    const g = byLabel.get(line.label);
-    if (g) g.push(line);
-    else byLabel.set(line.label, [line]);
-  }
-  for (const same of byLabel.values()) {
-    if (same.length < 2) continue;
-    const order = same
-      .map(line => ({
-        line,
-        rank: heirs.has(line.key) ? 0 : line.key.startsWith('acct:') ? 1 : 2,
-        first: firstOf.get(line.key) ?? firstSent(line),
-      }))
-      .sort((a, b) => a.rank - b.rank || a.first - b.first);
-    let codes = 0;
-    let others = 1;
-    for (const { line } of order.slice(1)) {
-      if (line.key.startsWith('acct:')) line.label += ` (other code${++codes > 1 ? ` ${codes}` : ''})`;
-      else line.label += ` (${++others})`;
-    }
-  }
+  const firstOf = new Map(groups.flatMap(g => g.members.map(m => [m.key, m.first] as const)));
+  tellApart(
+    out,
+    heirs,
+    line => rootsOfLine.get(line.key),
+    line => firstOf.get(line.key) ?? firstSent(line)
+  );
   return out;
 }
 
