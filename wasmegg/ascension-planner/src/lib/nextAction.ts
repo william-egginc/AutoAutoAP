@@ -296,9 +296,11 @@ function shiftLines(o: {
         out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
         if (++shifts >= max) return out;
       }
-    } else if (i === 0 && leg.simulated && leg.unstarted && !leg.live && o.now >= leg.start) {
-      // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow.
-      out.push({ kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
+    } else if (i === 0 && leg.simulated && leg.unstarted && !leg.live) {
+      // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow. A start still
+      // a little ahead of `now` (the page's minute clock lags the real time by up to 59 s) is that start, as nextActionOf
+      // says (14 Nov 2026): Next shifts no longer begins with a shift while Next step says Prestige.
+      out.push({ kind: 'prestige', at: o.now < leg.start ? leg.start : o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
     } else if (i === 0 && leg.simulated && keepBuildingUntil(leg, o.now) !== null) {
       // The save's build carried on: said first, then every shift (those made while building too).
       out.push({ kind: 'keepbuilding', at: leg.buildEnd!, left: [...leg.building!], exact });
