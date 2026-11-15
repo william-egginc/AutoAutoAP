@@ -17,15 +17,15 @@ export const CAL_RESET = 'Reset link';
 
 export const CAL_SHOWN_ONCE = "Copy it now. It is shown only once. Anyone with this link can see your plan, so don't post it.";
 export const CAL_LINKED = 'You have a link. It was shown only once, when you made it. Press Reset link to make a new one.';
-export const CAL_RESET_ASK = 'The old link stops working at once. Your calendar will need the new one. Reset?';
+export const CAL_RESET_ASK = 'Every link you made stops working at once. Your calendar will need a new one. Reset?';
 export const CAL_RESET_YES = 'Reset';
 export const CAL_RESET_NO = 'Keep it';
-export const CAL_RESET_DONE = 'Done. The old link no longer works.';
+export const CAL_RESET_DONE = 'Done. Your old links no longer work.';
 
 /** Why a call didn't work, in plain words (Words, 14 Nov 2026). `off` is when the plan has no way to reach the server: no collector, or Save online off (the
  *  calendar has its own switch; the plan only travels through Save online's sync). `limit`: Reset link frees every slot at once. */
 export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off', string> = {
-  limit: 'You already have 3 links. Press Reset link, then get a new one.',
+  limit: 'You already have 3 links. Press Reset link, then Get link.',
   busy: "That's a lot of links today. Try again tomorrow.",
   offline: "Couldn't reach the planner's server. Try again in a moment.",
   error: "That didn't work. Try again in a moment.",
