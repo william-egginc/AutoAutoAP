@@ -8,7 +8,7 @@
         :class="open ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-indigo-300 hover:border-indigo-400'"
       >
         <span>{{ selectedLabel }}</span>
-        <ChevronDownIcon class="w-5 h-5 text-indigo-500 transition-transform" :class="{ 'rotate-180': open }" />
+        <ChevronDownIcon class="w-5 h-5 text-indigo-600 transition-transform" :class="{ 'rotate-180': open }" />
       </button>
 
       <div

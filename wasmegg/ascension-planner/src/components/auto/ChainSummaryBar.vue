@@ -60,7 +60,7 @@
       <div class="summary-item">
         <span class="summary-label">Soul Eggs</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value tabular-nums font-bold text-rose-500" v-tippy="'SE Consumed'">
+          <span class="summary-value tabular-nums font-bold text-rose-700" v-tippy="'SE Consumed'">
             -{{ formatNumber(totals.totalSEConsumed, 1) }}
           </span>
           <div class="hidden sm:flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80" v-tippy="'Remaining SE'">

@@ -743,7 +743,7 @@
                             {{ (leg.sleepDelaySeconds / 3600).toFixed(1) }} h
                           </span>
                           <span v-if="leg.shiftDelaySeconds" class="text-amber-700 font-bold ml-1.5">
-                            <span class="text-amber-500 font-bold">S</span>
+                            <span class="text-amber-700 font-bold">S</span>
                             {{ (leg.shiftDelaySeconds / 3600).toFixed(1) }} h
                           </span>
                         </template>
@@ -757,7 +757,7 @@
                           @click="expandedLeg = expandedLeg === i ? -1 : i"
                         >
                           {{ eggBlocks(leg).length }} eggs<template v-if="store.scheduleEnabled && leg.nightShifts"
-                            ><span class="text-amber-600"> · {{ leg.nightShifts }} out</span></template
+                            ><span class="text-amber-700"> · {{ leg.nightShifts }} out</span></template
                           >
                         </button>
                       </td>
@@ -766,7 +766,7 @@
                       <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
                         <p class="text-small font-bold text-slate-600 mb-2">
                           A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} shifts
-                          <span v-if="store.scheduleEnabled" class="text-amber-600"
+                          <span v-if="store.scheduleEnabled" class="text-amber-700"
                             >· amber falls outside your awake hours</span
                           >
                         </p>
@@ -788,7 +788,7 @@
                               <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-700">(start)</span>
                             </span>
                             <span class="tabular-nums">{{ stamp(b.at) }}</span>
-                            <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-600' : 'text-emerald-500'">
+                            <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-600' : 'text-emerald-700'">
                               {{ b.length }}
                             </span>
                           </div>

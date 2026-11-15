@@ -72,7 +72,7 @@
                 <span class="text-body font-bold text-slate-900 group-hover:text-indigo-700"
                   >Buy Silo #{{ siloOutput.siloCount + 1 }}</span
                 >
-                <span class="text-small tabular-nums font-bold text-indigo-500 mt-0.5">
+                <span class="text-small tabular-nums font-bold text-indigo-600 mt-0.5">
                   {{ formatPrice(siloOutput.nextSiloCost) }} {{ currency.name }}<template v-if="timeToBuy">
                     · Ready in {{ timeToBuy }}</template
                   >
@@ -107,7 +107,7 @@
                 <span class="text-body font-bold text-slate-900 group-hover:text-violet-700"
                   >Silos in 1 Hr</span
                 >
-                <span class="text-small tabular-nums font-bold text-violet-500 mt-0.5">
+                <span class="text-small tabular-nums font-bold text-violet-700 mt-0.5">
                   {{ maxSilosIn1Hour.count }} new silo{{ maxSilosIn1Hour.count !== 1 ? 's' : '' }} ·
                   {{ formatDuration(maxSilosIn1Hour.seconds) }}
                 </span>
@@ -146,7 +146,7 @@
             {{ siloOutput.siloCount }} silo{{ siloOutput.siloCount !== 1 ? 's' : '' }}
           </span>
           <div class="w-1 h-1 rounded-full bg-slate-200"></div>
-          <span class="text-indigo-500 label">
+          <span class="text-indigo-600 label">
             {{ siloOutput.minutesPerSilo }}m each
           </span>
         </div>
@@ -174,7 +174,7 @@
           </div>
         </div>
         <div class="text-right">
-          <span class="text-indigo-400 label block mb-0.5"
+          <span class="text-indigo-600 label block mb-0.5"
             >Current Rank</span
           >
           <span class="text-small tabular-nums font-bold text-indigo-700">

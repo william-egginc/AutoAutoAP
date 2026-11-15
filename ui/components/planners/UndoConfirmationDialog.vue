@@ -46,7 +46,7 @@
                 v-if="dependentsA.length > 0"
                 class="mt-3 bg-slate-50 rounded-lg p-3 text-small text-slate-600 border border-slate-100"
               >
-                <p class="font-bold text-amber-600 mb-1 text-body">
+                <p class="font-bold text-amber-700 mb-1 text-body">
                   Also undoes {{ dependentsA.length }} dependent{{ dependentsA.length > 1 ? 's' : '' }}:
                 </p>
                 <ul class="list-disc list-inside space-y-0.5">

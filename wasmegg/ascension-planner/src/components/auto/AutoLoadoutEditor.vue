@@ -83,7 +83,7 @@
               </div>
               <div class="min-w-0">
                 <div class="text-small font-bold text-slate-800 truncate">{{ choiceLabel(view.artifactIds) }}</div>
-                <div class="text-small font-bold text-amber-600">H1 picks based on research and stones</div>
+                <div class="text-small font-bold text-amber-700">H1 picks based on research and stones</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'holder'">
@@ -97,7 +97,7 @@
               </div>
               <div class="min-w-0">
                 <div class="text-small font-bold text-slate-800">Stone holder</div>
-                <div class="text-small font-bold text-amber-600 truncate">
+                <div class="text-small font-bold text-amber-700 truncate">
                   H1 picks {{ view.pick === 1 ? 'one' : view.pick }} of: {{ view.artifactIds.map(id => getArtifact(id)!.label).join(', ') }}
                 </div>
               </div>
@@ -105,7 +105,7 @@
             <template v-else-if="view.kind === 'any'">
               <div class="min-w-0">
                 <div class="text-small font-bold text-slate-800">Any delivery artifact</div>
-                <div class="text-small text-amber-600 truncate">
+                <div class="text-small text-amber-700 truncate">
                   H1 picks {{ view.pick }} of: {{ view.artifactIds.map(id => getArtifact(id)!.label).join(', ') }}
                 </div>
               </div>

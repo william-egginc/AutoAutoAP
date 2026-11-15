@@ -11,7 +11,7 @@
         <div
           class="bg-gradient-to-r from-amber-50 to-white px-6 py-4 border-b border-amber-100 flex items-center gap-3"
         >
-          <div class="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+          <div class="p-1.5 bg-amber-100 rounded-lg text-amber-700">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
@@ -57,7 +57,7 @@
               class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all group text-left"
               @click="$emit('resolve', 'keep-both')"
             >
-              <div class="p-1.5 bg-indigo-50 rounded-lg text-indigo-500 group-hover:bg-indigo-100 transition-colors">
+              <div class="p-1.5 bg-indigo-50 rounded-lg text-indigo-600 group-hover:bg-indigo-100 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"

@@ -22,7 +22,7 @@
         class="text-small text-gray-600 cursor-help tabular-nums"
       >
         {{ summary.targetWaitSeconds < 1 ? '0s' : formatDuration(summary.targetWaitSeconds) }}
-        <span v-if="summary.targetDuringEarningsBoost" class="ml-1 text-amber-600 label"
+        <span v-if="summary.targetDuringEarningsBoost" class="ml-1 text-amber-700 label"
           >2x</span
         >
       </div>

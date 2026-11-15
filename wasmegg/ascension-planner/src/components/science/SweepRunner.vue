@@ -36,7 +36,7 @@
     >
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-0.5">
-          <p class="text-indigo-500 label">Run a sweep</p>
+          <p class="text-indigo-600 label">Run a sweep</p>
           <h2 id="sweep-runner-title" class="text-title font-bold text-slate-900">{{ request.label }}</h2>
           <p class="text-body text-slate-600">
             {{ bandsInWords
@@ -129,7 +129,7 @@
             <div class="font-bold text-slate-800">TE {{ Math.floor(store.currentTE) }} → {{ store.finalTE }}</div>
           </div>
           <div class="rounded-lg bg-indigo-50 px-3 py-2">
-            <div class="label text-indigo-400">About how long</div>
+            <div class="label text-indigo-600">About how long</div>
             <div class="font-bold text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
           </div>
         </div>

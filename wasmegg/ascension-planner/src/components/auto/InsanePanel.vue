@@ -29,7 +29,7 @@
            the time is acceptable. -->
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
         <div class="space-y-1">
-          <p class="text-indigo-400 label">
+          <p class="text-indigo-600 label">
             Sweep request from {{ NAMES.science }}
           </p>
           <h3 class="text-body font-bold text-slate-900">{{ sweepRequest.label }}</h3>

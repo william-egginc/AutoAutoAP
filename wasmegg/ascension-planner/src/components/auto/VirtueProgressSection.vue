@@ -10,12 +10,12 @@
         <div>
           <h2 class="text-slate-800 label leading-none">Virtue Progress</h2>
           <div class="flex items-center gap-2 mt-1">
-            <span class="text-indigo-500 label">{{ claimedTotal }} TE Total</span>
-            <span v-if="pendingTotal > 0" class="text-emerald-500 label">
+            <span class="text-indigo-600 label">{{ claimedTotal }} TE Total</span>
+            <span v-if="pendingTotal > 0" class="text-emerald-700 label">
               +{{ pendingTotal }} Pending
             </span>
             <span v-if="earningsClothedTe !== null" class="w-1 h-1 bg-slate-200 rounded-full"></span>
-            <span v-if="earningsClothedTe !== null" class="text-indigo-500 label"
+            <span v-if="earningsClothedTe !== null" class="text-indigo-600 label"
               >Clothed TE {{ Math.round(earningsClothedTe) }}</span
             >
             <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
@@ -124,7 +124,7 @@
         </svg>
       </button>
       <div v-if="isLoadoutOpen" class="px-3 pb-3 space-y-2">
-        <p v-if="!initialStateStore.rawBackup" class="text-small font-bold text-amber-600">
+        <p v-if="!initialStateStore.rawBackup" class="text-small font-bold text-amber-700">
           No inventory — enter stones manually.
         </p>
         <AutoLoadoutEditor
