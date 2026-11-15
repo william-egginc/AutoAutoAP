@@ -807,6 +807,8 @@
                           :only="i"
                           open
                           :zone="autoPlannerStore.timezone || plannerTzFallback"
+                          :hours="store.runSettingsUsed?.availability ?? null"
+                          :held-shifts="store.runSettingsUsed?.deferShifts ?? true"
                         />
                       </td>
                     </tr>

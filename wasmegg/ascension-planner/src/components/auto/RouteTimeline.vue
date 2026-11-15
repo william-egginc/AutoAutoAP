@@ -56,6 +56,11 @@
           >
         </p>
       </details>
+      <!-- R1 after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). Its own line under the
+           ascension, outside the details' v-if/v-else pair. -->
+      <p v-if="r1Of(l.asc)" class="mt-0.5 ml-3 text-body text-amber-800 break-words max-w-prose" data-testid="route-timeline-r1-sleep">
+        {{ sleepBeforeR1Card(r1Of(l.asc)!, when) }}
+      </p>
       <!-- No eggs kept (a leg read back from a saved run): the stop and when, without an arrow. -->
       <p v-else class="px-2 py-1 pl-5 text-slate-700" data-testid="route-timeline-line">
         <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
@@ -82,6 +87,9 @@ import { showWhen, spansYears } from '@/lib/displayTime';
 import { routeTimeline, stepLength, timelineMoments } from '@/search/routeTimeline';
 import type { LegSummary } from '@/search/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
+import type { Availability } from '@/search/availability';
+import { r1OfShifts } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
 
 const props = defineProps<{
   chain: number[];
@@ -97,6 +105,10 @@ const props = defineProps<{
   hereAt?: number;
   /** What to say when there are no legs, instead of the default line. */
   noLegsText?: string;
+  /** The R1 sleep warning (lib/sleepBeforeR1.ts): the awake hours the route was priced with (null or absent: none), and whether
+   *  its shifts waited for them (held: the softer "R1 waits until …" line). */
+  hours?: Availability | null;
+  heldShifts?: boolean;
 }>();
 
 const all = computed(() => routeTimeline(props.chain, props.legs));
@@ -114,6 +126,13 @@ const hereStep = computed(() => {
     });
   return found as { asc: number; k: number } | null;
 });
+/** The R1 warning for ascension `asc` (1-based): from its leg's start and shifts; never one already started at `hereAt`. */
+function r1Of(asc: number) {
+  const leg = props.legs?.[asc - 1];
+  if (!props.hours || !leg?.shifts?.length || typeof leg.startTime !== 'number') return null;
+  if (props.hereAt !== undefined && leg.startTime <= props.hereAt) return null;
+  return r1OfShifts({ start: leg.startTime, shifts: leg.shifts, hours: props.hours, held: props.heldShifts });
+}
 /** Eggs with times but no TE: legs simulated before shifts kept their TE. */
 const missingTE = computed(() => lines.value.some(l => l.eggs.some(e => e.te === null)));
 

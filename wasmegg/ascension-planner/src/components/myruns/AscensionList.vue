@@ -111,15 +111,15 @@ const props = defineProps<{
   here?: boolean;
   /** The player's awake hours (null or absent: none). */
   hours?: Availability | null;
-  /** The player's shifts wait for their hours (deferShifts): no R1 warning. */
+  /** The player's shifts wait for their hours (deferShifts): the softer "R1 waits until …" line. */
   heldShifts?: boolean;
 }>();
 /** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
 const r1Of = (l: AscensionStep) => {
-  if (l.now || props.heldShifts || !props.hours) return null;
+  if (l.now || !props.hours) return null;
   return l.simulated
-    ? r1OfShifts({ start: l.prestigeAt, shifts: l.shifts, hours: props.hours })
-    : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours });
+    ? r1OfShifts({ start: l.prestigeAt, shifts: l.shifts, hours: props.hours, held: props.heldShifts })
+    : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
 };
 
 /** The table's times: to the hour on the player's clock. */

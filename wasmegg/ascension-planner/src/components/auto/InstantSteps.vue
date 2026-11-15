@@ -55,14 +55,14 @@ const props = defineProps<{
   /** The hours the answer was held to (null: any time). */
   hours?: Availability | null;
   noPrestige?: readonly TimeOffWindow[] | null;
-  /** The player's shifts wait for their hours (deferShifts): the plan already waits, so no R1 warning. */
+  /** The player's shifts wait for their hours (deferShifts): the plan already waits, so the softer "R1 waits until …" line. */
   heldShifts?: boolean;
 }>();
 
 const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props.noPrestige ?? null));
 /** The warning for an ascension the table starts (never the one the farm is in): R1 bounded by the opening's span. */
 const r1Of = (l: { now: boolean; prestigeAt: number; fromTE: number }) =>
-  l.now || props.heldShifts ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours });
+  l.now ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
 /** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
 const show = (t: number) => cardTime(t, props.zone);
 </script>
