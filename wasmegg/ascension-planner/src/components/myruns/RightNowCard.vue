@@ -384,6 +384,8 @@
         <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
+        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
           <p class="label text-indigo-700">Next shifts</p>
           <ul class="list-none pl-0 text-small text-slate-700">
@@ -409,6 +411,8 @@
         <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
+        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
         <p v-else-if="nextText" class="text-body text-slate-800">
           <b>{{ nextText }}</b>
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
@@ -569,7 +573,7 @@
       >
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="awakeHours" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
@@ -612,6 +616,8 @@ import { freshSoonerLine } from '@/lib/freshSoonerWords';
 import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextBuy, type NextShiftLine } from '@/lib/nextAction';
 import { ROUGH_NEXT_STEP, roundToHourIn } from '@/lib/nowWords';
+import { r1IfPrestigeNow } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1NextStep } from '@/lib/sleepBeforeR1Words';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
@@ -962,6 +968,16 @@ const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
 );
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
+/** Next step is a prestige and the ascension it starts would reach R1 after the awake hours end: "If you prestige now, your silo buys (R1) …". The
+ *  hours come in only when the shifts are not held (`awakeHours`, MyRunsView `nightBuyHours`). Only the prestige step, never a shift or the goal. */
+const r1Sleep = computed(() => {
+  const a = props.nextStep;
+  if (a?.kind !== 'prestige') return '';
+  const d = r1IfPrestigeNow({ at: a.at, now: props.now, startTE: props.teSoFar, hours: props.awakeHours });
+  if (!d) return '';
+  // The clock alone on today, the date too on another day (Words: add the date when R1 is on another day).
+  return sleepBeforeR1NextStep(d, t => (buyFmt.sameDay(t, props.now) ? buyFmt.clock(t) : sentenceWhen(t)));
+});
 /** The A1 choice's words in this card's zone (as every other time on it). */
 const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
 /** The fresh-start line in this card's zone (as every other time on it). */
