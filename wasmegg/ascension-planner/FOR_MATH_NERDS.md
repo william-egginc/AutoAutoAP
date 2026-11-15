@@ -190,12 +190,14 @@ three hours.
   as you go. The bias is safe (real runs should beat these dates) and it cancels between
   candidates, so it does not change the ranking. It does move the absolute dates, worst at
   the far end, and nobody has quantified by how much.
-- Schedule constraints work in two ways. A **shift that falls outside your hours waits for you
-  inside the simulator** (`src/auto/hold.ts`, "Let me pick my hours"): the farm keeps laying the
-  egg it is on while it waits, so those eggs, and any TE they pass, are credited. A **prestige
-  pushed to your hours** is a delay layered on the simulated timeline, not re-simulated. That
-  one errs one way only: the eggs laid while you wait are not credited, so the real run is, if
-  anything, slightly faster than the plan says.
+- Schedule constraints are modelled in two places. A **shift that falls outside your hours waits
+  for you inside the simulator** (`src/auto/hold.ts`, "Let me pick my hours"). A **prestige that
+  waits for your hours or a no-prestige day** is a delay layered on the simulated timeline
+  (`src/search/routeFinder.ts`, `creditWait`). In both, the farm keeps laying the egg it is on
+  while it waits, so those eggs, and any TE they pass, are credited. The credit is capped by what
+  the silos hold, using your save's silo count for every later ascension, which is on the
+  cautious side because later ascensions buy silos again. Whether silos reset on a prestige in
+  the game is an open question.
 
 ---
 
