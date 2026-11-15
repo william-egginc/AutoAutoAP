@@ -99,7 +99,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated Nov 4, 2026.');
+    expect(text).toContain('Last updated Nov 15, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -133,7 +133,7 @@ describe('About and privacy page', () => {
       "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
-    expect(text).toContain('Last updated Nov 4, 2026.');
+    expect(text).toContain('Last updated Nov 15, 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
 
@@ -197,7 +197,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
-    expect(text).toContain('Last updated Nov 4, 2026.');
+    expect(text).toContain('Last updated Nov 15, 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
     expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");
@@ -420,6 +420,15 @@ describe('About and privacy page', () => {
     expect(text).toContain('it does not check whether the page is still open. If you close the tab, the page tries to say so.');
     expect(text).toContain('Turn it off: in Setup. Nothing is then sent about your searches. The banner does not depend on the switch.');
   });
+  it('the storage table lists synced records, the calendar link and long-search records, and its IP row agrees with the long-search section (review W3, 15 Nov 2026)', () => {
+    expect(text).toContain('Your starting TE, tracker ticks and plan No time limit. They stay until you delete them (see Delete it above).');
+    expect(text).toContain('Your calendar link Removed after 90 days in which no calendar app has checked it, or when you reset or delete.');
+    expect(text).toContain('Long-search records Deleted about 3 days after the search ends.');
+    expect(text).toContain(
+      'Your IP address No address is stored. It is used only to slow down floods of requests: held for 2 minutes inside a temporary key and, to limit long-search announcements, inside a keyed code that is deleted after about 3 days.'
+    );
+    expect(text).not.toContain('Not stored in any record.');
+  });
   it('says what the calendar link shows, who can see it, how old it is, how to reset it and when it expires (14 Nov 2026, Jordan OK via the orchestrator)', () => {
     expect(text).toContain('Your calendar link');
     expect(text).toContain('If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID (see Your calendar link ).');
@@ -433,7 +442,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('the maintainer could read them there, but they carry no ID or name.');
     expect(text).toContain('anyone who knows your player ID can make a link for it, as with saved routes and Setup.');
     expect(text).toContain('your calendar may be up to a day behind the planner.');
-    expect(text).toContain('Reset link stops the old link at once.');
+    expect(text).toContain('Reset link stops every link you made at once.');
     expect(text).toContain('a link is removed after 90 days in which no calendar app has checked it. The 90 days count from the last check, so a calendar that is still subscribed never expires.');
     // The claim "not even the maintainer" is about the link only, never the planned times.
     expect(text).not.toMatch(/not even the maintainer can see (the|your) (planned|times|plan)/);

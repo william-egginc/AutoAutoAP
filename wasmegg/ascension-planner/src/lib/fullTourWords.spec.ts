@@ -34,6 +34,14 @@ describe('full tour words', () => {
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all).not.toMatch(/Stronger check|Nearby routes|Exhaustive|Check exactly|Race to|Classic|Your plan|checkpoint|baseline/);
   });
+  it('the tabs and More cards say only what is true: two tabs are off by default, More is on two screens (review W4, 15 Nov 2026)', () => {
+    expect(FULL_TOUR_STEPS_WORDS.tabs.body).toBe(
+      'Manual Planner, Auto Planner, Chain Finder and My runs are always there. Leaderboard and Science show once turned on in Setup. The highlighted one is where you are.'
+    );
+    expect(FULL_TOUR_STEPS_WORDS.more.body).toContain('More is the fold at the foot of Chain Finder and My runs');
+    expect(FULL_TOUR_STEPS_WORDS.more.body).not.toContain('each screen');
+    expect(FULL_TOUR_ABOUT).toBe('Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.');
+  });
   it('the entries', () => {
     expect(FULL_TOUR_ITEM).toBe('Full tour');
     expect(FULL_TOUR_FROM_FIRST).toBe('More: Full tour');
