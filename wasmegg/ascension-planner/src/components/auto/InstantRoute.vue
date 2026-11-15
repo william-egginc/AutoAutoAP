@@ -368,7 +368,6 @@
             <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
             <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
             <!-- The prompt to check it: a Fast run for this goal (Jordan, 15 Nov 2026), for a close call only. -->
-            <p v-if="closeCall && checkWithFast" class="text-small text-slate-700" data-testid="box-check-fast-note">{{ CHECK_WITH_FAST_NOTE }}</p>
             <button
               v-if="closeCall && checkWithFast"
               type="button"
