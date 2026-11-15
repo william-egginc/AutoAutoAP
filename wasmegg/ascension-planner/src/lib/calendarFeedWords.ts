@@ -38,5 +38,5 @@ export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off' |
 /** Under a link just made while My runs has not given the plan yet (only the marker is up). Words, 14 Nov 2026. */
 export const CAL_OPEN_MYRUNS = 'Open My runs once so the plan reaches your calendar. It is only sent from there.';
 
-/** On the card between My runs opening and the first plan upload: the tracker takes a minute or more under load (QA, 15 Nov 2026). DRAFT: Words writes it. */
-export const CAL_WORKING = 'Working out your plan for the calendar. It is sent as soon as it is ready.';
+/** On the card between My runs opening and the first plan upload: the tracker takes a minute or more under load (QA, 15 Nov 2026). Words' text; the plan is worked out and sent from My runs, so leaving it stops the work (third sentence). */
+export const CAL_WORKING = 'The plan is being worked out for your calendar. It goes out as soon as it is ready, which can take a minute or two. Keep this page open until then.';

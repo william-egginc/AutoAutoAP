@@ -165,7 +165,7 @@ describe('between opening My runs and the first plan upload (QA 15 Nov 2026)', (
     expect(textOf(open)).not.toContain(W.CAL_OPEN_MYRUNS);
     expect(open).toContain('data-testid="calendar-feed-working"');
   });
-  it('the words (a draft: Words writes them)', () => {
-    expect(W.CAL_WORKING).toBe('Working out your plan for the calendar. It is sent as soon as it is ready.');
+  it("the words (Words' text, with the third sentence: the work stops when My runs is left)", () => {
+    expect(W.CAL_WORKING).toBe('The plan is being worked out for your calendar. It goes out as soon as it is ready, which can take a minute or two. Keep this page open until then.');
   });
 });
