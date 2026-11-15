@@ -1989,7 +1989,7 @@ function teClash(a: readonly TEPoint[], b: readonly TEPoint[]): boolean {
  * Owner codes are per browser, so one player on two devices is two `acct:` lines. Two codes are one
  * player when ALL of these hold:
  *   - the names they sent under share a root (`nameRoots`), over EVERY named run each sent, so a
- *     one-run rename in one browser (`oollanfieldhouse` beside `allanfieldhouse`, review 15 Nov 2026,
+ *     one-run rename in one browser (a name with one letter added, review 15 Nov 2026,
  *     L3) does not split the player: the old name is still among that code's runs;
  *   - they share a timezone and artifact set (`accountKeyOf`) -- the same test that keeps "Kenzie Alt"
  *     apart from Kenzie;
