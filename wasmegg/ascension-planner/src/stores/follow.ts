@@ -171,14 +171,23 @@ export const useFollowStore = defineStore('follow', () => {
    */
   /** One read per account and collector: the one in flight is shared, and a finished one counts for READ_TTL_MS
    *  (another account, or `force`, reads again). */
-  let lastRead: { sig: string; at: number; done: Promise<void> } | null = null;
+  let lastRead: { sig: string; at: number; done: Promise<void>; status: 'ok' | 'unreachable' | null } | null = null;
   const READ_TTL_MS = 60_000;
   function loadCloud(force = false): Promise<void> {
     const sig = `${cloudKey.value}|${followUrl()}`;
-    if (!force && lastRead && lastRead.sig === sig && Date.now() - lastRead.at < READ_TTL_MS) return lastRead.done;
-    const done = readCloud();
-    lastRead = { sig, at: Date.now(), done };
-    return done;
+    if (!force && lastRead && lastRead.sig === sig && Date.now() - lastRead.at < READ_TTL_MS) {
+      // The same read, shared. Its result is put back: the page may have cleared the account in between (the save
+      // loaded again), which set 'idle', and no new read follows this one (spec-tidy-words M8).
+      if (lastRead.status) cloudStatus.value = lastRead.status;
+      return lastRead.done;
+    }
+    const entry: NonNullable<typeof lastRead> = { sig, at: Date.now(), done: Promise.resolve(), status: null };
+    lastRead = entry;
+    entry.done = readCloud().then(() => {
+      const s = cloudStatus.value;
+      if (s === 'ok' || s === 'unreachable') entry.status = s;
+    });
+    return entry.done;
   }
   async function readCloud(): Promise<void> {
     const url = followUrl();

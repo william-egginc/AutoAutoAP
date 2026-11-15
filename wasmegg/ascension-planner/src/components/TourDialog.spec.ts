@@ -19,8 +19,8 @@ import {
   FIRST_TOUR_WELCOME,
 } from '@/lib/firstTourWords';
 
-const welcome = { phase: 'welcome', remind: true, index: 0, total: 8 } as const;
-const slide = (index: number, extra: Record<string, unknown> = {}) => ({ phase: 'slides', remind: true, index, total: 8, slide: TOUR_SLIDES[index], ...extra });
+const welcome = { phase: 'welcome', remind: true, index: 0, total: 12 } as const;
+const slide = (index: number, extra: Record<string, unknown> = {}) => ({ phase: 'slides', remind: true, index, total: 12, slide: TOUR_SLIDES[index], ...extra });
 const modal = readFileSync(new URL('./TourModal.vue', import.meta.url), 'utf8');
 const dialog = readFileSync(new URL('./TourDialog.vue', import.meta.url), 'utf8');
 
@@ -54,8 +54,8 @@ describe('TourDialog: the welcome box', () => {
 
 describe('TourDialog: the slideshow', () => {
   it('each slide: one <picture>, the phone set below 640 px, lazy, sized, with its alt text; the caption says it all', async () => {
-    expect(TOUR_SLIDES).toHaveLength(8);
-    for (let i = 0; i < 8; i++) {
+    expect(TOUR_SLIDES).toHaveLength(12);
+    for (let i = 0; i < 12; i++) {
       const html = await renderHtml(TourDialog, slide(i));
       const s = TOUR_SLIDES[i];
       expect(html.match(/<picture/g)?.length).toBe(1);
@@ -65,7 +65,7 @@ describe('TourDialog: the slideshow', () => {
       expect(html).toMatch(/<img[^>]*decoding="async"/);
       expect(html).toMatch(/<img[^>]*width="720"[^>]*height="406"/);
       expect(html).toContain(`alt="${FIRST_TOUR_ALT[s.id].replace(/'/g, '&#39;')}"`);
-      expect(textOf(html)).toContain(`Step ${i + 1} of 8 ${FIRST_TOUR_STEPS[s.id].title}`);
+      expect(textOf(html)).toContain(`Step ${i + 1} of 12 ${FIRST_TOUR_STEPS[s.id].title}`);
       expect(textOf(html)).toContain(FIRST_TOUR_SKIP);
     }
   });
@@ -73,8 +73,8 @@ describe('TourDialog: the slideshow', () => {
   it('Next until the last, Done there; Back from slide 2; replay shows the box unticked', async () => {
     expect(textOf(await renderHtml(TourDialog, slide(0)))).not.toMatch(/\bBack\b/);
     expect(textOf(await renderHtml(TourDialog, slide(1)))).toMatch(/\bBack\b/);
-    expect(textOf(await renderHtml(TourDialog, slide(6)))).toContain(FIRST_TOUR_NEXT);
-    expect(textOf(await renderHtml(TourDialog, slide(7)))).toContain(FIRST_TOUR_DONE);
+    expect(textOf(await renderHtml(TourDialog, slide(10)))).toContain(FIRST_TOUR_NEXT);
+    expect(textOf(await renderHtml(TourDialog, slide(11)))).toContain(FIRST_TOUR_DONE);
     expect(await renderHtml(TourDialog, slide(2, { remind: false }))).not.toMatch(/<input[^>]*type="checkbox"[^>]*checked/);
   });
 

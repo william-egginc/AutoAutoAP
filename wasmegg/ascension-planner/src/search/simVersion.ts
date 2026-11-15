@@ -31,7 +31,11 @@
 // b2ce0b99 and d180ce708 (lookahead pairs); also standard permit (60cf8977) and the research sale on sim time
 // (8a5892b6, b8c6cb8e). Joo's planners refactor moved engine/apply/math.ts and most calculations into lib/planners
 // (hashed below). Tables are rebuilt for it (Jordan, 9 Nov: Option B).
-export const SIM_VERSION = '2026-11-09-sim4';
+// 2026-11-14-sim5: upstream fa805e2d1 merged (Joo's PR 731 final, ColossalTuna's PR 714). The movers are c983b800c
+// (milestone chain fix, smart buy's milestone list: TE 200 in the sample) and 72e0de505 (2x and Smart Buy rules in
+// smartBuyPreview.ts: TE 55 to 300); the rest of upstream moved no sampled cell (A/B/C bitcheck, notes
+// upstream-2026-11-14.md section 8). Tables are rebuilt for it (Jordan, 14 Nov: full merge with a bump).
+export const SIM_VERSION = '2026-11-14-sim5';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
@@ -46,6 +50,9 @@ export const SIM_SOURCES = [
   // Joo's shared planner code (PR #729) moved the engine math and the hab/vehicle/silo planners here.
   '../../lib/planners/engine',
   '../../lib/planners/calculations',
+  // sim5 (14 Nov 2026): the table generator's own code, which decides every cell but was outside the hash.
+  'src/search/tableV2Build.ts',
+  'scripts/precompute.ts',
 ];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
@@ -56,8 +63,14 @@ export const SIM_SOURCES = [
  *  with the same answers: its spec checks it against the full count, and the tables bitcheck. Then for
  *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). Then for
  *  the player's hours for purchases (advanceTime.ts stretchToHours, game expert): only with context.holdUntil,
- *  which the tables never set, so cells stay the same (tables bitcheck). */
-export const SIM_SOURCE_HASH = 'c1540c6bc7d314c1b047e84f83991803b994efd07664e6d08cd6283ce266a150';
+ *  which the tables never set, so cells stay the same (tables bitcheck).
+ *  10 Nov 2026 (spec-r9): re-pasted for Joo's refactor (joo/main 3cd91eff2: 2x earnings from sim time,
+ *  simulate.ts, Continue from mid-build, files moved into lib/planners) and egg-beta2-int's uncapped save
+ *  catch-up. Not a SIM_VERSION bump: the merged build's start-TE files are byte-identical to the sim4
+ *  tables (11 of 11 on the Mac; the PC sweep over every finished table is in aaap-tools notes).
+ *  14 Nov 2026 (spec-upstream1114): re-pasted with the sim5 bump for upstream fa805e2d1, the merge's
+ *  boostTransitionsFrom silo fix (engine/apply/math.ts) and the two generator files added above. */
+export const SIM_SOURCE_HASH = '963376a9b319b9ed6384750d5a760a2f682964ff167b0ae4db1126847421507e';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

@@ -26,33 +26,36 @@
          filled Choose… is the main action again, with No thanks, under the heading on a phone and beside it from sm up. -->
     <div
       class="flex gap-2"
-      :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
+      :class="open ? 'flex-row items-center' : 'flex-row flex-wrap items-center'"
       data-testid="study-box-strip"
     >
-      <h2 id="study-heading" class="text-body font-bold text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
-      <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
+      <div class="flex-1 basis-40 break-words">
+        <h2 id="study-heading" class="inline text-body font-bold text-slate-800">{{ NAMES.study }}</h2
+        ><span v-if="!open" class="text-body text-slate-600" data-testid="study-quiet">. {{ STUDY_STRIP_WORDS.quiet }}</span>
+      </div>
+      <div class="flex flex-row flex-wrap gap-2">
         <button
           type="button"
           :class="
             open
               ? 'min-h-[44px] px-2 py-3 text-body font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900'
-              : 'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700'
+              : 'min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700'
           "
           :aria-expanded="open"
           aria-controls="study-box-form"
           data-testid="study-choose"
           @click="open = !open"
         >
-          {{ open ? 'Hide' : 'Choose…' }}
+          {{ open ? 'Hide' : STUDY_STRIP_WORDS.choose }}
         </button>
         <button
           v-if="!open"
           type="button"
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-50"
+          class="min-h-[44px] sm:min-h-0 px-4 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-50"
           data-testid="study-strip-no-thanks"
           @click="answerNo"
         >
-          No thanks
+          {{ STUDY_STRIP_WORDS.no }}
         </button>
       </div>
     </div>
@@ -99,7 +102,7 @@
   >
     <p class="text-body font-bold text-emerald-900 sm:flex-1 break-words max-w-prose">
       Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
-      {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
+      {{ NAMES.study }} (the {{ NAMES.setup }} button on {{ NAMES.chainFinder }}, the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>
     <button
       type="button"
@@ -115,6 +118,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watchEffect } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { STUDY_STRIP_WORDS } from '@/lib/studyWords';
 import {
   answerNo,
   closeThanks,
@@ -127,9 +131,9 @@ import {
 import StudyForm from './StudyForm.vue';
 
 const props = withDefaults(
-  defineProps<{ /** Open the full form at once (the default; the specs pass false for the strip). */ startOpen?: boolean }>(),
+  defineProps<{ /** Open the full form at once (not the default since 14 Nov 2026: one line, Yes opens it). */ startOpen?: boolean }>(),
   {
-    startOpen: true,
+    startOpen: false,
   }
 );
 /** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */

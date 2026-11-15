@@ -1,4 +1,7 @@
 /**
+ * The sim5 bump (14 Nov 2026, upstream fa805e2d1: the milestone chain fix and the 2x and Smart Buy rules) works the
+ * same way; only the two names moved again.
+ *
  * The sim4 bump (9 Nov 2026, Joo's PR #729: delivery research planned as a set, standard permit, the research sale
  * on sim time) works the same way as the sim3 one below; only the two names moved.
  *
@@ -12,10 +15,10 @@ import { SIM_VERSION } from './simVersion';
 import { INSTANT_RULES } from './instantTables';
 import { fingerprintChanges, fingerprintRun, fingerprintSettings } from './persistence';
 
-describe('the simulator bump (sim3, then sim4)', () => {
+describe('the simulator bump (sim3, sim4, then sim5)', () => {
   it('SIM_VERSION and INSTANT_RULES move', () => {
-    expect(SIM_VERSION).toBe('2026-11-09-sim4');
-    expect(INSTANT_RULES).toBe('2026-11-09-sim4');
+    expect(SIM_VERSION).toBe('2026-11-14-sim5');
+    expect(INSTANT_RULES).toBe('2026-11-14-sim5');
   });
 
   it('the checkpoint fingerprint carries the simulator, and a change of it is named', () => {

@@ -11,7 +11,9 @@
 <template>
   <div data-testid="now-events">
     <table class="w-full text-small">
-      <thead>
+      <!-- On a phone only "What" showed, alone over rows that also hold the when (spec-tidy): the headers are for screen
+           readers there, seen from sm up where each has its column. -->
+      <thead class="sr-only sm:not-sr-only sm:table-header-group">
         <tr class="label text-slate-500 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
           <th class="py-1.5 pr-2">What</th>

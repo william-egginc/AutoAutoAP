@@ -46,7 +46,13 @@ const ROUTE = [194, 226, 277, 317, 490];
 let mem: Map<string, string>;
 let saveAt: number;
 
+/** The clock, pinned (14 Nov 2026): Date is faked at a fixed moment, timers stay real. The page's `now` (useMinuteClock) is read
+ *  from Date and ticks once a minute, and the real simulation takes seconds to minutes under a loaded full suite. Unpinned,
+ *  a minute could tick between the "Prestige now" ask and the assertions: the prestige line, at the ask's moment, was then
+ *  in the past, nextShifts dropped it, and lines[0] was a shift (the PC's one-test gate failure at 4:00 PM, passing alone). */
+const CLOCK_START = Date.UTC(2026, 10, 14, 20, 7, 0);
 beforeEach(() => {
+  vi.useFakeTimers({ now: CLOCK_START, toFake: ['Date'] });
   mem = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => mem.get(k) ?? null,
@@ -68,6 +74,7 @@ beforeEach(() => {
 });
 const scopes: { stop: () => void }[] = [];
 afterEach(() => {
+  vi.useRealTimers();
   for (const s of scopes.splice(0)) s.stop();
   setChainPricer(null);
   setSimRunner(null);

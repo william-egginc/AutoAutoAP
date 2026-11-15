@@ -6,6 +6,18 @@
  */
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
 
+/**
+ * The hours My runs gives the note (the Right now card and the Build-up tracker). What they show is the ascension
+ * simulated on the save, and with "hold my shifts" on (the default) and hours that rule something out the simulation
+ * holds its research buys to the hours too (search/leg.ts legContext `holdUntil`, auto/shifts/helpers/advanceTime.ts
+ * `stretchToHours`), so its finish is not a best case: no hours, no note. With "hold my shifts" off there is no hold, buys
+ * can fall at night, and the hours go through. The instant answer keeps its note: its first ascension comes from the
+ * table, which sets no hold.
+ */
+export function nightBuyHours(hours: Availability | null | undefined, holdShifts: boolean): Availability | null {
+  return holdShifts ? null : (hours ?? null);
+}
+
 /** Awake hours set and a build-up plan or finish shown. */
 export function nightBuyNoteShown(hours: Availability | null | undefined, buildUpShown: boolean): boolean {
   return buildUpShown && isConstrained(hours);

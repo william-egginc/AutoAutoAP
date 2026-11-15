@@ -75,7 +75,7 @@ describe('the Setup pill on Single run', () => {
   it('App.vue gives the pill the bar room on Single run only; the bar carries the marker class', () => {
     const app = readFileSync('src/App.vue', 'utf8');
     expect(app).toMatch(
-      /<SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" \/>/
+      /<SetupDock\s+v-if="plannerTab === 'automatic' && playerId && !loading"\s+:screen="autoView"\s+:bottom-offset="singleRunBarRoom"\s+@height="setupPillHeight = \$event"\s*\/>/
     );
     expect(app).toContain(
       "useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'))"

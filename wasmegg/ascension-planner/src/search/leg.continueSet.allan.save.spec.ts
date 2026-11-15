@@ -36,7 +36,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { getArtifactLoadoutFromBackup, getOptimalELRSet } from '@/lib/artifacts';
 import { sameSet } from '@/lib/gearMatch';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { createChainEvaluator } from './chain';
 import { buildUpBuildForCheck, buildUpVariantForCheck, continueStateForCheck, continueVariantForCheck } from './leg';
 import type { EquippedArtifact } from '@/lib/artifacts/types';

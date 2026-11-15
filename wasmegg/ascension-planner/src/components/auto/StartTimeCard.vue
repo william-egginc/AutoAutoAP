@@ -16,8 +16,8 @@
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.start }}</h1>
       <p class="text-body text-slate-600 max-w-3xl">
         For coming back after a break: one route priced as a fresh start at every hour of the next week, to see
-        whether waiting for the weekly sales finishes sooner. It uses your save and Setup from the
-        {{ NAMES.auto }}.
+        whether waiting for the weekly sales finishes sooner. It uses your save and Setup from
+        {{ NAMES.chainFinder }}.
       </p>
     </div>
     <!-- Already on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026): the tab and the links are hidden; a link from
@@ -31,7 +31,7 @@
     </p>
     <div v-else class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
       <p v-if="!(store.currentTE > 0)" class="text-body font-bold text-amber-700 max-w-prose" data-testid="start-times-no-save">
-        Load your save first: open {{ fastestName(store.finalTE) }} in the {{ NAMES.auto }}, then come back here.
+        Load your save first: open {{ fastestName(store.finalTE) }} in {{ NAMES.chainFinder }}, then come back here.
       </p>
       <p v-else-if="store.saveNotReady" class="text-body font-bold text-amber-700">{{ store.saveNotReady }}</p>
       <p v-if="!choices.length" class="text-body text-slate-500 max-w-prose" data-testid="start-times-empty">

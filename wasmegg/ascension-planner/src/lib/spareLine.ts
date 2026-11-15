@@ -13,7 +13,7 @@ import { headlineGap } from './format';
 export const TIGHT_SECONDS = 86400;
 
 export interface SpareLine {
-  /** "5.5 days to spare", "3 days to spare, maybe none on your gear". */
+  /** "5.5 days to spare". The gear caveat is said once, in its own line under the date (spec-tidy IA5), not here too. */
   text: string;
   /** Amber, with the "tight" tag. */
   tight: boolean;
@@ -29,9 +29,8 @@ export function isTightSpare(spareSeconds: number, gearCaveat = false): boolean 
 
 /** The spare as the box shows it; `gearCaveat`: the gear caveat with the days window shows for this answer. */
 export function spareLine(spareSeconds: number, gearCaveat: boolean, locale?: string): SpareLine {
-  const inWindow = inGearWindow(spareSeconds, gearCaveat);
   return {
-    text: `${headlineGap(spareSeconds, locale)} to spare${inWindow ? ', maybe none on your gear' : ''}`,
+    text: `${headlineGap(spareSeconds, locale)} to spare`,
     tight: isTightSpare(spareSeconds, gearCaveat),
   };
 }

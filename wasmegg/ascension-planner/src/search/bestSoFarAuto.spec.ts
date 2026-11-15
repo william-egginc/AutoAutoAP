@@ -102,7 +102,7 @@ describe('autoDecision', () => {
     expect(autoDecision(i)).toEqual({ do: 'wait', at: sent + 30 * MIN });
     expect(autoDecision({ ...i, now: sent + 30 * MIN })).toEqual({ do: 'send' });
     expect(autoStatusLine({ ...i, lastBest: null, failed: false })).toBe(
-      'Last progress sent 12:00 pm. Next in about 8 min.'
+      'Last progress sent 12:00 PM. Next in about 8 min.'
     );
   });
 
@@ -152,7 +152,7 @@ describe('autoStatusLine', () => {
   it('says when it last sent and when the next is due', () => {
     const sent = T0;
     const line = autoStatusLine({ ...input({ lastSentAt: sent, now: sent + 20 * MIN }), ...base });
-    expect(line).toBe('Last progress sent 12:00 pm (best 248). Next in about 40 min.');
+    expect(line).toBe('Last progress sent 12:00 PM (best 248). Next in about 40 min.');
   });
   it("says what the send carried: the best, how much was priced, and the CSV (the user's example)", () => {
     const sent = new Date(2026, 9, 9, 16, 20).getTime();
@@ -163,7 +163,7 @@ describe('autoStatusLine', () => {
       failed: false,
     });
     expect(line).toBe(
-      'Last progress sent 4:20 pm (best reaches 490 on 24 Feb 2029; 3,735 chains, CSV 2.1 MB). Next in about 60 min.'
+      'Last progress sent 4:20 PM (best reaches 490 on 24 Feb 2029; 3,735 chains, CSV 2.1 MB). Next in about 60 min.'
     );
   });
   it("says the collector's daily cap, until the next send", () => {
@@ -174,7 +174,7 @@ describe('autoStatusLine', () => {
       refused: { at: refusedAt, why: 'the board takes at most 48 progress sends a day from one account' },
     };
     expect(autoStatusLine(i)).toBe(
-      'Not sent at 2:00 pm: the board takes at most 48 progress sends a day from one account. Next in about 4 h 59 min.'
+      'Not sent at 2:00 PM: the board takes at most 48 progress sends a day from one account. Next in about 4 h 59 min.'
     );
     expect(autoStatusLine({ ...i, lastSentAt: refusedAt + 6 * HOUR, now: refusedAt + 6 * HOUR })).toMatch(
       /^Last progress sent/
@@ -187,7 +187,7 @@ describe('autoStatusLine', () => {
   });
   it('leaves the best out when a carry-on no longer knows it', () => {
     const line = autoStatusLine({ ...input({ lastSentAt: T0, now: T0 + 30 * MIN }), lastBest: null, failed: false });
-    expect(line).toBe('Last progress sent 12:00 pm. Next in about 30 min.');
+    expect(line).toBe('Last progress sent 12:00 PM. Next in about 30 min.');
   });
   it('mentions a failed try, and the next one', () => {
     const failedAt = T0 + HOUR;
@@ -196,7 +196,7 @@ describe('autoStatusLine', () => {
       ...base,
       failed: true,
     });
-    expect(line).toBe("Last progress sent 12:00 pm (best 248). Couldn't send at 1:00 pm. Next in about 55 min.");
+    expect(line).toBe("Last progress sent 12:00 PM (best 248). Couldn't send at 1:00 PM. Next in about 55 min.");
   });
   it('says a due time passed with nothing new priced, and when it looks again (review, 9 Oct)', () => {
     // Sent 3:50 pm; due 4:20 pm (every 30 min) with nothing new priced: not sent, and said.
@@ -207,7 +207,7 @@ describe('autoStatusLine', () => {
       ...base,
     };
     expect(autoStatusLine(i)).toBe(
-      'Not sent at 4:20 pm: nothing new priced since 3:50 pm. Next check in about 30 min.'
+      'Not sent at 4:20 PM: nothing new priced since 3:50 PM. Next check in about 30 min.'
     );
     // The next check is one interval on from the skip.
     expect(nextDueAt(i)).toBe(skip + 30 * MIN);
@@ -215,12 +215,12 @@ describe('autoStatusLine', () => {
     expect(autoDecision({ ...i, key: 'better', now: skip + 30 * MIN })).toEqual({ do: 'send' });
     // Nothing found yet at the first due time.
     expect(autoStatusLine({ ...input({ key: null, lastSkipAt: T0 + HOUR, now: T0 + HOUR }), ...base })).toBe(
-      'Not sent at 1:00 pm: nothing found yet. Next check in about 60 min.'
+      'Not sent at 1:00 PM: nothing found yet. Next check in about 60 min.'
     );
     // A later send wins the line back.
     expect(
       autoStatusLine({ ...input({ lastSentAt: skip + 30 * MIN, lastSkipAt: skip, now: skip + 31 * MIN }), ...base })
-    ).toBe('Last progress sent 4:50 pm (best 248). Next in about 59 min.');
+    ).toBe('Last progress sent 4:50 PM (best 248). Next in about 59 min.');
   });
   it('names a Fastest best by its finish date, a By a date best by its TE', () => {
     expect(bestLabel('fastest', 490, 'Feb 24, 2029')).toBe('best reaches 490 on Feb 24, 2029');
@@ -230,7 +230,7 @@ describe('autoStatusLine', () => {
       lastBest: bestLabel('fastest', 490, 'Feb 24, 2029'),
       failed: false,
     });
-    expect(line).toBe('Last progress sent 12:00 pm (best reaches 490 on Feb 24, 2029). Next in about 40 min.');
+    expect(line).toBe('Last progress sent 12:00 PM (best reaches 490 on Feb 24, 2029). Next in about 40 min.');
   });
   it('says it goes as soon as something new is priced once the time has come', () => {
     const line = autoStatusLine({ ...input({ lastSentAt: T0, now: T0 + 2 * HOUR }), ...base });

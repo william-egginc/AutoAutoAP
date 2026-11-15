@@ -9,8 +9,9 @@
 <template>
   <div v-if="copy.line" class="space-y-0.5" data-testid="prefer-fewer-note">
     <template v-if="!showingBest">
-      <p v-if="copy.what" class="text-body text-slate-700" data-testid="prefer-fewer-what">{{ copy.what }}</p>
-      <p class="text-body text-slate-700" data-testid="prefer-fewer-line">{{ copy.line }}</p>
+      <!-- What the box shows sits behind the line's "?" (Jordan, 12 Nov 2026 pm; phone proposal item g: the green chip
+           already says it), the card's own "?" (CardHelp.vue). -->
+      <p class="text-body text-slate-700" data-testid="prefer-fewer-line">{{ copy.line }}<template v-if="copy.what">{{ ' ' }}<CardHelp>{{ copy.what }}</CardHelp></template></p>
     </template>
     <p v-else class="text-body text-slate-500" data-testid="prefer-fewer-showing-best">
       Showing the {{ bestWord }} for now; Prefer fewer ascensions is still on.
@@ -29,6 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import CardHelp from './CardHelp.vue';
 import type { PreferCopy, PreferGoal } from '@/search/preferFewer';
 
 const props = defineProps<{ copy: PreferCopy; goal: PreferGoal; showingBest: boolean }>();

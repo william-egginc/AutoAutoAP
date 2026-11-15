@@ -11,12 +11,16 @@
 /** The one closed fold at the foot of each screen (Setup keeps its own "More options"). */
 export const MORE_TITLE = 'More';
 
-/** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default. */
-export const MORE_LINE_AUTO =
-  'Every number of ascensions, run a search (Fast, Exact or Custom), maxed gear, how it works';
+/** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default.
+ *  DRAFT (Words), 12 Nov 2026 pm: "Every number of ascensions, " dropped, the table is on the answer card now (Jordan). */
+export const MORE_LINE_AUTO = 'Run a search (Fast, Exact or Custom), maxed gear, how it works';
 /** My runs. */
 /** My runs' More line: Your eggs and the timeline moved above More, so they are not named here (spec-simpler2). */
 export const MORE_LINE_MYRUNS = 'Change route, gear, saved answer, try next, your runs';
+/** The second fold control at the foot of an open More (Allan, 9 Nov 2026: one click folds all of it). */
+export const MORE_LESS = 'Less ⌃';
+/** Its name for a screen reader (the "⌃" is drawn, not read). */
+export const MORE_LESS_LABEL = `Close ${MORE_TITLE}`;
 /** "Every number of ascensions, ... · Prefer fewer: within 12 h". */
 export function moreLineWithChanges(line: string, changed: readonly string[]): string {
   return changed.length ? `${line} · ${changed.join(' · ')}` : line;
@@ -51,6 +55,14 @@ export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 
 // ---------------------------------------------------------------------------------------- My runs
 
+/** The button that opens Setup, above the answer. Was "Filters" (Jordan's word, 12 Nov 2026); renamed 13 Nov 2026 because it opens Setup,
+ *  and the real filters sit under it (UX review H4). Round 2, 14 Nov 2026: an instruction (Jordan: "Click to open more filters in Setup").
+ *  Words owns the final text (click or tap on a phone). */
+/** The "?" beside the Target TE | By a date switch (layout/GoalHelp.vue): its accessible name. DRAFT: Words owns it. */
+export const GOAL_HELP_LABEL = 'About this page';
+
+export const FILTERS = 'Click to open more filters in Setup';
+
 export const STOP_FOLLOWING = 'Stop following';
 export const CHANGE_ROUTE = 'Change route';
 // ---------------------------------------------------------------------------------------- Setup
@@ -80,6 +92,14 @@ export const SHOW_EVERYTHING_LINE = 'Every More fold starts open, like the old p
 export const SAVE_LINE_CLOSE = 'Close player box';
 /** Setup's button that opens the player ID box. */
 export const CHANGE_PLAYER = 'Change player';
+/** The save line's stand-in for a save with no name (moved from layout/SaveLine.vue unchanged). */
+export const YOUR_ACCOUNT = 'Your account';
+/** The save line's button holds the player's name (Jordan, 12 Nov 2026: "▾ Williamthe5thc"); its name for a screen reader
+ *  still starts with Change player. DRAFT (spec-header), for Words. */
+export const changePlayerLabel = (name: string): string => `${CHANGE_PLAYER}: ${name}`;
+/** My runs: the "?" after Right now's "Calculated from your … save" line, for a screen reader. It opens the save strip
+ *  (its age, Why is my save out of date?, Details, Load latest save). DRAFT (spec-header, 12 Nov 2026), for Words. */
+export const SAVE_DETAILS_LABEL = 'Your save: its age and details';
 
 // ---------------------------------------------------------------------------------------- the "?" texts
 

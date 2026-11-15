@@ -15,8 +15,7 @@
        "How Highest TE by a date works" fold here) is in How this is worked out, inside More, word for word. -->
   <div class="max-w-4xl mx-auto space-y-4">
     <div data-region="title">
-      <h1 class="text-headline font-black text-slate-900">{{ NAMES.byDate }}</h1>
-      <p class="text-body text-slate-600 max-w-prose" data-testid="bydate-line">{{ BYDATE_LINE }}</p>
+      <h1 class="sr-only">{{ NAMES.byDate }}</h1>
     </div>
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
     <TeOverrideBanner />
@@ -32,7 +31,6 @@
 import { NAMES } from '@/lib/siteNav';
 import { safeAsyncComponent } from 'lib/planners/import';
 import YourSetup from './YourSetup.vue';
-import { BYDATE_LINE } from '@/lib/layoutWords';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 
 defineProps<{ playerId: string }>();

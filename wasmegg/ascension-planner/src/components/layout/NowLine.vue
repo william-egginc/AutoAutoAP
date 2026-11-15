@@ -2,7 +2,8 @@
   "WHAT TO DO NOW" (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the region under the answer,
   always in the same place. A search running on this screen: its progress and "Show search ›", which opens More at the
   search. Else a route followed for this goal: that it is followed, and "Open My runs ›", where the next steps are.
-  Else the hint to press Follow this route. Words: lib/layoutWords.ts (DRAFT).
+  Else the hint to press Follow this route. Words: lib/layoutWords.ts (DRAFT). Under it, the instant card's better-route
+  line when there is one (`now-offer-<screen>`).
 -->
 <template>
   <section
@@ -32,6 +33,9 @@
       >
     </template>
     <span v-else data-testid="now-line-text">{{ NOW_BEFORE_FOLLOW }}</span>
+    <!-- The instant card's better-route line (BetterRoutePrompt `line`, teleported here by InstantRoute.vue `now-to`; the
+         card clean-up, Jordan 12 Nov 2026): under the followed route it compares against. Empty: not drawn. -->
+    <div :id="`now-offer-${screen}`" class="basis-full empty:hidden" data-testid="now-offer"></div>
   </section>
 </template>
 

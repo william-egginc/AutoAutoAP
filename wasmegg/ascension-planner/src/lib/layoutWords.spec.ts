@@ -7,7 +7,7 @@ describe('layout words', () => {
   it('the fold and its lines', () => {
     expect(W.MORE_TITLE).toBe('More');
     expect(W.moreLineWithChanges(W.MORE_LINE_AUTO, ['Prefer fewer: within 12 h'])).toBe(
-      'Every number of ascensions, run a search (Fast, Exact or Custom), maxed gear, how it works · Prefer fewer: within 12 h'
+      'Run a search (Fast, Exact or Custom), maxed gear, how it works · Prefer fewer: within 12 h'
     );
     expect(W.moreLineWithChanges(W.MORE_LINE_AUTO, [])).toBe(W.MORE_LINE_AUTO);
     expect(W.MORE_LINE_MYRUNS).toBe('Change route, gear, saved answer, try next, your runs');

@@ -15,6 +15,7 @@
  * says the search ended), and the banner says so.
  */
 import { compactDuration } from '@/lib/duration';
+import { clockTimeOf } from '@/lib/timeStyleWords';
 
 /** The one host this ever runs on (~/code/aaap-tools/deploy-beta.sh deploys there). */
 export const EGG_BETA_HOST = 'egg-beta.williamstest.fyi';
@@ -78,15 +79,11 @@ export function countdownText(msLeft: number): string {
   return compactDuration(msLeft / 1000);
 }
 
-/** reloadAt as a Pacific clock time, `2:00 pm` (the banner says "Pacific" after it). */
+/** reloadAt as a Pacific clock time, `2:00 PM` (the banner says "Pacific" after it; lib/timeStyleWords.ts). */
 export function pacificTime(iso: string): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return '';
-  return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit' })
-    .format(ms)
-    .replace(/\s+/g, ' ')
-    .replace(/AM$/, 'am')
-    .replace(/PM$/, 'pm');
+  return clockTimeOf(ms, 'America/Los_Angeles');
 }
 
 export interface EggBetaStorage {

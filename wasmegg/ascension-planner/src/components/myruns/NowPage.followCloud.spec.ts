@@ -1,6 +1,9 @@
 /**
  * Right now with a followed route (23 Oct 2026, the followed route saved online): a newer, better Fast result never
- * replaces it, it is asked about ("Follow it" / "Keep mine"); without a followed route the instant-first rule is
+ * replaces it, it is asked about ("Follow it" / "Keep mine") on the Auto Planner's cards, not on Right now (Jordan, 13 Nov
+ * 2026: following is done from the Auto Planner; My runs keeps only the save-contradiction "Re-plan from this save"
+ * offer, `replanOnly`), so the offer's rules are read from BetterRoutePrompt with Right now's props (`offerProps`);
+ * without a followed route the instant-first rule is
  * unchanged (it takes over). A route read back from online set with other hours says so. Through useNowPage with the
  * synthetic save (id EI0000000000000000, never printed), the card server-rendered. Then the prompt and Earlier
  * versions on their own, and the wiring.
@@ -137,6 +140,12 @@ function cardProps(page: Awaited<ReturnType<typeof eggDayWithFastResult>>['page'
   };
 }
 
+/** The offer with the props Right now had for it (useNowPage `betterRoute`), as the Auto Planner's cards would ask. */
+function offerProps(page: Awaited<ReturnType<typeof eggDayWithFastResult>>['page']) {
+  const b = page.betterRoute.value!;
+  return { goalKey: b.goalKey, goal: b.goal, deadline: b.deadline, candidate: b.candidate, followedFinish: b.followedFinish, followedPriced: !!b.followedPriced, stale: b.stale ?? null, zone: ZONE };
+}
+
 describe('Right now: a better result with and without a followed route', () => {
   it('no followed route: the Fast result takes over (the instant-first rule) and, with AUTO_FOLLOW_FIRST, becomes the follow; nothing is asked', async () => {
     const { page, scope, found, goalKey, follows } = await eggDayWithFastResult(null);
@@ -183,13 +192,17 @@ describe('Right now: a better result with and without a followed route', () => {
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     expect(text).not.toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
     // Said once (spec-uxpass item 1): the follow line doesn't say "From the instant answer" again under the pill.
-    expect(text).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(text).toContain('from the instant answer');
+    expect(text).not.toContain('rounded to the hour');
     expect(text).not.toContain('From the instant answer');
     expect(text).toContain("Stop following");
     expect(text).not.toContain('your pick');
-    // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
-    // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).
-    expect(text).toContain(
+    // Followed once already: the Fast result is offered (on the Auto Planner, not on Right now), never followed on its
+    // own. Simulated against the instant answer's estimate, so offered without calling it better
+    // (lib/searchPlan.ts simulatedOverEstimate).
+    expect(text).not.toContain('Do you want to follow');
+    expect(textOf(await renderHtml(BetterRoutePrompt, offerProps(page), {}, [getActivePinia()!]))).toContain(
       "Your Fast run, simulated on your account, gets 239 TE, 2d 12h to spare; the route you follow is the instant answer's estimate (238 TE, 2d to spare). Do you want to follow the Fast run's route?"
     );
     await new Promise(r => setTimeout(r, 20));
@@ -214,7 +227,11 @@ describe('Right now: a better result with and without a followed route', () => {
     const b = page.betterRoute.value!;
     expect(b.candidate).toMatchObject({ chain: [201, 239], source: 'fast', endTE: 239 });
     const pinia = getActivePinia()!;
-    const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [pinia]));
+    // Not on Right now (Jordan, 13 Nov 2026): no box, no Follow it / Keep mine there.
+    const card = await renderHtml(RightNowCard, cardProps(page), {}, [pinia]);
+    expect(textOf(card)).not.toContain('This is a better route');
+    expect(card).not.toContain('data-testid="better-route"');
+    const text = textOf(await renderHtml(BetterRoutePrompt, offerProps(page), {}, [pinia]));
     expect(text).toContain(
       "This is a better route than the one you're following (this one: 239 TE, 2d 12h to spare; yours: 238 TE, 24h to spare). Do you want to follow it?"
     );
@@ -222,10 +239,10 @@ describe('Right now: a better result with and without a followed route', () => {
     expect(text).toContain('Keep mine');
 
     // Keep mine: remembered for this result, not asked again.
-    const html = await renderHtml(RightNowCard, cardProps(page), {}, [pinia]);
+    const html = await renderHtml(BetterRoutePrompt, offerProps(page), {}, [pinia]);
     const id = /data-id="([^"]+)"/.exec(html)![1];
     mem.set(KEEP_MINE_KEY, JSON.stringify([id]));
-    expect(textOf(await renderHtml(RightNowCard, cardProps(page), {}, [pinia]))).not.toContain('This is a better route');
+    expect(textOf(await renderHtml(BetterRoutePrompt, offerProps(page), {}, [pinia]))).not.toContain('This is a better route');
 
     // Follow it: a Follow press of the result.
     mem.delete(KEEP_MINE_KEY);
@@ -246,19 +263,37 @@ describe('Right now: a better result with and without a followed route', () => {
     scope.stop();
   });
 
-  it('Right now renders the prompt for a better KEPT search plan (aap-search-plans) on this save\'s pick', async () => {
+  it('a better KEPT search plan (aap-search-plans) on this save\'s pick is offered (on the Auto Planner), not on Right now', async () => {
     const { page, scope } = await eggDayWithFastResult(
       { chain: [205, 238], from: 'typed', at: Date.now() - 3_600_000, source: 'manual', finish: EGG_DAY_AT - 1 * D, endTE: 238 },
       true
     );
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
     expect(page.betterRoute.value?.candidate).toMatchObject({ chain: [201, 239], source: 'fast' });
-    const html = await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]);
+    const card = await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]);
+    expect(textOf(card)).not.toContain('This is a better route');
+    expect(card).not.toContain('data-testid="better-route-follow"');
+    const html = await renderHtml(BetterRoutePrompt, offerProps(page), {}, [getActivePinia()!]);
     expect(textOf(html)).toContain(
       "This is a better route than the one you're following (this one: 239 TE, 2d 12h to spare; yours: 238 TE, 24h to spare). Do you want to follow it?"
     );
     expect(html).toContain('data-testid="better-route-follow"');
     expect(html).toContain('data-testid="better-route-keep"');
+    scope.stop();
+  });
+
+  it('the save contradicts the follow: Right now still offers "Re-plan from this save" (only that kind, `replanOnly`)', async () => {
+    const { page, scope } = await eggDayWithFastResult(
+      { chain: [205, 238], from: 'typed', at: Date.now() - 3_600_000, source: 'manual', finish: EGG_DAY_AT - 1 * D, endTE: 238 },
+      true
+    );
+    await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+    const props = cardProps(page);
+    const html = await renderHtml(RightNowCard, { ...props, betterRoute: { ...props.betterRoute!, stale: { kind: 'hours' } } }, {}, [getActivePinia()!]);
+    expect(textOf(html)).toContain('the route was set with different awake hours than yours now.');
+    expect(textOf(html)).toContain('Re-plan from this save');
+    expect(textOf(html)).not.toContain('This is a better route');
+    expect(fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8')).toMatch(/<BetterRoutePrompt\s[^>]*\breplan-only\b/);
     scope.stop();
   });
 
@@ -416,7 +451,8 @@ describe('the prompt and Earlier versions on their own', () => {
     expect(prompt).toContain('follows.followBetter(');
     expect(prompt).toContain('@click.stop="keepIt"');
     expect(prompt).toContain('keepMine(p.id)');
-    expect(prompt.match(/min-h-\[44px\]/g)?.length).toBe(2);
+    // Follow it and Keep mine in the box; Keep mine on the instant card's one line (`line`, 12 Nov 2026).
+    expect(prompt.match(/min-h-\[44px\]/g)?.length).toBe(3);
     const hist = read('./FollowHistory.vue');
     expect(hist).toContain('follows.restore(props.goalKey, v)');
     expect(hist).toContain('message.value = r.words');

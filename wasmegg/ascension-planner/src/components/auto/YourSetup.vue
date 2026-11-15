@@ -68,6 +68,10 @@
       <span v-if="noPrestigeCount" class="text-small text-slate-600" data-testid="setup-no-prestige"
         >No prestige days <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
       >
+      <!-- Named when on only, like No prestige days: it changes the plan's cash (spec-silotrick-ui; "on" DRAFT). -->
+      <span v-if="store.siloTrick" class="text-small text-slate-600" data-testid="setup-silo-trick-on"
+        >{{ SILO_TRICK_LABEL }}{{ ' ' }}<span class="font-bold text-slate-900">on</span></span
+      >
       <span class="text-small text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
         workers</span
@@ -138,7 +142,7 @@
       <div class="space-y-1" data-testid="setup-save-line">
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <p class="min-w-0 text-body break-words">
-            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}</span>{{ ' ' }}<span class="text-slate-500 tabular-nums">· {{ saveAgeLabel }}</span>
+            <span class="font-bold text-slate-800 tabular-nums">{{ initialState.nickname || 'Your account' }} · {{ store.currentTE }} TE</span>{{ ' ' }}<span class="text-slate-500 tabular-nums">· {{ saveAgeLabel }}</span>
           </p>
           <button
             type="button"
@@ -207,7 +211,7 @@
       >
         <h3 class="text-slate-500 label">Awake hours</h3>
         <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-          {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
+          The {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
         </p>
         <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
         <!-- Two 44 px choices and one line under them (UX fluff review 2, S13; DRAFT): the blurbs said the same twice. -->
@@ -308,6 +312,22 @@
             </button>
           </p>
         </div>
+        <!-- SILO TRICK (Jordan, 10 Nov 2026: "a setting in Setup, off by default"; spec-silotrick): in view, with the hours
+             and the shifts they hold, not under More options. The store remembers it with the rest of Setup
+             (lib/setupMemory.ts); words lib/siloTrickWords.ts. A link into Setup can land on the box (SetupDock `openSetupAt`). -->
+        <div class="border-t border-slate-200 pt-2" data-testid="setup-silo-trick">
+          <label class="flex min-h-[44px] items-start gap-3 py-1.5 cursor-pointer">
+            <input
+              id="your-setup-silo-trick"
+              v-model="store.siloTrick"
+              type="checkbox"
+              class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-24 rounded border-slate-300 text-indigo-600"
+              aria-describedby="your-setup-silo-trick-help"
+            />
+            <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
+          </label>
+          <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-500 max-w-prose">{{ SILO_TRICK_HELP }}</p>
+        </div>
       </fieldset>
 
       <!-- No prestige days and Time off side by side from md up: with awake hours, the three kinds of "not now". -->
@@ -321,16 +341,16 @@
         >
           <TimeOffEditor kind="noPrestige" />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-            {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
+            The {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
           </p>
         </fieldset>
 
-        <!-- Time off -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
-          <div id="your-setup-time-off" class="scroll-mt-4"></div>
+        <!-- Time off. The link target is the box itself (an empty anchor div inside took space-y-2's 8 px, so its heading
+             and button sat 8 px below No prestige days' beside it; spec-tidy). -->
+        <fieldset id="your-setup-time-off" :disabled="locked" class="scroll-mt-4 rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
-            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
+            The {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
@@ -533,6 +553,9 @@
           <!-- The master Save online switch and Delete everything saved online for this account (lib/saveOnline.ts,
                Jordan 7 Nov 2026). -->
           <SaveOnlineSetup />
+          <!-- The calendar feed (spec-calendar-ui, 14 Nov 2026): its own switch, off by default; keyed by the account, so the card is
+               made for the account on screen. -->
+          <CalendarFeedSetup :key="calendarAccount" class="mt-3" />
         </div>
       </div>
 
@@ -593,12 +616,12 @@
                   </span>
                 </label>
                 <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
-                  Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+                  Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
                   Choosing here changes it there too.
                 </p>
                 <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
                   The plan starts more than an hour from now, so there's no current ascension to continue then: the first
-                  ascension starts fresh, as in {{ NAMES.classic }}.
+                  ascension starts fresh, as in the {{ NAMES.classic }}.
                 </p>
               </div>
             </fieldset>
@@ -617,7 +640,8 @@
                     {{ formatSoulEggs(store.setupFacts.soulEggs) }}
                   </dd>
                 </div>
-                <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
+                <!-- Both, side by side: a reported failure was exactly these two disagreeing. The save's own only when it
+                     differs ("197 · save says 197" said the number twice; spec-tidy). -->
                 <div>
                   <dt class="text-slate-400 label">Starting TE</dt>
                   <dd
@@ -629,7 +653,9 @@
                     "
                   >
                     {{ store.setupFacts.currentTE }}
-                    <span class="font-normal text-slate-400">· save says {{ store.setupFacts.backupTE }}</span>
+                    <span v-if="store.setupFacts.backupTE !== store.setupFacts.currentTE" class="font-normal text-slate-400"
+                      >· save says {{ store.setupFacts.backupTE }}</span
+                    >
                   </dd>
                 </div>
                 <div>
@@ -674,7 +700,7 @@
                 </div>
               </div>
               <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
-                Not used by {{ NAMES.classic }}: it builds one plan, no search.
+                Not used by the {{ NAMES.classic }}: it builds one plan, no search.
               </p>
               <WorkerSlider />
               <BackgroundSpeed />
@@ -870,6 +896,7 @@ import { useFollowStore } from '@/stores/follow';
 import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import { ageAgo } from '@/lib/saveAge';
+import { dateAt } from '@/lib/eventWhen';
 import { FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import { FIRST_ASCENSION_CHOICES } from '@/search/firstAscensionWords';
 import SchedulingInputs from './SchedulingInputs.vue';
@@ -880,10 +907,13 @@ import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
+import CalendarFeedSetup from './CalendarFeedSetup.vue';
+import { accountOf } from '@/search/runSaves';
 import { saveOnlineOn } from '@/lib/saveOnline';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
 import { SAVE_ONLINE_FOLD_OFF, SAVE_ONLINE_FOLD_ON, SAVE_ONLINE_FOLD_TITLE } from '@/lib/saveOnlineWords';
+import { SILO_TRICK_HELP, SILO_TRICK_LABEL } from '@/lib/siloTrickWords';
 
 /** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
 const REMEMBERED_TITLE =
@@ -923,6 +953,8 @@ watch(
 );
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
+/** The calendar card is made for the account on screen (components/auto/CalendarFeedSetup.vue). */
+const calendarAccount = computed(() => accountOf(initialState.rawBackup));
 const ui = useUIStore();
 /** Change player: Setup closes, the player ID box at the top opens (the save line's Close folds it again), focused. */
 function changePlayer(): void {
@@ -964,6 +996,8 @@ async function reveal(id: string): Promise<void> {
     await nextTick();
   }
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // A box (the Silo trick) takes the focus too, so the keyboard lands on it; a section (Time off) does not.
+  if (el.tagName === 'INPUT') (el as HTMLInputElement).focus({ preventScroll: true });
 }
 defineExpose({ reveal });
 /** Sharing's folds, closed on each visit: what each tick sends, and the "saved online" notices. */
@@ -1055,7 +1089,8 @@ const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;
   if (!at) return 'No save loaded yet.';
   // The one save age on Setup (lib/saveAge.ts `ageAgo`, the style every save-age line uses).
-  return `Save from ${ageAgo(Math.max(0, Date.now() / 1000 - at))} (${showDateTime(at, zone.value)}).`;
+  const nowSec = Date.now() / 1000;
+  return `Save from ${dateAt(at, nowSec, zone.value)}, ${ageAgo(Math.max(0, nowSec - at))}.`;
 });
 
 /** Problems with the save, under its line. Not the save-age note while More options is open: Start time, in it,

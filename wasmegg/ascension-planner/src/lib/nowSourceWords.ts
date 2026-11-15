@@ -8,12 +8,11 @@
  * A *Words.ts file: never part of the result code hash (lib/resultCodeHash.ts `isWordingOnly`).
  */
 
-/** The instant answer's own plan: "from the instant answer" + this. */
-export const SOURCE_INSTANT_WORDS = 'worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.';
-
-/** A followed route priced on the instant answer's data (lib/followEstimate.ts). */
-export const SOURCE_ESTIMATE_WORDS = 'your route estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.';
-
-/** The same, with the ascension you are in simulated on the save (lib/followSim.ts `withCurrentSim`). */
-export const SOURCE_ESTIMATE_SIM_WORDS =
-  'the ascension you are in simulated on your save, the rest estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.';
+/**
+ * The same three, for the "i" box beside the "from the instant answer" pill (12 Nov 2026, Jordan's review: UI moves the
+ * explainer behind it). Each starts with a capital and stands alone, no pill before it.
+ */
+export const SOURCE_INSTANT_INFO_WORDS = 'Worked out ahead of time. Times are rounded to the hour. For exact times, use a run from Try next below.';
+export const SOURCE_ESTIMATE_INFO_WORDS = 'Your route is estimated on the instant answer\'s data. Times are rounded to the hour. For exact times, use a run from Try next below.';
+export const SOURCE_ESTIMATE_SIM_INFO_WORDS =
+  'The ascension you are in is simulated on your save, and the rest is estimated on the instant answer\'s data. Times are rounded to the hour. For exact times, use a run from Try next below.';

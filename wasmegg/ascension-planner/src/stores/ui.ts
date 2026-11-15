@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
-import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
+import type { AutoView, ChainView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
@@ -29,6 +29,12 @@ export const useUIStore = defineStore('ui', () => {
   const fastestDepth = ref<Depth>(
     lastScreen?.depth ?? (readSearchMode('fastest') === 'advanced' ? 'full' : 'smart')
   );
+  /** Chain Finder's goal (spec-chainfinder, 12 Nov 2026): the screen its tab opens on, Fastest on a first visit. Follows
+   *  autoView whenever that is Fastest or By a date; the simulator (the Auto Planner tab) leaves it alone. */
+  const chainView = ref<ChainView>(lastScreen?.view ?? 'fastest');
+  watch(autoView, view => {
+    if (view !== 'classic') chainView.value = view;
+  });
   watch([autoView, fastestDepth], ([view, depth]) => writeAutoScreen(view, depth));
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
@@ -96,6 +102,9 @@ export const useUIStore = defineStore('ui', () => {
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
   const openSetupRequested = ref(0);
+  /** Where that open lands (SetupDock.vue maps it to the option): Time off unless set just before the bump, e.g. the
+   *  Build-up tracker's "Open Setup" lands on the Silo trick box (spec-silotrick-ui). SetupDock puts it back after. */
+  const openSetupAt = ref<'timeOff' | 'siloTrick'>('timeOff');
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
   /** A route handed to the Full sweep to price exactly (the instant answer's "Check exactly",
@@ -136,6 +145,7 @@ export const useUIStore = defineStore('ui', () => {
   return {
     plannerTab,
     autoView,
+    chainView,
     fastestDepth,
     compareView,
     scienceView,
@@ -152,6 +162,7 @@ export const useUIStore = defineStore('ui', () => {
     planFromInstant,
     backupRetryRequested,
     openSetupRequested,
+    openSetupAt,
     setupOpen,
     scienceSweep,
     byDateRequest,

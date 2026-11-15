@@ -85,3 +85,19 @@ describe('boostTransitionsFrom memo', () => {
     }
   });
 });
+
+describe('boostTransitionsFrom with silo seconds (upstream 14 Nov merge)', () => {
+  // The merge put upstream's silo credit (72e0de505) inside our memo split: the walk read a
+  // siloSeconds it was never passed and threw "siloSeconds is not defined" on every boost start.
+  it('walks with the credit, never through the memo, and leaves the plain list alone', () => {
+    const t = JAN_2027 + 5;
+    const plainBefore = plain(boostTransitionsFrom(snap(false), t));
+    const silo = boostTransitionsFrom(snap(false), t, undefined, 3600);
+    const starts = silo.filter(x => x.boostActive && x.atSeconds >= 0);
+    expect(starts.length).toBeGreaterThan(0);
+    for (const s of starts) expect(s.siloCreditSeconds).toBe(Math.min(s.atSeconds, 3600));
+    expect(silo).toEqual(walkBoostTransitions(snap(false), t, undefined, 3600));
+    expect(plain(boostTransitionsFrom(snap(false), t))).toEqual(plainBefore);
+    expect(plainBefore.some(x => 'siloCreditSeconds' in x)).toBe(false);
+  });
+});

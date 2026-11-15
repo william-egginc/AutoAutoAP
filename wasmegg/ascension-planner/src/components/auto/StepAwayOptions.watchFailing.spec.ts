@@ -72,7 +72,7 @@ describe('the phone link failing note', () => {
     expect(note(html)).toBe(
       `Your phone link isn&#39;t updating: the last 3 updates didn&#39;t go (the collector said 503). The last one sent was at ${clock12(LAST_OK)}. It keeps trying every 5 minutes.`
     );
-    expect(note(html)).toMatch(/\d{1,2}:\d{2} (am|pm)/);
+    expect(note(html)).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
     // Outside the fold, so it's in sight while the run goes.
     expect(html.indexOf('watch-phone-failing')).toBeLessThan(html.indexOf('fold-steppingAway'));
   });

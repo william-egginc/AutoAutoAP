@@ -7,7 +7,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import SoulEggWarning from './SoulEggWarning.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { SOUL_EGG_TIP_LABEL } from '@/lib/soulEggWords';
 
 const LINE = 'data-testid="soul-egg-warning"';
@@ -54,7 +54,7 @@ describe('SoulEggWarning', () => {
     const save = useInitialStateStore();
     save.hasData = true;
     save.soulEggs = 1e22;
-    useVirtueStore().initialShiftCount = 90;
+    usePlanStore().initialShiftCount = 90;
     const loaded = textOf(await renderHtml(SoulEggWarning, { shifts: 90, planner: true }, {}, [pinia]));
     expect(loaded).toContain('About 180 shifts since your last Path reset (90 in your save, 90 in the plan)');
   });

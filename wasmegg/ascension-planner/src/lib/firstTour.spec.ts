@@ -91,8 +91,8 @@ describe('aap.tour values', () => {
   });
 
   it('a save file with no player ID ends the tour at step 5 (Follow this route), after Simulate this plan', () => {
-    expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup']);
-    expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup']);
+    expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']);
+    expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']);
     expect(stepsFor({ hasAccount: false, hasSaveFile: true })).toEqual(['load', 'goal', 'answer', 'simulate', 'follow']);
   });
 });
@@ -202,7 +202,7 @@ describe('never sent, never synced, never in the result hash', () => {
 
 describe('words (lib/firstTourWords.ts; v2 additions DRAFT, for Words)', () => {
   it('has a title and body for every step, the welcome box, alt text, and the controls', () => {
-    for (const id of ['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup'] as const) {
+    for (const id of ['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom'] as const) {
       expect(WORDS.FIRST_TOUR_STEPS[id].title.length).toBeGreaterThan(3);
       expect(WORDS.FIRST_TOUR_STEPS[id].body.length).toBeGreaterThan(20);
       expect(WORDS.FIRST_TOUR_ALT[id].length).toBeGreaterThan(20);

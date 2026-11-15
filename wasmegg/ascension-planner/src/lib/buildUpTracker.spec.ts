@@ -53,52 +53,52 @@ describe('buildUpTracker: the oracle format (section D)', () => {
   const all = texts(r);
 
   it.each([
-    '8:47 am · buy Grav Plating 18, Autonomous Vehicles 2, Crystalline Shelling 59-67 · offline 14 min',
-    '9:01 am · buy Crystalline Shelling 84, Telepathic Will 11',
-    '9:01 am · **shift to Kindness** · offline 1 min',
-    '9:02 am · **buy 14 Hyperloop Trains (slots 1-14), cars to 5** · offline 1 min',
-    '9:03 am · **buy 2 Hyperloop Trains (slots 15-16), cars to 5** · offline 1 min',
-    '9:04 am · **buy 1 Hyperloop Train (slot 17), cars to 5**',
-    '9:04 am · **shift to Integrity** · offline 1 min',
-    '9:05 am · **buy Planet Portal in hab slot 1**',
-    '9:05 am · **buy Chicken Universe in hab slot 1** · offline 1 min',
-    '9:06 am · **buy Chicken Universe in hab slot 2**',
-    '9:06 am · **buy Chicken Universe in hab slot 4**',
-    '9:06 am · **shift to Curiosity** · offline 1 min',
-    '9:35 am · buy Atomic Purification 24',
-    'wait for the sale: offline until Fri Oct 30 10:00 am (25 min)',
-    '10:00 am · **research sale starts**',
-    '10:30 am · buy Eggsistor Miniturization 27 · offline 1 h 33 min',
-    '12:03 pm · buy Graviton Coupling 3',
-    '12:03 pm · **shift to Kindness**',
-    '12:03 pm · **train cars: all 17 trains to 8**',
-    '12:03 pm · **shift to Resilience**',
-    '12:03 pm · **buy silos #2-5** · offline 1 min',
-    '12:04 pm · **buy silos #6-8** · offline 12 min',
-    '12:16 pm · **buy silo #9**',
-    '12:16 pm · **shift to Curiosity** · offline 1 min',
-    '12:57 am · buy Timeline Diversion 41 · offline 6 h 3 min',
-    '9:49 am · buy Timeline Diversion 42 · offline 22 h 57 min',
-    '10:00 am · **research sale ends**',
-    '7:46 am · **last Sunday check-in: collect, then go offline until Mon 10:01 am (26 h 15 min)**',
-    '10:01 am · **back online inside the 2x event (nothing to buy)**',
-    'wait for the sale: offline until Fri Nov 6 10:00 am (3 d 23 h 59 min) (open the farm once a day; nothing to buy)',
-    '10:00 am · **shift to Humility**',
-    '10:00 am · **set swap: equip the ELR set**',
+    '8:47 AM · buy Grav Plating 18, Autonomous Vehicles 2, Crystalline Shelling 59-67 · offline 14 min',
+    '9:01 AM · buy Crystalline Shelling 84, Telepathic Will 11',
+    '9:01 AM · **shift to Kindness** · offline 1 min',
+    '9:02 AM · **buy 14 Hyperloop Trains (slots 1-14), cars to 5** · offline 1 min',
+    '9:03 AM · **buy 2 Hyperloop Trains (slots 15-16), cars to 5** · offline 1 min',
+    '9:04 AM · **buy 1 Hyperloop Train (slot 17), cars to 5**',
+    '9:04 AM · **shift to Integrity** · offline 1 min',
+    '9:05 AM · **buy Planet Portal in hab slot 1**',
+    '9:05 AM · **buy Chicken Universe in hab slot 1** · offline 1 min',
+    '9:06 AM · **buy Chicken Universe in hab slot 2**',
+    '9:06 AM · **buy Chicken Universe in hab slot 4**',
+    '9:06 AM · **shift to Curiosity** · offline 1 min',
+    '9:35 AM · buy Atomic Purification 24',
+    'wait for the sale: offline until Fri Oct 30 10:00 AM (25 min)',
+    '10:00 AM · **research sale starts**',
+    '10:30 AM · buy Eggsistor Miniturization 27 · offline 1 h 33 min',
+    '12:03 PM · buy Graviton Coupling 3',
+    '12:03 PM · **shift to Kindness**',
+    '12:03 PM · **train cars: all 17 trains to 8**',
+    '12:03 PM · **shift to Resilience**',
+    '12:03 PM · **buy silos #2-5** · offline 1 min',
+    '12:04 PM · **buy silos #6-8** · offline 12 min',
+    '12:16 PM · **buy silo #9**',
+    '12:16 PM · **shift to Curiosity** · offline 1 min',
+    '12:57 AM · buy Timeline Diversion 41 · offline 6 h 3 min',
+    '9:49 AM · buy Timeline Diversion 42 · offline 22 h 57 min',
+    '10:00 AM · **research sale ends**',
+    '7:46 AM · **last Sunday check-in: collect, then go offline until Mon 10:01 AM (26 h 15 min)**',
+    '10:01 AM · **back online inside the 2x event (nothing to buy)**',
+    'wait for the sale: offline until Fri Nov 6 10:00 AM (3 d 23 h 59 min) (open the farm once a day; nothing to buy)',
+    '10:00 AM · **shift to Humility**',
+    '10:00 AM · **set swap: equip the ELR set**',
   ])('has the oracle line %s', line => {
     expect(all).toContain(oracle(line));
   });
 
   it("the oracle's research ranges in the Manual Planner's form", () => {
-    expect(oracle('8:47 am · buy Grav Plating 18, Autonomous Vehicles 2, Crystalline Shelling 59-67 · offline 14 min')).toBe(
-      '8:47 am · buy Grav Plating (17 → 18), Autonomous Vehicles (1 → 2), Crystalline Shelling (58 → 67) · offline 14 min'
+    expect(oracle('8:47 AM · buy Grav Plating 18, Autonomous Vehicles 2, Crystalline Shelling 59-67 · offline 14 min')).toBe(
+      '8:47 AM · buy Grav Plating (17 → 18), Autonomous Vehicles (1 → 2), Crystalline Shelling (58 → 67) · offline 14 min'
     );
-    expect(oracle('9:02 am · **buy 14 Hyperloop Trains (slots 1-14), cars to 5** · offline 1 min')).toBe('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
+    expect(oracle('9:02 AM · **buy 14 Hyperloop Trains (slots 1-14), cars to 5** · offline 1 min')).toBe('9:02 AM · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
   });
 
   it('merges research per check-in, tiers apart, plan order', () => {
     expect(all).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min'
+      '8:42 AM · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min'
     );
   });
 
@@ -125,12 +125,12 @@ describe('buildUpTracker: the oracle format (section D)', () => {
     }
   });
 
-  it('sale buys are fixed to the clock: the engine said 9:59:58, the line says 10:00 am', () => {
-    expect(all).toContain('10:00 am · buy Eggsistor Miniturization (15 → 22), Neural Net Refinement (9 → 11) · offline 30 min');
+  it('sale buys are fixed to the clock: the engine said 9:59:58, the line says 10:00 AM', () => {
+    expect(all).toContain('10:00 AM · buy Eggsistor Miniturization (15 → 22), Neural Net Refinement (9 → 11) · offline 30 min');
   });
 
-  it('nothing inside the night: a buy due at 3:10 am is at 7:00 am, still before the sale ends', () => {
-    expect(all).toContain('7:00 am · buy Wormhole Dampening (11 → 12), Eggsistor Miniturization (39 → 40) · offline 2 h 49 min');
+  it('nothing inside the night: a buy due at 3:10 AM is at 7:00 AM, still before the sale ends', () => {
+    expect(all).toContain('7:00 AM · buy Wormhole Dampening (11 → 12), Eggsistor Miniturization (39 → 40) · offline 2 h 49 min');
     for (const c of r.checkIns) {
       const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: ZONE, hour: 'numeric', hourCycle: 'h23' }).format(c.at * 1000));
       expect(h >= 1 && h < 7, clock12(c.at, ZONE)).toBe(false);
@@ -145,7 +145,7 @@ describe('buildUpTracker: the oracle format (section D)', () => {
 
   it('days in the zone with the clock change noted and the right check-in counts', () => {
     expect(r.days.map(d => d.title)).toEqual(['Fri Oct 30', 'Sat Oct 31', 'Sun Nov 1', 'Mon Nov 2', 'Fri Nov 6', 'Sat Nov 7', 'Sun Nov 8', 'Mon Nov 9', 'Fri Nov 13']);
-    expect(r.days[2].clockNote).toBe('clocks go back 1 h at 2:00 am');
+    expect(r.days[2].clockNote).toBe('clocks go back 1 h at 2:00 AM');
     expect(r.days.filter(d => d.clockNote).length).toBe(1);
     expect(r.days.reduce((n, d) => n + d.checkIns, 0)).toBe(r.checkIns.length);
   });
@@ -160,21 +160,21 @@ describe('buildUpTracker: the oracle format (section D)', () => {
 describe('buildUpTracker: set swaps only on Humility', () => {
   it('the starting set (equipped at the prestige, before any shift) is not a swap: said on the prestige line, no note', () => {
     const r = run();
-    expect(lineText(r.lines[0])).toBe('8:41 am · prestige: start the ascension on Curiosity (earnings set on) · offline 1 min');
+    expect(lineText(r.lines[0])).toBe('8:41 AM · prestige: start the ascension on Curiosity (earnings set on) · offline 1 min');
     expect(r.days[0].lines.filter(l => l.kind === 'note' && /8:41/.test(l.time))).toHaveLength(0);
   });
   it('drops a swap made off Humility during the build-up, with a note after the check-in\'s own lines', () => {
     const r = run();
     expect(r.droppedSwaps).toBe(1);
     const notes = r.lines.filter(l => l.kind === 'note');
-    expect(notes.map(l => lineText(l))).toEqual(['12:03 pm · set swap left out: sets are swapped only on Humility (the plan had it on Resilience)']);
+    expect(notes.map(l => lineText(l))).toEqual(['12:03 PM · set swap left out: sets are swapped only on Humility (the plan had it on Resilience)']);
     expect(notes[0].tickable).toBe(false);
     // The offline tail stays on the check-in's last own line.
-    expect(texts(r)).toContain('12:03 pm · buy silos #2-5 · offline 1 min');
+    expect(texts(r)).toContain('12:03 PM · buy silos #2-5 · offline 1 min');
   });
   it("H1's update + equip of the ELR set on Humility is one bold line", () => {
     const swaps = run().lines.filter(l => l.kind === 'setSwap');
-    expect(swaps.map(l => lineText(l))).toEqual(['10:00 am · set swap: equip the ELR set']);
+    expect(swaps.map(l => lineText(l))).toEqual(['10:00 AM · set swap: equip the ELR set']);
     expect(swaps[0].bold).toBe(true);
   });
 });
@@ -194,7 +194,7 @@ describe('buildUpTracker: the silo trick against the silo time S', () => {
     expect(w.length).toBe(2);
     // 9 h back from Mon 10:01 am is inside the night: going offline at 12:59 am, the last awake minute, is 2 min too long.
     expect(w[0].text).toBe(
-      'Your silos hold 9 h: going offline Mon Nov 2 12:59 am does not reach Mon Nov 2 10:01 am. No silo trick this week: check in as planned.'
+      'Your silos hold 9 h: going offline Mon Nov 2 12:59 AM does not reach Mon Nov 2 10:01 AM. No silo trick this week: check in as planned.'
     );
   });
 
@@ -209,19 +209,19 @@ describe('buildUpTracker: the silo trick against the silo time S', () => {
     const r = run({ actions: [...fixtureActions(), extra].sort((a, b) => a.t - b.t) });
     const sun = r.days.find(d => d.title === 'Sun Nov 1')!;
     expect(sun.lines.some(l => l.kind === 'siloTrick')).toBe(false);
-    expect(sun.lines.some(l => l.kind === 'warning' && /check-in at Sun Nov 1 6:00 pm/.test(l.text))).toBe(true);
+    expect(sun.lines.some(l => l.kind === 'warning' && /check-in at Sun Nov 1 6:00 PM/.test(l.text))).toBe(true);
   });
 });
 
 describe('buildUpTracker: no hours, other zones', () => {
   it('without hours a night buy stays at its time', () => {
     const r = run({ hours: null });
-    expect(texts(r)).toContain('3:10 am · buy Wormhole Dampening (11 → 12) · offline 2 h 10 min');
+    expect(texts(r)).toContain('3:10 AM · buy Wormhole Dampening (11 → 12) · offline 2 h 10 min');
   });
 
   it('a player in another zone sees the same sale at their clock', () => {
     const r = run({ zone: 'Europe/London' });
-    expect(texts(r)).toContain('wait for the sale: offline until Fri Oct 30 4:00 pm (25 min)');
+    expect(texts(r)).toContain('wait for the sale: offline until Fri Oct 30 4:00 PM (25 min)');
   });
 });
 

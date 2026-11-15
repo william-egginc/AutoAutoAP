@@ -79,6 +79,12 @@ export interface SearchInputs {
    *  exactly what that approximates and in which direction it errs. */
   deferShifts?: boolean;
   /**
+   * Setup's "silo trick" (10 Nov 2026, off by default): the player goes offline into Monday's 2x event and collects inside it,
+   * so the away time is paid at 2x (capped at what the silos hold). On, the simulator credits it (`deferForEarningsMode`,
+   * auto/shifts/helpers/advanceTime.ts; set in `legContext`); off or absent, plans are exactly as they were.
+   */
+  siloTrick?: boolean;
+  /**
    * Time away from the virtue farm, absolute unix seconds, sorted and not overlapping: Egg Day, a
    * week chasing a legendary on the home farm. The ascension in progress ENDS when the time off
    * begins -- it keeps the TE it reached -- nothing happens while away, and the player comes back

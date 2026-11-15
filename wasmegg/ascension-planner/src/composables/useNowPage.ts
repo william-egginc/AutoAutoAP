@@ -43,11 +43,11 @@ import { accountOf } from '@/search/runSaves';
 import { plannerStartTEOf } from '@/lib/teOverrideAccount';
 import { loadHistory, type CheckEntry } from '@/search/checkHistory';
 import { GEAR_RULE } from '@/search/tableGear';
-import { getSimulationContext } from '@/engine/adapter';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import { saveOnVirtue } from '@/lib/onVirtue';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { finishesBefore } from '@/lib/eggDayRule';
-import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
+import { calculateClothedTEForSet } from 'lib/planners/artifacts/virtue';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { hoursDiffer, simulatorAge } from '@/lib/myRunsDashboard';
@@ -101,7 +101,8 @@ import {
 } from '@/lib/currentAnswer';
 import { pricedWithDays } from '@/lib/pricedWithWords';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
-import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
+import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates, type EggViewLine } from '@/lib/nextTeEgg';
+import { planEggGoalLines } from '@/lib/eggGoalTimes';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -323,6 +324,7 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
       useHours: useHoursFromStores(),
       maxAscensions: filters.maxAscensions,
       minAscensions: filters.minAscensions,
+      siloTrick: store.siloTrick,
     });
   } catch {
     return null;
@@ -2040,11 +2042,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const eggs = computed(() => {
     if (!hasSave.value) return [];
     const { delivered, earned } = saveEggCountsOf(raw.value);
-    // "to goal" beside next TE (ux29-d): Fastest to N TE's own target only; a By a date goal has no TE to reach.
-    const shown = shownTile.value;
-    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
-    const teLeft = shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null;
-    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null, teLeft);
+    // No goal TE: "next TE" says nothing of the goal, and "to goal" is the plan's (spec-myruns-fix2, 13 Nov 2026).
+    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null, null);
   });
   /** Each egg the player isn't on: its next TE after a shift to it (lib/nextTeEgg.ts), by egg, and the one note under
    *  them. The save's farm at full habs, the habs refilling at the hatchery rate at or below 100 TE in all. */
@@ -2056,48 +2055,43 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!Object.keys(lines).length) return null;
     return { lines, note: afterShiftNote(totalTe, saveSeconds.value, now.value, zone.value) };
   });
-  /** Your eggs' "to goal" view (28 Oct 2026, pieha; lib/nextTeEgg.ts `eggGoalLines`): every egg's time to the goal
-   *  picked on Right now. Fastest to N TE: its TE left; By a date: the plan's finish (none without a plan). */
+  /** Your eggs' "to goal" view (28 Oct 2026, pieha; spec-myruns-fix2, 13 Nov 2026: what the plan says, lib/nextTeEgg.ts
+   *  `eggGoalLines`): the plan shown on Right now, its goal TE and finish, any goal; none without a plan. */
   const goalLines = computed<Record<string, string>>(() => {
     if (!hasSave.value || !onVirtue.value) return {};
-    const shown = shownTile.value;
-    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
     const p = cardPlan.value?.plan;
-    const goal =
-      shown.goal === 'fastest'
-        ? shown.target > totalTe
-          ? { kind: 'te' as const, teLeft: shown.target - totalTe }
-          : null
-        : p
-          ? { kind: 'date' as const, endTE: p.endTE, finish: planFinish(p), zone: zone.value }
-          : null;
     return eggGoalLines({
       eggs: eggs.value,
-      delivered: saveEggCountsOf(raw.value).delivered,
-      totalTe,
-      rates: fullHabRates.value,
-      goal,
+      goal: p ? { endTE: p.endTE, finish: planFinish(p), zone: zone.value, rounded: !p.exact } : null,
       now: now.value,
-      saveSeconds: saveSeconds.value,
     });
   });
-  /** Each egg's day and time beside its line, both views (ux34-a, lib/nextTeEgg.ts `eggClockLines`): from now, or from
-   *  the plan's next shift to that egg in Next shifts. The "to goal" times for a Fastest to N TE goal only. */
+  /** Your eggs' lines beside each egg (lib/nextTeEgg.ts `eggClockLines`): "next TE", each egg's next TE day and time
+   *  from now; "to goal", the plan's Next shifts to each egg. */
   const clockLines = computed<{ next: Record<string, string>; goal: Record<string, string> } | null>(() => {
     if (!hasSave.value || !onVirtue.value) return null;
-    const shown = shownTile.value;
     const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
     return eggClockLines({
       eggs: eggs.value,
       delivered: saveEggCountsOf(raw.value).delivered,
       totalTe,
       rates: fullHabRates.value,
-      teLeft: shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null,
       now: now.value,
       saveSeconds: saveSeconds.value,
       zone: zone.value,
       shifts: nextShiftLines.value,
+      plan: !!cardPlan.value?.plan,
     });
+  });
+  /** Your eggs' "to goal" per egg (spec-myruns-goal, lib/eggGoalTimes.ts): each egg's goal time on the plan shown on
+   *  Right now, the end of its last stint, from the plan's own shift lists (the exact legs, else the table's with the
+   *  replay's and the simulated ascension's shifts); approximate with the player's hours on (`stepHours`). Null: the
+   *  plan can't say per egg (its final ascension has no shifts), and "to goal" keeps the plan-shift lines. */
+  const goalTimes = computed<Record<string, EggViewLine> | null>(() => {
+    if (!hasSave.value || !onVirtue.value) return null;
+    const p = cardPlan.value?.plan;
+    if (!p) return null;
+    return planEggGoalLines({ plan: p, now: now.value, zone: zone.value, hours: !!stepHours.value, saveEgg: currentEgg.value });
   });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
@@ -2286,6 +2280,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     afterShift,
     goalLines,
     clockLines,
+    goalTimes,
     phase,
     startInfo,
     eggs,

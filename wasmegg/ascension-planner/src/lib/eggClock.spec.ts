@@ -2,8 +2,8 @@
  * YOUR EGGS: THE CLOCK TIME PER EGG (ux34-a, 28 Oct 2026). Beside "next TE in ~2d 11h" each egg also says the day and
  * time in the browser's own format ("next TE about Wed, Oct 30 at 11:00 AM", lib/eventWhen.ts `dateAt` with the
  * weekday). The egg being laid: from now at the save's rate. Every other egg: "… if you shift now" (now + the egg's
- * after-shift time), or, when the plan's Next shifts has a shift to it, "… after your planned shift here on <when>"
- * (that shift's time + the egg's after-shift time). The same in the "to goal" view (a Fastest to N TE goal).
+ * after-shift time), always: since spec-myruns-fix2 (13 Nov 2026) never timed from the plan's shift to it, and the
+ * "to goal" view has no times of its own, only the plan's shift to each egg (`goal`, with a followed plan).
  * The clock is fixed (vi.setSystemTime) and every fixture is relative to it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ import { eggClockLines, eggNextTeSeconds } from './nextTeEgg';
 import { eggLines } from './farmFacts';
 import { dateAt } from './eventWhen';
 import { getThresholdForTE } from './truthEggs';
+import { GOAL_NO_SHIFT_WORDS, GOAL_ON_EGG_WORDS, goalShiftWords } from './yourEggsWords';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import YourEggs from '@/components/myruns/YourEggs.vue';
 
@@ -32,14 +33,14 @@ const at30 = getThresholdForTE(30);
 const delivered = { curiosity: at30, kindness: at30, integrity: at30, humility: at30, resilience: at30 };
 const rates = { maxHabs: 1e10, perChicken: 200, maxElr: 2e12, ihr: 1e4 };
 
-function clock(o: { teLeft?: number | null; shifts?: { kind: string; egg?: string; at: number }[]; save?: number } = {}) {
-  const eggs = eggLines(delivered, {}, 'curiosity', 1e12, o.teLeft ?? null);
+function clock(o: { plan?: boolean; shifts?: { kind: string; egg?: string; at: number }[]; save?: number } = {}) {
+  const eggs = eggLines(delivered, {}, 'curiosity', 1e12, null);
   return eggClockLines({
     eggs,
     delivered,
     totalTe: 150,
     rates,
-    teLeft: o.teLeft ?? null,
+    plan: o.plan ?? false,
     now: NOW,
     saveSeconds: o.save ?? NOW,
     zone: ZONE,
@@ -63,24 +64,21 @@ describe('eggClockLines (lib/nextTeEgg.ts)', () => {
     expect(l.next.kindness).toBe(`next TE about ${dateAt(NOW + t, NOW, ZONE, true)} if you shift now`);
   });
 
-  it("a shift to it in the plan's Next shifts: that shift's time + the egg's after-shift time", () => {
+  it("a shift to it in the plan's Next shifts: still from now (\"next TE\" is if you shift now)", () => {
     const t = eggNextTeSeconds({ delivered: at30, current: false, population: 0, totalTe: 150, rates })!;
     const S = NOW + 5 * H;
-    const l = clock({ shifts: [{ kind: 'prestige', at: NOW + H }, { kind: 'shift', egg: 'humility', at: S }, { kind: 'shift', egg: 'humility', at: S + D }] });
-    expect(l.next.humility).toBe(`next TE about ${dateAt(S + t, NOW, ZONE, true)} after your planned shift here on ${dateAt(S, NOW, ZONE, true)}`);
-    // The others still from now.
-    expect(l.next.kindness).toMatch(/ if you shift now$/);
+    const l = clock({ plan: true, shifts: [{ kind: 'prestige', at: NOW + H }, { kind: 'shift', egg: 'humility', at: S }, { kind: 'shift', egg: 'humility', at: S + D }] });
+    expect(l.next.humility).toBe(`next TE about ${dateAt(NOW + t, NOW, ZONE, true)} if you shift now`);
   });
 
-  it('the "to goal" view: the same structure with the goal time', () => {
+  it('the "to goal" view: the plan\'s first shift to each egg, the egg you are on, or none listed (DRAFT words)', () => {
     const S = NOW + 5 * H;
-    const need = getThresholdForTE(32) - at30;
-    const l = clock({ teLeft: 2, shifts: [{ kind: 'shift', egg: 'humility', at: S }] });
-    expect(l.goal.kindness).toBe(`to goal about ${dateAt(NOW + need / 2e12, NOW, ZONE, true)} if you shift now`);
-    expect(l.goal.humility).toBe(`to goal about ${dateAt(S + need / 2e12, NOW, ZONE, true)} after your planned shift here on ${dateAt(S, NOW, ZONE, true)}`);
-    expect(l.goal.curiosity).toMatch(/^to goal about .+ at \d{1,2}:\d{2}\s?[AP]M$/);
-    // No Fastest goal: no goal times.
-    expect(clock().goal).toEqual({});
+    const l = clock({ plan: true, shifts: [{ kind: 'shift', egg: 'humility', at: S }] });
+    expect(l.goal.humility).toBe(goalShiftWords(dateAt(S, NOW, ZONE, true)));
+    expect(l.goal.curiosity).toBe(GOAL_ON_EGG_WORDS);
+    expect(l.goal.kindness).toBe(GOAL_NO_SHIFT_WORDS);
+    // No plan: no goal lines.
+    expect(clock({ shifts: [{ kind: 'shift', egg: 'humility', at: S }] }).goal).toEqual({});
   });
 
   it('nothing when there is no time (no rates, over about 10 years)', () => {
@@ -89,7 +87,6 @@ describe('eggClockLines (lib/nextTeEgg.ts)', () => {
       delivered,
       totalTe: 150,
       rates: null,
-      teLeft: null,
       now: NOW,
       saveSeconds: NOW,
       zone: ZONE,
@@ -99,9 +96,9 @@ describe('eggClockLines (lib/nextTeEgg.ts)', () => {
   });
 });
 
-describe('YourEggs shows the clock line under each egg, in both views', () => {
+describe('YourEggs shows the clock line under each egg in "next TE", the plan line in "to goal"', () => {
   const props = () => ({
-    eggs: eggLines(delivered, {}, 'curiosity', 1e12, 2),
+    eggs: eggLines(delivered, {}, 'curiosity', 1e12, null),
     facts: null,
     shiftsDone: 0,
     nextShiftCost: null,
@@ -111,8 +108,8 @@ describe('YourEggs shows the clock line under each egg, in both views', () => {
     now: NOW,
     saveSeconds: NOW,
     afterShift: { lines: { kindness: 'next TE in ~2d after you shift here' }, note: 'note' },
-    goalLines: { kindness: 'to goal about ~4d after you shift here' },
-    clockLines: clock({ teLeft: 2 }),
+    goalLines: { curiosity: 'g', kindness: 'g', integrity: 'g', humility: 'g', resilience: 'g' },
+    clockLines: clock({ plan: true, shifts: [{ kind: 'shift', egg: 'kindness', at: NOW + D }] }),
   });
   it('"next TE": the duration line kept, the clock line beside it', async () => {
     const p = props();
@@ -124,11 +121,11 @@ describe('YourEggs shows the clock line under each egg, in both views', () => {
     expect(html).toContain('data-testid="now-egg-when"');
     expect(t).not.toContain(p.clockLines.goal.kindness);
   });
-  it('"to goal": the goal line kept, the goal clock line beside it', async () => {
+  it('"to goal": the plan line, no next TE lines', async () => {
     const p = props();
     const t = textOf(await renderHtml(YourEggs, { ...p, view: 'goal' }));
-    expect(t).toContain('to goal about ~4d after you shift here');
     expect(t).toContain(p.clockLines.goal.kindness);
+    expect(t).not.toContain('next TE in ~2d after you shift here');
     expect(t).not.toContain(p.clockLines.next.kindness);
   });
 });

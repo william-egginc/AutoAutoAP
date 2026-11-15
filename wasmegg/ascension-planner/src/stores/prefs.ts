@@ -421,8 +421,8 @@ export const usePrefsStore = defineStore('prefs', () => {
     if (cloud && !s?.isRunning) {
       const kept = readLocalAt(hash, 'setup');
       const here = sigNow('setup');
-      // Newer online; or the same save as this browser's last, with this page not showing it (the target isn't kept
-      // in this browser, so a reload puts it back from here).
+      // Newer online; or the same save as this browser's last, with this page not showing it (the time zone isn't kept
+      // with Your setup in this browser; the target is since 13 Nov 2026, lib/setupMemory.ts).
       const take = cloudIsNewer(cloud.at, localSetupAt(hash)) || (!!kept && !kept.pending && kept.at === cloud.at && kept.sig !== here);
       if (take) takeSetup(hash, cloud);
       else synced.setup = here;

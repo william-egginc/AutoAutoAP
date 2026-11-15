@@ -375,7 +375,7 @@ const emptyText = computed(() =>
 const countWords = computed(() => {
   const n = built.value.points.length;
   if (!built.value.goals.length) {
-    if (props.boardFailed) return " · couldn't read the leaderboard";
+    if (props.boardFailed) return ' · not loaded';
     return props.rows === null && !savedCount.value ? ' · loading' : ' · none yet';
   }
   return ` (${n} ${n === 1 ? 'route' : 'routes'}, ${built.value.goals.length} ${built.value.goals.length === 1 ? 'goal' : 'goals'})`;

@@ -14,7 +14,7 @@ import { createChainSearchPool, WorkerLostError, type PoolFault } from './pool';
 import type { SearchInputs } from './types';
 import type { WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
 
-vi.mock('@/lib/artifacts/utils', () => ({ sanitizeLongs: <T>(v: T) => v }));
+vi.mock('lib/planners/artifacts/utils', () => ({ sanitizeLongs: <T>(v: T) => v }));
 vi.mock('./batch', () => ({
   maxPoolSize: () => 2,
   hardwareThreads: () => 4,

@@ -315,9 +315,9 @@ describe('automatic carry-on', () => {
 describe('clock12', () => {
   it('writes 12-hour times', () => {
     const d = new Date(2026, 9, 5, 0, 7);
-    expect(clock12(d.getTime())).toBe('12:07 am');
-    expect(clock12(new Date(2026, 9, 5, 15, 30).getTime())).toBe('3:30 pm');
-    expect(clock12(new Date(2026, 9, 5, 12, 0).getTime())).toBe('12:00 pm');
+    expect(clock12(d.getTime())).toBe('12:07 AM');
+    expect(clock12(new Date(2026, 9, 5, 15, 30).getTime())).toBe('3:30 PM');
+    expect(clock12(new Date(2026, 9, 5, 12, 0).getTime())).toBe('12:00 PM');
   });
 });
 

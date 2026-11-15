@@ -174,7 +174,7 @@ describe('not on virtue yet', () => {
     expect(t).toContain('If you start Oct 30 at 6:00 PM: 490 on Nov 20 at 1:00 PM (Fastest to 490 TE, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
     // No goal in brackets with the goal switch on screen (UX fluff review 2, 5 Nov 2026, item R3).
-    expect(t).toContain('If you start then: Following 198 → 490');
+    expect(t).toContain("If you start then, the instant answer's route: 198 → 490");
     expect(html).toContain('data-testid="now-goal-switch"');
     expect(t).toContain('Full timeline');
   });
@@ -230,7 +230,7 @@ describe('the corner badge and the gear', () => {
     expect(b).toContain('data-phase="building"');
     expect(textOf(b.match(/<span[^>]*data-testid="now-phase"[\s\S]*?<\/span>/)![0])).toBe('Building');
     // The rate sits smaller underneath the badge, on the egg's own line (16 Oct 2026, Jordan).
-    expect(textOf(b.match(/<span[^>]*data-testid="now-phase-rate"[\s\S]*?<\/span>/)![0])).toMatch(/^.+\/hr · from your save$/);
+    expect(textOf(b.match(/<span[^>]*data-testid="now-phase-rate"[\s\S]*?<\/span>/)![0])).toMatch(/^.+\/hr with your earnings set$/);
     const p = textOf(
       await renderHtml(RightNowCard, cardProps({ phase: { phase: 'producing', elr: 2e12, elrFrom: 'projected' } }))
     );

@@ -44,7 +44,7 @@ export function simulateRoute(
  * (byDateSimulate.ts). An A1 that continued the build-up has no Single run equivalent: Classic prices that ascension
  * as a fresh build or a continue, so `note` says its dates can run later.
  */
-export const INSTANT_BUILDUP_NOTE = `This route's first ascension continues your build-up, which ${NAMES.classic} can't do: it starts that ascension with a fresh build (or the farm as it is), so its dates can run later than this answer's.`;
+export const INSTANT_BUILDUP_NOTE = `This route's first ascension continues your build-up, which the ${NAMES.classic} can't do: it starts that ascension with a fresh build (or the farm as it is), so its dates can run later than this answer's.`;
 
 export function instantSimulate(
   route: { legs: readonly { label: string }[] } | null | undefined,

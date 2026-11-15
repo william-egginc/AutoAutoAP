@@ -78,7 +78,7 @@ describe('installStorageGuard', () => {
     const { installStorageGuard } = await import('./storageGuard');
     installStorageGuard(win);
     vi.stubGlobal('localStorage', win.localStorage);
-    const mod = await import('@/composables/useCompactActionHistory');
+    const mod = await import('lib/planners/composables/useCompactActionHistory');
     expect(mod.compactActionHistory.value).toBe(true);
   });
 });

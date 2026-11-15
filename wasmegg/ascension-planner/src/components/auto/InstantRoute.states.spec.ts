@@ -24,6 +24,7 @@ import { compileTemplate, parse } from '@vue/compiler-sfc';
 import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
 import { HOURS_NOTE } from '@/lib/hoursNote';
+import { formatMoment } from '@/lib/clock';
 import { instantLiveText } from '@/lib/liveStatus';
 import { headlineGap, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';
@@ -39,14 +40,15 @@ import {
   firstStepLine,
   FIRST_STEP_HOURS,
   FIRST_STEP_HOURS_NIGHT_BUY,
-  mergeFirstStepCaveats,
 } from '@/lib/instantWords';
-import { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import * as cardWords from '@/lib/instantCardWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const { descriptor } = parse(source);
@@ -79,6 +81,7 @@ const PARTS = [
   'InstantShareCheck',
   'GearCaveat',
   'InstantUnloaded',
+  'CardHelp',
 ];
 const stub = (name: string) =>
   defineComponent({ name, setup: (_p, { slots }) => () => h('div', { 'data-part': name }, slots.default?.()) });
@@ -131,21 +134,26 @@ function ctxOf(s: State): Record<string, unknown> {
     FIRST_STEP_LABEL: 'First step:',
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
+    firstStepShortText: '',
     firstStepWarn: '',
     nightBuyNote: false,
     stepCaveat: { step: '', note: null },
-    NIGHT_BUY_NOTE_SHORT,
-    NIGHT_BUY_TIP,
+    INSTANT_NIGHT_BUY_NOTE,
+    INSTANT_NIGHT_BUY_TIP,
     FIRST_STEP_BUILDUP_MISSING_LEAD,
     INSTANT_ESTIMATE_LINE,
+    // The card's words (lib/instantCardWords.ts), the real ones.
+    ...cardWords,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
     SHARE_WHAT: '',
-    SIMULATE_TITLE: '',
+    TIP_SIMULATE: '',
     SECONDARY_BUTTON: 'btn',
     START_WAIT_LABEL: 'From before: waiting for your save.',
     TABLE_URL: '/precompute/table-v2.bin',
     TIGHT_SECONDS: 86400,
+    CLOSE_CALL_TAG: 'close call',
+    closeCall: null,
     USEFUL_STOP_NOTE: '',
     alongside: false,
     answerStart: 0,
@@ -168,7 +176,10 @@ function ctxOf(s: State): Record<string, unknown> {
     // The screen's More (the simpler default page, 9 Nov 2026): none here, so everything stays on the card.
     moreTo: undefined,
     moreEl: null,
+    filtersEl: null,
+    filtersHome: null,
     moreHowEl: null,
+    nowEl: null,
     ROW_HINT: 'Open a row to follow or simulate that route instead.',
     countOpen: () => false,
     toggleCount: () => {},
@@ -191,6 +202,7 @@ function ctxOf(s: State): Record<string, unknown> {
     followGoal: 'date',
     boxGain: '',
     headCaveat: null,
+    gearEffect: null,
     gearDiffers: false,
     gearTable: false,
     header: { from: 120, to: 489, cteBonus: 128.71, gearTo: 489 },
@@ -251,6 +263,7 @@ function ctxOf(s: State): Record<string, unknown> {
     shareEl: null,
     shiftedTable: true,
     show: (unix: number) => `t${unix}`,
+    showNear: (unix: number) => `n${unix}`,
     showFinish: (unix: number) => `t${unix}`,
     showMoreCounts: false,
     shownRows: result ? [result.best] : [],
@@ -271,13 +284,19 @@ function ctxOf(s: State): Record<string, unknown> {
     whatIf: null,
     whileWaiting: (has: boolean) => ({ text: has ? 'The answer below is from before your search.' : 'Waits for your search to end.' }),
     zone: 'America/Los_Angeles',
+    // The near-target note under Every number of ascensions (off unless a test turns it on).
+    nearTarget: false,
+    TARGET_TE_WORDS,
+    // The answer on screen was worked out for another date than the one now picked (off unless a test turns it on).
+    deadlineStale: false,
   };
 }
 
 async function draw(s: State, over: Record<string, unknown> = {}, real: Record<string, Vue.Component> = {}): Promise<string> {
   const ctx = { ...ctxOf(s), ...over };
-  // First step and its one caveat line, as the page works them out (lib/instantWords.ts mergeFirstStepCaveats).
-  if (!('stepCaveat' in over)) ctx.stepCaveat = mergeFirstStepCaveats(String(ctx.firstStep ?? ''), !!ctx.nightBuyNote);
+  // First step and the night-buy note, as the page works them out.
+  // First step keeps its awake-hours clause; the night-buy note goes behind the quick-estimate "?" (Jordan, 12 Nov 2026).
+  if (!('stepCaveat' in over)) ctx.stepCaveat = { step: String(ctx.firstStep ?? ''), note: ctx.nightBuyNote ? INSTANT_NIGHT_BUY_NOTE : null };
   const cache: unknown[] = [];
   const app = createSSRApp({ render: () => h(defineComponent({ render: () => render(ctx, cache) })) });
   // `real`: a part drawn as itself, not a stand-in (the Prestige by line below).
@@ -287,6 +306,8 @@ async function draw(s: State, over: Record<string, unknown> = {}, real: Record<s
   // The moving dots (spec-dots, 1 Nov 2026): the real ones.
   app.component('AnimatedDots', AnimatedDots);
   app.component('PendingText', PendingText);
+  // The buttons' tips (Tip.vue, 9 Nov 2026): the button alone, with the id its slot hands it.
+  app.component('Tip', defineComponent({ name: 'Tip', setup: (_p, { slots }) => () => slots.default?.({ describedby: 'tip-stub' }) }));
   app.config.warnHandler = () => {};
   return renderToString(app);
 }
@@ -371,6 +392,77 @@ describe('InstantRoute: every state draws something', () => {
     expect(html).toContain('314 TE');
     expect(html).toContain('data-testid="inside-hours"');
     expect(html).toContain('data-testid="saved-answer"');
+  });
+});
+
+describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the same as before", () => {
+  const box: State = {
+    answer: 'date',
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: true,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: true,
+  };
+  const textOf = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  it('the saved-from sentence and Work it out again, with and without a plan start', async () => {
+    expect(textOf(await draw(box))).toContain(
+      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again. Work it out again'
+    );
+    expect(textOf(await draw(box, { answerStart: 1_792_003_600 }))).toContain(
+      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600).'
+    );
+  });
+  it('the saved answer: ONE line in the heading row, "Saved answer, <when>", its sentence behind the "?", Work it out again beside it (Jordan, 12 Nov 2026)', async () => {
+    const html = (await draw(box, { answerStart: 1_792_003_600 })).replace(/<!--[\s\S]*?-->/g, '');
+    const at = html.indexOf('data-testid="saved-answer"');
+    expect(at).toBeGreaterThan(html.indexOf('</h3>'));
+    // In the heading row: before the row closes and before the green box.
+    const row = html.slice(html.indexOf('<h3'), html.indexOf('data-testid="instant-box"'));
+    expect(row).toContain('data-testid="saved-answer"');
+    const line = html.slice(html.lastIndexOf('<p', at), html.indexOf('</p>', at) + 4);
+    expect(line).not.toMatch(/bg-slate-50|border-slate-200|rounded-lg/);
+    expect(line).toContain('text-small');
+    // The label's time without this year's year (showNear, QA t241 at 390: it kept Work it out again on the line);
+    // the sentence behind the "?" keeps the full date.
+    expect(textOf(line)).toBe(
+      'Saved answer, n1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600). Work it out again'
+    );
+    // Today's sentence inside the "?" (CardHelp), word for word.
+    const help = line.slice(line.indexOf('data-part="CardHelp"'));
+    expect(textOf(help.slice(0, help.indexOf('</div>')))).toContain('Saved from t1792000000: same save, setup and filters');
+    const button = line.match(/<button[^>]*>/)![0];
+    expect(button).toContain('min-h-[44px] sm:min-h-0');
+    expect(button).toContain('focus-visible:ring-2');
+  });
+  it('the route and Reached in ONE line (instantCardWords routeReachedLine; Jordan, 12 Nov 2026)', async () => {
+    const html = await draw(box);
+    const inBox = textOf(html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"')));
+    expect(inBox).toContain('314 TE');
+    // The box label without this year's year (showNear; Jordan, 12 Nov 2026 pm).
+    expect(inBox).toContain(`Highest TE by n${DEADLINE}`);
+    expect(inBox).toContain(`Route 197 → 222 → 251 → 282 → 314 · reached n${dateRoute.end} · 5 ascensions`);
+    // The route is said once in the box (not again on a line of its own).
+    expect(inBox.split('197 → 222 → 251 → 282 → 314').length - 1).toBe(1);
+    expect(html).toMatch(/data-testid="box-route"[^>]*>|class="[^"]*tabular-nums[^"]*"[^>]*data-testid="box-route"/);
+  });
+  it('a one-ascension route: no route (the TE above says it), only "Reached <when>"', async () => {
+    const one = route([203], DEADLINE - 166_440);
+    const html = await draw(box, { result: { ...resultOf('date')!, byDate: one }, dateRows: [one] });
+    const line = html.slice(html.indexOf('data-testid="box-route"'));
+    expect(textOf(line.slice(line.indexOf('>') + 1, line.indexOf('</div>')))).toBe(`Reached n${one.end}`);
+  });
+  it('showNear: the year only when it is not this year (./instantCardTime.ts on clock.ts formatMoment year auto), ISO as before (QA t241, 390 px)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
+    const fn = src.slice(src.indexOf('function showNear'), src.indexOf('\n}', src.indexOf('function showNear')));
+    expect(fn).toContain('cardTime(unix, zone.value)');
+    expect(fs.readFileSync(path.resolve(__dirname, 'instantCardTime.ts'), 'utf8')).toContain("year: 'auto'");
+    expect(formatMoment(Date.UTC(2026, 10, 18, 22, 46), { zone: 'America/Los_Angeles', year: 'auto', now: Date.UTC(2026, 10, 12), locale: 'en-US' })).toBe('Nov 18, 2:46 PM');
   });
 });
 
@@ -541,16 +633,78 @@ describe('the screens put the card in the guard', () => {
   }
 });
 
+describe('the filters under Filters, the table on the card (Jordan, 12 Nov 2026 pm)', () => {
+  const tpl = source.slice(0, source.indexOf('<script setup'));
+  const block = (from: number) => tpl.slice(from, tpl.indexOf('</Teleport>', from));
+  it('one Teleport to the Filters target (else More, else here): the tick, the range, its line and Prefer fewer, in that order', () => {
+    const at = tpl.indexOf(`<Teleport :to="filtersHome ?? 'body'"`);
+    expect(at).toBeGreaterThan(-1);
+    const b = block(at);
+    const order = ['data-testid="inside-hours"', 'data-testid="instant-asc-range"', 'data-testid="instant-range-note"', '<PreferFewerControl'].map(m => b.indexOf(m));
+    expect(order.every(i => i > -1), String(order)).toBe(true);
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    // The one line under the title stays in More, not with the filters.
+    expect(b).not.toContain('data-testid="instant-header"');
+    // One place per control.
+    expect(tpl.match(/<PreferFewerControl/g)).toHaveLength(1);
+    expect(tpl.match(/data-testid="inside-hours"/g)).toHaveLength(1);
+  });
+  it('Every number of ascensions is drawn on the card, not teleported; the maxed-gear what-if goes to More', () => {
+    for (const m of tpl.matchAll(/data-testid="counts-card"/g)) {
+      const before = tpl.slice(0, m.index);
+      expect(before.lastIndexOf('<Teleport')).toBeLessThan(before.lastIndexOf('</Teleport>'));
+    }
+    for (const m of tpl.matchAll(/<MaxedWhatIf/g)) {
+      const before = tpl.slice(0, m.index);
+      expect(before.slice(before.lastIndexOf('<Teleport'))).toContain(`:to="moreEl ?? 'body'"`);
+      expect(before.lastIndexOf('<Teleport')).toBeGreaterThan(before.lastIndexOf('</Teleport>'));
+    }
+  });
+  it('drawn with no screen targets: the filters and Prefer fewer on the card, Prefer fewer once per goal', async () => {
+    const st = (answer: Answer, deadline: boolean): State => ({ answer, status: 'done', below: false, noTable: false, hold: false, deadline, hours: true, waiting: false, saveWait: false, atTarget: false, saved: false });
+    for (const [a, d] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(st(a, d));
+      expect(html.match(/data-part="PreferFewerControl"/g), a).toHaveLength(1);
+      expect(html).toContain('data-testid="inside-hours"');
+      expect(html).toContain('data-testid="counts-card"');
+    }
+  });
+  it('More\'s line names changed filters only while they are in More (no Filters target)', () => {
+    const script = source.slice(source.indexOf('<script setup'));
+    expect(script).toContain('const filtersHome = computed(() => filtersEl.value ?? moreEl.value);');
+    expect(script).toContain("const filtersEl = useTeleportTarget(() => (props.filtersTo ? `#${props.filtersTo}` : undefined), () => !!result.value);");
+    expect(script).toContain("emit('more-changes', filtersEl.value ? [] : c)");
+  });
+});
+
+describe('on a phone the green box is the card (Jordan, 12 Nov 2026 pm; phone proposal item a)', () => {
+  const tpl = source.slice(0, source.indexOf('<script setup'));
+  it('the outer card has its border, background and padding from sm only; the green box 12 px sides on a phone', () => {
+    const outer = tpl.match(/<section v-if="!noTable" class="([^"]*)"/)![1].split(' ');
+    for (const c of ['sm:rounded-2xl', 'sm:border', 'sm:bg-white', 'sm:p-4']) expect(outer, c).toContain(c);
+    for (const c of ['border', 'p-4', 'bg-white', 'rounded-2xl']) expect(outer, c).not.toContain(c);
+    const boxes = [...tpl.matchAll(/<div [^>]*class="([^"]*)"[^>]*data-testid="instant-box"/g)].map(m => m[1].split(' '));
+    expect(boxes).toHaveLength(2);
+    for (const b of boxes) {
+      expect(b).toContain('px-3');
+      expect(b).toContain('sm:px-4');
+      expect(b).not.toContain('px-4');
+    }
+  });
+});
+
 describe('the share Teleport lives as long as the card', () => {
   it('not inside the answer or the integrity hold; only its content comes and goes', () => {
     const tpl = source.slice(0, source.indexOf('<script setup'));
     // The More parts' Teleports (the simpler page, 9 Nov 2026) come first: never deferred, to looked-up elements
     // (moreEl, moreHowEl) and disabled without one, as this one. The share line's is the last.
+    // The better-route line's two (to the Following bar, nowEl; the card clean-up, 12 Nov 2026) are the same kind, and
+    // the filters' one (to the Filters slot, else More; 12 Nov 2026 pm).
     const more = tpl.match(/<Teleport [^>]*>/g)!.slice(0, -1);
-    expect(more.length).toBe(4);
+    expect(more.length).toBe(7);
     for (const t of more) {
       expect(t).not.toContain('defer');
-      expect(t).toMatch(/:to="more(How)?El \?\? 'body'" :disabled="!more(How)?El"/);
+      expect(t).toMatch(/:to="((more(How)?|now)El|filtersHome) \?\? 'body'" :disabled="!((more(How)?|now)El|filtersHome)"/);
     }
     const at = tpl.lastIndexOf('<Teleport');
     // After both sections: a sibling of the card, not inside it.
@@ -632,11 +786,22 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     expect(plain).toContain('8d to spare');
     expect(plain).not.toContain('data-testid="box-tight"');
     const caveat = await draw(at('date', true), { dateSpare: spareLine(3 * D, true, 'en-US') });
-    expect(caveat).toContain('3d to spare, maybe none on your gear');
+    expect(caveat).toContain('3d to spare');
+    expect(caveat).not.toContain('maybe none on your gear');
     expect(caveat).toContain('data-testid="box-tight"');
     expect(caveat).toMatch(/text-amber-700[^>]*data-testid="box-spare"|data-testid="box-spare"[^>]*text-amber-700/);
     const none = await draw(at('date', true), { dateSpare: spareLine(3 * D, false, 'en-US') });
     expect(none).not.toContain('data-testid="box-tight"');
+  });
+
+  it('By a date: a close call says so, in place of "tight", and is not shown as reached', async () => {
+    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.';
+    const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
+    expect(html).toContain('data-testid="box-close-call"');
+    expect(html).toContain('Run Custom to confirm.');
+    expect(html).toMatch(/data-testid="box-tight"[^>]*>close call</);
+    const calm = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
+    expect(calm).not.toContain('data-testid="box-close-call"');
   });
 
   it('Fastest: "in 5.1 years", compact (ux29-d); no "worked out ahead" badge; the "instant answer" tag gone (spec-slimcard)', async () => {
@@ -982,6 +1147,26 @@ describe('the slim card: one line under the title, First step in the box', () =>
       expect(step).toBeLessThan(box.indexOf('data-testid="box-actions"'));
       expect(step).toBeLessThan(box.indexOf('<InstantSteps'));
     });
+    it(`${name}: First step is the short sentence, today's whole sentence behind its "?" (Jordan, 12 Nov 2026 pm)`, async () => {
+      const SHORT = 'continue your current ascension to 218 TE, then prestige Dec 22 at 9:00 PM sharp.';
+      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: SHORT })).replace(/<!--[\s\S]*?-->/g, '');
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      const i = box.indexOf('data-testid="box-first-step"');
+      const p = box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
+      const help = p.indexOf('data-part="CardHelp"');
+      expect(help).toBeGreaterThan(-1);
+      // Visible: the label and the short sentence, then the "?".
+      expect(textOf(p.slice(0, p.lastIndexOf('<', help)))).toBe(`First step: ${SHORT}`);
+      // Behind the "?": today's whole sentence, word for word, with its label.
+      expect(textOf(p.slice(p.indexOf('>', help) + 1))).toBe(`First step: ${STEP}`);
+      expect(p).toContain('text-body text-slate-800');
+    });
+    it(`${name}: no "?" when the short sentence is the whole sentence (Words: draw it only when they differ)`, async () => {
+      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: STEP })).replace(/<!--[\s\S]*?-->/g, '');
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      const i = box.indexOf('data-testid="box-first-step"');
+      expect(box.slice(i, box.indexOf('</p>', i))).not.toContain('data-part="CardHelp"');
+    });
     it(`${name}: no line with no box; no First step without one`, async () => {
       expect(await draw(at(answer, deadline), { ...slim, boxShown: false, result: null })).not.toContain('data-testid="instant-header"');
       expect(await draw(at(answer, deadline), { ...slim, firstStep: '' })).not.toContain('data-testid="box-first-step"');
@@ -1044,6 +1229,15 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
   it('the page: First step reads the kind from the first leg and the answer\'s buildUpMissing', () => {
     expect(script).toContain('const kind = firstStepKind(legs[0].label);');
     expect(script).toMatch(/firstStepLine\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
+    // The short form (12 Nov 2026 pm, Words' firstStepShort): the same legs and flags, times without this year's year,
+    // the date always named (sameDay false), the "?" only when the full sentence says more.
+    const short = script.slice(script.indexOf('const firstStepShortText = computed'), script.indexOf('\n});', script.indexOf('const firstStepShortText = computed')));
+    expect(short).toMatch(/firstStepShort\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
+    expect(short).toContain('hours: hoursLimited.value,');
+    expect(short).toContain('cardTime(t, zone.value, { at: true })');
+    expect(short).toContain('prestigeDate: b ? near(b.prestigeAt) : null,');
+    expect(short).toContain('sameDay: false,');
+    expect(source).toContain('<template v-if="firstStepShortText !== stepCaveat.step">');
   });
 
   for (const [name, answer, deadline] of [
@@ -1085,12 +1279,12 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
 
 describe('The night-buy note under First step (spec-nightbuynote; Jordan option b, until Joo\'s fix after #729)', () => {
   // With awake hours set, a build-up's research buys can fall outside them, so the finish First step gives for "continue
-  // your build-up" is a best case. Said once under First step (NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP behind a "?"), only
+  // your build-up" is a best case. Said once under First step (INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP behind a "?"), only
   // when the first ascension continues the build-up and the hours limit the answer (lib/nightBuyNote.ts); never for a
   // fresh start or the ascension you are in continued.
   const script = source.slice(source.indexOf('<script setup'));
   const BUILD_STEP = 'continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
-  const words = { NIGHT_BUY_NOTE_SHORT, NIGHT_BUY_TIP };
+  const words = { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP };
   const at = (answer: Answer, deadline: boolean): State => ({
     answer,
     status: 'done',
@@ -1109,36 +1303,39 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     ['By a date', 'date', true],
     ['Fastest', 'fastest', false],
   ] as const) {
-    it(`${name}: shown once, from the shared words, right under First step`, async () => {
-      const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: true });
-      const box = html.slice(html.indexOf('data-testid="instant-box"'));
-      expect(count(box, 'data-testid="box-night-buy"')).toBe(1);
-      expect(count(textOf(box), NIGHT_BUY_NOTE_SHORT)).toBe(1);
-      expect(textOf(box)).toContain(NIGHT_BUY_TIP);
-      const step = box.indexOf('data-testid="box-first-step"');
-      const note = box.indexOf('data-testid="box-night-buy"');
-      expect(note).toBeGreaterThan(step);
-      expect(note).toBeLessThan(box.indexOf('<InstantSteps'));
+    it(`${name}: a "quick estimate ?" marker on the time line, the note and the tip behind its "?" (Jordan, 12 Nov 2026)`, async () => {
+      const html = (await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: true })).replace(/<!--[\s\S]*?-->/g, '');
+      const box = html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"'));
+      expect(box).not.toContain('data-testid="box-night-buy"');
+      expect(count(box, 'data-testid="box-quick-estimate"')).toBe(1);
+      // On the line that gives the time: By a date's route-and-reached line, Fastest's "in … · N ascensions".
+      const mark = box.indexOf('data-testid="box-quick-estimate"');
+      const line = box.slice(box.lastIndexOf('<div', mark), box.indexOf('</div>', box.indexOf('data-part="CardHelp"', mark)) + 6);
+      expect(textOf(line)).toMatch(deadline ? /^Route .* · reached n\d+ · 5 ascensions · quick estimate/ : /^in .* · 3 ascensions · quick estimate/);
+      const help = line.slice(line.indexOf('>', line.indexOf('data-part="CardHelp"')) + 1);
+      expect(textOf(help)).toBe(`${INSTANT_NIGHT_BUY_NOTE} ${INSTANT_NIGHT_BUY_TIP}`);
+      // Said once on the card, behind the "?" only.
+      expect(count(textOf(box), INSTANT_NIGHT_BUY_NOTE)).toBe(1);
+      expect(box.indexOf('data-testid="box-quick-estimate"')).toBeLessThan(box.indexOf('data-testid="box-first-step"'));
     });
-    it(`${name}: with the hours clause too, ONE merged line under First step (spec-uxpass item 9)`, async () => {
+    it(`${name}: with the hours clause too, First step keeps the clause and the marker carries the night part`, async () => {
       const html = await draw(at(answer, deadline), { ...words, firstStep: `${BUILD_STEP} ${FIRST_STEP_HOURS}`, nightBuyNote: true });
-      const box = textOf(html.slice(html.indexOf('data-testid="instant-box"')));
-      expect(count(box, FIRST_STEP_HOURS_NIGHT_BUY)).toBe(1);
-      expect(box).not.toContain(FIRST_STEP_HOURS);
-      expect(box).not.toContain(NIGHT_BUY_NOTE_SHORT);
-      expect(box).toContain(BUILD_STEP);
-      expect(count(html, 'data-testid="box-night-buy"')).toBe(1);
+      const box = html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"'));
+      const step = box.slice(box.indexOf('data-testid="box-first-step"'));
+      expect(textOf(step.slice(0, step.indexOf('</p>')))).toContain(`${BUILD_STEP} ${FIRST_STEP_HOURS}`);
+      expect(textOf(box)).not.toContain(FIRST_STEP_HOURS_NIGHT_BUY);
+      expect(count(box, 'data-testid="box-quick-estimate"')).toBe(1);
     });
     it(`${name}: not shown when the page says no (no hours, a fresh start, the ascension you are in)`, async () => {
       const html = await draw(at(answer, deadline), { ...words, firstStep: BUILD_STEP, nightBuyNote: false });
       expect(html).not.toContain('data-testid="box-night-buy"');
-      expect(html).not.toContain(NIGHT_BUY_NOTE_SHORT);
+      expect(html).not.toContain('data-testid="box-quick-estimate"');
+      expect(html).not.toContain(INSTANT_NIGHT_BUY_NOTE);
     });
   }
   it('the page: shown with the hours that limit the answer and a first ascension that continues the build-up', () => {
-    // The note's words come through lib/instantWords.ts mergeFirstStepCaveats (NIGHT_BUY_NOTE_SHORT, or the merged line).
-    expect(script).toMatch(/import \{[^}]*mergeFirstStepCaveats[^}]*\} from '@\/lib\/instantWords'/);
-    expect(script).toContain('const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));');
+    // First step as it is (its hours clause kept); the note (INSTANT_NIGHT_BUY_NOTE) behind the quick-estimate "?".
+    expect(script).toContain("const stepCaveat = computed(() => ({ step: firstStep.value, note: nightBuyNote.value ? INSTANT_NIGHT_BUY_NOTE : null }));");
     expect(script).toMatch(
       /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(hoursLimited\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
     );
@@ -1153,14 +1350,79 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     expect(firstStepKind('buildup')).toBe('buildup');
     for (const l of ['2-sale', '0-sale', '3-sale-tier13', 'continue', null]) expect(firstStepKind(l)).not.toBe('buildup');
   });
-  it('type: text-small slate, the "?" tip, no px sizes, caps, medium/semibold or mono; one per box', () => {
+  it('type: the marker text-small slate after " · ", the card\'s "?" (CardHelp), no px sizes, caps, medium/semibold or mono; one per box', () => {
     const t = source.slice(0, source.indexOf('<script'));
-    const tags = [...t.matchAll(/<p[^>]*data-testid="box-night-buy"[^>]*>[\s\S]*?<\/p>/g)].map(m => m[0]);
+    expect(t).not.toContain('data-testid="box-night-buy"');
+    const tags = [...t.matchAll(/<template v-if="stepCaveat\.note">[\s\S]*?<\/template>/g)].map(m => m[0]);
     expect(tags).toHaveLength(2);
     for (const tag of tags) {
-      expect(tag).toContain('text-small');
+      expect(tag).toMatch(/<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">\{\{ QUICK_ESTIMATE_MARKER \}\}<\/span>/);
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
-      expect(tag).toMatch(/\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}<HelpTip[^>]*>\{\{ NIGHT_BUY_TIP \}\}<\/HelpTip>/);
+      expect(tag).toMatch(/<CardHelp[^>]*>\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}\{\{ INSTANT_NIGHT_BUY_TIP \}\}<\/CardHelp>/);
     }
+  });
+});
+
+/** The near-target note (game expert, 13 Nov 2026): rows with many short ascensions near the player's TE can be priced a
+ *  little fast. Under Every number of ascensions, plain text (no live region), only when the target is near
+ *  (stores/chainSearch.finalTE.spec.ts pins the rule). */
+describe('the near-target note under Every number of ascensions', () => {
+  const st = (answer: Answer, deadline: boolean): State => ({ answer, status: 'done', below: false, noTable: false, hold: false, deadline, hours: true, waiting: false, saveWait: false, atTarget: false, saved: false });
+  const note = (html: string) => html.match(/<p[^>]*data-testid="counts-near-note"[^>]*>[\s\S]*?<\/p>/)?.[0];
+  it('shown under the table on both goals when near, as plain text', async () => {
+    for (const [a, d] of [['fastest', false], ['date', true]] as const) {
+      const html = await draw(st(a, d), { nearTarget: true, TARGET_TE_WORDS });
+      const p = note(html);
+      expect(p, a).toBeDefined();
+      expect(textOf(p!)).toBe(TARGET_TE_WORDS.nearRows);
+      expect(p).not.toMatch(/aria-live|role=/);
+      // Inside the table's card, after the table.
+      const card = html.indexOf('data-testid="counts-card"');
+      expect(card).toBeGreaterThan(-1);
+      expect(html.indexOf('data-testid="counts-near-note"')).toBeGreaterThan(html.indexOf('data-testid="counts-list"', card));
+    }
+  });
+  it('hidden when not near', async () => {
+    for (const [a, d] of [['fastest', false], ['date', true]] as const)
+      expect(note(await draw(st(a, d), { nearTarget: false, TARGET_TE_WORDS })), a).toBeUndefined();
+  });
+  it("the rule is the store's, on the screen's own target (By a date: 490)", () => {
+    const script = source.slice(source.indexOf('<script setup'));
+    expect(script).toContain('const nearTarget = computed(() => isNearTarget(target.value, store.currentTE));');
+    expect(script).toContain('const target = computed(() => (props.deadline ? 490 : store.finalTE));');
+  });
+});
+
+describe('By a date: an answer for the old date is never shown under the new date (13 Nov 2026, QA)', () => {
+  const base: State = {
+    answer: 'date',
+    status: 'loading',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: true,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  };
+  it('control: a current answer under the new date still shows its box', async () => {
+    const html = await draw({ ...base, status: 'done' }, { deadlineStale: false });
+    expect(html).toContain('data-testid="instant-box"');
+  });
+  it('an answer for the old date, with the new date picked: no box, no TE, no spare; the working line instead', async () => {
+    const html = (await draw(base, { deadlineStale: true })).replace(/<!--[\s\S]*?-->/g, '');
+    expect(html).not.toContain('data-testid="instant-box"');
+    expect(html).not.toContain('314 TE');
+    expect(html).not.toContain('to spare');
+    expect(html).not.toContain('Highest TE by');
+    expect(html).toContain('data-testid="instant-loading"');
+    expect(html).not.toContain('The answer below is the previous one');
+  });
+  it('and in the moment before the run starts (not loading yet): still the working line, not the old answer', async () => {
+    const html = await draw({ ...base, status: 'done' }, { deadlineStale: true });
+    expect(html).not.toContain('data-testid="instant-box"');
+    expect(html).toContain('data-testid="instant-loading"');
   });
 });

@@ -10,13 +10,13 @@ import { createPinia, setActivePinia } from 'pinia';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { loadAndSyncBackup } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
-import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { createBaseEngineState, getSimulationContext } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { useInitialStateStore } from '@/stores/initialState';
 import { habTypes } from '@/lib/habs';
 import { vehicleTypes } from '@/lib/vehicles';
 import { epicResearchDefs } from 'lib/planners/epicResearch';
-import { getOptimalEarningsSet } from '@/lib/artifacts/virtue';
+import { getOptimalEarningsSet } from 'lib/planners/artifacts/virtue';
 import { guardEpicLevels, guardFarm, saveGuardNote } from './saveGuard';
 
 const LAST_HAB = habTypes.length - 1;

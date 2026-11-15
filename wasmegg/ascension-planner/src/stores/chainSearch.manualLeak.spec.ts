@@ -22,7 +22,7 @@ import { useChainSearchStore } from './chainSearch';
 import { useActionsStore } from './actions';
 import { exportPlanData } from './actions/io';
 import { initPlanFuture } from '@/lib/modes/planFuture';
-import { initLoadPlan } from '@/lib/modes/loadPlan';
+import { initLoadPlan } from 'lib/planners/modes/loadPlan';
 import { needsSaveSetUp, PLAN_NOT_SAVE } from '@/search/saveStart';
 import { saveState } from '@/lib/saveFreshness';
 

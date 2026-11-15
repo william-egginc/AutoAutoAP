@@ -5,7 +5,8 @@
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
     1. Save-age banner: the save line at the top of the page (layout/SaveLine.vue, App.vue) since the simpler page
-       (9 Nov 2026); every time below comes from the save, so its age comes first.
+       (9 Nov 2026); since 12 Nov 2026 the save is in Right now's header line, the strip behind its "?"
+       (myruns/SaveHeadHelp.vue), and the silo line beside the player line (layout/SaveSide.vue only while the save loads).
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -30,7 +31,7 @@
        the routes at a glance, Your runs), then the footer. -->
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div data-region="title">
-      <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
+      <h1 class="sr-only">{{ NAMES.myRuns }}</h1>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -39,7 +40,12 @@
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
+    <!-- The save strip, small (layout/SaveSide.vue), while the page waits for the save. -->
+    <SaveSide v-if="!page.hasSave.value" />
+
     <template v-if="page.hasSave.value">
+      <!-- Right now. The save is in its header line, the strip behind the "?" after it (myruns/SaveHeadHelp.vue; Jordan,
+           12 Nov 2026: no save box beside the card any more). -->
       <RightNowCard
         data-region="right-now"
         change-route-to="more-myruns-route"
@@ -59,6 +65,7 @@
         :sim-failure="page.simFailure.value"
         :sim-slow="page.simSlow.value"
         :next-step="page.nextStep.value"
+        :next-buy="nextBuy"
         :next-shift-lines="page.nextShiftLines.value"
         :a1-choice="page.a1Choice.value"
         :fresh-sooner="page.freshLine.value"
@@ -79,7 +86,8 @@
         :follow-not-saved="page.followNotSaved.value"
         :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
-        :awake-hours="store.availability"
+        :awake-hours="nightBuyHours"
+        :save-old="!!saveStrip.state.value?.outOfDate"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"
         @open="to => emit('open', to)"
@@ -93,10 +101,31 @@
         @pick-a1="page.pickA1"
         @switch-fastest="page.switchToFastest"
       >
+        <!-- The "?" after the header's save line: the save strip, folded (myruns/SaveHeadHelp.vue). -->
+        <template #save>
+          <SaveHeadHelp
+            :state="saveStrip.state.value"
+            :server="saveStrip.server.value"
+            :loading="saveStrip.loading.value"
+            :now="saveClock"
+            @fresh="saveStrip.load"
+          />
+        </template>
+        <!-- The player line above the egg, the silo line beside it (myruns/PlayerLine.vue). -->
+        <template #player>
+          <PlayerLine
+            :name="playerName"
+            :claimed="playerTe?.claimed ?? null"
+            :pending="playerTe?.pending ?? null"
+            :clothed="page.gear.value?.clothedEarnings ?? null"
+            :silo="saveStrip.silo.value"
+          />
+        </template>
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
         <template #buildUp>
           <BuildUpTracker
+            v-if="!(tracker.state.value === 'notBuilding' && !tracker.finishChosen.value)"
             :state="tracker.state.value"
             :open="tracker.open.value"
             :result="tracker.result.value"
@@ -115,7 +144,9 @@
             :replan="trackerReplan"
             :finish-chosen="tracker.finishChosen.value"
             :followed-for="trackerFollowedFor"
-            :awake-hours="store.availability"
+            :awake-hours="nightBuyHours"
+            :tier-unlocks="tracker.tierUnlocks.value"
+            :stages="tracker.stages.value"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
@@ -136,6 +167,7 @@
         :after-shift="page.afterShift.value"
         :goal-lines="page.goalLines.value"
         :clock-lines="page.clockLines.value"
+        :goal-times="page.goalTimes.value"
         :shifts-done="page.shiftsDone.value"
         :next-shift-cost="page.nextShiftCost.value"
         :planned-shifts="page.plannedShifts.value"
@@ -287,7 +319,7 @@
           </summary>
           <div class="mt-3 space-y-3">
             <p class="text-body text-slate-500 max-w-prose">
-              Kept in this browser for this account. Open puts one back on its screen in the {{ NAMES.auto }}: runs on
+              Kept in this browser for this account. Open puts one back on its screen in {{ NAMES.chainFinder }}: runs on
               {{ fastestName(store.finalTE) }}, answers on {{ NAMES.byDate }}.
             </p>
             <SavedRuns
@@ -360,6 +392,7 @@ import { pickRouteOpen, scrollToInstantAnswer } from '@/lib/pickRoute';
 import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
+import { nightBuyHours as nightBuyHoursOf } from '@/lib/nightBuyNote';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import { CHANGE_ROUTE, MORE_LINE_MYRUNS } from '@/lib/layoutWords';
 import { useNowPage } from '@/composables/useNowPage';
@@ -371,9 +404,18 @@ import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
+import { useCalendarFeedPush } from '@/composables/useCalendarFeed';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
+import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
+import SaveHeadHelp from '@/components/myruns/SaveHeadHelp.vue';
+import PlayerLine from './myruns/PlayerLine.vue';
+import { playerTeOf } from '@/lib/playerTe';
+import { useInitialStateStore } from '@/stores/initialState';
+import { useMinuteClock } from '@/composables/useMinuteClock';
+import { useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';
@@ -420,6 +462,8 @@ function unfollowGoal(): void {
 }
 
 const store = useChainSearchStore();
+/** The hours the night-buy note sees: none while the simulation holds its buys to them (lib/nightBuyNote.ts). */
+const nightBuyHours = computed(() => nightBuyHoursOf(store.availability, store.deferShifts));
 const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
@@ -452,7 +496,7 @@ const boardFailed = ref<BoardReadKind | null>(null);
  */
 const boardCountText = computed(() => {
   if (!boardFailed.value) return countText(boardCount.value);
-  return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · couldn't read the leaderboard";
+  return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · not loaded";
 });
 
 // A run of the account's on the board: remembered, so the tab stays for the next visit (lib/myRunsShown.ts; the board is
@@ -467,6 +511,13 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The player line (myruns/PlayerLine.vue): the save's name, claimed and pending TE; the silo line from the save strip. */
+const initial = useInitialStateStore();
+const playerTe = computed(() => playerTeOf(initial.rawBackup));
+/** The save's name; never the ID the store falls back to with no name in the save. */
+const playerName = computed(() => (initial.nickname && !/^EI\d{16}$/.test(initial.nickname) ? initial.nickname : null));
+const saveClock = useMinuteClock();
+const saveStrip = useAutoSaveStrip({ now: saveClock });
 /** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
 const tracker = useBuildUpTracker({
   account: computed(() => page.account.value || null),
@@ -490,6 +541,20 @@ const tracker = useBuildUpTracker({
   saveLoading: computed(() => props.loading || page.saveWaiting.value),
   finishChosen: page.a1Finish,
 });
+/** The calendar feed (Setup › Sharing, off by default): the plan goes up when the tracker's lines or ticks change, only while it is
+ *  on and linked (composables/useCalendarFeed.ts). */
+useCalendarFeedPush({
+  lines: computed(() => (tracker.state.value === 'ready' ? tracker.result.value?.lines : null)),
+  ticks: tracker.ticks,
+  ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  zone: page.zone,
+  hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
+});
+/** The research buy still to do before Next step's own step, from the tracker's lines (M13, lib/nextAction.ts `nextBuyBefore`):
+ *  Next step names it first. None while the tracker is not in (its fold shut, or still working out). */
+const nextBuy = computed(() =>
+  nextBuyBefore(page.nextStep.value, tracker.state.value === 'ready' ? tracker.result.value?.lines : null, tracker.ticks.value, page.now.value)
+);
 /**
  * The Build-up tracker's Try again: the tracker's bounds started again and the simulation asked again. With the stores
  * not this save's (useNowPage `storeReady` false) no simulation is asked, so App is asked to set the save up again

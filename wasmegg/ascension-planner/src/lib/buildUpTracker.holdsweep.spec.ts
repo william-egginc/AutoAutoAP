@@ -55,7 +55,7 @@ const run = (actions: BuildUpAction[], now = mt(11, 6, 9, 3)) =>
   buildUpTracker({ actions, zone: ZONE, hours: HOURS, siloSeconds: 97200, startSilos: 9, startEgg: 'curiosity', now });
 
 describe('a pointless sweep buy just before a research sale', () => {
-  it('is held to the sale: no 9:07 am check-in, and the buys are in the 10:00 am line', () => {
+  it('is held to the sale: no 9:07 AM check-in, and the buys are in the 10:00 AM line', () => {
     const r = run(
       plan([
         research(mt(11, 6, 9, 7), 'neural_linking', 'Neural Linking', 24, 25, 1.5e41),
@@ -63,10 +63,10 @@ describe('a pointless sweep buy just before a research sale', () => {
       ])
     );
     expect(r.checkIns[0].at).toBe(mt(11, 6, 10, 0));
-    const first = r.lines.map(lineText).find(t => t.startsWith('10:00 am · buy'))!;
+    const first = r.lines.map(lineText).find(t => t.startsWith('10:00 AM · buy'))!;
     expect(first).toContain('Neural Linking');
     expect(first).toContain('Enlightened Chickens');
-    expect(r.lines.map(lineText).some(t => t.startsWith('9:07 am'))).toBe(false);
+    expect(r.lines.map(lineText).some(t => t.startsWith('9:07 AM'))).toBe(false);
   });
 
   it('is NOT held when the cheap buy raises earnings (egg value), which keeps its time', () => {

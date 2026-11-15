@@ -168,6 +168,11 @@ describe('the words and the follow suggestions', () => {
     expect(src('components/auto/DeadlinePanel.vue')).toContain(
       "return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);"
     );
-    expect(src('components/auto/ByDateRouteCard.vue')).toContain('<FollowButton\n            v-if="follow"');
+    // By a date's result card: only the `follow` the screen hands it (DeadlinePanel's, guarded above), and only on the
+    // finished answer, never the best so far. Its own `!running` since Follow moved before Simulate (spec-allan2, Allan
+    // 9 Nov 2026); it sat inside the card's `<template v-if="!running">` before: the same condition.
+    const card = src('components/auto/ByDateRouteCard.vue');
+    expect(card.match(/<FollowButton\b/g)).toHaveLength(1);
+    expect(card).toContain('<FollowButton\n          v-if="follow && !running"');
   });
 });

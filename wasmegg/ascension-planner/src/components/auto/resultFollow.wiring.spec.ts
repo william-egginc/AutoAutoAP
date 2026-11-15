@@ -18,13 +18,15 @@ describe('Follow this route on every result card', () => {
       const card = read(f);
       const t = tags(card);
       expect(t, f).toHaveLength(1);
-      for (const attr of ['v-if="follow"', 'primary', ':finish="follow.finish"', ':source="follow.source"', ':end-t-e="follow.endTE"', ':plan-start="follow.planStart"', ':goal-key="follow.goalKey"'])
-        expect(t[0], `${f} ${attr}`).toContain(attr);
+      // By a date's: the finished answer's only (`follow && !running`), now before Simulate (Allan, 9 Nov 2026).
+      for (const attr of [/v-if="follow( && !running)?"/, 'primary', ':finish="follow.finish"', ':source="follow.source"', ':end-t-e="follow.endTE"', ':plan-start="follow.planStart"', ':goal-key="follow.goalKey"'])
+        expect(t[0], `${f} ${attr}`).toMatch(attr);
       expect(card).toContain('follow?: ResultFollow | null;');
     }
-    // Finished answers only on By a date (the best so far has only Simulate).
+    // Finished answers only on By a date (the best so far has only Simulate): its own `!running`, as it now comes
+    // before Simulate (Allan, 9 Nov 2026).
     const byDate = read('ByDateRouteCard.vue');
-    expect(byDate.indexOf('<FollowButton')).toBeGreaterThan(byDate.indexOf('<template v-if="!running">'));
+    expect(tags(byDate)[0]).toContain('v-if="follow && !running"');
     expect(byDate).toContain('(follow && !running)" #actions');
   });
 

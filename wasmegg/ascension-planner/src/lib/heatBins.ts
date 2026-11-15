@@ -218,7 +218,7 @@ function finishRows(lo: number, hi: number, maxRows: number, zone?: string, loca
     const year = spansYears ? ('always' as const) : ('never' as const);
     const at = (w: number) =>
       step < DAY
-        ? formatMoment(w, { zone: 'UTC', year, shortTime: true, locale })
+        ? formatMoment(w, { zone: 'UTC', year, locale })
         : formatMoment(w, { zone: 'UTC', year, dateOnly: true, locale });
     const out: HeatRow[] = [];
     for (let k = 0; k < n; k++) {

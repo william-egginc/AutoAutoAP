@@ -78,17 +78,23 @@ export function soulEggsAfterLine(p: {
   const spent = given != null && Number.isFinite(given) && given >= 0 ? given : plannedShiftsCost(se, done, count);
   const left = Math.max(0, se - spent);
   const opening = p.planned.opening ?? 0;
-  const est = opening > 0 ? ` · about ${opening} of the ${count} are build-up shifts, estimated` : '';
-  const tail = count === 0 ? 'no shifts planned' : `about ${formatNumber(spent, 1)} goes on ${count} shift${s(count)}${est}`;
+  // The count is the whole route; the build-up shifts are the ones made while buying research in the LATER ascensions
+  // (each fresh ascension's, estimated). They cost soul eggs like any other, so they are said as part of the count
+  // (Jordan, 12 and 13 Nov 2026: "Why are we talking about build-up shifts?" while on Humility in A1).
+  const later = opening > 0 ? `, ${opening} of them while buying research in later ascensions; estimated` : '';
+  const left_ = `You'll have about ${formatNumber(left, 1)} soul eggs left at the end of this plan.`;
   return {
-    text: `You'll have about ${formatNumber(left, 1)} soul eggs left when this plan is done (${tail})`,
+    text:
+      count === 0
+        ? `${left_} No shifts are planned.`
+        : `${left_} Shifts on the way cost about ${formatNumber(spent, 1)} (about ${count} shift${s(count)}${later}).`,
     amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW,
   };
 }
 
 /**
  * The All planned shifts tile on Your eggs (ux34-a, 28 Oct 2026, plainer): "41 shifts" over "will cost about 2.3s soul
- * eggs (at today's prices), about 18 of them build-up shifts (estimated)". The same count and cost as
+ * eggs (at today's prices), about 18 of them while buying research in later ascensions (estimated)". The same count and cost as
  * `soulEggsAfterLine` above (both from useNowPage `plannedShifts`), the cost written as it writes it. `opening`: the
  * estimated build-up shifts included (lib/openingShifts.ts); `partial`: only the instant answer's shifts, none added.
  */
@@ -99,8 +105,8 @@ export function plannedShiftsWords(p: { count: number; cost: number; opening?: n
   const tail =
     opening > 0
       ? count === 1
-        ? ', a build-up shift (estimated)'
-        : `, about ${opening} of them ${opening === 1 ? 'a build-up shift' : 'build-up shifts'} (estimated)`
+        ? ', made while buying research in a later ascension (estimated)'
+        : `, about ${opening} of them while buying research in later ascensions (estimated)`
       : p.partial
         ? ", the shifts listed, without each new ascension's first hours"
         : '';

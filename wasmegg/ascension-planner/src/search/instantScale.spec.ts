@@ -18,14 +18,14 @@ let mods: {
   chain: typeof import('@/stores/chainSearch');
   planner: typeof import('@/stores/autoPlanner');
   scale: typeof import('./instantScale');
-  adapter: typeof import('@/engine/adapter');
+  adapter: typeof import('lib/planners/engine/adapter');
 };
 beforeAll(async () => {
   mods = {
     chain: await import('@/stores/chainSearch'),
     planner: await import('@/stores/autoPlanner'),
     scale: await import('./instantScale'),
-    adapter: await import('@/engine/adapter'),
+    adapter: await import('lib/planners/engine/adapter'),
   };
 }, 120_000);
 

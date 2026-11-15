@@ -29,9 +29,9 @@ describe('the deadline: Sun Nov 1 2026, 2:00 pm Pacific', () => {
       timeZoneName: 'short',
     }).format(at);
     expect(parts).toBe('Nov 1, 2026, 2:00 PM PST');
-    // An hour earlier is still 1:00 pm PST, not 2:00 pm PDT: the fall-back was at 2:00 am.
-    expect(pacificTime('2026-11-01T21:00:00Z')).toBe('1:00 pm');
-    expect(pacificTime(RELOAD_AT)).toBe('2:00 pm');
+    // An hour earlier is still 1:00 PM PST, not 2:00 PM PDT: the fall-back was at 2:00 AM.
+    expect(pacificTime('2026-11-01T21:00:00Z')).toBe('1:00 PM');
+    expect(pacificTime(RELOAD_AT)).toBe('2:00 PM');
   });
 });
 

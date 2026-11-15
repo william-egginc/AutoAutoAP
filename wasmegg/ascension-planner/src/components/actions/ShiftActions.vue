@@ -14,9 +14,9 @@
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
           <span class="text-slate-400 label">Shifts:</span>
-          <span class="text-body tabular-nums font-bold text-slate-900">{{ virtueStore.shiftCount }}</span>
-          <span v-if="virtueStore.plannedShifts > 0" class="text-small font-bold text-brand-primary">
-            +{{ virtueStore.plannedShifts }}
+          <span class="text-body tabular-nums font-bold text-slate-900">{{ planStore.shiftCount }}</span>
+          <span v-if="planStore.plannedShifts > 0" class="text-small font-bold text-brand-primary">
+            +{{ planStore.plannedShifts }}
           </span>
         </div>
       </div>
@@ -40,9 +40,9 @@
         >
           <div class="w-12 h-12 flex-shrink-0 bg-white rounded-2xl border border-slate-200/50 p-2 shadow-sm">
             <img
-              :src="iconURL(`egginc/egg_${virtueStore.currentEgg}.png`, 64)"
+              :src="iconURL(`egginc/egg_${planStore.currentEgg}.png`, 64)"
               class="w-full h-full object-contain"
-              :alt="virtueStore.currentEgg"
+              :alt="planStore.currentEgg"
             />
           </div>
           <div>
@@ -50,7 +50,7 @@
               Current Egg
             </div>
             <div class="text-body font-bold text-slate-900">
-              {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
+              {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}
             </div>
           </div>
         </div>
@@ -109,16 +109,16 @@
           :key="egg"
           class="group relative flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 shadow-sm overflow-hidden"
           :class="
-            egg === virtueStore.currentEgg || !isAffordable
+            egg === planStore.currentEgg || !isAffordable
               ? 'border-slate-100 bg-slate-50/50 opacity-40 grayscale cursor-not-allowed'
               : 'border-slate-100 bg-white hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/5 hover:-translate-y-0.5'
           "
-          :disabled="egg === virtueStore.currentEgg || !isAffordable"
+          :disabled="egg === planStore.currentEgg || !isAffordable"
           @click="handleShift(egg)"
         >
           <!-- Hover background glow -->
           <div
-            v-if="egg !== virtueStore.currentEgg"
+            v-if="egg !== planStore.currentEgg"
             class="absolute -right-4 -bottom-4 w-12 h-12 bg-brand-primary/5 rounded-full blur-xl group-hover:scale-150 transition-transform"
           ></div>
 
@@ -155,21 +155,24 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg, generateActionId } from '@/types';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useTruthEggsStore } from '@/stores/truthEggs';
-import { computeDependencies } from '@/lib/actions/executor';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { resetResearchViewForCuriosityShift } from '@/composables/useResearchViews';
+import { useSalesStore } from 'lib/planners/stores/sales';
+import { computeDependencies } from 'lib/planners/actions/executor';
+import { useActionExecutor } from 'lib/planners/composables/useActionExecutor';
+import { resetResearchViewForCuriosityShift } from 'lib/planners/composables/useResearchViews';
+import { isResearchSaleActive } from 'lib/planners/events';
 import { shiftCost, iconURL } from 'lib';
 import { getColleggtibleIconPath } from 'lib/planners/assets';
 import { formatNumber, formatDuration } from '@/lib/format';
 
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
 const truthEggsStore = useTruthEggsStore();
+const salesStore = useSalesStore();
 const { prepareExecution, completeExecution } = useActionExecutor();
 
 const availableEggs = VIRTUE_EGGS;
@@ -235,7 +238,7 @@ const timeSinceLastShiftFormatted = computed(() => {
 });
 
 const nextShiftCostValue = computed(() => {
-  return shiftCost(actionsStore.effectiveSnapshot.soulEggs, virtueStore.shiftCount);
+  return shiftCost(actionsStore.effectiveSnapshot.soulEggs, planStore.shiftCount);
 });
 
 const isAffordable = computed(() => {
@@ -244,7 +247,7 @@ const isAffordable = computed(() => {
 
 const shiftsUntilBroke = computed(() => {
   let se = actionsStore.effectiveSnapshot.soulEggs;
-  let count = virtueStore.shiftCount;
+  let count = planStore.shiftCount;
   let affordable = 0;
   while (affordable <= 1000) {
     const cost = shiftCost(se, count);
@@ -257,7 +260,7 @@ const shiftsUntilBroke = computed(() => {
 });
 
 function handleShift(toEgg: VirtueEgg) {
-  if (toEgg === virtueStore.currentEgg) return;
+  if (toEgg === planStore.currentEgg) return;
 
   // Prepare execution (restores stores if editing past group)
   const beforeSnapshot = prepareExecution();
@@ -281,7 +284,7 @@ function handleShift(toEgg: VirtueEgg) {
   );
 
   // Apply the shift to the store
-  virtueStore.shift(toEgg);
+  planStore.shift(toEgg);
 
   // Land on Smart Buy when they next open the research tab, instead of wherever they left it
   if (toEgg === 'curiosity') {
@@ -304,6 +307,42 @@ function handleShift(toEgg: VirtueEgg) {
     },
     beforeSnapshot
   );
+
+  // If this lands in Curiosity mid-sale (by the calendar, not whatever `activeSales.research`
+  // happened to carry over from before the shift — normally `false`, off, from a non-Curiosity
+  // phase), auto-activate the research sale, same as the real game does. Same "sync to calendar
+  // truth at the shift instant" the auto planner's `applyShiftAction` now also does — see its own
+  // doc comment in auto/shifts/helpers/actionHelpers.ts for the full reasoning. Checked right here,
+  // before `pushWaitForFullHabsAction` below can advance the clock further waiting for habs to
+  // fill — this needs to reflect the shift's own instant, not wherever the clock ends up after that
+  // wait.
+  if (toEgg === 'curiosity') {
+    const baseTimestamp = planStore.planStartTime.getTime() / 1000;
+    const shiftAbsoluteSimTime =
+      baseTimestamp + (actionsStore.effectiveSnapshot.lastStepTime - actionsStore.planStartOffset);
+    const isSaleNow = isResearchSaleActive(shiftAbsoluteSimTime);
+    if (actionsStore.effectiveSnapshot.activeSales.research !== isSaleNow) {
+      const saleToggleBeforeSnapshot = prepareExecution();
+      const saleTogglePayload = { saleType: 'research' as const, active: isSaleNow, multiplier: 0.3 };
+      salesStore.setSaleActive('research', isSaleNow);
+      completeExecution(
+        {
+          id: generateActionId(),
+          timestamp: Date.now(),
+          type: 'toggle_sale',
+          payload: saleTogglePayload,
+          cost: 0,
+          dependsOn: computeDependencies(
+            'toggle_sale',
+            saleTogglePayload,
+            actionsStore.actionsBeforeInsertion,
+            actionsStore.initialSnapshot.researchLevels
+          ),
+        },
+        saleToggleBeforeSnapshot
+      );
+    }
+  }
 
   actionsStore.pushWaitForFullHabsAction();
 

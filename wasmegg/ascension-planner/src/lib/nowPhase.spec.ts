@@ -149,7 +149,7 @@ describe("Right now's badge", () => {
   it('its words', () => {
     expect(phaseWords({ phase: 'building', elr: null, elrFrom: null })).toEqual({ title: 'Building', rate: '' });
     expect(phaseWords({ phase: 'producing', elr: 1e12, elrFrom: 'save' }).rate).toMatch(
-      /^.+\/hr · from your save$/
+      /^.+\/hr with your delivery set$/
     );
     expect(phaseWords({ phase: 'producing', elr: 2e12, elrFrom: 'projected' }).rate).toMatch(/· projected$/);
   });

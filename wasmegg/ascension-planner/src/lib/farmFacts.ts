@@ -15,7 +15,7 @@ import { calculateEffectiveLayRate } from 'lib/planners/calculations/effectiveLa
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold, TE_BREAKPOINTS } from '@/lib/truthEggs';
-import { totalAwayTime } from '@/stores/silos';
+import { totalAwayTime } from 'lib/planners/stores/silos';
 import type { CurrentFarmState, ResearchLevels, VehicleSlot } from '@/types';
 import { SAVE_EGG_ORDER } from './nowPlan';
 import { relativeWords } from './eventWhen';

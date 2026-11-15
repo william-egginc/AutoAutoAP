@@ -6,13 +6,16 @@
  *   device BEFORE the call and stays off whatever it answers (decision b, 8 Nov 2026) -> 200: the counts; otherwise why, with Try again when the server could not
  *   be reached. Nothing in this browser changes on a failure, and on success only the switch does: an empty cloud never
  *   clears local data. Not gated by the switch (it works with Save online off). Shown only with SYNC_RECORDS on (the
- *   live collector has no /forget yet), a collector and an account key.
+ *   live collector has no /forget yet), a collector and an account key, and not while this collector's /sync answered
+ *   404 on this page (composables/useOverrideSync.ts `syncKnownMissing`: /sync and /forget come in one deploy, so
+ *   Delete would only say "not available yet"); it comes back once the collector answers.
  */
 import { computed, ref } from 'vue';
 import { getActivePinia } from 'pinia';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
-import { SYNC_RECORDS, forgetEverything, forgetUrlOf, type ForgetResult } from '@/lib/syncedRecords';
+import { SYNC_RECORDS, forgetEverything, forgetUrlOf, syncedUrlOf, type ForgetResult } from '@/lib/syncedRecords';
+import { syncKnownMissing } from '@/composables/useOverrideSync';
 import { setSaveOnline } from '@/lib/saveOnline';
 import { saveOnlineOffAfterDelete, syncDeleted, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
 import { SYNC_DELETE_STAYS, forgetCountsWords, forgetFailWords } from '@/lib/saveOnlineWords';
@@ -38,8 +41,14 @@ export function useForgetEverything() {
   };
   const follows = useFollowStore();
   const submitUrl = () => searchStore()?.submitUrl ?? '';
-  /** The button is there: the sync is on, there is a collector and an account key. */
-  const available = computed(() => SYNC_RECORDS.enabled && !!forgetUrlOf(submitUrl()) && /^[0-9a-f]{64}$/.test(follows.cloudKey));
+  /** The button is there: the sync is on, there is a collector (not one whose /sync said 404) and an account key. */
+  const available = computed(
+    () =>
+      SYNC_RECORDS.enabled &&
+      !!forgetUrlOf(submitUrl()) &&
+      !syncKnownMissing(syncedUrlOf(submitUrl().trim())) &&
+      /^[0-9a-f]{64}$/.test(follows.cloudKey)
+  );
   const phase = ref<'idle' | 'confirm' | 'running' | 'done' | 'failed'>('idle');
   const result = ref<ForgetResult | null>(null);
   const busy = computed(() => phase.value === 'running');

@@ -96,6 +96,18 @@ describe('Right now: a goal with no plan in time', () => {
     expect(t).toContain('Not priced on this save yet · after Egg Day starts');
     expect(t).not.toContain('lands after the date');
   });
+
+  it('not said twice: when the goal pill already says "after Egg Day starts", the follow line does not (spec-tidy)', async () => {
+    // An estimated route that lands after the date: the pill reads "following · lands about Jul 15, 2027, after Egg Day
+    // starts"; the follow line used to read "after Egg Day starts" alone under it (spec-uxpass, left open).
+    const follow = { chain: [197, 222, 249], from: 'typed', price: 'estimate', source: null, pricedSave: null, missesDate: true };
+    const goal: GoalOption = { ...eggLate, state: 'none', late: undefined, follow: { times: 'estimate', end: EGG_DAY_AT + 24 * H, late: true } };
+    const html = await renderHtml(RightNowCard, props({ goals: [race, goal], follow }));
+    const t = textOf(html);
+    expect(t).toContain('after Egg Day starts');
+    expect(t.split('after Egg Day starts').length - 1).toBe(1);
+    expect(html).not.toContain('data-testid="now-follow"');
+  });
 });
 
 describe('the Egg Day tile with no answer in time', () => {

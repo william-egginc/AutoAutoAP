@@ -183,7 +183,7 @@ function lateLabel(h: number): string {
 const gridStep = computed(() => (sweep.value?.step ?? stepMinutes.value * 60) / 3600);
 const hours = computed(() => Array.from({ length: Math.round(24 / gridStep.value) }, (_, i) => i * gridStep.value));
 function hourLabel(h: number): string {
-  return showHour(h).replace(':00', '');
+  return showHour(h);
 }
 /** One square: a start, when it finishes, and hours after the week's soonest finish. */
 type Cell = { start: number; finish: number | null; later: number | null };

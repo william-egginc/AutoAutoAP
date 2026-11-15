@@ -111,7 +111,7 @@ describe('Right now and the Fastest tile: one plan, the other hours secondary', 
     const html = await renderHtml(RightNowCard, cardProps(cardOf()));
     const t = textOf(html);
     expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 11:59 PM');
-    expect(t).toContain('(simulator check) · priced with awake hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 PM');
+    expect(t).toContain('(simulator check) · priced with awake hours 7:00 AM to 1:00 AM, no time off · from your save of Oct 15 at 2:40 PM');
     expect(html).toContain('data-testid="now-secondary"');
     expect(t).toContain(`With any hour (before your awake hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM)`);
   });
@@ -146,7 +146,7 @@ describe('two shifts at the same minute: one row', () => {
     const card = cardOf();
     const html = await renderHtml(RightNowCard, cardProps(card));
     const t = textOf(html);
-    const pair = "Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness";
+    const pair = "Shift to Humility (to swap artifacts), then straight to Kindness";
     expect(t).toContain(`${pair} tomorrow at 4:16 AM`);
     expect(t.split(pair).length - 1).toBe(2); // Next step and the table, once each
     expect(t).not.toContain('Shift to Kindness');
@@ -187,5 +187,30 @@ describe('Right now: the routes saved online could not be read (UX review, 25 Oc
   });
   it('nothing when the read worked', async () => {
     expect(await renderHtml(RightNowCard, cardProps(cardOf()))).not.toContain('now-follow-cloud-unreachable');
+  });
+  it('spec-tidy M8: a failed save and an unreachable read are ONE line, not two stacked notes', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: "Couldn't save the route online right now; it is still followed in this browser.",
+      })
+    );
+    expect(t).toContain("Couldn't save or read your routes online right now. Following still works in this browser. Retry ›");
+    expect(t).not.toContain("Couldn't read your routes saved online");
+    expect(t).not.toContain("Couldn't save the route online right now");
+  });
+  it('spec-tidy M8: a refused save (too big, hour limit) keeps its own note beside the unreachable read', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: 'Too many changes this hour. Try again later.',
+      })
+    );
+    expect(t).toContain('Too many changes this hour. Try again later.');
+    expect(t).toContain("Couldn't read your routes saved online right now. Following still works in this browser. Retry ›");
   });
 });

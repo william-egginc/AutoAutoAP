@@ -28,7 +28,7 @@
         The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
         <span class="font-bold">every ascension</span> from your virtue inventory, and swap between two: the
         <span class="font-bold">delivery</span> set while they build the farm, and the
-        <span class="font-bold">earnings</span> set when they cash out. In Single run you can change the sets for
+        <span class="font-bold">earnings</span> set when they cash out. In the Auto Planner you can change the sets for
         each ascension in its artifact editor; this card shows what the searches use.
       </p>
 

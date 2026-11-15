@@ -40,10 +40,10 @@ const f = (over: Partial<PlanFilters>): PlanFilters => ({ ...NO_FILTERS, ...over
 
 describe('labels', () => {
   it('reads hours on a 12-hour clock', () => {
-    expect(hour12(0)).toBe('12 am');
-    expect(hour12(7)).toBe('7 am');
-    expect(hour12(12)).toBe('noon');
-    expect(hour12(23)).toBe('11 pm');
+    expect(hour12(0)).toBe('12:00 AM');
+    expect(hour12(7)).toBe('7:00 AM');
+    expect(hour12(12)).toBe('12:00 PM');
+    expect(hour12(23)).toBe('11:00 PM');
   });
   it('reads a window back into hours and days', () => {
     expect(parseWindow(DAY)).toEqual({ days: [], fromHour: 7, toHour: 23, timezone: CHICAGO });
@@ -52,8 +52,8 @@ describe('labels', () => {
     expect(parseWindow('whenever')).toBeNull();
   });
   it('names a schedule briefly, days only when restricted', () => {
-    expect(hoursLabel(DAY)).toBe('7 am–11 pm');
-    expect(hoursLabel('Sat,Sun 09:00-01:00 UTC')).toBe('Sun, Sat 9 am–1 am');
+    expect(hoursLabel(DAY)).toBe('7:00 AM–11:00 PM');
+    expect(hoursLabel('Sat,Sun 09:00-01:00 UTC')).toBe('Sun, Sat 9:00 AM–1:00 AM');
     expect(hoursLabel(null)).toBe('Any hour');
     expect(hoursLabel('every day all day UTC')).toBe('all day');
   });
@@ -100,7 +100,7 @@ describe('filtering', () => {
   });
   it('offers only the values the rows have, Any hour first and Monday first', () => {
     const o = filterOptions([late, day, anyHour], ZONE, 490);
-    expect(o.hours.map(h => h.label)).toEqual(['Any hour', '7 am–11 pm', '9 am–1 am']);
+    expect(o.hours.map(h => h.label)).toEqual(['Any hour', '7:00 AM–11:00 PM', '9:00 AM–1:00 AM']);
     expect(o.day.map(d => d.label)).toEqual(['Mon', 'Sat']);
     expect(o.ascensions.map(a => a.value)).toEqual([3, 4]);
     expect(o.goal.map(g => g.label)).toEqual(['Fastest to 490 TE']);
@@ -122,7 +122,7 @@ describe('the best for each', () => {
     const d = row({ window: null, durationDays: 11 });
     expect(bestPerGroup([a, b, c, d], r => r, 'hours', ZONE)).toEqual([a, b, d]);
     expect(bestPerGroup([a, b, c, d], r => r, 'ascensions', ZONE)).toEqual([a]);
-    expect(groupLabel(b, 'hours', ZONE)).toBe('9 am–1 am');
+    expect(groupLabel(b, 'hours', ZONE)).toBe('9:00 AM–1:00 AM');
     expect(groupLabel(a, 'day', ZONE)).toBe('Sat');
     expect(groupLabel(a, 'ascensions', ZONE)).toBe('4 ascensions');
   });
@@ -144,7 +144,7 @@ describe('the My plans bar', () => {
     // Tue and Wed are only on the dated answers: not offered for the fastest list.
     expect(b.options.day).toEqual([]);
     expect(b.options.ascensions).toEqual([]);
-    expect(b.options.hours.map(h => h.label)).toEqual(['7 am–11 pm', '9 am–1 am']);
+    expect(b.options.hours.map(h => h.label)).toEqual(['7:00 AM–11:00 PM', '9:00 AM–1:00 AM']);
     // A remembered Tue is a filter nobody can see there: it hides nothing.
     expect(bar({ day: 2 }).applied.day).toBeNull();
   });

@@ -23,7 +23,7 @@ import '../../scripts/node-shims';
 import { describe, expect, it, vi } from 'vitest';
 import { PLAN_START, syntheticBackup, syntheticInputs } from '@/test/syntheticSave';
 import { TE_BREAKPOINTS, getThresholdForTE } from '@/lib/truthEggs';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { deriveNextStartState } from '@/auto/ascension';
 import { buildUpStateForCheck, continueState, continueVariantForCheck } from './leg';
 import type { EngineState } from '@/engine/types';

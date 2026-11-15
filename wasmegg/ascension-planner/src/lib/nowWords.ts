@@ -7,7 +7,7 @@ import { shiftTitle, type PlanEvent } from './nowPlan';
 import { clockWords } from './planPace';
 import { virtueEggName } from './virtueEggs';
 import { hoursShort } from './pricedWith';
-import { formatHourOfDay, formatMoment } from './clock';
+import { formatMoment } from './clock';
 import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
@@ -90,8 +90,20 @@ export function howFar(
   const rel = rounded && /^in \d+[hm]\b/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
   const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
   const spare =
-    e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare${rounded ? ' (instant)' : ''}` : '';
+    e.kind === 'goal' && typeof e.spareHours === 'number'
+      ? (() => {
+          // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
+          const s = spareSide(e.spareHours);
+          return ` · ${s.late ? `lands ${s.size} after` : `${s.size} spare before`} this date${rounded ? ", on the instant answer's plan" : ''}`;
+        })()
+      : '';
   return base + spare;
+}
+
+/** A spare that may be negative, as a side and a size: `late` when the route lands after the date (the goal row's
+ *  "5d 20h after this date", the saved tile's "5d 20h after the date"). */
+export function spareSide(hours: number): { late: boolean; size: string } {
+  return { late: hours < 0, size: spareWords(Math.abs(hours)) };
 }
 
 /** "16h 48m", "2d 2h" (lib/duration); a negative spare reads its size (the caller says behind). */
@@ -122,7 +134,13 @@ export function nextStepText(
   zone: string,
   rounded = false
 ): string {
-  const ahead = events.filter(e => !e.past && e.kind !== 'goal');
+  // A prestige that waits (for the player's hours or past a no-prestige day) is said at the time it happens, as the events
+  // table does (M12: "at around 10:00 PM" here over "11:00 PM" there): `prestigeAt`, not the stop's reach time.
+  const ahead = events
+    .filter(e => !e.past && e.kind !== 'goal')
+    .map(e => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.notDone ? { ...e, at: e.prestigeAt } : e))
+    // Moved later, it may now come after an event that was behind it: whichever happens first is named first (stable).
+    .sort((a, b) => a.at - b.at);
   const first = ahead[0];
   if (!first) return '';
   const w = eventWhen(roundedAt(first, goal, rounded, zone), nowSeconds, zone);
@@ -155,6 +173,17 @@ export function followingLine(chain: readonly number[], goalName: string): strin
   return `Following ${chain.join(' → ')}${goalName ? ` (${goalName})` : ''}`;
 }
 
+/**
+ * The words before Right now's chain of stops (13 Nov 2026): "Following" only when the route is really followed. Before
+ * a Follow press the chain is the instant answer's, and "Following 223 → 248 → 283 → 300" read as if it had been kept.
+ *   followed:  "Following 223 → …"          not followed: "The instant answer's route: 223 → …"
+ *   not on virtue: "If you start then: Following …" / "If you start then, the instant answer's route: …"
+ */
+export function chainLead(o: { followed: boolean; notOnVirtue?: boolean }): string {
+  if (o.followed) return o.notOnVirtue ? 'If you start then: Following' : 'Following';
+  return o.notOnVirtue ? "If you start then, the instant answer's route:" : "The instant answer's route:";
+}
+
 /** Each stop of the route against the clock: 'passed' before the ascension the save is in (`ascNow`, 1-based;
  *  0 before the plan starts), 'now' for that one, 'ahead' after. */
 export function chainStops(chain: readonly number[], ascNow: number): { te: number; state: 'passed' | 'now' | 'ahead' }[] {
@@ -165,13 +194,6 @@ export function chainStops(chain: readonly number[], ascNow: number): { te: numb
 export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): string {
   const d = dateAt(atSeconds, nowSeconds, zone);
   return d ? `${d} (${relativeWords(atSeconds - nowSeconds)})` : '';
-}
-
-/** An hour of the day as the browser says it, short: "7 AM" (en-US), "19:00" (de-DE): the minutes are left off
- *  only on a 12-hour clock, where "7 AM" reads whole. */
-function hourShort(h: number, locale?: string): string {
-  const s = formatHourOfDay(h, locale);
-  return /[^\d:\s.]/.test(s) ? s.replace(/[:.]00(?=\D|$)/, '') : s;
 }
 
 /** A whole-day stretch in the browser's format, compact: "Oct 27", "Oct 29–30", "Oct 29 – Nov 2",
@@ -205,8 +227,9 @@ function stretchList(list: TimeOffDates[], locale?: string): string {
 
 /**
  * The Setup pill's line on My runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
- * "7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is left
- * out when there are none. Hours and dates in the browser's format (lib/clock.ts); `locale` is for specs.
+ * "7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is
+ * left out when there are none. Hours and dates in the browser's format (lib/clock.ts), the hours always with their
+ * minutes (Jordan, 12 Nov 2026: "7:00 AM", never "7 AM"); `locale` is for specs.
  */
 export function setupSummary(
   availability: Availability | null | undefined,
@@ -214,9 +237,9 @@ export function setupSummary(
   noPrestige?: TimeOffDates[] | null,
   locale?: string
 ): string {
-  const hours = hoursShort(availability).replace(/\b(\d+) ([ap]m)\b/g, (_, n: string, ap: string) =>
-    hourShort((Number(n) % 12) + (ap === 'pm' ? 12 : 0), locale)
-  );
+  // The hours from the numbers in the player's style (lib/timeStyleWords.ts), never read back from words: a 24-hour
+  // locale's "07:00" has no am/pm to read.
+  const hours = hoursShort(availability, locale);
   const off = usableTimeOff(timeOff);
   const held = usableTimeOff(noPrestige);
   const parts = [hours, off.length ? `time off ${stretchList(off, locale)}` : 'no time off'];

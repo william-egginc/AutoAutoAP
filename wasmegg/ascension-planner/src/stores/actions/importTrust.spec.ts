@@ -12,8 +12,8 @@ import { readFileSync } from 'node:fs';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { loadAndSyncBackup } from '@/lib/modes';
 import { resetAllStores } from '@/lib/modes/reset';
-import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
-import { computeSnapshot } from '@/engine/compute';
+import { createBaseEngineState, getSimulationContext } from 'lib/planners/engine/adapter';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useTruthEggsStore } from '@/stores/truthEggs';
@@ -63,9 +63,9 @@ describe("a plan file's results", () => {
   });
 
   it('both file imports drop results: the summary bar Import and the Plan Library', () => {
-    const summary = readFileSync(new URL('../../components/PlanFinalSummary.vue', import.meta.url), 'utf8');
+    const summary = readFileSync(new URL('../../../../../ui/components/planners/PlanFinalSummary.vue', import.meta.url), 'utf8');
     expect(summary).toContain('importPlan(JSON.stringify(dropFileResults(data)))');
-    const library = readFileSync(new URL('../../components/PlanLibrary.vue', import.meta.url), 'utf8');
+    const library = readFileSync(new URL('../../../../../ui/components/planners/PlanLibrary.vue', import.meta.url), 'utf8');
     expect(library).toContain('for (const p of plansToImport) dropFileResults(p.data);');
   });
 });

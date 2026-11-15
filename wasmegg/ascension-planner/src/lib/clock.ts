@@ -75,8 +75,6 @@ export interface MomentOptions {
    *  the minute promises more than it can hold. Only for summaries and lists, never a deadline, a stop or a
    *  prestige time, where the hour is what the player acts on. */
   dateOnlyWhenFar?: boolean;
-  /** The hour alone when it is on the hour ("4 PM"), for the compact route lines. */
-  shortTime?: boolean;
   /** " at " between the date and the time, for a sentence ("Oct 24 at 9:47 PM"). */
   at?: boolean;
   /** The zone's short name with the time ("PDT"). */
@@ -107,7 +105,7 @@ export function formatMoment(ms: number, o: MomentOptions = {}): string {
     day: 'numeric',
   };
   if (dateOnly) return formatter(o.locale, dateOpts)?.format(d) ?? '';
-  const timeOpts = timeOptions(d, o);
+  const timeOpts = timeOptions(o);
   if (o.at) {
     const date = formatter(o.locale, dateOpts)?.format(d);
     const time = formatter(o.locale, timeOpts)?.format(d);
@@ -116,25 +114,20 @@ export function formatMoment(ms: number, o: MomentOptions = {}): string {
   return formatter(o.locale, { ...dateOpts, ...timeOpts })?.format(d) ?? '';
 }
 
-function timeOptions(d: Date, o: Pick<MomentOptions, 'zone' | 'shortTime' | 'zoneName' | 'locale'>): Intl.DateTimeFormatOptions {
-  const onTheHour = o.shortTime && d.getUTCSeconds() === 0 && minuteIn(d, o.zone) === 0;
+/** The time of day always with its minutes, "4:00 PM", never the hour alone (Jordan, 12 Nov 2026). */
+function timeOptions(o: Pick<MomentOptions, 'zone' | 'zoneName'>): Intl.DateTimeFormatOptions {
   return {
     timeZone: o.zone,
     hour: 'numeric',
-    ...(onTheHour ? {} : { minute: '2-digit' }),
+    minute: '2-digit',
     ...(o.zoneName ? { timeZoneName: 'short' } : {}),
   };
-}
-
-function minuteIn(d: Date, zone: string | undefined): number {
-  const f = formatter('en-US', { timeZone: zone, minute: 'numeric' });
-  return f ? Number(f.formatToParts(d).find(x => x.type === 'minute')?.value) : NaN;
 }
 
 /** The time of day of `ms` in `zone`: "9:47 PM" / "21:47". '' when it can't be read. */
 export function formatClock(ms: number, zone?: string, locale?: string): string {
   const d = dateOf(ms);
-  return (d && formatter(locale, timeOptions(d, { zone }))?.format(d)) || '';
+  return (d && formatter(locale, timeOptions({ zone }))?.format(d)) || '';
 }
 
 /** An hour of the day (0-23, wrapped): "9:00 AM" / "09:00". */

@@ -15,6 +15,7 @@
  * it. localStorage is shared by every tab of the same origin, and its writes are synchronous, so the
  * last heartbeat before a crash is on disk.
  */
+import { clockTimeOf } from '@/lib/timeStyleWords';
 
 /** Minutes between automatic progress sends: 1 to 6 hours. */
 export const AUTO_EVERY_MIN = [60, 120, 180, 240, 300, 360] as const;
@@ -469,12 +470,9 @@ export function stepDownDecision(args: {
   return null;
 }
 
-/** "3:07 am", in the viewer's own zone. */
+/** "3:07 AM", in the viewer's own zone (lib/timeStyleWords.ts). */
 export function clock12(ms: number): string {
-  const d = new Date(ms);
-  const h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`;
+  return clockTimeOf(ms);
 }
 
 /** "45 s", "3 min", "2 h". */

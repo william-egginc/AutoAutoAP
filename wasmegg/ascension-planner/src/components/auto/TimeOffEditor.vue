@@ -11,7 +11,8 @@
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <span class="text-small font-bold text-slate-800">{{ words.title }}</span>
+      <!-- The box's heading in the same small caps as Awake hours beside it (it was small bold, a third style; spec-tidy). -->
+      <span class="label text-slate-500">{{ words.title }}</span>
       <button
         type="button"
         :disabled="store.isRunning || rows.length >= 8"

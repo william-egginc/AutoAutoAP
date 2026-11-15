@@ -79,9 +79,9 @@ const muted = computed(() => (props.green ? 'text-emerald-900/80' : 'text-slate-
 function eggName(egg: string): string {
   return (VIRTUE_EGG_NAMES as Record<string, string>)[egg] ?? egg;
 }
-/** "Tue, Oct 13, 4 PM" / "Tue, Oct 13, 4:30 PM" (en-US), in the plan's time zone (lib/clock.ts). */
+/** "Tue, Oct 13, 4:00 PM" / "Tue, Oct 13, 4:30 PM" (en-US), in the plan's time zone (lib/clock.ts). */
 function short(unix: number): string {
-  return formatMoment(unix * 1000, { zone: props.zone, weekday: true, year: 'never', shortTime: true });
+  return formatMoment(unix * 1000, { zone: props.zone, weekday: true, year: 'never' });
 }
 function span(seconds: number): string {
   const h = seconds / 3600;

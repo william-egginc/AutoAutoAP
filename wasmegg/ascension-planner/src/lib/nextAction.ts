@@ -21,6 +21,8 @@
  */
 import { virtueEggName } from './virtueEggs';
 import { buildLeftWords } from './saveBuild';
+import type { TrackerLine } from './buildUpTracker';
+import { buyWindowWords } from './nextBuyWords';
 
 /** One ascension as these read it: the simulated one (`simulated`) or the table's. */
 export interface ActionLeg {
@@ -152,7 +154,64 @@ function nextActionOf(o: {
 /** The Next step's words: "Shift to Humility on Oct 28, 2026 at 3:12 PM", "Building up until about …", "Prestige on …",
  *  "Reach 490 TE on …" ("on", spec-uxpass item 2, 8 Nov 2026: `when` gives the date AND the time, "Oct 28, 2026 at
  *  3:12 PM", RightNowCard.vue `sentenceWhen`). */
-export function nextActionWords(a: NextAction, when: (t: number) => string): string {
+export function nextActionWords(
+  a: NextAction,
+  when: (t: number) => string,
+  buy?: NextBuy | null,
+  /** Words for the buy window: the clock alone, the weekday, whether two moments are the same day. Absent: `when` only. */
+  fmt?: { clock: (t: number) => string; weekday: (t: number) => string; day: (t: number) => string; sameDay: (a: number, b: number) => boolean }
+): string {
+  // The tracker has research to buy before this step (M13, 12 Nov 2026, Jordan: on Curiosity "Shift to Humility" came over
+  // the buys the sale starts at 10:00 am): the buy window, with when it opens and ends; the step itself is Next shifts'
+  // first line right below, so it is not said again. DRAFT words (Words reviews).
+  if (buy) {
+    const same = !!fmt && fmt.sameDay(buy.at, buy.until);
+    const clock = (t: number) => (fmt ? fmt.clock(t) : when(t));
+    // The weekdays go with the clocks only when the window ends on another day (Words' sentence, lib/nextBuyWords.ts).
+    const to = fmt ? fmt.clock(buy.until) : when(buy.until);
+    const days = fmt && !same ? { fromDay: fmt.weekday(buy.at), toDay: fmt.weekday(buy.until) } : {};
+    if (buy.sale || buy.open)
+      return buyWindowWords({ day: fmt ? fmt.day(buy.at) : 'the', from: clock(buy.at), to, ...days, ...(buy.open ? { open: true } : {}) });
+    return `Buy research from ${same ? clock(buy.at) : when(buy.at)} to ${same ? clock(buy.until) : when(buy.until)}`;
+  }
+  return nextActionWordsOf(a, when);
+}
+
+/** The research buy window ahead of the Next step: when it opens, when it ends (the step, or the sale's end when that is
+ *  earlier), and whether it opens with a sale. */
+export interface NextBuy {
+  at: number;
+  until: number;
+  sale?: boolean;
+  /** It is due now (its start has passed): "Buy research now, until …". */
+  open?: boolean;
+}
+
+/** The first research buy still to do that comes before the Next step (a shift, a prestige or the goal): the tracker's
+ *  lines (lib/buildUpTracker.ts), those not ticked, by their planned time, as a window that ends at the step or at the
+ *  sale's end, whichever is first. Null when none, or when the step is the build-up's own ("Building up", "Keep
+ *  building" already say it). */
+export function nextBuyBefore(
+  a: NextAction | null | undefined,
+  lines: readonly TrackerLine[] | null | undefined,
+  ticks: ReadonlySet<string>,
+  /** Now, unix seconds: a buy already due is `open`. */
+  now?: number
+): NextBuy | null {
+  if (!a || !lines || !(a.kind === 'shift' || a.kind === 'prestige' || a.kind === 'goal')) return null;
+  const first = lines.find(l => l.kind === 'research' && l.tickable && !ticks.has(l.key) && ok(l.at) && l.at < a.at);
+  if (!first) return null;
+  // The sale this buy opens (a sale-start line at its time), or is inside: the buys run in it, so its end can come first.
+  const opens = lines.find(l => l.kind === 'saleStart' && ok(l.at) && Math.abs(l.at - first.at) <= 120);
+  const sale = opens ?? lines.filter(l => l.kind === 'saleStart' && ok(l.at) && l.at <= first.at).pop();
+  const end = sale ? lines.find(l => l.kind === 'saleEnd' && ok(l.at) && l.at > sale.at) : undefined;
+  return { at: first.at, until: end && end.at < a.at ? end.at : a.at,
+    ...(opens ? { sale: true } : {}),
+    ...(typeof now === 'number' && first.at <= now ? { open: true } : {}),
+  };
+}
+
+function nextActionWordsOf(a: NextAction, when: (t: number) => string): string {
   if (a.kind === 'build') return `Building up until about ${when(a.until)}`;
   if (a.kind === 'keepbuilding') return `Keep building: ${buildLeftWords(a.left)} until about ${when(a.until)}`;
   if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} on ${when(a.at)}`;
@@ -237,9 +296,11 @@ function shiftLines(o: {
         out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
         if (++shifts >= max) return out;
       }
-    } else if (i === 0 && leg.simulated && leg.unstarted && !leg.live && o.now >= leg.start) {
-      // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow.
-      out.push({ kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
+    } else if (i === 0 && leg.simulated && leg.unstarted && !leg.live) {
+      // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow. A start still
+      // a little ahead of `now` (the page's minute clock lags the real time by up to 59 s) is that start, as nextActionOf
+      // says (14 Nov 2026): Next shifts no longer begins with a shift while Next step says Prestige.
+      out.push({ kind: 'prestige', at: o.now < leg.start ? leg.start : o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
     } else if (i === 0 && leg.simulated && keepBuildingUntil(leg, o.now) !== null) {
       // The save's build carried on: said first, then every shift (those made while building too).
       out.push({ kind: 'keepbuilding', at: leg.buildEnd!, left: [...leg.building!], exact });

@@ -27,8 +27,8 @@ describe('the silos now', () => {
     expect(s.empty).toBe(true);
     expect(s.leftSeconds).toBe(0);
     const w = siloNowWords(s, SAVE, now, ZONE);
-    expect(w.line).toBe('Silos: empty since Oct 26 at 1:00 AM (estimated from your save of Oct 25 at 10:09 AM)');
-    expect(w.value).toBe('empty');
+    expect(w.line).toBe('Silos: empty since about Oct 26 at 1:00 AM (estimated from your save of Oct 25 at 10:09 AM)');
+    expect(w.value).toBe('empty (from your save)');
   });
 
   it('from the farm’s own last step when it is before the save (the farm wasn’t running since)', () => {

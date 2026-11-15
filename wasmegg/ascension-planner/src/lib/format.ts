@@ -9,7 +9,7 @@
 import { formatNumber } from 'lib/planners/format';
 import { formatMoment } from './clock';
 import { compactDuration } from './duration';
-export { secondsToDate, formatNumber, formatWithReference, formatFullNumber, formatMultiplier, formatDuration, formatPercent, parseNumber, parseDuration, formatUnixToDateInput, formatUnixToTimeInput } from 'lib/planners/format';
+export { formatPrice, secondsToDate, formatNumber, formatWithReference, formatFullNumber, formatMultiplier, formatDuration, formatPercent, parseNumber, parseDuration, formatUnixToDateInput, formatUnixToTimeInput } from 'lib/planners/format';
 
 /**
  * Format a gem price.

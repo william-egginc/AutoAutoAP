@@ -102,6 +102,31 @@ describe('loading an account', () => {
     }
   });
 
+  it('spec-tidy-words M8: a failed read stays "unreachable" when the account is cleared and set again within the minute (no new GET)', async () => {
+    answer = () => 'offline';
+    const follows = await loadAccount();
+    expect(follows.cloudStatus).toBe('unreachable');
+    const gets = () => calls.filter(c => c.method === 'GET').length;
+    expect(gets()).toBe(1);
+    // The page re-sets the save (rawBackup cleared, then the same account again): the watch runs with no account, then with it.
+    useInitialStateStore().rawBackup = null as never;
+    await vi.waitFor(() => expect(follows.cloudStatus).toBe('idle'));
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    await vi.waitFor(() => expect(follows.cloudKey).toBe(KEY));
+    await vi.waitFor(() => expect(follows.cloudStatus).toBe('unreachable'));
+    expect(gets()).toBe(1);
+  });
+
+  it('spec-tidy-words M8: a read that worked stays "ok" the same way', async () => {
+    const follows = await loadAccount();
+    expect(follows.cloudStatus).toBe('ok');
+    useInitialStateStore().rawBackup = null as never;
+    await vi.waitFor(() => expect(follows.cloudStatus).toBe('idle'));
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    await vi.waitFor(() => expect(follows.cloudStatus).toBe('ok'));
+    expect(calls.filter(c => c.method === 'GET')).toHaveLength(1);
+  });
+
   it('exactly one GET per account load, however often the store is touched or read again', async () => {
     const follows = await loadAccount();
     for (let i = 0; i < 5; i++) {

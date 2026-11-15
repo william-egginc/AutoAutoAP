@@ -32,6 +32,8 @@ import {
   type TourStored,
 } from '@/lib/firstTour';
 import { FIRST_TOUR_STEPS, firstTourAnnounce } from '@/lib/firstTourWords';
+import { fullStepsFor, type FullTourStepId } from '@/lib/fullTour';
+import { FULL_TOUR_STEPS_WORDS, fullTourAnnounce } from '@/lib/fullTourWords';
 
 /** What is loaded and running. */
 export interface TourEnv {
@@ -58,6 +60,9 @@ export function tourWaitReason(w: TourWait): keyof TourWait | null {
 }
 
 export type TourPhase = 'closed' | 'welcome' | 'slides';
+/** The first-visit tour, or the full one (lib/fullTour.ts: opened only when asked, never touching aap.tour). */
+export type TourMode = 'first' | 'full';
+export type AnyTourStepId = TourStepId | FullTourStepId;
 /** Where focus goes after the box closes: the ID box, the save-file button, or back where it was. */
 export type TourRestore = 'id' | 'file' | 'back';
 
@@ -70,6 +75,7 @@ export function createTourController(opts: { storage?: TourStorage | null; block
 
   const state = reactive({
     phase: 'closed' as TourPhase,
+    mode: 'first' as TourMode,
     index: 0,
     remind: true,
     /** What should take focus when the box next shows (TourModal.vue calls `focused()`). */
@@ -81,17 +87,22 @@ export function createTourController(opts: { storage?: TourStorage | null; block
   const env = ref<TourEnv>({ hasAccount: false, hasSaveFile: false, running: false });
   let stored: TourStored = { kind: 'absent' };
 
-  const steps = computed<TourStepId[]>(() => stepsFor(env.value));
-  const step = computed<TourStepId>(() => steps.value[Math.min(state.index, steps.value.length - 1)] ?? TOUR_STEPS[0]);
+  const steps = computed<AnyTourStepId[]>(() => (state.mode === 'full' ? fullStepsFor(env.value) : stepsFor(env.value)));
+  const step = computed<AnyTourStepId>(() => steps.value[Math.min(state.index, steps.value.length - 1)] ?? TOUR_STEPS[0]);
   const total = computed(() => steps.value.length);
   const isLast = computed(() => state.index >= steps.value.length - 1);
   const isFirst = computed(() => state.index === 0);
   const noAccount = () => !env.value.hasAccount;
 
   function say(): void {
-    state.announce = firstTourAnnounce(state.index + 1, total.value, FIRST_TOUR_STEPS[step.value].title);
+    const id = step.value;
+    state.announce =
+      state.mode === 'full'
+        ? fullTourAnnounce(state.index + 1, total.value, FULL_TOUR_STEPS_WORDS[id as FullTourStepId].title)
+        : firstTourAnnounce(state.index + 1, total.value, FIRST_TOUR_STEPS[id as TourStepId].title);
   }
   function showSlides(remind: boolean): void {
+    state.mode = 'first';
     state.phase = 'slides';
     state.index = 0;
     state.remind = remind;
@@ -126,6 +137,7 @@ export function createTourController(opts: { storage?: TourStorage | null; block
       if (!s || !tourShouldStart({ stored: s, newVisitor: opts.newVisitor, blocked: opts.blocked })) return;
       stored = shownFirst(s);
       if (s.kind === 'absent') write(stored);
+      state.mode = 'first';
       state.phase = 'welcome';
       state.index = 0;
       state.remind = true;
@@ -139,6 +151,27 @@ export function createTourController(opts: { storage?: TourStorage | null; block
       if (e.running) return;
       stored = read() ?? { kind: 'absent' };
       showSlides(false);
+    },
+    /** THE FULL TOUR (lib/fullTour.ts): "Full tour" in More, the first tour's last card or About. Slide 1 of its own list at
+     *  once, no Remind me later, never reading or writing aap.tour; Skip, Esc and Done only close it, back to where focus was.
+     *  Not while a search runs. */
+    startFull(e: TourEnv): void {
+      env.value = { ...e };
+      if (e.running) return;
+      state.mode = 'full';
+      state.phase = 'slides';
+      state.index = 0;
+      state.remind = false;
+      state.wantFocus = 'title';
+      state.restore = null;
+      say();
+    },
+    /** The first tour's last card, "More: Full tour": closes it as done (as Done does), then the full tour from slide 1. */
+    fullFromFirst(e: TourEnv): void {
+      if (state.mode !== 'first' || state.phase !== 'slides' || !isLast.value) return;
+      stored = afterDone();
+      write(stored);
+      api.startFull(e);
     },
     /** Shown on the page now: open and nothing to wait behind. */
     visible(w: TourWait): boolean {
@@ -169,12 +202,14 @@ export function createTourController(opts: { storage?: TourStorage | null; block
     },
     skip(): void {
       if (state.phase === 'closed') return;
+      if (state.mode === 'full') return close('back');
       stored = afterSkip(stored, state.remind);
       write(stored);
       close(after());
     },
     done(): void {
       if (state.phase !== 'slides') return;
+      if (state.mode === 'full') return close('back');
       stored = afterDone();
       write(stored);
       close(after());
@@ -222,7 +257,15 @@ export function useFirstTour(make?: () => TourController): TourController | null
   return shared;
 }
 
+/** Bumped by "Full tour" (More, About's link); TourModal.vue answers with `startFull`. */
+export const tourFullAsked = ref(0);
+
 /** "Show the tour again" (App.vue's footer, Setup). */
 export function askTourReplay(): void {
   tourReplayAsked.value++;
+}
+
+/** "Full tour" (More's item, the first tour's last card, About). */
+export function askFullTour(): void {
+  tourFullAsked.value++;
 }

@@ -187,3 +187,40 @@ describe("the save's own farm, already laying (26 Oct 2026: a producing farm on 
     expect(nextShifts({ now: T0 + H, legs: [bare], more: true }).map(x => x.kind)).toEqual(['build', 'prestige']);
   });
 });
+
+describe('an unstarted fresh start whose plan start is a little ahead of the minute clock (14 Nov 2026)', () => {
+  // The page's clock (composables/useMinuteClock.ts) lags the real time by up to 59 s, and the plan start is read from
+  // the real time (stores/chainSearch.ts planStart), so a start 30 s ahead of `now` is ordinary for up to a minute. Next
+  // step already said "Prestige at the start"; Next shifts dropped its prestige line (it needed now >= start) and began
+  // with a shift, until the next tick. Found when NowPage.producingNextStep.spec flaked under load.
+  const unstarted = (start: number): ActionLeg => ({
+    to: 194,
+    endTE: 194,
+    start,
+    end: T0 + 40 * H,
+    simulated: true,
+    unstarted: { te: 190 },
+    shifts: [
+      { at: T0 + 2 * H, egg: 'humility' },
+      { at: T0 + 3 * H, egg: 'resilience' },
+    ],
+  });
+  for (const [name, start] of [
+    ['behind the clock', T0 - 30],
+    ['at the clock', T0],
+    ['30 s ahead of the clock', T0 + 30],
+  ] as const)
+    it(`start ${name}: Next shifts leads with the same prestige Next step says`, () => {
+      const leg = unstarted(start);
+      const step = nextAction({ now: T0, leg, last: false });
+      const lines = nextShifts({ now: T0, legs: [leg], more: true });
+      expect(step).toMatchObject({ kind: 'prestige', at: Math.max(start, T0) });
+      expect(lines[0]).toMatchObject({ kind: 'prestige', te: 190, at: Math.max(start, T0) });
+      expect(lines.slice(1, 3).map(l => l.kind)).toEqual(['shift', 'shift']);
+    });
+  it('the hours still hold the prestige once the start has come (prestigeAt), and never move it before a start still ahead', () => {
+    const later = (t: number) => t + 2 * H;
+    expect(nextShifts({ now: T0, legs: [unstarted(T0 - 30)], more: true, prestigeAt: later })[0]).toMatchObject({ kind: 'prestige', at: T0 + 2 * H });
+    expect(nextShifts({ now: T0, legs: [unstarted(T0 + 30)], more: true, prestigeAt: later })[0]).toMatchObject({ kind: 'prestige', at: T0 + 30 });
+  });
+});

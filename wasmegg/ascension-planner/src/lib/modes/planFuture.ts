@@ -16,13 +16,13 @@
  */
 
 import { resetAllStores } from './reset';
-import { fetchPlayerBackup } from './fetchBackup';
+import { fetchPlayerBackup } from 'lib/planners/modes/fetchBackup';
 import { loadAndSyncBackup, rollUpPendingTE } from './utils';
 import type { ei } from 'lib';
 import { useActionsStore } from '@/stores/actions';
-import { useVirtueStore } from '@/stores/virtue';
-import { computeSnapshot } from '@/engine/compute';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { usePlanStore } from '@/stores/plan';
+import { computeSnapshot } from 'lib/planners/engine/compute';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { applyAutoStartingTE } from '@/auto/startingTE';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -54,10 +54,10 @@ export async function initPlanFuture(playerId: string, stored?: ei.IBackup, sour
   if (syncTEOverrideToAccount()) await applyAutoStartingTE({ refreshSnapshot: false });
 
   // 5. Plan-specific setup
-  const virtueStore = useVirtueStore();
-  virtueStore.resetToCurrentDateTime();
-  virtueStore.setBankValue(0);
-  virtueStore.setCurrentEgg('curiosity');
+  const planStore = usePlanStore();
+  planStore.resetToCurrentDateTime();
+  planStore.setBankValue(0);
+  planStore.setCurrentEgg('curiosity');
 
   // 6. Ensure start action is clean (resetAllStores already did this, but explicit)
   const actionsStore = useActionsStore();

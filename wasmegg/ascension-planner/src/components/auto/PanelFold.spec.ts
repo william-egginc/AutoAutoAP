@@ -253,9 +253,13 @@ describe('every foldable part reads lib/panelFold.ts', () => {
     const fold = read('PanelFold.vue');
     expect(fold).toMatch(/<details[\s\S]*?:open="open"/);
     expect(fold).toContain('foldOpen(props.section,');
-    // Prefer fewer stays outside the count table's fold.
+    // Prefer fewer stays outside the count table's fold: one control, with the filters under Filters (12 Nov 2026 pm),
+    // before both tables.
     const ir = read('InstantRoute.vue');
-    expect([...ir.matchAll(/<PreferFewerControl[^>]*\/>\s*<!--[^>]*-->\s*<PanelFold section="countTable"/g)]).toHaveLength(2);
+    expect(ir.match(/<PreferFewerControl/g)).toHaveLength(1);
+    const folds = [...ir.matchAll(/<PanelFold section="countTable"/g)].map(m => m.index!);
+    expect(folds).toHaveLength(2);
+    for (const f of folds) expect(ir.indexOf('<PreferFewerControl')).toBeLessThan(f);
   });
 });
 

@@ -15,6 +15,7 @@
  * `timeOff`. Pure, so the component only renders.
  */
 import { isDeadlineRow, scheduleText, startMs, type BoardRow } from './leaderboardRank';
+import { formatClockTime } from './timeStyleWords';
 import { showSchedule } from './displayTime';
 
 export type DayPart = 'night' | 'morning' | 'afternoon' | 'evening';
@@ -64,11 +65,9 @@ const PARTS: { part: DayPart; from: number; to: number; label: string }[] = [
   { part: 'evening', from: 18, to: 24, label: 'Evening' },
 ];
 
-/** An hour of the day on a 12-hour clock, short: `7 am`, `noon`, `12 am`. */
+/** An hour of the day on a 12-hour clock: `7:00 AM`, `12:00 PM`, `12:00 AM` (lib/timeStyleWords.ts). */
 export function hour12(hour: number): string {
-  const h = ((Math.floor(hour) % 24) + 24) % 24;
-  if (h === 12) return 'noon';
-  return `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
+  return formatClockTime(hour);
 }
 
 /**

@@ -15,11 +15,11 @@ describe('first tour words', () => {
       body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
     });
     expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'Highest TE by a date plans for the most TE by a date such as Egg Day. Fastest to 490 TE finds the quickest way to 490 TE. You can switch any time.'
+      'You start on Chain Finder, on By a date with Egg Day picked. Target TE has a box for the TE you want, such as 490, and finds the quickest way there.'
     );
     // v2: the picture is a sample account's answer, so not "This is your answer".
     expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      "Your answer shows up quickly, worked out ahead of time: the finish date, each stop's TE and your first step. The rest of the page is under More."
+      "Your answer is worked out ahead of time: the finish date, each stop's TE and a short first step. The filters above narrow it, and every number of ascensions is below."
     );
     expect(FIRST_TOUR_STEPS.follow.body).toBe(
       'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'
@@ -30,16 +30,35 @@ describe('first tour words', () => {
     // DRAFT (spec-simpler2, 9 Nov 2026), for Words: Simulate this plan after the answer, and Setup as two slides.
     expect(FIRST_TOUR_STEPS.simulate).toEqual({
       title: 'Simulate this plan',
-      body: 'Simulate this plan opens the route in Single run, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
+      body: 'Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
     });
     expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
       title: 'Where Setup is',
-      body: 'Setup is the button at the bottom of the screen (at the right on a computer), on the Auto Planner and My runs. Press it any time.',
+      body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time, or drag it out of the way.',
     });
     expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
     expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your followed route and choices show on every device.'
+      'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The filters button just above the answer opens it too.'
     );
+    // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
+    expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(
+      'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.'
+    );
+    expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
+      'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
+    );
+    expect(FIRST_TOUR_STEPS.fast.body).toBe(
+      'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.'
+    );
+    expect(FIRST_TOUR_STEPS.custom.body).toBe(
+      'Custom tries every route in the boxes you set, so it proves the best one inside them. Big boxes can take hours.'
+    );
+    // Jordan, 12 Nov 2026 (pm): Chain Finder's goal switch, no "Single run", the table is on the page, not in More.
+    expect(FIRST_TOUR_STEPS.goal.body).toContain('Target TE');
+    expect(JSON.stringify(FIRST_TOUR_STEPS)).not.toMatch(/Single run/);
+    expect(FIRST_TOUR_STEPS.moreInside.body).not.toMatch(/filters|every number/i);
+    // No minutes anywhere: the time varies by device.
+    expect(FIRST_TOUR_STEPS.fast.body).not.toMatch(/\d/);
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {

@@ -148,6 +148,9 @@
           <li><a href="#prefs">Your choices and Setup, saved online</a></li>
           <li><a href="#answers">Your instant answers, saved online</a></li>
           <li><a href="#synced">Your starting TE, tracker ticks and plan, saved online</a></li>
+          <!-- calendar-feed:begin -->
+          <li><a href="#calendar">Your calendar link</a></li>
+          <!-- calendar-feed:end -->
           <li><a href="#readback">Your own run's CSV, read back</a></li>
           <li><a href="#never">What is never sent to the leaderboard</a></li>
           <li><a href="#online">What goes online, and the code made from your ID</a></li>
@@ -167,6 +170,7 @@
           An unofficial fan tool for planning virtue ascensions in Egg, Inc. It is built on Joo's Auto Ascension Planner
           and the wasmegg tools. It is not affiliated with, or endorsed by, Auxbrain, the makers of Egg, Inc.
         </p>
+        <p>Want to see where everything is? Open More on any screen and press Full tour.</p>
       </section>
 
       <section id="stays">
@@ -248,6 +252,10 @@
           <a href="#version">Which version of the page you have open</a>).
           Your choices and Setup are saved online only when you change them, and read whenever you load an account (see
           <a href="#prefs">Your choices and Setup, saved online</a>).
+          <!-- calendar-feed:begin -->
+          With Put my plan in my calendar on, the planned times of your plan are also saved online whenever the plan changes (see
+          <a href="#calendar">Your calendar link</a>).
+          <!-- calendar-feed:end -->
         </p>
         <ul>
           <li>
@@ -425,6 +433,25 @@
         </ul>
       </section>
 
+      <!-- calendar-feed:begin -->
+      <!-- lib/calendarFeedWords.ts, lib/calendarCloud.ts: this section and Setup's calendar card go with that code. -->
+      <section id="calendar">
+        <h2>Your calendar link</h2>
+        <p>
+          If you turn on Put my plan in my calendar, the planner makes a private link. Your calendar app subscribes to it
+          and shows the planned times of your shifts, buys and ascensions, with short titles. It shows no player ID, name or save.
+        </p>
+        <ul>
+          <li><b>Who can see it:</b> anyone who has the link, so treat it like a password. The link is shown only to you. We keep just a scrambled fingerprint of it, so not even the maintainer can see or rebuild your link. Your calendar company can see it: Google or Apple keeps a copy of the events on its own servers, under its own privacy policy, and keeps the link in your account.</li>
+          <li><b>What we store:</b> the planned times and short titles, under a scrambled key, never your player ID. They sit on the planner's server so the link can show them, and the maintainer could read them there, but they carry no ID or name.</li>
+          <li><b>Who can make one:</b> anyone who knows your player ID can make a link for it, as with saved routes and Setup.</li>
+          <li><b>How old it is:</b> your calendar may be up to a day behind the planner.</li>
+          <li><b>Reset or delete:</b> Reset link stops the old link at once. Deleting what is saved online removes your links too. Your calendar company's copy stays until your calendar drops it, which is usually its next refresh.</li>
+          <li><b>How long it is kept:</b> a link is removed after 90 days in which no calendar app has checked it. The 90 days count from the last check, so a calendar that is still subscribed never expires. You can make a new link any time.</li>
+        </ul>
+      </section>
+      <!-- calendar-feed:end -->
+
       <section id="readback">
         <h2>Your own run's CSV, read back</h2>
         <p>
@@ -452,6 +479,9 @@
         <h2>What goes online, and the code made from your ID</h2>
         <ul>
           <li>Saved online while <b>Save online</b> in Setup is on (it is on to start), under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.</li>
+          <!-- calendar-feed:begin -->
+          <li>If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID (see <a href="#calendar">Your calendar link</a>).</li>
+          <!-- calendar-feed:end -->
           <li>The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.</li>
           <li>On the leaderboard: only what you tick. Never your player ID or your save.</li>
           <li>Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.</li>

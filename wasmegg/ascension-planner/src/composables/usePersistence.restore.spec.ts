@@ -28,7 +28,7 @@ vi.mock('@/lib/storage/db', () => {
   };
 });
 
-const { usePersistence } = await import('./usePersistence');
+const { usePersistence } = await import('lib/planners/composables/usePersistence');
 const { useActionsStore } = await import('@/stores/actions');
 
 const ID = 'EI1234567890123456';

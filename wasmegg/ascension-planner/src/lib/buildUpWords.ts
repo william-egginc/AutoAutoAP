@@ -109,3 +109,35 @@ export const earlierDoneWords = (n: number): string => `Earlier: ${n} day${n ===
 export const showAllToDoWords = (n: number): string => `Show all ${n} still to do`;
 /** Said after a done day's line for a screen reader. */
 export const DONE_DAY_SR = 'all done';
+
+/**
+ * Research tier unlocks (spec-tierunlock, 13 Nov 2026; DRAFT, Words). The tracker says where a tier opens: on the check-in
+ * ("Tier 13 unlocks") and, while one is still ahead, in the header ("Tier 13 at 4:41 PM"). A label, not a control. Tiers
+ * read as "13", "12 and 13", "2, 3 and 4".
+ */
+const tiersList = (tiers: readonly number[]): string =>
+  tiers.length < 2 ? `${tiers[0]}` : `${tiers.slice(0, -1).join(', ')} and ${tiers[tiers.length - 1]}`;
+/** On the check-in: "Tier 13 unlocks", "Tiers 12 and 13 unlock". */
+export function tierUnlocksWords(tiers: readonly number[]): string {
+  return tiers.length === 1 ? `Tier ${tiers[0]} unlocks` : `Tiers ${tiersList(tiers)} unlock`;
+}
+/** Compact's chip, with the check-in's time (Compact shows no time per check-in; the sale chips say theirs): "Tier 13 unlocks 4:41 PM". */
+export function tierUnlocksChipWords(tiers: readonly number[], time: string): string {
+  return `${tierUnlocksWords(tiers)}${time ? ` ${time}` : ''}`;
+}
+/** In the header, after the check-in count: "Tier 13 at 4:41 PM". `when` is the time as the tracker's lines write it. */
+export function tierAheadWords(tiers: readonly number[], when: string): string {
+  return `${tiers.length === 1 ? 'Tier' : 'Tiers'} ${tiersList(tiers)} at ${when}`;
+}
+
+/**
+ * The tracker's stages (spec-stages, 13 Nov 2026; Jordan's three names; DRAFT for the rest, Words): a band where a stage
+ * starts, and "now: <stage>" in the header line. Labels only.
+ */
+export const STAGE_WORDS = { tier13: 'Buying to Tier 13', roi: 'Focus on ROI', delivery: 'Delivery research' } as const;
+/** The header line's part: "now: Buying to Tier 13". */
+export const stageNowWords = (stage: keyof typeof STAGE_WORDS): string => `now: ${STAGE_WORDS[stage]}`;
+/** A stage's band: "Focus on ROI from 11:16 AM" (the time the stage's first line has; none: the name alone). When it starts
+ *  on another day than today, the day too: "Delivery research from Fri Nov 20 at 10:00 AM" (QA, 13 Nov 2026). */
+export const stageStartWords = (stage: keyof typeof STAGE_WORDS, time: string, day = ''): string =>
+  `${STAGE_WORDS[stage]}${time ? ` from ${day ? `${day} at ` : ''}${time}` : day ? ` from ${day}` : ''}`;

@@ -24,7 +24,9 @@
   (wireframes/price-route-v2, Jordan 23 Oct 2026: nothing prices it here, the instant numbers never change by themselves).
 -->
 <template>
-  <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
+  <!-- On a phone the green box is the card (Jordan, 12 Nov 2026 pm; phone proposal item a): the outer card's border,
+       background and padding from sm up only, so the box's text gets 42 px more width at 390. -->
+  <section v-if="!noTable" class="sm:rounded-2xl sm:border border-emerald-200 sm:bg-white sm:p-4 space-y-3">
     <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -36,6 +38,21 @@
           >your gear</span
         >
       </h3>
+      <!-- The saved answer (the card clean-up, Jordan 12 Nov 2026): one line beside the heading, its sentence behind the
+           "?" word for word (lib/instantCardWords.ts), Work it out again beside it (44 px on a phone). -->
+      <p v-if="savedAt" class="flex flex-wrap items-center gap-x-2 text-small text-slate-500" data-testid="saved-answer">
+        <span>{{ savedAnswerLabel(showNear(savedAt / 1000)) }}</span
+        >{{ ' '
+        }}<CardHelp>{{ savedFromSentence({ when: show(savedAt / 1000), planStart: answerStart ? show(answerStart) : null }) }}</CardHelp
+        >{{ ' '
+        }}<button
+          type="button"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-body text-emerald-800 underline hover:text-emerald-900 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          @click="pressRun(true, 'again')"
+        >
+          {{ WORK_IT_OUT_AGAIN }}
+        </button>
+      </p>
       <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
         <span v-if="ms !== null && !moreTo" class="text-small text-slate-500">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
         <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
@@ -52,6 +69,14 @@
         </button>
       </span>
     </div>
+    <!-- Work it out again's warning, right under the heading row it sits in. -->
+    <InstantRunWarning
+      v-if="warnHere(confirming, 'again')"
+      at="again"
+      @go="confirmRun(false)"
+      @remember="confirmRun(true)"
+      @cancel="confirming = null"
+    />
     <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save, at the top,
          whether the instant answer is here, still working or missing. The only thing on this card a search changes. -->
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
@@ -99,10 +124,10 @@
       Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
+    <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
-      <span>{{ loadingText }}<AnimatedDots v-if="loadingText" />{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
+      <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template>{{ result && !staleAt && !deadlineStale ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -171,33 +196,6 @@
       Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page.
       These routes and dates are not real answers.
     </p>
-    <p
-      v-if="savedAt"
-      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600 flex flex-wrap items-center gap-x-3"
-      data-testid="saved-answer"
-    >
-      <span
-        >Saved from {{ show(savedAt / 1000) }}: same save, setup and filters, so nothing was worked out again<template
-          v-if="answerStart"
-        >
-          (its dates are for a plan start of {{ show(answerStart) }})</template
-        >.</span
-      >
-      <button
-        type="button"
-        class="font-bold text-body text-emerald-800 underline hover:text-emerald-900"
-        @click="pressRun(true, 'again')"
-      >
-        Work it out again
-      </button>
-    </p>
-    <InstantRunWarning
-      v-if="warnHere(confirming, 'again')"
-      at="again"
-      @go="confirmRun(false)"
-      @remember="confirmRun(true)"
-      @cancel="confirming = null"
-    />
     <p v-if="!confirming && runBusy && alongside" class="text-body text-slate-500" data-testid="instant-alongside">
       Running alongside your search: this uses more memory.
     </p>
@@ -225,13 +223,13 @@
     <!-- No routes while the integrity check holds them back (search/instantIntegrity.ts). -->
     <template v-if="!integrityHold">
 
-      <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
-      <div v-if="result" class="space-y-1">
-        <!-- With a More on the screen (`moreTo`, the simpler default page, 9 Nov 2026): the line under the title, its
-             Why?, the awake-hours tick and the ascensions range go into More, above the table (moreEl). They change the
-             answer above, so More's line names any that isn't at its default (`moreChanges`). -->
+      <!-- The filters (remembered in this browser): the routes and the headline come from what is left. Not drawn when
+           everything in it has gone to the screen's targets (`empty:hidden`: a Teleport leaves only comments behind;
+           phone proposal item b, 12 Nov 2026). -->
+      <div v-if="result" class="space-y-1 empty:hidden">
+        <!-- With a More on the screen (`moreTo`, the simpler default page, 9 Nov 2026): the line under the title and its
+             Why? go into More (moreEl). -->
         <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
-        <div class="space-y-1" data-testid="instant-filters">
         <!-- THE ONE LINE UNDER THE TITLE (spec-slimcard; wireframes/instant-slim-v1, Jordan 5 Nov 2026; DRAFT words in
              lib/instantWords.ts): in place of the estimate line in the box, "These are instant answers…" (lib/searchPointer.ts
              INSTANT_ONE_LINE, no longer drawn), "Each prestige waits for your awake hours…" and "Your no-prestige days are
@@ -254,6 +252,13 @@
             </ul>
           </details>
         </div>
+        </Teleport>
+        <!-- THE FILTERS UNDER THE FILTERS BUTTON (Jordan, 12 Nov 2026 pm: always shown just below Filters, not in More;
+             Filters itself still opens Setup): the awake-hours tick, the ascensions range and its line, and Prefer fewer
+             ascensions, one place each (`filtersTo`, the screen's target under the button; without one, More; without
+             that, here). -->
+        <Teleport :to="filtersHome ?? 'body'" :disabled="!filtersHome">
+        <div class="space-y-1" data-testid="instant-filters">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-slate-600">
           <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
             <input
@@ -299,6 +304,13 @@
         <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
+        <!-- Prefer fewer ascensions (was above the table in More): the same control, its goal's margin (TE on By a date,
+             time on Fastest), when there is more than one count to choose from. -->
+        <PreferFewerControl
+          v-if="deadline ? !!result.byDate && dateRows.length > 1 : !!boxLead"
+          v-model="preferMargin"
+          :goal="deadline ? 'date' : 'fastest'"
+        />
         </div>
         </Teleport>
         <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
@@ -325,11 +337,11 @@
       <!-- THE INSTANT CARD (wireframes/price-route-v2, Jordan 23 Oct 2026): the green box and the counts list show the
            instant answer only, and never change by themselves (nothing on this card prices a route). A search below has
            its own result card; once it has one for this goal, the pointer line at the bottom points to it. -->
-      <template v-if="result && deadline">
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
+      <template v-if="result && deadline && !deadlineStale">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700"
-              >Highest TE by {{ show(deadline) }}</span
+              >Highest TE by {{ showNear(deadline) }}</span
             >
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
             <span
@@ -353,15 +365,15 @@
                 v-if="dateSpare?.tight"
                 data-testid="box-tight"
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label"
-                >tight</span
+                >{{ closeCall ? CLOSE_CALL_TAG : 'tight' }}</span
               >
             </div>
-            <div class="tabular-nums text-body font-bold text-slate-800">
-              {{ dateBoxOf(result.byDate).chain.join(' → ') }}
-            </div>
-            <div class="text-small text-slate-700">
-              Reached {{ show(dateBoxOf(result.byDate).end) }} ·
-              {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
+            <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
+            <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
+            <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
+                 routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
+            <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -370,11 +382,12 @@
               >{{ boxGain }}
             </p>
             <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
-            <AnswerCaveatLine :caveat="headCaveat" />
+            <AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
-                 same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
-                 the box; lib/hoursNote.ts). -->
+                 same legs as When each step happens below. Since 12 Nov 2026 pm (Jordan, phone proposal question 3) one
+                 short sentence ("… sharp.", `firstStepShortText`) with today's whole sentence, its awake-hours clause
+                 included, behind the card's "?" (CardHelp). The build-up-missing warning is drawn as before. -->
             <p
               v-if="firstStep"
               :class="firstStepWarn ? 'text-body text-amber-800' : 'text-body text-slate-800'"
@@ -383,13 +396,7 @@
             >
               <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-              ><template v-else>{{ stepCaveat.step }}</template>
-            </p>
-            <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
-                 the first ascension continues the build-up with the hours limiting the answer, so its research buys can
-                 fall outside them and the finish above is a best case. Once, under First step. -->
-            <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-              {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+              ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -416,25 +423,31 @@
                 :plan-start="answerStart"
                 :deadline="deadline"
               />
-              <button
-                type="button"
-                :class="SECONDARY_BUTTON"
-                :title="SIMULATE_TITLE"
-                data-testid="box-simulate"
-                @click="openPlan(dateBoxOf(result.byDate).chain)"
-              >
-                Simulate this plan
-              </button>
+              <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                <button
+                  :aria-describedby="describedby"
+                  type="button"
+                  :class="SECONDARY_BUTTON"
+                  data-testid="box-simulate"
+                  @click="openPlan(dateBoxOf(result.byDate).chain)"
+                >
+                  Simulate this plan
+                </button>
+              </Tip>
             </div>
-            <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
-            <BetterRoutePrompt
-              v-if="!staleAt"
-              class="mt-2"
-              :goal-key="followGoal"
-              goal="date"
-              :deadline="deadline ?? null"
-              :candidate="instantCandidate(dateBoxOf(result.byDate))"
-            />
+            <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts), as one line in
+                 the Following bar under the card (`nowTo`; the card clean-up, Jordan 12 Nov 2026); here without one. -->
+            <Teleport :to="nowEl ?? 'body'" :disabled="!nowEl">
+              <BetterRoutePrompt
+                v-if="!staleAt"
+                line
+                :class="nowEl ? '' : 'mt-2'"
+                :goal-key="followGoal"
+                goal="date"
+                :deadline="deadline ?? null"
+                :candidate="instantCandidate(dateBoxOf(result.byDate))"
+              />
+            </Teleport>
           </template>
           <p v-else-if="result.outside?.date" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
             No route in this range: the nearest is {{ plural(result.outside.date.ascensions, 'ascension') }},
@@ -461,9 +474,7 @@
              route wraps onto a second line inside the row; from md up it has its own column. The column names are for
              the eye (aria-hidden); each head says them to a screen reader itself. No rem min/max variant (Tailwind 3
              "mixed units" drops them all: countsPhone.spec.ts). -->
-        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
-          <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
@@ -525,21 +536,23 @@
                   <template v-if="countOpen(r)">
                     <p class="text-small text-slate-600 tabular-nums">Reached {{ show(r.end) }}</p>
                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        :class="SECONDARY_BUTTON"
-                        :title="SIMULATE_TITLE"
-                        :aria-label="`Simulate ${r.chain.join(' ')}`"
-                        @click="openPlan(r.chain)"
-                      >
-                        Simulate this plan
-                      </button>
                       <FollowButton v-if="rowFollowable(r)" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                         :finish="r.end"
                         :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                         :plan-start="answerStart"
                         :deadline="deadline"
                       />
+                      <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                        <button
+                          :aria-describedby="describedby"
+                          type="button"
+                          :class="SECONDARY_BUTTON"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
+                          @click="openPlan(r.chain)"
+                        >
+                          Simulate this plan
+                        </button>
+                      </Tip>
                     </div>
                   </template>
                 </div>
@@ -547,8 +560,15 @@
             </ul>
           </div>
           </PanelFold>
+          <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
+               expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
+          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+        </div>
+        <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
           <MaxedWhatIf
-            v-if="whatIf"
+            v-if="whatIf && result.byDate && dateRows.length > 1"
             v-bind="whatIf"
             @result="onWhatIf"
             :table-url="TABLE_URL"
@@ -559,13 +579,11 @@
             :at-least="filters.minAscensions"
             :deadline="deadline"
           />
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
-        </div>
         </Teleport>
       </template>
 
       <template v-if="result && !deadline">
-        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
+        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="label text-emerald-700">Fastest to {{ store.finalTE }} TE</span>
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
@@ -580,7 +598,7 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -589,7 +607,7 @@
             >{{ boxGain }}
           </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
-          <AnswerCaveatLine :caveat="headCaveat" />
+          <AnswerCaveatLine :caveat="headCaveat" :effect="gearEffect" />
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <!-- First step, as in By a date's box. -->
@@ -601,11 +619,7 @@
           >
             <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-            ><template v-else>{{ stepCaveat.step }}</template>
-          </p>
-          <!-- The night-buy note, as in By a date's box above. -->
-          <p v-if="nightBuyNote" class="text-small text-slate-500 max-w-prose" data-testid="box-night-buy">
-            {{ stepCaveat.note }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+            ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -627,25 +641,31 @@
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
               :plan-start="answerStart"
             />
-            <button
-              type="button"
-              :class="SECONDARY_BUTTON"
-              :title="SIMULATE_TITLE"
-              data-testid="box-simulate"
-              @click="openPlan(boxLead.chain)"
-            >
-              Simulate this plan
-            </button>
+            <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+              <button
+                :aria-describedby="describedby"
+                type="button"
+                :class="SECONDARY_BUTTON"
+                data-testid="box-simulate"
+                @click="openPlan(boxLead.chain)"
+              >
+                Simulate this plan
+              </button>
+            </Tip>
           </div>
-          <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
-          <BetterRoutePrompt
-            v-if="!staleAt"
-            class="mt-2"
-            :goal-key="followGoal"
-            goal="fastest"
-            :deadline="null"
-            :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
-          />
+          <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts), as one line in the
+               Following bar, as By a date's. -->
+          <Teleport :to="nowEl ?? 'body'" :disabled="!nowEl">
+            <BetterRoutePrompt
+              v-if="!staleAt"
+              line
+              :class="nowEl ? '' : 'mt-2'"
+              :goal-key="followGoal"
+              goal="fastest"
+              :deadline="null"
+              :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
+            />
+          </Teleport>
         </div>
         <p v-else-if="result.outside?.fastest" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
           No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
@@ -667,9 +687,7 @@
           }}.
         </p>
         <!-- Every number of ascensions, instant numbers only: rows that open on tap, as By a date's above. -->
-        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
-          <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
@@ -732,21 +750,23 @@
                   data-testid="counts-row-panel"
                 >
                   <div v-if="countOpen(r)" class="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      :class="SECONDARY_BUTTON"
-                      :disabled="r.chain.length < 2"
-                      :title="SIMULATE_TITLE"
-                      :aria-label="`Simulate ${r.chain.join(' ')}`"
-                      @click="openPlan(r.chain)"
-                    >
-                      Simulate this plan
-                    </button>
                     <FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                       :finish="r.end"
                       :end-te="r.chain[r.chain.length - 1]"
                       :plan-start="answerStart"
                     />
+                    <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                      <button
+                        :aria-describedby="describedby"
+                        type="button"
+                        :class="SECONDARY_BUTTON"
+                        :disabled="r.chain.length < 2"
+                        :aria-label="`Simulate ${r.chain.join(' ')}`"
+                        @click="openPlan(r.chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                    </Tip>
                   </div>
                 </div>
               </li>
@@ -767,8 +787,15 @@
             extra stop only adds a prestige.
           </p>
           </PanelFold>
+          <!-- Near the target (within 25 TE of your TE): rows of many tiny ascensions can be priced a little fast (game
+               expert, 13 Nov 2026; chainSearch.ts isNearTarget). Plain text, no live region. DRAFT words. -->
+          <p v-if="nearTarget" class="text-small text-slate-500" data-testid="counts-near-note">{{ TARGET_TE_WORDS.nearRows }}</p>
+          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
+        </div>
+        <!-- The maxed-gear what-if stays in More (its line: "maxed gear"). -->
+        <Teleport :to="moreEl ?? 'body'" :disabled="!moreEl">
           <MaxedWhatIf
-            v-if="whatIf"
+            v-if="whatIf && boxLead"
             v-bind="whatIf"
             @result="onWhatIf"
             :table-url="TABLE_URL"
@@ -778,8 +805,6 @@
             :at-most="filters.maxAscensions"
             :at-least="filters.minAscensions"
           />
-          <p v-if="moreTo" class="text-small text-slate-500" data-testid="counts-row-hint">{{ ROW_HINT }}</p>
-        </div>
         </Teleport>
       </template>
 
@@ -895,20 +920,22 @@
 
 <script setup lang="ts">
 import { SECONDARY_BUTTON } from './resultCardStyle';
+import { cardTime } from './instantCardTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
 import { computed, inject, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
 import { SECTION_HIDE } from './sectionHide';
-import { useChainSearchStore } from '@/stores/chainSearch';
+import { isNearTarget, useChainSearchStore } from '@/stores/chainSearch';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, saveSiloSeconds } from '@/search/leg';
 import { cardDeliveryScale, readKept } from '@/search/instantScale';
-import { getSimulationContext } from '@/engine/adapter';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import type { SearchInputs, TimeOffWindow } from '@/search/types';
 import {
   chooseInstantTable,
@@ -927,7 +954,7 @@ import {
 import InstantUnloaded from './InstantUnloaded.vue';
 import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import {
   findRoutes,
   heldOpeningOf,
@@ -977,7 +1004,7 @@ import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
 import AnswerCaveatLine from './AnswerCaveatLine.vue';
 import PanelFold from './PanelFold.vue';
-import { answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
+import { GEAR_CAVEAT_DAYS, answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
 import { OPTIMISTIC_TEXT, gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
@@ -1040,7 +1067,9 @@ import { savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { instantSimulate, simulateRoute } from '@/search/simulateRoute';
 import type { FirstAscension } from '@/search/firstAscension';
 import InstantSteps from './InstantSteps.vue';
-import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import { NAMES, simulateNote } from '@/lib/siteNav';
+import Tip from '@/components/Tip.vue';
+import { TIP_SIMULATE } from '@/lib/tipWords';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
@@ -1087,20 +1116,22 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
+import { CLOSE_CALL_TAG, closeCallLine, isCloseCall } from '@/lib/closeCallWords';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
-  mergeFirstStepCaveats,
   INSTANT_ESTIMATE_LINE,
   buildUpMissingRestOf,
   firstStepKind,
   firstStepLine,
+  firstStepShort,
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
-import { NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { DATE_CHANGED_WORKING, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, gearEffectLine, routeReachedLine, savedAnswerLabel, savedFromSentence } from '@/lib/instantCardWords';
+import CardHelp from './CardHelp.vue';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
-import HelpTip from './HelpTip.vue';
 import { instantSteps } from '@/lib/instantSteps';
 import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
@@ -1125,6 +1156,12 @@ const props = defineProps<{
    *  takes the line under the title and its filters, Prefer fewer and Every number of ascensions, and the maxed-gear
    *  what-if; `<moreTo>-how` takes How this is worked out. Without one, all of it stays on this card, as before. */
   moreTo?: string;
+  /** The Following bar's slot (layout/NowLine.vue `now-offer-<screen>`): the better-route line goes there. Without one
+   *  it stays under the box's buttons. */
+  nowTo?: string;
+  /** The screen's slot just below its Filters button (Jordan, 12 Nov 2026 pm): the awake-hours tick, the ascensions
+   *  range and Prefer fewer go there, always shown. Without one they go to More (`moreTo`), else stay on this card. */
+  filtersTo?: string;
 }>();
 /** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
 const sectionHide = inject(SECTION_HIDE, null);
@@ -1201,6 +1238,16 @@ const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
 /**
+ * The date `result` was worked out for (By a date; null: not a date answer, or not known yet). A new date picked leaves
+ * the old answer in `result` until the run for it is in, and the card draws "Highest TE by <new date>" with the old
+ * TE and a spare counted from the new date (QA, 13 Nov 2026: "-235d to spare"). While the two differ the answer is not
+ * drawn at all (`deadlineStale`), only the working line.
+ */
+const answerDeadline = ref<number | null>(null);
+const deadlineStale = computed(
+  () => !!props.deadline && !!result.value && answerDeadline.value !== null && answerDeadline.value !== props.deadline
+);
+/**
  * BUILD-UP MISSING (search/instantFirstLegs.ts BuildUpFlags; 6 Nov 2026, Jordan's phone: "prestige now and reach 220"
  * mid build-up, when continuing reached it 4 days 19 h sooner): the answer in `result` was worked out with the
  * setting building up and a farm in the save, but the build-up could not be worked out (the store's worker failed), so
@@ -1256,6 +1303,8 @@ const deliveryScale = computed<number | null>(() =>
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
+/** Near the target: the note under Every number of ascensions (the same rule on By a date, whose target is 490). */
+const nearTarget = computed(() => isNearTarget(target.value, store.currentTE));
 /** The save is already at or past the target: nothing to find, said plainly instead of nothing. */
 const atTarget = computed(() => {
   const te = Math.floor(store.currentTE);
@@ -1481,8 +1530,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
       now: Math.floor(Date.now() / 1000),
       ...(deadline ? { deadline } : {}),
       final: target.value,
-      // On the hour, as the hour alone ("Feb 23, 2027, 7 PM"; UX review 26 Oct 2026, item 8).
-      show: (unix: number) => showDateTime(unix, zone.value, undefined, { shortTime: true }),
+      // The full time, minutes too ("Feb 23, 2027, 7:00 PM"; Jordan, 12 Nov 2026: never the hour alone).
+      show: (unix: number) => showDateTime(unix, zone.value),
     });
     prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS), route: routeKey };
     cachePrestige(found, prestige.value);
@@ -1739,13 +1788,38 @@ const firstStep = computed(() => {
   });
   return line.slice(FIRST_STEP_LABEL.length + 1);
 });
+/**
+ * First step's short form on the card (Jordan, 12 Nov 2026 pm, phone proposal question 3; Words' lib/instantWords.ts
+ * firstStepShort): one sentence, "sharp" when the hours limit it; `firstStep` above, today's whole sentence, sits behind
+ * its "?". The prestige always with its date (`sameDay: false`), without this year's year (./instantCardTime.ts); no
+ * reached time, so a one-ascension First step has no "(time)".
+ */
+const firstStepShortText = computed(() => {
+  const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
+  const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
+  if (!a || !legs?.length) return '';
+  const kind = firstStepKind(legs[0].label);
+  const near = (t: number) => cardTime(t, zone.value, { at: true });
+  const { short } = firstStepShort({
+    kind,
+    start: kind === 'fresh' && !a.now ? near(a.prestigeAt) : null,
+    stopTE: a.stopTE,
+    reached: near(a.reachedAt),
+    prestigeDate: b ? near(b.prestigeAt) : null,
+    prestigeTime: null,
+    sameDay: false,
+    hours: hoursLimited.value,
+    buildUpMissing: answerBuildUpMissing.value,
+  });
+  return short.slice(FIRST_STEP_LABEL.length + 1);
+});
 /** First step is a build-up-could-not-be-worked-out line (a fresh start or, spec-buildupmissing-continue, the ascension
  *  you are in): its part after the bold lead, drawn amber (spec-buildupmissing-words); '' otherwise. */
 const firstStepWarn = computed(() => buildUpMissingRestOf(firstStep.value));
 /** The legs First step reads: the box's route's. */
 const firstLegs = computed(() => (props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null)));
 /**
- * The night-buy note under First step (spec-nightbuynote; NIGHT_BUY_NOTE_SHORT): the first ascension continues the
+ * The night-buy note under First step (spec-nightbuynote; INSTANT_NIGHT_BUY_NOTE): the first ascension continues the
  * build-up and the awake hours limit the answer (`hoursLimited`, as First step's hours clause), so the build-up's research
  * buys may fall outside them. Never for a fresh start, the ascension you are in continued, or the warning line.
  */
@@ -1754,10 +1828,10 @@ const nightBuyNote = computed(() =>
   !firstStepWarn.value &&
   nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
 );
-/** First step and its one caveat line: the hours clause and the night-buy note merged into one line when both would
- *  show (lib/instantWords.ts `mergeFirstStepCaveats`, spec-uxpass item 9, 8 Nov 2026); the note's show rule is
- *  `nightBuyNote`'s, unchanged. */
-const stepCaveat = computed(() => mergeFirstStepCaveats(firstStep.value, nightBuyNote.value));
+/** First step as it is, its awake-hours clause kept, and the night-buy note for the "quick estimate ?" marker on the
+ *  box's time line (the card clean-up, Jordan 12 Nov 2026; was merged with the clause into one line under First step,
+ *  lib/instantWords.ts `mergeFirstStepCaveats`). The note's show rule is `nightBuyNote`'s, unchanged. */
+const stepCaveat = computed(() => ({ step: firstStep.value, note: nightBuyNote.value ? INSTANT_NIGHT_BUY_NOTE : null }));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
@@ -2032,6 +2106,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     return;
   }
   const id = ++runs;
+  // The date this run answers (a date picked while it works must not label its answer).
+  const askedDeadline = props.deadline ?? null;
   const bid = ++bracketRuns;
   whatIfResult.value = null;
   keptSearch.value = null;
@@ -2203,6 +2279,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (!missing) keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
+    answerDeadline.value = askedDeadline;
     answerBuildUpMissing.value = missing;
     result.value = answer;
     staleAt.value = null;
@@ -2301,6 +2378,13 @@ const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 const dateSpare = computed(() => {
   const b = result.value?.byDate;
   return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
+});
+/** The close-call line under a By a date answer with under about 2 days to spare (lib/closeCallWords.ts), or null. */
+const closeCall = computed(() => {
+  const b = result.value?.byDate;
+  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value)) return null;
+  const f = searchFound.value;
+  return closeCallLine({ te: dateBoxOf(b).endTE, found: f ? { level: f.level, endTE: f.endTE } : null });
 });
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
@@ -2518,6 +2602,9 @@ const headCaveat = computed(() =>
     lowTeCaveat(lowTeNote.value),
   ])
 );
+/** The gear warning cut to its effect on the card (Jordan, 12 Nov 2026): only for the gear shift (the form G), which
+ *  leads the caveats whenever it shows; its line and the Why list go behind the "?" (AnswerCaveatLine `effect`). */
+const gearEffect = computed(() => (shiftedTable.value && headCaveat.value ? gearEffectLine(GEAR_CAVEAT_DAYS) : null));
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
 function dateBoxOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
@@ -2790,6 +2877,7 @@ function cacheKey(): string | null {
     useHours: useHours.value,
     maxAscensions: filters.value.maxAscensions,
     minAscensions: filters.value.minAscensions,
+    siloTrick: store.siloTrick,
   });
 }
 /**
@@ -3084,6 +3172,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
+  answerDeadline.value = props.deadline ?? null;
   answerBuildUpMissing.value = s.buildUpMissing === true;
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
   ms.value = typeof s.ms === 'number' ? s.ms : null;
@@ -3204,6 +3293,13 @@ function show(unix: number): string {
 }
 /** A Fastest route's finish in the box, the counts table and the outside-your-limits line: the date alone
  *  when it is over a year away ("Jun 7, 2032"), since an instant answer years out is not good to the minute. */
+/** The card's times without this year's year ("Nov 18, 2:46 PM"; another year keeps it; ./instantCardTime.ts): the saved
+ *  line, By a date's Reached time (QA t241, 12 Nov 2026: at 390 px the long form pushed Work it out again and "· quick
+ *  estimate ?" onto rows of their own) and the box label (Jordan, 12 Nov 2026 pm). ISO as `show`. The sentence behind a
+ *  "?" keeps the full date. */
+function showNear(unix: number): string {
+  return cardTime(unix, zone.value);
+}
 function showFinish(unix: number): string {
   return showDateTime(unix, zone.value, undefined, { dateOnlyWhenFar: true });
 }
@@ -3276,19 +3372,29 @@ const shareEl = useShareTarget(() => props.shareTo, shareShown);
 /** Where the More parts go (`moreTo`), looked up as the share line's target is (composables/useTeleportTarget.ts):
  *  after mount and each time an answer is in; none found, and they stay on this card. */
 const moreEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}` : undefined), () => !!result.value);
+/** The Following bar's slot for the better-route line (`nowTo`, layout/NowLine.vue): looked up as More's. */
+const nowEl = useTeleportTarget(() => (props.nowTo ? `#${props.nowTo}` : undefined), () => !!result.value);
 const moreHowEl = useTeleportTarget(() => (props.moreTo ? `#${props.moreTo}-how` : undefined), () => !!result.value);
-/** More's line names these when they aren't at their default (lib/moreChanges.ts, DRAFT words). */
+/** The Filters slot (`filtersTo`), looked up as More's. */
+const filtersEl = useTeleportTarget(() => (props.filtersTo ? `#${props.filtersTo}` : undefined), () => !!result.value);
+/** Where the filters go: the Filters slot, else More, else (null) this card. */
+const filtersHome = computed(() => filtersEl.value ?? moreEl.value);
+/** More's line names these when they aren't at their default (lib/moreChanges.ts), only while they are in More: under
+ *  the Filters button they are always in sight, so More's line names none (Jordan, 12 Nov 2026 pm). */
 watch(
   () =>
-    instantMoreChanges({
-      goal: preferGoal.value,
-      margin: preferMargin.value,
-      minAscensions: filters.value?.minAscensions ?? null,
-      maxAscensions: filters.value?.maxAscensions ?? null,
-      hoursOn: !!hoursOn.value,
-      inHours: filters.value?.inHours ?? true,
-    }),
-  c => emit('more-changes', c),
+    [
+      !!filtersEl.value,
+      instantMoreChanges({
+        goal: preferGoal.value,
+        margin: preferMargin.value,
+        minAscensions: filters.value?.minAscensions ?? null,
+        maxAscensions: filters.value?.maxAscensions ?? null,
+        hoursOn: !!hoursOn.value,
+        inHours: filters.value?.inHours ?? true,
+      }),
+    ] as const,
+  ([, c]) => emit('more-changes', filtersEl.value ? [] : c),
   { immediate: true }
 );
 /** "See it ↓": the part of the search panel that holds the result, shown, then scrolled to its result card. */

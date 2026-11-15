@@ -185,14 +185,14 @@ describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
     expect(clash.map(l => `${l.at}: ${l.toks.join(' ')}`)).toEqual([]);
   });
 
-  it('buttons are sentence case: a <button> carries the caps label only as a tab (underline tab, role="tab", SiteTabs)', () => {
+  it('buttons are sentence case: a <button> carries the caps label only as a tab (underline tab, role="tab", SiteTabs) or a segmented switch\'s side (role="radio", GoalSwitch)', () => {
     const bad: string[] = [];
     for (const { rel, src } of FILES)
       for (const m of src.matchAll(/<button\b[^>]*>/g)) {
         const tag = m[0];
         const cls = (tag.match(/\sclass="([^"]*)"/)?.[1] ?? '').split(/\s+/);
         if (!cls.includes('label')) continue;
-        if (cls.includes('border-b-2') || /role="tab"/.test(tag) || rel.endsWith('SiteTabs.vue')) continue;
+        if (cls.includes('border-b-2') || /role="(?:tab|radio)"/.test(tag) || rel.endsWith('SiteTabs.vue')) continue;
         bad.push(`${rel}:${src.slice(0, m.index).split('\n').length}`);
       }
     expect(bad).toEqual([]);
@@ -201,8 +201,8 @@ describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
 
 describe('line length (step 4): reading paragraphs stop at about 65 characters (max-w-prose)', () => {
   it('the screen intros, the Help box intro, My runs and Setup paragraphs', () => {
-    expect(read('components/auto/ByDateScreen.vue')).toContain('<p class="text-body text-slate-600 max-w-prose" data-testid="bydate-line">');
-    expect(read('components/auto/FastestRoute.vue')).toContain('<p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">');
+    // Both screens' intro lines live in the "?" beside the switch since 14 Nov 2026 (layout/GoalHelp.vue).
+    expect(read('components/layout/GoalHelp.vue')).toContain('<p class="mx-auto text-body text-slate-600 max-w-prose" :data-testid="testid">');
     expect(read('components/StudyForm.vue')).toContain('class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro"');
     expect(read('components/MyRunsView.vue')).toContain('<span class="block max-w-prose text-body text-slate-500"');
     expect(read('components/auto/YourSetup.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(10);

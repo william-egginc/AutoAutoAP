@@ -20,7 +20,7 @@ import '../../scripts/node-shims';
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, isProxy, reactive, ref } from 'vue';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { sanitizeLongs } from 'lib/planners/artifacts/utils';
 import { getOptimalELRSet } from '@/lib/artifacts';
 import { getColleggtibleTiers } from 'lib/collegtibles';
 import { syntheticBackup, syntheticInputs } from '@/test/syntheticSave';

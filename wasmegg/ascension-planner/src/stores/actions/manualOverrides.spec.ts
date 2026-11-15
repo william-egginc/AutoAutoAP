@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { MANUAL_OVERRIDES_KEY, readManualOverrides, useActionsStore } from './index';
+import { MANUAL_OVERRIDES_KEY, readManualOverrides, useActionsStore } from 'lib/planners/stores/actions';
 import { badCopyKey, readStoredJson, isPlainRecord, writeStoredJson } from '@/lib/safeStorage';
 
 let mem: Map<string, string>;

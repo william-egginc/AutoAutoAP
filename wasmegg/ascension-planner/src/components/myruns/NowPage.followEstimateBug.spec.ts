@@ -207,8 +207,9 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
     expect(page.cardPlan.value?.plan).toMatchObject({ chain: [225, 300], estimated: true, endTE: 300 });
     r = await render(page);
-    expect(r.text).toContain('from the instant answer your route estimated on its data, times rounded to the hour. For exact times, use a run from Try next below.');
-    expect(r.text.match(/rounded to the hour/g)).toHaveLength(1);
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(r.text).toContain('from the instant answer');
+    expect(r.text).not.toMatch(/rounded to the hour/);
     expect(r.text).not.toContain('No timeline for your route');
     scope.stop();
   });
@@ -268,8 +269,8 @@ describe('the pricing record and the saved answers from before it', () => {
   });
 
   it('an answer saved before this build (older INSTANT_RULES) is worked out again, so it is saved with its pricing', () => {
-    // sim4 (9 Nov 2026): INSTANT_RULES moved with SIM_VERSION; the rule tested here is unchanged.
-    expect(INSTANT_RULES).toBe('2026-11-09-sim4');
+    // sim4 (9 Nov 2026), then sim5 (14 Nov): INSTANT_RULES moved with SIM_VERSION; the rule tested here is unchanged.
+    expect(INSTANT_RULES).toBe('2026-11-14-sim5');
     const now = tablesIdentity([], ['table-v2.bin']);
     const before = now!.replace(`rules=${INSTANT_RULES}`, 'rules=2026-10-24-heldfix');
     expect(savedAnswerFits({ tables: before, rc: resultCode() }, 1, now)).toBe(false);

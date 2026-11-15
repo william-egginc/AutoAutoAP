@@ -77,7 +77,8 @@ describe('the save strip on the Auto Planner screens', () => {
 
   it('the newest save on the server: says so, no reload offered', async () => {
     requestSave.mockResolvedValue({ backup: backupAt(NOW - 12 * H) });
-    loadSave(NOW - 12 * H);
+    // The banner (and its Details) only with under 6 h of silos left (spec-myruns-fix): a farm that last ran 22 h ago.
+    loadSave(NOW - 12 * H, NOW - 22 * H);
     const { s, stop } = mountStrip();
     await settle();
     expect(s.server.value.kind).toBe('newest');
@@ -111,12 +112,13 @@ describe('the save strip on the Auto Planner screens', () => {
     stop();
   });
 
-  it('not quiet under 10 minutes when the farm is out of date: a check-in that didn’t sync (spec-saveage)', async () => {
+  it('shown under 10 minutes when the farm is out of date: a check-in that didn’t sync (spec-saveage); the quiet line, no box (12 Nov 2026)', async () => {
     requestSave.mockResolvedValue({ backup: backupAt(NOW) });
     loadSave(NOW - 4 * 60, NOW - 22 * H);
     const { s, stop } = mountStrip();
     await settle();
-    expect(s.state.value?.tone).toBe('red');
+    expect(s.state.value?.tone).toBe('green');
+    expect(s.state.value?.old).toBe(true);
     expect(s.state.value?.namesFarm).toBe(true);
     expect(s.shown.value).toBe(true);
     stop();

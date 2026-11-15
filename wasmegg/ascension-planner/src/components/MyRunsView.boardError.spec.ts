@@ -16,14 +16,15 @@ describe('Your routes at a glance, with the board unread', () => {
   it('says the board could not be read and the runs are safe, not "none yet"', async () => {
     const t = textOf(await renderHtml(RouteScatter, { ...base, boardFailed: 'read' }));
     expect(t).toMatch(/Couldn't read the leaderboard right now\. Your runs are safe on this \w+\./);
-    expect(t).toContain("· couldn't read the leaderboard");
+    expect(t).toContain(' · not loaded');
     expect(t).not.toContain('none yet');
     expect(t).not.toContain('No routes of yours yet');
   });
 
   it('unreachable: the same, in its own words', async () => {
     const t = textOf(await renderHtml(RouteScatter, { ...base, boardFailed: 'unreachable' }));
-    expect(t).toContain("Couldn't reach the leaderboard.");
+    expect(t).toMatch(/Couldn't reach the leaderboard right now\. Your runs are safe on this \w+\./);
+    expect(t).toContain(' · not loaded');
     expect(t).not.toContain('none yet');
   });
 
@@ -38,7 +39,7 @@ describe('MyRunsView wiring', () => {
   it('the board part listens for the failure, says so in its count, and stays open', () => {
     expect(view).toContain('@failed="k => (boardFailed = k)"');
     expect(view).toContain('{{ boardCountText }}');
-    expect(view).toContain(`" · couldn't read the leaderboard"`);
+    expect(view).toContain(`" · not loaded"`);
     expect(view).toContain('if (!boardFailed.value) return countText(boardCount.value);');
     expect(view).toContain('(open.board = n !== 0 || !!failed)');
     expect(view).toContain(':board-failed="boardFailed"');

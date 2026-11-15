@@ -310,8 +310,10 @@ describe('the card', () => {
     const html = await renderHtml(RightNowCard, cardFor(drivingPlan(snap as never, 'date', DEADLINE)));
     const t = textOf(html);
     // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026): no footer under the events.
-    expect(t).toContain('from the instant answer worked out ahead of time, times rounded to the hour. For exact times, use a run from Try next below.');
-    expect(t.match(/rounded to the hour/g)).toHaveLength(1);
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(t).toContain('from the instant answer');
+    expect(t).not.toMatch(/rounded to the hour/);
+    expect(html).toContain('data-testid="tip-info"');
     // The header is "Calculated …" only when the pill says the source (UX fluff review 2, 5 Nov 2026, item R1).
     expect(t).toMatch(/^Right now Calculated /);
     expect(t).not.toContain('(instant answer)');
@@ -320,7 +322,7 @@ describe('the card', () => {
     expect(t).toContain('in 5d 17h');
     expect(t).toContain('Egg Day 2027 goal: 313 TE');
     expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
-    expect(t).toMatch(/\d+h( \d+m)? spare \(instant\)/);
+    expect(t).toMatch(/\d+h( \d+m)? spare before this date, on the instant answer's plan/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
     // No Run Fast on the card (one path per card, 25 Oct 2026): the events point at Try next in plain words.
     expect(html).not.toContain('data-testid="now-events-rounded"');
@@ -344,7 +346,7 @@ describe('the card', () => {
     expect(t).toContain('Add to calendar');
     expect(t).toContain('＋ Add');
     expect(t).toMatch(/goal: 312 TE .*\dh( \d+m)? spare/);
-    expect(t).not.toContain('(instant)');
+    expect(t).not.toContain("on the instant answer's plan");
     expect(t).not.toContain('Run Fast again');
   });
 

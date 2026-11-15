@@ -21,7 +21,10 @@
  *    egg the same numbers as here: decision c, 8 Nov 2026), remove (a newer tombstone), or ASK:
  *    another device's different override is NEVER applied silently; `cloudOverrideOffer` holds the question for
  *    TeOverrideBanner.vue ("Another device set a starting TE of N. Your save says M. [Use it] [Use my save's TE]").
- *  - 404 turns it off for the page quietly; 429 waits `retryAfter` and sends once more; 409 weighs the newer record as a
+ *  - 404 (a collector with no /sync YET: R8 goes live before its collector, Reliability 9 Nov 2026): nothing more is
+ *    asked of it for 10 minutes, then one read checks again (off for the page after 2 hours of 404s); a change made
+ *    meanwhile waits and is sent once it answers, with the action's own `at`. A 404 never means "nothing online".
+ *    429 waits `retryAfter` and sends once more; 409 weighs the newer record as a
  *    read would, nothing written back; offline, 503 and the rest: quiet. Never a throw, never blocks a run or a render.
  *  - The key is the followed routes' (stores/follow.ts `cloudKey`); never the ID in a URL or a body.
  *
@@ -256,8 +259,23 @@ export function cloudOverrideOffer(): CloudOverrideOffer | null {
   }
 }
 
-/** Collectors that answered 404 (no /sync) on this page load: nothing more is asked of them. */
-const offFor = new Set<string>();
+/**
+ * Collectors that answered 404 (no /sync): NOT YET, rather than never (Reliability, 9 Nov 2026: the page can go live
+ * before the collector that adds /sync). Nothing is asked of one until `until`; then one read checks again (`recheck`).
+ * A 404 inside a window does not count again; after SYNC_MISSING_WINDOWS windows it is off for this page load
+ * (`until` Infinity), as every 404 was before. A read or write that goes through forgets it.
+ */
+export const SYNC_MISSING_RECHECK_MS = 10 * 60_000;
+export const SYNC_MISSING_WINDOWS = 12;
+const missing = new Map<string, { until: number; windows: number }>();
+/** Bumped when `missing` changes, so Setup's Delete everything (`syncKnownMissing`) follows it. */
+const missingVersion = ref(0);
+let recheckTimer: ReturnType<typeof setTimeout> | null = null;
+/** How long this collector is still taken as having no /sync (ms; 0: not; Infinity: off for the page). */
+function missingFor(url: string): number {
+  const m = missing.get(url);
+  return m ? Math.max(0, m.until - Date.now()) : 0;
+}
 let pausedUntil = 0;
 let pending: { playerId: string; url: string; k: string; at: number; value: OverrideRecord } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -288,7 +306,10 @@ export function syncClock(): number {
 export function resetOverrideSync(): void {
   clockOffset = 0;
   offer.value = null;
-  offFor.clear();
+  missing.clear();
+  missingVersion.value++;
+  if (recheckTimer) clearTimeout(recheckTimer);
+  recheckTimer = null;
   pausedUntil = 0;
   pending = null;
   if (timer) clearTimeout(timer);
@@ -305,17 +326,22 @@ function searchStore() {
     return null;
   }
 }
-/** The /sync URL and key when the sync may run: SYNC_RECORDS on, Save online on, a collector, a key. */
-function where(): { url: string; k: string } | null {
+/** The /sync URL and key the sync goes to: SYNC_RECORDS on, Save online on, a collector, a key (404s aside). */
+function target(): { url: string; k: string } | null {
   if (!SYNC_RECORDS.enabled || !saveOnlineOn()) return null;
   try {
     const url = syncedUrlOf(cloudSubmitUrl(searchStore()?.submitUrl));
     const k = useFollowStore().cloudKey;
-    if (!url || !/^[0-9a-f]{64}$/.test(k) || offFor.has(url)) return null;
+    if (!url || !/^[0-9a-f]{64}$/.test(k)) return null;
     return { url, k };
   } catch {
     return null;
   }
+}
+/** The same, when it may be asked now: not inside a 404's window. */
+function where(): { url: string; k: string } | null {
+  const w = target();
+  return w && !missingFor(w.url) ? w : null;
 }
 /** A search running or starting: the starting TE is what it reads, so nothing changes it under it. */
 function searchBusy(): boolean {
@@ -403,9 +429,10 @@ function noteChange(playerId: string, te: Partial<Record<string, number>> | null
     } else writeRemovedAt(playerId, at);
     // The player's own change answers any question still open for the account.
     if (offer.value?.account === account) offer.value = null;
-    const w = where();
+    // Not yet on this collector (404): the change waits for it (`flushOverrideSync`); off for the page: kept here only.
+    const w = target();
     const value = buildOverrideValue(te, saveTE);
-    if (!w || !value) return;
+    if (!w || !value || missingFor(w.url) === Infinity) return;
     pending = { playerId, ...w, at, value };
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flushOverrideSync(), OVERRIDE_SYNC_DEBOUNCE_MS);
@@ -424,9 +451,12 @@ export async function flushOverrideSync(): Promise<void> {
   try {
     // Save online turned off (or the sync, or a 404 since): the change stays in this browser. Another account loaded
     // since: it still goes, under its own account's key (as stores/prefs.ts sends a change waiting at a switch).
-    const w = where();
+    const w = target();
     if (!w || w.url !== p.url) return;
-    const wait = pausedUntil - Date.now();
+    // A 429's pause, or a 404's window (the change waits for the collector; one second after the window's read).
+    const gone = missingFor(p.url);
+    if (gone === Infinity) return;
+    const wait = Math.max(pausedUntil - Date.now(), gone ? gone + 1000 : 0);
     if (wait > 0) {
       pending = p;
       timer = setTimeout(() => void flushOverrideSync(), wait);
@@ -438,12 +468,19 @@ export async function flushOverrideSync(): Promise<void> {
       if ('removed' in p.value) writeRemovedAt(p.playerId, r.resentAt);
       else if (readLocalOverride(p.playerId).at === p.at) stampLocal(p.playerId, r.resentAt, (p.value as { saveTE?: number }).saveTE);
     }
-    if (r.ok) return;
+    if (r.ok) return syncReached(p.url);
     if (r.why === 'newer') {
+      syncReached(p.url);
       const record = readOverrideValue(r.latest.value);
       if (record) weigh(p.playerId, record, r.latest.at);
-    } else if (r.why === 'missing') offFor.add(p.url);
-    else if (r.why === 'limit') {
+    } else if (r.why === 'missing') {
+      markSyncMissing(p.url);
+      const gone = missingFor(p.url);
+      if (!pending && gone !== Infinity) {
+        pending = p;
+        timer = setTimeout(() => void flushOverrideSync(), gone + 1000);
+      }
+    } else if (r.why === 'limit') {
       const secs = Math.max(1, r.retryAfter ?? 60);
       pausedUntil = Date.now() + secs * 1000;
       if (!pending) {
@@ -473,10 +510,11 @@ export async function syncOverrideFromCloud(): Promise<void> {
     const list = await listSynced(w.url, w.k);
     if (list.ok) noteServerNow(list.now);
     if (!list.ok) {
-      if (list.why === 'missing') offFor.add(w.url);
+      if (list.why === 'missing') markSyncMissing(w.url);
       else if (list.why === 'limit') pauseSync(list.retryAfter ?? 60);
       return;
     }
+    syncReached(w.url);
     await readOverride(list.records, w, playerId);
     // The same list for the other records (composables/useTrackerSync.ts): one GET /sync a pass.
     for (const l of listListeners) {
@@ -507,13 +545,44 @@ const listListeners = new Set<ListListener>();
 export function onSyncList(l: ListListener): void {
   listListeners.add(l);
 }
-/** Where the synced records go now (null: the sync may not run). Shared with useTrackerSync. */
+/** Where the synced records go now (null: the sync may not run, or not now: a 404's window). Shared with useTrackerSync. */
 export function syncWhere(): { url: string; k: string } | null {
   return where();
 }
-/** A 404 from this collector: nothing more asked of it on this page load. */
-export function markSyncOff(url: string): void {
-  offFor.add(url);
+/** Where they would go, a 404's window or not (a change made in it waits). Null: the sync may not run. */
+export function syncTarget(): { url: string; k: string } | null {
+  return target();
+}
+/** How long this collector is still taken as having no /sync (ms; 0: not; Infinity: off for the page). */
+export function syncMissingFor(url: string): number {
+  return missingFor(url);
+}
+/**
+ * A 404 from this collector's /sync: nothing asked of it for SYNC_MISSING_RECHECK_MS, then one read checks again
+ * (Setup's Delete everything is hidden meanwhile). A 404 inside the window does not count again.
+ */
+export function markSyncMissing(url: string): void {
+  const m = missing.get(url);
+  if (m && m.until > Date.now()) return;
+  const windows = (m?.windows ?? 0) + 1;
+  const off = windows >= SYNC_MISSING_WINDOWS;
+  missing.set(url, { until: off ? Infinity : Date.now() + SYNC_MISSING_RECHECK_MS, windows });
+  missingVersion.value++;
+  if (off || recheckTimer) return;
+  recheckTimer = setTimeout(() => {
+    recheckTimer = null;
+    void syncOverrideFromCloud();
+  }, SYNC_MISSING_RECHECK_MS);
+}
+/** This collector answered /sync: it has it. */
+function syncReached(url: string): void {
+  if (!missing.delete(url)) return;
+  missingVersion.value++;
+}
+/** Setup's Delete everything: this collector answered 404 to /sync on this page and has not answered since (reactive). */
+export function syncKnownMissing(url: string): boolean {
+  void missingVersion.value;
+  return missing.has(url);
 }
 /** A 429: no read and no write before `seconds` from now. */
 export function pauseSync(seconds: number): void {

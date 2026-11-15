@@ -11,7 +11,8 @@ import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import MoreFold from './MoreFold.vue';
 import { resetShowEverythingForTests } from '@/composables/useShowEverything';
-import { MORE_LINE_AUTO, MORE_TITLE, moreLineWithChanges } from '@/lib/layoutWords';
+import { MORE_LESS, MORE_LESS_LABEL, MORE_LINE_AUTO, MORE_TITLE, moreLineWithChanges } from '@/lib/layoutWords';
+import { headerBackInView } from '@/lib/foldBack';
 
 let mem: Map<string, string>;
 beforeEach(() => {
@@ -66,5 +67,62 @@ describe('MoreFold', () => {
     mem.set('aap.fold.moreFastest', '0');
     expect(await render({ running: true })).toContain('aria-expanded="true"');
     expect(await render({ unfinished: true })).toContain('aria-expanded="true"');
+  });
+});
+
+/** Allan (9 Nov 2026, relayed by Jordan): "once it's open, it's not obvious that everything below that heading/link is
+ *  associated with it." Open, More is one box with a left rule and a Less at its foot that folds all of it. */
+describe('MoreFold open: one container, with Less at the bottom too', () => {
+  const sectionTag = (html: string) => html.slice(html.indexOf('<section'), html.indexOf('>', html.indexOf('<section')) + 1);
+  it('open: the section is the container (border and a left rule), the content inside it, Less last inside it', async () => {
+    mem.set('aap.fold.moreFastest', '1');
+    const html = await render();
+    const tag = sectionTag(html);
+    expect(tag).toContain('more-open');
+    expect(tag).toMatch(/\bborder-l-4\b/);
+    expect(tag).toMatch(/\bborder\b/);
+    const less = html.indexOf('data-testid="more-moreFastest-less"');
+    expect(less).toBeGreaterThan(html.indexOf('id="inside"'));
+    expect(less).toBeLessThan(html.lastIndexOf('</section>'));
+    const btn = html.slice(html.lastIndexOf('<button', less), html.indexOf('>', less) + 1);
+    expect(btn).toContain('aria-expanded="true"');
+    expect(btn).toContain('aria-controls="more-moreFastest-body"');
+    expect(btn).toContain(`aria-label="${MORE_LESS_LABEL}"`);
+    expect(html).toContain(MORE_LESS);
+    // The header keeps its own aria too.
+    const head = html.slice(html.indexOf('<button'), html.indexOf('>', html.indexOf('<button')) + 1);
+    expect(head).toContain('aria-expanded="true"');
+    expect(head).toContain('aria-controls="more-moreFastest-body"');
+  });
+  it('closed: looks as before (no container, no Less)', async () => {
+    const html = await render();
+    const tag = sectionTag(html);
+    expect(tag).not.toContain('more-open');
+    expect(tag).not.toMatch(/border-l-4/);
+    expect(html).not.toContain('more-moreFastest-less');
+  });
+  it('Less folds it from the bottom: the header gets focus, and is scrolled back into view only when off screen', () => {
+    const header = (top: number) => {
+      const calls: string[] = [];
+      return {
+        calls,
+        getBoundingClientRect: () => ({ top, bottom: top + 44 }),
+        focus: (o?: { preventScroll?: boolean }) => calls.push(`focus:${!!o?.preventScroll}`),
+        scrollIntoView: () => calls.push('scroll'),
+      };
+    };
+    const above = header(-900);
+    expect(headerBackInView(above, 800)).toBe(true);
+    expect(above.calls).toEqual(['focus:true', 'scroll']);
+    const shown = header(300);
+    expect(headerBackInView(shown, 800)).toBe(false);
+    expect(shown.calls).toEqual(['focus:true']);
+    const below = header(820);
+    expect(headerBackInView(below, 800)).toBe(true);
+  });
+  it("the Less press is the player's: remembered closed, as the header's", () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MoreFold.vue'), 'utf8');
+    expect(src).toMatch(/@click="foldFromBottom"/);
+    expect(src).toMatch(/function foldFromBottom\(\)[\s\S]*?toggle\(\)[\s\S]*?headerBackInView\(/);
   });
 });

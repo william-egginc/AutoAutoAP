@@ -18,7 +18,7 @@ describe('the Right now card’s words', () => {
     expect(howFar(ev({ at: NOW + 80 * 60 }), NOW, ZONE)).toBe('today, in 1h 20m');
     expect(howFar(ev({ at: NOW + 18 * 3600 + 35 * 60 }), NOW, ZONE)).toBe('tomorrow, in 18h 35m');
     expect(howFar(ev({ at: NOW + 2 * 86400 }), NOW, ZONE)).toBe('in 2d');
-    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271d · 16h 48m spare');
+    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271d · 16h 48m spare before this date');
     expect(howFar(ev({ past: true }), NOW, ZONE)).toBe('passed');
   });
 
@@ -47,14 +47,14 @@ describe('the Setup button’s line', () => {
   const L = 'en-US';
   it('hours and none: today’s wording, no "no prestige" part', async () => {
     const { setupSummary } = await import('./nowWords');
-    expect(setupSummary(HOURS, [], [], L)).toBe('7 AM–11 PM · no time off');
+    expect(setupSummary(HOURS, [], [], L)).toBe('7:00 AM–11:00 PM · no time off');
     expect(setupSummary(null, null, null, L)).toBe('any hour · no time off');
-    expect(setupSummary(HOURS, [], undefined, L)).toBe('7 AM–11 PM · no time off');
+    expect(setupSummary(HOURS, [], undefined, L)).toBe('7:00 AM–11:00 PM · no time off');
   });
   it('one stretch of time off and one no prestige day', async () => {
     const { setupSummary } = await import('./nowWords');
     expect(setupSummary(HOURS, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], L)).toBe(
-      '7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27'
+      '7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27'
     );
     expect(setupSummary(null, [{ from: '2026-10-20', to: '2026-10-22' }], [], L)).toBe('any hour · time off Oct 20–22');
     expect(setupSummary(null, [], [{ from: '2026-11-03', to: '2026-11-04' }], L)).toBe('any hour · no time off · no prestige Nov 3–4');
@@ -65,10 +65,10 @@ describe('the Setup button’s line', () => {
       { from: '2026-11-03', to: '2026-11-03' },
       { from: '2026-10-29', to: '2026-10-30' },
     ];
-    expect(setupSummary(HOURS, two, two, L)).toBe('7 AM–11 PM · time off Oct 29–30, Nov 3 · no prestige Oct 29–30, Nov 3');
+    expect(setupSummary(HOURS, two, two, L)).toBe('7:00 AM–11:00 PM · time off Oct 29–30, Nov 3 · no prestige Oct 29–30, Nov 3');
     const three = [...two, { from: '2026-12-01', to: '2026-12-02' }];
     expect(setupSummary(HOURS, three, three, L)).toBe(
-      '7 AM–11 PM · time off Oct 29–30, Nov 3 +1 more · no prestige Oct 29–30, Nov 3 +1 more'
+      '7:00 AM–11:00 PM · time off Oct 29–30, Nov 3 +1 more · no prestige Oct 29–30, Nov 3 +1 more'
     );
   });
   it('across months and years; half-typed rows left out', async () => {
@@ -78,13 +78,13 @@ describe('the Setup button’s line', () => {
     expect(stretchWords({ from: '2026-10-27', to: '2026-10-27' }, L)).toBe('Oct 27');
     expect(setupSummary(null, [{ from: '2026-10-29', to: '' }], [{ from: '2026-11-05', to: '2026-11-01' }], L)).toBe('any hour · no time off');
   });
-  it('in the browser’s format: a 24-hour clock and day-first dates', async () => {
+  it('in the browser’s format: a 24-hour clock (en-GB’s own "07:00", 13 Nov 2026) and day-first dates', async () => {
     const { setupSummary } = await import('./nowWords');
     const days = { fromHour: 7, toHour: 23, days: [1, 2, 3, 4, 5], timezone: 'UTC' } as never;
     expect(setupSummary(days, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], 'en-GB')).toBe(
-      '7:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
+      '07:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
     );
-    expect(setupSummary(days, [], [], 'en-US')).toBe('7 AM–11 PM on Mon–Fri · no time off');
+    expect(setupSummary(days, [], [], 'en-US')).toBe('7:00 AM–11:00 PM on Mon–Fri · no time off');
   });
 });
 
@@ -117,5 +117,47 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
     const { roundToHourIn } = await import('./nowWords');
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 31) / 1000, 'America/Denver')).toBe(Date.UTC(2026, 9, 23, 22) / 1000);
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 29) / 1000, 'UTC')).toBe(Date.UTC(2026, 9, 23, 21) / 1000);
+  });
+
+  it('a prestige that waits for the hours is said at the time it happens, like the events table (M12)', () => {
+    // Reached 10:17 PM Denver Dec 31, held to 11:00 PM by the player's hours: one time, 11:00 PM, in both places.
+    const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000; // Dec 31, 10:17 PM Denver
+    const held = Date.UTC(2027, 0, 1, 6, 0) / 1000; // Dec 31, 11:00 PM Denver
+    const e = ev({ kind: 'prestige', te: 222, at: reached, wait: 'hours', prestigeAt: held });
+    const rounded = nextStepText([e], 'fastest', NOW, ZONE, true);
+    expect(rounded).toContain('11:00');
+    expect(rounded).not.toContain('10:00');
+    const exact = nextStepText([e], 'fastest', NOW, ZONE, false);
+    expect(exact).toContain('11:00');
+    expect(exact).not.toContain('10:17');
+    // Without a wait, the reach time stays.
+    expect(nextStepText([ev({ kind: 'prestige', te: 222, at: reached })], 'fastest', NOW, ZONE, false)).toContain('10:17');
+  });
+
+  it('a held prestige does not jump ahead of an event that happens before it (M12)', () => {
+    const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000;
+    const held = Date.UTC(2027, 0, 1, 6, 0) / 1000;
+    const p = ev({ kind: 'prestige', te: 222, at: reached, wait: 'hours', prestigeAt: held });
+    const shift = ev({ kind: 'shift', egg: 'humility', at: reached + 20 * 60 });
+    const t = nextStepText([p, shift], 'fastest', NOW, ZONE, false);
+    expect(t.startsWith('Shift to Humility')).toBe(true);
+    expect(t).toContain('then prestige at 222 TE');
+  });
+});
+
+describe('the goal row says what the spare is measured against (Jordan, 12 Nov 2026)', () => {
+  it('names the date, and for the instant answer the plan it comes from', () => {
+    const e = ev({ at: NOW + 244 * 86400, kind: 'goal', spareHours: 65 });
+    expect(howFar(e, NOW, ZONE, true)).toBe("in 244d · 2d 17h spare before this date, on the instant answer's plan");
+  });
+});
+
+describe('chainLead (13 Nov 2026): "Following" only when the route is followed', () => {
+  it('words', async () => {
+    const { chainLead } = await import('./nowWords');
+    expect(chainLead({ followed: true })).toBe('Following');
+    expect(chainLead({ followed: false })).toBe("The instant answer's route:");
+    expect(chainLead({ followed: true, notOnVirtue: true })).toBe('If you start then: Following');
+    expect(chainLead({ followed: false, notOnVirtue: true })).toBe("If you start then, the instant answer's route:");
   });
 });

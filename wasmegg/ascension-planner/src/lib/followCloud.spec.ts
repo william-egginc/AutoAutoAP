@@ -243,8 +243,8 @@ describe('words', () => {
   it('in the player\'s words', () => {
     expect(saveFailWords('limit')).toBe('Too many changes this hour. Try again later.');
     expect(setWithOtherWords({ hours: true, sim: false })).toBe('This route was set with different awake hours.');
-    expect(setWithOtherWords({ hours: false, sim: true })).toBe('This route was set with a different simulator version.');
-    expect(setWithOtherWords({ hours: true, sim: true })).toBe('This route was set with different awake hours and simulator version.');
+    expect(setWithOtherWords({ hours: false, sim: true })).toBe('This route was set with another version of the planner.');
+    expect(setWithOtherWords({ hours: true, sim: true })).toBe('This route was set with different awake hours or another version of the planner.');
     expect(setWithOtherWords({ hours: false, sim: false })).toBe('');
   });
 });

@@ -188,9 +188,13 @@ describe('the route followed', () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const line = html.match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
     // No goal in brackets while the goal switch names it (UX fluff review 2, 5 Nov 2026, item R3).
-    expect(textOf(line)).toBe('Following 197 → 222 → 247 → 285 → 313');
+    // Not followed yet (no Follow press): the instant answer's route, never "Following" (13 Nov 2026).
+    expect(textOf(line)).toBe("The instant answer's route: 197 → 222 → 247 → 285 → 313");
     const alone = (await renderHtml(RightNowCard, cardProps({ goals: [] }))).match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
-    expect(textOf(alone)).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)');
+    expect(textOf(alone)).toBe("The instant answer's route: 197 → 222 → 247 → 285 → 313 (Egg Day 2027)");
+    // Followed (a `follow` card): "Following".
+    const kept = (await renderHtml(RightNowCard, cardProps({ follow: { chain: [197, 222, 247, 285, 313], price: 'none' } }))).match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
+    expect(textOf(kept)).toBe('Following 197 → 222 → 247 → 285 → 313');
     const stop = (te: number) => line.match(new RegExp(`<span[^>]*>${te}</span>`))![0];
     expect(stop(197)).toContain('data-stop="passed"');
     expect(stop(197)).toContain('text-slate-400');
@@ -211,7 +215,7 @@ describe('the route followed', () => {
     const t = textOf(
       await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Fastest to 490 TE' }, selectedGoal: 'fastest-490' }))
     );
-    expect(t).toContain('Following 197 → 490');
+    expect(t).toContain("The instant answer's route: 197 → 490");
     expect(read('RightNowCard.vue')).toContain(':following="following"');
     expect(read('RightNowCard.vue')).toMatch(/planCalEvent\(nextEvent\.value, \{[\s\S]*?following: following\.value/);
     // The row as it happens (a waiting prestige at its held time, spec-uxpass item 10), with the same `following` label.

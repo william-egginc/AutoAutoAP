@@ -122,15 +122,12 @@
               The search moves the stops of the route it starts from and adds at most one, so a route with too few
               stops can't reach a longer answer. Leave the final target off a typed route; it is added for you.
             </p>
-            <label class="flex items-center gap-2 text-small text-slate-600">
-              <span class="font-bold text-slate-700">Final target TE</span>
-              <input
-                v-model.number="store.finalTE"
-                type="number"
-                :min="store.currentTE + 1"
-                :max="2000"
-                :disabled="store.isRunning"
-                class="w-24 rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
+            <!-- The store's one rule, on Enter or leaving the box (FinalTargetInput.vue, 13 Nov 2026). -->
+            <label class="flex items-start gap-2 text-small text-slate-600">
+              <span class="font-bold text-slate-700 py-2">Final target TE</span>
+              <FinalTargetInput
+                class="min-w-0"
+                input-class="w-24 rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
             </label>
           </div>
@@ -287,14 +284,9 @@
           <label for="chain-search-final-te" class="text-slate-400 label"
             >Final target TE</label
           >
-          <input
+          <FinalTargetInput
             id="chain-search-final-te"
-            v-model.number="store.finalTE"
-            type="number"
-            :min="store.currentTE + 1"
-            :max="2000"
-            :disabled="store.isRunning"
-            class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
+            input-class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -514,7 +506,7 @@
           >
             <span class="font-bold">That's a single ascension.</span>
             {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
-            look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type
+            look for. To plan that one ascension, go to the {{ NAMES.classic }}, type
             {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, pick
             Type a route… under Start from a different route and give it some stops (like <span class="tabular-nums">200 250 300 {{ store.finalTE }}</span
             >).
@@ -559,7 +551,7 @@
               :saving="saving"
               :saved="store.currentRunSaved"
               :note="
-                applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
+                applied ? `Sent ${applied} to the ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
               "
               @build="use(store.bestChain, true)"
               @fill="use(store.bestChain)"
@@ -589,6 +581,7 @@
                 v-if="!store.isRunning"
                 :hours="store.runSettingsUsed?.availability ?? null"
                 :build-up-clause="store.buildUpClause"
+                :hold-shifts="store.runSettingsUsed?.deferShifts ?? true"
               />
               <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
               <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
@@ -804,7 +797,7 @@
                           One row per egg, with when you start laying it and how long you stay. The
                           <span class="font-bold text-emerald-700">first row is where the ascension begins</span>:
                           no action needed, you are already on it. Every row after it is one manual shift, which is why
-                          twelve eggs means eleven shifts. This matches Single run's own C1 / K1 / I1 list.
+                          twelve eggs means eleven shifts. This matches the Auto Planner's own C1 / K1 / I1 list.
                         </p>
                         <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
                         <RouteTimeline
@@ -876,7 +869,7 @@
             The built plan will show slightly earlier dates than this search
           </p>
           <p>
-            Only this search knows about your awake hours; {{ NAMES.classic }} does not. It will lay the plan out
+            Only this search knows about your awake hours; the {{ NAMES.classic }} does not. It will lay the plan out
             assuming you prestige the instant each target is hit, so its dates omit the
             <span class="font-bold">{{ totalPrestigeWait }}</span> of waiting the search charged. The stops and
             strategies are the same; only the clock differs, and
@@ -1085,6 +1078,7 @@
 </template>
 
 <script setup lang="ts">
+import FinalTargetInput from './FinalTargetInput.vue';
 import { LEG_HEAD, LEG_ROW, LEG_TABLE } from './resultCardStyle';
 import { formatMoment } from '@/lib/clock';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
@@ -1208,7 +1202,7 @@ const seedSource = computed(() =>
     : store.instantSeed
       ? "the instant answer's route"
       : autoPlannerStore.targetTE.trim()
-        ? `from Target TE(s) on ${NAMES.classic}`
+        ? `from Target TE(s) on the ${NAMES.classic}`
         : 'a suggested route'
 );
 /** "Start from a different route": the instant answer's best (the default), its other routes, your

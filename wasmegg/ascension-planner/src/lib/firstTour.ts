@@ -28,8 +28,36 @@ export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { k
 /** The steps, in order. */
 /** Simulate this plan after the answer, and Setup as two (where it is, then what is inside) since spec-simpler2
  *  (Jordan, 9 Nov 2026): eight on the full path. */
-export type TourStepId = 'load' | 'goal' | 'answer' | 'simulate' | 'follow' | 'myruns' | 'setupWhere' | 'setup';
-export const TOUR_STEPS: readonly TourStepId[] = ['load', 'goal', 'answer', 'simulate', 'follow', 'myruns', 'setupWhere', 'setup'];
+export type TourStepId =
+  | 'load'
+  | 'goal'
+  | 'answer'
+  | 'simulate'
+  | 'follow'
+  | 'myruns'
+  | 'setupWhere'
+  | 'setup'
+  // spec-tourmore (Jordan, 9 Nov 2026: "add the more section and the custom and fast runs"): More, where it is and what
+  // is inside, then the Fast and Custom searches inside it. After Setup: they need the answer screen's More, and the
+  // More slide's line points at Setup › More options › Show everything, just shown.
+  | 'moreWhere'
+  | 'moreInside'
+  | 'fast'
+  | 'custom';
+export const TOUR_STEPS: readonly TourStepId[] = [
+  'load',
+  'goal',
+  'answer',
+  'simulate',
+  'follow',
+  'myruns',
+  'setupWhere',
+  'setup',
+  'moreWhere',
+  'moreInside',
+  'fast',
+  'custom',
+];
 
 
 /** The stored string as a state; anything else reads as never seen. */

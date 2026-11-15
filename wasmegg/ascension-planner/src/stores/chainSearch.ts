@@ -14,18 +14,20 @@
  * itself calls is already Pinia-free.
  */
 import { plainError } from '@/lib/plainError';
+import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
 import { deadlineTableRows, fastestTableRows, xlsxRowCap } from '@/utils/xlsxRows';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { hashID } from '@/lib/storage/db';
 import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity';
 import { accountHash, accountHashNow } from '@/lib/accountHash';
 import {
   isDefaultSetup,
+  isSetupTarget,
   mergeSetup,
   readSetup,
   removeSetup,
@@ -236,11 +238,14 @@ import {
   stepAwayDropRunMark,
   stepAwayRunStarted,
   stepAwayStopPressed,
+  stepAwayTakeAutoCarryOn,
 } from '@/composables/useStepAway';
 import { StorageTimeout, storageLimit, type StorageLimit } from '@/lib/runStorageLimit';
 import { RUN_STORAGE_STUCK } from '@/lib/runStorageWords';
 import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
+// Diagnostics only, kept out of the result code hash (lib/blackBoxDiag.ts).
+import * as blackBoxDiag from '@/lib/blackBoxDiag';
 import {
   currentWatchLink,
   installWatchLink,
@@ -540,6 +545,28 @@ const SEND_TE_TOLERANCE = 3;
 function sumTE(earned: Record<string, number> | null | undefined): number {
   return earned ? (Object.values(earned) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) : 0;
 }
+/** The highest target TE: the tables, the store's restore, online Setup and the collector all stop at 490. */
+export const TARGET_TE_MAX = 490;
+/**
+ * The targets a player can pick (`commitFinalTE`, the target box on Chain Finder > Target TE): their TE + 1 (a part TE
+ * counts as the TE below it, as the instant answer's "already at" check does) up to 490; with no save yet, from 1.
+ */
+export function targetTeRange(currentTE: number): { min: number; max: number } {
+  const te = Number.isFinite(currentTE) && currentTE > 0 ? Math.floor(currentTE) : 0;
+  return { min: Math.max(1, te + 1), max: TARGET_TE_MAX };
+}
+/**
+ * How near the target is "near" for Every number of ascensions' note (game expert, 13 Nov 2026): within about 25 TE of
+ * the player's TE, rows with 3 or more tiny ascensions can be priced 8-23% too fast (205 from 200 in 3: 19.6 d in the
+ * table, 25.5 d simulated). They never win, but they show as rows.
+ */
+export const NEAR_TARGET_TE = 25;
+/** The target is within NEAR_TARGET_TE above the player's TE (target - TE <= 25; a part TE counts as the TE below it). */
+export function isNearTarget(target: number, currentTE: number): boolean {
+  if (!(Number.isFinite(currentTE) && currentTE > 0)) return false;
+  const te = Math.floor(currentTE);
+  return target > te && target - te <= NEAR_TARGET_TE;
+}
 /** The TE of a state the workers price: what a run's `currentTE` must be. */
 export function pricedTE(state: { teEarned?: Record<string, number> } | null | undefined): number {
   return sumTE(state?.teEarned);
@@ -767,11 +794,19 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const deferShifts = ref(true);
 
+  /**
+   * Setup's "silo trick" (10 Nov 2026, Jordan: "Plans should have a setting in setup, off by default"): the player goes
+   * offline into Monday's 2x event and collects inside it, which pays the away time at 2x (capped at the silos). On, the plan
+   * counts that cash (`SearchInputs.siloTrick`, search/leg.ts legContext); off, plans are exactly as before. Remembered per
+   * account with the other Setup settings (lib/setupMemory.ts); not in the /prefs cloud value (the collector's contract).
+   */
+  const siloTrick = ref(false);
+
   const availabilityLabel = computed(() => describeAvailability(availability.value));
 
   // ------------------------------------------------------------------ YOUR SETUP, REMEMBERED PER ACCOUNT
   //
-  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off and first ascension, one blob per
+  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off, first ascension and the target, one blob per
   // account under its hash. Read when the account loads (App's player ID watcher, `loadSetupFor`), and
   // `setupLoaded` holds back anything that starts work from the setup (the instant answer and its Check
   // exactly) until then, so a reload doesn't start a three-minute check on the defaults and restart it
@@ -822,9 +857,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         days: [...availableDays.value],
       },
       holdShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
       noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
+      target: finalTE.value,
     };
   }
   /** Put a remembered (or default) setup in place, muted. First ascension straight into Your setup's own
@@ -836,9 +873,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableTo.value = v.hours.to;
       availableDays.value = [...v.hours.days];
       deferShifts.value = v.holdShifts;
+      siloTrick.value = !!v.siloTrick;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
       noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
+      finalTE.value = isSetupTarget(v.target) ? v.target : TARGET_TE_MAX;
     });
   }
   /** Today, `YYYY-MM-DD`, in the planner's zone: time off that ended before it is dropped on read. */
@@ -924,7 +963,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       if (p.finalTE !== undefined && Number.isInteger(p.finalTE) && p.finalTE >= 1 && p.finalTE <= 490 && finalTE.value !== p.finalTE) {
         finalTE.value = p.finalTE;
-        changed = true;
+        groups.add('target');
       }
     });
     rememberSetupGroups([...groups]);
@@ -936,9 +975,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deep: true,
   });
   watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
+  watch(siloTrick, () => noteSetupEdit('siloTrick'), { flush: 'sync' });
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
   watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
+  // The target (spec-targetmemory): the boxes commit through `commitFinalTE`, so a refused value never gets here; My
+  // runs' Open (App.vue) is the player's pick too. A run's or saved answer's own target is set muted.
+  watch(finalTE, () => noteSetupEdit('target'), { flush: 'sync' });
 
   /**
    * An account loaded (App.vue's player ID watcher): its remembered setup, or the defaults, so nothing of
@@ -2277,6 +2320,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * (`pricedTE`), so the number on the screen is the number the run uses.
    */
   const currentTE = computed(() => sumTE(useInitialStateStore().initialTeEarned));
+  /**
+   * The target box's commit (TargetTeBox.vue; spec-targette, 13 Nov 2026): the guard is here, not only in the box. A
+   * whole number from your TE + 1 up to 490 becomes the target; anything else, or any value while a search runs, changes
+   * nothing (the last good target is kept) and comes back as the words to show. '' when taken.
+   */
+  function commitFinalTE(n: number): string {
+    if (isRunning.value) return TARGET_TE_WORDS.running;
+    const range = targetTeRange(currentTE.value);
+    if (!(Number.isInteger(n) && n >= range.min && n <= range.max)) return TARGET_TE_WORDS.invalid(range, finalTE.value);
+    if (finalTE.value !== n) finalTE.value = n;
+    return '';
+  }
 
   /**
    * The TE the planner treats as NOW: its initial snapshot (what `setInitialSnapshot` and `importPlan`
@@ -2532,6 +2587,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     firstAscension: FirstAscension;
     availability: Availability | null;
     deferShifts: boolean;
+    /** Setup's silo trick (absent on settings kept before 10 Nov 2026: off). */
+    siloTrick?: boolean;
     timeOff: TimeOffDates[];
     /** No prestige on these days (absent on settings kept before 24 Oct 2026: none). */
     noPrestige?: TimeOffDates[];
@@ -2543,6 +2600,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       firstAscension: firstAscensionFor(),
       availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
       noPrestige: JSON.parse(JSON.stringify(noPrestige.value)) as TimeOffDates[],
     };
@@ -2872,6 +2930,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     } else {
       scheduleEnabled.value = false;
     }
+    siloTrick.value = !!set.siloTrick;
     milestones.value = set.milestones.map(m => ({ ...m }));
     const tz = planTimezone();
     timeOff.value = set.timeOff.map(w => ({
@@ -2971,6 +3030,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // (before 9 Oct) carries on as Continue Asc., never as today's default.
     setFirstAscension(readFirstAscension(inputs));
     if (typeof inputs.deferShifts === 'boolean') deferShifts.value = inputs.deferShifts;
+    // A run priced before the setting existed had none: off.
+    siloTrick.value = !!inputs.siloTrick;
     pinPlanStart(inputs.planStart);
     const left = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
     if (left.length) {
@@ -3231,6 +3292,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     });
@@ -3526,6 +3588,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     };
@@ -4057,8 +4120,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   /**
    * The save's last sync against the plan start (lib/saveAge.ts): the farm is caught up to the start at
-   * its current rate, up to what its silos hold. A plan-start fact: a warning only for a start before the
-   * sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
+   * its current rate, all the time since the sync (not capped at its silos since 10 Nov 2026, as Joo's engine). A warning
+   * only for a start before the sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
@@ -4573,6 +4636,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // build-up (10 Oct) likewise.
       { continue: 'fc', auto: 'fresh', fresh: 'now', buildup: 'bu' }[usedSettings().firstAscension],
       deferShifts.value ? 'hold' : 'free',
+      // Only when on, so every key written before stays as it was.
+      ...(siloTrick.value ? ['trick'] : []),
       // What makes it a different ROW on the board even with the same answer: a different space or
       // sweep, or a partial run versus the finished one.
       sp ? JSON.stringify([sp.mode, sp.bands ?? sp.range, sp.minGap]) : 'staged',
@@ -6381,6 +6446,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineRunStartedAt = 0;
   let deadlineRunCarryOns = 0;
   let deadlineCheckpointSize = { routes: 0, bytes: 0 };
+  /** The running deadline search's last checkpoint that was written: its time (ms epoch, as in the save) and routes,
+   *  for the black box's beats; a carry-on starts at the save it carried on from. Null: none yet. */
+  let deadlineLastSave: { at: number; routes: number } | null = null;
 
   function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
@@ -7532,6 +7600,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!set) return;
     setFirstAscension(set.firstAscension);
     if (typeof set.deferShifts === 'boolean') deferShifts.value = set.deferShifts;
+    siloTrick.value = !!set.siloTrick;
     if (set.availability) {
       scheduleEnabled.value = true;
       availableFrom.value = set.availability.fromHour;
@@ -7868,7 +7937,29 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (ready) {
       const [cp, inputs, account] = ready;
       ready = undefined;
+      noteDeadlineCarryOn(cp);
       await runDeadline(cp.spec, inputs, cp.inputsKey, cp, account, cp.elapsedSeconds ?? 0);
+    }
+  }
+
+  /** The black box's carry-on entry: by Stepping away?'s countdown or a click, from which save, on
+   *  how many workers (the stopped run's, from its run mark or last beat, to this one's), and whether
+   *  the watcher opened this page. Numbers only. */
+  function noteDeadlineCarryOn(cp: DeadlineCheckpoint): void {
+    try {
+      const mark = readRunMark();
+      const crashed = crashAtLoad?.last.phase === 'deadline search' ? crashAtLoad.last.workers : undefined;
+      blackBoxDiag.noteCarryOn({
+        kind: 'deadline search',
+        carryOn: stepAwayTakeAutoCarryOn() ? 'auto' : 'click',
+        workersFrom: (mark?.kind === 'deadline' && mark.workers) || crashed || null,
+        workersTo: workerBudget.value,
+        lastSaveAt: cp.updatedAt ?? null,
+        lastSaveRoutes: checkpointCount(cp),
+        ...(loadReopen ?? {}),
+      });
+    } catch {
+      // the recorder is a nicety
     }
   }
 
@@ -7911,7 +8002,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes' | 'updatedAt'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -7924,6 +8015,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
+    deadlineLastSave = seed ? { at: seed.updatedAt, routes: seedCount } : null;
     // The leg spill cut back to the checkpoint's length (a fresh run: emptied). Bounded (spec-stuck3): a spill that never
     // answers leaves no run rather than a page waiting for good.
     const startLimit = runStorageLimit('opening the search detail file');
@@ -8107,6 +8199,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             part
           );
           deadlineCheckpointSize = { routes: header.count, bytes };
+          deadlineLastSave = { at: header.updatedAt, routes: header.count };
         } catch (e) {
           // Kept for the next write rather than lost.
           replay.undrain(part);
@@ -8144,8 +8237,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           // guess on its own worker, or one worker gets them all and the rest wait.
           const shapes = new Set(chains.map(c => c.slice(0, -1).join(','))).size;
           const dealt = shapes >= workers.size;
+          // This batch's routes that came straight back from the checkpoint (a carry-on): in the count
+          // now, not only once the whole batch is back. A round is one batch, so a carry-on's bar used to
+          // drop to the routes of the rounds before it (13 Nov 2026: "104 of ~1,540" after "done 293").
+          const replayedNow = replay.replayed();
+          const head = Math.max(0, replayedNow - deadlineReplayed.value);
+          deadlineReplayed.value = replayedNow;
+          deadlineInBatch.value = head;
           const r = dealt
-            ? await workers.evaluate(chains, done => (deadlineInBatch.value = done), {
+            ? await workers.evaluate(chains, done => (deadlineInBatch.value = head + done), {
                 workerOf: (cs, n) => dealer.deal(cs, n),
                 onResult: (c, res) => {
                   onResult?.(c, res);
@@ -8156,7 +8256,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
                 shouldStop: () => deadlineStop,
                 memo,
               })
-            : await workers.evaluate(chains, done => (deadlineInBatch.value = done), { spreadOut: true, memo });
+            : await workers.evaluate(chains, done => (deadlineInBatch.value = head + done), { spreadOut: true, memo });
           if (!dealt) deadlineLegSims.value += r.legSims;
           deadlineInBatch.value = 0;
           return r.results;
@@ -8739,15 +8839,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const lastCrash = ref(typeof window !== 'undefined' ? blackBox.readUnfinished() : null);
   // Another tab with a run going holds the run lock, and its beat is in the shared box: that run is
   // alive, not crashed. Without this, opening a second tab said the browser had killed the first.
-  if (lastCrash.value && typeof navigator !== 'undefined') {
-    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
-    void locks
-      ?.query()
-      .then(state => {
-        if (state.held?.some(l => l.name === 'ascension-planner:chain-search')) lastCrash.value = null;
-      })
-      .catch(() => {});
+  /** The second-tab watcher opened this page (lib/blackBoxDiag.ts `watcherReopenPath`): for the black
+   *  box's page-load and carry-on entries. Null when it did not, or no unfinished beat was found. */
+  let loadReopen: ReturnType<typeof blackBoxDiag.watcherReopenPath> = null;
+  /** This page found an unfinished beat that no other tab's live run explains: into the box's history,
+   *  with how the page was opened and how long after that beat (13 Nov 2026: a reload read as a stall). */
+  function notePageLoad(found: blackBox.Beat): void {
+    try {
+      const loadedAt =
+        typeof performance !== 'undefined' && performance.timeOrigin > 0 ? Math.round(performance.timeOrigin) : Date.now();
+      loadReopen = blackBoxDiag.watcherReopenPath(readRunMark(), loadedAt);
+      blackBoxDiag.notePageLoad(found, loadReopen ?? {}, loadedAt);
+    } catch {
+      // the recorder is a nicety
+    }
   }
+  if (lastCrash.value && typeof navigator !== 'undefined') {
+    const found = lastCrash.value.last;
+    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+    if (!locks?.query) notePageLoad(found);
+    else
+      void locks
+        .query()
+        .then(state => {
+          if (state.held?.some(l => l.name === 'ascension-planner:chain-search')) lastCrash.value = null;
+          else notePageLoad(found);
+        })
+        .catch(() => notePageLoad(found));
+  } else if (lastCrash.value) notePageLoad(lastCrash.value.last);
   function dismissCrash(): void {
     blackBox.clearUnfinished();
     lastCrash.value = null;
@@ -8811,14 +8930,19 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (deadlineRunning.value) {
       const p = deadlineProgress.value;
       workers = deadlinePool?.size ?? workerBudget.value;
-      b = blackBox.beat({
+      // The last save's fields are lib/blackBoxDiag.ts's (`DiagBeat`): `beat` spreads what it is given, so
+      // they are stored with the rest, and search/blackBox.ts (hashed) need not know them.
+      const fields: Omit<blackBoxDiag.DiagBeat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> = {
         phase: 'deadline search',
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
         workers,
+        lastSaveAt: deadlineLastSave?.at ?? null,
+        lastSaveRoutes: deadlineLastSave?.routes ?? null,
         ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
-      });
+      };
+      b = blackBox.beat(fields);
       const beatNow = b;
       runTimeline.updateTimeline(t =>
         runTimeline.tickTimeline(t, {
@@ -9026,7 +9150,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return JSON.stringify(
       {
         note: 'ascension-planner black box: what the page was doing when it stopped',
+        // The previous page's unfinished beat, as THIS page found it at load (what the notice says).
         unfinished: lastCrash.value,
+        // The box as it is now: this page's own beats too, a carry-on and its run included.
+        live: blackBoxDiag.readLive(),
         ...(runNoteUsed.value ? { runNote: runNoteUsed.value } : {}),
         userAgent: navigator.userAgent,
         cores: machineThreads,
@@ -9964,6 +10091,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      siloTrick: siloTrick.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
       noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     })
@@ -10088,6 +10216,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // settings
     effort,
     finalTE,
+    commitFinalTE,
     firstAscension,
     firstAscensionChoice,
     firstAscensionFromClassic,
@@ -10121,6 +10250,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     availability,
     availabilityLabel,
     deferShifts,
+    siloTrick,
     planStartUsed,
     scheduleIsEmpty,
     milestones,

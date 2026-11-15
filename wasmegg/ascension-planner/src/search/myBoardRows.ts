@@ -85,7 +85,7 @@ export function boardErrorText(kind: BoardReadKind, where: 'myruns' | 'compare')
       ? "Couldn't reach the leaderboard right now. Try again in a minute."
       : "Couldn't read the leaderboard right now. Try again in a minute.";
   return kind === 'unreachable'
-    ? "Couldn't reach the leaderboard."
+    ? `Couldn't reach the leaderboard right now. Your runs are safe on ${thisDevice()}.`
     : `Couldn't read the leaderboard right now. Your runs are safe on ${thisDevice()}.`;
 }
 

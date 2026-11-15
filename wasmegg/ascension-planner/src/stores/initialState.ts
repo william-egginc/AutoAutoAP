@@ -1,3 +1,4 @@
+import { hydrateSharedInitialState, sharedInitialStateActions, toActiveMissionInfo } from 'lib/planners/stores/initialStateShared';
 import { defineStore } from 'pinia';
 import { guardEpicLevels, guardFarm, saveGuardNote } from '@/lib/saveGuard';
 import type {
@@ -178,28 +179,11 @@ export const useInitialStateStore = defineStore('initialState', {
     /**
      * Get active virtue missions from backup
      */
-    virtueMissions(): ActiveMissionInfo[] {
+    plannerMissions(): ActiveMissionInfo[] {
       return this.activeMissions
         .map(m => new Mission(m))
         .filter(m => m.type === ei.MissionInfo.MissionType.VIRTUE)
-        .map(m => ({
-          ship: m.shipType,
-          duration: m.durationType,
-          shipName: m.shipName,
-          durationTypeName: m.durationTypeName,
-          shipIconPath: m.shipIconPath,
-          sensorTarget: m.sensorTarget,
-          returnTimestamp: m.returnTimestamp,
-          statusIsFueling: m.statusIsFueling,
-          statusName: m.statusName,
-          capacity: m.capacity,
-          durationSeconds: m.durationSeconds,
-          fuels: m.fuels.map(f => ({
-            egg: f.egg,
-            amount: f.amount,
-            eggIconPath: f.eggIconPath,
-          })),
-        }));
+        .map(toActiveMissionInfo);
     },
   },
 
@@ -322,73 +306,7 @@ export const useInitialStateStore = defineStore('initialState', {
       };
     },
 
-    /**
-     * Set epic research level
-     */
-    setEpicResearchLevel(researchId: string, level: number) {
-      const def = epicResearchDefs.find(r => r.id === researchId);
-      if (def) {
-        this.epicResearchLevels = {
-          ...this.epicResearchLevels,
-          [researchId]: Math.max(0, Math.min(level, def.maxLevel)),
-        };
-      }
-    },
-
-    /**
-     * Set colleggtible tier
-     */
-    setColleggtibleTier(id: string, tierIndex: number) {
-      if (id in this.colleggtibleTiers) {
-        // Replace the entire object to guarantee Vue reactivity propagation.
-        // In-place mutation (this.colleggtibleTiers[id] = x) can fail to trigger
-        // re-renders in child components that receive the whole object as a prop,
-        // because the object reference identity doesn't change.
-        this.colleggtibleTiers = {
-          ...this.colleggtibleTiers,
-          [id]: Math.max(-1, Math.min(3, tierIndex)),
-        };
-      }
-    },
-
-    /**
-     * Set artifact loadout
-     */
-    setArtifactLoadout(loadout: EquippedArtifact[]) {
-      this.artifactLoadout = loadout;
-    },
-
-    /**
-     * Set active artifact set and update current loadout
-     */
-    setActiveArtifactSet(setName: import('@/types').ArtifactSetName | null) {
-      this.activeArtifactSet = setName;
-      if (setName && this.artifactSets[setName]) {
-        this.artifactLoadout = JSON.parse(JSON.stringify(this.artifactSets[setName]));
-      } else if (setName) {
-        // Set exists but is empty/null — clear to empty loadout
-        this.artifactLoadout = createEmptyLoadout();
-      }
-    },
-
-    /**
-     * Update an artifact set's content
-     */
-    updateArtifactSet(setName: import('@/types').ArtifactSetName, loadout: EquippedArtifact[]) {
-      this.artifactSets[setName] = JSON.parse(JSON.stringify(loadout));
-      // If updating the active set, also update current loadout
-      if (this.activeArtifactSet === setName) {
-        this.artifactLoadout = JSON.parse(JSON.stringify(loadout));
-      }
-    },
-
-    /**
-     * Save current loadout to a set
-     */
-    saveCurrentToSet(setName: import('@/types').ArtifactSetName) {
-      this.artifactSets[setName] = JSON.parse(JSON.stringify(this.artifactLoadout));
-      this.activeArtifactSet = setName;
-    },
+    ...sharedInitialStateActions,
 
     /**
      * Set soul eggs

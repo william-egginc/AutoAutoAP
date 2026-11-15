@@ -133,7 +133,6 @@
           :inventory-delivery="autoPlannerStore.defaultLoadoutInputs?.delivery ?? null"
           reset-label="Reset to inventory"
           default-label="Inventory"
-          :slot-count="artifactSlotCount(initialStateStore.proPermit)"
           @update:model-value="handleLoadoutChange"
         />
       </div>
@@ -151,19 +150,19 @@ import { useTruthEggsStore, VIRTUE_TE_ORDER } from '@/stores/truthEggs';
 import { VIRTUE_EGG_NAMES } from '@/types';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useFuelTankStore } from '@/stores/fuelTank';
-import { useSilosStore } from '@/stores/silos';
-import { getSimulationContext } from '@/engine/adapter';
-import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, activeSlots, artifactSlotCount } from '@/lib/artifacts';
+import { useSilosStore } from 'lib/planners/stores/silos';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
+import { getArtifactLoadoutFromBackup, getOptimalEarningsSet } from '@/lib/artifacts';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { applyAutoStartingTE, eggsSinceLastSync } from '@/auto/startingTE';
 import type { VirtueEgg } from '@/types';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
+import { calculateClothedTEForSet } from 'lib/planners/artifacts/virtue';
 import {
   buildLoadoutInputsFromBackup,
   buildLoadoutInputsFromSets,
@@ -191,7 +190,7 @@ const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
 const truthEggsStore = useTruthEggsStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const fuelTankStore = useFuelTankStore();
 const silosStore = useSilosStore();
 const autoPlannerStore = useAutoPlannerStore();
@@ -213,7 +212,7 @@ const earningsClothedTe = computed<number | null>(() => {
     truthEggs: currentTE.value,
     colleggtibleModifiers: context.colleggtibleModifiers,
     labUpgradeLevel: context.epicResearchLevels['cheaper_research'] ?? 0,
-    proPermit: initialStateStore.proPermit,
+    proPermit: initialStateStore.rawBackup?.game?.permitLevel === 1,
   });
 });
 
@@ -228,24 +227,20 @@ const currentELR = computed(() => {
     : initialStateStore.artifactLoadout;
 
   const optimalEarnings = initialStateStore.rawBackup
-    ? getOptimalEarningsSet(initialStateStore.rawBackup, initialStateStore.proPermit)
+    ? getOptimalEarningsSet(initialStateStore.rawBackup)
     : initialStateStore.artifactSets.earnings || null;
 
   const continueState: import('@/engine/types').EngineState = {
     currentEgg: (VIRTUE_EGGS_MAP[farmState.eggType] || 'curiosity') as VirtueEgg,
-    shiftCount: virtueStore.initialShiftCount,
-    te: virtueStore.initialTE,
+    shiftCount: planStore.initialShiftCount,
+    te: planStore.initialTE,
     soulEggs: initialStateStore.soulEggs,
     vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
     habIds: farmState.habs || [0, null, null, null],
     researchLevels: { ...farmState.commonResearches },
     siloCount: silosStore.siloCount || 1,
     tankLevel: fuelTankStore.tankLevel || 0,
-    proPermit: initialStateStore.proPermit,
-    artifactLoadout: activeSlots(
-      rawLoadout.map(slot => ({ artifactId: slot.artifactId, stones: [...slot.stones] })),
-      initialStateStore.proPermit
-    ),
+    artifactLoadout: rawLoadout.map(slot => ({ artifactId: slot.artifactId, stones: [...slot.stones] })),
     activeArtifactSet: 'elr',
     artifactSets: {
       earnings: optimalEarnings ? JSON.parse(JSON.stringify(optimalEarnings)) : null,
@@ -347,15 +342,14 @@ const loadoutSummary = computed(() =>
   autoPlannerStore.loadoutInputs
     ? summarizeLoadoutInputs(
         autoPlannerStore.loadoutInputs,
-        !loadoutInputsEqual(autoPlannerStore.loadoutInputs, autoPlannerStore.defaultLoadoutInputs),
-        artifactSlotCount(initialStateStore.proPermit)
+        !loadoutInputsEqual(autoPlannerStore.loadoutInputs, autoPlannerStore.defaultLoadoutInputs)
       )
     : ''
 );
 
 function inventoryLoadoutInputs(): AutoLoadoutInputs {
   return initialStateStore.rawBackup
-    ? buildLoadoutInputsFromBackup(initialStateStore.rawBackup, initialStateStore.proPermit)
+    ? buildLoadoutInputsFromBackup(initialStateStore.rawBackup)
     : buildLoadoutInputsFromSets(initialStateStore.artifactSets);
 }
 
@@ -385,9 +379,8 @@ function seedLoadoutInputs({ applyCache }: { applyCache: boolean }) {
 }
 
 seedLoadoutInputs({ applyCache: true });
-// A permit change also changes the default: the recommended earnings set is 2 artifacts with Standard.
 watch(
-  () => [initialStateStore.rawBackup, initialStateStore.proPermit],
+  () => initialStateStore.rawBackup,
   () => seedLoadoutInputs({ applyCache: false })
 );
 

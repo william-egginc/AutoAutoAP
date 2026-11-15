@@ -154,7 +154,7 @@ import { runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed, getThresholdForTE, TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { createChainEvaluator } from '@/search/chain';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { sanitizeLongs } from 'lib/planners/artifacts/utils';
 import { nextAvailable } from '@/search/availability';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
@@ -169,7 +169,7 @@ import {
 import { instantFirstLegsBase, type InstantFirstLegsParams } from '@/search/instantFirstLegs';
 import { firstAscensionFromFlags } from '@/search/firstAscension';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
-import { computeRealisticELR } from '@/calculations/realisticELR';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
 import {
   bestTailTo,
   canonicalDelivered,
@@ -252,7 +252,7 @@ import { gearLabel, maxedLabel } from '@/search/tableLabel';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
 import { allPossibleTiers } from 'lib/artifacts/data';
 import { ei } from 'lib/proto';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import type { EngineState } from '@/engine/types';
 import type { SearchInputs } from '@/search/types';
 

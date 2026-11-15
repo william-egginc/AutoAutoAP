@@ -31,8 +31,11 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The tabs are **Manual Planner**, **Auto Planner** and **My runs** (shown once the account has something there, or
-while a search runs). **Leaderboard** and **Science** are off
+The tabs are **Manual Planner**, **Auto Planner**, **Chain Finder** and **My runs** (shown once the account has
+something there, or while a search runs), in that order, as on Joo's site (12 Nov 2026; Fastest and Highest TE by a date
+were under the Auto Planner until then, and their addresses `#/auto/fastest`, `#/auto/fastest/full` and `#/auto/by-date`
+did not change). Joo's `?tab=chain-finder` (and `?tab=instant-search`) links open Chain Finder, `?tab=auto-planner` the
+Auto Planner. **Leaderboard** and **Science** are off
 until you tick them in Setup › How the site shows things (kept in this browser). A link to one of them still
 opens it, for that visit. Both need the collector: a build without one never shows them.
 
@@ -51,7 +54,9 @@ that choice.
 
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
-- **Auto Planner**
+- **Auto Planner** (was Single run, before that Your plan, Classic): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
+  Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
+- **Chain Finder** (Fastest to 490 TE and Highest TE by a date, on one switch: Target TE | By a date)
   - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
     **Search** card: **Fast**, **Exact** or **Custom**. One button runs it, named after the strength picked
     (**Run Fast**, **Run Exact**, **Run Custom**), with the tick **Send the result to the Leaderboard when it
@@ -68,9 +73,7 @@ that choice.
     to 15 minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
   - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
-  - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
-    Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
-- **Setup** (the Setup button on the Auto Planner and My runs) holds the three kinds of "not now":
+- **Setup** (the Setup button on Chain Finder, the Auto Planner and My runs; a round gear button on a phone) holds the three kinds of "not now":
   - **Awake hours**: you are on the virtue farm, but a shift or a prestige waits until you are back inside
     them; the farm keeps laying meanwhile, and those eggs count.
   - **No prestige days**: whole dates with no prestige. You stay on virtue, a prestige waits for the next
@@ -80,19 +83,20 @@ that choice.
     in progress ends when the time off starts, nothing is earned on virtue while away, and you come back to a
     complete rebuild toward the same stop.
   - Fast, Exact and Custom use all three. The instant answer uses Awake hours and No prestige days but does not
-    price Time off, and says so; its "Prestige by" line knows Awake hours only. Single run does not hold for
+    price Time off, and says so; its "Prestige by" line knows Awake hours only. The Auto Planner does not hold for
     Awake hours.
 - **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Fastest to 490 TE, All runs, Other dates, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
   pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
-- **My runs** (a top tab): the "where am I now" page. One save-age box, also on Fastest, Highest TE by a date and
-  Single run's Setup bar (`lib/saveFreshness.ts`): green **Up to date**, yellow **Getting old** from half the virtue
-  farm's silo time used, red **Out of date** with a tenth or less left, judged on the worse of the save's age and the
-  time since the farm last ran (neither before 1 hour; 3 hours of silos when the save doesn't say), and yellow **Check
-  your clock** when the save is more than 5 minutes ahead of the device's clock. Past a day old it also asks you to let
-  the game sync. With it, the save check (at most once per page load it asks the server whether a newer save is there:
+- **My runs** (a top tab): the "where am I now" page. One quiet save line (its age) and a small silo line (when the silos run out, as of the save; amber under 30% of the
+  silo time), also on Chain Finder and the Auto Planner's Setup bar (`lib/saveFreshness.ts`,
+  `lib/saveBanner.ts`): once the save is getting old (half the virtue farm's silo time used, or nine tenths for out of
+  date; neither before 1 hour; 3 hours of silos when the save doesn't say) it adds **Why is my save out of date?** and
+  **Details ›**, and past a day old its text turns amber and asks you to let the game sync; yellow **Check your clock**
+  when the save is more than 5 minutes ahead of the device's clock. With it, the save check (at most once per page load
+  it asks the server whether a newer save is there:
   "A newer save is on the server · Load it", or, in its Details, "This is the newest save on the server"; it never
   swaps the save by itself);
   **Right now**: the **Next step** and the **Next shifts** (the next few shifts, with the prestiges between). When
@@ -111,7 +115,8 @@ that choice.
   times, grouped by day. A line under the plan says the buys follow Joo's Smart Buy set to the build's sales ("Buys
   follow Smart Buy, set to 3 sales"); research that cost 10 seconds of income or less is marked "(cheap sweep)". Research levels read like the Manual Planner's summary, "Comfortable Nests (0 → 7)", with the tier first for the two Internal Hatchery Expansions (`lib/buildUpWords.ts`). It
   plans the silo trick for each Monday 2x event where it fits (or says why not), keeps artifact set swaps to
-  Humility, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
+  Humility, splits the list into stages (Buying to Tier 13, Focus on ROI, Delivery research; `lib/buildUpStages.ts`,
+  words in `lib/buildUpWords.ts`) with a colour each, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
   and offers **Re-plan from this save** when the save is over an hour behind the plan or has bought things off plan.
   The ascension you are in is simulated on your loaded save in the background ("Working out your shifts…"), so
   its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends
@@ -135,7 +140,7 @@ that choice.
   blank (`lib/saveScrub.ts`); **Load a save file** puts it back under the account on screen, and with no account
   on screen loads it without one (own instant answer, Follow, Saved answers and everything online off).
   Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
-  save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
+  save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 PM" (days from 48 hours).
   "Dig deeper into your plan ›" opens it. `#/compare/mine` lands here.
 - **Science** (off until ticked in Setup): **How it works** (the default), **What we need to check**,
   **Submit a sweep** and
@@ -169,9 +174,9 @@ tidier phone layouts; a line when starting fresh would end the ascension over an
 
 ---
 
-## What our Single run adds to Joo's Auto AP
+## What our Auto Planner adds to Joo's Auto AP
 
-Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planner screen: the simulator
+The Auto Planner (formerly Single run, Your plan and Classic) is Joo's Auto Ascension Planner screen: the simulator
 (`src/auto`, `src/engine`), the shifts, the generator, the cards, the plan library, export and import are
 his. Our branch adds the shared **Setup** dock; a plan start never before the save; **Finish without
 buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this plan** from
@@ -179,11 +184,11 @@ the searches; and the opening switch (`lowTeOpening.ts`). Since 21 Oct 2026 the 
 up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with I1 capped at 4 hours, and
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
-rule, which used the rounds only below TE 120. Joo's Chain Finder and Table Builder tabs were left out of
-this merge, so this site does not have them. It does **not** plan around Awake hours (the searches hold for them, via
-`search/leg.ts`, and the instant answer prices them) or Continue my
-build-up, and does not find stops for you. Full list:
-[Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
+rule, which used the rounds only below TE 120. Joo's own Chain Finder and Table Builder screens were left out of
+this merge; our Chain Finder tab is our own Fastest and Highest TE by a date screens, not his. The Auto Planner
+does **not** plan around Awake hours (the searches hold for them, via `search/leg.ts`, and the instant answer
+prices them) or Continue my build-up, and does not find stops for you. Full list:
+[Auto Planner vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
 ---
 
@@ -203,8 +208,8 @@ on the wiki: [Game rules the planner follows](https://github.com/william-egginc/
   delivery set at H1, on Humility. In plans that continue your build-up, or finish it without buying, a farm off
   Humility keeps the artifacts it has on until its first Humility shift (`continueState` and `buildUpState` in
   `src/search/leg.ts`). The Build-up tracker leaves out any set swap that is not on Humility.
-- **The silo trick.** Check in on Sunday, then stay offline until a check-in inside Monday's 2x event (Monday 9:00 am
-  to Tuesday 9:00 am Pacific), with enough silo time to cover the gap: what the farm earned offline is paid at 2x
+- **The silo trick.** Check in on Sunday, then stay offline until a check-in inside Monday's 2x event (Monday 9:00 AM
+  to Tuesday 9:00 AM Pacific), with enough silo time to cover the gap: what the farm earned offline is paid at 2x
   when you come back inside the event. It is wasted if you come online on Sunday again, or if the silos run out
   first.
 - A prestige takes about 30 seconds (through the Edible egg to Enlightenment), too short to matter for planning.
@@ -217,8 +222,8 @@ Where the simulator does not follow them yet:
   shift cost and no reset. A fix is planned after Release 7.
 - **The silo trick** is advised by the Build-up tracker but not simulated, so the planner's times leave out its gain.
 - **Waits inside a planned ascension are not capped by silos.** They assume you check in often enough that the silos
-  never run out. Only the catch-up from your save to the plan start is capped at what the silos hold
-  (`src/lib/saveAge.ts` `catchUpSeconds`).
+  never run out. The catch-up from your save to the plan start is not capped either: it counts all the time since the
+  sync, as Joo's engine does (it was capped at what the silos hold until 10 Nov 2026).
 
 ---
 

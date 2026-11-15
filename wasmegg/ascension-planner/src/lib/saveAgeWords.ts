@@ -21,8 +21,4 @@ export const SAVE_AGE_WORDS = {
    *  the plan start at its current rate, the way the game credits time away (your silos hold …). If you've opened the
    *  game since then … Anything you bought since is not in it; sync and reload if you have played."). */
   caughtUp: (_silos: string) => 'Your farm is caught up to here from your save. Played since? Sync and reload.',
-  /** Past what the silos hold. DRAFT wording (Words reviews; was "Your save is 40h old, longer than your silos hold
-   *  (12h), so the answers here won't be accurate. Force a sync: ..." in red, now the save-age banner's to say). */
-  pastSilos: (age: string, silos: string) =>
-    `Starts ${age} after your last sync, longer than your silos hold (${silos}): the planner counts the farm as running for ${silos} only, the way the game credits time away, then earning nothing.`,
 } as const;

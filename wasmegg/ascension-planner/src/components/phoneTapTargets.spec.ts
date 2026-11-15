@@ -65,6 +65,24 @@ describe('the instant card on a phone', () => {
     expect(t).toContain('sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0');
     expect(src).toMatch(/<span\s+class="px-2 py-0\.5 rounded-full border border-slate-200 bg-white[^"]*"\s*>Hide<\/span/);
   });
+  it('My runs: the "?" after Right now\'s save line (SaveHeadHelp, 12 Nov 2026): CardHelp\'s 14 px look and 44 px area', () => {
+    const t = tagWith(read('myruns/SaveHeadHelp.vue'), 'data-testid="now-save-help"');
+    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain("relative self-center before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
+    expect(t).toContain(':aria-expanded=');
+    expect(t).toContain(':aria-controls="id"');
+    expect(t).toContain('focus-visible:ring-2');
+  });
+  it('the instant card\'s "?" (CardHelp, the card clean-up 12 Nov 2026): HelpTip\'s 14 px look and 44 px area; Work it out again 44 px', () => {
+    const t = tagWith(read('auto/CardHelp.vue'), 'data-testid="card-help"');
+    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain("relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
+    expect(t).toContain(':aria-describedby="id"');
+    expect(t).toContain(':aria-controls="id"');
+    expect(t).toContain('focus-visible:ring-2');
+    const saved = src.slice(src.indexOf('data-testid="saved-answer"'));
+    expect(saved.slice(0, saved.indexOf('</p>')).match(/<button[^>]*>/)![0]).toContain(TAP);
+  });
   it('the "?" info icons (HelpTip): 14 px as before, with a 44 px invisible area round them on a phone (26 Oct)', () => {
     const t = tagWith(read('auto/HelpTip.vue'), 'aria-label="What does this mean?"');
     expect(t).toContain('w-3.5 h-3.5');
@@ -185,7 +203,7 @@ describe('nothing floating covers the end of the page on a phone', () => {
     expect(room).toBeGreaterThanOrEqual(pillTop + 16);
   });
   it('Manual: the notes and stats bubbles (7rem up below md, about 70 px tall) sit inside the 12rem under the page', () => {
-    for (const f of ['../../../../ui/components/planners/FloatingNotes.vue', 'FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
+    for (const f of ['../../../../ui/components/planners/FloatingNotes.vue', '../../../../ui/components/planners/FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
     expect(app).toContain("? 'pb-48 md:pb-8'");
     expect(app).toContain(": 'pb-48 md:pb-24'");
     const bubbleTop = 7 * rem + 6 + 16 + 4 + 36 + 6; // bottom-28, p-1.5, chevron, mb-1, 36 px icon, p-1.5

@@ -17,14 +17,17 @@
     :load-words="LOAD_LATEST_SAVE"
     @fresh="load"
   />
+  <!-- The silo line (layout/SiloLine.vue), under the strip. -->
+  <SiloLine class="mt-1" :silo="silo" />
 </template>
 
 <script setup lang="ts">
 import SaveAgeStrip from '@/components/myruns/SaveAgeStrip.vue';
+import SiloLine from '@/components/layout/SiloLine.vue';
 import { useMinuteClock } from '@/composables/useMinuteClock';
 import { LOAD_LATEST_SAVE, useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 
 defineProps<{ screen: 'fastest' | 'by-date' | 'classic' }>();
 const now = useMinuteClock();
-const { state, server, shown, loading, load } = useAutoSaveStrip({ now });
+const { state, server, shown, loading, load, silo } = useAutoSaveStrip({ now });
 </script>

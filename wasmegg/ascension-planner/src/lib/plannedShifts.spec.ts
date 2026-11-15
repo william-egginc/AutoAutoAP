@@ -63,8 +63,12 @@ describe('the standard opening comes from the simulator (src/auto/ascension.ts, 
     for (const s of OPENING_SHIFTS) expect(s.egg).toBe(eggOfShift(s.name));
     const src = readFileSync(resolve(__dirname, '../auto/ascension.ts'), 'utf8');
     // A fresh ascension starts on Curiosity (C1 has no shift) and its first pass is C1 -> K1 -> I1.
+    // Since Joo's Continue (PR 731) the first pass is the visits from `from`, which is 'C' unless a
+    // part-built farm continues, so a fresh one is still 'CKI'.
     expect(src).toContain("currentEgg: 'curiosity'");
-    expect(src).toContain("continueOpening(empty, 'CKI', context, 'CKI')");
+    expect(src).toContain("from: 'C' | 'K' | 'I' = 'C',");
+    expect(src).toContain("const firstVisits = 'CKI'.slice('CKI'.indexOf(from));");
+    expect(src).toContain('continueOpening(empty, firstVisits, context, firstVisits, { equipEarningsSet })');
     // Then the listed shifts up to C3, in this order.
     const order = [...src.matchAll(/\{ name: '([A-Z]\d)', run: run[A-Z]\d \}/g)].map(m => m[1]);
     expect(order.slice(0, order.indexOf('C3') + 1)).toEqual(['C2', 'K2', 'R1', 'C3']);
@@ -122,12 +126,12 @@ describe('where the count is shown', () => {
     const base = { eggs: [], facts: null, shiftsDone: 100, nextShiftCost: null, clothedEquipped: null, clothedEarnings: null, now: T0, saveSeconds: T0 };
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 40, cost: 1e18, opening: 24 } }));
     expect(t).toContain('40 shifts');
-    expect(t).toContain('about 24 of them build-up shifts (estimated)');
+    expect(t).toContain('about 24 of them while buying research in later ascensions (estimated)');
     const none = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 12, cost: 1e18, opening: 0 } }));
-    expect(none).not.toContain('build-up shifts (estimated)');
+    expect(none).not.toContain('while buying research');
   });
 
-  it('the Full timeline says "about 6 build-up shifts" only where the ascension lists none of them', async () => {
+  it('the Full timeline says "about 6 shifts while buying research" only where the ascension lists none of them', async () => {
     const a = fresh(0, 300);
     const listed = { ...fresh(1, 330), shifts: [...opening(T0 + H + 4 * D), ...tail(T0 + H + 4 * D)] };
     const cont = { ...fresh(2, 360), label: 'continue' };
@@ -141,7 +145,7 @@ describe('where the count is shown', () => {
     const html = await renderHtml(AscensionList, { lines, zone: ZONE });
     const t = textOf(html);
     expect(t).toContain('You do the build-up for 2 sales');
-    expect(t).toContain('Its first hours: about 6 build-up shifts (estimated, not listed)');
-    expect(t.match(/build-up shifts \(estimated/g)).toHaveLength(1);
+    expect(t).toContain('Its first hours: about 6 shifts while buying research (estimated, not listed)');
+    expect(t.match(/while buying research \(estimated/g)).toHaveLength(1);
   });
 });

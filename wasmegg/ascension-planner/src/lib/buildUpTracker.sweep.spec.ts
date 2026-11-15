@@ -89,7 +89,7 @@ describe('"(cheap sweep)" marks', () => {
 
   it('a mixed line (sweep and non-sweep buys) marks only the sweep names; items unchanged', () => {
     const l = run(merged).lines.find(x => x.kind === 'research')!;
-    expect(lineText(l)).toBe('11:22 pm · buy Neural Linking (24 → 26) (cheap sweep), Enlightened Chickens (71 → 72) (cheap sweep), Timeline Diversion (39 → 40)');
+    expect(lineText(l)).toBe('11:22 PM · buy Neural Linking (24 → 26) (cheap sweep), Enlightened Chickens (71 → 72) (cheap sweep), Timeline Diversion (39 → 40)');
     expect(l.parts).toEqual(['Neural Linking (24 → 26) (cheap sweep)', 'Enlightened Chickens (71 → 72) (cheap sweep)', 'Timeline Diversion (39 → 40)']);
     expect(l.sweep).toEqual([true, true, false]);
     expect(l.items).toEqual([
@@ -124,7 +124,7 @@ describe('"(cheap sweep)" marks', () => {
   it('an all-sweep line: ONE "(cheap sweep)" at the end of the line, before the offline tail', () => {
     const r = run(withNext(allSweep));
     const l = r.lines.find(x => x.kind === 'research')!;
-    expect(lineText(l)).toBe('11:22 pm · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Bigger Eggs (0 → 1) (cheap sweep) · offline 1 min');
+    expect(lineText(l)).toBe('11:22 PM · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Bigger Eggs (0 → 1) (cheap sweep) · offline 1 min');
     expect(l.text.match(/cheap sweep/g)).toHaveLength(1);
     // The names stay plain for striking through; which ones were the sweep is kept.
     expect(l.parts).toEqual(['Comfortable Nests (0 → 50)', 'Excitable Chickens (0 → max)', 'Bigger Eggs (0 → 1)']);

@@ -308,6 +308,25 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('Clothed TE 212 (equipped 198)');
   });
 
+  it('Clothed TE: "(equipped …)" only when the equipped gear differs (spec-tidy: "326 (equipped 326)")', async () => {
+    const t = textOf(
+      await renderHtml(YourEggs, {
+        eggs: [],
+        facts: null,
+        shiftsDone: 214,
+        nextShiftCost: 1.8e21,
+        plannedShifts: null,
+        clothedEquipped: 326.2,
+        clothedEarnings: 325.9,
+        now: NOW,
+        saveSeconds: NOW - 3 * H,
+        zone: ZONE,
+      })
+    );
+    expect(t).toContain('Clothed TE 326 with your earnings set');
+    expect(t).not.toContain('equipped');
+  });
+
   it('planned shifts at today\'s soul eggs', async () => {
     const t = textOf(
       await renderHtml(YourEggs, {
@@ -410,7 +429,8 @@ describe('source checks', () => {
       return [...body.matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).sort();
     };
     const route = fields(read('../auto/InstantRoute.vue'));
-    expect(route.length).toBe(17);
+    // 18 since spec-silotrick (10 Nov 2026): `siloTrick` joined the key.
+    expect(route.length).toBe(18);
     expect(fields(read('../../composables/useNowPage.ts'))).toEqual(route);
   });
 

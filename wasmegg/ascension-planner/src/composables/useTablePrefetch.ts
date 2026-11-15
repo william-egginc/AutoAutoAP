@@ -8,7 +8,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { useInitialStateStore } from '@/stores/initialState';
 import { cteFromArtifacts } from 'lib/virtue';
-import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import { instantDeliveryScale } from '@/search/leg';
 import { gearStamp, gearTableFiles, ownTableNames } from '@/search/tableGear';
 import { prefetchAllowed, prefetchFiles, prefetchPlan } from '@/search/tablePrefetch';

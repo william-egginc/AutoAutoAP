@@ -241,7 +241,7 @@ describe('the scrubbed file reads back as the original', () => {
     await initPlanFuture(ID, markRaw(latest), 'fresh');
     const want = {
       loadout: JSON.stringify(useInitialStateStore().artifactLoadout),
-      missions: JSON.stringify(useInitialStateStore().virtueMissions),
+      missions: JSON.stringify(useInitialStateStore().plannerMissions),
     };
     expect(JSON.parse(want.missions).length).toBe(2);
     const store = useChainSearchStore();
@@ -253,7 +253,7 @@ describe('the scrubbed file reads back as the original', () => {
     expect(useUIStore().runSaveLoaded).toMatchObject({ from: 'file' });
     expect(useUIStore().runSaveLoaded?.noAccount).toBeFalsy();
     expect(JSON.stringify(useInitialStateStore().artifactLoadout)).toBe(want.loadout);
-    expect(JSON.stringify(useInitialStateStore().virtueMissions)).toBe(want.missions);
+    expect(JSON.stringify(useInitialStateStore().plannerMissions)).toBe(want.missions);
   });
 
   it('the same gear: worn set, earnings set, owned inventory, and the gear stamp’s delivery-set picks', async () => {

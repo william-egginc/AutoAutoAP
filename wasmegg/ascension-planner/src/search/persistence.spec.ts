@@ -422,6 +422,7 @@ describe('putting a run’s settings back from its fingerprint', () => {
       milestones: [{ te: 250, by: 1_800_000_000 }],
       timeOff: [{ from: 1_795_000_000, to: 1_795_600_000 }],
       noPrestige: [],
+      siloTrick: false,
     });
     const plain = fingerprintRun({ playerId: 'EI1', planStart: 1, currentTE: 137, final: 490, forceContinue: true });
     expect(fingerprintSettings(plain)).toMatchObject({

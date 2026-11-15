@@ -207,7 +207,7 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">The shape comes from the sale calendar</p>
           <p class="mb-3">
-            Each ascension's build phase ends when a Research Sale ends, Saturday at 9:00 am Pacific. Move a stop up one
+            Each ascension's build phase ends when a Research Sale ends, Saturday at 9:00 AM Pacific. Move a stop up one
             Truth Egg and usually you still make the same Saturday, so the ascension gets a little quicker. Go one too far
             and you miss that sale and wait a week for the next one.
           </p>

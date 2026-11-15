@@ -64,6 +64,7 @@ import {
   isResearchSaleActive,
 } from 'lib/planners/events';
 import { calendarOf } from './clock';
+import { clockTimeOf } from './timeStyleWords';
 import { getResearchById } from '@/calculations/commonResearch';
 import { resultCode, sameResultCode } from './resultCode';
 import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';
@@ -178,19 +179,19 @@ export interface TrackerResult {
   droppedSwaps: number;
   /** The header's Smart Buy line (`buyRuleWords`); '' for none. */
   buyRule: string;
+  /**
+   * The silo trick (the "go offline until Monday" line): null when the plan has no such line; otherwise whether the PLAN's cash
+   * counts it, i.e. it carries the 2x-event credit (a `modify_bank` action, set by Setup's silo trick, 10 Nov 2026). False means
+   * the advice is shown but the plan does not count the cash: UI hints "turn on Silo trick in Setup" (Words writes the text).
+   */
+  siloTrickCounted: boolean | null;
 }
 
 // ------------------------------------------------------------------------------------------------ words
 
-/** '8:42 am' in `zone`, rounded down to the minute. */
+/** '8:42 AM' in `zone`, rounded down to the minute; '' for a zone the browser does not know (lib/timeStyleWords.ts). */
 export function clock12(at: number, zone: string): string {
-  const d = new Date(Math.floor(at / 60) * 60 * 1000);
-  try {
-    const s = new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
-    return s.replace(/[\s  ]*([AaPp])\.?[Mm]\.?$/, (_m, x: string) => ` ${x.toLowerCase()}m`);
-  } catch {
-    return '';
-  }
+  return clockTimeOf(Math.floor(at / 60) * 60 * 1000, zone);
 }
 
 /** 'Fri Oct 30' in `zone` (the year after it when not `now`'s: 'Fri Jan 1 2027'). */
@@ -909,6 +910,9 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
     lines,
     droppedSwaps: st.dropped,
     buyRule: buyRuleWords({ saleCount: input.saleCount, variantKey: input.variantKey }),
+    siloTrickCounted: lines.some(l => l.kind === 'siloTrick')
+      ? input.actions.some(a => a.kind === 'other' && a.id === 'modify_bank')
+      : null,
   };
 }
 

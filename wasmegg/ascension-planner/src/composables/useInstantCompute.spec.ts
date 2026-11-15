@@ -48,7 +48,7 @@ import {
 } from './useInstantCompute';
 import { chooseInstantTable, instantFirstLegs, instantPricingOptions } from '@/search/instantCompute';
 import { cardDeliveryScale } from '@/search/instantScale';
-import { getSimulationContext } from '@/engine/adapter';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from '@/search/precomputedLeg';
 import { firstLegOptions, priceChain, tailOptionsOf, type BuildLookup, type PolishOptions, type Route } from '@/search/routeFinder';
 import { MAXED_TABLE_FILE } from '@/search/tableBracket';

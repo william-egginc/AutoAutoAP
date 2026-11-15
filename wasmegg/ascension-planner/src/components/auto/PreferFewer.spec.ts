@@ -80,10 +80,15 @@ describe('PreferFewerNote (the green box)', () => {
     muted: '',
   };
 
-  it('a different route: what the box shows, the line, then "Show the fastest instead ›"', async () => {
+  it('a different route: the line with what the box shows behind its "?" (Jordan, 12 Nov 2026 pm; phone proposal item g), then "Show the fastest instead ›"', async () => {
     const html = await renderHtml(PreferFewerNote, { copy: picked, goal: 'fastest', showingBest: false });
-    expect(textOf(html)).toBe(`${picked.what} ${picked.line} Show the fastest instead ›`);
-    expect(html).toContain('data-testid="prefer-fewer-what"');
+    // The "?" bubble (CardHelp) is teleported to <body>: not in the note's own text.
+    expect(textOf(html)).toBe(`${picked.line} ? Show the fastest instead ›`);
+    expect(html).not.toContain('data-testid="prefer-fewer-what"');
+    const line = html.slice(html.indexOf('data-testid="prefer-fewer-line"'), html.indexOf('</p>', html.indexOf('data-testid="prefer-fewer-line"')));
+    expect(line).toContain('data-testid="card-help"');
+    const src = fs.readFileSync(path.join(__dirname, 'PreferFewerNote.vue'), 'utf8');
+    expect(src).toContain('<CardHelp>{{ copy.what }}</CardHelp>');
     expect(html).toContain('aria-pressed="false"');
   });
 
@@ -112,12 +117,12 @@ describe('PreferFewerNote (the green box)', () => {
 });
 
 describe('InstantRoute wiring', () => {
-  it('the control sits in both counts cards, above the table, with the per-screen value', () => {
-    expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="fastest" />');
-    expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="date" />');
-    expect(route.indexOf('<PreferFewerControl v-model="preferMargin" goal="date" />')).toBeLessThan(
-      route.indexOf('<span>Highest TE</span>')
-    );
+  it('the control sits once, with the filters under Filters (Jordan, 12 Nov 2026 pm), above the box and the table, with the per-screen value', () => {
+    expect(route.match(/<PreferFewerControl/g)).toHaveLength(1);
+    expect(route).toContain(`:goal="deadline ? 'date' : 'fastest'"`);
+    expect(route).toContain('v-if="deadline ? !!result.byDate && dateRows.length > 1 : !!boxLead"');
+    expect(route.indexOf('<PreferFewerControl')).toBeLessThan(route.indexOf('data-testid="instant-box"'));
+    expect(route.indexOf('<PreferFewerControl')).toBeLessThan(route.indexOf('<span>Highest TE</span>'));
     expect(route).toContain('get: () => preferSetting.value[preferGoal.value],');
     // Only the screen picked on is remembered; the other keeps its default (preferFewer.ts PREFER_DEFAULTS).
     expect(route).toContain('const preferSetting = ref<PreferSetting>(readPreferFewer());');

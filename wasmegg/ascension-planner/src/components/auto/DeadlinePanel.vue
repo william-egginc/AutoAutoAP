@@ -50,7 +50,9 @@
       </template>
     </CarryOnOffer>
 
-    <h3 class="text-slate-500 label">The date</h3>
+    <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026), as on Fastest's (FastestRoute.vue). -->
+    <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
+    <h3 class="text-slate-500 label md:!mt-0">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
@@ -122,6 +124,16 @@
       Egg Day's own bonuses aren't in the plan.
     </p>
 
+    <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
+         where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
+    <div v-if="initialState.playerId" class="space-y-2" data-region="filters">
+      <div class="flex justify-start">
+        <FiltersButton />
+      </div>
+      <!-- The answer's filters, just below Filters and always shown (Jordan, 12 Nov 2026 pm; InstantRoute `filters-to`):
+           Works inside my awake hours, Ascensions from/to and its line, Prefer fewer ascensions. -->
+      <div id="filters-bydate-answer" class="empty:hidden" data-testid="filters-under"></div>
+    </div>
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
     <!-- The simpler default page (9 Nov 2026, notes/simpler-design.md): the answer always shown (no Hide; the section's
@@ -135,6 +147,8 @@
         :deadline="deadline"
         share-to="#search-share-by-date"
         more-to="more-bydate-answer"
+        filters-to="filters-bydate-answer"
+        now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
         @check="checkByDate"
         @routes="onInstantRoutes"
@@ -200,10 +214,6 @@
     </div>
 
     <NowLine screen="by-date" :goal-key="goalKey" @show-search="showSearch" />
-
-    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2: a new player lands here; App.vue
-         draws it at the top of the other screens), until answered. Its words are unchanged (StudyBox.vue). -->
-    <StudyBox v-if="store.submitUrl" />
 
     <MoreFold
       ref="more"
@@ -1183,7 +1193,7 @@ import {
 } from '@/search/byDateKinds';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
-import StudyBox from '@/components/StudyBox.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
 import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
@@ -1230,6 +1240,7 @@ import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
 
 const props = defineProps<{
   playerId: string;

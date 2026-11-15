@@ -13,11 +13,12 @@
   <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line and the
        goal tabs above (App.vue), then here, always in this order: the title and its one line, the answer with Follow this
        route as its one main button, what to do now, then the one closed More (everything else, in its old order), then
-       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. -->
+       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. One has a place outside More:
+       the target box, first in the one card ("The target"), under the title and the Target TE | By a date switch
+       (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE as soon as possible"; in the card like By a date's date, 13 Nov 2026). -->
   <div class="max-w-4xl mx-auto space-y-4">
     <div data-region="title">
-      <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
-      <p class="text-body text-slate-600 max-w-prose" data-testid="fastest-line">{{ fastestLine }}</p>
+      <h1 class="sr-only">{{ fastestName(store.finalTE) }}</h1>
     </div>
 
     <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
@@ -29,6 +30,28 @@
          start?" is in Science (#/science/start). -->
     <YourSetup screen="fastest" issues-only />
 
+    <!-- THE ONE CARD, like By a date's (DeadlinePanel.vue, Jordan 13 Nov 2026: "fix the target TE to match the by date"): a
+         small caps label, the target box, Filters and its row, the answer, What to do now, then More. A frame from sm up
+         only, as By a date's is (ByDateScreen.frame.spec). The title, the banner and the save's problems stay above it. -->
+    <div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4" data-testid="target-card">
+    <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026: inside THE TARGET card, top right): floated
+         right from md up so the rows beside it wrap round it; in the flow, one merged line, below md (layout/SaveSide.vue). -->
+    <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
+    <h3 class="text-slate-500 label md:!mt-0">The target</h3>
+    <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
+         box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
+    <TargetTeBox />
+
+    <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
+         where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
+    <div v-if="initialState.playerId" class="space-y-2" data-region="filters">
+      <div class="flex justify-start">
+        <FiltersButton />
+      </div>
+      <!-- The answer's filters, just below Filters and always shown (Jordan, 12 Nov 2026 pm; InstantRoute `filters-to`):
+           Works inside my awake hours, Ascensions from/to and its line, Prefer fewer ascensions. -->
+      <div id="filters-fastest-answer" class="empty:hidden" data-testid="filters-under"></div>
+    </div>
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
     <!-- The answer, always shown: no Hide since the simpler page (the section's old id kept for the tracker's "Pick a route
@@ -41,6 +64,8 @@
         <InstantRoute
           share-to="#search-share-fastest"
           more-to="more-fastest-answer"
+          filters-to="filters-fastest-answer"
+          now-to="now-offer-fastest"
           @check="checkExactly"
           @state="st => (instantLoad = st)"
           @unloaded="u => (instantUnloaded = u)"
@@ -51,10 +76,6 @@
     </div>
 
     <NowLine screen="fastest" :goal-key="goalKey" @show-search="showSearch" />
-
-    <!-- Help improve the planner, below the answer on this screen (Jordan, 9 Nov 2026, Q2; App.vue draws it at the top of
-         the other screens), until answered. Its words are unchanged (StudyBox.vue, lib/aboutPage.spec.ts). -->
-    <StudyBox v-if="store.submitUrl" />
 
     <MoreFold
       ref="more"
@@ -113,6 +134,7 @@
     <div id="more-fastest-answer-how"></div>
     <a href="#/science/how" class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900" data-testid="how-it-works-link">{{ HOW_IT_WORKS_LINK }}</a>
     </MoreFold>
+    </div>
   </div>
 </template>
 
@@ -125,8 +147,8 @@ import { safeAsyncComponent } from 'lib/planners/import';
 import StrongerBox from './StrongerBox.vue';
 import MoreFold from '@/components/layout/MoreFold.vue';
 import NowLine from '@/components/layout/NowLine.vue';
-import StudyBox from '@/components/StudyBox.vue';
-import { fastestLine as fastestLineWords, HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import SaveSide from '@/components/layout/SaveSide.vue';
+import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
 import { screenGoalKey } from '@/lib/follow';
 import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
@@ -137,10 +159,13 @@ import type { InstantState } from '@/search/autoWiden';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
+import { useInitialStateStore } from '@/stores/initialState';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import TargetTeBox from './TargetTeBox.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
@@ -166,12 +191,12 @@ const emit = defineEmits<{
 
 const store = useChainSearchStore();
 const ui = useUIStore();
+const initialState = useInitialStateStore();
 const stronger = useStrongerStore();
 
 // The hidden sections' one-line results (CollapsibleSection.vue).
 useSearchSnapshots('fastest');
 /** The line under the tabs, for the player's own target (490 or another). */
-const fastestLine = computed(() => fastestLineWords(store.finalTE));
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */

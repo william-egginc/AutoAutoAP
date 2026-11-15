@@ -1,7 +1,4 @@
 <template>
-  <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
-  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>
-
   <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
        44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
@@ -22,7 +19,7 @@
             ? 'pb-8'
             : 'pb-24',
     ]"
-    :style="setupDockShown ? { paddingBottom: pageBottomRoom } : undefined"
+    :style="setupDockShown ? { paddingBottom: pageRoom } : undefined"
   >
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
@@ -163,13 +160,18 @@
         >
       </p>
 
-      <SiteTabs
-        v-if="playerId"
-        class="mt-4"
-        :tabs="topTabs"
-        :current="plannerTab"
-        @select="selectSection"
-      />
+      <!-- Home and the site menu at the tab row's left end (above it below lg), in place of the dark top bar (H1, Jordan 13 Nov
+           2026: the tabs replace the header; layout/SiteHomeMenu.vue). Shown without an account too: the tabs are not. -->
+      <div class="mt-4 flex flex-col gap-2 lg:flex-row lg:items-start" data-testid="site-row">
+        <SiteHomeMenu />
+        <SiteTabs
+          v-if="playerId"
+          class="min-w-0 flex-1"
+          :tabs="topTabs"
+          :current="currentTopTab"
+          @select="selectSection"
+        />
+      </div>
 
       <!-- The chevron: one fixed place, just under the tabs (it used to jump between above and below the Auto Planner).
            Gone from Fastest, By a date and My runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
@@ -195,21 +197,22 @@
       </div>
       <!-- Region 1 of the layout contract (the simpler page): whose save, its age and Load latest save. -->
       <SaveLine v-if="saveLineShown" />
+      <!-- The save strip and the silo line are inside the target card, top right (FastestRoute.vue, DeadlinePanel.vue; Jordan, 14 Nov 2026). -->
 
       <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
            is its h1 (Manual's just below; the others' in their own components). -->
       <main id="main-content">
       <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
       <RunAnnouncer />
-      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-headline font-black text-slate-900">
+      <h1 v-if="plannerTab === 'manual' && playerId" class="sr-only">
         {{ NAMES.manual }}
       </h1>
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
            first), above every tab's own content, at the page level so it is the same place on every tab. Once an
            account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
-      <!-- On Fastest and By a date it sits below the answer since the simpler page (Jordan, 9 Nov 2026, Q2: the first
-           load shows the answer first; words unchanged): those screens draw it under What to do now (`studyBelowAnswer`). -->
-      <StudyBox v-if="playerId && chainSearchStore.submitUrl && !studyBelowAnswer" class="mt-3" />
+      <!-- One line since 14 Nov 2026 (Jordan: "Help improve the planner? Yes / No / Later", opening the full form), and at the
+           top of every tab again, Chain Finder included: the first thing people see. -->
+      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-3" />
 
       <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
       <div
@@ -228,7 +231,17 @@
           <div class="overflow-hidden">
             <!-- Plan Library Section -->
             <div v-if="playerId" class="max-w-6xl mx-auto mt-6">
-              <PlanLibrary @plan-loaded="handlePlanLoaded" />
+              <PlanLibrary :import-special-file="importAutoPlan" @plan-loaded="handlePlanLoaded">
+                <template #dialogs>
+                  <AutoPlanImportDialog
+                    v-if="showAutoPlanDialog"
+                    :plan-name="autoPlanName"
+                    :ascension-count="autoPlanAscensionCount"
+                    @resolve="resolveAutoPlan"
+                    @cancel="cancelAutoPlan"
+                  />
+                </template>
+              </PlanLibrary>
             </div>
 
             <!-- Ascension Action Buttons -->
@@ -396,44 +409,17 @@
       />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <template v-if="plannerTab === 'automatic'">
-          <div class="flex justify-center">
-            <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
-                 cell, so the underline stays on one line; from sm up, a centred row. Each at least
-                 44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
-                 My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
-                 appeared after the first answer). -->
-            <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
-            >
-              <button
-                v-for="v in autoTabs"
-                :key="v.id"
-                type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
-                :class="
-                  autoView === v.id
-                    ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-600 hover:text-slate-900'
-                "
-                @click="onAutoTab(v.id)"
-              >
-                {{ v.label }}
-                <span
-                  v-if="
-                    activeScreen &&
-                    chainSearchStore.runProgress?.kind !== 'start-times' &&
-                    (v.id === 'by-date'
-                      ? activeScreen === 'by-date'
-                      : v.id === 'fastest' && (activeScreen === 'smart' || activeScreen === 'full'))
-                  "
-                  class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
-                  title="A search is running here"
-                ></span>
-              </button>
-            </div>
-          </div>
-        </template>
+        <!-- Chain Finder's goal switch, "Target TE | By a date" (spec-chainfinder, Jordan 12 Nov 2026: Joo's one page with a
+             switch, not the old two goal tabs; GoalSwitch.vue). Each side is an address (#/auto/fastest, #/auto/by-date),
+             set through onAutoTab as the old tabs were. None on the Auto Planner tab (Joo's simulator, #/auto/classic). -->
+        <div v-if="plannerTab === 'automatic' && autoView !== 'classic'" class="flex flex-wrap items-center justify-center gap-x-1">
+          <GoalSwitch class="min-w-0 flex-1 sm:flex-none" :current="autoView" :running="runningGoal" @select="onAutoTab" />
+          <!-- The screens' intro line, in a "?" beside the switch (Jordan, 14 Nov 2026; layout/GoalHelp.vue). -->
+          <GoalHelp
+            :text="autoView === 'fastest' ? fastestLine(chainSearchStore.finalTE) : BYDATE_LINE"
+            :testid="autoView === 'fastest' ? 'fastest-line' : 'bydate-line'"
+          />
+        </div>
 
         <div v-else-if="plannerTab === 'science'" class="flex justify-center">
           <div
@@ -535,36 +521,19 @@
         </div>
       </div>
 
-      <!-- Active Event Slide Toggle (Earnings Boost) -->
+      <!-- 2x Earnings Event: status plus a wait for its next start or end (Joo's card, PR 731) -->
       <div v-if="manualShown" class="mt-4 flex flex-col items-center gap-2">
-        <div
-          class="w-full max-w-sm bg-gradient-to-r from-orange-50/80 via-white to-amber-50/80 rounded-2xl p-4 border border-orange-100/50 shadow-sm relative overflow-hidden flex items-center justify-between transition-all duration-300"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <div class="flex flex-col gap-0.5 text-left">
-              <div class="flex items-center gap-2">
-                <div class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></div>
-                <span class="text-slate-400 label leading-none"
-                  >Monday 2× Earnings Event</span
-                >
-              </div>
-              <span class="text-orange-600 label">
-                {{ isEarningsBoostActive ? 'Active' : 'Inactive' }}
-              </span>
-            </div>
-          </div>
-
-          <button
-            class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
-            :class="isEarningsBoostActive ? 'bg-orange-500' : 'bg-slate-200'"
-            @click="handleToggleEarningsEvent"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-all duration-300 shadow-sm"
-              :class="isEarningsBoostActive ? 'translate-x-[22px]' : 'translate-x-1'"
-            />
-          </button>
-        </div>
+        <EventEdgeWaitCard
+          class="w-full max-w-sm"
+          label="Monday 2× Earnings Event"
+          event-name="2x Earnings"
+          active-text="Active"
+          tone="orange"
+          :is-active="isEarningsBoostActive"
+          :seconds-until-change="isEarningsBoostActive ? secondsUntilEarningsBoostEnd : secondsUntilNextEarningsBoost"
+          :tooltip="earningsEventTooltip"
+          @wait="handleEarningsEventWait"
+        />
       </div>
 
       <div v-if="loading" class="text-center py-4 text-gray-600">Loading player data...</div>
@@ -641,12 +610,9 @@
           :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
         >
           <template v-if="autoView === 'classic'">
-            <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
+            <h1 class="sr-only">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-body text-slate-600">
-              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's original planner: type the TE you want
-              to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the stops found for you, use
-              {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
+              {{ CHAIN_FINDER_WORDS.autoPlannerIntro(fastestName(chainSearchStore.finalTE), NAMES.byDate) }}
             </p>
             <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): said above the planner too, as on
                  the other screens. -->
@@ -714,48 +680,56 @@
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. On Single run it
            sits above Joo's fixed bar of totals (measured: it wraps on a phone and folds), not over it. -->
-      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" />
+      <SetupDock
+        v-if="plannerTab === 'automatic' && playerId && !loading"
+        :screen="autoView"
+        :bottom-offset="singleRunBarRoom"
+        @height="setupPillHeight = $event"
+      />
       <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
       <SetupDock
         v-else-if="plannerTab === 'myruns' && playerId && !loading"
         screen="fastest"
         :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"
+        @height="setupPillHeight = $event"
       />
 
+      <!-- The undo, clear-all and unsaved-changes confirmations: Joo's shared state (usePlanDialogs, PR 731), our
+           wording for the unsaved-changes one (so not his PlannerDialogs, which carries the older wording). -->
       <!-- Undo Confirmation Dialog -->
       <UndoConfirmationDialog
-        v-if="undoAction"
-        :action="undoAction"
-        :dependents-a="undoDependentsA"
-        :dependents-b="undoDependentsB"
-        @confirm="executeUndo"
-        @cancel="cancelUndo"
+        v-if="dialogs.state.undoAction"
+        :action="dialogs.state.undoAction"
+        :dependents-a="dialogs.state.undoDependentsA"
+        :dependents-b="dialogs.state.undoDependentsB"
+        @confirm="dialogs.executeUndo"
+        @cancel="dialogs.cancelUndo"
       />
 
       <!-- Clear All Confirmation Dialog -->
       <ConfirmationDialog
-        v-if="showClearAllConfirmation"
+        v-if="dialogs.state.showClearAllConfirmation"
         title="Clear All Actions"
         message="Are you sure you want to clear all actions? This cannot be undone."
         confirm-label="Clear All"
-        @confirm="executeClearAll"
-        @cancel="showClearAllConfirmation = false"
+        @confirm="dialogs.executeClearAll"
+        @cancel="dialogs.state.showClearAllConfirmation = false"
       />
 
       <!-- Unsaved Changes Protection Dialog -->
       <ConfirmationDialog
-        v-if="showUnsavedConfirm"
+        v-if="dialogs.state.showUnsavedConfirm"
         title="Unsaved Changes"
         message="You have unsaved changes in your current plan. If you continue, they will be lost. Press Cancel to go back and save them first."
         confirm-label="Continue Without Saving"
         variant="danger"
         @confirm="
-          showUnsavedConfirm = false;
-          pendingAction?.();
+          dialogs.state.showUnsavedConfirm = false;
+          dialogs.state.pendingAction?.();
         "
         @cancel="
-          showUnsavedConfirm = false;
-          pendingAction = null;
+          dialogs.state.showUnsavedConfirm = false;
+          dialogs.state.pendingAction = null;
         "
       />
 
@@ -813,6 +787,8 @@
       />
       <FloatingStats v-if="manualShown" />
       <FloatingNotes v-if="manualShown" />
+      <!-- The event waits' "Waited ... until the start of ..." note (Joo's, PR 731). -->
+      <PlannerToast />
 
       </main>
 
@@ -851,15 +827,17 @@
 </template>
 
 <script setup lang="ts">
+import { usePlanDialogs } from 'lib/planners/composables/usePlanDialogs';
+import { usePlanSaving } from 'lib/planners/composables/usePlanSaving';
 import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { isNewVisitor } from '@/lib/firstTour';
 import TourModal from '@/components/TourModal.vue';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
-import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, watchEffect, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
-  FIRST_LOAD_ROUTE,
+  firstLoadRoute,
   LAST_ROUTE_KEY,
   NAMES,
   canonicalUrl,
@@ -868,14 +846,18 @@ import {
   firstVisitShows,
   openingRoute,
   routeFromLocation,
+  topTabOf,
   type AutoView,
+  type ChainView,
   type Depth,
   type ScienceView,
   type Section,
   type SiteRoute,
+  type TopTab,
 } from '@/lib/siteNav';
+import { CHAIN_FINDER_WORDS } from '@/lib/chainFinderWords';
+import GoalSwitch from '@/components/auto/GoalSwitch.vue';
 import { storeToRefs } from 'pinia';
-import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
 import { noteServerSave } from '@/lib/serverSave';
 import { errorAfterSaveLoaded, LATEST_SAVE_FAILED, requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
@@ -887,7 +869,7 @@ import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
 import { plannerStartTEOf } from '@/lib/teOverrideAccount';
 import { needsSaveSetUp } from '@/search/saveStart';
 import { useActionsStore } from '@/stores/actions';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useUIStore } from '@/stores/ui';
 import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
@@ -897,17 +879,20 @@ import { useNotesStore } from 'lib/planners/stores/notes';
 import CustomEggWatcher from 'ui/components/planners/CustomEggWatcher.vue';
 import ActionHistory from '@/components/ActionHistory.vue';
 import AvailableActions from '@/components/AvailableActions.vue';
-import UndoConfirmationDialog from '@/components/UndoConfirmationDialog.vue';
-import PlanFinalSummary from '@/components/PlanFinalSummary.vue';
+import PlanFinalSummary from 'ui/components/planners/PlanFinalSummary.vue';
 import ContinuityDialog from '@/components/ContinuityDialog.vue';
 import ConfirmationDialog from 'ui/components/planners/ConfirmationDialog.vue';
-import FloatingStats from '@/components/FloatingStats.vue';
+import UndoConfirmationDialog from 'ui/components/planners/UndoConfirmationDialog.vue';
+import FloatingStats from 'ui/components/planners/FloatingStats.vue';
 import FloatingNotes from 'ui/components/planners/FloatingNotes.vue';
+import PlannerToast from 'ui/components/planners/PlannerToast.vue';
 import WarningDialog from 'ui/components/planners/WarningDialog.vue';
-import RecalculationOverlay from '@/components/RecalculationOverlay.vue';
+import RecalculationOverlay from 'ui/components/planners/RecalculationOverlay.vue';
 import LoadingOverlay from 'ui/components/planners/LoadingOverlay.vue';
-import PlanLibrary from '@/components/PlanLibrary.vue';
-import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
+import PlanLibrary from 'ui/components/planners/PlanLibrary.vue';
+import AutoPlanImportDialog from '@/components/AutoPlanImportDialog.vue';
+import { useAutoPlanImport } from '@/composables/useAutoPlanImport';
+import PlanSelectionDialog from 'ui/components/planners/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { usePrefsStore } from '@/stores/prefs';
 import { allowForVisit, useTabPrefs } from '@/composables/useTabPrefs';
@@ -920,11 +905,15 @@ import { scrollToRun } from '@/lib/runAnchor';
 import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
-import { useBottomBarRoom } from '@/composables/useBottomBarRoom';
+import { pillPageRoom, useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
+import SiteHomeMenu from '@/components/layout/SiteHomeMenu.vue';
+import GoalHelp from '@/components/layout/GoalHelp.vue';
+import { BYDATE_LINE, fastestLine } from '@/lib/layoutWords';
 import StudyBox from '@/components/StudyBox.vue';
 import SaveLine from '@/components/layout/SaveLine.vue';
+import { formatClockTime } from '@/lib/timeStyleWords';
 import MyRunsView from '@/components/MyRunsView.vue';
 import { useOverrideSync } from '@/composables/useOverrideSync';
 import { installTrackerSync } from '@/composables/useTrackerSync';
@@ -939,21 +928,20 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { choiceForEffort, openOn } from '@/lib/searchOption';
 import { presetByDate } from '@/lib/byDateForm';
+import { rememberedChainGoal } from '@/lib/autoScreen';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import { fastOpen, needsFreshSave, type RecalcRequest } from '@/lib/recalc';
 import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
-import { useSalesStore } from 'lib/planners/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { usePersistence } from '@/composables/usePersistence';
-import { compactActionHistory } from '@/composables/useCompactActionHistory';
-import { generateActionId } from '@/types';
-import { computeDependencies } from '@/lib/actions/executor';
-import { restoreFromSnapshot } from '@/lib/actions/snapshot';
-import { computeSnapshot } from '@/engine/compute';
+import { useEventWaits } from 'lib/planners/composables/usePlannerEventWaits';
+import EventEdgeWaitCard from 'ui/components/planners/actions/EventEdgeWaitCard.vue';
+import { formatDuration } from 'lib/planners/format';
+import { usePersistence } from 'lib/planners/composables/usePersistence';
+import { compactActionHistory } from 'lib/planners/composables/useCompactActionHistory';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import { storageBlocked } from '@/lib/storageGuard';
 import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
@@ -963,10 +951,11 @@ import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import SaveFileBar from '@/components/auto/SaveFileBar.vue';
 import { isPlaceholderId, NO_ACCOUNT_LINE } from '@/lib/saveScrub';
 import { idInputUpperCase, idPasteUpperCase, upperCaseIdPrefix } from '@/lib/playerIdEntry';
-import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { getSimulationContext, createBaseEngineState } from 'lib/planners/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { setConsentAccount } from '@/composables/useConsent';
-import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
+import { getArtifactLoadoutFromBackup } from '@/lib/artifacts';
+import { detectArtifactSet } from '@/lib/artifacts/detectSet';
 import {
   initStartFromScratch,
   initPlanFuture,
@@ -1109,7 +1098,8 @@ const NARROW_PILL_ROOM = 'clamp(0px, (320px - 100vw) * 1000, 3rem)';
  * reload or a copied link opens the same screen; old `?insane=1` / `#deadline` links are read once
  * and rewritten to the new address.
  */
-const initialRoute = routeFromLocation(window.location.search, window.location.hash);
+// Joo's ?tab=chain-finder lands on Chain Finder's remembered goal (lib/autoScreen.ts, the store's chainView).
+const initialRoute = routeFromLocation(window.location.search, window.location.hash, { view: uiStore.chainView, depth: uiStore.fastestDepth });
 const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
 /** Single run's fixed bar of totals (ChainSummaryBar.vue) and its fold tab, px: the Setup pill sits above them. */
 const singleRunBarRoom = useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'));
@@ -1119,6 +1109,17 @@ const pageBottomRoom = computed(() =>
     ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`
     : `calc(${SETUP_DOCK_CLEARANCE} + ${NARROW_PILL_ROOM})`
 );
+/** The pill's height as measured (SetupDock emits it; 0 until then): taller than one row on My runs with a long summary
+ *  or during a search when its workers wrap, so the room follows it (Jordan, 12 Nov 2026: no control the pill covers
+ *  for good). Never less than pageBottomRoom. */
+const setupPillHeight = ref(0);
+const pageRoom = computed(() => pillPageRoom(pageBottomRoom.value, setupPillHeight.value, singleRunBarRoom.value));
+/** The same room as the page's scroll padding at the bottom while the pill shows: whatever the browser or the planner
+ *  scrolls into view (Tab to a button, Find in page, a scrollIntoView) stops above the pill, not under it. */
+watchEffect(() => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.style.scrollPaddingBottom = setupDockShown.value ? pageRoom.value : '';
+});
 /** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
 function readLastRoute(): string | null {
   try {
@@ -1129,13 +1130,23 @@ function readLastRoute(): string | null {
 }
 /**
  * The tab the page opens on, and whether this is a new player (lib/siteNav.ts openingRoute): the address
- * wins, then the last tab this browser remembers; a new player (neither, and no saved ID) is taken to
- * FIRST_LOAD_ROUTE when their first save loads (submitPlayerId).
+ * wins, then the last tab this browser remembers; with neither, Chain Finder on the goal the player used last
+ * (`chainGoal`), else By a date with Egg Day (spec-startchain2, Jordan 12 Nov 2026 late): at once for a saved player
+ * ID, and for a new player (no saved ID) when their first save loads (submitPlayerId).
  */
 /** The first-visit tour starts by itself for a new visitor only (lib/firstTour.ts): no saved player ID and no remembered
  *  tab when the page loaded. */
 const tourNewVisitor = isNewVisitor({ savedPlayerId: getSavedPlayerID(), lastRoute: readLastRoute() });
-const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
+/** Chain Finder's goal the player picked last (lib/autoScreen.ts), read before the stores write it: where a first load
+ *  lands. */
+const chainGoal = rememberedChainGoal();
+/** The player ID saved in this browser, when it is an account: the stand-in from a downloaded save is none (playerId
+ *  above drops it too), so it would land on a Chain Finder with nothing to show. */
+function savedRealPlayerId(): string {
+  const id = getSavedPlayerID();
+  return id && !isPlaceholderId(id) ? id : '';
+}
+const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: savedRealPlayerId(), goal: chainGoal });
 let newPlayerLanding = opening.newPlayer;
 /**
  * First visit (spec-fluff3-chrome; lib/siteNav.ts firstVisitShows): the Manual Planner counts as asked for once a tab
@@ -1200,6 +1211,7 @@ if (initialRoute) {
   applyRoute(initialRoute);
   window.history.replaceState(null, '', canonicalUrl(window.location.href, initialRoute));
 } else if (opening.route) {
+  if (opening.eggDay) presetByDate({ eggDay: true });
   applyRoute(opening.route);
   window.history.replaceState(null, '', hashFor(opening.route));
 }
@@ -1357,15 +1369,20 @@ function goTo(r: SiteRoute): void {
   const pickedSave = uiStore.runSaveLoaded?.from === 'entry' || uiStore.runSaveLoaded?.from === 'file';
   if (enteringAuto && !searchActive.value && !pickedSave) void handleAutoPlannerTabClick();
 }
-/** A top tab: that section, as it was last left. */
-function selectSection(section: Section): void {
-  goTo({ ...currentRoute(), section });
+/** A top tab: that section, as it was last left. The Auto Planner always opens Joo's simulator; Chain Finder opens its
+ *  remembered goal (the store's chainView), on the running depth if a Fastest search runs (spec-chainfinder). */
+function selectSection(tab: TopTab): void {
+  if (tab === 'auto') goAuto('classic');
+  else if (tab === 'chain') onAutoTab(uiStore.chainView);
+  else goTo({ ...currentRoute(), section: tab });
 }
+/** The top tab lit (SiteTabs.vue): from the route, as plannerTab is 'automatic' for the Auto Planner and Chain Finder. */
+const currentTopTab = computed(() => topTabOf(currentRoute()));
 function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
   goTo({ section: 'auto', auto, depth });
 }
 
-/** An Auto Planner sub-tab. "Fastest route" opens the depth that's running, if one is. */
+/** A side of Chain Finder's goal switch (was an Auto Planner sub-tab). Fastest opens the depth that's running, if one is. */
 function onAutoTab(auto: AutoView): void {
   const a = activeScreen.value;
   if (auto === 'fastest' && (a === 'smart' || a === 'full')) goAuto('fastest', a);
@@ -1453,8 +1470,6 @@ const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
-/** Help improve the planner below the answer, on the two answer screens (FastestRoute.vue, DeadlinePanel.vue). */
-const studyBelowAnswer = computed(() => plannerTab.value === 'automatic' && autoView.value !== 'classic');
 /** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
  *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
 const saveLineShown = computed(
@@ -1499,39 +1514,42 @@ watch(
  * the loading watcher does not re-run it, and never over a load already in progress.
  */
 
+/** The top tabs, in Joo's order (Jordan, 12 Nov 2026): Manual Planner, Auto Planner, Chain Finder, My runs, then
+ *  Leaderboard, then Science. Which one is lit comes from the route (currentTopTab). */
 const topTabs = computed(() => [
   {
     id: 'manual' as const,
-    tab: 'manual',
     label: NAMES.manual,
     on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
   },
   {
     id: 'auto' as const,
-    tab: 'automatic',
     label: NAMES.auto,
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
-  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
-  ...(optionalShown.value.leaderboard
-    ? [
-        {
-          id: 'compare' as const,
-          tab: 'leaderboard',
-          label: NAMES.compare,
-          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
-        },
-      ]
-    : []),
+  {
+    id: 'chain' as const,
+    label: NAMES.chainFinder,
+    on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
+  },
   // My runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
   // no collector.
   ...(myRunsTabShown.value
     ? [
         {
           id: 'myruns' as const,
-          tab: 'myruns',
           label: NAMES.myRuns,
           on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
+        },
+      ]
+    : []),
+  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
+  ...(optionalShown.value.leaderboard
+    ? [
+        {
+          id: 'compare' as const,
+          label: NAMES.compare,
+          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
         },
       ]
     : []),
@@ -1539,20 +1557,21 @@ const topTabs = computed(() => [
     ? [
         {
           id: 'science' as const,
-          tab: 'science',
           label: NAMES.science,
           on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
         },
       ]
     : []),
 ]);
-/** "Fastest to 490 TE", following the Final target TE when it isn't 490. In this order (Jordan, 26 Oct 2026):
- *  the two instant-answer screens first, Single run (Joo's planner) last. */
-const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
-  { id: 'fastest', label: fastestName(chainSearchStore.finalTE), screen: null },
-  { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
-  { id: 'classic', label: NAMES.classic, screen: null },
-]);
+
+/** The goal a search is running on, for the switch's dot (the old goal tabs' rule): By a date's run, or a Fastest one
+ *  (either depth); none for a start-time sweep (Science's). */
+const runningGoal = computed<ChainView | null>(() => {
+  const a = activeScreen.value;
+  if (!a || chainSearchStore.runProgress?.kind === 'start-times') return null;
+  return a === 'by-date' ? 'by-date' : a === 'smart' || a === 'full' ? 'fastest' : null;
+});
+
 /**
  * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when
  * it sets the save up (initialState + rollUpPendingTE: per egg, the claimed TE or the thresholds
@@ -1580,14 +1599,19 @@ async function initAutoOnce(): Promise<void> {
   autoInitFor = playerId.value;
   await handleAutoPlannerTabClick();
 }
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const fuelTankStore = useFuelTankStore();
 const truthEggsStore = useTruthEggsStore();
 const eventsStore = useEventsStore();
-const salesStore = useSalesStore();
 
 const notesStore = useNotesStore();
-const { prepareExecution, completeExecution } = useActionExecutor();
+const {
+  toggleEarningsBoost: handleEarningsEventWait,
+  secondsUntilNextEarningsBoost,
+  secondsUntilEarningsBoostEnd,
+} = useEventWaits();
+const { showAutoPlanDialog, autoPlanName, autoPlanAscensionCount, importAutoPlan, resolveAutoPlan, cancelAutoPlan } =
+  useAutoPlanImport();
 const { partitionHash, saveActiveDraft, initPersistence, broadcastPresence } = usePersistence();
 
 const isEarningsBoostActive = computed(() => actionsStore.effectiveSnapshot?.earningsBoost?.active ?? false);
@@ -1630,44 +1654,12 @@ watch(
   { immediate: true }
 );
 
-function handleToggleEarningsEvent() {
-  const beforeSnapshot = prepareExecution();
-  const currentlyActive = beforeSnapshot.earningsBoost.active;
-
-  // Find the multiplier from the event store if turning ON
-  let multiplier = 2;
-  if (!currentlyActive) {
-    const event = eventsStore.getActiveEvents(initialStateStore.isUltra).find(e => e.type === 'earnings-boost');
-    if (event) multiplier = event.multiplier;
-  } else {
-    multiplier = 1;
-  }
-
-  const payload = {
-    active: !currentlyActive,
-    multiplier,
-  };
-
-  // Update store state
-  salesStore.setEarningsBoost(payload.active, payload.multiplier);
-
-  completeExecution(
-    {
-      id: generateActionId(),
-      timestamp: Date.now(),
-      type: 'toggle_earnings_boost',
-      payload,
-      cost: 0,
-      dependsOn: computeDependencies(
-        'toggle_earnings_boost',
-        payload,
-        actionsStore.actionsBeforeInsertion,
-        actionsStore.initialSnapshot.researchLevels
-      ),
-    },
-    beforeSnapshot
-  );
-}
+/** 9:00 PT in the player's own style (lib/timeStyleWords.ts; Jordan, 13 Nov 2026): "9:00 AM PT" in en-US. */
+const earningsEventTooltip = computed(() =>
+  isEarningsBoostActive.value
+    ? `2x Earnings ends Tuesday at ${formatClockTime(9, 0, { zone: 'PT' })}. Press to wait ${formatDuration(secondsUntilEarningsBoostEnd.value)} until it ends.`
+    : `Next 2x Earnings starts Monday at ${formatClockTime(9, 0, { zone: 'PT' })}. Press to wait ${formatDuration(secondsUntilNextEarningsBoost.value)} until it starts.`
+);
 
 onMounted(async () => {
   eventsStore.fetchEvents();
@@ -1813,73 +1805,15 @@ const totalCost = computed(() => actionsStore.totalCost);
 const actionCount = computed(() => actionsStore.actionCount);
 
 // Modal state
-const undoAction = ref<Action | null>(null);
-const undoDependentsA = ref<Action[]>([]);
-const undoDependentsB = ref<Action[]>([]);
-const showClearAllConfirmation = ref(false);
 
 const showReconcileLibraryModal = ref(false);
-const showUnsavedConfirm = ref(false);
 const showArtifactSetConfirm = ref(false);
-const pendingAction = ref<(() => void) | null>(null);
 
-/**
- * Confirm unsaved changes before potentially destructive actions.
- */
-function confirmUnsavedChanges(action: () => void) {
-  if (actionsStore.isDirty) {
-    pendingAction.value = action;
-    showUnsavedConfirm.value = true;
-  } else {
-    action();
-  }
-}
+const dialogs = usePlanDialogs();
+const { confirmUnsavedChanges, showUndoConfirmation, handleClearAll } = dialogs;
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function showUndoConfirmation(action: Action, options?: { skipConfirmation: boolean }) {
-  const validationA = actionsStore.prepareUndo(action.id);
-  const validationB = actionsStore.prepareUndoUntilShift(action.id);
-
-  undoAction.value = action;
-  undoDependentsA.value = validationA.dependentActions;
-  undoDependentsB.value = validationB.dependentActions;
-
-  if (options?.skipConfirmation) {
-    executeUndo('truncate');
-  }
-}
-
-function cancelUndo() {
-  undoAction.value = null;
-  undoDependentsA.value = [];
-  undoDependentsB.value = [];
-}
-
-function executeUndo(mode: 'dependents' | 'truncate' = 'dependents') {
-  if (!undoAction.value) return;
-
-  actionsStore.executeUndo(undoAction.value.id, mode, snapshot => {
-    // Restore stores to the snapshot of the last remaining action
-    restoreFromSnapshot(snapshot);
-  });
-
-  cancelUndo();
-}
-
-function handleClearAll(options?: { skipConfirmation: boolean }) {
-  if (options?.skipConfirmation) {
-    executeClearAll();
-  } else {
-    showClearAllConfirmation.value = true;
-  }
-}
-
-function executeClearAll() {
-  actionsStore.clearAll();
-  showClearAllConfirmation.value = false;
 }
 
 /**
@@ -2252,64 +2186,18 @@ async function submitPlayerId(id: string) {
     console.error('Error setting up player data:', e);
     return;
   }
-  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Highest TE by a
-  // date with Egg Day picked, rather than the Manual Planner. Once only; a returning player keeps their tab.
+  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer on Chain Finder, the goal
+  // they used last or By a date with Egg Day picked (spec-startchain2), rather than the Manual Planner. Once only; a
+  // returning player keeps their tab.
   if (newPlayerLanding) {
     newPlayerLanding = false;
     if (plannerTab.value === 'manual') {
-      presetByDate({ eggDay: true });
-      applyRoute(FIRST_LOAD_ROUTE);
+      if (opening.eggDay) presetByDate({ eggDay: true });
+      applyRoute(firstLoadRoute(chainGoal));
     }
   }
   // A player id typed on a link into the Auto Planner: same set-up as the tab click.
   await initAutoOnce();
-}
-
-/**
- * Try to determine which artifact set they have on based on stones.
- */
-function detectArtifactSet(loadout: import('@/lib/artifacts').EquippedArtifact[]): 'earnings' | 'elr' | null {
-  let totalSlots = 0;
-  const allStones: string[] = [];
-
-  for (const slot of loadout) {
-    if (slot.artifactId) {
-      const artifact = getArtifact(slot.artifactId);
-      if (artifact) {
-        totalSlots += artifact.slots;
-      }
-    }
-    for (const stoneId of slot.stones) {
-      if (stoneId) {
-        allStones.push(stoneId);
-      }
-    }
-  }
-
-  // 1. If their artifact set has at least 3 stone slots, we can try to determine which set it is
-  if (totalSlots < 3) {
-    return null;
-  }
-
-  // If no stones are equipped, we can't reliably determine the set
-  if (allStones.length === 0) {
-    return null;
-  }
-
-  const isLunar = (id: string) => id.startsWith('lunar-stone-');
-  const isELR = (id: string) => id.startsWith('quantum-stone-') || id.startsWith('tachyon-stone-');
-
-  // 2. If all the stones are lunar stones, it's the earnings set
-  if (allStones.every(isLunar)) {
-    return 'earnings';
-  }
-
-  // 3. If all the stones are either quantum or tachyon, it's the elr set
-  if (allStones.every(isELR)) {
-    return 'elr';
-  }
-
-  return null;
 }
 
 async function triggerQuickContinue() {
@@ -2391,41 +2279,7 @@ async function planNextAscension() {
   }
 }
 
-async function saveCurrentPlan() {
-  if (!partitionHash.value) return;
-
-  if (actionsStore.activePlanId) {
-    const { safeImport } = await import('lib/planners/import');
-    const plans = await (await safeImport(() => import('@/lib/storage/db'))).loadLibraryPlans(partitionHash.value!);
-    const current = plans.find(p => p.id === actionsStore.activePlanId);
-    if (current) {
-      await actionsStore.savePlan(current.name, partitionHash.value);
-      return;
-    }
-  }
-
-  // Prompt for name if no active plan
-  const name = prompt('Enter a name for this plan:');
-  if (name) {
-    await actionsStore.savePlan(name, partitionHash.value);
-  }
-}
-
-async function savePlanAs() {
-  if (!partitionHash.value) return;
-  const name = prompt('Enter a new name for this plan:');
-  if (name) {
-    // Reset ID to trigger a new save
-    const tempId = actionsStore.activePlanId;
-    actionsStore.activePlanId = null;
-    try {
-      await actionsStore.savePlan(name, partitionHash.value);
-    } catch (err) {
-      actionsStore.activePlanId = tempId;
-      alert('Save failed: ' + err);
-    }
-  }
-}
+const { saveCurrentPlan, savePlanAs } = usePlanSaving(partitionHash);
 
 // Chevron for the collapsible sections. A render function, not a `template:` string: the app ships
 // Vue's runtime-only build, which cannot compile a template at runtime and renders such a component
@@ -2465,24 +2319,3 @@ ChevronIcon.props = { expanded: Boolean };
 }
 </style>
 
-<style>
-/* The shared nav bar's home and menu icons (ui/components/NavBar.vue, 20 x 20 px in a bar with 12 px padding): on a
-   phone each gets a 44 x 44 px tap area (UX review 26 Oct 2026, #12), drawn by an invisible ::before 12 px round the
-   icon, so the icons, the bar's height and the menu's green dot stay as they are. The menu moves 12 px further right
-   so the two areas never overlap. Not scoped: the bar is another component's markup. */
-@media (max-width: 639.98px) {
-  .aap-navbar nav > div > a,
-  .aap-navbar nav > div > button {
-    position: relative;
-  }
-  .aap-navbar nav > div > a::before,
-  .aap-navbar nav > div > button::before {
-    content: '';
-    position: absolute;
-    inset: -12px;
-  }
-  .aap-navbar nav > div > a + button {
-    margin-left: 1.5rem !important;
-  }
-}
-</style>

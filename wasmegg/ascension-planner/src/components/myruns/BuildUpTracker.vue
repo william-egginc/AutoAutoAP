@@ -141,6 +141,12 @@
               {{ TRACKER_VIEW_COMPACT }}
             </button>
           </div>
+          <!-- The key to the stages' colours (lib/buildUpStageStyle.ts): only the stages in this plan. A label, not a control. -->
+          <ul v-if="stages?.starts.length" class="flex flex-wrap gap-x-4 gap-y-1 text-small text-slate-700" data-testid="buildup-key">
+            <li v-for="st in stages.starts" :key="st.stage" class="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-sm" :class="STAGE_STYLE[st.stage].swatch"></span>{{ STAGE_WORDS[st.stage] }}
+            </li>
+          </ul>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"
@@ -215,8 +221,10 @@
                 <span class="text-small text-slate-500 tabular-nums">
                   {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
                 </span>
+                <!-- Show less only: a collapsed day's way to show all is the "+ N more · show all" under its lines (both were
+                     shown, "Show all 22" here and "+ 19 more · show all" there; spec-tidy). -->
                 <button
-                  v-if="!row.full && dayView(d, false, ticked).hidden > 0"
+                  v-if="!row.full && isOpen(d) && dayView(d, false, ticked).hidden > 0"
                   type="button"
                   class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
                   :aria-expanded="isOpen(d)"
@@ -237,9 +245,13 @@
                     @toggle="toggleRun(d.ymd)"
                   />
                 </li>
+                <!-- A stage starts here (lib/buildUpStages.ts): a label, not a control. -->
+                <li v-if="stageAt.get(l.key)" class="pl-[44px] pt-2" data-testid="buildup-stage-row">
+                  <p class="label" :class="STAGE_STYLE[stageAt.get(l.key)!.stage].text" :data-testid="`buildup-stage-${stageAt.get(l.key)!.stage}`">{{ bandWords(stageAt.get(l.key)!) }}</p>
+                </li>
                 <li
                   class="flex items-start gap-x-1 rounded-md pr-1.5"
-                  :class="lineClass(l)"
+                  :class="[lineClass(l), stageLine(l)]"
                   :data-testid="`buildup-line-${l.kind}`"
                 >
                   <label
@@ -278,6 +290,10 @@
                     <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
                     <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
                     <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
+                    <!-- A research tier unlocks on this check-in (lib/buildUpTiers.ts): a label, not a control. -->
+                    <span v-if="tierAt.get(l.key)" class="font-bold text-indigo-700" :data-testid="`buildup-tier-${l.key}`"
+                      >{{ ' · ' }}{{ tierUnlocksWords(tierAt.get(l.key)!) }}</span
+                    >
                     <span v-if="statusOf(l) === 'partial'"
                       >{{ ' · ' }}<span class="tabular-nums text-amber-800" :data-testid="`buildup-status-${l.key}`"
                         >{{ boughtOf(l)!.bought }} of {{ boughtOf(l)!.total }} bought</span
@@ -299,6 +315,20 @@
                   >
                     use save
                   </button>
+                </li>
+                <!-- SILO TRICK NOT COUNTED (spec-silotrick-ui): under the "go offline until Monday" line when the plan's cash
+                     does not count it (Setup's Silo trick off, TrackerResult.siloTrickCounted false), with a way to Setup's box. -->
+                <li v-if="siloTrickHintKey && l.key === siloTrickHintKey" class="pl-[48px] pr-1.5">
+                  <p class="text-small text-amber-800" data-testid="buildup-silo-trick-hint">
+                    {{ SILO_TRICK_NOT_COUNTED }}{{ ' ' }}<button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center rounded px-1 font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      data-testid="buildup-silo-trick-open"
+                      @click="openSiloTrickSetup"
+                    >
+                      {{ SILO_TRICK_OPEN }}
+                    </button>
+                  </p>
                 </li>
                 </template>
                 <li v-if="model(d, row.full).run.length && model(d, row.full).runSlot === model(d, row.full).lines.length">
@@ -362,10 +392,19 @@
             </div>
             <section
               v-else-if="!row.full"
-              class="border-t border-slate-200 pt-1"
+              class="relative border-t border-slate-200 pt-1"
+              :class="stages ? 'pl-3' : ''"
               :data-testid="`buildup-cday-${row.ymd}`"
             >
               <template v-for="d in [row.day]" :key="d.ymd">
+              <!-- The day's stages as a line down its left (lib/buildUpStageStyle.ts): colour is not the only cue, the bands say it. -->
+              <span
+                v-if="dayStripe(d)"
+                aria-hidden="true"
+                class="absolute bottom-0 left-0 top-2 w-1 rounded-full"
+                :style="{ background: dayStripe(d) }"
+                data-testid="buildup-cstripe"
+              ></span>
               <h3><button
                   type="button"
                   class="flex min-h-[44px] w-full flex-wrap items-center gap-x-3 gap-y-0.5 text-left"
@@ -390,9 +429,20 @@
                 />
                 <p class="label mt-2 text-slate-500">{{ STILL_TO_BUY }}</p>
               </template>
-              <ul v-if="compactChips(d).length" class="mt-1 flex flex-wrap gap-1.5">
+              <!-- The day split by stage (lib/buildUpStages.ts): each stage's band above its own chips and ranges, so the Tier 13
+                   marker sits under the Tier 13 band. A day in one stage (or no stages) is one block, as before. -->
+              <template v-for="(seg, si) in compactSegments(d)" :key="si">
+              <p
+                v-if="seg.band"
+                class="label mt-1"
+                :class="STAGE_STYLE[seg.band.stage].text"
+                :data-testid="`buildup-stage-${seg.band.stage}`"
+              >
+                {{ bandWords(seg.band) }}
+              </p>
+              <ul v-if="seg.chips.length" class="mt-1 flex flex-wrap gap-1.5">
                 <li
-                  v-for="c in compactChips(d)"
+                  v-for="c in seg.chips"
                   :key="c.key"
                   class="rounded-lg border px-2.5 py-0.5 text-small"
                   :class="c.event ? 'border-indigo-300 text-indigo-700' : c.done ? 'border-slate-200 text-slate-500' : 'border-slate-400 font-bold text-slate-900'"
@@ -402,9 +452,9 @@
                   }}<span v-if="c.done" class="sr-only">{{ ' ' }}{{ COMPACT_DONE_SR }}</span>
                 </li>
               </ul>
-              <ul v-if="compactRanges(d).length" class="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-3">
+              <ul v-if="seg.ranges.length" class="mt-1 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-3">
                 <li
-                  v-for="r in compactRanges(d)"
+                  v-for="r in seg.ranges"
                   :key="r.id"
                   class="flex items-baseline gap-x-2 text-small tabular-nums"
                   :class="r.done ? 'text-slate-500' : 'text-slate-700'"
@@ -415,6 +465,20 @@
                   ><span>{{ r.words }}<span v-if="r.done" class="sr-only">{{ ' ' }}{{ COMPACT_BOUGHT_SR }}</span></span>
                 </li>
               </ul>
+              </template>
+              <!-- The silo trick hint under the chips of the day with its first "go offline" line, as in List (spec-silotrick-ui). -->
+              <div v-if="siloTrickHintKey && d.lines.some(l => l.key === siloTrickHintKey)" class="mt-1">
+                  <p class="text-small text-amber-800" data-testid="buildup-silo-trick-hint">
+                    {{ SILO_TRICK_NOT_COUNTED }}{{ ' ' }}<button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center rounded px-1 font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      data-testid="buildup-silo-trick-open"
+                      @click="openSiloTrickSetup"
+                    >
+                      {{ SILO_TRICK_OPEN }}
+                    </button>
+                  </p>
+              </div>
               <p v-for="n in compactKind(d, 'note')" :key="n.key" class="mt-1 text-small text-slate-500">{{ n.text }}</p>
               <p
                 v-for="w in compactKind(d, 'warning')"
@@ -443,7 +507,7 @@ import PanelFold from '@/components/auto/PanelFold.vue';
 import BuildUpDoneLine from './BuildUpDoneLine.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
+import { clock12, dayClock, dayTitle, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from 'lib/planners/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import { a1TrackerWords } from '@/lib/a1Choice';
@@ -451,6 +515,8 @@ import { PICK_ROUTE_WORDS } from '@/lib/pickRoute';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 import type { Availability } from '@/search/availabilitySchedule';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { SILO_TRICK_NOT_COUNTED } from '@/lib/siloTrickWords';
+import { useUIStore } from '@/stores/ui';
 import { nightBuyNoteShown } from '@/lib/nightBuyNote';
 import {
   BOUGHT_SO_FAR,
@@ -471,7 +537,16 @@ import {
   checkInSpanWords,
   compactNextWords,
   compactSaleWords,
+  tierAheadWords,
+  STAGE_WORDS,
+  stageNowWords,
+  stageStartWords,
+  tierUnlocksChipWords,
+  tierUnlocksWords,
 } from '@/lib/buildUpWords';
+import type { TierUnlock } from '@/lib/buildUpTiers';
+import type { BuildUpStages, StageStart } from '@/lib/buildUpStages';
+import { STAGE_STYLE, stageStripe } from '@/lib/buildUpStageStyle';
 import { chipWords, dayDone, doneRun, groupedDoneDays, listLines, researchRanges, toDoCount, whatLinesDo, type RangeItem } from '@/lib/buildUpDays';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 
@@ -520,8 +595,13 @@ const props = withDefaults(
     /** Setup's awake hours (the store's `availability`; null: none): with hours that rule something out, the
      *  night-buy note under the save line (spec-nightbuynote). */
     awakeHours?: Availability | null;
+    /** Where a research tier unlocks in this plan (lib/buildUpTiers.ts `tierUnlocks`): a label on that check-in and a part of
+     *  the header line while it is ahead (spec-tierunlock). */
+    tierUnlocks?: readonly TierUnlock[];
+    /** The build-up's stages (lib/buildUpStages.ts): a band where each starts and "now: <stage>" in the header line (spec-stages). */
+    stages?: BuildUpStages | null;
   }>(),
-  { awakeHours: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
+  { awakeHours: null, tierUnlocks: () => [], stages: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -558,11 +638,56 @@ const hint = computed(() => {
   if (!s.next) return `all ${s.total} check-ins done`;
   const wait = s.next.at - props.now;
   const when = wait > 60 ? ` (in ${gapWords(wait)})` : wait < -60 ? ` (${gapWords(-wait)} ago)` : ' (now)';
-  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}`;
+  return `${s.done} of ${s.total} check-ins done · next ${clock12(s.next.at, props.zone)}${when}${stageNow.value}${tierAhead.value}`;
+});
+
+/** The stages' first lines by key (a band goes before each). */
+const stageAt = computed(() => new Map((props.stages?.starts ?? []).map(x => [x.key, x] as const)));
+/** A List row's left line: its stage's colour (nothing without stages). */
+function stageLine(l: TrackerLine): string {
+  const st = props.stages?.stageOf.get(l.key);
+  return st ? `border-l-4 ${STAGE_STYLE[st].line}` : '';
+}
+/** A Compact day's line: the stages of its lines, top to bottom. */
+function dayStripe(d: TrackerDay): string {
+  const so = props.stages?.stageOf;
+  return so ? stageStripe(d.lines.map(l => so.get(l.key)).filter((x): x is NonNullable<typeof x> => !!x)) : '';
+}
+/** The header's " · now: Buying to Tier 13": the stage of the next check-in; '' for none. */
+const stageNow = computed(() => {
+  const key = props.summary?.next?.keys[0];
+  const st = key ? props.stages?.stageOf.get(key) : undefined;
+  return st ? ` · ${stageNowWords(st)}` : '';
+});
+
+/** Tiers by the line they unlock on. */
+const tierAt = computed(() => new Map(props.tierUnlocks.map(u => [u.key, u.tiers] as const)));
+/** The header's " · Tier 13 at 4:41 PM": the first unlock still ahead (its check-in not ticked), with its day when it is not today's; '' for none. */
+const tierAhead = computed(() => {
+  const u = props.tierUnlocks.find(x => !ticked.value.has(x.key));
+  if (!u) return '';
+  const day = dayTitle(u.at, props.zone, props.now);
+  const when = day === dayTitle(props.now, props.zone, props.now) ? u.time : `${day} ${u.time}`;
+  return ` · ${tierAheadWords(u.tiers, when)}`;
 });
 
 /** The night-buy note: a plan shown (this branch of the template) with awake hours set (lib/nightBuyNote.ts). */
 const nightBuy = computed(() => nightBuyNoteShown(props.awakeHours, !!props.result));
+/** The plan shows "go offline until Monday" but its cash does not count it (Setup's Silo trick off; lib/buildUpTracker.ts
+ *  `siloTrickCounted`, null when there is no such line): the hint under that line. Not for null or true. */
+const siloTrickNotCounted = computed(() => props.result?.siloTrickCounted === false);
+/** Said once, under the first such line (a plan over two weekends has two). */
+const siloTrickHintKey = computed(() =>
+  siloTrickNotCounted.value ? (props.result?.days ?? []).flatMap(d => d.lines).find(l => l.kind === 'siloTrick')?.key ?? '' : ''
+);
+/** The hint's button (DRAFT, Words): opens Setup on the Silo trick box (SetupDock `openSetupAt`; Setup focuses it). */
+const SILO_TRICK_OPEN = 'Open Setup';
+function openSiloTrickSetup(): void {
+  // The store at the press, not at setup: the tracker renders without one in its specs and in NowPage's.
+  const ui = useUIStore();
+  ui.openSetupAt = 'siloTrick';
+  ui.openSetupRequested++;
+}
 const saveAge = computed(() => gapWords(Math.max(0, props.now - props.saveSeconds)));
 const saveOld = computed(() => props.now - props.saveSeconds > 3600);
 const saleEndWords = computed(() => {
@@ -707,7 +832,10 @@ function runWords(run: readonly TrackerLine[]): string {
 function compactMeta(d: TrackerDay): string {
   const t = d.lines.filter(l => l.tickable);
   if (!t.length) return dayWords(d);
-  return checkInSpanWords(d.checkIns, t[0].time, t[t.length - 1].time);
+  const [first, last] = [t[0].time, t[t.length - 1].time];
+  // One time, and the status says it ("next 7:46 am"): not twice on the row (spec-tidy).
+  if (first === last && compactStatus(d) === compactNextWords(first)) return checkInSpanWords(d.checkIns, '', '');
+  return checkInSpanWords(d.checkIns, first, last);
 }
 /** "all done", "next 8:41 am" (the next check-in is on this day), "3 of 20 lines done", or nothing. */
 function compactStatus(d: TrackerDay): string {
@@ -728,16 +856,41 @@ function compactRest(d: TrackerDay): TrackerLine[] {
   const run = new Set(compactRun(d).map(l => l.key));
   return run.size ? d.lines.filter(l => !run.has(l.key)) : d.lines;
 }
-function compactChips(d: TrackerDay): { key: string; text: string; done: boolean; event: boolean }[] {
+function compactChips(lines: readonly TrackerLine[]): { key: string; text: string; done: boolean; event: boolean }[] {
   const out: { key: string; text: string; done: boolean; event: boolean }[] = [];
-  for (const l of compactRest(d)) {
+  for (const l of lines) {
     if (l.kind === 'saleStart' || l.kind === 'saleEnd') out.push({ key: l.key, text: compactSaleWords(l.kind === 'saleStart', l.time), done: false, event: true });
     else if (l.tickable && l.kind !== 'research') out.push({ key: l.key, text: chipWords(l), done: ticked.value.has(l.key), event: false });
+    const tiers = tierAt.value.get(l.key);
+    if (tiers) out.push({ key: `tier-${l.key}`, text: tierUnlocksChipWords(tiers, l.time), done: false, event: true });
   }
   return out;
 }
-function compactRanges(d: TrackerDay): RangeItem[] {
-  return researchRanges(compactRest(d), ticked.value);
+function compactRanges(lines: readonly TrackerLine[]): RangeItem[] {
+  return researchRanges(lines, ticked.value);
+}
+/** A Compact day split into its stages, in order: the band where the stage starts (none where it continues from the day
+ *  before, or without stages), and the chips and ranges of that stage's lines. One block without stages. */
+function compactSegments(d: TrackerDay): { band: StageStart | null; chips: ReturnType<typeof compactChips>; ranges: RangeItem[] }[] {
+  const rest = compactRest(d);
+  const so = props.stages?.stageOf;
+  const groups: TrackerLine[][] = [];
+  for (const l of rest) {
+    const last = groups[groups.length - 1];
+    if (last && (!so || so.get(last[0].key) === so.get(l.key))) last.push(l);
+    else groups.push([l]);
+  }
+  if (!groups.length) groups.push([]);
+  return groups.map(g => ({
+    band: (g.length && g.map(l => stageAt.value.get(l.key)).find(x => !!x)) || null,
+    chips: compactChips(g),
+    ranges: compactRanges(g),
+  }));
+}
+/** A band's words, with the day when it starts on another day than today ("Delivery research from Fri Nov 20 at 10:00 AM"). */
+function bandWords(st: StageStart): string {
+  const day = dayTitle(st.at, props.zone, props.now);
+  return stageStartWords(st.stage, st.time, day === dayTitle(props.now, props.zone, props.now) ? '' : day);
 }
 function compactKind(d: TrackerDay, kind: 'note' | 'warning'): TrackerLine[] {
   return d.lines.filter(l => l.kind === kind);

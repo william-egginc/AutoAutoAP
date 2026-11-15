@@ -507,14 +507,14 @@ export function mergeSimultaneousShifts(events: readonly PlanEvent[], zone: stri
 const isH1Pair = (eggs: readonly string[]) => eggs.length === 2 && eggs[0] === 'humility' && eggs[1] === 'kindness';
 
 /**
- * A shift row's words: "Shift to Humility"; merged, "Shift to Humility (Joo's H1 step: artifact swap), then straight
+ * A shift row's words: "Shift to Humility"; merged, "Shift to Humility (to swap artifacts), then straight
  * to Kindness" (the known H1/K3 pair), else "Shift to Integrity, then straight to Resilience" (and on, for three).
  * The events table, Next step and the calendar all use it.
  */
 export function shiftTitle(e: Pick<PlanEvent, 'egg' | 'eggs'>, eggName: (egg: string) => string): string {
   const eggs = e.eggs && e.eggs.length > 1 ? e.eggs : [e.egg ?? ''];
   const [first, ...rest] = eggs;
-  const head = `Shift to ${eggName(first)}${isH1Pair(eggs) ? " (Joo's H1 step: artifact swap)" : ''}`;
+  const head = `Shift to ${eggName(first)}${isH1Pair(eggs) ? " (to swap artifacts)" : ''}`;
   return [head, ...rest.map(x => `straight to ${eggName(x)}`)].join(', then ');
 }
 

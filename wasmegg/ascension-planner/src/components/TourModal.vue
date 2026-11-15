@@ -23,6 +23,9 @@
           :index="tour.state.index"
           :total="tour.total.value"
           :slide="slide"
+          :mode="tour.state.mode"
+          :words="fullWords"
+          @full="tour.fullFromFirst(env())"
           @take="tour.take()"
           @skip="tour.skip()"
           @load="tour.loadMySave()"
@@ -41,7 +44,10 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import TourDialog from './TourDialog.vue';
 import { storageBlocked } from '@/lib/storageGuard';
 import { TOUR_SLIDES } from '@/lib/tourSlides';
-import { createTourController, tourReplayAsked, useFirstTour, type TourWait } from '@/composables/useFirstTour';
+import { createTourController, tourFullAsked, tourReplayAsked, useFirstTour, type TourWait } from '@/composables/useFirstTour';
+import type { FullTourSlide } from '@/lib/fullTourSlides';
+import { FULL_TOUR_ALT, FULL_TOUR_STEPS_WORDS } from '@/lib/fullTourWords';
+import type { FullTourStepId } from '@/lib/fullTour';
 import { studyBoxOpen } from '@/composables/useStudy';
 import { useUIStore } from '@/stores/ui';
 
@@ -60,7 +66,21 @@ const props = defineProps<{
 const ui = useUIStore();
 const tour = useFirstTour(() => createTourController({ blocked: storageBlocked(), newVisitor: props.newVisitor }))!;
 const env = () => ({ hasAccount: props.hasAccount, hasSaveFile: props.hasSaveFile, running: props.running });
-const slide = computed(() => TOUR_SLIDES.find(s => s.id === tour.step.value) ?? null);
+/** The full tour's pictures, fetched only when it opens (a visitor who never asks never downloads them). */
+const fullSlides = ref<FullTourSlide[]>([]);
+async function loadFullSlides(): Promise<void> {
+  if (!fullSlides.value.length) fullSlides.value = (await import('@/lib/fullTourSlides')).FULL_TOUR_SLIDES;
+}
+const slide = computed(() =>
+  tour.state.mode === 'full'
+    ? (fullSlides.value.find(s => s.id === tour.step.value) ?? null)
+    : (TOUR_SLIDES.find(s => s.id === tour.step.value) ?? null)
+);
+const fullWords = computed(() => {
+  if (tour.state.mode !== 'full') return null;
+  const id = tour.step.value as FullTourStepId;
+  return { ...FULL_TOUR_STEPS_WORDS[id], alt: FULL_TOUR_ALT[id] };
+});
 
 /** What only the page can show that the tour waits behind; looked at while it is open. */
 const seen = reactive({ updateBox: false, plannedUpdate: false, modal: false });
@@ -185,6 +205,16 @@ watch(
     if (r) tour.searchStarted();
   }
 );
+watch(
+  () => tour.state.mode === 'full' && tour.state.phase !== 'closed',
+  on => {
+    if (on) void loadFullSlides();
+  }
+);
+watch(tourFullAsked, () => {
+  before = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+  tour.startFull(env());
+});
 watch(tourReplayAsked, () => {
   before = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
   tour.replay(env());

@@ -406,6 +406,8 @@ export async function getFollowHistory(
 
 /** Setup › Sharing's note when the saved routes couldn't be read on load. */
 export const UNREACHABLE_NOTE = "Couldn't read your routes saved online right now.";
+/** One line when a save failed AND the saved routes couldn't be read: the same cause, said once (spec-tidy M8). */
+export const CLOUD_BOTH_UNREACHABLE_NOTE = "Couldn't save or read your routes online right now.";
 /** A save refused for the hour's limit. */
 export const LIMIT_WORDS = 'Too many changes this hour. Try again later.';
 
@@ -422,9 +424,9 @@ export const NOT_SAVED_WORDS = "Not saved online yet: your other devices don't s
 
 /** Right now's quiet note when a saved route was set with other hours or another simulator than the player's now. */
 export function setWithOtherWords(o: { hours: boolean; sim: boolean }): string {
-  if (o.hours && o.sim) return 'This route was set with different awake hours and simulator version.';
+  if (o.hours && o.sim) return 'This route was set with different awake hours or another version of the planner.';
   if (o.hours) return 'This route was set with different awake hours.';
-  if (o.sim) return 'This route was set with a different simulator version.';
+  if (o.sim) return 'This route was set with another version of the planner.';
   return '';
 }
 

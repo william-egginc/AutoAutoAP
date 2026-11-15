@@ -6,8 +6,8 @@
  * --v2) is the only caller; the page never simulates these.
  */
 import { calculateArtifactModifiers } from '@/lib/artifacts';
-import { computeRealisticELR } from '@/calculations/realisticELR';
-import { computeSnapshot } from '@/engine/compute';
+import { computeRealisticELR } from 'lib/planners/calculations/realisticELR';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { isPurchase } from '@/auto/ascension';
 import { runH1 } from '@/auto/shifts/h1';
 import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';

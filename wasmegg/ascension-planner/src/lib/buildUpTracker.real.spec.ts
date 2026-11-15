@@ -91,14 +91,14 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     expect(r.lines.slice(0, i).reverse().find(l => l.kind === 'shift')?.text).toBe('shift to Humility');
   });
 
-  it('a sale wait line fixed to the clock (10:00 am Mountain), and the sale start line', () => {
+  it('a sale wait line fixed to the clock (10:00 AM Mountain), and the sale start line', () => {
     const w = r.lines.filter(l => l.kind === 'saleWait');
     expect(w.length).toBeGreaterThan(0);
-    for (const l of w) expect(l.text).toMatch(/^wait for the sale: offline until (Fri|Thu|Sat) [A-Z][a-z]{2} \d+ 10:00 am \(/);
+    for (const l of w) expect(l.text).toMatch(/^wait for the sale: offline until (Fri|Thu|Sat) [A-Z][a-z]{2} \d+ 10:00 AM \(/);
     // 7 silos at 3 h each hold 21 h; the wait is 22 h 15 min (sim4, 9 Nov 2026: Joo's delivery research as a set
     // starts it 2 min sooner; sim3 had 22 h 13 min): open the farm before they run out.
-    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 15 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
-    expect(r.lines.some(l => l.kind === 'saleStart' && l.time === '10:00 am')).toBe(true);
+    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 AM (22 h 15 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
+    expect(r.lines.some(l => l.kind === 'saleStart' && l.time === '10:00 AM')).toBe(true);
   });
 
   it('a Sunday inside the build-up: the silo trick line or a warning that says why not', () => {
