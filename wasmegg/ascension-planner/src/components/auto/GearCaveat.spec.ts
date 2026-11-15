@@ -123,7 +123,9 @@ describe('InstantRoute wiring', () => {
   });
   it('one GearCaveat in place of the old gear box, on both screens (under the shared result)', () => {
     expect(t.match(/<GearCaveat\b/g)).toHaveLength(1);
-    expect(t).toMatch(/<GearCaveat\s+:gear-shift="shiftedTable"\s+:gear-differs="gearDiffers"\s+:optimistic="optimistic"/);
+    expect(t).toMatch(
+      /<GearCaveat\s+:gear-shift="shiftedTable"\s+:below-reach="belowReach"\s+:gear-differs="gearDiffers"\s+:optimistic="optimistic"/
+    );
     expect(t).not.toContain('v-if="gearDiffers"');
     expect(t).not.toContain("Your gear isn't the gear the instant answer was built on");
   });

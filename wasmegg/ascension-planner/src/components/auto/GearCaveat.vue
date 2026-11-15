@@ -29,6 +29,8 @@ import { gearCaveatParts } from '@/lib/answerCaveat';
 const props = defineProps<{
   /** The answer is the form G: the maxed table moved to the player's gear (InstantRoute `shiftedTable`). */
   gearShift?: boolean;
+  /** The form G is below its reach at the player's TE (InstantRoute `belowReach`). */
+  belowReach?: boolean;
   /** The player's gear is not the instant answer's, below full research (InstantRoute `gearDiffers`). */
   gearDiffers: boolean;
   /** The answer is the maxed one scaled to a weak delivery rate (lib/optimisticAnswer.ts `optimisticForGear`). */
