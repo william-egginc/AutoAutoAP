@@ -405,6 +405,7 @@ import DashboardGaps from './myruns/DashboardGaps.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
 import { useCalendarFeedPush } from '@/composables/useCalendarFeed';
+import { calLinesFromNextShifts } from '@/lib/calendarNextShifts';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
@@ -545,6 +546,8 @@ const tracker = useBuildUpTracker({
  *  on and linked (composables/useCalendarFeed.ts). */
 useCalendarFeedPush({
   lines: computed(() => (tracker.state.value === 'ready' ? tracker.result.value?.lines : null)),
+  // Producing, nothing to buy (notBuilding): no tracker lines, but the Next shifts still know the shifts and the prestige.
+  fallbackLines: computed(() => (tracker.state.value === 'notBuilding' ? calLinesFromNextShifts(page.nextShiftLines.value) : null)),
   ticks: tracker.ticks,
   ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
   zone: page.zone,

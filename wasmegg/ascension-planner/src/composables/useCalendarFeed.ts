@@ -260,6 +260,9 @@ export function useCalendarFeed(): CalendarFeed {
  */
 export function useCalendarFeedPush(src: {
   lines: Ref<readonly CalLine[] | null | undefined>;
+  /** A PRODUCING player (nothing to buy, the tracker `notBuilding`) has no tracker lines: these stand in for them (the Next shifts: the shifts and the
+   *  prestige, lib/calendarNextShifts.ts). Used only when `lines` is null; the plan's start may then be unknown, and the feed's slot is 0. */
+  fallbackLines?: Ref<readonly CalLine[] | null | undefined>;
   ticks: Ref<ReadonlySet<string>>;
   ascensionStart: Ref<number | null>;
   zone: Ref<string>;
@@ -268,12 +271,16 @@ export function useCalendarFeedPush(src: {
 }): void {
   const initial = useInitialStateStore();
   watch(
-    () => [src.lines.value, src.ticks.value, src.ascensionStart.value, src.zone.value, src.hours.value] as const,
+    () => [src.lines.value, src.fallbackLines?.value, src.ticks.value, src.ascensionStart.value, src.zone.value, src.hours.value] as const,
     () => {
-      const lines = src.lines.value;
+      const own = src.lines.value;
+      const lines = own ?? src.fallbackLines?.value;
       const account = accountOf(initial.rawBackup);
-      if (!lines || !account || !src.ascensionStart.value) return;
-      calendarFeedFor(account).note({ now: Date.now(), ascensionStart: src.ascensionStart.value, lines, ticks: src.ticks.value, zone: src.zone.value, hours: calHoursOf(src.hours.value) });
+      if (!lines || !account) return;
+      // The tracker's lines need the ascension's start (their uids); the stand-ins are keyed without a time, so slot 0 does.
+      const ascensionStart = src.ascensionStart.value || 0;
+      if (own && !ascensionStart) return;
+      calendarFeedFor(account).note({ now: Date.now(), ascensionStart, lines, ticks: src.ticks.value, zone: src.zone.value, hours: calHoursOf(src.hours.value) });
     },
     { immediate: true }
   );
