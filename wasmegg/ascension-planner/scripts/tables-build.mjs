@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Build one sim4 table, or check one that came back, so every te-NNN.jsonl is byte-identical to
+ * Build one sim5 table, or check one that came back, so every te-NNN.jsonl is byte-identical to
  * AutoAutoAP's own builds (Tables and PC, 10 Nov 2026). Plain Node, no packages: Windows, Mac, Linux.
  *
  *   pnpm tables:build <name> [--jobs N] [--out DIR]
  *   pnpm tables:verify <name> <DIR> [--jobs N] [--all | --tes A,B,..]
  *
- * <name> is a table in tables/sim4/tables.json (e.g. carpet-9a66a47c-board). Before building it checks
- * the node version, the generator bundle (dist-search, against tables/sim4/bundle.sha256; it builds it
+ * <name> is a table in tables/sim5/tables.json (e.g. carpet-9a66a47c-board). Before building it checks
+ * the node version, the generator bundle (dist-search, against tables/sim5/bundle.sha256; it builds it
  * first when there is none, as `pnpm search:build` does) and the input hashes (the generic start state and the
- * combos file). No save is needed: tables/sim4/start-state.json is a maxed starting state with no
+ * combos file). No save is needed: tables/sim5/start-state.json is a maxed starting state with no
  * account in it (maxed epic research, every colleggtible at the top tier). Then it runs scripts/precompute.ts's generator with the same flags as AutoAutoAP's queues,
  * checks the result (one te file per start TE, 168 rows each, none empty) and writes MANIFEST.txt.
  * Stopped part-way, run it again: the generator keeps the start TEs already done.
@@ -24,7 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = join(APP, 'tables', 'sim4');
+const DIR = join(APP, 'tables', 'sim5');
 const LIST = JSON.parse(readFileSync(join(DIR, 'tables.json'), 'utf8'));
 const ROWS_PER_TE = 168;
 
@@ -46,14 +46,14 @@ if (!['build', 'verify'].includes(mode) || !name) {
   process.exit(2);
 }
 const table = LIST.tables.find(t => t.name === name);
-if (!table) fail(`no table called ${name} in tables/sim4/tables.json`);
+if (!table) fail(`no table called ${name} in tables/sim5/tables.json`);
 
 // 1. Node: the same version as our machines. Other versions may round the maths differently.
 if (process.version !== LIST.node) fail(`node ${LIST.node} is needed (this is ${process.version}): https://nodejs.org/dist/${LIST.node}/`);
 
 // 2. Inputs: the generic start state and the combos, both in git, pinned by hash.
 const backup = join(DIR, LIST.startState);
-if (sha(backup) !== LIST.startStateSha256) fail(`tables/sim4/${LIST.startState} has changed (sha256 should be ${LIST.startStateSha256.slice(0, 16)}...). On Windows this is usually line endings: clone with -c core.autocrlf=false (see the how-to).`);
+if (sha(backup) !== LIST.startStateSha256) fail(`tables/sim5/${LIST.startState} has changed (sha256 should be ${LIST.startStateSha256.slice(0, 16)}...). On Windows this is usually line endings: clone with -c core.autocrlf=false (see the how-to).`);
 const combos = join(DIR, table.combos);
 if (sha(combos) !== LIST.combosSha256[table.combos]) fail(`${table.combos} has changed (sha256 should be ${LIST.combosSha256[table.combos].slice(0, 16)}...). On Windows this is usually line endings: clone with -c core.autocrlf=false.`);
 
@@ -90,7 +90,7 @@ const expected = readFileSync(join(DIR, 'bundle.sha256'), 'utf8').trim().split('
 for (const [hash, file] of expected) {
   const p = join(dist, ...file.split('/'));
   if (!existsSync(p) || sha(p) !== hash)
-    fail(`dist-search/${file} differs from AutoAutoAP's build. Check out branch sim4-tables, run "npx -y pnpm@11.11.0 install", delete dist-search and run again.`);
+    fail(`dist-search/${file} differs from AutoAutoAP's build. Check out branch sim5-tables, run "npx -y pnpm@11.11.0 install", delete dist-search and run again.`);
 }
 const git = spawnSync('git', ['rev-parse', '--short=9', 'HEAD'], { cwd: APP, encoding: 'utf8' }).stdout.trim() || 'unknown';
 
