@@ -24,6 +24,7 @@
  *   new Worker(new URL('./researchCalc.worker.ts', import.meta.url), { type: 'module' })
  */
 import { computeTierMilestoneChain, computeResearchMilestoneChain } from '../calculations/milestoneChain';
+import { computeHabSpaceChain } from '../calculations/habSpaceChain';
 import { simulateSaleAwareBuy, simulateSaleEndsBuy, simulateThresholdBuy } from '../calculations/smartBuyPreview';
 import { createBaseEngineState } from '../engine/adapter';
 import { sanitizeLongs } from '../artifacts/utils';
@@ -62,6 +63,15 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
                 absoluteSimTime,
                 deadline
               );
+        // The end state is for in-thread callers (Smart Wait for Population); the view doesn't need it.
+        const chain = { items: result.items, reached: result.reached, totalSeconds: result.totalSeconds };
+        post({ type: 'result', requestId: msg.requestId, result: chain });
+        break;
+      }
+
+      case 'habSpaceChain': {
+        const { startSnapshot, context, mods, absoluteSimTime, deadline } = msg;
+        const result = computeHabSpaceChain(startSnapshot, context, mods, absoluteSimTime, deadline);
         post({ type: 'result', requestId: msg.requestId, result });
         break;
       }

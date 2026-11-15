@@ -15,6 +15,7 @@ import { isKnownActionType } from 'lib/planners/actions/executor';
 import { parseJsonStrict } from '@/lib/uploadGuard';
 import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
+import { buildStamp } from 'lib/planners/diagnostics';
 
 export function exportPlanData(actions: Action[], initialSnapshot?: CalculationsSnapshot, activePlanId: string | null = null) {
   const initialStateStore = useInitialStateStore();
@@ -47,6 +48,8 @@ export function exportPlanData(actions: Action[], initialSnapshot?: Calculations
   return {
     version: 1,
     timestamp: Date.now(),
+    // The build that last saved this plan; the actions' `start_ascension` carries the one that generated them.
+    savedBy: buildStamp(),
     initialState: {
       playerId: 'EIxxxxxxxxxx',
       nickname: 'Redacted',

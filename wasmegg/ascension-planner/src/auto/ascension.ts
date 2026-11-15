@@ -32,6 +32,7 @@ import { getVehicleType } from '@/lib/vehicles';
 import { DEBUG_SHIFT_TIMING } from 'lib/planners/debugFlags';
 import type { BuildStep } from './buildStep';
 import { farmStateOf } from './continueState';
+import { buildStamp } from 'lib/planners/diagnostics';
 
 function logShiftTimings(label: string, timings: { name: string; ms: number }[]): void {
   if (!DEBUG_SHIFT_TIMING) return;
@@ -67,6 +68,7 @@ export function startAscensionAction(
     payload: {
       initialEgg: state.currentEgg as VirtueEgg,
       ...(fromFarm ? { initialFarmState: farmStateOf(state) } : {}),
+      generatedBy: buildStamp(),
     },
     cost: 0,
     elrDelta: 0,
