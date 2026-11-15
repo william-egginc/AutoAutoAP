@@ -119,6 +119,16 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 29) / 1000, 'UTC')).toBe(Date.UTC(2026, 9, 23, 21) / 1000);
   });
 
+  it('a prestige the instant answer starts on the hour after the stop is said at that start, as Next shifts does (QA 15 Nov 2026)', () => {
+    // Reached 10:17 PM Denver Dec 31, the table's next ascension starts at 11:00 PM (it ascends on the hour): no hours wait, still one time.
+    const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000;
+    const starts = Date.UTC(2027, 0, 1, 6, 0) / 1000;
+    const e = ev({ kind: 'prestige', te: 222, at: reached, prestigeAt: starts });
+    expect(nextStepText([e], 'fastest', NOW, ZONE, true)).toContain('11:00');
+    expect(nextStepText([e], 'fastest', NOW, ZONE, true)).not.toContain('10:00');
+    expect(nextStepText([e], 'fastest', NOW, ZONE, false)).toContain('11:00');
+  });
+
   it('a prestige that waits for the hours is said at the time it happens, like the events table (M12)', () => {
     // Reached 10:17 PM Denver Dec 31, held to 11:00 PM by the player's hours: one time, 11:00 PM, in both places.
     const reached = Date.UTC(2027, 0, 1, 5, 17) / 1000; // Dec 31, 10:17 PM Denver

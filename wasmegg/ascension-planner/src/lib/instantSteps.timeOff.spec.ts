@@ -93,6 +93,15 @@ describe('rendered', () => {
     expect(t).toContain("Runs into your time off Oct 29–30: it ends when the time off starts (going to your home farm is a prestige) and is built again after it. The instant answer doesn't price time off: Fast prices it.");
     expect(t).toContain('A2 · prestige falls in your time off Oct 29–30: Fast prices it');
   });
+  it('a prestige the next ascension starts later than (no hours wait) carries that start, and no wait (QA 15 Nov 2026)', () => {
+    const lines = instantSteps([leg(195, 197, T0, a1End), leg(197, 219, a1End + 2400, a1End + 5 * D)], null, [], []);
+    const [e] = markPrestigeWaits([{ kind: 'prestige', at: a1End, asc: 1, te: 197, past: false, next: true }], lines);
+    expect(e.prestigeAt).toBe(a1End + 2400);
+    expect(e.wait).toBeUndefined();
+    // Starting at the stop itself: nothing to carry.
+    const same = instantSteps([leg(195, 197, T0, a1End), leg(197, 219, a1End, a1End + 5 * D)], null, [], []);
+    expect(markPrestigeWaits([{ kind: 'prestige', at: a1End, asc: 1, te: 197, past: false, next: true }], same)[0].prestigeAt).toBeUndefined();
+  });
   it('the table row too', async () => {
     const lines = instantSteps([leg(195, 197, T0, a1End), leg(197, 219, a1End, a1End + 5 * D)], HOURS, noPrestige, away);
     const events = markPrestigeWaits([{ kind: 'prestige', at: a1End, asc: 1, te: 197, past: false, next: true }], lines);
