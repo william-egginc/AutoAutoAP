@@ -178,3 +178,21 @@ describe('a save still coming in: the card waits for it', () => {
     scope.stop();
   });
 });
+
+describe('Producing with a kept plan (review U1)', () => {
+  it('is "notBuilding" while the page is not building, so the tracker hides and the calendar uses the next shifts; "ready" again when building', async () => {
+    const { r, t, scope } = await keptAfterNewerSave({
+      plan: buildUpPlan(),
+      keptOn: { seconds: PLAN_SAVE, farm: farm(93, 29, 13) },
+      next: { seconds: mt(11, 6, 14, 50), farm: farm(102, 30, 14) },
+    });
+    expect(t.state.value).toBe('ready');
+    r.building.value = false;
+    await nextTick();
+    expect(t.state.value).toBe('notBuilding');
+    r.building.value = true;
+    await nextTick();
+    expect(t.state.value).toBe('ready');
+    scope.stop();
+  });
+});
