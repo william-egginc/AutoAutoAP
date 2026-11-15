@@ -11,6 +11,10 @@ export const NEVER_WITH_A_RUN = 'Your player ID and save are never sent with a s
 
 /** The "?" control: its label for screen readers and the tip's lines, one fact each. */
 export const PRIVACY_TIP_LABEL = 'What goes online, and what never does';
+/** Added to the tip only while the calendar feed is on (the CALENDAR_FEED flag, UI wires it); About's same words sit between
+ *  calendar-feed:begin and calendar-feed:end comments for the build to strip while it is off. */
+export const PRIVACY_TIP_CALENDAR_LINE =
+  'If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID.';
 export const PRIVACY_TIP_LINES = [
   'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them. You can switch all of it off with Save online in Setup.',
   'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',

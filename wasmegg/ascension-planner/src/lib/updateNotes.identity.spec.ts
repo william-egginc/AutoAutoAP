@@ -153,10 +153,13 @@ describe('vite.config.ts carries the keys', () => {
 
   it('the config defines __BUILD_NOTE_KEYS__ and writes the history through versionHistory', () => {
     const src = fs.readFileSync(path.resolve(__dirname, '../../vite.config.ts'), 'utf8');
-    expect(src).toMatch(/__BUILD_NOTE_KEYS__:\s*JSON\.stringify\(buildNoteKeys\(release\.history\)\)/);
-    expect(src).toMatch(/history:\s*versionHistory\(release\.history\)/);
+    // Through the one filtered list (14 Nov 2026: the calendar note is left out while its flag is off, lib/aboutBuild.ts
+    // releaseHistoryFor), so the keys, the dates and version.json always come from the same notes.
+    expect(src).toMatch(/const history = releaseHistoryFor\(release\.history, calendarOn\)/);
+    expect(src).toMatch(/__BUILD_NOTE_KEYS__:\s*JSON\.stringify\(buildNoteKeys\(history\)\)/);
+    expect(src).toMatch(/history:\s*versionHistory\(history\)/);
     // The old fields stay for tabs built before keys.
-    expect(src).toMatch(/__BUILD_NOTE_ATS__:\s*JSON\.stringify\(release\.history\.map\(h => h\.at\)\)/);
+    expect(src).toMatch(/__BUILD_NOTE_ATS__:\s*JSON\.stringify\(history\.map\(h => h\.at\)\)/);
     // The body itself is assembled in lib/versionJson.ts since the egg-beta reload (1 Nov 2026).
     expect(fs.readFileSync(path.resolve(__dirname, 'versionJson.ts'), 'utf8')).toContain("note: ''");
     const env = fs.readFileSync(path.resolve(__dirname, '../env.d.ts'), 'utf8');

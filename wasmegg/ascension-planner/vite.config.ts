@@ -1,5 +1,5 @@
 import { createReadStream, readdirSync, readFileSync, statSync, type Stats } from 'node:fs';
-import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,8 @@ import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
 import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
+import { applyCalendarFeed, releaseHistoryFor } from './src/lib/aboutBuild';
+import { calendarFeedOn } from './src/lib/calendarFlag';
 import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
 import { resultCodeHash } from './src/lib/resultCodeHash';
 import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
@@ -84,7 +86,7 @@ function resultCodeLine(): Plugin {
   };
 }
 
-function versionFile(): Plugin {
+function versionFile(history: typeof release.history): Plugin {
   return {
     name: 'aap-version-file',
     apply: 'build',
@@ -100,7 +102,7 @@ function versionFile(): Plugin {
         source: JSON.stringify(
           versionJsonBody(
             entries,
-            { reloadIfBuiltBefore: release.reloadIfBuiltBefore, history: versionHistory(release.history) },
+            { reloadIfBuiltBefore: release.reloadIfBuiltBefore, history: versionHistory(history) },
             process.env,
             BUILD_TIME
           )
@@ -481,6 +483,33 @@ function keepOldAssets(): Plugin {
 }
 
 /**
+ * About ships the calendar feed dark (14 Nov 2026; lib/calendarFlag.ts): public/about.html is static, with no script, so this
+ * edits the built copy. Between `<!-- calendar-feed:begin -->` and `<!-- calendar-feed:end -->` the calendar section, its
+ * contents link and two lines elsewhere are removed, markers included, while the flag is off; only the markers are dropped
+ * when it is on (lib/aboutBuild.ts). `vite preview` and dev serve the file as it is in public/.
+ */
+function calendarAbout(enabled: boolean): Plugin {
+  let outDir = '';
+  return {
+    name: 'aap-calendar-about',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      const file = path.join(outDir, 'about.html');
+      let html: string;
+      try {
+        html = await readFile(file, 'utf8');
+      } catch {
+        return; // a build without public/about.html (or one emitted elsewhere): nothing to edit
+      }
+      await writeFile(file, applyCalendarFeed(html, enabled));
+    },
+  };
+}
+
+/**
  * The Chain Explorer's run list, requested while the page's JavaScript is still downloading.
  *
  * The Explorer can draw nothing until the collector's `GET /all` answers, and it used to ask only
@@ -544,6 +573,9 @@ export default defineConfig(({ mode }) => {
   // inlined into the bundle) and `vite preview` (the hostnames below). A real shell variable
   // still wins, so a one-off `VITE_PREVIEW_HOSTS=... pnpm serve` keeps working.
   const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+  // The calendar feed ships dark (lib/calendarFlag.ts): off, its release note, About's calendar blocks and the card stay out.
+  const calendarOn = calendarFeedOn(env.VITE_CALENDAR_FEED);
+  const history = releaseHistoryFor(release.history, calendarOn);
 
   return {
     // Where the built pages will be SERVED from, which is not always where they are built.
@@ -586,7 +618,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       vue(),
       vueJsx(),
-      versionFile(),
+      versionFile(history),
+      calendarAbout(calendarOn),
       resultCodeLine(),
       noChunkCycles(),
       warnIfReleaseStale(),
@@ -602,8 +635,8 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
-      __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
-      __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(release.history)),
+      __BUILD_NOTE_ATS__: JSON.stringify(history.map(h => h.at)),
+      __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(history)),
       __RESULT_CODE_HASH__: JSON.stringify(RESULT_CODE.hash),
       // The egg-beta timed reload (lib/eggBetaReload.ts) is compiled in only when AAP_EGG_BETA_RELOAD_AT is set at build
       // time (lib/versionJson.ts); every other build, live included, drops it as dead code.

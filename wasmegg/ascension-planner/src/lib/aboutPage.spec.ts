@@ -420,6 +420,24 @@ describe('About and privacy page', () => {
     expect(text).toContain('it does not check whether the page is still open. If you close the tab, the page tries to say so.');
     expect(text).toContain('Turn it off: in Setup. Nothing is then sent about your searches. The banner does not depend on the switch.');
   });
+  it('says what the calendar link shows, who can see it, how old it is, how to reset it and when it expires (14 Nov 2026, Jordan OK via the orchestrator)', () => {
+    expect(text).toContain('Your calendar link');
+    expect(text).toContain('If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID (see Your calendar link ).');
+    expect(text).toContain('With Put my plan in my calendar on, the planned times of your plan are also saved online whenever the plan changes (see Your calendar link ).');
+    expect(text).toContain('If you turn on Put my plan in my calendar, the planner makes a private link.');
+    expect(text).toContain('It shows no player ID, name or save.');
+    expect(text).toContain('anyone who has the link, so treat it like a password. The link is shown only to you.');
+    expect(text).toContain('We keep just a scrambled fingerprint of it, so not even the maintainer can see or rebuild your link.');
+    expect(text).toContain('Google or Apple keeps a copy of the events on its own servers, under its own privacy policy, and keeps the link in your account.');
+    expect(text).toContain('the planned times and short titles, under a scrambled key, never your player ID.');
+    expect(text).toContain('the maintainer could read them there, but they carry no ID or name.');
+    expect(text).toContain('anyone who knows your player ID can make a link for it, as with saved routes and Setup.');
+    expect(text).toContain('your calendar may be up to a day behind the planner.');
+    expect(text).toContain('Reset link stops the old link at once.');
+    expect(text).toContain('a link is removed after 90 days in which no calendar app has checked it. The 90 days count from the last check, so a calendar that is still subscribed never expires.');
+    // The claim "not even the maintainer" is about the link only, never the planned times.
+    expect(text).not.toMatch(/not even the maintainer can see (the|your) (planned|times|plan)/);
+  });
   it('says what the starting TE, tracker ticks and plan saved online are, who can read them, how long they are kept and how to delete them (7 Nov 2026)', () => {
     expect(text).toContain('Your starting TE, tracker ticks and plan, saved online');
     expect(text).toContain("the lines you ticked in the Build-up tracker; and the tracker's kept plan, which is what to buy and when, worked out from your save.");

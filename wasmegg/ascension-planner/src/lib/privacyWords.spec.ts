@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   NEVER_WITH_A_RUN,
+  PRIVACY_TIP_CALENDAR_LINE,
   PRIVACY_TIP_LABEL,
   PRIVACY_TIP_LINES,
   REMEMBER_KEPT,
@@ -66,5 +67,14 @@ describe('privacy words', () => {
     expect(tip).not.toContain('<details open');
     expect(tip).toContain('min-h-[44px]');
     expect(tip).toContain('PRIVACY_TIP_LINES');
+  });
+});
+
+describe('calendar tip line (shown only while the calendar feed is on)', () => {
+  it('is its own line, not in the always-on tip', () => {
+    expect(PRIVACY_TIP_CALENDAR_LINE).toBe(
+      'If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID.'
+    );
+    expect(PRIVACY_TIP_LINES).not.toContain(PRIVACY_TIP_CALENDAR_LINE);
   });
 });
