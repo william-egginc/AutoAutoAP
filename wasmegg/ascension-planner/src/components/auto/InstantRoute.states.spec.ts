@@ -154,6 +154,8 @@ function ctxOf(s: State): Record<string, unknown> {
     TIGHT_SECONDS: 86400,
     CLOSE_CALL_TAG: 'close call',
     closeCall: null,
+    CHECK_WITH_FAST: 'Check this with Fast',
+    checkWithFast: true,
     USEFUL_STOP_NOTE: '',
     alongside: false,
     answerStart: 0,
@@ -802,6 +804,17 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     expect(html).toMatch(/data-testid="box-tight"[^>]*>close call</);
     const calm = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
     expect(calm).not.toContain('data-testid="box-close-call"');
+  });
+
+  it('By a date: a close call offers "Check this with Fast"; not for an answer that is not a close call, nor while it cannot start (Jordan, 15 Nov 2026)', async () => {
+    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.';
+    const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
+    expect(html).toMatch(/data-testid="box-check-fast"[^>]*>\s*Check this with Fast\s*</);
+    const off = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line, checkWithFast: false });
+    expect(off).toContain('data-testid="box-close-call"');
+    expect(off).not.toContain('data-testid="box-check-fast"');
+    const calm = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
+    expect(calm).not.toContain('data-testid="box-check-fast"');
   });
 
   it('Fastest: "in 5.1 years", compact (ux29-d); no "worked out ahead" badge; the "instant answer" tag gone (spec-slimcard)', async () => {

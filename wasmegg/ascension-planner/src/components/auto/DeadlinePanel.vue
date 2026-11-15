@@ -151,6 +151,7 @@
         now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
         @check="checkByDate"
+        @check-fast="checkWithFast"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
         @unloaded="u => (instantUnloaded = u)"
@@ -2022,6 +2023,14 @@ function typedRow(k: number, text: string): void {
  * The instant answer's Check exactly: its route as one chain of single-value boxes, with the last stop
  * looked for around where it lands, so Find prices exactly that route with the full simulator.
  */
+/** A close call's "Check this with Fast" (Jordan, 15 Nov 2026): the same run as Find on the Fast level, Nearby routes' own, started for this
+ *  goal; nothing starts while one is going or Find is not allowed. */
+function checkWithFast(): void {
+  if (store.busy || instantWait.value || store.integrityBlocked || store.staleBackupBlocked || !canStartAround.value) return;
+  stronger.level = 'quick';
+  void start(false, 'around');
+}
+
 function checkByDate(chain: number[]): void {
   const last = chain[chain.length - 1];
   const te = Math.floor(store.currentTE);

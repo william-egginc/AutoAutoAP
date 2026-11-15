@@ -370,6 +370,16 @@
             </div>
             <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
             <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
+            <!-- The prompt to check it: a Fast run for this goal (Jordan, 15 Nov 2026), for a close call only. -->
+            <button
+              v-if="closeCall && checkWithFast"
+              type="button"
+              class="inline-flex min-h-[44px] items-center rounded-lg border border-amber-300 bg-white px-4 text-body font-bold text-amber-900 hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              data-testid="box-check-fast"
+              @click="emit('check-fast')"
+            >
+              {{ CHECK_WITH_FAST }}
+            </button>
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
@@ -1117,7 +1127,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
-import { CLOSE_CALL_TAG, closeCallLine, isCloseCall } from '@/lib/closeCallWords';
+import { CHECK_WITH_FAST, CLOSE_CALL_TAG, closeCallLine, isCloseCall, showCheckWithFast } from '@/lib/closeCallWords';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
@@ -1181,6 +1191,8 @@ const emit = defineEmits<{
   'by-date': [];
   /** The values inside More that aren't at their default, said in its line (lib/moreChanges.ts). */
   'more-changes': [changes: string[]];
+  /** A close call's "Check this with Fast": By a date starts a Fast run for this goal. */
+  'check-fast': [];
 }>();
 /** By a date: hand the panel this answer's route for each number of ascensions, so its chain boxes can be
  *  suggested around them. */
@@ -2384,6 +2396,11 @@ const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 const dateSpare = computed(() => {
   const b = result.value?.byDate;
   return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
+});
+/** Offer "Check this with Fast" under a close call: none running, no Custom result already settling it. */
+const checkWithFast = computed(() => {
+  const f = searchFound.value;
+  return showCheckWithFast({ closeCall: !!closeCall.value, found: f ? { level: f.level, endTE: f.endTE } : null, running: runBusy.value });
 });
 /** The close-call line under a By a date answer with under about 2 days to spare (lib/closeCallWords.ts), or null. */
 const closeCall = computed(() => {
