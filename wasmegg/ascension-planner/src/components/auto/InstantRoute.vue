@@ -371,6 +371,7 @@
             <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
             <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
             <!-- The prompt to check it: a Fast run for this goal (Jordan, 15 Nov 2026), for a close call only. -->
+            <p v-if="closeCall && checkWithFast" class="text-small text-slate-700" data-testid="box-check-fast-note">{{ CHECK_WITH_FAST_NOTE }}</p>
             <button
               v-if="closeCall && checkWithFast"
               type="button"
@@ -378,7 +379,7 @@
               data-testid="box-check-fast"
               @click="emit('check-fast')"
             >
-              {{ CHECK_WITH_FAST }}
+              {{ checkWithFastLabel(fastTime) }}
             </button>
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
@@ -1127,7 +1128,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { pointerOf } from '@/lib/searchPointer';
-import { CHECK_WITH_FAST, CLOSE_CALL_TAG, closeCallLine, isCloseCall, showCheckWithFast } from '@/lib/closeCallWords';
+import { CHECK_WITH_FAST_NOTE, CLOSE_CALL_TAG, checkWithFastLabel, closeCallLine, isCloseCall, showCheckWithFast } from '@/lib/closeCallWords';
 import {
   FIRST_STEP_BUILDUP_MISSING_LEAD,
   FIRST_STEP_LABEL,
@@ -1160,6 +1161,8 @@ import { ROW_HINT } from '@/lib/layoutWords';
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
   deadline?: number;
+  /** The Fast run's time on this computer ("~1h 5m"), for "Check this date with Fast"; absent when it is not known. */
+  fastTime?: string;
   /** Where "Share this result" goes (a selector in the search panel, SearchPanel.vue `#search-share-…`); under
    *  this answer without one. */
   shareTo?: string;

@@ -154,7 +154,9 @@ function ctxOf(s: State): Record<string, unknown> {
     TIGHT_SECONDS: 86400,
     CLOSE_CALL_TAG: 'close call',
     closeCall: null,
-    CHECK_WITH_FAST: 'Check this with Fast',
+    CHECK_WITH_FAST_NOTE: "Fast checks the instant answer's route on your save. Custom looks harder.",
+    checkWithFastLabel: (t?: string) => (t ? `Check this date with Fast · ${t}` : 'Check this date with Fast'),
+    fastTime: undefined,
     checkWithFast: true,
     USEFUL_STOP_NOTE: '',
     alongside: false,
@@ -797,19 +799,20 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
   });
 
   it('By a date: a close call says so, in place of "tight", and is not shown as reached', async () => {
-    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.';
+    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Fast checks it on your save; Custom confirms it.';
     const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
     expect(html).toContain('data-testid="box-close-call"');
-    expect(html).toContain('Run Custom to confirm.');
+    expect(html).toContain('Custom confirms it.');
     expect(html).toMatch(/data-testid="box-tight"[^>]*>close call</);
     const calm = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
     expect(calm).not.toContain('data-testid="box-close-call"');
   });
 
-  it('By a date: a close call offers "Check this with Fast"; not for an answer that is not a close call, nor while it cannot start (Jordan, 15 Nov 2026)', async () => {
-    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.';
+  it('By a date: a close call offers "Check this date with Fast"; not for an answer that is not a close call, nor while it cannot start (Jordan, 15 Nov 2026)', async () => {
+    const line = '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Fast checks it on your save; Custom confirms it.';
     const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
-    expect(html).toMatch(/data-testid="box-check-fast"[^>]*>\s*Check this with Fast\s*</);
+    expect(html).toMatch(/data-testid="box-check-fast"[^>]*>\s*Check this date with Fast\s*</);
+    expect(html).toContain('Fast checks the instant answer&#39;s route on your save. Custom looks harder.');
     const off = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line, checkWithFast: false });
     expect(off).toContain('data-testid="box-close-call"');
     expect(off).not.toContain('data-testid="box-check-fast"');

@@ -23,11 +23,16 @@ export function closeCallLine(o: { te: number; found?: { level: string; endTE: n
   if (f && f.level === 'Custom' && Math.floor(f.endTE) >= o.te) return null;
   if (f && f.level === 'Custom' && Math.floor(f.endTE) < o.te)
     return `Custom found ${Math.floor(f.endTE)} TE for this date, which is confirmed. The ${o.te} TE above may miss.`;
-  return `${o.te} TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.`;
+  return `${o.te} TE is a close call: the quick estimate can be a few days late, so this may miss the date. Fast checks it on your save; Custom confirms it.`;
 }
 
-/** The button under a close call that starts a Fast run for this goal (Jordan, 15 Nov 2026). DRAFT: Words writes the text. */
-export const CHECK_WITH_FAST = 'Check this with Fast';
+/** The button under a close call that starts a Fast run for this goal (Jordan, 15 Nov 2026; Words' text: Fast does not confirm a close call, so
+ *  the button never says "confirm"). */
+export const CHECK_WITH_FAST = 'Check this date with Fast';
+/** The line above it. */
+export const CHECK_WITH_FAST_NOTE = "Fast checks the instant answer's route on your save. Custom looks harder.";
+/** The button's words, with the Fast time after a "·" only when the estimate is known, as the other Fast buttons. */
+export const checkWithFastLabel = (time?: string | null): string => (time ? `${CHECK_WITH_FAST} · ${time}` : CHECK_WITH_FAST);
 
 /**
  * Whether to offer that button: the answer is a close call (for any reason: `isCloseCall`'s spare under the budget, the awake hours, or

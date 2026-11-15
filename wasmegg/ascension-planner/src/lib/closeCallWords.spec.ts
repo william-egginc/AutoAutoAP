@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHECK_WITH_FAST, CLOSE_CALL_SECONDS, CLOSE_CALL_TAG, closeCallLine, isCloseCall, showCheckWithFast } from './closeCallWords';
+import { CHECK_WITH_FAST, CHECK_WITH_FAST_NOTE, checkWithFastLabel, CLOSE_CALL_SECONDS, CLOSE_CALL_TAG, closeCallLine, isCloseCall, showCheckWithFast } from './closeCallWords';
 
 const D = 86400;
 
@@ -20,7 +20,7 @@ describe('close call: a By a date answer with under 2 days to spare (13 Nov 2026
   it('does not say the TE is reached; says it may miss and points to Custom', () => {
     const t = closeCallLine({ te: 314 });
     expect(t).toBe(
-      '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.'
+      '314 TE is a close call: the quick estimate can be a few days late, so this may miss the date. Fast checks it on your save; Custom confirms it.'
     );
     expect(t).not.toMatch(/reached|safe/i);
     expect(CLOSE_CALL_TAG).toBe('close call');
@@ -72,7 +72,14 @@ describe('the prompt to check a close call with Fast (Jordan, 15 Nov 2026)', () 
     expect(showCheckWithFast({ closeCall: isCloseCall(3 * D, true, true), found: null, running: false })).toBe(false);
   });
   it('the words (a draft: Words writes them)', () => {
-    expect(CHECK_WITH_FAST).toBe('Check this with Fast');
+    expect(CHECK_WITH_FAST).toBe('Check this date with Fast');
+    expect(CHECK_WITH_FAST_NOTE).toBe("Fast checks the instant answer's route on your save. Custom looks harder.");
+    expect(CHECK_WITH_FAST).not.toMatch(/confirm/i);
+  });
+  it('the Fast time follows a "·" only when the estimate is known', () => {
+    expect(checkWithFastLabel('~1h 5m')).toBe('Check this date with Fast · ~1h 5m');
+    expect(checkWithFastLabel()).toBe('Check this date with Fast');
+    expect(checkWithFastLabel('')).toBe('Check this date with Fast');
   });
 });
 
@@ -85,10 +92,12 @@ describe('the prompt is wired (source pin)', async () => {
     expect(vue).toContain("emit('check-fast')");
     expect(vue).toMatch(/'check-fast': \[\];/);
     expect(vue).toContain('showCheckWithFast(');
-    expect(vue).toContain('CHECK_WITH_FAST');
+    expect(vue).toContain('CHECK_WITH_FAST_NOTE');
+    expect(vue).toContain('checkWithFastLabel(fastTime)');
   });
   it('By a date starts Fast for this goal: the level is Fast and the run is Nearby routes\' own', () => {
     expect(panel).toContain('@check-fast="checkWithFast"');
+    expect(panel).toContain(':fast-time="levelEstimates.quick?.short"');
     expect(panel).toMatch(/function checkWithFast\(\): void \{[\s\S]*?stronger\.level = 'quick';[\s\S]*?void start\(false, 'around'\);[\s\S]*?\n\}/);
     expect(panel).toMatch(/function checkWithFast\(\): void \{[\s\S]*?canStartAround\.value/);
   });
