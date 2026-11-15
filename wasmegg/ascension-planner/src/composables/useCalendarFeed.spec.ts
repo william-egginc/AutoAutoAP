@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCalendarFeed, CAL_DEBOUNCE_MS, type CalendarFeedEnv } from './useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
+import * as blackBox from '@/search/blackBox';
 
 const K = 'b'.repeat(64);
 const SYNC = 'https://collector.example/sync';
@@ -163,6 +164,8 @@ describe('the plan goes up only when it changed', () => {
     const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
     c.turnOn();
     await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    col.calls.length = 0; // the bare marker sent right after the mint
     c.note(input(2));
     c.note(input(3));
     await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS - 100);
@@ -180,10 +183,12 @@ describe('the plan goes up only when it changed', () => {
   });
   it('a 409 is sent ONCE more with a fresh stamp', async () => {
     const { st } = memStore();
-    const col = collector({ putStatus: [409, 200] });
+    const col = collector({ putStatus: [200, 409, 200] });
     const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
     c.turnOn();
     await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    col.calls.length = 0;
     c.note(input(2));
     await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
     expect(col.puts()).toHaveLength(2);
@@ -197,5 +202,161 @@ describe('the plan goes up only when it changed', () => {
     c.note(input(2));
     await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
     for (const p of col.puts()) expect(p.body).not.toMatch(/EI\d{16}/);
+  });
+});
+
+describe('a failed plan upload shows, and a new link sends the plan at once', () => {
+  it('a 400 on the cal PUT: the card error line and a black-box note (no link in it)', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [200, 400] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(c.error.value).toBe('upload');
+    expect(note).toHaveBeenCalledTimes(1);
+    expect(String(note.mock.calls[0][0])).toMatch(/calendar/i);
+    expect(String(note.mock.calls[0][0])).not.toContain('AbCdEf');
+    note.mockRestore();
+  });
+  it('the same plan is sent again after a failure (a reload, or My runs opened again), not skipped as unchanged', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [200, 400, 200] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    col.calls.length = 0; // the bare marker sent right after the mint
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(1);
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(2);
+    expect(c.error.value).toBe('');
+    note.mockRestore();
+  });
+  it('a later good upload clears the line', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [200, 400, 200] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    c.note(input(3));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(c.error.value).toBe('');
+    note.mockRestore();
+  });
+  it('getLink forgets the kept last list, and sends the plan right after minting (no 10 s wait)', async () => {
+    const { st, m } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    col.calls.length = 0; // the bare marker sent right after the mint
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(1);
+    expect(m.get('aap.calFeed.acct1.last')).toBeTruthy();
+    // a second link, same plan: it must still go up now
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(2);
+  });
+  it('a failed mint sends nothing and keeps the last list', async () => {
+    const { st, m } = memStore();
+    const col = collector({ mint: 409 });
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    c.note(input(2));
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(0);
+    expect(m.has('aap.calFeed.acct1.last')).toBe(false);
+  });
+});
+
+describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is opened', () => {
+  it('limit (409) with no link kept here: Reset link is offered, revokes every link ({ k, all: true }) after the confirm, then Get link works', async () => {
+    const { st } = memStore();
+    let mint = 409;
+    const calls: Call[] = [];
+    const f: SyncFetch = async (url, init) => {
+      calls.push({ url, method: init?.method, body: typeof init?.body === 'string' ? init.body : undefined });
+      const ok = (status: number, body: unknown = {}) => ({ ok: status < 300, status, json: async () => body, headers: { get: () => null } });
+      if (url.endsWith('/cal/new')) return ok(mint, { ok: true, url: URL_OK });
+      if (url.endsWith('/cal/revoke')) {
+        mint = 200;
+        return ok(200, { ok: true, revoked: 3 });
+      }
+      return ok(200, { updatedAt: 1, unchanged: false });
+    };
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: f });
+    c.turnOn();
+    expect(c.canReset.value).toBe(false);
+    await c.getLink();
+    expect(c.error.value).toBe('limit');
+    expect(c.linked.value).toBe(false);
+    expect(c.canReset.value).toBe(true);
+    c.askReset();
+    expect(c.phase.value).toBe('confirm');
+    await c.confirmReset();
+    const rev = calls.find(x => x.url.endsWith('/cal/revoke'))!;
+    expect(JSON.parse(rev.body!)).toEqual({ k: K, all: true });
+    expect(c.error.value).toBe('');
+    expect(c.canReset.value).toBe(false);
+    await c.getLink();
+    expect(c.link.value).toBe(URL_OK);
+  });
+  it('Reset link is not offered with no link and no limit error', () => {
+    const { st } = memStore();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: collector().f });
+    c.turnOn();
+    expect(c.canReset.value).toBe(false);
+  });
+  it('Get link before My runs gave any plan: the marker goes up at once, and the card asks for My runs', async () => {
+    const { st } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(1);
+    const body = JSON.parse(col.puts()[0].body!);
+    expect(body.events.map((e: { uid: string }) => e.uid)).toEqual(['asof']);
+    expect(c.needsMyRuns.value).toBe(true);
+    c.note(input(2));
+    expect(c.needsMyRuns.value).toBe(false);
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(2);
+    expect(JSON.parse(col.puts()[1].body!).events.length).toBeGreaterThan(1);
+  });
+  it('a plan already known when the link is made is sent (not the bare marker), and the card does not ask', async () => {
+    const { st } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    c.note(input(2));
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.needsMyRuns.value).toBe(false);
+    expect(JSON.parse(col.puts()[0].body!).events.length).toBeGreaterThan(1);
+  });
+  it('a failed mint puts nothing up and does not ask', async () => {
+    const { st } = memStore();
+    const col = collector({ mint: 503 });
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(0);
+    expect(c.needsMyRuns.value).toBe(false);
   });
 });

@@ -114,6 +114,22 @@ describe('Delete everything: the flow', () => {
     expect(c.calls.filter(x => x.url.includes('/forget'))).toEqual([]);
   });
 
+  it('the confirm adds the calendar line only in a build with the calendar flag on', async () => {
+    await page();
+    const d = useForgetEverything();
+    d.ask();
+    expect(d.confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
+    const { CALENDAR_FEED } = await import('@/lib/calendarCloud');
+    const { syncDeleteConfirm } = await import('@/lib/syncWords');
+    CALENDAR_FEED.enabled = true;
+    try {
+      expect(useForgetEverything().confirmLines.value).toEqual([syncDeleteConfirm(null), SYNC_DELETE_STAYS]);
+    } finally {
+      CALENDAR_FEED.enabled = false;
+    }
+    d.cancel();
+  });
+
   it('200: one DELETE, disabled while it runs, the counts, then Save online OFF here and said so; local data untouched', async () => {
     await page();
     c.other.set(KEY, { follows: 3, prefs: 2, answers: 2 });

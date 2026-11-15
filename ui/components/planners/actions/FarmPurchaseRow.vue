@@ -4,8 +4,8 @@
     <div class="flex items-center gap-2.5 w-full">
       <img v-if="item.iconPath" :src="iconURL(item.iconPath, 64)" class="w-7 h-7 object-contain shrink-0" :alt="item.name" />
       <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
-        <span class="text-[13px] font-bold text-gray-900 truncate">{{ item.name }}</span>
-        <span class="text-[9px] font-black uppercase tracking-wider text-sky-700 bg-sky-100 rounded px-1.5 py-0.5">
+        <span class="text-body font-bold text-gray-900 truncate">{{ item.name }}</span>
+        <span class="text-sky-700 bg-sky-100 rounded px-1.5 py-0.5 label">
           {{ kindLabel }}
         </span>
       </div>
@@ -13,9 +13,9 @@
 
     <!-- Row 2: Detail, price -->
     <div class="flex items-start justify-between w-full pl-[38px] gap-4">
-      <div class="text-[10px] text-gray-500 leading-snug">{{ item.detail }}</div>
+      <div class="text-small text-gray-500 leading-snug">{{ item.detail }}</div>
       <div class="text-right shrink-0">
-        <div class="flex items-center justify-end gap-1 text-[11px] font-mono text-amber-600 font-bold">
+        <div class="flex items-center justify-end gap-1 text-small text-amber-600 font-bold tabular-nums">
           {{ formatPrice(item.price) }}
           <img :src="iconURL(currency.iconPath, 64)" class="w-2.5 h-2.5 object-contain opacity-80" :alt="currency.name" />
         </div>
@@ -23,14 +23,14 @@
           <span
             v-if="item.duringSale"
             v-tippy="saleTooltip"
-            class="text-[8px] font-black uppercase tracking-tight text-rose-600 bg-rose-50 rounded px-1 py-0.5 cursor-help"
+            class="text-rose-600 bg-rose-50 rounded px-1 py-0.5 cursor-help label"
           >
             Sale
           </span>
           <span
             v-if="item.duringEarningsBoost"
             v-tippy="'This purchase completes during the 2x earnings boost.'"
-            class="text-[8px] font-black uppercase tracking-tight text-orange-600 bg-orange-50 rounded px-1 py-0.5 cursor-help"
+            class="text-orange-600 bg-orange-50 rounded px-1 py-0.5 cursor-help label"
           >
             2x
           </span>
@@ -42,10 +42,10 @@
     <div class="flex items-center justify-between w-full pl-[38px] gap-2">
       <div class="flex-1">
         <div class="flex items-end gap-2 whitespace-nowrap">
-          <div class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Achieve ROI</div>
+          <div class="text-gray-400 label">Achieve ROI</div>
           <div
             v-tippy="formatAbsoluteTime(item.totalRoiSeconds, baseTimestamp, planStore.ascensionTimezone)"
-            class="text-[11px] font-mono text-gray-900 leading-none cursor-help"
+            class="text-small text-gray-900 leading-none cursor-help tabular-nums"
           >
             {{ item.totalRoiLabel }}
             <span
@@ -59,7 +59,7 @@
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <div
-          class="text-[11px] font-mono text-gray-400 whitespace-nowrap"
+          class="text-small text-gray-400 whitespace-nowrap tabular-nums"
           :class="{ 'cursor-help': timeCostTooltipSeconds !== undefined }"
           v-tippy="
             timeCostTooltipSeconds !== undefined

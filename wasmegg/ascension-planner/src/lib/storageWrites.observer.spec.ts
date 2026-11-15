@@ -15,10 +15,11 @@
  * harmless; another tab's `storage` event still works. Placeholder ID only.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPinia, setActivePinia } from 'pinia';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { resetStorageWrites, storageWriteFailed, watchStorageWrites } from './storageWrites';
 import { installTECacheObserver, onTECacheStorageEvent, resetOverrideSync, TE_INPUTS_V2_PREFIX } from '@/composables/useOverrideSync';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useFollowStore } from '@/stores/follow';
 import { accountOf } from '@/search/runSaves';
 
 const ID = 'EI0000000000000000';
@@ -67,16 +68,45 @@ function realShapedStorage() {
   };
 }
 
+/**
+ * PC flake (14 Nov 2026, gate-calfix 1c47bed4f and gate-days60 0d4994709): every test passed, but vitest exited 1 with
+ * "EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was pending" from this file. Writing the starting TE
+ * cache runs useOverrideSync's `searchStore()`, whose `getActivePinia()` prints pinia's dev-only "Pinia instance not
+ * found in context" with console.error whenever there is no `window` (node, as here; never in a browser). It came
+ * AFTER the test: useOverrideSync makes the follow store, whose account watcher (stores/follow.ts) awaits two hashes and
+ * then calls `loadCloud` -> `followUrl` -> `searchStore`. The last test's was still on its way to the main process when
+ * the worker closed. So each test now waits for that watcher before it ends, and this file prints nothing: that one
+ * message is swallowed, and anything else it would print fails the test instead of going to the console.
+ */
+const PINIA_NODE_WARNING = '[🍍]: Pinia instance not found in context';
+let printed: unknown[][] = [];
+let pinia: Pinia;
 beforeEach(() => {
+  printed = [];
+  for (const m of ['log', 'info', 'warn', 'error', 'debug'] as const) {
+    vi.spyOn(console, m).mockImplementation((...a: unknown[]) => {
+      if (m === 'error' && String(a[0]).startsWith(PINIA_NODE_WARNING)) return;
+      printed.push([m, ...a]);
+    });
+  }
   resetStorageWrites();
   resetOverrideSync();
-  setActivePinia(createPinia());
+  pinia = createPinia();
+  setActivePinia(pinia);
   const s = useInitialStateStore();
   s.playerId = ID;
   s.rawBackup = { eiUserId: ID } as never;
 });
-afterEach(() => {
+afterEach(async () => {
+  // The follow store's account watcher (made by the observer) finishes inside the test: its key is set, and its
+  // `loadCloud` runs in the same turn.
+  if ('follow' in pinia.state.value) {
+    await vi.waitFor(() => expect(useFollowStore().cloudKey).not.toBe(''), { timeout: 5000, interval: 5 });
+    await new Promise(r => setTimeout(r, 0));
+  }
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  expect(printed, 'this spec prints nothing (see PINIA_NODE_WARNING)').toEqual([]);
 });
 
 const stamped = (ls: globalThis.Storage) => JSON.parse(ls.getItem(KEY) ?? 'null') as { teEarned?: unknown; at?: number } | null;

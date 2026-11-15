@@ -23,6 +23,16 @@
       {{ viewDescription }}
     </p>
 
+    <TierUnlockNote
+      v-if="tierUnlockNote"
+      :note="tierUnlockNote"
+      :computing="isComputingTierUnlockPath"
+      :show-path-button="
+        !(currentView === 'milestones' && milestoneTarget?.kind === 'tier' && milestoneTarget.tier === tierUnlockNote.nextTier)
+      "
+      @show-path="showTierUnlockPath"
+    />
+
     <RoiViewControls
       v-if="currentView === 'roi'"
       :delivery-impact-only="deliveryImpactOnly"
@@ -137,7 +147,7 @@
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
               <span class="text-gray-500 label leading-none mb-1"
-                >Researches Bought</span
+                >{{ PROFILE.hasFarmPurchasesInRoi ? 'Purchases' : 'Researches Bought' }}</span
               >
               <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
                 {{ milestoneSummary.purchaseCount }}
@@ -189,6 +199,45 @@
            instead of a full-page overlay locking up the whole tab. -->
       <div
         v-if="isComputingMilestoneChain"
+        class="absolute inset-0 flex items-center justify-center bg-white/60 rounded-lg"
+      >
+        <InlineSpinner class="w-6 h-6 text-blue-500" />
+      </div>
+    </div>
+
+    <!-- Hab Space summary/buy-chain area — same layout and busy overlay as the milestones view. -->
+    <div v-if="currentView === 'hab_space'" class="relative">
+      <HabSpaceSummary v-if="habSpaceSummary" :summary="habSpaceSummary" />
+
+      <button
+        v-if="habSpaceSummary"
+        class="btn-premium btn-primary w-full mt-2 disabled:opacity-40 inline-flex items-center justify-center gap-1.5"
+        :disabled="isApplyingHabSpaceChain"
+        @click="handleBuyHabSpaceChain"
+      >
+        <InlineSpinner v-if="isApplyingHabSpaceChain" class="w-3.5 h-3.5" />
+        {{ isApplyingHabSpaceChain ? 'Buying…' : 'Buy Entire Chain' }}
+        <span v-if="!isApplyingHabSpaceChain" class="ml-1 text-small opacity-70 tabular-nums">
+          ({{ sortedResearches.length + 1 }} {{ sortedResearches.length === 0 ? 'purchase' : 'purchases' }})
+        </span>
+      </button>
+
+      <div v-if="sortedResearches.length > 0" class="flex items-center justify-between mt-2 px-1">
+        <span class="text-xs text-gray-500">See details of sale and earnings events</span>
+        <button
+          class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
+          :class="showEventCrossingDetails ? 'bg-indigo-500' : 'bg-slate-200'"
+          @click="showEventCrossingDetails = !showEventCrossingDetails"
+        >
+          <span
+            class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-all duration-300 shadow-sm"
+            :class="showEventCrossingDetails ? 'translate-x-[22px]' : 'translate-x-1'"
+          />
+        </button>
+      </div>
+
+      <div
+        v-if="isComputingHabSpaceChain"
         class="absolute inset-0 flex items-center justify-center bg-white/60 rounded-lg"
       >
         <InlineSpinner class="w-6 h-6 text-blue-500" />
@@ -268,6 +317,8 @@
         :thresholds="TIER_THRESHOLDS"
         :milestone-target-selected="!!milestoneTarget"
         :milestone-already-reached="milestoneAlreadyReached"
+        :has-hab-space-target="!!habSpaceSummary"
+        :hab-space-tier-recommendation="habSpaceTierRecommendation"
         :show-event-crossing-details="showEventCrossingDetails"
         :get-research-time-to-buy="getTimeToBuy"
         :get-research-time-to-buy-seconds="getTimeToBuySeconds"
@@ -275,11 +326,18 @@
         @buy="handleBuyResearch"
         @max="handleMaxResearch"
         @buy-to-here="handleBuyToHere"
+        @buy-farm="handleBuyFarmItem"
+        @show-tier-path="showTierUnlockPath"
         @refresh-backup="$emit('refresh-backup')"
       />
 
+      <HabSpaceTargetRow v-if="currentView === 'hab_space' && habSpaceSummary" class="mt-2" :summary="habSpaceSummary" />
+
       <div
-        v-if="currentView === 'milestones' && isComputingMilestoneChain"
+        v-if="
+          (currentView === 'milestones' && isComputingMilestoneChain) ||
+          (currentView === 'hab_space' && isComputingHabSpaceChain)
+        "
         class="absolute inset-0 flex items-center justify-center bg-white/60 rounded-lg"
       >
         <InlineSpinner class="w-6 h-6 text-blue-500" />
@@ -295,6 +353,7 @@ import { computed, ref, watch, watchEffect } from 'vue';
 import { getResearchById, type CommonResearch } from '@planner/calculations/commonResearch';
 import { researchPurchaseAt } from 'lib/planners/engine/researchSale';
 import { useEventCrossingWaits } from 'lib/planners/composables/usePlannerEventCrossingWaits';
+import { useFarmPurchaseActions } from 'lib/planners/composables/useFarmPurchaseActions';
 import type { SaleAwarePurchase } from 'lib/planners/calculations/researchROI';
 import { formatDuration, formatNumber, formatPrice, formatAbsoluteTime } from '@planner/lib/format';
 import { useCommonResearchStore } from 'lib/planners/stores/commonResearch';
@@ -302,26 +361,29 @@ import { useActionsStore } from '@planner/stores/actions';
 import { useEventWaits } from 'lib/planners/composables/usePlannerEventWaits';
 import { usePlanStore } from '@planner/stores/plan';
 import { computeDependencies } from 'lib/planners/actions/executor';
-import { generateActionId } from '@planner/types';
 import {
   createNoteAction,
   buildQuickBuyNotePayload,
   buildSaleAwareBuyNotePayload,
   buildSaleEndsBuyNotePayload,
   buildMilestoneNotePayload,
+  buildHabSpaceNotePayload,
   buildMaxResearchNotePayload,
 } from 'lib/planners/actions/notes';
-import { useResearchViews, VIEWS, SMART_BUY_SALE_COUNT_CAP } from 'lib/planners/composables/useResearchViews';
+import {
+  useResearchViews,
+  VIEWS,
+  SMART_BUY_SALE_COUNT_CAP,
+  habSpaceTargetLabel,
+  isFarmViewItem,
+  farmPurchaseSummaryItems,
+  type FarmViewItem,
+  type ResearchListItem,
+} from 'lib/planners/composables/useResearchViews';
 import { EVENT_CROSSING_ACTION_TYPES } from 'lib/planners/actions/smartBuyGroups';
-import { getTimeToSave, boostTransitionsFrom } from '@planner/engine/apply';
+import { getTimeToSave } from '@planner/engine/apply';
 import { getSimulationContext } from 'lib/planners/engine/adapter';
 import { buyWhilePassingCheck, buyUntilRealSaleStarts } from 'lib/planners/calculations/researchRanking';
-import {
-  getSaleAwareTimeToSave,
-  shouldDeferToNextSale,
-  findEventCrossings,
-} from 'lib/planners/calculations/researchROI';
-import { getNextSaleStart } from 'lib/planners/events';
 import {
   simulateThresholdBuy,
   summarizeResearchLevelChanges,
@@ -329,6 +391,7 @@ import {
   type SimpleBuyPlan,
 } from 'lib/planners/calculations/smartBuyPreview';
 import { yieldForOverlayPaint } from 'lib/planners/yieldForOverlayPaint';
+import { useResearchPurchases } from 'lib/planners/composables/useResearchPurchases';
 import { DEBUG_MILESTONE_EXECUTION } from 'lib/planners/debugFlags';
 import InlineSpinner from 'ui/components/planners/InlineSpinner.vue';
 
@@ -341,6 +404,9 @@ import ElrViewControls from 'ui/components/planners/actions/ElrViewControls.vue'
 import RoiViewControls from 'ui/components/planners/actions/RoiViewControls.vue';
 import SmartBuyView from 'ui/components/planners/actions/SmartBuyView.vue';
 import MilestoneTargetPicker from 'ui/components/planners/actions/MilestoneTargetPicker.vue';
+import HabSpaceSummary from 'ui/components/planners/actions/HabSpaceSummary.vue';
+import TierUnlockNote from 'ui/components/planners/actions/TierUnlockNote.vue';
+import HabSpaceTargetRow from 'ui/components/planners/actions/HabSpaceTargetRow.vue';
 
 const { currency } = usePlannerProfile();
 
@@ -348,16 +414,9 @@ const commonResearchStore = useCommonResearchStore();
 const actionsStore = useActionsStore();
 const { secondsUntilNextSale, secondsUntilSaleEnd, toggleResearchSale } = useEventWaits();
 const planStore = usePlanStore();
-const {
-  prepareExecution,
-  completeExecution,
-  batch,
-  isEditingPastGroup,
-  settled,
-  insertWait,
-  insertEventCrossingWaits,
-  insertCrossingWaits,
-} = useEventCrossingWaits();
+const crossingWaits = useEventCrossingWaits();
+const { prepareExecution, completeExecution, batch, isEditingPastGroup, settled } = crossingWaits;
+const { buyHab, buyVehicle, buyTrainCar } = useFarmPurchaseActions(crossingWaits);
 
 const autoBuyState = ref({ threshold: 0, alwaysOn: false });
 // Reactive (not a plain `let`) so the Quick Buy button can bind its disabled/spinner state to the
@@ -370,6 +429,7 @@ const showEventCrossingDetails = ref(false);
 // state while the (synchronous, potentially slow) purchase loop and subsequent recalculation run,
 // same purpose `isThresholdBuying` already serves for Quick Buy.
 const isApplyingMilestoneChain = ref(false);
+const isApplyingHabSpaceChain = ref(false);
 const isApplyingSaleAwareBuy = ref(false);
 const isApplyingSaleEndsBuy = ref(false);
 
@@ -386,6 +446,12 @@ const {
   milestoneSummary,
   milestoneAlreadyReached,
   isComputingMilestoneChain,
+  habSpaceSummary,
+  isComputingHabSpaceChain,
+  tierUnlockNote,
+  isComputingTierUnlockPath,
+  showTierUnlockPath,
+  habSpaceTierRecommendation,
   viewDescription,
   costModifiers,
   isResearchSaleActive,
@@ -492,9 +558,12 @@ watchEffect(async () => {
 });
 
 const quickBuyPlan = computed(() => quickBuyPlanRef.value);
-const quickBuyPreview = computed(() =>
-  summarizeResearchLevelChanges(commonResearchStore.researchLevels, quickBuyPlan.value.endLevels)
-);
+const quickBuyPreview = computed(() => [
+  ...summarizeResearchLevelChanges(commonResearchStore.researchLevels, quickBuyPlan.value.endLevels),
+  ...farmPurchaseSummaryItems(
+    (quickBuyPlan.value.purchases ?? []).flatMap(purchase => ('farm' in purchase ? [purchase.farm] : []))
+  ),
+]);
 const quickBuyEarningsSummary = computed(() => ({
   before: actionsStore.effectiveSnapshot.offlineEarnings * 3600,
   after: quickBuyPlan.value.endSnapshot.offlineEarnings * 3600,
@@ -504,7 +573,7 @@ const quickBuyEarningsSummary = computed(() => ({
 // reports (`buildQuickBuyNotePayload` in `src/lib/actions/notes.ts`), shown live in the card itself
 // before the button is clicked.
 const quickBuyStats = computed(() => ({
-  purchaseCount: quickBuyPlan.value.researchIds.length,
+  purchaseCount: (quickBuyPlan.value.purchases ?? quickBuyPlan.value.researchIds).length,
   seconds: quickBuyPlan.value.totalSecondsToSave ?? 0,
   spent: quickBuyPlan.value.totalSpent ?? 0,
 }));
@@ -542,215 +611,21 @@ function getSimulatedBuyToHereSeconds(item: unknown): number | undefined {
   return typeof seconds === 'number' ? seconds : undefined;
 }
 
-/**
- * Buy a single level of research and create the action.
- * Returns true if successful, false if already maxed.
- */
-function buyOneLevel(research: CommonResearch): boolean {
-  const currentLevel = commonResearchStore.researchLevels[research.id] || 0;
-  if (currentLevel >= research.levels) return false;
-
-  insertCrossingWaits(research);
-
-  // Prepare execution (restores stores if editing past group)
-  const beforeSnapshot = prepareExecution();
-
-  // Calculate cost based on current state (after restore if editing)
-  const effectiveLevel = beforeSnapshot.researchLevels[research.id] || 0;
-  const isSaleActive = beforeSnapshot.activeSales.research;
-  const cost = researchPurchaseAt(research, effectiveLevel, beforeSnapshot, getSimulationContext()).price;
-
-  // Build payload
-  const payload = {
-    researchId: research.id,
-    fromLevel: effectiveLevel,
-    toLevel: effectiveLevel + 1,
-  };
-
-  // Compute dependencies (level N depends on the action that bought level N-1)
-  const dependencies = computeDependencies(
-    'buy_research',
-    payload,
-    actionsStore.actionsBeforeInsertion,
-    actionsStore.initialSnapshot.researchLevels
-  );
-
-  if (DEBUG_MILESTONE_EXECUTION) {
-    console.log(
-      `[ResearchActions] buyOneLevel: ${research.id} Lv${effectiveLevel}, now=${new Date(absoluteSimTimeAt(beforeSnapshot.lastStepTime) * 1000).toISOString()}, bank=${beforeSnapshot.bankValue}, isSaleActive=${isSaleActive} -> cost=${cost}`
-    );
-  }
-
-  // Apply to store
-  commonResearchStore.setResearchLevel(research.id, effectiveLevel + 1);
-
-  // Complete execution (computes snapshot, inserts/pushes action, replays if needed)
-  completeExecution(
-    {
-      id: generateActionId(),
-      timestamp: Date.now(),
-      type: 'buy_research',
-      payload,
-      cost,
-      dependsOn: dependencies,
-    },
-    beforeSnapshot
-  );
-
-  // Trigger automated sweep if Always On is enabled
-  if (!isThresholdBuying.value && autoBuyState.value.alwaysOn) {
-    handleThresholdBuy(autoBuyState.value.threshold);
-  }
-
-  return true;
-}
-
-/**
- * Absolute Unix timestamp (seconds) that `lastStepTime` (a snapshot's plan-relative clock reading)
- * corresponds to — same formula `WaitForEventActions.vue`/`useResearchViews.ts` use everywhere else.
- */
-function absoluteSimTimeAt(lastStepTime: number): number {
-  const baseTimestamp = planStore.planStartTime.getTime() / 1000;
-  return baseTimestamp + (lastStepTime - actionsStore.planStartOffset);
-}
-
-/**
- * Before buying `item.research`, bring `activeSales.research`/`earningsBoost.active` in line with
- * whether THIS SPECIFIC purchase — computed fresh from the live/current state — actually resolves
- * during each event or not. Deliberately does NOT trust a plan's precomputed `duringSale`/
- * `duringEarningsBoost` (as an earlier version of this function did): those are snapshotted at
- * planning time, and can drift from what's actually true by the time execution reaches this item
- * (e.g. because an earlier item in the same batch banked more, or less, than the plan assumed —
- * `syncEventStateForItem` itself, by inserting real actions, is one such source of drift). Recomputing
- * live here makes the sync self-correcting regardless of that drift's size or source, instead of
- * blindly forcing a wait for an event boundary the live state may already be past or short of.
- *
- * Sale and boost crossings are computed ONCE, over the SAME true wait window (`purchase.waitSeconds`
- * from `getSaleAwareTimeToSave`, which already accounts for whether waiting for the sale beats
- * buying now, and already prices in boost-accelerated earning during the wait via `transitions`),
- * then merged and walked in a single chronological pass — not two separate sequential blocks. An
- * earlier version handled sale and boost independently: a "sale" block computed both crossing types
- * from the true starting point but only ever inserted the sale ones, then a separate "boost" block
- * re-derived its OWN wait from whatever state the sale block had already advanced to. Any boost
- * window that fell entirely inside the *sale-waiting* period was computed correctly the first time
- * (it's right there in that first call's own `crossings.boost`) but silently discarded, and the
- * second block's from-scratch window started only AFTER that boundary had already passed, so it
- * never got a another chance to find it. Merging both lists chronologically here fixes that: every
- * crossing — sale or boost, in whatever order they actually occur — gets its own wait action.
- *
- * When a boundary genuinely is crossed, a `wait_for_research_sale`/`wait_for_earnings_boost`
- * (starting) or `wait_for_research_sale_end`/`wait_for_earnings_boost_end` (ending) action is inserted for exactly the calendar distance to that boundary. This
- * doesn't double-count time: the wait's duration is independent of price, and the purchase that
- * follows computes its own (correspondingly shorter) remaining wait from the bank/population the
- * wait action already advanced to. When no boundary is actually crossed, nothing is inserted at all.
- *
- * `checkRoiGate` (only passed `true` by `handleBuyMilestoneChain`, and only for a research-level
- * milestone target) additionally enforces the same "clears 70% ROI by the next research sale" bar
- * `computeResearchMilestoneChain`'s own detour/target steps now require before including a purchase
- * — see that function's doc comment (`milestoneChain.ts`) for why: without it, a purchase that only
- * becomes affordable a few minutes before a sale gets bought immediately at full price, when waiting
- * those few minutes would have meant 70% off. Recomputed fresh here (not trusted from the plan) for
- * the same self-correcting reason every other number in this function is. Deliberately NOT applied
- * for a TIER milestone target: most of that chain is `computeTierMilestoneChain`'s cheapest-first
- * tail, which buys by price/ROI-speed alone with no such gate (every purchase counts toward a tier
- * unlock regardless of ROI) — checking it live there would defer cheap filler purchases the plan
- * never screened for it, a real wait the preview never showed. Also not applied to
- * `runSaleAwareBuyFlow`'s or "Buy Until Sale Ends"'s own calls — their candidates are already
- * selected by rules (the 70% button literally, "Buy Until Sale Ends" by delivery impact rather than
- * earnings ROI) this gate would be redundant or actively wrong for.
- */
-function syncEventStateForItem(item: { research: CommonResearch }, checkRoiGate = false) {
-  const beforeSnapshot = prepareExecution();
-  const level = beforeSnapshot.researchLevels[item.research.id] || 0;
-  if (level >= item.research.levels) return;
-
-  const absoluteSimTime = absoluteSimTimeAt(beforeSnapshot.lastStepTime);
-  const transitions = boostTransitionsFrom(beforeSnapshot, absoluteSimTime);
-  const isSaleActive = beforeSnapshot.activeSales.research;
-  const isBoostActive = beforeSnapshot.earningsBoost.active;
-  const purchase = getSaleAwareTimeToSave(
-    item.research,
-    level,
-    costModifiers.value,
-    isSaleActive,
-    absoluteSimTime,
-    beforeSnapshot,
-    transitions
-  );
-
-  // Already timed to buy during a real sale (or waiting for a later one) — `shouldDeferToNextSale`'s
-  // own during-sale bypass would pass trivially, so skip the extra check entirely.
-  if (checkRoiGate && !purchase.duringSale) {
-    const nextSale = getNextSaleStart(absoluteSimTime);
-    const defer = shouldDeferToNextSale(
-      item.research,
-      level,
-      costModifiers.value,
-      beforeSnapshot,
-      getSimulationContext(),
-      absoluteSimTime,
-      nextSale,
-      researchSaleDeadline.value,
-      isSaleActive,
-      transitions,
-      purchase.duringSale
-    );
-
-    if (defer) {
-      if (DEBUG_MILESTONE_EXECUTION) {
-        console.log(
-          `[ResearchActions] syncEventStateForItem: ${item.research.id} Lv${level} would not clear 70% ROI before nextSaleStart=${new Date(nextSale * 1000).toISOString()} at full price — waiting for the sale instead of buying now`
-        );
+// The milestone view's way of buying (shared with Smart Wait for Population): research levels with
+// the sale and 2x earnings waits their saving crosses, and farm purchases step by step.
+const { absoluteSimTimeAt, syncEventStateForItem, advanceToDeadline, buyOneLevel, buyChainItem, buyFarmSteps } =
+  useResearchPurchases({
+    crossingWaits,
+    farmActions: { buyHab, buyVehicle, buyTrainCar },
+    costModifiers: () => costModifiers.value,
+    researchSaleDeadline: () => researchSaleDeadline.value,
+    // Trigger automated sweep if Always On is enabled
+    afterBuy: () => {
+      if (!isThresholdBuying.value && autoBuyState.value.alwaysOn) {
+        handleThresholdBuy(autoBuyState.value.threshold);
       }
-      advanceToDeadline(nextSale);
-      return;
-    }
-  }
-
-  const crossings = findEventCrossings(absoluteSimTime, purchase.waitSeconds, isSaleActive, isBoostActive);
-
-  if (DEBUG_MILESTONE_EXECUTION) {
-    const completesAt = absoluteSimTime + purchase.waitSeconds;
-    console.log(
-      `[ResearchActions] syncEventStateForItem: ${item.research.id} Lv${level}, now=${new Date(absoluteSimTime * 1000).toISOString()}, bank=${beforeSnapshot.bankValue}, offlineEarnings=${beforeSnapshot.offlineEarnings}, isSaleActive=${isSaleActive} -> price=${purchase.price}, waitSeconds=${purchase.waitSeconds}, duringSale=${purchase.duringSale}, completesAt=${new Date(completesAt * 1000).toISOString()}, saleCrossings=${crossings.sale.length}, boostCrossings=${crossings.boost.length}`
-    );
-  }
-
-  insertEventCrossingWaits(absoluteSimTime, crossings, beforeSnapshot);
-}
-
-/**
- * Carries the plan's clock the rest of the way to `targetDeadline` on its own, inserting whatever
- * wait actions the remaining sale/boost crossings between "wherever the buy loop stopped"
- * and the deadline need. `runSaleAwareBuyFlow`'s buy loop only advances time as a side effect of
- * `syncEventStateForItem` calls made right before each purchase — so if it stops because
- * `getNextCandidate()` ran out of qualifying research (rather than because the deadline was
- * actually reached), nothing else ever carries the plan forward, and the promised "wait for the
- * sale to end, then the boost, then wait for the next sale" progression silently doesn't happen. A
- * no-op if `targetDeadline` has already been reached (e.g. the transitional bypass purchase already
- * carried the clock there).
- */
-function advanceToDeadline(targetDeadline: number) {
-  if (!isFinite(targetDeadline)) return;
-  const beforeSnapshot = prepareExecution();
-  const absoluteSimTime = absoluteSimTimeAt(beforeSnapshot.lastStepTime);
-  const waitSeconds = targetDeadline - absoluteSimTime;
-  if (waitSeconds <= 0) return;
-
-  const isSaleActive = beforeSnapshot.activeSales.research;
-  const isBoostActive = beforeSnapshot.earningsBoost.active;
-  const crossings = findEventCrossings(absoluteSimTime, waitSeconds, isSaleActive, isBoostActive);
-
-  const { snapshot: afterSnapshot, cursor } = insertEventCrossingWaits(absoluteSimTime, crossings, beforeSnapshot);
-
-  // Any stretch after the last crossing (or the whole window, if there were none at all — e.g. no
-  // boost is due before the next sale) still needs a plain wait so the clock actually reaches
-  // targetDeadline, not just its last crossing.
-  const remaining = targetDeadline - cursor;
-  if (remaining > 0) {
-    insertWait('wait_for_time', remaining, afterSnapshot);
-  }
-}
+    },
+  });
 
 // Automatically sweep when Always On is toggled on
 watch(
@@ -895,6 +770,7 @@ async function runSaleAwareBuyFlow(plan: SaleAwarePlanEntry[]) {
       researchId => {
         const next = plan[index];
         index++;
+        if (next?.farm) return buyFarmSteps(next.farm.steps, false);
         const research = getResearchById(researchId);
         if (!research) return false;
         if (next) syncEventStateForItem({ research });
@@ -1048,7 +924,7 @@ async function handleThresholdBuy(threshold: number) {
       // up" before it reads the purchases themselves.
       const notePayload = buildQuickBuyNotePayload(
         threshold,
-        plan.researchIds.length,
+        (plan.purchases ?? plan.researchIds).length,
         plan.totalSecondsToSave ?? 0,
         plan.totalSpent ?? 0
       );
@@ -1068,10 +944,14 @@ async function handleThresholdBuy(threshold: number) {
         );
       }
 
-      for (const researchId of plan.researchIds) {
-        const research = getResearchById(researchId);
-        if (!research) continue;
-        if (!buyOneLevel(research)) break;
+      for (const purchase of plan.purchases ?? plan.researchIds.map(researchId => ({ researchId }))) {
+        if ('farm' in purchase) {
+          if (!buyFarmSteps(purchase.farm.steps, false)) break;
+        } else {
+          const research = getResearchById(purchase.researchId);
+          if (!research) continue;
+          if (!buyOneLevel(research)) break;
+        }
         if (isEditingPastGroup.value) await settled();
       }
     });
@@ -1135,8 +1015,7 @@ function handleBuyToHere(index: number) {
 
   batch(async () => {
     for (let i = 0; i <= index; i++) {
-      const item = list[i];
-      buyOneLevel(item.research);
+      buyListItem(list[i], false);
       if (isEditingPastGroup.value) await settled();
     }
   });
@@ -1164,7 +1043,7 @@ async function handleBuyMilestoneChain() {
   if (totalDuration === undefined) {
     totalDuration = 0;
     for (const item of list) {
-      totalDuration += getTimeToBuySeconds(item.research);
+      totalDuration += isFarmViewItem(item) ? item.timeToBuySeconds : getTimeToBuySeconds(item.research);
     }
   }
 
@@ -1224,10 +1103,7 @@ async function handleBuyMilestoneChain() {
       // to the next sale (a real multi-day wait the preview never showed) whenever that particular
       // filler's own payback happens to be slow.
       const checkRoiGate = milestoneTarget.value?.kind === 'research';
-      for (const item of list) {
-        syncEventStateForItem(item, checkRoiGate);
-        buyOneLevel(item.research);
-      }
+      for (const item of list) buyListItem(item, checkRoiGate);
 
       if (DEBUG_MILESTONE_EXECUTION) {
         const endSnapshot = actionsStore.effectiveSnapshot;
@@ -1238,6 +1114,68 @@ async function handleBuyMilestoneChain() {
     });
   } finally {
     isApplyingMilestoneChain.value = false;
+  }
+}
+
+/** Buys one row of a research list. Must run inside `batch`. */
+function buyListItem(item: ResearchListItem, checkRoiGate: boolean): boolean {
+  return buyChainItem(item, checkRoiGate);
+}
+
+function handleBuyFarmItem(item: FarmViewItem) {
+  batch(() => void buyListItem(item, false));
+}
+
+async function handleBuyHabSpaceChain() {
+  const summary = habSpaceSummary.value;
+  if (!summary) return;
+  const list = sortedResearches.value;
+  const target = summary.target;
+
+  isApplyingHabSpaceChain.value = true;
+  await yieldForOverlayPaint();
+
+  try {
+    await batch(() => {
+      const notePayload = buildHabSpaceNotePayload(
+        habSpaceTargetLabel(target),
+        list.length + 1,
+        summary.totalSeconds,
+        summary.totalSpent
+      );
+      if (notePayload) {
+        const noteBeforeSnapshot = prepareExecution();
+        completeExecution(
+          createNoteAction(
+            notePayload,
+            computeDependencies(
+              'notification',
+              notePayload,
+              actionsStore.actionsBeforeInsertion,
+              actionsStore.initialSnapshot.researchLevels
+            )
+          ),
+          noteBeforeSnapshot
+        );
+      }
+
+      // Earnings research passed the 70%-by-next-sale bar when planned, so it's re-checked live the
+      // same way the milestone chain's research purchases are.
+      for (const item of list) buyListItem(item, true);
+
+      // The hab space itself is bought regardless of that bar: it's there to keep the habs from filling.
+      if (target.kind === 'research') {
+        const research = getResearchById(target.researchId);
+        if (research) {
+          syncEventStateForItem({ research }, false);
+          buyOneLevel(research);
+        }
+      } else {
+        buyHab(target.slotIndex, target.habId);
+      }
+    });
+  } finally {
+    isApplyingHabSpaceChain.value = false;
   }
 }
 

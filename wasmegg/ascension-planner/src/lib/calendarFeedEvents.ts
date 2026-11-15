@@ -119,12 +119,18 @@ const KIND_OF: Record<LineKind, CalKind | null> = {
 };
 
 const PLAYER_ID = /EI\d{16}/gi;
+
+// C0, DEL, C1 (U+0085 is a line end) and the Unicode line and paragraph separators: a lenient .ics reader treats any of them as a line
+// break, so none may reach a title or note (QA red team, 14 Nov 2026; the collector refuses them too).
 // eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u001f\u007f]/g;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+// Invisible and direction-changing characters: soft hyphen, ALM, Mongolian vowel separator, zero-width, bidi marks and isolates, word joiner and
+// BOM. A title could look different from its text, so they are removed (the collector refuses them; red team round 2, 14 Nov). Combining marks stay.
+const HIDDEN = /[\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g;
 
 /** Plain text: no player ID, no control characters, runs of space folded, cut to `max` with an ellipsis. */
 function clean(text: string, max: number): string {
-  const t = text.replace(PLAYER_ID, '').replace(CONTROL, ' ').replace(/\s+/g, ' ').trim();
+  const t = text.replace(PLAYER_ID, '').replace(HIDDEN, '').replace(CONTROL, ' ').replace(/\s+/g, ' ').trim();
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
@@ -179,7 +185,16 @@ interface Draft {
   title: string;
   /** The notes before the "Planned as of" line is added. */
   body?: string;
+  /** A buy's items (the lines' text without "buy "), for merging runs of buys into one event. */
+  items?: string[];
+  /** Set when other buys were merged into this one. */
+  merged?: boolean;
 }
+
+/** Buys whose start is within this of the previous buy's become ONE event (Jordan's real test: 82 buys a few minutes apart). */
+export const CAL_MERGE_GAP_MIN = 30;
+/** About this many events a day: the buys past it are merged into the last buy of that day. */
+export const CAL_MAX_PER_DAY = 12;
 
 const upFirst = (t: string): string => (t ? t[0]!.toUpperCase() + t.slice(1) : t);
 
@@ -209,6 +224,84 @@ function bodyOf(lines: readonly CalLine[]): string | undefined {
   const tail = lines[lines.length - 1]?.tail ? `\n${clean(lines[lines.length - 1]!.tail!, 40)}` : '';
   const all = `${text}${tail}`;
   return all.length <= BODY_MAX ? all : `${all.slice(0, BODY_MAX - 1).trimEnd()}…`;
+}
+
+/** One event for a run of buys: "Buy: <first item> +N more" (cut to 80), the buys listed in the notes (cut to fit 300 with the footer). */
+function mergedBuy(items: readonly string[]): { title: string; body?: string } {
+  const more = items.length - 1;
+  const suffix = more > 0 ? ` +${more} more` : '';
+  const title = clean(
+    `${clean(`Buy: ${items[0]}`, Math.max(8, CAL_TITLE_MAX - suffix.length))}${suffix}`,
+    CAL_TITLE_MAX
+  );
+  if (items.length <= 1) return { title };
+  const all = items.map(i => `- ${clean(i, 120)}`).join('\n');
+  return { title, body: all.length <= BODY_MAX ? all : `${all.slice(0, BODY_MAX - 1).trimEnd()}…` };
+}
+
+const dayKey = (ms: number, zone: string): string => {
+  const fmt = (z: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: z, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(ms)
+    );
+  try {
+    return fmt(zone);
+  } catch {
+    return fmt('UTC');
+  }
+};
+
+/**
+ * Sorted drafts in, fewer out: consecutive buys within CAL_MERGE_GAP_MIN of the previous buy become one event at the first
+ * buy's time (same uid). A shift, prestige, route or note never merges and ends the run. Then at most CAL_MAX_PER_DAY events a
+ * day: the buys past that are merged into the last buy kept for the day.
+ */
+function mergeBuys(sorted: readonly Draft[], zone: string): Draft[] {
+  const gap = CAL_MERGE_GAP_MIN * 60_000;
+  const out: Draft[] = [];
+  let run: Draft | null = null;
+  let lastBuyAt = 0;
+  for (const d of sorted) {
+    if (d.kind !== 'buy' || !d.items) {
+      out.push(d);
+      run = null;
+      continue;
+    }
+    if (run && d.start - lastBuyAt <= gap) {
+      run.items!.push(...d.items);
+      run.merged = true;
+    } else {
+      run = { ...d, items: [...d.items] };
+      out.push(run);
+    }
+    lastBuyAt = d.start;
+  }
+  const byDay = new Map<string, Draft[]>();
+  for (const d of out) {
+    const k = dayKey(d.start, zone);
+    byDay.set(k, [...(byDay.get(k) ?? []), d]);
+  }
+  const dropped = new Set<Draft>();
+  for (const day of byDay.values()) {
+    const buys = day.filter(d => d.kind === 'buy' && d.items);
+    const allowed = Math.max(1, CAL_MAX_PER_DAY - (day.length - buys.length));
+    if (buys.length <= allowed) continue;
+    const keep = buys[allowed - 1]!;
+    for (const extra of buys.slice(allowed)) {
+      keep.items!.push(...extra.items!);
+      keep.merged = true;
+      dropped.add(extra);
+    }
+  }
+  const result = out.filter(d => !dropped.has(d));
+  for (const d of result) {
+    if (d.merged && d.items) {
+      const m = mergedBuy(d.items);
+      d.title = m.title;
+      if (m.body) d.body = m.body;
+    }
+  }
+  return result;
 }
 
 const clockParts = (ms: number, zone: string): { time: string; zone: string } => {
@@ -245,8 +338,10 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   const include = { ...INCLUDE_DEFAULT, ...(input.options?.include ?? {}) };
   const leadOf = { ...LEAD_DEFAULT, ...(input.options?.lead ?? {}) };
   const days = Math.max(1, Math.min(60, Math.floor(input.options?.days ?? CAL_DEFAULT_DAYS)));
-  const from = input.now - PAST_MS;
-  const to = input.now + days * DAY_MS;
+  // Whole milliseconds everywhere: the collector refuses a fraction (QA, 14 Nov: window.to was 1794939489046.5247).
+  const now = Math.floor(input.now);
+  const from = now - PAST_MS;
+  const to = now + days * DAY_MS;
   const zone = input.zone ?? 'UTC';
 
   // Group the tickable lines by check-in; the others (sale starts and ends, back online) stand alone.
@@ -264,7 +359,7 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     if (input.ticks.has(l.key)) continue;
     drafts.push({
       uid: uidOf(input.ascensionStart, l.key),
-      start: l.at * 1000,
+      start: Math.round(l.at * 1000),
       kind,
       title: clean(lineTitle(kind, l), CAL_TITLE_MAX),
       ...(l.tail ? { body: clean(l.tail, BODY_MAX) } : {}),
@@ -280,17 +375,18 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     const body = bodyOf(left);
     drafts.push({
       uid: uidOf(input.ascensionStart, first.key),
-      start: first.at * 1000,
+      start: Math.round(first.at * 1000),
       kind,
       title: titleOf(kind, left),
       ...(body ? { body } : {}),
+      ...(kind === 'buy' ? { items: left.map(l => clean(l.text.replace(/^buy\s+/i, ''), 120)) } : {}),
     });
   }
   const route = input.route;
   if (route && route.finish && route.finish > 0) {
     drafts.push({
       uid: `route:${route.goal.replace(/[^A-Za-z0-9._:-]/g, '_')}`.slice(0, 80),
-      start: route.finish * 1000,
+      start: Math.round(route.finish * 1000),
       kind: 'route',
       title: route.endTE ? `Reach ${route.endTE} TE (about)` : 'Your route ends (about)',
     });
@@ -301,9 +397,10 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     .filter(d => include[d.kind] && d.start >= from && d.start <= to)
     .sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
   // One place of the 100 is the "Plan last updated" marker.
-  let kept = picked.slice(0, CAL_MAX_EVENTS - 1);
+  const merged = mergeBuys(picked, zone);
+  let kept = merged.slice(0, CAL_MAX_EVENTS - 1);
 
-  const footerNow = plannedAsOf(input.now, zone);
+  const footerNow = plannedAsOf(now, zone);
   const events: CalEvent[] = kept.map(d => {
     const lead = leadOf[d.kind];
     const e: CalEvent = { uid: d.uid, seq: 0, start: d.start, kind: d.kind, title: d.title };
@@ -327,22 +424,21 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     events.pop();
   }
   kept = kept.slice(0, events.length);
-  const truncated = picked.length > events.length;
+  const truncated = merged.length > events.length;
 
   // `src` says what the events say, without the footer's time: unchanged means nothing to send, and the time stays the one
   // the plan last changed (not "now" on every rebuild).
   const src = hash(JSON.stringify(events.map(({ seq: _seq, ...rest }) => rest)));
   const same = !!input.previous && input.previous.src === src && typeof input.previous.asOf === 'number';
-  const asOf = same ? input.previous!.asOf : input.now;
+  const asOf = same ? Math.floor(input.previous!.asOf) : now;
   const footer = plannedAsOf(asOf, zone);
   for (const e of events) e.notes = e.notes ? `${e.notes}\n${footer}` : footer;
-  if (events.length) {
-    const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
-    const was = previous.get(MARKER_UID);
-    if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
-    events.push(marker);
-    events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
-  }
+  // Always there, even with no check-ins in the window: an empty feed looks broken (QA, 14 Nov).
+  const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
+  const was = previous.get(MARKER_UID);
+  if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
+  events.push(marker);
+  events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
   return {
     v: 1,
     asOf,

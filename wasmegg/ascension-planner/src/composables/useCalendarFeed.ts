@@ -18,8 +18,12 @@ import { computed, ref } from 'vue';
 import { buildCalendarEvents, sameCalendar, type CalEventList, type CalendarInput } from '@/lib/calendarFeedEvents';
 import { CALENDAR_FEED, mintCalendarLink, putCalendar, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
+import * as blackBox from '@/search/blackBox';
 
 export const CAL_DEBOUNCE_MS = 10_000;
+/** How many days ahead the feed shows for a PRODUCING player (the Next shifts stand in for the tracker's lines): shifts are days apart. Buying keeps the
+ *  builder's default (lib/calendarFeedEvents.ts CAL_DEFAULT_DAYS, 14). Jordan, 14 Nov 2026. */
+export const CAL_PRODUCING_DAYS = 60;
 
 export interface CalendarFeedEnv {
   /** The account as this browser keys it (search/runSaves.ts `accountOf`), '' without one. */
@@ -31,6 +35,14 @@ export type CalendarFeedInput = Omit<CalendarInput, 'previous'>;
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type Last = Pick<CalEventList, 'events' | 'src' | 'asOf'>;
 export type CalPhase = 'idle' | 'confirm' | 'reset-done';
+
+function browserZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
 
 export function createCalendarFeed(o: {
   storage: StorageLike | null;
@@ -61,9 +73,14 @@ export function createCalendarFeed(o: {
   /** The link, shown once. Memory only. */
   const link = ref<string | null>(null);
   const busy = ref(false);
-  const error = ref<'' | CalFail>('');
+  /** `upload`: the plan could not be sent to the calendar (the link buttons use CalFail's `error` instead). */
+  const error = ref<'' | CalFail | 'upload'>('');
   const phase = ref<CalPhase>('idle');
   const copied = ref(false);
+  /** A link was made before My runs gave any plan: only the marker is up, and the card says to open My runs once. */
+  const needsMyRuns = ref(false);
+  /** Reset link is offered with a link kept here, and also when the server says the limit is hit (3 links made on another device). */
+  const canReset = computed(() => linked.value || error.value === 'limit');
   // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
   const available = computed(() => CALENDAR_FEED.enabled && SYNC_RECORDS.enabled && !!o.env.account && o.env.target() !== null);
 
@@ -130,9 +147,17 @@ export function createCalendarFeed(o: {
       linked.value = true;
       write(key('.linked'), '1');
       phase.value = 'idle';
+      // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
+      keep(null);
+      // The plan My runs gave so far, else just the marker (a fresh subscription is never empty); the card asks for My runs.
+      needsMyRuns.value = !latest;
+      pending = latest ?? { now: Date.now(), ascensionStart: 0, lines: [], ticks: new Set<string>(), zone: browserZone(), hours: null };
+      if (timer) clearTimeout(timer);
+      timer = null;
     } finally {
       busy.value = false;
     }
+    await flush();
   }
   async function copy(): Promise<void> {
     if (!link.value) return;
@@ -169,6 +194,8 @@ export function createCalendarFeed(o: {
 
   // ------------------------------------------------------------------------------------------ the plan going up
   let pending: CalendarFeedInput | null = null;
+  /** The newest plan handed to `note`, kept even before a link exists so Get link can send it at once. */
+  let latest: CalendarFeedInput | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   async function flush(): Promise<void> {
     const input = pending;
@@ -180,17 +207,27 @@ export function createCalendarFeed(o: {
     if (sameCalendar(last, next)) return;
     let r = await putCalendar(t.url, t.k, Date.now(), next, f);
     if (!r.ok && r.why === 'newer') r = await putCalendar(t.url, t.k, Date.now(), next, f);
-    if (r.ok) keep({ events: next.events, src: next.src, asOf: next.asOf });
+    if (r.ok) {
+      keep({ events: next.events, src: next.src, asOf: next.asOf });
+      if (error.value) error.value = '';
+      return;
+    }
+    // Not silent: the card says so, and the black box keeps the reason (never the link).
+    error.value = r.why === 'offline' ? 'offline' : r.why === 'off' ? 'off' : 'upload';
+    blackBox.note(`calendar upload failed: ${r.why}`);
   }
   /** The plan as it is now (My runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */
   function note(input: CalendarFeedInput): void {
-    if (!CALENDAR_FEED.enabled || !enabled.value || !linked.value) return;
+    if (!CALENDAR_FEED.enabled) return;
+    latest = input;
+    needsMyRuns.value = false;
+    if (!enabled.value || !linked.value) return;
     pending = input;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);
   }
 
-  return { enabled, linked, link, busy, error, phase, copied, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 
@@ -241,6 +278,9 @@ export function useCalendarFeed(): CalendarFeed {
  */
 export function useCalendarFeedPush(src: {
   lines: Ref<readonly CalLine[] | null | undefined>;
+  /** A PRODUCING player (nothing to buy, the tracker `notBuilding`) has no tracker lines: these stand in for them (the Next shifts: the shifts and the
+   *  prestige, lib/calendarNextShifts.ts). Used only when `lines` is null; the plan's start may then be unknown, and the feed's slot is 0. */
+  fallbackLines?: Ref<readonly CalLine[] | null | undefined>;
   ticks: Ref<ReadonlySet<string>>;
   ascensionStart: Ref<number | null>;
   zone: Ref<string>;
@@ -249,12 +289,25 @@ export function useCalendarFeedPush(src: {
 }): void {
   const initial = useInitialStateStore();
   watch(
-    () => [src.lines.value, src.ticks.value, src.ascensionStart.value, src.zone.value, src.hours.value] as const,
+    () => [src.lines.value, src.fallbackLines?.value, src.ticks.value, src.ascensionStart.value, src.zone.value, src.hours.value] as const,
     () => {
-      const lines = src.lines.value;
+      const own = src.lines.value;
+      const lines = own ?? src.fallbackLines?.value;
       const account = accountOf(initial.rawBackup);
-      if (!lines || !account || !src.ascensionStart.value) return;
-      calendarFeedFor(account).note({ now: Date.now(), ascensionStart: src.ascensionStart.value, lines, ticks: src.ticks.value, zone: src.zone.value, hours: calHoursOf(src.hours.value) });
+      if (!lines || !account) return;
+      // The tracker's lines need the ascension's start (their uids). The stand-ins are keyed without a time and always use slot 0: the plan's
+      // start is the follow time, so a re-follow would give every shift a new uid (an entry the player dismissed would come back).
+      const ascensionStart = own ? src.ascensionStart.value || 0 : 0;
+      if (own && !ascensionStart) return;
+      calendarFeedFor(account).note({
+        now: Date.now(),
+        ascensionStart,
+        lines,
+        ticks: src.ticks.value,
+        zone: src.zone.value,
+        hours: calHoursOf(src.hours.value),
+        ...(own ? {} : { options: { days: CAL_PRODUCING_DAYS } }),
+      });
     },
     { immediate: true }
   );

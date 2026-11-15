@@ -446,6 +446,8 @@ export interface ForgetCounts {
   prefs: number;
   answers: number;
   synced: number;
+  /** Calendar links removed (calendar feed only; absent when none or an older collector). */
+  calFeeds?: number;
 }
 /** 'cannot': 404 or 405, an older collector without /forget. */
 export type ForgetResult = { ok: true; deleted: ForgetCounts } | { ok: false; why: 'cannot' | 'limit' | 'off' | 'offline' | 'error'; retryAfter?: number };
@@ -464,7 +466,7 @@ export async function forgetEverything(submitUrl: string | null | undefined, k: 
       const j = await bodyOf(res);
       if (res.ok) {
         const d = ((j as { deleted?: Partial<ForgetCounts> } | null)?.deleted ?? {}) as Partial<ForgetCounts>;
-        return { ok: true, deleted: { follows: Number(d.follows) || 0, prefs: Number(d.prefs) || 0, answers: Number(d.answers) || 0, synced: Number(d.synced) || 0 } };
+        return { ok: true, deleted: { follows: Number(d.follows) || 0, prefs: Number(d.prefs) || 0, answers: Number(d.answers) || 0, synced: Number(d.synced) || 0, ...(Number(d.calFeeds) > 0 ? { calFeeds: Number(d.calFeeds) } : {}) } };
       }
       if (res.status === 404 || res.status === 405) return { ok: false, why: 'cannot' };
       if (res.status === 429) {

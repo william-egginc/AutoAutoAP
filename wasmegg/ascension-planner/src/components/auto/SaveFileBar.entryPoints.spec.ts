@@ -29,7 +29,15 @@ describe('every "Load a save file" goes through loadSaveFile', () => {
   it('the only file inputs are SaveFileBar (saves) and the Manual Planner / Explorer imports (not saves)', () => {
     const withInput = files.filter(x => /type="file"/.test(x.text)).map(x => x.f).sort();
     expect(withInput).toEqual(
-      ['../../../ui/components/planners/PlanFinalSummary.vue', '../../../ui/components/planners/PlanLibrary.vue', 'components/auto/SaveFileBar.vue', 'explorer/SweepUpload.vue'].sort()
+      [
+        '../../../ui/components/planners/PlanFinalSummary.vue',
+        '../../../ui/components/planners/PlanLibrary.vue',
+        // PR 714 (upstream, 14 Nov 2026): the Manual Planner's humility missions import reads a missions file (what was launched),
+        // not a save, and never calls parseSaveFile or loadSaveFile (checked by the loop below).
+        '../../../ui/components/planners/actions/rockets/HumilityMissionsImport.vue',
+        'components/auto/SaveFileBar.vue',
+        'explorer/SweepUpload.vue',
+      ].sort()
     );
     // Called from SaveFileBar only; defined in the store (the loader) and search/keptSaves.ts (the parser).
     const home = ['components/auto/SaveFileBar.vue', 'stores/chainSearch.ts', 'search/keptSaves.ts'];
