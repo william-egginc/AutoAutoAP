@@ -3,7 +3,8 @@
   subscribes to, off by default behind its OWN switch). composables/useCalendarFeed.ts is what it does, lib/calendarCloud.ts
   the calls, lib/calendarFeedWords.ts Words' text. The link is shown ONCE (in memory only, never stored here), with Copy,
   Add to Apple Calendar (webcal://) and Add to Google Calendar. Reset link asks first. Hidden without a collector or with
-  Save online off (the same online target as the other synced records). The privacy text (Words' part 1C) is not here yet.
+  Save online off (the same online target as the other synced records), and while the build flag is off (lib/calendarCloud.ts
+  CALENDAR_FEED: beta's collector is the live one, which has no /cal yet). The privacy text (Words' part 1C) is not here yet.
 -->
 <template>
   <div v-if="feed.available.value" class="space-y-2" data-testid="calendar-feed">

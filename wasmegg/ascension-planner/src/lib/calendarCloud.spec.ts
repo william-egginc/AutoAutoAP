@@ -3,9 +3,17 @@
  * notes/calendar-feed-build-2026-11-14.md): POST /cal/new with k in the body, POST /cal/revoke with { k, all: true }, the
  * subscribe links, and the 'cal' sync record. No network, no real key or ID.
  */
-import { describe, expect, it } from 'vitest';
-import { calBaseOf, googleCalendarUrl, mintCalendarLink, putCalendar, revokeCalendarLinks, webcalUrl } from './calendarCloud';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CALENDAR_FEED, calBaseOf, googleCalendarUrl, mintCalendarLink, putCalendar, revokeCalendarLinks, webcalUrl } from './calendarCloud';
 import type { SyncFetch } from './syncedRecords';
+
+// The build flag is off in the repo (calendarFeedFlag.spec.ts); these specs are of a build with it on.
+beforeEach(() => {
+  CALENDAR_FEED.enabled = true;
+});
+afterEach(() => {
+  CALENDAR_FEED.enabled = false;
+});
 
 const K = 'a'.repeat(64);
 const SYNC = 'https://collector.example/sync';

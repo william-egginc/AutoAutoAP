@@ -4,12 +4,21 @@
  * Copy and the two subscribe links; Reset link asks first. Hidden without an online target. No privacy text yet.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import CalendarFeedSetup from './CalendarFeedSetup.vue';
 import { createCalendarFeed } from '@/composables/useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
 import * as W from '@/lib/calendarFeedWords';
+import { CALENDAR_FEED } from '@/lib/calendarCloud';
+
+// The build flag is off in the repo (lib/calendarFeedFlag.spec.ts); these specs are of a build with it on.
+beforeEach(() => {
+  CALENDAR_FEED.enabled = true;
+});
+afterEach(() => {
+  CALENDAR_FEED.enabled = false;
+});
 
 const K = 'c'.repeat(64);
 const URL_OK = 'https://collector.example/cal/AbCdEfGhIjKlMnOpQrStUv.ics';

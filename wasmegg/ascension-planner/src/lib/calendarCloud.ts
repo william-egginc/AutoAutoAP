@@ -9,6 +9,15 @@
 import { putSynced, type PutSyncedResult, type SyncFetch } from './syncedRecords';
 import type { CalEventList } from './calendarFeedEvents';
 
+/**
+ * THE CALENDAR FEED'S BUILD FLAG (14 Nov 2026): off in the repo, because beta's collector address is the LIVE collector, which has
+ * no /cal and no 'cal' sync kind yet. Flipped on (the `=== '1'` here becomes `true`) in the release that deploys the live
+ * collector. A QA build against the TEST collector turns it on with VITE_CALENDAR_FEED=1. An object so the specs can turn it on
+ * and off. Off: no Setup card (components/auto/CalendarFeedSetup.vue), and no request to /cal or of kind=cal, checked here
+ * (every call below refuses first) and in composables/useCalendarFeed.ts (`available`, `note`).
+ */
+export const CALENDAR_FEED = { enabled: import.meta.env.VITE_CALENDAR_FEED === '1' };
+
 const KEY = /^[0-9a-f]{64}$/;
 const TIMEOUT_MS = 10_000;
 const defaultFetch = (): SyncFetch | null =>
@@ -61,7 +70,7 @@ export function isFeedUrl(u: unknown, base: string): u is string {
 /** POST /cal/new { k }: a new private link, `url` shown to the player once. 409: three live links already. */
 export async function mintCalendarLink(syncUrl: string, k: string, f: SyncFetch | null = defaultFetch()): Promise<MintResult> {
   const base = calBaseOf(syncUrl);
-  if (!base || !KEY.test(k) || !f) return { ok: false, why: 'off' };
+  if (!CALENDAR_FEED.enabled || !base || !KEY.test(k) || !f) return { ok: false, why: 'off' };
   const r = await post(f, `${base}/new`, { k });
   if (r === 'offline') return { ok: false, why: 'offline' };
   if (r.status < 200 || r.status >= 300) return { ok: false, why: failOf(r.status) };
@@ -72,7 +81,7 @@ export async function mintCalendarLink(syncUrl: string, k: string, f: SyncFetch 
 /** POST /cal/revoke { k, all: true }: every link of this account stops at once. */
 export async function revokeCalendarLinks(syncUrl: string, k: string, f: SyncFetch | null = defaultFetch()): Promise<RevokeResult> {
   const base = calBaseOf(syncUrl);
-  if (!base || !KEY.test(k) || !f) return { ok: false, why: 'off' };
+  if (!CALENDAR_FEED.enabled || !base || !KEY.test(k) || !f) return { ok: false, why: 'off' };
   const r = await post(f, `${base}/revoke`, { k, all: true });
   if (r === 'offline') return { ok: false, why: 'offline' };
   if (r.status < 200 || r.status >= 300) return { ok: false, why: failOf(r.status) };
@@ -86,5 +95,6 @@ export const googleCalendarUrl = (url: string): string => `https://calendar.goog
 
 /** PUT /sync kind=cal slot 0: the plan's event list stamped `at` (ms). */
 export function putCalendar(syncUrl: string, k: string, at: number, list: CalEventList, f: SyncFetch | null = defaultFetch(), now: () => number = Date.now): Promise<PutSyncedResult> {
+  if (!CALENDAR_FEED.enabled) return Promise.resolve({ ok: false, why: 'off' });
   return putSynced(syncUrl, k, 'cal', '0', at, list, f, now);
 }

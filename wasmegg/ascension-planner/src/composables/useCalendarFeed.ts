@@ -16,7 +16,7 @@
  */
 import { computed, ref } from 'vue';
 import { buildCalendarEvents, sameCalendar, type CalEventList, type CalendarInput } from '@/lib/calendarFeedEvents';
-import { mintCalendarLink, putCalendar, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
+import { CALENDAR_FEED, mintCalendarLink, putCalendar, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
 
 export const CAL_DEBOUNCE_MS = 10_000;
@@ -64,7 +64,8 @@ export function createCalendarFeed(o: {
   const error = ref<'' | CalFail>('');
   const phase = ref<CalPhase>('idle');
   const copied = ref(false);
-  const available = computed(() => SYNC_RECORDS.enabled && !!o.env.account && o.env.target() !== null);
+  // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
+  const available = computed(() => CALENDAR_FEED.enabled && SYNC_RECORDS.enabled && !!o.env.account && o.env.target() !== null);
 
   let last: Last | null = (() => {
     try {
@@ -80,6 +81,7 @@ export function createCalendarFeed(o: {
   }
 
   function turnOn(): void {
+    if (!CALENDAR_FEED.enabled) return;
     enabled.value = true;
     write(key(), '1');
     error.value = '';
@@ -98,6 +100,7 @@ export function createCalendarFeed(o: {
     keep(null);
   }
   async function turnOff(): Promise<void> {
+    if (!CALENDAR_FEED.enabled) return;
     enabled.value = false;
     write(key(), null);
     pending = null;
@@ -109,6 +112,7 @@ export function createCalendarFeed(o: {
     forget();
   }
   async function getLink(): Promise<void> {
+    if (!CALENDAR_FEED.enabled) return;
     error.value = '';
     const t = o.env.target();
     if (!t) {
@@ -147,6 +151,7 @@ export function createCalendarFeed(o: {
     phase.value = 'idle';
   };
   async function confirmReset(): Promise<void> {
+    if (!CALENDAR_FEED.enabled) return;
     error.value = '';
     busy.value = true;
     try {
@@ -179,7 +184,7 @@ export function createCalendarFeed(o: {
   }
   /** The plan as it is now (My runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */
   function note(input: CalendarFeedInput): void {
-    if (!enabled.value || !linked.value) return;
+    if (!CALENDAR_FEED.enabled || !enabled.value || !linked.value) return;
     pending = input;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);

@@ -3,9 +3,10 @@
  * shown once and never kept; Reset and turning off revoke every link; the plan's events go up only when switched on, linked
  * and changed (sameCalendar), 10 s after the last change, once more on a 409.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCalendarFeed, CAL_DEBOUNCE_MS, type CalendarFeedEnv } from './useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
+import { CALENDAR_FEED } from '@/lib/calendarCloud';
 
 const K = 'b'.repeat(64);
 const SYNC = 'https://collector.example/sync';
@@ -37,7 +38,15 @@ const lines = (n: number) =>
   Array.from({ length: n }, (_, i) => ({ key: `k${i}`, kind: 'research' as const, at: 1_800_000_000 + i * 3600, text: `buy Thing ${i}`, tickable: true, checkIn: i }));
 const input = (n = 2) => ({ now: 1_799_990_000_000, ascensionStart: 1_799_000_000, lines: lines(n), ticks: new Set<string>(), zone: 'America/Los_Angeles', hours: null });
 
-beforeEach(() => vi.useFakeTimers());
+// The build flag is off in the repo (lib/calendarFeedFlag.spec.ts); these specs are of a build with it on.
+beforeEach(() => {
+  CALENDAR_FEED.enabled = true;
+  vi.useFakeTimers();
+});
+afterEach(() => {
+  CALENDAR_FEED.enabled = false;
+  vi.useRealTimers();
+});
 
 describe('off by default; its own switch', () => {
   it('a new account: off, no link, nothing sent', () => {
