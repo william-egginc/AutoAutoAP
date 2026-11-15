@@ -28,3 +28,16 @@ export function closeCallLine(o: { te: number; found?: { level: string; endTE: n
     return `Custom found ${Math.floor(f.endTE)} TE for this date, which is confirmed. The ${o.te} TE above may miss.`;
   return `${o.te} TE is a close call: the quick estimate can be a few days late, so this may miss the date. Run Custom to confirm.`;
 }
+
+/** The button under a close call that starts a Fast run for this goal (Jordan, 15 Nov 2026). DRAFT: Words writes the text. */
+export const CHECK_WITH_FAST = 'Check this with Fast';
+
+/**
+ * Whether to offer that button: the answer is a close call (for any reason: `isCloseCall`'s spare under the budget, the awake hours, or
+ * the gear caveat), no run is going, and no Custom result has settled the date already (`closeCallLine`). Never for an answer that is not a
+ * close call.
+ */
+export function showCheckWithFast(o: { closeCall: boolean; found?: { level: string; endTE: number } | null; running: boolean }): boolean {
+  if (!o.closeCall || o.running) return false;
+  return !(o.found && o.found.level === 'Custom');
+}
