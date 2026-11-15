@@ -248,8 +248,10 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   const include = { ...INCLUDE_DEFAULT, ...(input.options?.include ?? {}) };
   const leadOf = { ...LEAD_DEFAULT, ...(input.options?.lead ?? {}) };
   const days = Math.max(1, Math.min(60, Math.floor(input.options?.days ?? CAL_DEFAULT_DAYS)));
-  const from = input.now - PAST_MS;
-  const to = input.now + days * DAY_MS;
+  // Whole milliseconds everywhere: the collector refuses a fraction (QA, 14 Nov: window.to was 1794939489046.5247).
+  const now = Math.floor(input.now);
+  const from = now - PAST_MS;
+  const to = now + days * DAY_MS;
   const zone = input.zone ?? 'UTC';
 
   // Group the tickable lines by check-in; the others (sale starts and ends, back online) stand alone.
@@ -267,7 +269,7 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     if (input.ticks.has(l.key)) continue;
     drafts.push({
       uid: uidOf(input.ascensionStart, l.key),
-      start: l.at * 1000,
+      start: Math.round(l.at * 1000),
       kind,
       title: clean(lineTitle(kind, l), CAL_TITLE_MAX),
       ...(l.tail ? { body: clean(l.tail, BODY_MAX) } : {}),
@@ -283,7 +285,7 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     const body = bodyOf(left);
     drafts.push({
       uid: uidOf(input.ascensionStart, first.key),
-      start: first.at * 1000,
+      start: Math.round(first.at * 1000),
       kind,
       title: titleOf(kind, left),
       ...(body ? { body } : {}),
@@ -293,7 +295,7 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   if (route && route.finish && route.finish > 0) {
     drafts.push({
       uid: `route:${route.goal.replace(/[^A-Za-z0-9._:-]/g, '_')}`.slice(0, 80),
-      start: route.finish * 1000,
+      start: Math.round(route.finish * 1000),
       kind: 'route',
       title: route.endTE ? `Reach ${route.endTE} TE (about)` : 'Your route ends (about)',
     });
@@ -306,7 +308,7 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   // One place of the 100 is the "Plan last updated" marker.
   let kept = picked.slice(0, CAL_MAX_EVENTS - 1);
 
-  const footerNow = plannedAsOf(input.now, zone);
+  const footerNow = plannedAsOf(now, zone);
   const events: CalEvent[] = kept.map(d => {
     const lead = leadOf[d.kind];
     const e: CalEvent = { uid: d.uid, seq: 0, start: d.start, kind: d.kind, title: d.title };
@@ -336,16 +338,15 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   // the plan last changed (not "now" on every rebuild).
   const src = hash(JSON.stringify(events.map(({ seq: _seq, ...rest }) => rest)));
   const same = !!input.previous && input.previous.src === src && typeof input.previous.asOf === 'number';
-  const asOf = same ? input.previous!.asOf : input.now;
+  const asOf = same ? Math.floor(input.previous!.asOf) : now;
   const footer = plannedAsOf(asOf, zone);
   for (const e of events) e.notes = e.notes ? `${e.notes}\n${footer}` : footer;
-  if (events.length) {
-    const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
-    const was = previous.get(MARKER_UID);
-    if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
-    events.push(marker);
-    events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
-  }
+  // Always there, even with no check-ins in the window: an empty feed looks broken (QA, 14 Nov).
+  const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
+  const was = previous.get(MARKER_UID);
+  if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
+  events.push(marker);
+  events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
   return {
     v: 1,
     asOf,

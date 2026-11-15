@@ -198,7 +198,7 @@ describe('buildCalendarEvents', () => {
   });
   it('an empty plan is an empty list, not an error', () => {
     const out = build([]);
-    expect(out.events).toEqual([]);
+    expect(real(out.events)).toEqual([]);
     expect(out.window.to).toBe(NOW + 14 * 86_400_000);
   });
   it('lead: null or 0 turns the alert off', () => {
@@ -310,7 +310,24 @@ describe("Words' wording (14 Nov)", () => {
     const m = out.events.find(e => e.uid === 'asof')!;
     expect(m).toMatchObject({ kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM', seq: 0 });
     expect(m.notes).toBeUndefined();
-    expect(buildFull([]).events).toEqual([]);
+  });
+  it('every number in the list is a whole millisecond, even when now and the line times are fractions (QA 14 Nov: window.to was refused)', () => {
+    const out = buildFull([buy(1, { at: SEC + 3600.7 }), buy(2)], {
+      now: NOW + 0.5247,
+      route: { goal: 'te', finish: SEC + 7200.3, endTE: 10 } as never,
+    });
+    const nums: number[] = [out.asOf, out.window.from, out.window.to];
+    for (const e of out.events)
+      nums.push(e.start, e.seq, ...(e.end === undefined ? [] : [e.end]), ...(e.lead === undefined ? [] : [e.lead]));
+    expect(nums.length).toBeGreaterThan(5);
+    for (const n of nums) expect(Number.isInteger(n)).toBe(true);
+    const again = buildFull([buy(1)], { now: NOW + 0.5, previous: { events: [], src: 'x', asOf: NOW + 0.25 } });
+    expect(Number.isInteger(again.asOf)).toBe(true);
+  });
+  it('with no check-ins in the window the list is still the marker alone (an empty feed looks broken; QA 14 Nov)', () => {
+    const out = buildFull([]);
+    expect(out.events).toHaveLength(1);
+    expect(out.events[0]).toMatchObject({ uid: 'asof', kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM' });
   });
   it("the marker's seq goes up when the plan changes; the footers keep their seq when only the time moves", () => {
     const a = buildFull([buy(1), buy(2)]);
