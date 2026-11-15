@@ -855,6 +855,7 @@ import {
   type SiteRoute,
   type TopTab,
 } from '@/lib/siteNav';
+import { smartRunName } from '@/lib/stageWords';
 import { CHAIN_FINDER_WORDS } from '@/lib/chainFinderWords';
 import GoalSwitch from '@/components/auto/GoalSwitch.vue';
 import { storeToRefs } from 'pinia';
@@ -1288,7 +1289,7 @@ const screenHere = computed<SearchScreen | 'classic'>(() =>
 function screenName(s: SearchScreen | 'classic'): string {
   if (s === 'classic' || s === 'by-date') return s === 'classic' ? NAMES.classic : NAMES.byDate;
   // "Fastest to 490 TE (Simple)": By a date has a Simple and an Advanced too.
-  return `${fastestName(chainSearchStore.finalTE)} (${s === 'full' ? NAMES.full : NAMES.smart})`;
+  return `${fastestName(chainSearchStore.finalTE)} (${s === 'full' ? NAMES.full : smartRunName(chainSearchStore.effort)})`;
 }
 /** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
 /** Fastest's two searches are on one page since 12 Oct 2026 (FastestRoute.vue): one screen here. */

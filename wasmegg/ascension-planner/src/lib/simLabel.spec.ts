@@ -40,3 +40,12 @@ describe('simLabel', () => {
     expect(simDate(BETA2)).toBe('2026-10-21');
   });
 });
+
+describe('the chip says how big the difference is (review, 15 Nov 2026)', () => {
+  it('an older or newer simulator: up to about a week on a 490 route (about 1%), not "a little"', () => {
+    const t = simLabel('2026-10-13-lowte-gate', '2026-11-14-sim5').title;
+    expect(t).toContain('Finish times can differ by up to about a week on a 490 route (about 1%).');
+    expect(t).not.toContain('a little');
+  });
+});
+

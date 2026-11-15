@@ -131,6 +131,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { NAMES, fastestName } from '@/lib/siteNav';
+import { smartRunName } from '@/lib/stageWords';
 import { showDateTime } from '@/lib/displayTime';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
@@ -162,7 +163,7 @@ const kindLabel = computed(() => {
     return `${NAMES.science} · ${science.request.label}`;
   switch (p.value?.kind) {
     case 'smart':
-      return `${fastestName(store.finalTE)} · ${NAMES.smart}`;
+      return `${fastestName(store.finalTE)} · ${smartRunName(store.effort)}`;
     case 'full':
       return `${fastestName(store.finalTE)} · ${NAMES.full}`;
     case 'by-date':

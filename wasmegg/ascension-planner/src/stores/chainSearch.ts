@@ -81,6 +81,7 @@ import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/vir
 // shippingCapacity first, `allResearches` was still undefined, and it hung on "Loading application".
 import { resolveColleggtibleContracts } from 'lib/contracts';
 import { DEFAULT_EFFORT, EFFORT, estimateChains, estimateOtherCountChains } from '@/search/effort';
+import { completedStageWords, stageWords } from '@/lib/stageWords';
 import {
   buildCheckpoint,
   clearCheckpoint,
@@ -9734,12 +9735,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         restoredCache,
         shouldStop: () => stopRequested.value,
         onProgress: p => {
-          if (p.stage !== stage.value) runLog.value.push(`--- ${p.stage}`);
+          // The log and the black box keep the driver's own stage names; the page says them in plain words (stageWords).
+          if (stageWords(p.stage) !== stage.value) runLog.value.push(`--- ${p.stage}`);
           if (p.detail && p.detail !== detail.value) {
             runLog.value.push(p.detail);
             if (runLog.value.length > 2000) runLog.value.splice(0, runLog.value.length - 2000);
           }
-          stage.value = p.stage;
+          stage.value = stageWords(p.stage);
           detail.value = p.detail;
           chainsDone.value = p.chainsDone;
           chainsEstimated.value = Math.max(p.chainsEstimated, p.chainsDone);
@@ -9763,7 +9765,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestChain.value = outcome.chain;
       bestDays.value = outcome.seconds / 86400;
       bestLegs.value = outcome.legs;
-      lastCompletedStage.value = outcome.lastCompletedStage;
+      lastCompletedStage.value = completedStageWords(outcome.lastCompletedStage);
       stoppedEarly.value = outcome.stoppedEarly;
       if (runCounts.value) runCounts.value = { ...runCounts.value, counts: [...outcome.countsProbed] };
       chainsDone.value = outcome.chainsEvaluated;
