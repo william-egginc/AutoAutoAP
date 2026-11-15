@@ -99,7 +99,9 @@ const BEFORE_EGG_BETA2: Record<string, Pin> = {
  *      -30,262 s and +114 s from sim3 12), +42 s (300@77), +78 s (400@131).
  *  Not checked against the game, only against those commits' stated reasons (aaap-tools notes/lowte-bisect-2026-11-09.md). */
 const PINNED: Record<string, Pin> = {
-  '200@0': { key: '3-sale-tier13', seconds: 9775283.267625479, preC3Seconds: 4770.282487407392, shiftCount: 12 },
+  // sim5 (15 Nov 2026, slow-spec round on b1ce775a0, re-pinned with Jordan's OK): seconds 9775283.267625479 ->
+  // 9779539.235164044 (+4,256 s, +1.18 h); key, preC3 and shifts unchanged; 300@77 and 400@131 unchanged.
+  '200@0': { key: '3-sale-tier13', seconds: 9779539.235164044, preC3Seconds: 4770.282487407392, shiftCount: 12 },
   '300@77': { key: '2-sale-tier13', seconds: 7584009.225974633, preC3Seconds: 3285.3816081006185, shiftCount: 12 },
   // One shift fewer than the pre-merge code: C3 left K3 nothing to buy, so H1 waits out the build on Humility and
   // H2 drops out (Joo's 78ec357a).
