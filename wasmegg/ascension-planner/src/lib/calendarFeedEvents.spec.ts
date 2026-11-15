@@ -4,6 +4,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildCalendarEvents,
   CAL_MAX_EVENTS,
+  CAL_MAX_PER_DAY,
+  CAL_MERGE_GAP_MIN,
   CAL_NOTES_MAX,
   CAL_TITLE_MAX,
   inHours,
@@ -113,12 +115,12 @@ describe('buildCalendarEvents', () => {
     expect(build([buy(1), buy(24 * 10)], { options: { days: 3 } }).events.length).toBe(1);
   });
   it('at most 100 events: the soonest, window.to is the last one so the record says how far it reaches', () => {
-    const lines = Array.from({ length: 150 }, (_, i) => buy(i + 1));
+    const lines = Array.from({ length: 150 }, (_, i) => buy((i + 1) * 2)); // 2 h apart: nothing merges
     const out = buildFull(lines);
     expect(out.events.length).toBe(CAL_MAX_EVENTS); // 99 check-ins and the marker
     expect(real(out.events).length).toBe(CAL_MAX_EVENTS - 1);
     expect(out.window.to).toBe(real(out.events)[98]!.start);
-    expect(real(out.events)[0]!.start).toBe((SEC + 3600) * 1000);
+    expect(real(out.events)[0]!.start).toBe((SEC + 7200) * 1000);
   });
   it('text: titles to 80, notes to 300, no player ID, no control characters, nothing the collector would refuse', () => {
     const long = 'buy ' + 'Very Long Research Name '.repeat(20);
@@ -323,6 +325,63 @@ describe("Words' wording (14 Nov)", () => {
     for (const n of nums) expect(Number.isInteger(n)).toBe(true);
     const again = buildFull([buy(1)], { now: NOW + 0.5, previous: { events: [], src: 'x', asOf: NOW + 0.25 } });
     expect(Number.isInteger(again.asOf)).toBe(true);
+  });
+  describe('runs of buys merge (a real test: 82 buys a few minutes apart)', () => {
+    const min = (m: number) => SEC + m * 60;
+    const b = (m: number, name = `Item ${m}`): CalLine =>
+      line({ key: `${min(m)}:0`, at: min(m), checkIn: m + 1, text: `buy ${name} (1 → 2)` });
+    const sh = (m: number): CalLine =>
+      line({
+        key: `${min(m)}:s`,
+        at: min(m),
+        checkIn: m + 1,
+        kind: 'shift' as CalLine['kind'],
+        text: 'shift to Humility',
+      });
+    it('names the constants', () => {
+      expect(CAL_MERGE_GAP_MIN).toBe(30);
+      expect(CAL_MAX_PER_DAY).toBe(12);
+    });
+    it('buys each within 30 min of the previous become one event at the first time, with the first item and +N more', () => {
+      const out = build([b(10, 'A'), b(25, 'B'), b(50, 'C')]);
+      expect(out.events).toHaveLength(1);
+      expect(out.events[0]).toMatchObject({ start: min(10) * 1000, title: 'Buy: A (1 → 2) +2 more', kind: 'buy' });
+      expect(out.events[0]!.notes).toContain('- B (1 → 2)');
+      expect(out.events[0]!.notes).toContain('- C (1 → 2)');
+      expect(out.events[0]!.notes).toMatch(/Planned as of/);
+    });
+    it('a gap over 30 min starts a new event', () => {
+      expect(build([b(10), b(41)]).events).toHaveLength(2);
+      expect(build([b(10), b(40)]).events).toHaveLength(1);
+    });
+    it('a shift splits a buy run and never merges', () => {
+      const out = build([b(10), b(12), sh(14), b(16), b(18)]);
+      expect(out.events.map(e => e.kind)).toEqual(['buy', 'shift', 'buy']);
+      expect(out.events[0]!.title).toMatch(/\+1 more$/);
+      expect(out.events[2]!.title).toMatch(/\+1 more$/);
+    });
+    it('the merged uid is the first buy uid, so it stays stable', () => {
+      expect(build([b(10), b(12)]).events[0]!.uid).toBe(build([b(10)]).events[0]!.uid);
+    });
+    it('the title is cut to 80 and the notes to 300', () => {
+      const long = (m: number) => b(m, 'X'.repeat(100));
+      const out = build(Array.from({ length: 12 }, (_, i) => long(10 + i)));
+      expect(out.events[0]!.title.length).toBeLessThanOrEqual(80);
+      expect(out.events[0]!.title).toMatch(/\+11 more$/);
+      expect(out.events[0]!.notes!.length).toBeLessThanOrEqual(300);
+    });
+    it('about 12 events a day: the buys past it merge into the last one kept', () => {
+      const spread = Array.from({ length: 30 }, (_, i) => b(i * 40)); // 40 min apart: none merge by gap
+      const out = build(spread, { zone: 'UTC', now: NOW });
+      const days = new Map<string, number>();
+      for (const e of out.events) {
+        const d = new Date(e.start).toISOString().slice(0, 10);
+        days.set(d, (days.get(d) ?? 0) + 1);
+      }
+      for (const n of days.values()) expect(n).toBeLessThanOrEqual(CAL_MAX_PER_DAY);
+      const merged = out.events.find(e => /more$/.test(e.title))!;
+      expect(merged).toBeTruthy();
+    });
   });
   it('with no check-ins in the window the list is still the marker alone (an empty feed looks broken; QA 14 Nov)', () => {
     const out = buildFull([]);
