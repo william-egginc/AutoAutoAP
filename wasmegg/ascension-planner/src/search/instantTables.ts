@@ -29,7 +29,9 @@ import type { TableEntry } from './tableBracket';
 // out again once.
 // 9 Nov 2026 (sim4): the simulator moved again (SIM_VERSION 2026-11-09-sim4, Joo's PR #729); answers saved under sim3
 // are worked out again once.
-export const INSTANT_RULES = '2026-11-09-sim4';
+// 14 Nov 2026 (sim5): the simulator moved again (SIM_VERSION 2026-11-14-sim5, upstream fa805e2d1); answers saved under
+// sim4 are worked out again once.
+export const INSTANT_RULES = '2026-11-14-sim5';
 
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {
