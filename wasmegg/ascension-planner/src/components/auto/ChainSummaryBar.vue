@@ -35,7 +35,7 @@
         <span class="summary-label group-hover:text-indigo-400 transition-colors">TE Progress</span>
         <div class="flex items-center gap-2">
           <span class="summary-value tabular-nums font-bold text-indigo-600 group-hover:text-indigo-700 transition-colors">+{{ totals.teGained }}</span>
-          <span class="hidden sm:inline text-slate-400 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors">
+          <span class="hidden sm:inline text-slate-600 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors">
             ({{ totals.startTE }} → {{ totals.endTE }})
           </span>
         </div>
@@ -52,7 +52,7 @@
         <span class="summary-label">Shifts</span>
         <div class="flex items-center gap-2">
           <span class="summary-value tabular-nums font-bold text-slate-600">+{{ totals.shiftsTotal }}</span>
-          <span class="hidden sm:inline text-slate-400 label bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 tabular-nums">
+          <span class="hidden sm:inline text-slate-600 label bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 tabular-nums">
             (#{{ totals.startShifts }} → #{{ totals.endShifts }})
           </span>
         </div>
@@ -64,7 +64,7 @@
             -{{ formatNumber(totals.totalSEConsumed, 1) }}
           </span>
           <div class="hidden sm:flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80" v-tippy="'Remaining SE'">
-            <div class="leading-none text-slate-400 mb-1 label">Remaining</div>
+            <div class="leading-none text-slate-600 mb-1 label">Remaining</div>
             <div class="text-small font-bold leading-none text-slate-700 tabular-nums flex items-center gap-1">
               {{ formatNumber(totals.remainingSE, 1) }}
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
@@ -195,6 +195,6 @@ const teStatsList = computed(() => {
 
 <style scoped>
 .summary-item { @apply flex flex-col gap-0.5 sm:gap-1; }
-.summary-label { @apply text-slate-400 label leading-none; }
+.summary-label { @apply text-slate-600 label leading-none; }
 .summary-value { @apply text-small font-bold whitespace-nowrap; }
 </style>

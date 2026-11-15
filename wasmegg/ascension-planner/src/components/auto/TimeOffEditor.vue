@@ -69,11 +69,11 @@
           class="min-w-0 max-w-full rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
         />
       </label>
-      <span class="text-small text-slate-400">{{ days(row) }}</span>
+      <span class="text-small text-slate-600">{{ days(row) }}</span>
       <button
         type="button"
         :disabled="store.isRunning"
-        class="min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-red-600 disabled:opacity-40"
+        class="min-h-[44px] sm:min-h-0 text-body font-bold text-slate-600 hover:text-red-600 disabled:opacity-40"
         data-testid="time-off-remove"
         @click="rows.splice(i, 1)"
       >

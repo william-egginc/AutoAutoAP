@@ -94,14 +94,14 @@
         }}</template>
       </button>
     </div>
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No sweeps yet. A Custom run (a box of TEs for each stop), or an upload tagged with a preset, shows up here.
     </p>
 
     <div v-if="current" class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <!-- Only when the group mixes counts: one count is one question. -->
       <div v-if="counts.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-slate-400 label">Plans with</span>
+        <span class="text-slate-600 label">Plans with</span>
         <button
           v-for="c in counts"
           :key="c.ascensions"
@@ -120,7 +120,7 @@
       </div>
       <!-- A 2-ascension plan has one checkpoint: nothing to pick. -->
       <div v-if="checkpoints.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-slate-400 label">Stop</span>
+        <span class="text-slate-600 label">Stop</span>
         <button
           v-for="k in checkpoints"
           :key="k"
@@ -139,7 +139,7 @@
         </button>
       </div>
       <div v-if="curves.length" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-slate-400 label">Across</span>
+        <span class="text-slate-600 label">Across</span>
         <button
           v-for="m in X_MODES"
           :key="m.id"
@@ -185,7 +185,7 @@
       :entries="legendEntries"
       label="Runs: click to hide or show"
     />
-    <p v-else-if="current" class="px-4 py-6 text-center text-body text-slate-400">
+    <p v-else-if="current" class="px-4 py-6 text-center text-body text-slate-600">
       Load the tables to draw this sweep.
       <template v-if="noTable">
         {{ noTable }} of its {{ plural(shownRows.length, 'run') }} {{ noTable === 1 ? 'has' : 'have' }} no table stored and cannot
@@ -200,16 +200,16 @@
         >; {{ singlePoint }} priced only one TE at the {{ checkpointWords(checkpoint) }}</template
       >.
     </p>
-    <p v-if="curves.length" class="text-small text-slate-400 px-1">{{ hint }}</p>
+    <p v-if="curves.length" class="text-small text-slate-600 px-1">{{ hint }}</p>
 
     <!-- ------------------------------------------------------------ per run, at this checkpoint -->
     <div v-if="table.length" class="space-y-1.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
-        <h4 class="text-slate-400 label">
+        <h4 class="text-slate-600 label">
           Each run at the {{ checkpointWords(checkpoint) }}, in days behind its own best
         </h4>
         <div v-if="checkpoints.length > 1" class="flex items-center gap-1.5">
-          <span class="text-slate-400 label">Coarser step at</span>
+          <span class="text-slate-600 label">Coarser step at</span>
           <button
             v-for="s in SCOPES"
             :key="s.id"
@@ -231,7 +231,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-slate-400 label">
+            <tr class="text-slate-600 label">
               <th class="text-left py-1 pr-3">Run</th>
               <th
                 class="text-left py-1 pr-3"
@@ -266,14 +266,14 @@
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="line.title">
                 <span class="mr-1" :style="{ color: line.color }" aria-hidden="true">{{ line.glyph }}</span>
                 <b class="text-slate-700">{{ line.label }}</b>
-                <span class="text-small text-slate-400">{{ ` · from ${line.currentTE} TE · ${line.id}` }}</span>
+                <span class="text-small text-slate-600">{{ ` · from ${line.currentTE} TE · ${line.id}` }}</span>
               </td>
               <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-700" :title="line.bestTitle">
                 {{ line.bestText }}
               </td>
               <td v-for="r in line.ranges" :key="r.days" class="py-1.5 pr-3 whitespace-nowrap" :title="r.title">
                 <span class="text-slate-700">{{ r.text }}</span>
-                <span v-if="r.note" class="text-small text-slate-400"> · {{ r.note }}</span>
+                <span v-if="r.note" class="text-small text-slate-600"> · {{ r.note }}</span>
               </td>
               <td
                 v-for="c in line.coarse"
@@ -288,7 +288,7 @@
           </tbody>
         </table>
       </div>
-      <p class="text-small text-slate-400 px-1">
+      <p class="text-small text-slate-600 px-1">
         Each run against its own best, inside its own table (one save), so these days are exact; they never compare one
         run's total with another's. A range with a count after it is a saw: some TEs inside it fall further behind
         (hover for which). "Box edge" means the range runs into the end of what the run tried, so it may go further. The

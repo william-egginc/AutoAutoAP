@@ -3,7 +3,7 @@
     <!-- Header: Total Gain and Final TE -->
     <div class="bg-slate-50/50 rounded-xl p-4 border border-slate-100 flex flex-wrap items-center justify-between gap-4">
       <div class="space-y-1">
-        <label class="block label text-slate-400">Total TE to Gain</label>
+        <label class="block label text-slate-600">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
             class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
@@ -33,7 +33,7 @@
       </div>
 
       <div class="space-y-1">
-        <label class="block label text-slate-400 text-right">Final Total TE</label>
+        <label class="block label text-slate-600 text-right">Final Total TE</label>
         <div class="flex items-center justify-end gap-2">
           <span class="tabular-nums font-black text-headline text-slate-900">{{ finalTotalTE }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-6 h-6 object-contain" />
@@ -71,7 +71,7 @@
                 <span class="text-slate-600 text-small font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
                 <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white label rounded">Current</span>
               </div>
-              <div class="text-small tabular-nums text-slate-400 mt-0.5">
+              <div class="text-small tabular-nums text-slate-600 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
                 <span v-else>Shift on</span>
                 <span class="text-slate-500">&nbsp;{{ eggPlan.absoluteTime }}</span>
@@ -83,7 +83,7 @@
             <!-- Individual Adjustments -->
             <div class="flex items-center bg-slate-50 rounded-lg border border-slate-100 p-0.5 shadow-inner">
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, -1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -93,7 +93,7 @@
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, 1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -126,11 +126,11 @@
     <div v-if="totalTEToGain > 0" class="bg-slate-900 rounded-2xl p-5 text-white shadow-xl shadow-slate-900/20">
       <div class="flex items-center justify-between">
         <div class="space-y-1">
-          <label class="block label text-slate-400">Total Duration</label>
+          <label class="block label text-slate-600">Total Duration</label>
           <div class="text-title tabular-nums font-bold">{{ formatDuration(totalDurationSeconds) }}</div>
         </div>
         <div class="text-right space-y-1">
-          <label class="block label text-slate-400">Final Completion</label>
+          <label class="block label text-slate-600">Final Completion</label>
           <div class="text-body font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
         </div>
       </div>

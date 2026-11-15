@@ -55,7 +55,7 @@
       />
       <button
         type="button"
-        class="text-body font-bold text-slate-400 hover:text-rose-600"
+        class="text-body font-bold text-slate-600 hover:text-rose-600"
         @click="store.removeSavedAnswer(playerId, a.id)"
       >
         Delete

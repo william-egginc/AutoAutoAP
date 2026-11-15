@@ -59,7 +59,7 @@
       <div class="border-t border-slate-100 pt-3">
         <button
           type="button"
-          class="text-body font-bold text-slate-400 hover:text-emerald-700"
+          class="text-body font-bold text-slate-600 hover:text-emerald-700"
           :aria-expanded="rawOpen"
           @click="rawOpen = !rawOpen"
         >
@@ -75,7 +75,7 @@
               :key="a.label"
               class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-small font-bold text-slate-700"
             >
-              <span v-if="a.count > 1" class="text-slate-400">{{ a.count }}&#215; </span>{{ a.label }}
+              <span v-if="a.count > 1" class="text-slate-600">{{ a.count }}&#215; </span>{{ a.label }}
             </span>
           </div>
           <div v-if="inventory.stones.length" class="flex flex-wrap gap-1.5">
@@ -87,7 +87,7 @@
               <span v-if="st.count > 1" class="text-indigo-400">{{ st.count }}&#215; </span>{{ st.label }}
             </span>
           </div>
-          <p class="text-body text-slate-400 max-w-prose">
+          <p class="text-body text-slate-600 max-w-prose">
             Most of these never get worn. The solver picks from the whole pile, so the pile is its input, but only the
             two sets above are what any ascension runs with.
           </p>

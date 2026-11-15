@@ -70,7 +70,7 @@
               <td class="pr-2 py-1.5">
                 <button
                   type="button"
-                  class="text-slate-400 hover:text-indigo-700"
+                  class="text-slate-600 hover:text-indigo-700"
                   :aria-expanded="open === l.key"
                   :aria-label="`Show what ${l.row.chain.join(' ')} was simulated with`"
                   @click="toggle(l.key)"

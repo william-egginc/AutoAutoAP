@@ -32,7 +32,7 @@
             <span>delivery score</span>
             <span class="inline-flex flex-col">
               <span class="block h-2 w-32 rounded-sm" :style="{ background: rampGradient }" />
-              <span class="flex justify-between text-small font-bold text-slate-400 tabular-nums">
+              <span class="flex justify-between text-small font-bold text-slate-600 tabular-nums">
                 <span>≤{{ Math.round(DELIVERY_RAMP_DOMAIN[0] * 100) }}%</span>
                 <span>{{ Math.round(((DELIVERY_RAMP_DOMAIN[0] + DELIVERY_RAMP_DOMAIN[1]) / 2) * 100) }}%</span>
                 <span>{{ Math.round(DELIVERY_RAMP_DOMAIN[1] * 100) }}%</span>
@@ -43,7 +43,7 @@
           <span
             ><span aria-hidden="true" class="text-[#2a78d6]">○</span> worked out afterwards (assumes a Pro permit)</span
           >
-          <span><span aria-hidden="true" class="text-slate-400">- - -</span> Clothed TE = TE + 100, 115, 129</span>
+          <span><span aria-hidden="true" class="text-slate-600">- - -</span> Clothed TE = TE + 100, 115, 129</span>
           <span class="inline-flex items-center gap-1">
             <span aria-hidden="true" class="inline-block h-2.5 w-4 rounded-sm" :style="{ background: STALL_FILL }" />
             first ascension stalls
@@ -70,19 +70,19 @@
           </template>
         </p>
 
-        <p v-if="missing.length" class="text-small text-slate-400 px-1">
+        <p v-if="missing.length" class="text-small text-slate-600 px-1">
           Not drawn:
           <template v-for="(m, i) in missing" :key="m.key">{{ i ? '; ' : '' }}{{ m.label }} ({{ m.reason }})</template>.
         </p>
 
         <details v-if="points.length" class="px-1 text-small">
-          <summary class="cursor-pointer text-body font-bold text-slate-400">
+          <summary class="cursor-pointer text-body font-bold text-slate-600">
             The numbers
           </summary>
           <div class="overflow-x-auto pt-1">
             <table class="w-full text-small">
               <thead>
-                <tr class="text-slate-400 label">
+                <tr class="text-slate-600 label">
                   <th class="text-left py-1 pr-3">Account</th>
                   <th class="text-right py-1 pr-3">TE</th>
                   <th class="text-right py-1 pr-3">Clothed TE</th>
@@ -111,7 +111,7 @@
       </div>
 
       <aside class="space-y-2 text-body">
-        <p class="label text-slate-400">Gear data still wanted</p>
+        <p class="label text-slate-600">Gear data still wanted</p>
         <p v-if="!needList.length" class="text-slate-500">Every gear ask has enough accounts.</p>
         <ul v-else class="space-y-1.5">
           <li
@@ -128,13 +128,13 @@
             <p class="text-small text-slate-500">{{ need.where }}</p>
           </li>
         </ul>
-        <p class="text-small text-slate-400">
+        <p class="text-small text-slate-600">
           Counted in accounts, from finished searches to 490 only; each ask drops off once enough accounts have covered
           it. What to run for each is under {{ NAMES.check }}, on the planner's {{ NAMES.science }} tab.
         </p>
       </aside>
     </div>
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">No run here recorded a Clothed TE to place.</p>
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">No run here recorded a Clothed TE to place.</p>
   </div>
 </template>
 

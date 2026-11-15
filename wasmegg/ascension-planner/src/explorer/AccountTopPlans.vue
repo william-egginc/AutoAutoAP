@@ -24,7 +24,7 @@
   <div class="space-y-3">
     <div v-if="accounts.length" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-slate-400 label">Account</span>
+        <span class="block text-slate-600 label">Account</span>
         <span class="flex items-center gap-1.5">
           <AccountDot :index="colourIndex" :size="10" />
           <select v-model="account" class="rounded-lg border border-slate-200 px-2 py-1.5 text-body bg-white">
@@ -58,7 +58,7 @@
         </button>
       </template>
       <div v-if="shown?.top.plans.length" class="ml-auto flex items-center gap-1.5">
-        <span class="text-slate-400 label">Top</span>
+        <span class="text-slate-600 label">Top</span>
         <button
           v-for="n in LIMITS"
           :key="n"
@@ -76,7 +76,7 @@
         </button>
       </div>
     </div>
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No account has a table stored for a run to {{ finalTE }} TE yet.
     </p>
 
@@ -116,7 +116,7 @@
       </p>
 
       <div v-if="view.perCount.length > 1" class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 text-small">
-        <span class="text-slate-400 label">Earliest at each count</span>
+        <span class="text-slate-600 label">Earliest at each count</span>
         <span v-for="p in view.perCount" :key="p.ascensions" :title="`${p.chain} · ${p.finishTitle}`">
           <b class="text-slate-700">{{ p.ascensions }} asc</b>
           <span class="ml-1 text-slate-600">{{ p.after }}</span>
@@ -126,7 +126,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-slate-400 label">
+            <tr class="text-slate-600 label">
               <th class="text-right py-1 pr-3">#</th>
               <th class="text-left py-1 pr-3">Plan</th>
               <th class="text-right py-1 pr-3">Asc</th>
@@ -143,15 +143,15 @@
           </thead>
           <tbody class="divide-y divide-slate-100">
             <tr v-for="p in view.rows" :key="p.key" class="align-top">
-              <td class="py-1.5 pr-3 text-right tabular-nums text-slate-400">{{ p.rank }}</td>
+              <td class="py-1.5 pr-3 text-right tabular-nums text-slate-600">{{ p.rank }}</td>
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="p.chainTitle">
                 <span class="tabular-nums text-slate-800"
                   ><template v-for="(c, k) in p.route" :key="k"
-                    >{{ k ? ' ' : '' }}<s v-if="c.passed" class="text-slate-400">{{ c.te }}</s
+                    >{{ k ? ' ' : '' }}<s v-if="c.passed" class="text-slate-600">{{ c.te }}</s
                     ><template v-else>{{ c.te }}</template></template
                   ></span
                 >
-                <span v-if="p.measurements > 1" class="ml-1 text-small font-bold text-slate-400"
+                <span v-if="p.measurements > 1" class="ml-1 text-small font-bold text-slate-600"
                   >×{{ p.measurements }}</span
                 >
                 <!-- Under the route on a phone, so the tags do not push the dates off the screen. -->
@@ -177,7 +177,7 @@
               </td>
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="p.runTitle">
                 <span class="whitespace-nowrap text-slate-600">{{ p.planned }}</span>
-                <span class="text-small text-slate-400"> · {{ p.how }}</span>
+                <span class="text-small text-slate-600"> · {{ p.how }}</span>
               </td>
               <td class="py-1.5 whitespace-nowrap text-small" :title="p.saveTitle">
                 <span v-if="p.save" class="font-bold text-slate-500">{{ p.save }}</span>

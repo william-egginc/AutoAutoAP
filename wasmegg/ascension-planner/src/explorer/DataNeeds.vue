@@ -11,7 +11,7 @@
   <div class="space-y-3">
     <div class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-slate-400 label">Your TE now</span>
+        <span class="block text-slate-600 label">Your TE now</span>
         <input
           v-model.number="teNow"
           type="number"
@@ -20,7 +20,7 @@
           class="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-body"
         />
       </label>
-      <p class="text-small text-slate-400 max-w-md">
+      <p class="text-small text-slate-600 max-w-md">
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
         from the speeds other players' runs recorded<template v-if="workers && threads"
           >, on the {{ workers }} workers Setup gives searches on {{ thisDevice() }}</template
@@ -77,7 +77,7 @@
               :key="part.label"
               class="flex flex-wrap items-center gap-x-3 gap-y-1"
             >
-              <span class="w-16 label text-slate-400">{{ part.label }}</span>
+              <span class="w-16 label text-slate-600">{{ part.label }}</span>
               <span v-for="s in part.slots" :key="s.family" class="inline-flex items-center gap-1" :title="s.title">
                 <img
                   :src="iconURL(`egginc/afx_${s.family}_${s.tier}.png`, 64)"
@@ -90,7 +90,7 @@
               <span v-if="part.note" class="text-small text-slate-500">{{ part.note }}</span>
             </div>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span class="w-16 label text-slate-400">Stones</span>
+              <span class="w-16 label text-slate-600">Stones</span>
               <span v-for="st in need.gear.stones" :key="st.family" class="inline-flex items-center gap-1">
                 <img
                   :src="iconURL(`egginc/afx_${st.family}_stone_${st.tier}.png`, 64)"
@@ -123,7 +123,7 @@
             </p>
             <div class="grid gap-1 sm:grid-cols-3 pt-0.5">
               <div v-for="t in need.times" :key="t.id" class="rounded bg-slate-50 px-2 py-1">
-                <div class="label text-slate-400">
+                <div class="label text-slate-600">
                   {{ t.label }} · {{ t.detail }}
                 </div>
                 <div class="font-bold text-slate-800">about {{ t.text }}</div>
@@ -143,14 +143,14 @@
           </p>
           <div v-if="!need.byDate && need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-small">
             <div class="rounded bg-white px-2 py-1">
-              <div class="label text-slate-400">Routes</div>
+              <div class="label text-slate-600">Routes</div>
               <div class="font-bold text-slate-800">
                 {{ (need.chains * need.runs).toLocaleString()
                 }}<template v-if="need.runs > 1"> ({{ plural(need.runs, 'run') }})</template>
               </div>
             </div>
             <div v-for="t in need.times" :key="t.id" class="rounded bg-white px-2 py-1">
-              <div class="label text-slate-400">
+              <div class="label text-slate-600">
                 {{ t.label }} · {{ t.detail }}
               </div>
               <div class="font-bold text-slate-800">about {{ t.text }}</div>
@@ -176,7 +176,7 @@
               >
                 {{ link.label }}
               </button>
-              <span class="text-small text-slate-400">
+              <span class="text-small text-slate-600">
                 {{
                   need.byDate
                     ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Run.`
@@ -195,7 +195,7 @@
               >
                 {{ link.label }} &rarr;
               </a>
-              <span class="text-small text-slate-400">
+              <span class="text-small text-slate-600">
                 Opens {{ need.byDate ? `${NAMES.byDate} › ${NAMES.full}` : `${fastestName(finalTe)} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
                 you have loaded.
               </span>

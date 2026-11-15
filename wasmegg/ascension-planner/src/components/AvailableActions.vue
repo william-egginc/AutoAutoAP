@@ -7,7 +7,7 @@
     >
       <span
         class="label px-1"
-        :class="isEditingPastGroup ? 'text-blue-500' : 'text-gray-400'"
+        :class="isEditingPastGroup ? 'text-blue-500' : 'text-gray-600'"
       >
         {{ isEditingPastGroup ? 'Editing' : 'Current Egg' }}
       </span>

@@ -83,7 +83,7 @@
         days
       </text>
     </svg>
-    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-400">
+    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-600">
       Nothing priced yet. This fills in as the search reports batches.
     </p>
     <p class="text-body text-slate-500 px-1 min-h-[1.25rem] max-w-prose">

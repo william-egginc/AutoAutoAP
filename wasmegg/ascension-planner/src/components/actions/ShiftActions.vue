@@ -9,11 +9,11 @@
 
       <div class="flex justify-between items-start mb-6 relative z-10">
         <div>
-          <h4 class="text-slate-400 label mb-1">Shift Progress</h4>
+          <h4 class="text-slate-600 label mb-1">Shift Progress</h4>
           <p class="text-body font-normal text-slate-500">Since {{ lastShiftLabel }}</p>
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
-          <span class="text-slate-400 label">Shifts:</span>
+          <span class="text-slate-600 label">Shifts:</span>
           <span class="text-body tabular-nums font-bold text-slate-900">{{ planStore.shiftCount }}</span>
           <span v-if="planStore.plannedShifts > 0" class="text-small font-bold text-brand-primary">
             +{{ planStore.plannedShifts }}
@@ -24,12 +24,12 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
         <!-- Time spent this shift -->
         <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-indigo-50 shadow-inner">
-          <div class="text-slate-400 label leading-none mb-2">Duration</div>
+          <div class="text-slate-600 label leading-none mb-2">Duration</div>
           <div class="flex items-center gap-2">
             <span class="text-title tabular-nums font-bold text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
             <div class="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse"></div>
           </div>
-          <p class="text-slate-400 label mt-1 opacity-60">
+          <p class="text-slate-600 label mt-1 opacity-60">
             {{ actionsSinceLastShift }} action{{ actionsSinceLastShift !== 1 ? 's' : '' }} recorded
           </p>
         </div>
@@ -46,7 +46,7 @@
             />
           </div>
           <div>
-            <div class="text-slate-400 label leading-none mb-1">
+            <div class="text-slate-600 label leading-none mb-1">
               Current Egg
             </div>
             <div class="text-body font-bold text-slate-900">
@@ -60,9 +60,9 @@
     <!-- Shift Options -->
     <div>
       <div class="flex justify-between items-center mb-4 px-2">
-        <h4 class="text-small font-bold text-slate-400">Select Target Egg</h4>
+        <h4 class="text-small font-bold text-slate-600">Select Target Egg</h4>
         <div class="flex items-center gap-2">
-          <span class="text-slate-400 label">Next Cost:</span>
+          <span class="text-slate-600 label">Next Cost:</span>
           <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
             <span class="text-small tabular-nums font-bold text-slate-900">
               {{ formatNumber(nextShiftCostValue, 3) }}
@@ -72,7 +72,7 @@
           <span
             v-tippy="'Shifts you can still afford'"
             class="label"
-            :class="shiftsUntilBroke <= 2 ? 'text-red-500' : 'text-slate-400'"
+            :class="shiftsUntilBroke <= 2 ? 'text-red-500' : 'text-slate-600'"
           >
             {{ shiftsUntilBroke }} left
           </span>

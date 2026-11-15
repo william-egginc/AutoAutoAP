@@ -44,11 +44,11 @@
               data-testid="you-are-here"
               >you are here</span
             >
-            <span v-if="s.noLaying" class="text-slate-400"> (no laying: artifact swap / build step)</span>
+            <span v-if="s.noLaying" class="text-slate-600"> (no laying: artifact swap / build step)</span>
           </li>
         </ol>
         <!-- Each egg's first and last shift, one small line under the list. -->
-        <p class="mt-0.5 ml-3 text-small text-slate-400" data-testid="route-timeline-egg-summary">
+        <p class="mt-0.5 ml-3 text-small text-slate-600" data-testid="route-timeline-egg-summary">
           Each egg, first to last:
           <template v-for="(e, k) in l.eggs" :key="e.egg"
             >{{ k ? ' · ' : '' }}{{ eggName(e.egg) }} {{ when(e.firstAt) }} to {{ when(e.lastAt)
@@ -64,12 +64,12 @@
         >
       </p>
     </template>
-    <p v-if="lines.some(l => !l.eggs.length)" class="text-small text-slate-400" data-testid="route-timeline-no-eggs">
+    <p v-if="lines.some(l => !l.eggs.length)" class="text-small text-slate-600" data-testid="route-timeline-no-eggs">
       Each egg's times weren't kept for
       {{ lines.every(l => !l.eggs.length) ? 'this route' : 'the ascensions without an arrow' }} (read back from a saved
       run, or priced before they were kept).
     </p>
-    <p v-if="lines.length && missingTE" class="text-small text-slate-400" data-testid="route-timeline-no-te">
+    <p v-if="lines.length && missingTE" class="text-small text-slate-600" data-testid="route-timeline-no-te">
       This route was priced before the planner kept each egg's TE at its shifts, so it shows when you lay each egg, not
       the TE it reaches.
     </p>

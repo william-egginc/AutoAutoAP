@@ -7,34 +7,6 @@
 -->
 <template>
   <div ref="dock" class="fixed z-50" :style="dockStyle">
-    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. Never scrolls sideways (ux31-a,
-         27 Oct 2026: on an iPhone it opened shifted left, "Setup" read as "p"): what is too wide is clipped, and
-         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). At most the
-         screen less the pill's 1rem and 4 px, else with larger text (a bigger rem) it started off the left edge (ux32-b). -->
-    <div
-      v-if="ui.setupOpen"
-      ref="panel"
-      class="absolute w-[min(94vw,calc(100vw-1rem-4px),46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
-      :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
-      role="dialog"
-      aria-label="Setup"
-      @scroll="keepLeft"
-    >
-      <div
-        class="sticky top-0 z-10 min-w-0 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
-      >
-        <span class="text-body font-bold text-indigo-900">Setup</span>
-        <button
-          type="button"
-          class="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-lg border border-indigo-300 bg-white text-body font-bold text-indigo-700 hover:bg-indigo-50"
-          @click="ui.setupOpen = false"
-        >
-          Done
-        </button>
-      </div>
-      <YourSetup ref="setup" :screen="screen" docked />
-    </div>
-
     <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
          Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
          of ascensions ›"). On My runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
@@ -66,6 +38,7 @@
         >⋮⋮</span
       >
       <button
+        ref="gearBtn"
         type="button"
         class="relative flex items-center gap-1.5 min-h-[44px] sm:min-h-0 rounded-full px-2.5 py-1 hover:bg-white/15"
         :class="[
@@ -74,6 +47,7 @@
         ]"
         :aria-expanded="ui.setupOpen"
         aria-label="Setup"
+        :aria-describedby="errors ? 'setup-dock-problems' : undefined"
         :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
         @pointerdown="onGearDown"
         @click="onGearClick"
@@ -94,9 +68,11 @@
         <span
           v-if="errors"
           class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-indigo-600"
-          :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
+          :title="problemsText"
+          aria-hidden="true"
         ></span>
       </button>
+      <span v-if="errors" id="setup-dock-problems" class="sr-only">{{ problemsText }}</span>
       <!-- The workers only while a search runs (the simpler page, Jordan 9 Nov 2026, Q4): at rest the pill is Setup
            alone; mid-run they can still be turned down (Jordan, 26 Oct 2026). The count is in Setup › More options. -->
       <template v-if="searching">
@@ -129,6 +105,36 @@
         </button>
       </span>
       </template>
+    </div>
+    <!-- After the pill in the page (review W1, 15 Nov 2026): Tab goes pill, then the open panel. CSS places it, so it does not move on screen.
+         Not modal: the pill and the page stay usable. -->
+    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. Never scrolls sideways (ux31-a,
+         27 Oct 2026: on an iPhone it opened shifted left, "Setup" read as "p"): what is too wide is clipped, and
+         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). At most the
+         screen less the pill's 1rem and 4 px, else with larger text (a bigger rem) it started off the left edge (ux32-b). -->
+    <div
+      v-if="ui.setupOpen"
+      ref="panel"
+      class="absolute w-[min(94vw,calc(100vw-1rem-4px),46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
+      role="dialog"
+      aria-label="Setup"
+      @scroll="keepLeft"
+    >
+      <div
+        class="sticky top-0 z-10 min-w-0 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
+      >
+        <span class="text-body font-bold text-indigo-900">Setup</span>
+        <button
+          ref="doneBtn"
+          type="button"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-lg border border-indigo-300 bg-white text-body font-bold text-indigo-700 hover:bg-indigo-50"
+          @click="ui.setupOpen = false"
+        >
+          Done
+        </button>
+      </div>
+      <YourSetup ref="setup" :screen="screen" docked />
     </div>
   </div>
 </template>
@@ -164,6 +170,8 @@ const ui = useUIStore();
 /** A search is running (or a Custom queue is between its chains): the pill shows the workers then only. */
 const searching = computed(() => store.busy || store.isRunning || store.deadlineRunning || store.sweepQueue.at >= 0);
 const errors = computed(() => store.setupIssues.filter(i => i.level === 'error').length);
+/** The red dot's words, for the gear's title and a screen reader (aria-describedby; review W1). */
+const problemsText = computed(() => `${errors.value} problem${errors.value > 1 ? 's' : ''} with your save`);
 /**
  * THE ROUND GEAR (Jordan, 12 Nov 2026 pm, phone proposal question 5): below sm (the max-sm: classes) and while no search
  * runs, the pill is a 48 px round gear (aria-label "Setup", its title and the red problem dot kept) that is also its own
@@ -180,10 +188,24 @@ const panel = ref<HTMLElement | null>(null);
 function keepLeft(): void {
   if (panel.value && panel.value.scrollLeft !== 0) panel.value.scrollLeft = 0;
 }
+const gearBtn = ref<HTMLElement | null>(null);
+const doneBtn = ref<HTMLElement | null>(null);
 watch(
   () => ui.setupOpen,
-  open => {
-    if (open) void nextTick(() => panel.value && (panel.value.scrollLeft = 0));
+  (open, was) => {
+    if (open) {
+      void nextTick(() => {
+        if (!panel.value) return;
+        panel.value.scrollLeft = 0;
+        // Focus goes in (review W1), unless something inside already took it: a reveal lands on its own box.
+        if (typeof document !== 'undefined' && !panel.value.contains(document.activeElement)) doneBtn.value?.focus();
+      });
+    } else if (was) {
+      // Closed: back to the gear when focus would otherwise be lost to the page (the panel it was in is gone).
+      void nextTick(() => {
+        if (typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) gearBtn.value?.focus();
+      });
+    }
   }
 );
 

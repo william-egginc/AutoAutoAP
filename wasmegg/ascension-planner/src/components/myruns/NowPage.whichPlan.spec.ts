@@ -198,7 +198,7 @@ describe('the route followed', () => {
     expect(textOf(kept)).toBe('Following 197 → 222 → 247 → 285 → 313');
     const stop = (te: number) => line.match(new RegExp(`<span[^>]*>${te}</span>`))![0];
     expect(stop(197)).toContain('data-stop="passed"');
-    expect(stop(197)).toContain('text-slate-400');
+    expect(stop(197)).toContain('text-slate-600');
     expect(stop(222)).toContain('data-stop="now"');
     expect(stop(222)).toContain('aria-current="step"');
     expect(stop(222)).toContain('underline');

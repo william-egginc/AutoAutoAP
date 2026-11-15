@@ -89,7 +89,7 @@
     </div>
     <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-slate-400 label">Date</span>
+        <span class="block text-slate-600 label">Date</span>
         <input
           v-model="date"
           type="date"
@@ -98,7 +98,7 @@
         />
       </label>
       <label class="space-y-1">
-        <span class="block text-slate-400 label">Time</span>
+        <span class="block text-slate-600 label">Time</span>
         <input
           v-model="time"
           type="time"
@@ -107,7 +107,7 @@
         />
       </label>
       <label class="space-y-1 max-w-full">
-        <span class="block text-slate-400 label">In</span>
+        <span class="block text-slate-600 label">In</span>
         <select v-model="zone" :disabled="store.busy" class="max-w-full rounded-lg border-slate-200 text-body font-bold">
           <option value="America/Los_Angeles">Pacific time</option>
           <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
@@ -284,7 +284,7 @@
                 aria-label="Fewest ascensions"
                 class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-body font-bold sm:min-h-0"
               />
-              <span class="text-slate-400">to</span>
+              <span class="text-slate-600">to</span>
               <input
                 v-model.number="nearbyMax"
                 type="number"
@@ -294,7 +294,7 @@
                 aria-label="Most ascensions"
                 class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-body font-bold sm:min-h-0"
               />
-              <span v-if="nearbyRangeHint" class="text-small text-slate-400" data-test="nearby-range-hint">{{
+              <span v-if="nearbyRangeHint" class="text-small text-slate-600" data-test="nearby-range-hint">{{
                 nearbyRangeHint
               }}</span>
               <button
@@ -392,7 +392,7 @@
             @use-sliders="suggestRow"
           >
             <template #asc-after="{ k }">
-              <span v-if="k === 0 && boxFromInstant" class="text-small text-slate-400" data-testid="asc-follow-hint"
+              <span v-if="k === 0 && boxFromInstant" class="text-small text-slate-600" data-testid="asc-follow-hint"
                 >(from the instant answer)</span
               >
             </template>
@@ -404,7 +404,7 @@
                 >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
                 wider ones.</span
               >
-              <p v-if="chains[k].restored && row.asc >= 2" class="text-small text-slate-400">
+              <p v-if="chains[k].restored && row.asc >= 2" class="text-small text-slate-600">
                 Restored from the unfinished run (the sliders apply when you press Suggest a space).
               </p>
               <span v-if="coarseRows[k]" class="block text-small text-amber-700" data-test="coarse-note">{{
@@ -424,7 +424,7 @@
             </template>
             <template #footer>
               <label class="space-y-1">
-                <span class="block text-small font-bold text-slate-400"
+                <span class="block text-small font-bold text-slate-600"
                   >Last stop: where to start looking</span
                 >
                 <input
@@ -456,7 +456,7 @@
         <template v-else>
           <div class="flex flex-wrap items-end gap-4">
             <label class="space-y-1">
-              <span class="block text-slate-400 label"
+              <span class="block text-slate-600 label"
                 >Stops, including the last</span
               >
               <div class="flex items-center gap-2">
@@ -468,7 +468,7 @@
                   :disabled="store.busy"
                   class="w-16 rounded-lg border-slate-200 text-body font-bold"
                 />
-                <span class="text-slate-400">to</span>
+                <span class="text-slate-600">to</span>
                 <input
                   v-model.number="maxStops"
                   type="number"
@@ -480,7 +480,7 @@
               </div>
             </label>
             <label class="space-y-1">
-              <span class="block text-small font-bold text-slate-400"
+              <span class="block text-small font-bold text-slate-600"
                 >Rough guess for the last stop</span
               >
               <input
@@ -496,7 +496,7 @@
             <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
                look tries; the grid it uses follows, and so do the routes and the time below. -->
             <label class="space-y-1">
-              <span class="block text-slate-400 label">How thorough</span>
+              <span class="block text-slate-600 label">How thorough</span>
               <span class="flex items-center gap-2">
                 <input
                   v-model.number="thoroughIx"
@@ -623,19 +623,19 @@
         <div v-if="k === 'boxes' && runKind !== 'around'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
-              <div class="text-slate-400 label">Sets of early stops</div>
+              <div class="text-slate-600 label">Sets of early stops</div>
               <div class="text-title font-bold text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
             </div>
             <div>
-              <div class="text-slate-400 label">Ascensions to simulate</div>
+              <div class="text-slate-600 label">Ascensions to simulate</div>
               <div class="text-title font-bold text-slate-900 tabular-nums">
                 ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
               </div>
-              <div class="text-small text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
+              <div class="text-small text-slate-600">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-slate-400 label">{{ store.deadlineRunning ? 'Time left' : 'Est. time' }}</span>
+                <span class="text-slate-600 label">{{ store.deadlineRunning ? 'Time left' : 'Est. time' }}</span>
                 <HelpTip>
             Counted in ascensions, not routes: a set's first route simulates its early ascensions, shared with the
             sets that start the same way, and every later try at its last stop only the last ascension. About
@@ -653,18 +653,18 @@
                 </HelpTip>
               </div>
               <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring<AnimatedDots /></div>
-              <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-400">
+              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-600">measuring<AnimatedDots /></div>
+              <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-600">
                 first guess {{ firstGuessLabel }}
               </div>
-              <div v-else-if="backgroundLabel" class="text-small text-slate-400" data-test="background-estimate">
+              <div v-else-if="backgroundLabel" class="text-small text-slate-600" data-test="background-estimate">
                 {{ backgroundLabel }}
               </div>
             </div>
             <div>
-              <div class="text-slate-400 label">Assumed cost</div>
+              <div class="text-slate-600 label">Assumed cost</div>
               <div class="text-title font-bold text-slate-900 tabular-nums">{{ costLabel }}</div>
-              <div class="text-small text-slate-400">an ascension</div>
+              <div class="text-small text-slate-600">an ascension</div>
             </div>
           </div>
           <!-- How the estimate counts is in the Est. time tip (UX fluff review 2, 5 Nov 2026, item C-pre10). -->

@@ -15,7 +15,7 @@
 <template>
   <div class="space-y-2">
     <div v-if="table.rows.length" class="flex flex-wrap items-center gap-1.5">
-      <span class="text-slate-400 label mr-1">Order accounts by</span>
+      <span class="text-slate-600 label mr-1">Order accounts by</span>
       <button
         v-for="opt in ORDERS"
         :key="opt.id"
@@ -31,7 +31,7 @@
       >
         {{ opt.label }}
       </button>
-      <span class="text-small text-slate-400">lowest first, from each account's earliest-finish run</span>
+      <span class="text-small text-slate-600">lowest first, from each account's earliest-finish run</span>
     </div>
 
     <!-- A size container, so a tapped cell's details can be as wide as what is on screen (100cqw),
@@ -39,7 +39,7 @@
     <div v-if="table.rows.length" class="overflow-x-auto [container-type:inline-size]">
       <table class="text-small border-separate [border-spacing:3px]">
         <thead>
-          <tr class="text-slate-400 label">
+          <tr class="text-slate-600 label">
             <th rowspan="2" class="sticky left-0 z-10 bg-white text-left align-bottom py-1 pr-3">Account</th>
             <th :colspan="table.columns.length" class="text-center pt-1">Ascensions</th>
           </tr>
@@ -67,7 +67,7 @@
                 <span class="whitespace-nowrap"
                   ><AccountDot :index="row.color" class="mr-1.5" /><b class="text-slate-700">{{ row.label }}</b></span
                 >
-                <div class="text-small text-slate-400">
+                <div class="text-small text-slate-600">
                   <template v-for="(part, k) in gearParts(row)" :key="part.id"
                     >{{ k ? ' · ' : ''
                     }}<span :class="part.id === order ? 'font-bold text-slate-600' : ''">{{
@@ -75,10 +75,10 @@
                     }}</span></template
                   >
                 </div>
-                <div v-if="row.anchor && !row.anchorShown" class="text-small text-slate-400">
+                <div v-if="row.anchor && !row.anchorShown" class="text-small text-slate-600">
                   earliest finish: {{ plural(row.anchor.row.ascensions, 'ascension') }}, not in this table
                 </div>
-                <div v-else-if="!row.anchor" class="text-small text-slate-400">no finish still stands</div>
+                <div v-else-if="!row.anchor" class="text-small text-slate-600">no finish still stands</div>
               </th>
               <!-- A button, so the details a mouse gets on hover are a tap away on a phone: they open in a
                  row under this one. -->
@@ -101,7 +101,7 @@
                       :style="cell.style === 'hatched' ? { background: fillOf(cell).color } : undefined"
                       >{{ cell.text }}</span
                     >
-                    <i v-else-if="cell.state === 'hidden'" class="text-small font-normal text-slate-400">hidden</i>
+                    <i v-else-if="cell.state === 'hidden'" class="text-small font-normal text-slate-600">hidden</i>
                   </div>
                 </button>
               </td>
@@ -144,7 +144,7 @@
         </tfoot>
       </table>
     </div>
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">No run to this target yet.</p>
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">No run to this target yet.</p>
 
     <div
       v-if="table.rows.length"
@@ -152,7 +152,7 @@
       aria-label="How to read the fills and borders"
     >
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="font-bold text-slate-400 text-small"
+        <span class="font-bold text-slate-600 text-small"
           >Fill: days after the account's earliest finish</span
         >
         <span v-for="bin in FILL_BINS" :key="bin.label" class="inline-flex items-center gap-1">
@@ -169,7 +169,7 @@
         </span>
       </div>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="font-bold text-slate-400 text-small">Border: how the run searched</span>
+        <span class="font-bold text-slate-600 text-small">Border: how the run searched</span>
         <span v-for="g in GRADE_KEY" :key="g.style" class="inline-flex items-center gap-1">
           <span
             class="inline-block w-5 h-3 rounded-sm [background-clip:padding-box]"
@@ -181,7 +181,7 @@
       </div>
       <p>
         <b class="text-slate-600">—</b> tried, but no finish at that count still stands (a what-if, a replaced plan, one
-        the player has fallen behind; hover or tap it for the reason). <i class="text-slate-400">hidden</i>: tried, but
+        the player has fallen behind; hover or tap it for the reason). <i class="text-slate-600">hidden</i>: tried, but
         with no finished box at that count, so Proofs only leaves those runs out. Blank: not tried. Hover or tap a cell
         for the route, its finish date, how it searched and how the step from the next count down weighs up: a tap (or a
         click) opens it under the cell's row.

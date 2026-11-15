@@ -55,6 +55,6 @@ const CHIP_CLASS: Record<SimKind, string> = {
   older: 'bg-slate-100 border border-slate-200 text-slate-500',
   newer: 'bg-slate-100 border border-slate-200 text-slate-500',
   other: 'bg-slate-100 border border-slate-200 text-slate-500',
-  unknown: 'border border-dashed border-slate-300 text-slate-400',
+  unknown: 'border border-dashed border-slate-300 text-slate-600',
 };
 </script>

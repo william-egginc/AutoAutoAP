@@ -145,7 +145,7 @@
         Nothing is deleted, and you can show it again any time.
       </p>
       <div v-if="myHidden.length">
-        <p class="text-small font-bold text-slate-400 mb-1">
+        <p class="text-small font-bold text-slate-600 mb-1">
           Hidden from the public ({{ myHidden.length }})
         </p>
         <ul class="divide-y divide-slate-100 text-slate-500">
@@ -153,7 +153,7 @@
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <button
                 type="button"
-                class="text-slate-400 hover:text-indigo-700"
+                class="text-slate-600 hover:text-indigo-700"
                 :aria-expanded="openHidden === (h.id ?? '')"
                 :aria-label="`Show what ${h.chain.join(' ')} was simulated with`"
                 @click="openHidden = openHidden === (h.id ?? '') ? '' : (h.id ?? '')"
@@ -328,7 +328,7 @@
                scrolling (review, 2026-09-27); a shadow on an edge says there is more that way. -->
           <p
             v-else-if="narrow && raceEdges.right && !raceEdges.left"
-            class="-mb-2 text-right text-small text-slate-400"
+            class="-mb-2 text-right text-small text-slate-600"
           >
             Swipe the table for more columns →
           </p>
@@ -341,7 +341,7 @@
               <table class="w-full text-small">
                 <thead>
                   <tr
-                    class="label text-slate-400 text-left whitespace-nowrap"
+                    class="label text-slate-600 text-left whitespace-nowrap"
                   >
                     <th class="py-2 pr-2"></th>
                     <th class="py-2 pr-3 text-right">#</th>
@@ -366,7 +366,7 @@
                       <td class="py-2 pr-2">
                         <button
                           type="button"
-                          class="text-slate-400 hover:text-indigo-700"
+                          class="text-slate-600 hover:text-indigo-700"
                           :aria-expanded="!!openPlayers[e.key]"
                           :aria-label="`Show all of ${e.label}'s plans`"
                           @click="openPlayers[e.key] = !openPlayers[e.key]"
@@ -388,7 +388,7 @@
                             >you</span
                           ><span
                             v-else-if="whoIs(e) === 'maybe'"
-                            class="ml-1 text-small font-bold text-slate-400"
+                            class="ml-1 text-small font-bold text-slate-600"
                             title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it."
                             >maybe you</span
                           ></span
@@ -455,7 +455,7 @@
                       >
                         {{ plannedText(e.best, { zone: viewZone, brief: true }) }}
                       </td>
-                      <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="e.best.row.window || undefined">
+                      <td class="py-2 pr-3 text-slate-600 whitespace-nowrap" :title="e.best.row.window || undefined">
                         {{ scheduleText(e.best.row.window) }}
                       </td>
                       <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
@@ -472,7 +472,7 @@
                              list scrolls sideways inside this block instead. -->
                         <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
                           <div>
-                            <h4 class="label text-slate-400 mb-1">
+                            <h4 class="label text-slate-600 mb-1">
                               Current plans · {{ e.label
                               }}<template v-if="browserCount(e) > 1">
                                 · sent from {{ browserCount(e) }} browsers</template
@@ -491,13 +491,13 @@
                               gap-label="vs best"
                               @use="c => emit('use', c)"
                             />
-                            <p v-if="e.listed.length" class="mt-1 text-small text-slate-400">
+                            <p v-if="e.listed.length" class="mt-1 text-small text-slate-600">
                               "vs best" only compares plans made from the same save as the best one and priced by the
                               same version of the planner.
                             </p>
                           </div>
                           <div v-if="e.dropped.length">
-                            <h4 class="label text-slate-400 mb-1">
+                            <h4 class="label text-slate-600 mb-1">
                               Not counted
                             </h4>
                             <LeaderboardPlanList
@@ -682,7 +682,7 @@
                     <td class="pr-3 py-1 font-bold">{{ e.rank ?? '—' }}</td>
                     <td class="pr-3 py-1 font-bold">
                       {{ e.label
-                      }}<span v-if="e.others.length" class="font-normal text-slate-400">
+                      }}<span v-if="e.others.length" class="font-normal text-slate-600">
                         · {{ e.others.length }} more</span
                       >
                       <div v-if="narrow" class="font-normal text-slate-600 leading-snug">
@@ -780,7 +780,7 @@
         <p v-if="!runLines.length" class="text-body text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
         </p>
-        <p v-else-if="narrow && runEdges.right && !runEdges.left" class="-mb-2 text-right text-small text-slate-400">
+        <p v-else-if="narrow && runEdges.right && !runEdges.left" class="-mb-2 text-right text-small text-slate-600">
           Swipe the table for more columns →
         </p>
         <!-- A size container for the opened run's detail, as in Race. On a phone the route sits under
@@ -793,7 +793,7 @@
           >
             <table class="w-full text-small">
               <thead>
-                <tr class="label text-slate-400 text-left whitespace-nowrap">
+                <tr class="label text-slate-600 text-left whitespace-nowrap">
                   <th class="py-2 pr-3"></th>
                   <th v-for="c in shownColumns" :key="c.key" class="py-2 pr-3" :class="c.right ? 'text-right' : ''">
                     <button
@@ -816,7 +816,7 @@
                     <td class="py-2 pr-3">
                       <button
                         type="button"
-                        class="text-slate-400 hover:text-indigo-700"
+                        class="text-slate-600 hover:text-indigo-700"
                         :aria-expanded="open === line.key"
                         :aria-label="`Show what ${line.row.chain.join(' ')} was simulated with`"
                         @click="open = open === line.key ? '' : line.key"
@@ -904,13 +904,13 @@
                       <td v-else-if="c.key === 'waitingHours'" class="py-2 pr-3 text-right whitespace-nowrap">
                         <!-- null is "not recorded", not "free": a chain replayed from a saved search
                              kept no per-leg detail, and printing 0 would be a claim nobody measured. -->
-                        <span v-if="line.row.waitingHours == null" class="text-slate-400">—</span>
-                        <span v-else-if="line.row.waitingHours < 0.05" class="text-slate-400">none</span>
+                        <span v-if="line.row.waitingHours == null" class="text-slate-600">—</span>
+                        <span v-else-if="line.row.waitingHours < 0.05" class="text-slate-600">none</span>
                         <span v-else class="font-bold text-amber-700">{{ line.row.waitingHours.toFixed(1) }} h</span>
                       </td>
                       <td
                         v-else-if="c.key === 'window'"
-                        class="py-2 pr-3 text-slate-400 whitespace-nowrap"
+                        class="py-2 pr-3 text-slate-600 whitespace-nowrap"
                         :title="line.row.window || undefined"
                       >
                         {{ scheduleText(line.row.window) }}
@@ -919,7 +919,7 @@
                            the tier it sends is whatever the main panel was left on; showing "balanced"
                            next to an exhaustive result reads as a weaker claim than the row is making.
                            `space` is present only on schema-4 Insane rows, so older rows are untouched. -->
-                      <td v-else-if="c.key === 'effort'" class="py-2 pr-3 text-slate-400">
+                      <td v-else-if="c.key === 'effort'" class="py-2 pr-3 text-slate-600">
                         <span
                           v-if="line.row.space"
                           class="px-1.5 py-0.5 rounded label text-white"
@@ -931,7 +931,7 @@
                       </td>
                       <td
                         v-else-if="c.key === 'submittedAt'"
-                        class="py-2 pr-3 text-slate-400 whitespace-nowrap"
+                        class="py-2 pr-3 text-slate-600 whitespace-nowrap"
                         :title="sentTitle(line.submittedAt)"
                       >
                         {{ sentText(line.submittedAt) }}

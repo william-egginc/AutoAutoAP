@@ -26,7 +26,7 @@ describe('Fastest, Nearby routes: the Limits box', () => {
     expect(panel).toContain('data-testid="limits-follow-hint"');
     expect(panel).toContain('limitsHint(store.limitsFollowing)');
     expect(panel).toMatch(
-      /limits-follow-hint"[^>]*>|class="[^"]*text-slate-400[^"]*" data-testid="limits-follow-hint"/
+      /limits-follow-hint"[^>]*>|class="[^"]*text-slate-600[^"]*" data-testid="limits-follow-hint"/
     );
   });
   it('the longer-route hint sets them on purpose (no plain writes left)', () => {

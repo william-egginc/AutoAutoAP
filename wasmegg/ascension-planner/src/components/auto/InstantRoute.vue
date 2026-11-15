@@ -322,7 +322,7 @@
           Less certain with these awake hours: an ascension's first shifts take longer than your awake hours last, so some of them
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
-        <p v-if="backgroundStatus === 'running'" class="text-body text-slate-400">
+        <p v-if="backgroundStatus === 'running'" class="text-body text-slate-600">
           Polishing the routes in the background<AnimatedDots />
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
@@ -497,7 +497,7 @@
                   data-testid="counts-row-head"
                   @click="toggleCount(r)"
                 >
-                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  <span class="text-slate-600 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
                   {{ ' ' }}
                   <span class="font-bold text-slate-800 tabular-nums"
                     >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }},</span
@@ -710,7 +710,7 @@
                   data-testid="counts-row-head"
                   @click="toggleCount(r)"
                 >
-                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  <span class="text-slate-600 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
                   {{ ' ' }}
                   <span class="font-bold text-slate-800 tabular-nums"
                     >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }}, reaches {{ store.finalTE }}</span
@@ -731,7 +731,7 @@
                     ><span
                       v-if="nearTie(r)"
                       class="block whitespace-normal text-small"
-                      :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-400'"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-600'"
                       :data-testid="`near-tie-${nearTie(r)!.kind}`"
                       >{{ nearTie(r)!.text }}</span
                     ></span
@@ -1938,12 +1938,15 @@ let pool: RoutePool | null = null;
  *  tables, and the exact check only when asked. */
 const small = isSmallDevice();
 function getPool(): RoutePool {
-  pool ??= new RoutePool(
-    small ? Math.min(2, poolSize()) : poolSize(),
-    () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
-  );
-  // On every browser the idle workers are let go after a while (search/routePoolIdle.ts); the next ask spawns them.
-  stopIdleSleep = sleepWhenIdle(pool);
+  if (!pool) {
+    pool = new RoutePool(
+      small ? Math.min(2, poolSize()) : poolSize(),
+      () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
+    );
+    // On every browser the idle workers are let go after a while (search/routePoolIdle.ts); the next ask spawns them. Started
+    // once, with the pool: it used to start on every call and the earlier listeners were never removed (review Q3, 15 Nov 2026).
+    stopIdleSleep = sleepWhenIdle(pool);
+  }
   return pool;
 }
 let stopIdleSleep: (() => void) | null = null;

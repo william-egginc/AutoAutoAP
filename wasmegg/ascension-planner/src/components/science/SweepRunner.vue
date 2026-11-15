@@ -48,7 +48,7 @@
         </div>
         <button
           type="button"
-          class="shrink-0 px-2 py-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-title leading-none"
+          class="shrink-0 px-2 py-1 rounded-md text-slate-600 hover:text-slate-700 hover:bg-slate-100 text-title leading-none"
           aria-label="Close"
           @click="close"
         >
@@ -117,15 +117,15 @@
       <template v-else-if="phase === 'ready'">
         <div class="grid gap-2 grid-cols-2 sm:grid-cols-4 text-body">
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="label text-slate-400">Routes</div>
+            <div class="label text-slate-600">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCount.toLocaleString() }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="label text-slate-400">Ascensions</div>
+            <div class="label text-slate-600">Ascensions</div>
             <div class="font-bold text-slate-800">{{ ascensions }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="label text-slate-400">From → to</div>
+            <div class="label text-slate-600">From → to</div>
             <div class="font-bold text-slate-800">TE {{ Math.floor(store.currentTE) }} → {{ store.finalTE }}</div>
           </div>
           <div class="rounded-lg bg-indigo-50 px-3 py-2">
@@ -133,7 +133,7 @@
             <div class="font-bold text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
           </div>
         </div>
-        <p class="text-small text-slate-400 -mt-2">
+        <p class="text-small text-slate-600 -mt-2">
           The time is {{ measuredCost ? `from ${thisDevice()}’s own measured speed` : speedSource }}, on the workers
           below. Real runs often go faster: plans that share their first ascensions share the work.
         </p>
@@ -337,7 +337,7 @@
               Close
             </button>
           </div>
-          <p class="text-small text-slate-400">
+          <p class="text-small text-slate-600">
             {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building
             the plan, and sending it again by hand if this send didn’t go through.
           </p>

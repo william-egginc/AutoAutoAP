@@ -121,7 +121,7 @@
                 </label>
               </p>
             </div>
-            <p v-if="!embedded" class="text-small tabular-nums text-slate-400 truncate max-w-xl">{{ base }}</p>
+            <p v-if="!embedded" class="text-small tabular-nums text-slate-600 truncate max-w-xl">{{ base }}</p>
           </div>
           <div class="flex gap-2">
             <button
@@ -167,7 +167,7 @@
            runs arrived and the page above it filled in. -->
       <section
         v-if="base && loading && !rows.length"
-        class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-small font-bold text-slate-400"
+        class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-small font-bold text-slate-600"
         role="status"
       >
         <span>Loading the runs<AnimatedDots /></span>
@@ -216,7 +216,7 @@
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
-            <span class="text-slate-400 label">Target TE</span>
+            <span class="text-slate-600 label">Target TE</span>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="target in targets"
@@ -260,7 +260,7 @@
             it; every other cell says how many days later that count finished. Darker is closer to the best.
           </p>
           <details>
-            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
             <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -287,7 +287,7 @@
 
         <!-- ---------------------------------------------------------------- the count selector -->
         <section class="space-y-2">
-          <h2 class="text-slate-400 label px-1">By ascension count</h2>
+          <h2 class="text-slate-600 label px-1">By ascension count</h2>
           <div v-if="countGroups.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <button
               type="button"
@@ -302,14 +302,14 @@
               <div class="text-title font-bold leading-none">All</div>
               <div
                 class="text-body font-bold mt-1"
-                :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'"
+                :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-600'"
               >
                 ascension counts
               </div>
               <div class="mt-2 text-small font-bold">
                 {{ allGroup.rows.length }} run{{ allGroup.rows.length === 1 ? '' : 's' }}
               </div>
-              <div class="text-small" :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'">
+              <div class="text-small" :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-600'">
                 {{ allGroup.accounts }} account{{ allGroup.accounts === 1 ? '' : 's' }}
                 <template v-if="allGroup.exhaustive">· {{ allGroup.exhaustive }} proven</template>
               </div>
@@ -329,7 +329,7 @@
               <div class="text-title font-bold leading-none">{{ group.ascensions }}</div>
               <div
                 class="text-body font-bold mt-1"
-                :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-400'"
+                :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-600'"
               >
                 ascensions
               </div>
@@ -338,7 +338,7 @@
               </div>
               <div
                 class="text-small"
-                :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-400'"
+                :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-600'"
               >
                 {{ group.accounts }} account{{ group.accounts === 1 ? '' : 's' }}
                 <template v-if="group.exhaustive">· {{ group.exhaustive }} proven</template>
@@ -347,7 +347,7 @@
           </div>
           <p
             v-else
-            class="px-4 py-8 text-center text-body text-slate-400 bg-white rounded-xl border border-slate-200"
+            class="px-4 py-8 text-center text-body text-slate-600 bg-white rounded-xl border border-slate-200"
           >
             Nothing matches that filter yet.
           </p>
@@ -358,7 +358,7 @@
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-title font-bold text-slate-900">
               {{ selectedCount === 'all' ? 'Every ascension count' : plural(selectedCount, 'ascension') }}
-              <span class="text-body font-bold text-slate-400">
+              <span class="text-body font-bold text-slate-600">
                 · {{ selected.rows.length }} run{{ selected.rows.length === 1 ? '' : 's' }} from
                 {{ selected.accounts }} account{{ selected.accounts === 1 ? '' : 's' }}
               </span>
@@ -370,7 +370,7 @@
 
           <template v-if="selectedCount !== 'all'">
             <div class="space-y-2">
-              <h3 class="text-slate-400 label">Where each stop lands</h3>
+              <h3 class="text-slate-600 label">Where each stop lands</h3>
               <CountShapeChart
                 :rows="selected.rows"
                 :bests="selectedBests"
@@ -406,7 +406,7 @@
               Show every run
             </summary>
             <div class="mt-2 space-y-2">
-              <h3 class="text-slate-400 label">The runs</h3>
+              <h3 class="text-slate-600 label">The runs</h3>
               <p class="text-body text-slate-500 max-w-3xl">
                 Grouped by account, earliest finish first unless you pick another order below; click an account's name
                 to fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone
@@ -428,7 +428,7 @@
                 190 TE, or a target other than 490): not flagged, and not cleared either.
               </p>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-slate-400 label mr-1"
+                <span class="text-slate-600 label mr-1"
                   >Sort each account by</span
                 >
                 <button
@@ -492,7 +492,7 @@
               <div class="overflow-x-auto [container-type:inline-size]">
                 <table class="w-full text-small">
                   <thead>
-                    <tr class="text-slate-400 label">
+                    <tr class="text-slate-600 label">
                       <th class="text-left py-1 pr-3">Who</th>
                       <th
                         v-if="selectedCount === 'all'"
@@ -605,7 +605,7 @@
                             ({{ plural(block.best.row.ascensions, 'ascension') }},
                             <span class="tabular-nums">{{ block.best.row.chain.join(' ') }}</span
                             >)
-                            <span v-if="!bestListed.has(block.key)" class="text-slate-400"
+                            <span v-if="!bestListed.has(block.key)" class="text-slate-600"
                               >(not listed here: {{ unlistedWhy(block.best.row) }})</span
                             >
                           </template>
@@ -617,7 +617,7 @@
                       v-for="row in collapsed.has(block.key) ? [] : block.rows"
                       :key="row.id"
                       class="hover:bg-slate-50"
-                      :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-400'"
+                      :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-600'"
                     >
                       <td class="py-1.5 pr-3">
                         {{ whoText(row) || 'anonymous' }}
@@ -637,7 +637,7 @@
                         </span>
                         <span
                           v-if="folded.sends.get(row.id)"
-                          class="ml-1 whitespace-nowrap text-small font-bold text-slate-400"
+                          class="ml-1 whitespace-nowrap text-small font-bold text-slate-600"
                           title="The same result was sent more than once; it is listed once"
                         >
                           sent ×{{ folded.sends.get(row.id) }}
@@ -651,7 +651,7 @@
                         </span>
                         <span
                           v-else-if="unchecked.has(row.id)"
-                          class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-small font-bold text-slate-400"
+                          class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-small font-bold text-slate-600"
                           :title="unchecked.get(row.id)"
                         >
                           can't check
@@ -659,7 +659,7 @@
                         <!-- Why a run is greyed, on screen where there is no hover to show it: a phone. -->
                         <div
                           v-if="stateOf(row) && judged.byId.get(row.id)?.reason"
-                          class="sm:hidden mt-0.5 max-w-[14rem] text-small text-slate-400"
+                          class="sm:hidden mt-0.5 max-w-[14rem] text-small text-slate-600"
                         >
                           {{ judged.byId.get(row.id)?.reason }}
                         </div>
@@ -696,7 +696,7 @@
                         <span v-if="judged.byId.get(row.id)?.best" class="font-bold text-emerald-700">best</span>
                         <template v-else-if="judged.byId.get(row.id)?.behind != null">
                           {{ vsBestText(judged.byId.get(row.id)!.behind!) }}
-                          <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-small text-slate-400"
+                          <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-small text-slate-600"
                             >same save</span
                           >
                         </template>
@@ -744,8 +744,8 @@
                           >
                           <template v-else>
                             <span class="font-bold text-slate-600">{{ plansText(leftById.get(row.id)!.left) }}</span>
-                            <span class="text-small text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
-                            <div class="text-small text-slate-400">
+                            <span class="text-small text-slate-600"> {{ leftShareText(leftById.get(row.id)!) }}</span>
+                            <div class="text-small text-slate-600">
                               ~{{ longEstimate(leftById.get(row.id)!.seconds) }}
                             </div>
                           </template>
@@ -787,7 +787,7 @@
             best count; where a line flattens out, more ascensions stopped helping.
           </p>
           <details>
-            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
             <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -818,7 +818,7 @@
             search would have lost.
           </p>
           <details>
-            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
               How this is worked out
             </summary>
             <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -867,7 +867,7 @@
               darker is a stronger delivery set. Grey areas are where the Leaderboard still wants accounts.
             </p>
             <details>
-              <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+              <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                 How this is worked out
               </summary>
               <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -906,7 +906,7 @@
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-title font-bold text-slate-900">
               Every route {{ whoText(loadedRun) || 'that run' }} priced
-              <span class="text-small font-bold text-slate-400">
+              <span class="text-small font-bold text-slate-600">
                 · {{ plural(loadedChains.length, 'route') }}
                 <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
                      what a cap drops is the SLOW tail, not the old one. -->
@@ -933,7 +933,7 @@
 
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
             <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-slate-400 label mr-1"
+              <span class="text-slate-600 label mr-1"
                 >Near the best means</span
               >
               <button
@@ -965,7 +965,7 @@
                 {{ band.index + 1 }}: {{ absoluteOf(band.lo) }}–{{ absoluteOf(band.hi) }}
               </span>
             </p>
-            <p class="text-small text-slate-400">
+            <p class="text-small text-slate-600">
               A wide range means the exact value barely matters; a range one or two TE wide means it does. Both are
               measured against the space this run actually enumerated, so a range that runs to the edge of that space is
               telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
@@ -1033,7 +1033,7 @@
                 climbs (up), and how many Research Sales the planner built through (colour).
               </p>
               <details>
-                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -1057,7 +1057,7 @@
                 first, ranked by the date each reaches the target.
               </p>
               <details>
-                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -1090,7 +1090,7 @@
                 finish slipped when priced again; a flat one held.
               </p>
               <details>
-                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-body text-slate-500 max-w-3xl">
@@ -1113,14 +1113,14 @@
               v-if="part === 'insights' && rows.length"
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
-              <div class="text-slate-400 label">Checks</div>
+              <div class="text-slate-600 label">Checks</div>
               <h2 class="text-title font-bold text-slate-900">Did each final ascension reach its gear's rate? (to 490)</h2>
               <p class="text-body text-slate-700 max-w-3xl">
                 <b>How to read it:</b> Each point is one run. Near 100% means its last ascension reached the delivery rate its
                 gear should; below the 80% line the run is flagged and left out of the rest of the page.
               </p>
               <details>
-                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-600 hover:text-slate-600">
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-body text-slate-500 max-w-3xl">

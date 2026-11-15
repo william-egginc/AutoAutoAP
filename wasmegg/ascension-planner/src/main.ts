@@ -11,12 +11,13 @@ import 'tippy.js/themes/translucent.css';
 import { PLANNER_PROFILE_KEY } from 'ui/composables/planners/plannerProfile';
 import { PROFILE } from '@/lib/profile';
 import App from './App.vue';
-import { installAppErrorLog } from './lib/appErrorLog';
+import { installAppErrorLog, installUnhandledRejectionLog } from './lib/appErrorLog';
 import './index.css';
 
 const app = createApp(App);
 // Errors nothing caught: one tagged line each, no ID (lib/appErrorLog.ts).
 installAppErrorLog(app);
+installUnhandledRejectionLog(window);
 const pinia = createPinia();
 
 app.use(pinia);

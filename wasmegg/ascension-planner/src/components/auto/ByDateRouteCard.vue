@@ -192,7 +192,7 @@
               <button
                 v-if="leg.shifts?.length"
                 type="button"
-                class="mr-1 text-slate-400 hover:text-emerald-700"
+                class="mr-1 text-slate-600 hover:text-emerald-700"
                 :aria-expanded="openLeg === i"
                 :aria-label="`Show when each egg of ascension ${i + 1} happens`"
                 data-testid="by-date-leg-expand"

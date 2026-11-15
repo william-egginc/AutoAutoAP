@@ -53,7 +53,7 @@
       </label>
     </div>
   </div>
-  <p v-if="store.integrityChecking" class="text-body text-slate-400">Checking whether this account can build<AnimatedDots /></p>
+  <p v-if="store.integrityChecking" class="text-body text-slate-600">Checking whether this account can build<AnimatedDots /></p>
   <div
     v-else-if="store.integrityNotice"
     class="p-3 rounded-xl border text-body"

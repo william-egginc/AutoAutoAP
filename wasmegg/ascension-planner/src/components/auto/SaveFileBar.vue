@@ -21,7 +21,7 @@
       </label>
       <!-- First visit (App.vue, spec-fluff3-chrome F6): the warning as a clause after "or load a save file". -->
       <span v-if="compact" class="text-slate-500">(it is your game save: don't share it publicly)</span>
-      <span v-else class="text-slate-400">This file is your game save; don't share it publicly.</span>
+      <span v-else class="text-slate-600">This file is your game save; don't share it publicly.</span>
     </div>
     <p v-if="store.olderSaveError" class="text-body font-bold text-rose-700">{{ store.olderSaveError }}</p>
   </div>

@@ -9,7 +9,7 @@
         class="flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80"
         v-tippy="{ content: 'Spent • Remaining', placement: 'top' }"
       >
-        <div class="text-small font-bold leading-none text-slate-400 mb-1">
+        <div class="text-small font-bold leading-none text-slate-600 mb-1">
           -{{ formatNumber(totalShiftCost, 1) }}
         </div>
         <div class="text-small font-bold leading-none text-slate-600 flex items-center gap-0.5">
@@ -29,7 +29,7 @@
     <div class="flex items-center gap-2">
       <span class="summary-value tabular-nums font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
       <span
-        class="text-slate-400 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
+        class="text-slate-600 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
       >
         (Total: {{ currentTE }})
       </span>

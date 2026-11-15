@@ -75,7 +75,7 @@
                     <img :src="iconURL('egginc-extras/silo.png', 64)" class="w-5 h-5 object-contain" alt="silo" />
                   </button>
                 </div>
-                <p class="text-small font-bold text-slate-400 px-1 mt-2">
+                <p class="text-small font-bold text-slate-600 px-1 mt-2">
                   Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
               </div>

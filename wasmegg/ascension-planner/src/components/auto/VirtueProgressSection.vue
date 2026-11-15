@@ -56,7 +56,7 @@
           </div>
           <div class="flex items-baseline gap-1">
             <span class="text-title tabular-nums font-bold text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
-            <span class="text-slate-400 label">Claimed</span>
+            <span class="text-slate-600 label">Claimed</span>
           </div>
           <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-600' : 'text-slate-300'">
             +{{ backupProgress.tePending[egg] }} Pending
@@ -114,7 +114,7 @@
           <div class="text-small font-bold text-slate-500 truncate">{{ loadoutSummary }}</div>
         </div>
         <svg
-          class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform"
+          class="w-4 h-4 text-slate-600 flex-shrink-0 transition-transform"
           :class="{ 'rotate-180': isLoadoutOpen }"
           fill="none"
           stroke="currentColor"

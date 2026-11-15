@@ -18,7 +18,7 @@
           </span>
         </div>
         <svg
-          class="w-4 h-4 text-slate-400 transition-transform duration-300"
+          class="w-4 h-4 text-slate-600 transition-transform duration-300"
           :class="{ 'rotate-180': truthEggsExpanded }"
           fill="none"
           stroke="currentColor"
@@ -33,7 +33,7 @@
       <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
         <div>
           <div class="text-body font-bold text-slate-700">Total Eggs of Truth</div>
-          <div class="text-small font-bold text-slate-400">
+          <div class="text-small font-bold text-slate-600">
             Multiplies IHR & Earnings by 1.1^TE
           </div>
         </div>
@@ -70,7 +70,7 @@
             <div class="grid grid-cols-2 gap-3 w-full">
               <!-- Delivered -->
               <div class="flex flex-col gap-1">
-                <span class="text-slate-400 label">Delivered</span>
+                <span class="text-slate-600 label">Delivered</span>
                 <input
                   type="text"
                   :value="formatNumber(eggsDelivered[egg], 3)"
@@ -82,7 +82,7 @@
               </div>
               <!-- TE -->
               <div class="flex flex-col gap-1">
-                <span class="text-slate-400 label truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
+                <span class="text-slate-600 label truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
                 <input
                   type="number"
                   :value="teEarned[egg]"
@@ -138,7 +138,7 @@
     </div>
     <div class="p-4">
       <div v-if="activeSetTab === 'earnings' && clothedTe !== null" class="mt-4 flex justify-between items-center px-1">
-        <span class="text-slate-400 label">Clothed TE</span>
+        <span class="text-slate-600 label">Clothed TE</span>
         <span class="text-body tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
       </div>
       <template v-if="!hasArtifactSets">

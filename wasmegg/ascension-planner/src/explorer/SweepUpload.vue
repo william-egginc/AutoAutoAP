@@ -10,7 +10,7 @@
 <template>
   <div class="space-y-4">
     <div class="space-y-1.5">
-      <label class="block text-small font-bold text-slate-400">
+      <label class="block text-small font-bold text-slate-600">
         The two files from {{ NAMES.fullFirst }} (Download CSV and Download diagnostics)
       </label>
       <input
@@ -20,7 +20,7 @@
         class="block w-full text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-white"
         @change="onFiles"
       />
-      <p class="text-small text-slate-400">
+      <p class="text-small text-slate-600">
         <b>chain-search-*.csv</b> (or a .csv.gz) and <b>chain-search-diagnostics-*.json</b>, from the two download
         buttons under the results. Pick both at once.
       </p>
@@ -36,7 +36,7 @@
     <template v-if="csv && diag && check">
       <div class="grid gap-2 sm:grid-cols-3 text-body">
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="label text-slate-400">Run</div>
+          <div class="label text-slate-600">Run</div>
           <div class="font-bold text-slate-800">{{ csv.currentTE }} → {{ csv.finalTE }} TE</div>
           <div class="text-slate-500">
             best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d ·
@@ -45,12 +45,12 @@
           </div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="label text-slate-400">Plan start</div>
+          <div class="label text-slate-600">Plan start</div>
           <div class="font-bold text-slate-800">{{ preview?.startLocal }} ({{ preview?.startWeekday }})</div>
           <div class="text-slate-500">{{ csv.timezone }} · backup {{ preview?.backupAgeHours ?? '?' }} h old</div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="label text-slate-400">Gear</div>
+          <div class="label text-slate-600">Gear</div>
           <div class="font-bold text-slate-800">
             delivery {{ preview?.deliveryScore ? (preview.deliveryScore.score * 100).toFixed(1) + '%' : '—' }} · Clothed
             TE
@@ -82,17 +82,17 @@
 
       <div class="grid gap-3 sm:grid-cols-2">
         <label class="space-y-1">
-          <span class="block text-slate-400 label">Which sweep</span>
+          <span class="block text-slate-600 label">Which sweep</span>
           <select v-model="presetId" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body">
             <option v-for="p in SWEEP_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
         </label>
         <label class="space-y-1">
-          <span class="block text-slate-400 label">Ranges as typed</span>
+          <span class="block text-slate-600 label">Ranges as typed</span>
           <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-body" />
         </label>
         <label class="space-y-1">
-          <span class="block text-slate-400 label">Minimum gap</span>
+          <span class="block text-slate-600 label">Minimum gap</span>
           <input
             v-model.number="minGap"
             type="number"
@@ -101,7 +101,7 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-slate-400 label">Nickname (optional)</span>
+          <span class="block text-slate-600 label">Nickname (optional)</span>
           <input
             v-model="nickname"
             maxlength="40"
@@ -109,7 +109,7 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-small font-bold text-slate-400">
+          <span class="block text-small font-bold text-slate-600">
             CPU threads on the machine that ran it
           </span>
           <input
@@ -120,7 +120,7 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-slate-400 label">RAM, GB</span>
+          <span class="block text-slate-600 label">RAM, GB</span>
           <input
             v-model.number="ramGB"
             type="number"
@@ -130,7 +130,7 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-slate-400 label"
+          <span class="block text-slate-600 label"
             >Workers the run used</span
           >
           <input

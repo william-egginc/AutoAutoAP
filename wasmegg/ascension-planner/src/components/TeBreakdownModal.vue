@@ -31,13 +31,13 @@
                 <span class="text-body font-bold" :class="{ 'text-indigo-700': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                   {{ stat.name }}
                 </span>
-                <span class="text-small text-slate-400 font-normal leading-tight">
+                <span class="text-small text-slate-600 font-normal leading-tight">
                   {{ formatNumber(stat.delivered) }} delivered
                 </span>
               </div>
             </div>
             <div class="flex items-center gap-2 tabular-nums text-body">
-              <span class="text-slate-400">{{ stat.start }}</span>
+              <span class="text-slate-600">{{ stat.start }}</span>
               <span class="text-slate-300">→</span>
               <span class="font-bold" :class="{ 'text-indigo-900': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                 {{ stat.end }}

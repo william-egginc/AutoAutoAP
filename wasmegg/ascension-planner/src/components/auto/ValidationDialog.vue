@@ -49,7 +49,7 @@
             <!-- Content -->
             <div class="p-8 pb-10 space-y-8">
               <div class="bg-slate-50 border border-slate-200/60 rounded-3xl p-8 relative group">
-                <div class="absolute -top-3 left-6 px-3 py-1 bg-white border border-slate-200 rounded-full text-slate-400 label shadow-sm">
+                <div class="absolute -top-3 left-6 px-3 py-1 bg-white border border-slate-200 rounded-full text-slate-600 label shadow-sm">
                   System Message
                 </div>
                 <p class="text-body font-bold text-slate-700 italic">

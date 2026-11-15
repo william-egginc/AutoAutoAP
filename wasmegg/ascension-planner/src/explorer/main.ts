@@ -16,7 +16,7 @@ import { createApp } from 'vue';
 import ChainExplorer from './ChainExplorer.vue';
 import { prefetchAll } from './collector';
 import { loadEcharts } from '@/lib/charts/loadEcharts';
-import { installAppErrorLog } from '@/lib/appErrorLog';
+import { installAppErrorLog, installUnhandledRejectionLog } from '@/lib/appErrorLog';
 import '../index.css';
 
 // Both before mounting, so neither waits for the first render.
@@ -32,4 +32,5 @@ loadEcharts().catch(() => {});
 const app = createApp(ChainExplorer);
 // Errors nothing caught: one tagged line each, no ID (lib/appErrorLog.ts).
 installAppErrorLog(app);
+installUnhandledRejectionLog(window);
 app.mount('#app');

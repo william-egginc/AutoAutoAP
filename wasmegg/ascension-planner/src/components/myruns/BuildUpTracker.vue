@@ -28,7 +28,9 @@
   DRAFT (Words).
 -->
 <template>
-  <div v-if="state !== 'hidden'" class="rounded-xl border border-slate-200 p-3" data-testid="buildup-tracker">
+  <div v-if="state !== 'hidden'" ref="root" class="rounded-xl border border-slate-200 p-3" data-testid="buildup-tracker">
+    <!-- What a tick just did, for a screen reader (review S-4): the ticked line folds away, so nothing else says it. -->
+    <p class="sr-only" role="status" aria-live="polite" data-testid="buildup-tick-note">{{ tickNote }}</p>
     <PanelFold
       section="buildUpTracker"
       title="Build-up tracker"
@@ -73,7 +75,7 @@
           Nothing to buy until your next prestige: the build-up list shows while you build.
         </p>
         <p v-else-if="state === 'working'" data-testid="buildup-working">
-          Working out your build-up (it can take a few minutes). Right now's shifts still hold meanwhile.
+          Working out your build-up (it can take a few minutes).
         </p>
         <div v-else-if="state === 'failed'" class="space-y-1" data-testid="buildup-failed">
           <p v-if="failStopped" class="text-amber-800" role="status" data-testid="buildup-failed-stopped">
@@ -266,7 +268,7 @@
                       :checked="ticked.has(l.key)"
                       :aria-label="`Done: ${lineText(l)}${sourceWords(l) ? `, ${sourceWords(l)}` : ''}`"
                       :data-testid="`buildup-tick-${l.key}`"
-                      @change="emit('tick', l.key, ($event.target as HTMLInputElement).checked)"
+                      @change="onTick(l, $event)"
                     />
                   </label>
                   <span v-else class="w-[44px] shrink-0" aria-hidden="true"></span>
@@ -505,6 +507,7 @@
 import { computed, nextTick, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
 import BuildUpDoneLine from './BuildUpDoneLine.vue';
+import { focusKeyAfterTick } from './trackerFocus';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayTitle, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
@@ -612,6 +615,31 @@ const emit = defineEmits<{
   showGoal: [key: string];
   pickRoute: [];
 }>();
+
+const root = ref<HTMLElement | null>(null);
+const tickNote = ref('');
+const tickBoxes = (): HTMLInputElement[] => (root.value ? [...root.value.querySelectorAll<HTMLInputElement>('input[data-testid^="buildup-tick-"]')] : []);
+const keyOfBox = (b: HTMLInputElement): string => (b.getAttribute('data-testid') ?? '').replace(/^buildup-tick-/, '');
+/** A tick or an untick (review S-4): said in the live region, and when the ticked line folds away and takes its box with it,
+ *  focus goes to the next box still to tick (else the first, else the done run's toggle) instead of falling to the page. */
+async function onTick(l: TrackerLine, ev: Event): Promise<void> {
+  const box = ev.target as HTMLInputElement;
+  const on = box.checked;
+  const order = tickBoxes().map(keyOfBox);
+  emit('tick', l.key, on);
+  tickNote.value = `${on ? 'Ticked' : 'Unticked'}: ${lineText(l)}`;
+  await nextTick();
+  if (box.isConnected || !root.value) return;
+  const boxes = tickBoxes();
+  const k = focusKeyAfterTick({
+    order,
+    gone: l.key,
+    ticked: ticked.value,
+    present: new Set(boxes.map(keyOfBox)),
+  });
+  const next = k ? boxes.find(b => keyOfBox(b) === k) : root.value.querySelector<HTMLElement>('[data-testid^="buildup-run-"]');
+  next?.focus();
+}
 
 const ticked = computed(() => (props.ticks instanceof Set ? props.ticks : new Set(props.ticks as readonly string[])));
 

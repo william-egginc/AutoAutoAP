@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSSRApp, h, nextTick } from 'vue';
 import fs from 'node:fs';
 import path from 'node:path';
-import { appErrorLine, installAppErrorLog } from './appErrorLog';
+import { appErrorLine, installAppErrorLog, installUnhandledRejectionLog } from './appErrorLog';
 
 const ID = 'EI1234567890123456';
 
@@ -41,5 +41,42 @@ describe('appErrorLog: one tagged line per error nothing caught, no ID', () => {
       expect(t).toContain('installAppErrorLog(app);');
       expect(t.indexOf('installAppErrorLog(app);')).toBeLessThan(t.indexOf(".mount('#app')"));
     }
+  });
+
+  describe('promises nothing caught (review Q4, 15 Nov 2026: a stalled IndexedDB left the saved lists silently empty)', () => {
+    function target() {
+      const handlers: ((e: { reason: unknown; preventDefault: () => void }) => void)[] = [];
+      return {
+        handlers,
+        addEventListener: (_t: string, fn: (typeof handlers)[number]) => void handlers.push(fn),
+      };
+    }
+    it('logs one tagged line, no ID, and does not swallow it (no preventDefault)', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const t = target();
+      installUnhandledRejectionLog(t);
+      expect(t.handlers).toHaveLength(1);
+      const preventDefault = vi.fn();
+      t.handlers[0]!({ reason: new Error(`IndexedDB stalled for ${ID}`), preventDefault });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(String(spy.mock.calls[0][0])).toMatch(/^\[app\] Error: IndexedDB stalled for EI… \(unhandled rejection\)/);
+      expect(String(spy.mock.calls[0][0])).not.toMatch(/EI\d{16}/);
+      expect(preventDefault).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+    it('a rejection with a plain value still gets its line', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const t = target();
+      installUnhandledRejectionLog(t);
+      t.handlers[0]!({ reason: 'nope', preventDefault: () => {} });
+      expect(String(spy.mock.calls[0][0])).toBe('[app] Error: nope (unhandled rejection)');
+      spy.mockRestore();
+    });
+    it('both pages install it', () => {
+      for (const f of ['../main.ts', '../explorer/main.ts']) {
+        const t = fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+        expect(t).toContain('installUnhandledRejectionLog(window);');
+      }
+    });
   });
 });

@@ -69,15 +69,15 @@
             <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
               <p class="text-body text-slate-700">{{ note.adds }}</p>
               <p class="text-body text-slate-500">
-                <span class="label text-slate-400">Measured accuracy:</span>
+                <span class="label text-slate-600">Measured accuracy:</span>
                 {{ note.accuracy }}
               </p>
-              <p class="text-small text-slate-400">
+              <p class="text-small text-slate-600">
                 Measured on at most three players' accounts, against the best answer found (only one account has a
                 proven best), so there's no confidence percentage: that few cannot honestly be turned into one.
               </p>
               <p class="text-body text-slate-500 max-w-prose">
-                <span class="label text-slate-400">Reference time:</span>
+                <span class="label text-slate-600">Reference time:</span>
                 {{ note.typicalTime }} These come from players' runs (few of them for Fast and Exact (wider); the 8- and
                 16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
                 a different number. The live estimate below is measured on your machine. Keep this tab in front: a
@@ -143,7 +143,7 @@
                 <span class="flex items-center gap-1.5">
                   <label
                     for="min-prestiges"
-                    class="block text-slate-400 label"
+                    class="block text-slate-600 label"
                   >
                     Fewest ascensions
                   </label>
@@ -164,7 +164,7 @@
                 />
               </div>
               <div>
-                <label for="max-prestiges" class="block text-slate-400 label"
+                <label for="max-prestiges" class="block text-slate-600 label"
                   >Most ascensions</label
                 >
                 <input
@@ -179,7 +179,7 @@
                 />
               </div>
               <!-- 3 to one more than the instant answer's count until set (lib/limitsFollow.ts, lib/ascRange.ts). -->
-              <span v-if="limitsFollowHint" class="pb-2 text-small text-slate-400" data-testid="limits-follow-hint">{{
+              <span v-if="limitsFollowHint" class="pb-2 text-small text-slate-600" data-testid="limits-follow-hint">{{
                 limitsFollowHint
               }}</span>
               <button
@@ -193,7 +193,7 @@
               </button>
               <div>
                 <span class="flex items-center gap-1.5">
-                  <label for="pin-count" class="block text-slate-400 label">
+                  <label for="pin-count" class="block text-slate-600 label">
                     Lock the first
                   </label>
                   <HelpTip
@@ -249,7 +249,7 @@
              7-prestige answer, because descent only MOVES checkpoints and the probe adds one. -->
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <span class="flex items-center gap-1.5">
-            <label for="chain-search-seed" class="text-slate-400 label">
+            <label for="chain-search-seed" class="text-slate-600 label">
               Starting route
             </label>
             <HelpTip
@@ -270,18 +270,18 @@
             :disabled="store.isRunning"
             class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
-          <div class="text-small text-slate-400 mt-1">
+          <div class="text-small text-slate-600 mt-1">
             {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : seedSource }}
           </div>
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div class="text-slate-400 label">Your TE now</div>
+          <div class="text-slate-600 label">Your TE now</div>
           <div class="text-body font-bold text-slate-800 mt-1">{{ store.currentTE }}</div>
         </div>
         <!-- Editable: the search used to be locked to 490. Anything above the last
              checkpoint you typed is valid; the seed is re-derived from it. -->
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <label for="chain-search-final-te" class="text-slate-400 label"
+          <label for="chain-search-final-te" class="text-slate-600 label"
             >Final target TE</label
           >
           <FinalTargetInput
@@ -290,7 +290,7 @@
           />
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div class="text-small font-bold text-slate-400">
+          <div class="text-small font-bold text-slate-600">
             Routes to price (max)
             <HelpTip
               >An upper bound. Coordinate descent stops as soon as no stop moves, so a run routinely finishes well short
@@ -528,7 +528,7 @@
                 Finished early. The estimate is an upper bound, and the search stops as soon as no stop moves, which is
                 what happens when you start from a route that is already good.
               </p>
-              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-400 font-bold">
+              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-600 font-bold">
                 Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
               </p>
             </div>
@@ -716,7 +716,7 @@
                         <button
                           v-if="leg.shifts?.length"
                           type="button"
-                          class="mr-1 text-slate-400 hover:text-emerald-700"
+                          class="mr-1 text-slate-600 hover:text-emerald-700"
                           :aria-expanded="expandedLeg === i"
                           :aria-label="`Show A${i + 1}'s shifts`"
                           @click="expandedLeg = expandedLeg === i ? -1 : i"
@@ -734,12 +734,12 @@
                       <td class="py-1.5 pr-3 text-slate-500">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
                       <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
                       <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
-                        <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-400"
+                        <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-600"
                           >&mdash;</span
                         >
                         <template v-else>
                           <span v-if="leg.sleepDelaySeconds" class="text-slate-500">
-                            <span class="text-slate-400 font-bold">P</span>
+                            <span class="text-slate-600 font-bold">P</span>
                             {{ (leg.sleepDelaySeconds / 3600).toFixed(1) }} h
                           </span>
                           <span v-if="leg.shiftDelaySeconds" class="text-amber-700 font-bold ml-1.5">
@@ -752,7 +752,7 @@
                         <button
                           v-if="leg.shifts?.length"
                           type="button"
-                          class="text-body font-bold text-slate-400 hover:text-emerald-700 whitespace-nowrap"
+                          class="text-body font-bold text-slate-600 hover:text-emerald-700 whitespace-nowrap"
                           :aria-expanded="expandedLeg === i"
                           @click="expandedLeg = expandedLeg === i ? -1 : i"
                         >
@@ -764,7 +764,7 @@
                     </tr>
                     <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
                       <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
-                        <p class="text-small font-bold text-slate-400 mb-2">
+                        <p class="text-small font-bold text-slate-600 mb-2">
                           A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} shifts
                           <span v-if="store.scheduleEnabled" class="text-amber-600"
                             >· amber falls outside your awake hours</span
@@ -788,7 +788,7 @@
                               <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-600">(start)</span>
                             </span>
                             <span class="tabular-nums">{{ stamp(b.at) }}</span>
-                            <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-400' : 'text-emerald-500'">
+                            <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-600' : 'text-emerald-500'">
                               {{ b.length }}
                             </span>
                           </div>

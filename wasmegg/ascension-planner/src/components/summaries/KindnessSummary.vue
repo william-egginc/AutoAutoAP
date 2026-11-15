@@ -15,21 +15,21 @@
             />
           </svg>
         </div>
-        <span class="text-slate-400 label">Kindness Summary</span>
+        <span class="text-slate-600 label">Kindness Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
           <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
-          <span class="label text-slate-400">/hr</span>
+          <span class="label text-slate-600">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
           <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
-          <span class="label text-slate-400">/hr</span>
+          <span class="label text-slate-600">/hr</span>
         </div>
       </div>
 
       <!-- Stats Grid -->
       <div class="flex flex-wrap items-center" :class="compact ? 'gap-x-3 gap-y-1' : 'gap-x-6 gap-y-2'">
         <div class="flex flex-col items-end">
-          <span class="text-slate-400 label leading-none mb-1">Fleet</span>
+          <span class="text-slate-600 label leading-none mb-1">Fleet</span>
           <div class="flex items-center gap-1.5">
             <template v-if="isMaxed">
               <span
@@ -46,7 +46,7 @@
         </div>
 
         <div class="flex flex-col items-end">
-          <span class="text-slate-400 label leading-none mb-1"
+          <span class="text-slate-600 label leading-none mb-1"
             >Shipping Cap</span
           >
           <span class="text-body tabular-nums font-bold text-slate-900">{{ formattedShippingCap }}</span>

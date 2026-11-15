@@ -26,13 +26,13 @@
         Download this save
       </button>
     </template>
-    <span v-else-if="state === 'dropped'" class="text-slate-400">
+    <span v-else-if="state === 'dropped'" class="text-slate-600">
       The save for this one was dropped to make room (only the {{ MAX_KEPT_SAVES }} newest saves are kept here).
     </span>
-    <span v-else-if="state === 'missing'" class="text-slate-400">
+    <span v-else-if="state === 'missing'" class="text-slate-600">
       The save for this one wasn't kept (it was no longer on {{ thisDevice() }} when this was saved).
     </span>
-    <span v-else class="text-slate-400">The save for this one wasn't kept (saved before 10 Oct).</span>
+    <span v-else class="text-slate-600">The save for this one wasn't kept (saved before 10 Oct).</span>
   </div>
 </template>
 

@@ -172,7 +172,7 @@
           <button
             v-if="!store.isRunning"
             type="button"
-            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-slate-600"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-600 hover:text-slate-600"
             @click="store.rebuildShortlist()"
           >
             Refresh
@@ -222,7 +222,7 @@
         <div v-else class="overflow-x-auto" data-testid="shortlist">
           <table class="w-full text-small">
             <thead>
-              <tr class="text-slate-400 label text-left">
+              <tr class="text-slate-600 label text-left">
                 <th class="py-2 pr-3">Route</th>
                 <th class="py-2 pr-3">Ascensions</th>
                 <th class="py-2 pr-3">Finishes</th>
@@ -255,7 +255,7 @@
                     <!-- Every row: one without its legs can have them worked out (search/legsOnDemand.ts). -->
                     <button
                       type="button"
-                      class="mr-1.5 text-slate-400 hover:text-emerald-700"
+                      class="mr-1.5 text-slate-600 hover:text-emerald-700"
                       :aria-expanded="expandedRow === row.chain.join(',')"
                       :aria-label="`Show when ${row.chain.join(' ')} happens`"
                       @click="expandedRow = expandedRow === row.chain.join(',') ? '' : row.chain.join(',')"
@@ -275,19 +275,19 @@
                   <!-- null, not 0: a replayed chain has no legs to count, and "0" would be a claim. -->
                   <td v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
                     <template v-if="store.deferShifts">
-                      <span v-if="scheduleCost(row) === null" class="text-slate-400">not recorded</span>
-                      <span v-else-if="scheduleCost(row)! < 3600" class="text-slate-400">&mdash;</span>
+                      <span v-if="scheduleCost(row) === null" class="text-slate-600">not recorded</span>
+                      <span v-else-if="scheduleCost(row)! < 3600" class="text-slate-600">&mdash;</span>
                       <span v-else class="font-bold text-amber-700">
                         +{{ (scheduleCost(row)! / 86400).toFixed(2) }} d
                       </span>
                     </template>
                     <template v-else>
-                      <span v-if="row.nightShifts === null" class="text-slate-400">not recorded</span>
-                      <span v-else-if="!row.nightShifts" class="text-slate-400">none</span>
+                      <span v-if="row.nightShifts === null" class="text-slate-600">not recorded</span>
+                      <span v-else-if="!row.nightShifts" class="text-slate-600">none</span>
                       <span v-else class="font-bold text-amber-700">{{ row.nightShifts }} outside</span>
                     </template>
                   </td>
-                  <td class="py-2 pr-3 text-slate-400 min-w-[9.5rem]">{{ REASON_TEXT[row.reason] }}</td>
+                  <td class="py-2 pr-3 text-slate-600 min-w-[9.5rem]">{{ REASON_TEXT[row.reason] }}</td>
                   <td class="py-2 text-right whitespace-nowrap">
                     <button
                       type="button"
@@ -342,7 +342,7 @@
                         </button>
                       </template>
                     </div>
-                    <p class="text-small text-slate-400">
+                    <p class="text-small text-slate-600">
                       Open an ascension for its eggs: when the farm first moves onto each, and the TE it has when it
                       last moves off it.
                       <template v-if="store.scheduleEnabled && store.deferShifts">
@@ -368,7 +368,7 @@
           <h3 class="text-slate-500 label">The shape of this search</h3>
           <button
             type="button"
-            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-slate-600"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-600 hover:text-slate-600"
             @click="store.setChartShown(!store.chartShown)"
           >
             {{ store.chartShown ? 'Hide' : 'Show' }}

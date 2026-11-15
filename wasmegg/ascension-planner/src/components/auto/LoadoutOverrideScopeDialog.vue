@@ -43,7 +43,7 @@
           @change="toggle(idx)"
         />
         A{{ idx + 1 }}
-        <span v-if="mode === 'remove' && !overriddenIndices.includes(idx)" class="text-small font-bold text-slate-400">none</span>
+        <span v-if="mode === 'remove' && !overriddenIndices.includes(idx)" class="text-small font-bold text-slate-600">none</span>
       </label>
     </div>
   </ConfirmationDialog>

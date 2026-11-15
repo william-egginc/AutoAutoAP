@@ -72,7 +72,7 @@
       :entries="legendEntries"
       label="Lines: click to hide or show"
     />
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No account here has submitted two different ascension counts against this target yet, so there is nothing to
       compare. One Custom run covering a range of counts would answer it outright.
     </p>
@@ -96,7 +96,7 @@
     <div v-if="comparisons.length" class="overflow-x-auto">
       <table class="w-full text-small">
         <thead>
-          <tr class="text-slate-400 label">
+          <tr class="text-slate-600 label">
             <th class="text-left py-1 pr-3">Account</th>
             <th class="text-left py-1 pr-3">Finishes first</th>
             <th class="text-left py-1 pr-3">Other counts tried, days after it</th>
@@ -110,7 +110,7 @@
               <b class="text-slate-700">{{ line.label }}</b>
               <!-- Says which line this row is: an account can have both, and the two can disagree,
                    because one is a single run from one save and the other the best of several runs. -->
-              <div class="text-small text-slate-400" :title="line.sourceTitle">{{ line.source }}</div>
+              <div class="text-small text-slate-600" :title="line.sourceTitle">{{ line.source }}</div>
             </td>
             <td class="py-1.5 pr-3 whitespace-nowrap">
               <b class="text-slate-700">{{ plural(line.best.ascensions, 'ascension') }}</b>
@@ -119,7 +119,7 @@
               </div>
               <!-- Under Proofs only, or on a line from one run, the account's earliest finish can be a
                    run that is not on this line. -->
-              <div v-if="line.best.behind >= SAME_FINISH_DAYS" class="text-small text-slate-400">
+              <div v-if="line.best.behind >= SAME_FINISH_DAYS" class="text-small text-slate-600">
                 {{ daysText(line.best.behind) }} after
                 {{ line.ownAnchor ? "this run's best count" : "the account's earliest finish" }}
               </div>
@@ -129,13 +129,13 @@
                 <b class="text-slate-600">{{ p.ascensions }}</b
                 >:
                 {{ behindText(p.behind - line.best.behind) }}
-                <span class="text-small text-slate-400">· {{ p.search.text }}</span>
+                <span class="text-small text-slate-600">· {{ p.search.text }}</span>
               </div>
             </td>
             <td class="py-1.5 whitespace-nowrap">
               <div v-for="s in line.steps" :key="`${s.from}-${s.to}`">
                 <span class="text-slate-600">{{ s.from }}→{{ s.to }}</span>
-                <span class="text-small text-slate-400">
+                <span class="text-small text-slate-600">
                   · {{ s.gap < SAME_FINISH_DAYS ? 'same finish' : `${s.better} first by ${daysText(s.gap)}` }} ·
                 </span>
                 <b :class="VERDICT[s.verdict].class">{{ VERDICT[s.verdict].text }}</b>
@@ -200,7 +200,7 @@ const viewZone = localZone();
 const VERDICT: Record<StepVerdict, { text: string; class: string }> = {
   settled: { text: 'settled', class: 'text-emerald-700' },
   direction: { text: 'direction holds', class: 'text-sky-700' },
-  noise: { text: 'within search noise', class: 'text-slate-400' },
+  noise: { text: 'within search noise', class: 'text-slate-600' },
 };
 
 function daysText(days: number): string {

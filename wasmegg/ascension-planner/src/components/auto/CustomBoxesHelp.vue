@@ -11,7 +11,7 @@
     </p>
     <!-- The Format and its facts behind a "Format ?" tip (UX fluff review 2, 5 Nov 2026, item C-pre10), word for word. -->
     <p class="flex items-center gap-1.5" data-testid="custom-boxes-format">
-      <span class="label text-slate-400">Format</span>
+      <span class="label text-slate-600">Format</span>
       <HelpTip
         ><span
           class="rounded bg-slate-100 px-1.5 tabular-nums text-slate-700 whitespace-nowrap"

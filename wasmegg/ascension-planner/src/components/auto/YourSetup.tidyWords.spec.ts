@@ -13,8 +13,8 @@ const flat = (s: string) => s.replace(/\s+/g, ' ');
 
 describe('S6: Start time', () => {
   it('the grey tag says Default, the blue button says Now: one word, one meaning', () => {
-    expect(flat(sched)).toContain('<span class="text-slate-400 label">Default</span>');
-    expect(flat(sched)).not.toContain('<span class="text-slate-400 label">Now</span>');
+    expect(flat(sched)).toContain('<span class="text-slate-600 label">Default</span>');
+    expect(flat(sched)).not.toContain('<span class="text-slate-600 label">Now</span>');
     expect(flat(sched)).toMatch(/title="Start from the current time"[^>]*> Now <\/button>/);
   });
 });

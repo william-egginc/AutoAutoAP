@@ -40,7 +40,7 @@
     </div>
 
     <EChart v-if="legs.length" :option="option" height="380px" />
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here that still stands carried per-ascension detail past its first ascension.
     </p>
 
@@ -61,7 +61,7 @@
 
     <!-- The title sits above the scroll box, not in a <caption>: a caption is as wide as the table, so on a
          phone it ran off the right edge and needed a sideways scroll to read. -->
-    <p v-if="legs.length" class="text-small font-bold text-slate-400" aria-hidden="true">
+    <p v-if="legs.length" class="text-small font-bold text-slate-600" aria-hidden="true">
       The commonest sale plan, by where the ascension starts and how much it climbs
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
@@ -70,7 +70,7 @@
           The commonest sale plan, by where the ascension starts and how much it climbs
         </caption>
         <thead>
-          <tr class="text-slate-400 label">
+          <tr class="text-slate-600 label">
             <th class="text-left py-1 pr-3">Starts at (TE)</th>
             <th v-for="g in summary.gains" :key="g.label" class="text-left py-1 pr-3">Climbs {{ g.label }} TE</th>
           </tr>
@@ -97,7 +97,7 @@
                 >
                 <b class="text-slate-700">{{ topText(cell) }}</b>
                 <span class="ml-1 text-slate-500">{{ Math.round(cell.share * 100) }}%</span>
-                <span class="ml-1 text-small text-slate-400">n {{ cell.n }}</span>
+                <span class="ml-1 text-small text-slate-600">n {{ cell.n }}</span>
               </template>
               <span v-else class="text-slate-300">—</span>
             </td>

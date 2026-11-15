@@ -98,7 +98,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-small font-bold">{{ g.label }}</span>
-        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-600'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
@@ -111,7 +111,7 @@
             s.state === 'now'
               ? 'font-bold text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
               : s.state === 'passed'
-                ? 'text-slate-400'
+                ? 'text-slate-600'
                 : ''
           "
           :aria-current="s.state === 'now' ? 'step' : undefined"
@@ -199,7 +199,7 @@
       <button
         type="button"
         disabled
-        class="inline-flex min-h-[44px] items-center font-bold text-slate-400 sm:min-h-0"
+        class="inline-flex min-h-[44px] items-center font-bold text-slate-600 sm:min-h-0"
         data-testid="now-follow-save-off-button"
       >
         Save it online ›
@@ -414,6 +414,7 @@
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
         <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
@@ -610,7 +611,7 @@ import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
 import { freshSoonerLine } from '@/lib/freshSoonerWords';
 import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextBuy, type NextShiftLine } from '@/lib/nextAction';
-import { roundToHourIn } from '@/lib/nowWords';
+import { ROUGH_NEXT_STEP, roundToHourIn } from '@/lib/nowWords';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
