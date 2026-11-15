@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import WhatWeKnow from './WhatWeKnow.vue';
+import { knowStats } from './knowStats';
 import { renderHtml, textOf } from '@/test/renderComponent';
 
 const explorer = readFileSync(new URL('./ChainExplorer.vue', import.meta.url), 'utf8');
@@ -22,7 +23,8 @@ describe('What we know: nothing to count', () => {
     expect(t).not.toContain('Counting the Leaderboard');
   });
   it('counts win over the empty line', async () => {
-    const stats = { runsTo490: 3, accounts: 2, te: null, plans: 10, byDate: 0, byDateAccounts: 0, eggDay: [], lowestCte: null, sweet: { of: 1, total: 2 } };
+    // A full stats object from the real counter (it grows fields), with runs to count.
+    const stats = { ...knowStats([], { byId: new Map(), bestByAccount: new Map() }, new Set()), runsTo490: 3, accounts: 2, plans: 10 };
     const t = textOf(await renderHtml(WhatWeKnow, { empty: true, stats }));
     expect(t).not.toContain("No runs on this site's simulator yet");
     expect(t).toContain('3 runs to 490 TE');

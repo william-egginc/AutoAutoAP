@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { knowStats, byDateEntries, startFits, measuredOnLine } from './knowStats';
+import { eggDaySeconds } from '@/lib/eggDay';
 import { SIM_VERSION } from '@/search/simVersion';
 import type { CollectorRow } from './collector';
 import type { FinishJudgement } from './analysis';
@@ -47,7 +48,8 @@ describe('knowStats', () => {
   });
 
   describe('By a date (Egg Day)', () => {
-    const DEADLINE = 1_800_000_000;
+    // Egg Day 2027 itself: the list is Egg Day only (review IN-6).
+    const DEADLINE = eggDaySeconds(2027);
     const NOW = (DEADLINE - 86_400 * 30) * 1000;
     const bd = (id: string, over: Partial<CollectorRow>) =>
       row(id, {
@@ -79,6 +81,28 @@ describe('knowStats', () => {
         ['Allan', 200, 336],
         ['Fliris', 170, 300],
       ]);
+    });
+
+    it('is Egg Day only: another date, or another year\'s Egg Day, is not in the list (review IN-6)', () => {
+      const egg = bd('e', { nickname: 'Allan', artifacts: ['x'] });
+      const dec25 = bd('d', { nickname: 'Techy', artifacts: ['t'], deadline: DEADLINE + 164 * 86_400, deadlineAscendAt: DEADLINE + 164 * 86_400 - 3600 });
+      const nineAm = bd('n', { nickname: 'Chi', artifacts: ['c'], deadline: DEADLINE + 3600, deadlineAscendAt: DEADLINE + 1800 });
+      const next = eggDaySeconds(2028);
+      const nextYear = bd('y', { nickname: 'Far', artifacts: ['f'], deadline: next, deadlineAscendAt: next - 3600 });
+      expect(byDateEntries([egg, dec25, nineAm, nextYear], NOW).map(e => e.label)).toEqual(['Allan']);
+    });
+
+    it('drops the anonymous lines: they cannot be told apart from a named player\'s own anonymous sends (review IN-6)', () => {
+      const named = bd('n1', { nickname: 'Allan', artifacts: ['x'] });
+      const anon = bd('a1', { artifacts: ['q'], nickname: undefined });
+      expect(byDateEntries([named, anon], NOW).map(e => e.label)).toEqual(['Allan']);
+    });
+
+    it('one line per player, not one per owner code: a player\'s codes are joined (LB-1, review IN-6)', () => {
+      const a = bd('a', { nickname: 'Allan', artifacts: ['x'], acct: 'h1' });
+      const b = bd('b', { nickname: 'Allan', artifacts: ['x'], acct: 'h2', chain: [230, 340], finalTE: 340 });
+      const labels = byDateEntries([a, b], NOW).map(e => e.label);
+      expect(labels.filter(l => l.startsWith('Allan'))).toHaveLength(1);
     });
 
     it('leaves out an answer whose last ascension misses the date', () => {

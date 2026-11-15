@@ -10,6 +10,7 @@ import { buildDeadlineBoard } from '@/lib/leaderboardRank';
 import { FIRST_STAMP_DAY, simDate } from '@/lib/simLabel';
 import { SIM_VERSION } from '@/search/simVersion';
 import { plural } from '@/lib/format';
+import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
 
 export const SWEET_SPOT = { from: 5, to: 7 } as const;
 
@@ -30,7 +31,7 @@ export function startFits(r: Pick<CollectorRow, 'chain' | 'currentTE'> & { final
 }
 
 export interface ByDateEntry {
-  /** The name the board shows, or "an anonymous account". */
+  /** The name the board shows. */
   label: string;
   /** The TE the route starts from. */
   from: number;
@@ -40,19 +41,21 @@ export interface ByDateEntry {
 }
 
 /**
- * Each account's best By a date answer, highest TE first: the Leaderboard's own By a date board
- * (`buildDeadlineBoard`: no flagged rows, none that miss the date, no old-save what-ifs), after
- * dropping rows whose start does not fit the route (`startFits`).
+ * Each account's best By a date answer FOR THE NEXT EGG DAY, highest TE first (review IN-6, 15 Nov 2026: the list held other dates,
+ * a 9:00 AM Chicago deadline, 19 anonymous lines and one player several times): the Leaderboard's own By a date board
+ * (`buildDeadlineBoard`: no flagged rows, none that miss the date, no old-save what-ifs, a player's owner codes joined into one line by
+ * `ownerGroups`), after dropping rows whose start does not fit the route (`startFits`), keeping only the group whose deadline IS the next
+ * Egg Day, and leaving out the anonymous lines (several are named players' own anonymous sends, so they can be neither told apart nor
+ * counted once).
  */
 export function byDateEntries(byDateRows: readonly CollectorRow[], now: number): ByDateEntry[] {
   const out: ByDateEntry[] = [];
   const fitting = byDateRows.filter(startFits);
+  const year = nextEggDayYear(now);
   for (const group of buildDeadlineBoard(fitting, { now })) {
+    if (eggDayYearOf(group.deadline) !== year) continue;
     for (const e of group.entries) {
       out.push({ label: e.label, from: e.best.currentTE, reaches: e.te, ascensions: e.best.chain.length });
-    }
-    for (const e of group.anonymous) {
-      out.push({ label: 'an anonymous account', from: e.best.currentTE, reaches: e.te, ascensions: e.best.chain.length });
     }
   }
   return out.sort((a, b) => b.reaches - a.reaches || a.from - b.from);
