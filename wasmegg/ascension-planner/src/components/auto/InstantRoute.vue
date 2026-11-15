@@ -183,10 +183,7 @@
       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900"
       data-testid="instant-sim-version"
     >
-      This instant answer was made with {{ simNote }}, not the simulator this page runs. Where one round of
-      research, vehicles and habs (C1, K1, I1) maxes the habs, its times are expected to move only a little. Where it
-      does not, often at low TE on weaker gear, its routes and dates can move a lot. Fast, Exact or Custom below prices
-      them on your account.
+      {{ simMismatchWords(simNote) }}
     </p>
 
     <p
@@ -1087,6 +1084,7 @@ import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
+import { simMismatchWords } from '@/lib/simMismatchWords';
 import { resultCode, sameResultCode } from '@/lib/resultCode';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
