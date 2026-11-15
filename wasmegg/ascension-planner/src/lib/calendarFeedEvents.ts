@@ -191,9 +191,9 @@ interface Draft {
   merged?: boolean;
 }
 
-/** Buys whose start is within this of the previous buy's become ONE event (Jordan's real test: 82 buys a few minutes apart). */
+/** Buys whose start is within this of the first buy of their run become ONE event (Jordan's real test: 82 buys a few minutes apart). */
 export const CAL_MERGE_GAP_MIN = 30;
-/** About this many events a day: the buys past it are merged into the last buy of that day. */
+/** About this many events a day: past it the closest neighbouring buys of that day merge. */
 export const CAL_MAX_PER_DAY = 12;
 
 const upFirst = (t: string): string => (t ? t[0]!.toUpperCase() + t.slice(1) : t);
@@ -252,29 +252,31 @@ const dayKey = (ms: number, zone: string): string => {
 };
 
 /**
- * Sorted drafts in, fewer out: consecutive buys within CAL_MERGE_GAP_MIN of the previous buy become one event at the first
- * buy's time (same uid). A shift, prestige, route or note never merges and ends the run. Then at most CAL_MAX_PER_DAY events a
- * day: the buys past that are merged into the last buy kept for the day.
+ * Sorted drafts in, fewer out (review U3, 15 Nov 2026): buys within CAL_MERGE_GAP_MIN of the FIRST buy of their run become one event
+ * at that buy's time (same uid): a run is anchored, not chained, so 20 buys 20 minutes apart are not one event all afternoon. A shift,
+ * prestige, route or note ends the run, and so does a sale start or end (`breaks`, in ms, from the sale lines whether or not notes
+ * are shown): a 9:07 AM run never holds the buys of the 10:00 AM sale, whatever the sort order of the two at one minute.
+ * Then at most CAL_MAX_PER_DAY events a day: while a day has more, the two NEIGHBOURING buys closest in time merge (the earlier's
+ * time and uid), preferring a pair with no sale break between them, so a late buy is never folded hours back into an early one.
  */
-function mergeBuys(sorted: readonly Draft[], zone: string): Draft[] {
+function mergeBuys(sorted: readonly Draft[], zone: string, breaks: readonly number[] = []): Draft[] {
   const gap = CAL_MERGE_GAP_MIN * 60_000;
+  const between = (a: number, b: number): boolean => breaks.some(t => t > a && t <= b);
   const out: Draft[] = [];
   let run: Draft | null = null;
-  let lastBuyAt = 0;
   for (const d of sorted) {
     if (d.kind !== 'buy' || !d.items) {
       out.push(d);
       run = null;
       continue;
     }
-    if (run && d.start - lastBuyAt <= gap) {
+    if (run && d.start - run.start <= gap && !between(run.start, d.start)) {
       run.items!.push(...d.items);
       run.merged = true;
     } else {
       run = { ...d, items: [...d.items] };
       out.push(run);
     }
-    lastBuyAt = d.start;
   }
   const byDay = new Map<string, Draft[]>();
   for (const d of out) {
@@ -283,14 +285,25 @@ function mergeBuys(sorted: readonly Draft[], zone: string): Draft[] {
   }
   const dropped = new Set<Draft>();
   for (const day of byDay.values()) {
+    const others = day.filter(d => !(d.kind === 'buy' && d.items)).length;
+    const allowed = Math.max(1, CAL_MAX_PER_DAY - others);
     const buys = day.filter(d => d.kind === 'buy' && d.items);
-    const allowed = Math.max(1, CAL_MAX_PER_DAY - (day.length - buys.length));
-    if (buys.length <= allowed) continue;
-    const keep = buys[allowed - 1]!;
-    for (const extra of buys.slice(allowed)) {
+    while (buys.length > allowed) {
+      let best = -1;
+      let bestKey: [number, number] = [2, Infinity];
+      for (let i = 0; i + 1 < buys.length; i++) {
+        const key: [number, number] = [between(buys[i]!.start, buys[i + 1]!.start) ? 1 : 0, buys[i + 1]!.start - buys[i]!.start];
+        if (key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+          best = i;
+          bestKey = key;
+        }
+      }
+      const keep = buys[best]!;
+      const extra = buys[best + 1]!;
       keep.items!.push(...extra.items!);
       keep.merged = true;
       dropped.add(extra);
+      buys.splice(best + 1, 1);
     }
   }
   const result = out.filter(d => !dropped.has(d));
@@ -397,7 +410,10 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     .filter(d => include[d.kind] && d.start >= from && d.start <= to)
     .sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
   // One place of the 100 is the "Plan last updated" marker.
-  const merged = mergeBuys(picked, zone);
+  const breaks = input.lines
+    .filter(l => (l.kind === 'saleStart' || l.kind === 'saleEnd') && l.at > 0)
+    .map(l => Math.round(l.at * 1000));
+  const merged = mergeBuys(picked, zone, breaks);
   let kept = merged.slice(0, CAL_MAX_EVENTS - 1);
 
   const footerNow = plannedAsOf(now, zone);
