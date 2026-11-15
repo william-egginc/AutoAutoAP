@@ -124,10 +124,13 @@ const PLAYER_ID = /EI\d{16}/gi;
 // break, so none may reach a title or note (QA red team, 14 Nov 2026; the collector refuses them too).
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+// Invisible and direction-changing characters: soft hyphen, ALM, Mongolian vowel separator, zero-width, bidi marks and isolates, word joiner and
+// BOM. A title could look different from its text, so they are removed (the collector refuses them; red team round 2, 14 Nov). Combining marks stay.
+const HIDDEN = /[\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g;
 
 /** Plain text: no player ID, no control characters, runs of space folded, cut to `max` with an ellipsis. */
 function clean(text: string, max: number): string {
-  const t = text.replace(PLAYER_ID, '').replace(CONTROL, ' ').replace(/\s+/g, ' ').trim();
+  const t = text.replace(PLAYER_ID, '').replace(HIDDEN, '').replace(CONTROL, ' ').replace(/\s+/g, ' ').trim();
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
 }
 
