@@ -1910,7 +1910,12 @@ function backupFailureReason(e: unknown): string {
 // leaves that snapshot as it was).
 watch(
   () => uiStore.backupRetryRequested,
-  () => void handleAutoPlannerTabClick()
+  () => {
+    // On My runs (the daily loop: load today's save, tick buys) a fresh save loads and the player stays there (review S-1);
+    // from anywhere else it opens the Auto Planner as before.
+    if (plannerTab.value === 'myruns') loadFreshSave();
+    else void handleAutoPlannerTabClick();
+  }
 );
 
 /** Opening the Auto Planner collapses the header, unless there's no player ID or no save loaded yet:
