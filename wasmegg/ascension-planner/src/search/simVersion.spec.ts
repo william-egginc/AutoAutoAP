@@ -48,3 +48,25 @@ describe('simulator version', () => {
     expect(jointSimVersion(undefined, SIM_VERSION)).toBeUndefined();
   });
 });
+
+describe('SIM_SOURCES coverage (review 15 Nov, T5)', () => {
+  // The generator's own bundle reads these to price and time every cell; they were outside the hash, so a change
+  // there could move cells with the guard green. Listed from the dist-search sourcemaps, 15 Nov 2026.
+  it('covers the calendar, pricing, planners, virtue optimizer and their data', () => {
+    for (const f of [
+      '../../lib/planners/events.ts',
+      '../../lib/planners/pacificTimeTable.json',
+      '../../lib/planners/utils/pricing.ts',
+      '../../lib/planners/utils/research.ts',
+      '../../lib/planners/utils/math.ts',
+      '../../lib/planners/habs.ts',
+      '../../lib/planners/vehicles.ts',
+      '../../lib/planners/silos.ts',
+      '../../lib/planners/epicResearch.ts',
+      '../../lib/planners/artifacts/virtue.ts',
+      '../../lib/earning_bonus.ts',
+      '../../lib/researches.json',
+    ])
+      expect(SIM_SOURCES).toContain(f);
+  });
+});
