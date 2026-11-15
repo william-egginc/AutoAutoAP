@@ -380,17 +380,40 @@ describe("Words' wording (14 Nov)", () => {
       expect(CAL_MERGE_GAP_MIN).toBe(30);
       expect(CAL_MAX_PER_DAY).toBe(12);
     });
-    it('buys each within 30 min of the previous become one event at the first time, with the first item and +N more', () => {
-      const out = build([b(10, 'A'), b(25, 'B'), b(50, 'C')]);
+    it('buys within 30 min of the run\'s FIRST buy become one event at that time, with the first item and +N more', () => {
+      const out = build([b(10, 'A'), b(25, 'B'), b(38, 'C')]);
       expect(out.events).toHaveLength(1);
       expect(out.events[0]).toMatchObject({ start: min(10) * 1000, title: 'Buy: A (1 → 2) +2 more', kind: 'buy' });
       expect(out.events[0]!.notes).toContain('- B (1 → 2)');
       expect(out.events[0]!.notes).toContain('- C (1 → 2)');
       expect(out.events[0]!.notes).toMatch(/Planned as of/);
     });
-    it('a gap over 30 min starts a new event', () => {
+    it('a run is anchored to its first buy (review U3): a buy 40 min after it starts a new event, however close the previous buy is', () => {
+      const out = build([b(10, 'A'), b(25, 'B'), b(50, 'C')]);
+      expect(out.events.map(e => [e.start / 1000 - SEC, e.title])).toEqual([
+        [10 * 60, 'Buy: A (1 → 2) +1 more'],
+        [50 * 60, 'Buy: C (1 → 2)'],
+      ]);
+    });
+    it('a gap over 30 min from the first buy starts a new event', () => {
       expect(build([b(10), b(41)]).events).toHaveLength(2);
       expect(build([b(10), b(40)]).events).toHaveLength(1);
+    });
+    describe('a sale start or end is a hard break (review U3)', () => {
+      const sale = (m: number, kind: 'saleStart' | 'saleEnd'): CalLine =>
+        line({ key: `${min(m)}:z${kind}`, at: min(m), kind, text: kind === 'saleStart' ? 'sale starts' : 'sale ends', tickable: false, checkIn: -1 });
+      it('buys before the sale and buys at its start are separate events, even inside 30 min and whatever the sort tie', () => {
+        // The buy at the sale start has a uid that sorts BEFORE the note's.
+        const atStart = line({ key: `${min(53)}:0`, at: min(53), checkIn: 54, text: 'buy Sale item (1 → 2)' });
+        const out = build([b(30, 'Early'), b(45, 'Early 2'), atStart, sale(53, 'saleStart')]);
+        const buys = out.events.filter(e => e.kind === 'buy');
+        expect(buys.map(e => e.title)).toEqual(['Buy: Early (1 → 2) +1 more', 'Buy: Sale item (1 → 2)']);
+      });
+      it('holds with notes switched off, and at the sale end', () => {
+        const atEnd = line({ key: `${min(100)}:0`, at: min(100), checkIn: 101, text: 'buy After (1 → 2)' });
+        const out = build([b(80, 'In sale'), b(95, 'In sale 2'), atEnd, sale(100, 'saleEnd')], { options: { include: { note: false } } });
+        expect(out.events.map(e => e.title)).toEqual(['Buy: In sale (1 → 2) +1 more', 'Buy: After (1 → 2)']);
+      });
     });
     it('a shift splits a buy run and never merges', () => {
       const out = build([b(10), b(12), sh(14), b(16), b(18)]);
@@ -407,6 +430,17 @@ describe("Words' wording (14 Nov)", () => {
       expect(out.events[0]!.title.length).toBeLessThanOrEqual(80);
       expect(out.events[0]!.title).toMatch(/\+11 more$/);
       expect(out.events[0]!.notes!.length).toBeLessThanOrEqual(300);
+    });
+    it('about 12 events a day: the CLOSEST buys merge, never a late buy folded hours back into an earlier event (review U3)', () => {
+      // 12 buys 40 min apart from 00:10 UTC, but one pair only 35 min apart, then a buy about 8 h after the last of them.
+      const times = [60, 100, 140, 180, 220, 260, 295, 340, 380, 420, 460, 500].map(m => m); // 295-260 = 35
+      const lines = [...times.map(m => b(m, `E${m}`)), b(1000, 'Late')];
+      const out = build(lines, { zone: 'UTC', now: NOW });
+      expect(out.events.filter(e => e.kind === 'buy')).toHaveLength(CAL_MAX_PER_DAY);
+      const late = out.events.find(e => e.start === min(1000) * 1000)!;
+      expect(late.title).toBe('Buy: Late (1 → 2)');
+      const merged = out.events.filter(e => / more$/.test(e.title));
+      expect(merged.map(e => e.title)).toEqual(['Buy: E260 (1 → 2) +1 more']);
     });
     it('about 12 events a day: the buys past it merge into the last one kept', () => {
       const spread = Array.from({ length: 30 }, (_, i) => b(i * 40)); // 40 min apart: none merge by gap
