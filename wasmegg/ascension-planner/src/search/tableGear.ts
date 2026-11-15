@@ -62,6 +62,9 @@ export function gearStamp(
   return perfStep('gearStamp', () => stampOf(inputs, earnings, research));
 }
 
+/** The delivery sets worked out for the last save `gearStamp` read, by their research (`stampOf`). */
+let deliveryMemo: { save: string; sets: Map<string, LoadoutSlot[]> } | null = null;
+
 function stampOf(
   inputs: SearchInputs,
   earnings: EquippedArtifact[] | null | undefined,
@@ -79,15 +82,36 @@ function stampOf(
   // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone. Only the part of the
   // save getOptimalELRSet reads is copied (search/workerBackup.ts, the same cut the workers get: the research, epic
   // research and colleggtible modifiers are passed here, so nothing else of the save is read).
-  const delivery = (commonResearch: Record<string, number>) =>
-    describeLoadoutSlots(
-      getOptimalELRSet(workerCopy(trimBackupForWorkers(raw, ctx)) as typeof raw, {
-        commonResearch,
-        epicResearchLevels: ctx.epicResearchLevels,
-        colleggtibleModifiers: ctx.colleggtibleModifiers,
-        assumeMaxHabsVehicles: true,
-      }) as EquippedArtifact[] | null
-    );
+  //
+  // MEMO (review 15 Nov 2026 P6): a fresh instant answer worked the stamp out twice (its own table's research, then the
+  // maxed table's), and the table prefetch and the kept answer's tables once more each, every time a full optimizer
+  // search per set. The sets are kept for the last save read here, by what the optimizer reads of it (the trimmed
+  // copy as text, the epic research and colleggtible modifiers), so an edited save, even one changed in place, is
+  // worked out again. Text, one copy of the save cut: a few ms against the optimizer's search.
+  let fresh: unknown = workerCopy(trimBackupForWorkers(raw, ctx));
+  const saveKey = JSON.stringify([fresh, ctx.epicResearchLevels ?? null, ctx.colleggtibleModifiers ?? null]);
+  if (deliveryMemo?.save !== saveKey) deliveryMemo = { save: saveKey, sets: new Map() };
+  const sets = deliveryMemo.sets;
+  const delivery = (commonResearch: Record<string, number>): LoadoutSlot[] => {
+    const key = JSON.stringify(commonResearch ?? null);
+    let got = sets.get(key);
+    if (!got) {
+      // The copy the key was read from is used once (a fresh object: see above), then new ones.
+      const backup = fresh ?? workerCopy(trimBackupForWorkers(raw, ctx));
+      fresh = null;
+      got = describeLoadoutSlots(
+        getOptimalELRSet(backup as typeof raw, {
+          commonResearch,
+          epicResearchLevels: ctx.epicResearchLevels,
+          colleggtibleModifiers: ctx.colleggtibleModifiers,
+          assumeMaxHabsVehicles: true,
+        }) as EquippedArtifact[] | null
+      );
+      sets.set(key, got);
+    }
+    // A copy: what a caller does with its stamp never reaches the memo.
+    return JSON.parse(JSON.stringify(got)) as LoadoutSlot[];
+  };
   const sorted = (r: Record<string, number> | undefined) =>
     Object.fromEntries(Object.entries(r ?? {}).sort(([a], [b]) => a.localeCompare(b)));
   return {

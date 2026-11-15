@@ -51,6 +51,10 @@ export interface InstantTableDeps {
   inputs: () => SearchInputs;
   /** The save's earnings set (the store's `readInventory().earnings`). */
   earnings: () => EquippedArtifact[] | null | undefined;
+  /** The file names tables.json lists, each entry's file and aliases (search/tableListing.ts `listedTableNames`): an
+   *  own or gear name not among them is not asked for (review 15 Nov 2026 P6: every name was, one by one, each a
+   *  request). Null, or absent, when tables.json can't be read: every name is asked for, as before. */
+  listed?: () => Promise<ReadonlySet<string> | null>;
 }
 
 export interface InstantTableChoice {
@@ -69,7 +73,10 @@ export interface InstantTableChoice {
  * that never started: search/tableFetch.ts `tableLoadFailed` tells those apart).
  */
 export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTableChoice> {
-  const { pool: p, ownTableUrls, maxedUrl: TABLE_URL } = d;
+  const { pool: p, maxedUrl: TABLE_URL } = d;
+  const listed = (await d.listed?.().catch(() => null)) ?? null;
+  const isListed = (u: string) => !listed || listed.has(u.slice(u.lastIndexOf('/') + 1));
+  const ownTableUrls = async () => (await d.ownTableUrls()).filter(isListed);
   let url = TABLE_URL;
   let h: TableHeader | null = null;
   let mismatch = '';
@@ -105,6 +112,7 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
       let found = false;
       for (const gearName of await gearTableFiles(stamp)) {
         const gearUrl = `${d.base}${gearName}`;
+        if (!isListed(gearUrl)) continue;
         const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
         try {
           const gh = await p.header(both);

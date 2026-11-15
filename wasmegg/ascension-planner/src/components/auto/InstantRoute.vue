@@ -944,6 +944,7 @@ import {
   instantFirstLegs,
   instantPricingOptions,
 } from '@/search/instantCompute';
+import { listedTableNames } from '@/search/tableListing';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import {
   TABLE_LOAD_FAILED,
@@ -2194,6 +2195,8 @@ async function run(force = false, goAhead = false): Promise<void> {
       ownTableUrls,
       inputs: () => store.collectInputs(),
       earnings: () => store.readInventory().earnings,
+      // Only the own and gear names tables.json lists are asked for (search/tableListing.ts).
+      listed: async () => listedTableNames(await readTablesJson()),
     });
     const { url, header: h, mismatch, gearShifted } = choice;
     stampHash.value = choice.stampHash;

@@ -26,10 +26,9 @@
  *   - The final leg is NOT pushed. Reaching the final target is not an action; there is nothing to
  *     do at that instant, so being unavailable for it costs nothing.
  *
- *   - The delay is charged in full, and the TE you keep earning while away is NOT credited. Once
- *     the target is hit the farm goes on laying, so in real life you come back slightly past the
- *     checkpoint and the next leg is slightly shorter. The model is therefore CONSERVATIVE: a plan
- *     built with a schedule will, if anything, run marginally faster than it says.
+ *   - The delay is charged in full, and the eggs the farm keeps laying while you wait ARE credited
+ *     (creditWait), up to what the silos hold. The silo count is the save's, for every later
+ *     ascension, which is cautious because later ascensions buy silos again.
  *
  * Setting a schedule changes what "best" means, so it is part of the run fingerprint (see
  * persistence.ts) and there is none by default. Chains scored with and without one are not
@@ -52,13 +51,17 @@ export {
 /** Local hour-of-day, 0-23. One Intl call via `getTimezoneOffsetAt`, which is DST-exact — the
  *  offset is resolved AT that instant rather than assumed constant. */
 export function localHour(unixSeconds: number, timezone: string): number {
-  const wall = unixSeconds + getTimezoneOffsetAt(timezone, unixSeconds);
+  // Whole second: getTimezoneOffsetAt truncates the wall clock to seconds but subtracts the raw instant, so a
+  // fractional instant reads the offset up to a second low (R2/R5).
+  const s = Math.floor(unixSeconds);
+  const wall = s + getTimezoneOffsetAt(timezone, s);
   return Math.floor((((wall % 86400) + 86400) % 86400) / 3600);
 }
 
 /** Local day of week, 0 = Sunday. 1970-01-01 was a Thursday, hence the +4. */
 export function localDayOfWeek(unixSeconds: number, timezone: string): number {
-  const wall = unixSeconds + getTimezoneOffsetAt(timezone, unixSeconds);
+  const s = Math.floor(unixSeconds);
+  const wall = s + getTimezoneOffsetAt(timezone, s);
   return ((Math.floor(wall / 86400) % 7) + 4 + 7) % 7;
 }
 
@@ -82,8 +85,10 @@ export function isAvailable(unixSeconds: number, a: Availability): boolean {
   const days = validDays(a);
   if (!days.length || days.length === 7) return true;
 
-  const sessionStart = wraps && h < a.toHour ? unixSeconds - 86400 : unixSeconds;
-  return days.includes(localDayOfWeek(sessionStart, a.timezone));
+  // The previous LOCAL day, by weekday arithmetic: stepping back 86400 s lands on the wrong day when the day
+  // in between is 23 h (spring forward: Monday 00:30 would read as Saturday).
+  const dow = localDayOfWeek(unixSeconds, a.timezone);
+  return days.includes(wraps && h < a.toHour ? (dow + 6) % 7 : dow);
 }
 
 /**
@@ -95,7 +100,9 @@ export function isAvailable(unixSeconds: number, a: Availability): boolean {
  * and before the 02:00 transition. Harmless where it is used today (whole-hour plan starts a user
  * typed), wrong here, where the result is the thing being minimised.
  */
-function nextLocalHour(t: number, hour: number, tz: string): number {
+function nextLocalHour(tIn: number, hour: number, tz: string): number {
+  // Whole second for the offset read (see localHour). Any integer result past floor(t) is strictly after t.
+  const t = Math.floor(tIn);
   const wall = t + getTimezoneOffsetAt(tz, t);
   const intoDay = ((wall % 86400) + 86400) % 86400;
   let delta = hour * 3600 - intoDay;
@@ -134,12 +141,14 @@ export function nextAvailable(unixSeconds: number, a: Availability): number {
   if (!(Math.abs(unixSeconds) <= MAX_DATE_SECONDS)) return unixSeconds;
   if (!isConstrained(a) || isAvailable(unixSeconds, a)) return unixSeconds;
 
-  // Every session begins at `fromHour`, so those are the only candidate instants. Fourteen covers
-  // a fortnight, which is more than enough for any weekly pattern that has any available day at
+  // Every session begins at `fromHour`, so those are the only candidate instants. EXCEPT "From X to X" (all
+  // hours) on chosen days: that is the whole chosen day, which begins at local midnight, not at X o'clock (R2).
+  const startHour = a.fromHour === a.toHour ? 0 : a.fromHour;
+  // Fourteen candidates cover a fortnight, which is more than enough for any weekly pattern that has any available day at
   // all; a pattern with none would loop forever without the bound.
   let c = unixSeconds;
   for (let i = 0; i < 14; i++) {
-    c = nextLocalHour(c, a.fromHour, a.timezone);
+    c = nextLocalHour(c, startHour, a.timezone);
     if (isAvailable(c, a)) return c;
   }
   // Give up rather than spin. A caller that gets its input back is no worse off than one with no

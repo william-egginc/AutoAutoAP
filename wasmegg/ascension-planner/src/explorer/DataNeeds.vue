@@ -392,7 +392,7 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      "Every account on the Leaderboard has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
+      "Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
   },
 ];
 

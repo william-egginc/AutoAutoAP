@@ -110,6 +110,7 @@ import { MANY_WORKERS, MANY_WORKERS_TEXT } from '@/search/batch';
 import { isPhone, PHONE_NOTE } from '@/search/device';
 import { computed, ref } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { smartRunName } from '@/lib/stageWords';
 import type { SearchOption } from '@/lib/searchOption';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
@@ -216,7 +217,7 @@ const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() =>
   const k = store.runProgress?.kind;
   if (k !== 'smart' && k !== 'full') return null;
   if (k === props.kind) return null;
-  return { name: k === 'smart' ? NAMES.smart : NAMES.full, kind: k };
+  return { name: k === 'smart' ? smartRunName(store.effort) : NAMES.full, kind: k };
 });
 
 /** Stepping away?'s name for this screen's runs. */

@@ -36,7 +36,8 @@
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
         ascensions pay off and where the stops land.
       </p>
-      <p class="text-small text-slate-500">Checked {{ FINDINGS_CHECKED }} on the older simulator; not rechecked yet.</p>
+      <p class="text-small text-slate-500">Checked {{ FINDINGS_CHECKED }} on older simulators; this site now runs {{ SIM_NAME }}; not rechecked yet.</p>
+      <p v-if="stats && measuredLine" class="text-small text-slate-500" data-testid="measured-on">{{ measuredLine }}</p>
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
@@ -57,7 +58,10 @@
         <b>Halfway through a build?</b> Leave the first ascension on Soonest (Setup): it now weighs finishing the
         build against prestiging now.
       </p>
-      <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
+      <p>
+        <b>Below about 220 Clothed TE,</b> your first ascension may stall, so an earnings set upgrade may help first. That
+        is a September estimate, from before the Oct 13 low-TE opening; the instant answer checks your save.
+      </p>
     </div>
 
     <div class="space-y-1.5 text-body text-slate-700">
@@ -153,8 +157,8 @@
           </p>
           <p v-else-if="f.id === 'stall'">
             Under roughly 218-225 Clothed TE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
-            more than a week, and the instant answer shows no routes for one. Every account on the Leaderboard is above
-            it<template v-if="stats && stats.lowestCte !== null"> (lowest {{ cteText(stats.lowestCte) }})</template>. A
+            more than a week, and the instant answer shows no routes for one. That is a September estimate, from before
+            the Oct 13 low-TE opening, and some accounts got through below it since. A
             full T4L earnings set with T4 Lunar stones adds +128.7 to Clothed TE.
           </p>
           <p v-else-if="f.id === 'gear'">
@@ -203,9 +207,7 @@
         </p>
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
-          epic everything, rare everything, legendary set on T3 stones). Nothing on the Leaderboard covers earnings bonuses
-          between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and
-          a T4L Demeters necklace.
+          epic everything, rare everything, legendary set on T3 stones). No account has worn one of these sets exactly yet.
         </p>
         <p>
           <b>A run from an account missing epic research or colleggtibles;</b> every instant answer assumes both maxed.
@@ -220,15 +222,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { HOURS_NOTE } from '@/lib/hoursNote';
-import type { KnowStats } from './knowStats';
+import { SIM_VERSION } from '@/search/simVersion';
+import { measuredOnLine, type KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
-const FINDINGS_CHECKED = 'Oct 10, 2026';
+const FINDINGS_CHECKED = 'Oct 10-24, 2026';
+/** This site's simulator, short: "2026-11-14-sim5" is sim5. */
+const SIM_NAME = SIM_VERSION.replace(/^\d{4}-\d{2}-\d{2}-/, '');
 
-defineProps<{
+const props = defineProps<{
   /** Counted from the loaded runs; absent until the board has answered. */
   stats?: KnowStats | null;
   /** The Science tab's address, when the page can link to it. */
@@ -236,6 +242,9 @@ defineProps<{
   /** The board answered and no run is left to count (every run hidden by the older-simulators toggle, review IN-5): not "Counting". */
   empty?: boolean;
 }>();
+
+/** Review IN-3: the runs counted by simulator, under the header. */
+const measuredLine = computed(() => (props.stats ? measuredOnLine(props.stats.measuredOn) : ''));
 
 const findings = [
   {
@@ -248,7 +257,7 @@ const findings = [
   { id: 'eggday', headline: 'By Egg Day 2027, a well-geared account gains about 100-135 TE, with 3-5 ascensions.' },
   { id: 'bydate', headline: 'The instant answer matches Highest TE by a date runs ascension by ascension.' },
   { id: 'buildup', headline: 'Halfway through a build, finishing it first can beat prestiging now.' },
-  { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension stalls.' },
+  { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension may stall (a September estimate).' },
   { id: 'gear', headline: 'Your delivery set sets the pace; your earnings set matters early.' },
   { id: 'sale', headline: 'The research sale shapes every route.' },
   { id: 'one-te', headline: 'The best TEs are sharp: one TE is worth about two days.' },
@@ -260,10 +269,6 @@ const COUNT_TABLE = [
   { te: 165, cells: ['118 d', '20 d', '4 d', '2.4 d'] },
   { te: 195, cells: ['38 d', '6 d', '1.5 d', 'about 0'] },
 ];
-
-function cteText(n: number): string {
-  return String(Math.round(n * 10) / 10);
-}
 </script>
 
 <style scoped>

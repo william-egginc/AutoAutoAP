@@ -65,11 +65,12 @@ describe('RunControls', () => {
       store.isRunning = true;
       expect(store.runProgress?.kind).toBe('smart');
     };
-    it('Fastest\'s Exhaustive (full) names Fast and Exact while it runs', async () => {
+    it('Fastest\'s Exhaustive (full) names the run Fast while it runs (review W2: one run is Fast or Exact, never both)', async () => {
       smartRuns();
       const html = await render({ kind: 'full' });
       expect(html).toContain('data-testid="find-blocked"');
-      expect(textOf(html)).toContain('Fast and Exact is running');
+      expect(textOf(html)).toContain('Fast is running');
+      expect(textOf(html)).not.toContain('Fast and Exact is running');
       expect(html).toContain('data-testid="find-blocked-jump"');
     });
     it('the screen that is itself running says nothing', async () => {

@@ -43,9 +43,52 @@ describe('What we know: the instant answer against the full simulator', () => {
     expect(text).toContain('like how many ascensions pay off and where the stops land.');
     expect(text).not.toContain('How the planner itself works');
     // L23: one line, kept (it says how far to trust the findings).
-    expect(text).toContain('Checked Oct 10, 2026 on the older simulator; not rechecked yet.');
+    expect(text).toContain('Checked Oct 10-24, 2026 on older simulators; this site now runs sim5; not rechecked yet.');
     expect(text).not.toContain('They have not been checked again');
     // L25: cut.
     expect(text).not.toContain('Tap a finding to open it');
+  });
+});
+
+describe('What we know: review fixes IN-1 to IN-4 (15 Nov 2026)', () => {
+  const stats = {
+    runsTo490: 30,
+    byDate: 0,
+    byDateAccounts: 0,
+    eggDay: [],
+    accounts: 12,
+    te: { min: 170, max: 260 },
+    plans: 1000,
+    sweet: { of: 8, total: 12 },
+    lowestCte: 170.1,
+    measuredOn: [
+      { label: 'before Oct 13', runs: 189 },
+      { label: 'lowte-gate', runs: 31 },
+      { label: 'egg-beta2', runs: 20 },
+    ],
+  };
+
+  it('IN-1: no claim that every account is above the stall band; the estimate is dated and the instant answer checks the save', async () => {
+    const text = textOf(await renderHtml(WhatWeKnow, { stats }));
+    expect(text).not.toContain('Every account on the Leaderboard is above');
+    expect(text).not.toContain('lowest 170.1');
+    expect(text).not.toContain('your first ascension stalls.');
+    expect(text).toContain(
+      'Below about 220 Clothed TE, your first ascension may stall, so an earnings set upgrade may help first. That is a September estimate, from before the Oct 13 low-TE opening; the instant answer checks your save.'
+    );
+    expect(text).toContain('Below about 220 Clothed TE, the first ascension may stall (a September estimate).');
+    expect(text).toContain('That is a September estimate, from before the Oct 13 low-TE opening, and some accounts got through below it since.');
+  });
+
+  it('IN-2: no sentence about gear that no longer matches the board', async () => {
+    const text = textOf(await renderHtml(WhatWeKnow, { stats }));
+    expect(text).not.toContain('between 63 and 115');
+    expect(text).not.toContain('Every account so far has a T4L');
+    expect(text).toContain('No account has worn one of these sets exactly yet.');
+  });
+
+  it('IN-3: a Measured on line counts the runs by simulator', async () => {
+    const text = textOf(await renderHtml(WhatWeKnow, { stats }));
+    expect(text).toContain("Measured on: before Oct 13 (189 runs), lowte-gate (31), egg-beta2 (20); none yet on this site's simulator.");
   });
 });

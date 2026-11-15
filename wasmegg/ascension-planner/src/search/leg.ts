@@ -302,8 +302,12 @@ export function runLeg(
     actions: NO_ACTIONS,
     shifts: shiftInstants(v.actions, startTime),
     heldSeconds: heldSecondsOf(v.actions),
+    // The egg the leg ends on: its last shift's, else the one it started on (R1, 15 Nov 2026: an A1 continue that
+    // never shifts stays on the save's farm egg, which only its start action carries; `baseState` is the chain's
+    // blank farm on Curiosity), else the base state's for a variant with neither.
     lastEgg:
       (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
+      (v.actions.find(a => a.type === 'start_ascension')?.payload as { initialEgg?: string } | undefined)?.initialEgg ??
       baseState.currentEgg,
     ...(keep && list ? { buildUp: list() } : {}),
   });

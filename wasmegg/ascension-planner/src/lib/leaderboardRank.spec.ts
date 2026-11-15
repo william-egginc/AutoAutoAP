@@ -634,6 +634,98 @@ describe('plans that no longer count', () => {
     ]);
   });
 
+  describe("'behind' early in a leg and across waits (review L1)", () => {
+    /** Planned from TE 190 on 13 Sep 12:00 UTC: 200 after 10 days, 225 after 20 more, then 490. */
+    const plan = (over: Partial<BoardRow> = {}) =>
+      row({
+        id: 'plan',
+        timezone: 'UTC',
+        currentTE: 190,
+        chain: [200, 225, 490],
+        startLocal: '2026-09-13 12:00',
+        submittedAt: '2026-09-13T12:05:00Z',
+        durationDays: 640,
+        legs: [
+          { te: 200, days: 10 },
+          { te: 225, days: 20 },
+          { te: 490, days: 610 },
+        ],
+        ...over,
+      });
+    /** A later run of another route by the same player, `days` after the plan's start, at `te`. */
+    const runAt = (days: number, te: number) => {
+      const at = Date.parse('2026-09-13T12:00:00Z') + days * DAY_MS;
+      return row({
+        id: 'now',
+        timezone: 'UTC',
+        currentTE: te,
+        chain: [230, 490],
+        startLocal: stamp(at, 'UTC'),
+        submittedAt: new Date(at + 5 * 60_000).toISOString(),
+        durationDays: 700,
+      });
+    };
+    const dropped = (rows: BoardRow[]) =>
+      groupPlayers(rows, { target: 490, now: NOW })[0].plans.map(p => [p.row.id, p.state, p.reason]);
+
+    it('keeps an on-schedule plan in the first part of a leg', () => {
+      // 1 day into the 20-day leg from 200 (5%): the straight line says 201.25, but an ascension earns
+      // slowly at first, and the player at 199 is within 2 of the stop the plan just made.
+      const p = plan();
+      expect(projectedTE(p, Date.parse('2026-09-24T12:00:00Z'))).toBeCloseTo(201.25, 9);
+      expect(dropped([p, runAt(11, 199)])[0]).toEqual(['plan', 'current', '']);
+      // 3 days into the first leg (30% is day 3): 193 is the line, 190 the start.
+      expect(dropped([plan(), runAt(2.9, 190)])[0].slice(0, 2)).toEqual(['plan', 'current']);
+    });
+
+    it('keeps a plan during a wait that legs[].end shows', () => {
+      // The second leg takes 10 days but ends at day 40, not 20: twenty days off before it starts (day
+      // 30 to 40 it runs from 200 to 225). Day 25 is inside the wait, so the plan still says 200.
+      const p = plan({
+        legs: [
+          { te: 200, days: 10, end: 10 },
+          { te: 225, days: 10, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(projectedTE(p, Date.parse('2026-09-13T12:00:00Z') + 25 * DAY_MS)).toBe(200);
+      // Day 35: halfway through the leg's own 10 days.
+      expect(projectedTE(p, Date.parse('2026-09-13T12:00:00Z') + 35 * DAY_MS)).toBeCloseTo(212.5, 9);
+      expect(dropped([p, runAt(25, 200)])[0].slice(0, 2)).toEqual(['plan', 'current']);
+      // Without the end offsets the same day reads as past 225 already, so 200 is behind.
+      const slope = dropped([plan(), runAt(25, 200)])[0];
+      expect(slope.slice(0, 2)).toEqual(['plan', 'behind']);
+    });
+
+    it('still drops a plan the player is really behind', () => {
+      // Early in the second leg but short of the stop the first leg reached.
+      expect(dropped([plan(), runAt(11, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      // During a wait, below the TE the plan holds through it.
+      const waits = plan({
+        legs: [
+          { te: 200, days: 10, end: 10 },
+          { te: 225, days: 10, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(dropped([waits, runAt(25, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      // Past the first 30% of a leg the straight line applies again: day 20 is half of 200 -> 225.
+      expect(dropped([plan(), runAt(20, 208)])[0]).toEqual(['plan', 'behind', 'behind: at TE 208 now, the plan said 212.5']);
+    });
+
+    it('ignores leg ends that do not add up and uses the straight line', () => {
+      // An end before the leg's own days could fit, or ends going backwards: not trusted.
+      const bad = plan({
+        legs: [
+          { te: 200, days: 10, end: 5 },
+          { te: 225, days: 20, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(projectedTE(bad, Date.parse('2026-09-13T12:00:00Z') + 25 * DAY_MS)).toBeCloseTo(218.75, 9);
+    });
+  });
+
   it('keeps a plan the player is on track with, and says so', () => {
     const plan = row({
       id: 'plan',
@@ -2119,5 +2211,105 @@ describe('a Light row is a different measurement from a searched row of the same
     const race = buildRace([light, rival('Kenzie', 700)], { target: 490, now });
     expect(race.entries.map(e => e.label)).toEqual(['Willsalt', 'Kenzie'].sort((a, b) => race.entries.findIndex(e => e.label === a) - race.entries.findIndex(e => e.label === b)));
     expect(race.entries.find(e => e.label === 'Willsalt')!.best.row.id).toBe('light');
+  });
+});
+
+describe('one player, one line: a rename, three codes and an alt save (review 15 Nov 2026, LB-1 and L3)', () => {
+  // Invented players. One player sends from three browsers (three owner codes) under one name, and in
+  // the first browser sends one run under a renamed name. In a fourth browser an alt save at a far lower
+  // TE is sent under the main name.
+  const C1 = 'c1c1c1c1c1c1';
+  const C2 = 'c2c2c2c2c2c2';
+  const C3 = 'c3c3c3c3c3c3';
+  const ALT = 'a1a1a1a1a1a1';
+  const EGG_DAY = 1815926400;
+  const now = Date.parse('2026-10-07T12:00:00Z');
+  const sentAt = (local: string, tz = CHICAGO) => new Date(localToUtcMs(local, tz)! + 5 * 60_000).toISOString();
+  /** A By a date answer from `te`, sent five minutes after its start, ascending three days before Egg Day. */
+  const answer = (id: string, nickname: string, acct: string, te: number, startLocal: string, last: number, over: Partial<BoardRow> = {}) => {
+    const tz = over.timezone ?? CHICAGO;
+    return row({
+      id,
+      nickname,
+      acct,
+      currentTE: te,
+      chain: [te + 30, last],
+      finalTE: last,
+      startLocal,
+      submittedAt: sentAt(startLocal, tz),
+      deadline: EGG_DAY,
+      durationDays: (EGG_DAY * 1000 - 3 * DAY_MS - localToUtcMs(startLocal, tz)!) / DAY_MS,
+      legs: [],
+      ...over,
+    });
+  };
+  /** A run to 490 from `te`. */
+  const toRace = (id: string, nickname: string, acct: string, te: number, startLocal: string) =>
+    row({
+      id,
+      nickname,
+      acct,
+      currentTE: te,
+      chain: [te + 30, 490],
+      startLocal,
+      submittedAt: sentAt(startLocal),
+      durationDays: 600,
+      legs: [],
+    });
+  const LONDON = { timezone: 'Europe/London', artifacts: ['T3E Gusset'], window: null };
+  const brook = answer('brook', 'Brookline', 'b0b0b0b0b0b0', 190, '2026-10-03 10:00', 330, LONDON);
+  const ash = answer('ash', 'Ashgrove', 'a5a5a5a5a5a5', 185, '2026-10-03 11:00', 310, {
+    ...LONDON,
+    artifacts: ['T2 Compass'],
+  });
+  // The first browser's old name is only on a run to 490: the board joins on every row sent.
+  const c1race = toRace('c1race', 'riverbendhouse', C1, 200, '2026-10-01 10:00');
+  const c1date = answer('c1date', 'oriverbendhouse', C1, 201, '2026-10-05 10:00', 320);
+  const c2date = answer('c2date', 'riverbendhouse', C2, 200, '2026-10-02 10:00', 318);
+  const c3date = answer('c3date', 'riverbendhouse', C3, 201, '2026-10-04 10:00', 319);
+  const alt = answer('alt', 'riverbendhouse', ALT, 150, '2026-10-06 10:00', 300);
+  const lines = (rows: BoardRow[]) =>
+    buildDeadlineBoard(rows, { now })[0].entries.map(e => [e.rank, e.label, e.te, e.key]);
+
+  it('Egg Day board: three codes and a one-run rename are one line', () => {
+    expect(lines([brook, c1race, c1date, c2date, c3date, ash])).toEqual([
+      [1, 'Brookline', 330, 'acct:b0b0b0b0b0b0'],
+      [2, 'oriverbendhouse', 320, `acct:${C1}`],
+      [3, 'Ashgrove', 310, 'acct:a5a5a5a5a5a5'],
+    ]);
+    const main = buildDeadlineBoard([brook, c1race, c1date, c2date, c3date, ash], { now })[0].entries[1];
+    expect(main.others.map(r => r.id)).toEqual(['c3date', 'c2date']);
+  });
+
+  it('Egg Day board: an alt save under the main name from a lower TE stays its own line, labelled', () => {
+    expect(lines([brook, c1race, c1date, c2date, c3date, ash, alt])).toEqual([
+      [1, 'Brookline', 330, 'acct:b0b0b0b0b0b0'],
+      [2, 'oriverbendhouse', 320, `acct:${C1}`],
+      [3, 'Ashgrove', 310, 'acct:a5a5a5a5a5a5'],
+      [4, 'riverbendhouse (other code)', 300, `acct:${ALT}`],
+    ]);
+  });
+
+  it('Egg Day board: two codes left under one name read apart', () => {
+    // Another player called Brookline, on another account: not joined, and not shown as the same line twice.
+    const other = answer('brook2', 'Brookline', 'b9b9b9b9b9b9', 180, '2026-10-04 09:00', 305, {
+      ...LONDON,
+      artifacts: ['T1 Gusset'],
+    });
+    expect(lines([brook, other]).map(l => l[1])).toEqual(['Brookline', 'Brookline (other code)']);
+  });
+
+  it('the race: the rename joins the codes, and the alt save stays apart, labelled', () => {
+    const rows = [
+      c1race,
+      toRace('c1b', 'oriverbendhouse', C1, 201, '2026-10-05 10:00'),
+      toRace('c2', 'riverbendhouse', C2, 200, '2026-10-02 10:00'),
+      toRace('alt', 'riverbendhouse', ALT, 150, '2026-10-06 10:00'),
+    ];
+    const race = buildRace(rows, { target: 490, now });
+    expect(race.entries.map(e => [e.label, e.lines]).sort()).toEqual([
+      ['oriverbendhouse', [`acct:${C1}`, `acct:${C2}`]],
+      ['riverbendhouse (other code)', [`acct:${ALT}`]],
+    ]);
   });
 });

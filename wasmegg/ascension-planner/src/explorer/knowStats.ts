@@ -7,6 +7,9 @@
 import { groupByAccount, accountKey, type FinishJudgement } from './analysis';
 import type { CollectorRow } from './collector';
 import { buildDeadlineBoard } from '@/lib/leaderboardRank';
+import { FIRST_STAMP_DAY, simDate } from '@/lib/simLabel';
+import { SIM_VERSION } from '@/search/simVersion';
+import { plural } from '@/lib/format';
 
 export const SWEET_SPOT = { from: 5, to: 7 } as const;
 
@@ -74,6 +77,44 @@ export interface KnowStats {
   sweet: { of: number; total: number };
   /** Lowest Clothed TE among the accounts to 490, or null when none recorded one. */
   lowestCte: number | null;
+  /** Every run counted by the simulator that priced it: no stamp first, then each stamp, oldest first. */
+  measuredOn: MeasuredOn[];
+}
+
+export interface MeasuredOn {
+  /** "before Oct 13", "lowte-gate" (the stamp without its date), or "this site's simulator". */
+  label: string;
+  runs: number;
+  /** This site's own simulator. */
+  current?: boolean;
+}
+
+/** The stamp's name without its date: "2026-10-21-egg-beta2" is "egg-beta2". */
+const stampName = (stamp: string): string => stamp.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+
+/** Review IN-3 (15 Nov 2026): runs counted by simulator, oldest first. */
+export function measuredOn(rows: readonly CollectorRow[], currentStamp: string = SIM_VERSION): MeasuredOn[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const v = (r as { simVersion?: unknown }).simVersion;
+    const stamp = typeof v === 'string' && v.trim() ? v.trim() : '';
+    counts.set(stamp, (counts.get(stamp) ?? 0) + 1);
+  }
+  const out: MeasuredOn[] = [];
+  if (counts.has('')) out.push({ label: `before ${FIRST_STAMP_DAY}`, runs: counts.get('')! });
+  const stamps = [...counts.keys()].filter(k => k && k !== currentStamp);
+  stamps.sort((a, b) => (simDate(a) ?? a).localeCompare(simDate(b) ?? b));
+  for (const k of stamps) out.push({ label: stampName(k), runs: counts.get(k)! });
+  if (counts.has(currentStamp)) out.push({ label: "this site's simulator", runs: counts.get(currentStamp)!, current: true });
+  return out;
+}
+
+/** "Measured on: before Oct 13 (189 runs), lowte-gate (31); none yet on this site's simulator." */
+export function measuredOnLine(list: readonly MeasuredOn[]): string {
+  if (!list.length) return '';
+  const parts = list.map((m, i) => `${m.label} (${i === 0 ? plural(m.runs, 'run') : m.runs})`);
+  const tail = list.some(m => m.current) ? '.' : "; none yet on this site's simulator.";
+  return `Measured on: ${parts.join(', ')}${tail}`;
 }
 
 /**
@@ -115,5 +156,6 @@ export function knowStats(
       total: bests.length,
     },
     lowestCte: ctes.length ? Math.min(...ctes) : null,
+    measuredOn: measuredOn(usable),
   };
 }
