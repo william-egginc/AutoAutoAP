@@ -46,3 +46,12 @@ describe('the instant card shows it (source pin)', async () => {
     expect(vue).toContain('CLOSE_CALL_TAG');
   });
 });
+
+describe('form G below its reach (review 15 Nov, T2)', () => {
+  it('is always a close call, whatever the spare', async () => {
+    const { isCloseCall } = await import('./closeCallWords');
+    expect(isCloseCall(30 * 86400, true, true)).toBe(true);
+    expect(isCloseCall(30 * 86400, true, false)).toBe(false);
+    expect(isCloseCall(30 * 86400, true)).toBe(false);
+  });
+});
