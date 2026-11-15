@@ -703,6 +703,8 @@
                 Not used by the {{ NAMES.classic }}: it builds one plan, no search.
               </p>
               <WorkerSlider />
+              <!-- Safari starts runs with fewer workers than chosen (lib/safariWorkers.ts; words lib/safariStartWords.ts). -->
+              <p v-if="safariStartLine" class="text-body text-slate-600" data-testid="safari-start">{{ safariStartLine }}</p>
               <BackgroundSpeed />
               <label class="flex items-start gap-3 cursor-pointer">
                 <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
@@ -884,6 +886,7 @@ import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
 import { dateStyle, showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 import { setupMoreSummary } from '@/lib/setupMore';
+import { safariStartWords } from '@/lib/safariStartWords';
 import { useTabPrefs } from '@/composables/useTabPrefs';
 import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
@@ -929,6 +932,7 @@ defineProps<{
 }>();
 
 const store = useChainSearchStore();
+const safariStartLine = computed(() => safariStartWords(store.safariStart));
 const instantDuringSearch = useInstantDuringSearch();
 /** The long-run alert's switch (lib/runBeacon.ts), this browser's. */
 const runBeaconOn = runBeaconSwitch();
