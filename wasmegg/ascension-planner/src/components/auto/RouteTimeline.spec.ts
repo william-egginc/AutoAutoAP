@@ -195,7 +195,8 @@ describe('ResultTable expand slot', () => {
 
   it('hosts: By a date (its best per stop count; its top routes moved to Your latest run, 16 Oct), the instant answer, the leg tables, and Light keeps its legs', () => {
     const deadline = read('DeadlinePanel.vue');
-    expect(deadline.match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" \/>/g)?.length).toBe(1);
+    // With the run's hours for the R1 sleep warning (lib/sleepBeforeR1.ts, 15 Nov 2026).
+    expect(deadline.match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" :hours="store.runSettingsUsed\?\.availability \?\? null" :held-shifts="store.runSettingsUsed\?\.deferShifts \?\? true" \/>/g)?.length).toBe(1);
     expect(read('LatestRunView.vue').match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="zone" \/>/g)?.length).toBe(3);
     // Not the instant answer since 23 Oct 2026: its rows are instant numbers only, with no simulated legs to show.
     const instant = read('InstantRoute.vue');

@@ -931,7 +931,7 @@
         :can-expand="hasLegs"
       >
         <template #expand="{ row: r }">
-          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" :hours="store.runSettingsUsed?.availability ?? null" :held-shifts="store.runSettingsUsed?.deferShifts ?? true" />
         </template>
         <template #default="{ row: r }">
           <td class="pr-4 py-1 text-slate-600">{{ plural(r.chain.length, 'ascension') }}</td>

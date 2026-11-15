@@ -87,6 +87,8 @@
         :follow-save-off="page.followSaveOff.value"
         :follow-cloud-unreachable="page.followCloudUnreachable.value"
         :awake-hours="nightBuyHours"
+        :r1-hours="r1Hours"
+        :r1-held="store.deferShifts"
         :save-old="!!saveStrip.state.value?.outOfDate"
         @save-online="page.saveFollowOnline"
         @retry-cloud="page.retryFollowCloud"
@@ -145,6 +147,8 @@
             :finish-chosen="tracker.finishChosen.value"
             :followed-for="trackerFollowedFor"
             :awake-hours="nightBuyHours"
+            :r1-hours="r1Hours"
+            :r1-held="store.deferShifts"
             :tier-unlocks="tracker.tierUnlocks.value"
             :stages="tracker.stages.value"
             @toggle="tracker.playerToggle"
@@ -465,6 +469,9 @@ function unfollowGoal(): void {
 const store = useChainSearchStore();
 /** The hours the night-buy note sees: none while the simulation holds its buys to them (lib/nightBuyNote.ts). */
 const nightBuyHours = computed(() => nightBuyHoursOf(store.availability, store.deferShifts));
+/** The R1 sleep warning's hours (lib/sleepBeforeR1.ts): the awake hours whether or not the shifts are held (held: the softer
+ *  "R1 waits until …" line, Jordan 15 Nov 2026); null when they don't limit anything. */
+const r1Hours = computed(() => (isConstrained(store.availability) ? store.availability : null));
 const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 

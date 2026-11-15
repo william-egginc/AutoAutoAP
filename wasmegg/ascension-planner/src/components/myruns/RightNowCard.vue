@@ -573,7 +573,7 @@
       >
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="awakeHours" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
@@ -581,6 +581,8 @@
             :zone="zone"
             :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
             :here-at="hereRow ? now : undefined"
+            :hours="r1Hours"
+            :held-shifts="r1Held"
           />
         </div>
       </PanelFold>
@@ -717,6 +719,10 @@ const props = defineProps<{
   /** Setup's awake hours (the store's `availability`; null or absent: none): with hours that rule something out and a
    *  build-up's finish in Next step, the night-buy note (spec-nightbuynote). */
   awakeHours?: Availability | null;
+  /** The R1 sleep warning (lib/sleepBeforeR1.ts): the awake hours whether or not the shifts are held, and whether they are
+   *  (held: the softer "R1 waits until …" line, Jordan 15 Nov 2026). */
+  r1Hours?: Availability | null;
+  r1Held?: boolean;
   /** The loaded save is out of date (lib/saveBanner.ts `outOfDate`, past a day): the header's save line turns amber. */
   saveOld?: boolean;
   /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
@@ -968,12 +974,20 @@ const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
 );
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
-/** Next step is a prestige and the ascension it starts would reach R1 after the awake hours end: "If you prestige now, your silo buys (R1) …". The
- *  hours come in only when the shifts are not held (`awakeHours`, MyRunsView `nightBuyHours`). Only the prestige step, never a shift or the goal. */
-const r1Sleep = computed(() => {
+/** Next step is a prestige and the ascension it starts would reach R1 after the awake hours end: "If you prestige now, your silo buys (R1) …"
+ *  (held shifts: "… wait until 7:00 AM"). The step simulated on the save when it is in (`nextStep`), else the plan's own next event
+ *  ("Not done yet: prestige at 191 TE (due …)", QA 15 Nov 2026). Only a prestige, never a shift or the goal. */
+const r1Prestige = computed<{ at: number; te: number } | null>(() => {
   const a = props.nextStep;
-  if (a?.kind !== 'prestige') return '';
-  const d = r1IfPrestigeNow({ at: a.at, now: props.now, startTE: props.teSoFar, hours: props.awakeHours });
+  if (a) return a.kind === 'prestige' ? { at: a.at, te: props.teSoFar } : null;
+  const e = props.events.find(x => x.next);
+  if (!e || e.kind !== 'prestige') return null;
+  return { at: e.wait && e.prestigeAt && !e.notDone ? e.prestigeAt : e.at, te: typeof e.te === 'number' ? e.te : props.teSoFar };
+});
+const r1Sleep = computed(() => {
+  const p = r1Prestige.value;
+  if (!p) return '';
+  const d = r1IfPrestigeNow({ at: p.at, now: props.now, startTE: p.te, hours: props.r1Hours, held: props.r1Held });
   if (!d) return '';
   // The clock alone on today, the date too on another day (Words: add the date when R1 is on another day).
   return sleepBeforeR1NextStep(d, t => (buyFmt.sameDay(t, props.now) ? buyFmt.clock(t) : sentenceWhen(t)));

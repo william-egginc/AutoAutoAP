@@ -7,8 +7,10 @@
  * or recalculate. A warning only: no route is priced or chosen differently.
  *
  *   - Only with the player's hours set (search/availability.ts); "sleep" is any time outside them.
- *   - Not with held shifts: the plan already waits for the player there (simulated legs hold each shift, auto/hold.ts;
- *     table legs start where the whole opening fits, search/routeFinder.ts `heldOpeningStart`).
+ *   - With held shifts (the default): the plan already waits for the player (simulated legs hold each shift,
+ *     auto/hold.ts; table legs start where the whole opening fits, search/routeFinder.ts `heldOpeningStart`), so the
+ *     same case is the softer "R1 waits until 7:00 AM, so your farm has 1 silo overnight" (Jordan, 15 Nov 2026):
+ *     `held: true` and `waitsUntil`, when the player's hours start again after `sleepAt`.
  *   - R1: a Resilience shift before the leg's first Humility shift (R1 is skipped when it would buy nothing, and the
  *     first Resilience shift is then R2, weeks later). The window runs from the start to R1's last buy: legs keep
  *     shifts, not actions, so that is bounded by the next shift (C3's) and by an hour after R1 (`doneBy`). `exact`:
@@ -21,7 +23,7 @@
  * Kept out of the result-code hash: imported by components only, never by lib/buildUpTracker.ts or lib/nowPlan.ts
  * (both hashed; src/lib/resultCodeHash.ts RESULT_CODE_FILES).
  */
-import { isAvailable, type Availability } from '@/search/availability';
+import { isAvailable, nextAvailable, type Availability } from '@/search/availability';
 import { isConstrained } from '@/search/availabilitySchedule';
 import { openingSpan } from '@/search/openingSpan';
 
@@ -33,6 +35,9 @@ export interface SleepBeforeR1 {
   /** The first instant from the start that falls outside the player's hours, unix seconds. */
   sleepAt: number;
   exact: boolean;
+  /** Held shifts: R1 waits for the player; `waitsUntil` is when their hours start again. Absent when not held. */
+  held?: true;
+  waitsUntil?: number;
 }
 
 /** R1 buys silos for at most an hour after its shift. */
@@ -56,7 +61,7 @@ export function sleepBeforeR1(x: {
   heldShifts?: boolean;
 }): SleepBeforeR1 | null {
   const hours = x.hours;
-  if (!hours || !isConstrained(hours) || x.heldShifts) return null;
+  if (!hours || !isConstrained(hours)) return null;
   const shifts = x.shifts ?? [];
   const h1 = shifts.findIndex(s => s.egg === 'humility');
   const i = shifts.findIndex((s, k) => s.egg === 'resilience' && (h1 < 0 || k < h1));
@@ -76,7 +81,12 @@ export function sleepBeforeR1(x: {
   // The first instant outside the hours before the buys are done (one AT doneBy is fine: they're done). Strictly
   // before `doneBy`, so a warning always has sleepAt < doneBy.
   for (let t = x.start; t < doneBy; t = Math.min(t + STEP, doneBy)) {
-    if (!isAvailable(t, hours)) return { r1At, doneBy, sleepAt: hoursEndedAt(t, hours), exact };
+    if (!isAvailable(t, hours)) {
+      const sleepAt = hoursEndedAt(t, hours);
+      return x.heldShifts
+        ? { r1At, doneBy, sleepAt, exact, held: true, waitsUntil: nextAvailable(sleepAt, hours) }
+        : { r1At, doneBy, sleepAt, exact };
+    }
   }
   return null;
 }

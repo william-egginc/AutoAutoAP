@@ -34,10 +34,10 @@ describe('the instant answer: When each step happens', () => {
     // One line, on A2 only: A1 is the ascension you are in.
     expect(html.match(/data-testid="step-r1-sleep"/g)).toHaveLength(1);
   });
-  it('not for a morning start, without hours, or with held shifts', async () => {
+  it('not for a morning start or without hours; held shifts (the default) give the softer line (Jordan, 15 Nov 2026)', async () => {
     expect(await render(morning)).not.toContain('step-r1-sleep');
     expect(await render(late, { hours: null })).not.toContain('step-r1-sleep');
-    expect(await render(late, { heldShifts: true })).not.toContain('step-r1-sleep');
+    expect((await render(late, { heldShifts: true })).match(/data-testid="step-r1-sleep"/g)).toHaveLength(1);
   });
 });
 
@@ -49,11 +49,11 @@ describe('the Full timeline (no exact legs)', () => {
     expect(html.match(/data-testid="ascension-r1-sleep"/g)).toHaveLength(1);
     expect(textOf(html)).toMatch(LINE);
   });
-  it('not for a morning start, no hours, held shifts, or the ascension you are in', async () => {
+  it('not for a morning start, no hours, or the ascension you are in; held shifts give the softer line', async () => {
     expect(await render(morning, HOURS)).not.toContain('ascension-r1-sleep');
     expect(await render(late, null)).not.toContain('ascension-r1-sleep');
     expect(await render(late, undefined)).not.toContain('ascension-r1-sleep');
-    expect(await render(late, HOURS, true)).not.toContain('ascension-r1-sleep');
+    expect((await render(late, HOURS, true)).match(/data-testid="ascension-r1-sleep"/g)).toHaveLength(1);
   });
 });
 
@@ -64,7 +64,8 @@ describe('the cards are wired (source pin)', () => {
     expect(card).toContain('data-testid="now-r1-sleep"');
     expect(card).toContain('sleepBeforeR1NextStep(');
     expect(card).toContain('r1IfPrestigeNow(');
-    expect(card).toMatch(/if \(a\?\.kind !== 'prestige'\) return ''/);
+    expect(card).toContain("a.kind === 'prestige'");
+    expect(card).toContain("e.kind !== 'prestige'");
     // The line never sits inside the action / plan line / "Nothing left" v-if chain: the next element after it is
     // never a v-else or v-else-if (that would hide the plan's line, or show "Nothing left" under the action).
     for (const m of card.matchAll(/data-testid="now-r1-sleep"[^\n]*\n\s*<[a-z]+([^>]*)>/g)) {

@@ -43,6 +43,8 @@
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
         <!-- The ascension you are in would reach R1 after your hours end, while R1 is still ahead (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
         <p v-if="r1Warning" class="text-amber-800" data-testid="buildup-r1-sleep">{{ r1Warning }}</p>
+        <!-- The Monday 2x while it is on, or ahead within the plan (Jordan, 15 Nov 2026; lib/boostCheckIn.ts, Words' boost2xLine). -->
+        <p v-if="boostLine" class="text-slate-700" data-testid="buildup-2x">{{ boostLine }}</p>
         <p v-if="state === 'checking'" role="status" data-testid="buildup-checking">Reading your save: its ticks show once it is in.</p>
         <p v-else-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
@@ -511,7 +513,8 @@ import PanelFold from '@/components/auto/PanelFold.vue';
 import BuildUpDoneLine from './BuildUpDoneLine.vue';
 import { focusKeyAfterTick } from './trackerFocus';
 import { r1OfTrackerLines } from '@/lib/sleepBeforeR1View';
-import { sleepBeforeR1Tracker } from '@/lib/sleepBeforeR1Words';
+import { boost2xLine, sleepBeforeR1Tracker } from '@/lib/sleepBeforeR1Words';
+import { boostCheckIn } from '@/lib/boostCheckIn';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayTitle, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
@@ -607,8 +610,11 @@ const props = withDefaults(
     tierUnlocks?: readonly TierUnlock[];
     /** The build-up's stages (lib/buildUpStages.ts): a band where each starts and "now: <stage>" in the header line (spec-stages). */
     stages?: BuildUpStages | null;
+    /** The R1 sleep warning (lib/sleepBeforeR1.ts): the awake hours whether or not the shifts are held, and whether they are. */
+    r1Hours?: Availability | null;
+    r1Held?: boolean;
   }>(),
-  { awakeHours: null, tierUnlocks: () => [], stages: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
+  { r1Hours: null, r1Held: false, awakeHours: null, tierUnlocks: () => [], stages: null, siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -620,13 +626,22 @@ const emit = defineEmits<{
   pickRoute: [];
 }>();
 
-/** R1 for the ascension you are in: the plan's shifts from now on, with the awake hours (`awakeHours`: null when the shifts are held), only while it is ahead. */
+/** R1 for the ascension you are in: the plan's shifts from now on, with the awake hours (`r1Hours`; held shifts: the softer "waits until" line), only while it is ahead. */
 const r1Warning = computed(() => {
   if (props.state !== 'ready' || !props.result) return '';
-  const d = r1OfTrackerLines(props.result.lines, props.now, props.awakeHours);
+  const d = r1OfTrackerLines(props.result.lines, props.now, props.r1Hours, props.r1Held);
   if (!d) return '';
   const zone = props.zone;
   return sleepBeforeR1Tracker(d, t => (dayTitle(t, zone, props.now) === dayTitle(props.now, zone, props.now) ? clock12(t, zone) : `${dayTitle(t, zone, props.now)} ${clock12(t, zone)}`));
+});
+/** The Monday 2x (lib/boostCheckIn.ts): on now, or starting before the plan's last line; the day with every time. */
+const boostLine = computed(() => {
+  if (props.state !== 'ready' || !props.result?.lines.length) return '';
+  const until = Math.max(...props.result.lines.map(l => l.at).filter(t => Number.isFinite(t)));
+  const d = boostCheckIn(props.now, until);
+  if (!d) return '';
+  const zone = props.zone;
+  return boost2xLine(d, t => dayClock(t, zone, props.now));
 });
 const root = ref<HTMLElement | null>(null);
 const tickNote = ref('');
