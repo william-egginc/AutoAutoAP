@@ -211,10 +211,26 @@ describe('a failed plan upload shows, and a new link sends the plan at once', ()
     await c.getLink();
     c.note(input(2));
     await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
-    expect(c.error.value).toBe('error');
+    expect(c.error.value).toBe('upload');
     expect(note).toHaveBeenCalledTimes(1);
     expect(String(note.mock.calls[0][0])).toMatch(/calendar/i);
     expect(String(note.mock.calls[0][0])).not.toContain('AbCdEf');
+    note.mockRestore();
+  });
+  it('the same plan is sent again after a failure (a reload, or My runs opened again), not skipped as unchanged', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [400, 200] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(1);
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(2);
+    expect(c.error.value).toBe('');
     note.mockRestore();
   });
   it('a later good upload clears the line', async () => {

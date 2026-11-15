@@ -117,6 +117,8 @@ describe('Words\' final lines (14 Nov 2026)', () => {
     expect(W.CAL_LINKED).toBe('You have a link. It was shown only once, when you made it. Press Reset link to make a new one.');
     expect(W.CAL_ERRORS.limit).toBe('You already have 3 links. Press Reset link, then get a new one.');
     expect(W.CAL_ERRORS.off).toBe('Calendar links need Save online turned on in Setup.');
+    expect(W.CAL_ERRORS.upload).toBe("Your plan couldn't be sent to your calendar, so the calendar may be out of date. Try again in a moment.");
+    expect(W.CAL_ERRORS.error).toBe("That didn't work. Try again in a moment.");
   });
   it('Reset link really frees the slots (it revokes every link of the account at once)', () => {
     expect(readFileSync(new URL('../../lib/calendarCloud.ts', import.meta.url), 'utf8')).toContain('{ k, all: true }');
