@@ -56,17 +56,17 @@
           >
         </p>
       </details>
-      <!-- R1 after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). Its own line under the
-           ascension, outside the details' v-if/v-else pair. -->
-      <p v-if="r1Of(l.asc)" class="mt-0.5 ml-3 text-body text-amber-800 break-words max-w-prose" data-testid="route-timeline-r1-sleep">
-        {{ sleepBeforeR1Card(r1Of(l.asc)!, when) }}
-      </p>
       <!-- No eggs kept (a leg read back from a saved run): the stop and when, without an arrow. -->
       <p v-else class="px-2 py-1 pl-5 text-slate-700" data-testid="route-timeline-line">
         <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
         <template v-if="l.reachedAt">
           · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
         >
+      </p>
+      <!-- R1 after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). Its own line under the
+           ascension, outside the details' v-if/v-else pair. -->
+      <p v-if="r1Of(l.asc)" class="mt-0.5 ml-3 text-body text-amber-800 break-words max-w-prose" data-testid="route-timeline-r1-sleep">
+        {{ sleepBeforeR1Card(r1Of(l.asc)!, when) }}
       </p>
     </template>
     <p v-if="lines.some(l => !l.eggs.length)" class="text-small text-slate-600" data-testid="route-timeline-no-eggs">

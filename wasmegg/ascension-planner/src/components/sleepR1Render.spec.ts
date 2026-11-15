@@ -57,10 +57,18 @@ describe('RouteTimeline (Chain Finder, By a date, a followed plan with exact leg
     expect(textOf(html)).toMatch(/Your silo buys \(R1\) start at .*1:00 AM.*after your hours end at .*11:00 PM/);
     expect(html.indexOf('route-timeline-r1-sleep')).toBeGreaterThan(html.lastIndexOf('A2'));
   });
+  it("the line never splits a v-if/v-else pair: legs with eggs still render as details, never also as the bare 'no eggs' line", async () => {
+    const html = await timeline(legsNight, { hours: null });
+    expect(html).not.toMatch(/<p[^>]*class="px-2 py-1 pl-5[^"]*"[^>]*data-testid="route-timeline-line"/);
+    const src = (await import('node:fs')).readFileSync(new URL('./auto/RouteTimeline.vue', import.meta.url), 'utf8');
+    const after = src.slice(src.indexOf('data-testid="route-timeline-r1-sleep"'));
+    expect(after.slice(0, after.indexOf('</template>'))).not.toMatch(/\bv-else/);
+  });
   it('held (the default): the softer line, R1 waits until 7:00 AM', async () => {
     const html = await timeline(legsHeld, { held: true });
     expect(count(html, 'data-testid="route-timeline-r1-sleep"')).toBe(1);
-    expect(textOf(html)).toMatch(/7:00 AM/);
+    expect(textOf(html)).toMatch(/Your silo buys \(R1\) wait until .*7:00 AM, so your farm has 1 silo overnight/);
+    expect(textOf(html)).not.toMatch(/Prestige in the morning/);
   });
   it('no hours: none; an ascension already started (hereAt): none', async () => {
     expect(await timeline(legsNight, { hours: null })).not.toContain('route-timeline-r1-sleep');
@@ -135,7 +143,7 @@ describe("My runs' Next step: \"If you prestige now, …\"", () => {
     expect(count(html, 'data-testid="now-r1-sleep"')).toBe(1);
   });
   it('held shifts: the softer line; a shift step, or no hours: none', async () => {
-    expect(await nowCard({ held: true })).toContain('data-testid="now-r1-sleep"');
+    expect(textOf(await nowCard({ held: true }))).toMatch(/If you prestige now, your silo buys \(R1\) wait until .*7:00 AM, so your farm has 1 silo overnight/);
     expect(await nowCard({ nextStep: { kind: 'shift', egg: 'kindness', at: NOW + 600 } })).not.toContain('now-r1-sleep');
     expect(await nowCard({ hours: null })).not.toContain('now-r1-sleep');
   });
@@ -179,7 +187,12 @@ describe('the Build-up tracker: the ascension you are in, while R1 is ahead', ()
     expect(textOf(html)).toMatch(/Your silo buys \(R1\)/);
   });
   it('held: the softer line; no hours: none', async () => {
-    expect(await tracker({ held: true })).toContain('data-testid="buildup-r1-sleep"');
+    expect(textOf(await tracker({ held: true }))).toMatch(/Your silo buys \(R1\) wait until .*so your farm has 1 silo overnight/);
     expect(await tracker({ hours: null })).not.toContain('buildup-r1-sleep');
+  });
+  it("the Monday 2x: the fixture plan runs past Mon Nov 2 9:00 AM, so the line says when 2x runs and to check in then", async () => {
+    const html = await tracker({ hours: null });
+    expect(count(html, 'data-testid="buildup-2x"')).toBe(1);
+    expect(textOf(html)).toMatch(/2x earnings run from Mon.*Nov 2.*10:00 AM to Tue.*Nov 3.*10:00 AM.*check in between those times/);
   });
 });
