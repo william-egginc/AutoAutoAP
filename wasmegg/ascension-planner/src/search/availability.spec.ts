@@ -200,3 +200,76 @@ describe('fromSleepHours', () => {
     expect(AWAKE).toEqual({ days: [], fromHour: 7, toHour: 23, timezone: DENVER });
   });
 });
+
+describe('R2: all day on chosen days, fractional instants, spring-forward wrap', () => {
+  const SAT = 6;
+  const allDaySat = { days: [SAT], fromHour: 9, toHour: 9, timezone: DENVER };
+
+  it('"From X to X" on chosen days is available from local midnight, not from X o\'clock', () => {
+    // Friday 2026-09-11 15:00 -> Saturday 2026-09-12 is the chosen day: available from 00:00.
+    const pushed = nextAvailable(at('2026-09-11', '15:00'), allDaySat);
+    expect(pushed).toBe(at('2026-09-12', '00:00'));
+    expect(isAvailable(pushed, allDaySat)).toBe(true);
+    // And an instant already inside the chosen day is left alone.
+    const early = at('2026-09-12', '03:00');
+    expect(nextAvailable(early, allDaySat)).toBe(early);
+  });
+
+  it('all day on chosen days lands on midnight across a spring-forward day', () => {
+    // Sunday 2026-03-08 is the Denver spring-forward day; midnight is before the 02:00 jump.
+    const sun = { days: [0], fromHour: 5, toHour: 5, timezone: DENVER };
+    expect(nextAvailable(at('2026-03-07', '12:00'), sun)).toBe(at('2026-03-08', '00:00'));
+  });
+
+  it('reads the zone offset at the whole second, not the fractional one', () => {
+    const seven = at('2026-09-08', '07:00');
+    expect(localHour(seven + 0.5, DENVER)).toBe(7);
+    expect(localHour(seven - 0.5, DENVER)).toBe(6);
+    // A fractional prestige instant must wait for exactly 07:00, not 08:00 or an earlier instant.
+    expect(nextAvailable(at('2026-09-08', '06:00') + 0.5, AWAKE)).toBe(seven);
+    expect(nextAvailable(at('2026-09-08', '23:00') + 0.5, AWAKE)).toBe(at('2026-09-09', '07:00'));
+  });
+
+  // The oracle: the first instant at or after t that isAvailable says yes to, scanning whole hours (Denver's
+  // offsets are whole hours, so every availability change falls on a UTC hour boundary).
+  function firstAvailableByScan(t: number, a: Parameters<typeof isAvailable>[1]): number {
+    if (isAvailable(t, a)) return t;
+    let c = Math.ceil(t / 3600) * 3600;
+    for (let i = 0; i < 24 * 15; i++, c += 3600) if (isAvailable(c, a)) return c;
+    return t;
+  }
+
+  const wraps = [
+    { days: [0], fromHour: 22, toHour: 6, timezone: DENVER }, // Sunday-night sessions
+    { days: [6], fromHour: 22, toHour: 6, timezone: DENVER }, // Saturday-night sessions
+    { days: [1], fromHour: 20, toHour: 3, timezone: DENVER },
+    { days: [], fromHour: 23, toHour: 7, timezone: DENVER },
+    { days: [0], fromHour: 1, toHour: 1, timezone: DENVER },
+  ];
+
+  for (const day of ['2026-03-08', '2027-03-14']) {
+    it('spring-forward ' + day + ': windows crossing the missing hour are neither skipped nor mis-spanned', () => {
+      const dayBefore = new Date(Date.parse(day + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+      const dayAfter = new Date(Date.parse(day + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+      const start = at(dayBefore, '12:00');
+      const end = at(dayAfter, '12:00');
+      for (const a of wraps) {
+        for (let t = start; t <= end; t += 1800) {
+          const got = nextAvailable(t, a);
+          expect(got).toBeGreaterThanOrEqual(t);
+          expect(got).toBe(firstAvailableByScan(t, a));
+          expect(isAvailable(got, a)).toBe(true);
+        }
+      }
+    });
+  }
+
+  it('a Sunday-night session belongs to Sunday after the clocks spring forward', () => {
+    // 2026-03-09 00:30 MDT (Monday) is still Sunday night's session; the 24 h step back lands on
+    // Saturday 23:30 MST because the day in between has only 23 h.
+    const a = { days: [0], fromHour: 22, toHour: 6, timezone: DENVER };
+    expect(isAvailable(at('2026-03-09', '00:30'), a)).toBe(true);
+    expect(isAvailable(at('2026-03-08', '23:30'), a)).toBe(true);
+    expect(isAvailable(at('2026-03-07', '23:30'), a)).toBe(false);
+  });
+});
