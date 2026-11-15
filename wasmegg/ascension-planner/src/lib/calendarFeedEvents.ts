@@ -119,8 +119,11 @@ const KIND_OF: Record<LineKind, CalKind | null> = {
 };
 
 const PLAYER_ID = /EI\d{16}/gi;
+
+// C0, DEL, C1 (U+0085 is a line end) and the Unicode line and paragraph separators: a lenient .ics reader treats any of them as a line
+// break, so none may reach a title or note (QA red team, 14 Nov 2026; the collector refuses them too).
 // eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u001f\u007f]/g;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 
 /** Plain text: no player ID, no control characters, runs of space folded, cut to `max` with an ellipsis. */
 function clean(text: string, max: number): string {

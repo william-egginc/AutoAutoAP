@@ -207,6 +207,35 @@ describe('buildCalendarEvents', () => {
   });
 });
 
+describe('line breaks (QA red team, 14 Nov)', () => {
+  const BREAKS = [
+    '\u000b',
+    '\u000c',
+    '\u001c',
+    '\u001d',
+    '\u001e',
+    '\u0085',
+    '\u2028',
+    '\u2029',
+    '\u0080',
+    '\u009f',
+    '\r',
+    '\n',
+    '\u0007',
+  ];
+  it.each(BREAKS)('a title or note with %j in it is cleaned: no break character reaches the list', c => {
+    const out = build([
+      line({ key: 'q:0', checkIn: 0, text: `buy Grav${c}END:VEVENT${c}BEGIN:VEVENT` }),
+      line({ key: 'q:1', checkIn: 0, text: `buy Other${c}x`, tail: `offline${c}1 min` }),
+    ]);
+    // notes may hold the plain newline the builder puts between lines, nothing else
+    const stripped = out.events.map(e => `${e.title}|${(e.notes ?? '').replace(/\n/g, '')}`).join('');
+    // eslint-disable-next-line no-control-regex
+    expect(stripped).not.toMatch(new RegExp('[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]'));
+    expect(out.events[0]!.title).toContain('Grav');
+  });
+});
+
 describe.skipIf(!haveCollector)('the collector contract', () => {
   it("everything the builder makes passes the collector's readCal, unchanged", () => {
     const lines: CalLine[] = [
