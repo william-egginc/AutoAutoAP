@@ -53,6 +53,16 @@ describe('Producing: the Next shifts stand in for the tracker\'s lines', () => {
     expect(note.mock.calls[0]![0].lines.map((l: CalLine) => l.key)).toEqual(['1:0']);
     scope.stop();
   });
+  it('the window: 60 days exactly when the stand-ins are used, the default (none given: 14) when the tracker has lines', async () => {
+    const a = run({ lines: null, fallback: [line('ns:shift:kindness:1', 'shift')], start: null });
+    await nextTick();
+    expect(a.note.mock.calls[0]![0].options).toEqual({ days: 60 });
+    a.scope.stop();
+    const b = run({ lines: [line('1:0', 'research')], fallback: [line('ns:shift:kindness:1', 'shift')], start: 1_799_000_000 });
+    await nextTick();
+    expect(b.note.mock.calls[0]![0].options).toBeUndefined();
+    b.scope.stop();
+  });
   it('nothing from either: nothing is handed over (the tracker is still working out)', async () => {
     const { note, scope } = run({ lines: null, fallback: null, start: null });
     await nextTick();

@@ -21,6 +21,9 @@ import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
 import * as blackBox from '@/search/blackBox';
 
 export const CAL_DEBOUNCE_MS = 10_000;
+/** How many days ahead the feed shows for a PRODUCING player (the Next shifts stand in for the tracker's lines): shifts are days apart. Buying keeps the
+ *  builder's default (lib/calendarFeedEvents.ts CAL_DEFAULT_DAYS, 14). Jordan, 14 Nov 2026. */
+export const CAL_PRODUCING_DAYS = 60;
 
 export interface CalendarFeedEnv {
   /** The account as this browser keys it (search/runSaves.ts `accountOf`), '' without one. */
@@ -280,7 +283,15 @@ export function useCalendarFeedPush(src: {
       // The tracker's lines need the ascension's start (their uids); the stand-ins are keyed without a time, so slot 0 does.
       const ascensionStart = src.ascensionStart.value || 0;
       if (own && !ascensionStart) return;
-      calendarFeedFor(account).note({ now: Date.now(), ascensionStart, lines, ticks: src.ticks.value, zone: src.zone.value, hours: calHoursOf(src.hours.value) });
+      calendarFeedFor(account).note({
+        now: Date.now(),
+        ascensionStart,
+        lines,
+        ticks: src.ticks.value,
+        zone: src.zone.value,
+        hours: calHoursOf(src.hours.value),
+        ...(own ? {} : { options: { days: CAL_PRODUCING_DAYS } }),
+      });
     },
     { immediate: true }
   );

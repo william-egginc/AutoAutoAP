@@ -75,3 +75,26 @@ describe('My runs hands the stand-ins over only when the tracker is notBuilding'
     expect(src).toMatch(/fallbackLines:\s*computed\(\(\) => \(tracker\.state\.value === 'notBuilding' \? calLinesFromNextShifts\(page\.nextShiftLines\.value\) : null\)\)/);
   });
 });
+
+describe('the window: 60 days when Producing, 14 when buying (Jordan, 14 Nov)', () => {
+  const far: NextShiftLine[] = [
+    { kind: 'shift', egg: 'kindness', at: NOW + 9 * DAY, exact: true },
+    { kind: 'shift', egg: 'integrity', at: NOW + 17 * DAY, exact: true },
+    { kind: 'shift', egg: 'humility', at: NOW + 26 * DAY, exact: true },
+    { kind: 'shift', egg: 'resilience', at: NOW + 36 * DAY, exact: true },
+    { kind: 'prestige', at: NOW + 47 * DAY, te: 222, exact: true },
+  ];
+  const base = { now: NOW * 1000, ascensionStart: 0, lines: calLinesFromNextShifts(far), ticks: new Set<string>(), zone: 'America/Denver' };
+  it('with days 60: the marker, 4 shifts and the prestige', () => {
+    const out = buildCalendarEvents({ ...base, options: { days: 60 } });
+    expect(out.events.filter(e => e.kind === 'shift')).toHaveLength(4);
+    expect(out.events.filter(e => e.kind === 'prestige')).toHaveLength(1);
+    expect(out.events.some(e => e.uid === 'asof')).toBe(true);
+    expect(out.events).toHaveLength(6);
+  });
+  it('by default (14 days) only the first shift is in', () => {
+    const out = buildCalendarEvents(base);
+    expect(out.events.filter(e => e.kind === 'shift')).toHaveLength(1);
+    expect(out.events.filter(e => e.kind === 'prestige')).toHaveLength(0);
+  });
+});
