@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   NEVER_WITH_A_RUN,
+  PRIVACY_TIP_CALENDAR_LINE,
   PRIVACY_TIP_LABEL,
   PRIVACY_TIP_LINES,
   REMEMBER_KEPT,
@@ -26,7 +27,6 @@ describe('privacy words', () => {
     expect(PRIVACY_TIP_LABEL).toBe('What goes online, and what never does');
     expect(PRIVACY_TIP_LINES).toEqual([
       'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them. You can switch all of it off with Save online in Setup.',
-      'If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID.',
       'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',
       'On the Leaderboard: only what you tick. Never your player ID or your save.',
       "Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.",
@@ -67,5 +67,14 @@ describe('privacy words', () => {
     expect(tip).not.toContain('<details open');
     expect(tip).toContain('min-h-[44px]');
     expect(tip).toContain('PRIVACY_TIP_LINES');
+  });
+});
+
+describe('calendar tip line (shown only while the calendar feed is on)', () => {
+  it('is its own line, not in the always-on tip', () => {
+    expect(PRIVACY_TIP_CALENDAR_LINE).toBe(
+      'If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID.'
+    );
+    expect(PRIVACY_TIP_LINES).not.toContain(PRIVACY_TIP_CALENDAR_LINE);
   });
 });

@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-14T22:00:00Z', note: 'Put my plan in my calendar (Setup, off to start): a private link for Google or Apple Calendar with your shifts, buys and ascensions. It may be a day behind. Reset link makes a new one' },
   { at: '2026-11-13T22:00:03Z', note: 'Build-up tracker stages: Buying to Tier 13, Focus on ROI and Delivery research, each with its colour, a key and the day on a later band; Compact splits a day by stage; Tier 13 shows where it unlocks' },
   { at: '2026-11-13T22:00:02Z', note: 'A By a date answer with under about 2 days to spare is a close call and says it may miss; a lower TE Custom found is named as confirmed. No answer for an old date shows under a new date' },
   { at: '2026-11-13T22:00:01Z', note: 'Target TE sits in one card like By a date; My runs’ rate says which set it is for (“with your earnings set”); Your eggs show when each reaches its goal' },
