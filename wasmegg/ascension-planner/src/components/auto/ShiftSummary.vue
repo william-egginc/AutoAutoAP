@@ -168,8 +168,8 @@ const timeTooltipContent = computed(() => {
   return `
     <div class="text-left font-sans">
       <div class="label text-slate-300 mb-1 border-b border-slate-600/50 pb-1">Shift Schedule</div>
-      <div class="text-small mb-0.5"><span class="text-slate-400 mr-2">Start:</span><span class="text-white">${formatTime(props.startTime)}</span></div>
-      <div class="text-small"><span class="text-slate-400 mr-2">End:</span><span class="text-white">${formatTime(props.endTime)}</span></div>
+      <div class="text-small mb-0.5"><span class="text-slate-600 mr-2">Start:</span><span class="text-white">${formatTime(props.startTime)}</span></div>
+      <div class="text-small"><span class="text-slate-600 mr-2">End:</span><span class="text-white">${formatTime(props.endTime)}</span></div>
     </div>
   `;
 });

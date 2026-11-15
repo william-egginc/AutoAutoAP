@@ -16,12 +16,12 @@
             <div class="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
               <h3 class="text-title font-bold text-slate-800 leading-none">
                 A{{ index + 1 }} of {{ total }}
-                <span v-if="index === 0" class="ml-1 sm:ml-2 text-small font-bold text-slate-400 capitalize opacity-70">
+                <span v-if="index === 0" class="ml-1 sm:ml-2 text-small font-bold text-slate-600 capitalize opacity-70">
                   — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige now' }}
                 </span>
               </h3>
               <span v-if="!isEditingEndTime" class="flex items-center gap-1">
-                <span class="text-slate-400 label leading-none">{{ formatTimeRange(summary.startTime, summary.endTime) }}</span>
+                <span class="text-slate-600 label leading-none">{{ formatTimeRange(summary.startTime, summary.endTime) }}</span>
                 <button
                   v-tippy="hasEndTimeOverride ? 'Edit overridden end time' : 'Override end time'"
                   class="text-slate-300 hover:text-indigo-500 transition-colors flex-shrink-0"
@@ -152,7 +152,7 @@
                   :class="
                     row.tier13Key === activeVariantKey
                       ? 'bg-amber-50 text-amber-600 border-amber-200'
-                      : 'text-slate-400 border-slate-200 hover:bg-slate-50'
+                      : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                   "
                   @click="selectVariant(row.tier13Key)"
                 >
@@ -240,12 +240,12 @@
       <div class="grid grid-cols-4 gap-x-1.5 sm:gap-x-3 gap-y-2 mb-3.5">
         <!-- TE Progress -->
         <div class="space-y-0.5">
-          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-emerald-500"></div>
             TE Progress
           </div>
           <div class="flex items-baseline gap-0.5 sm:gap-1.5">
-            <span class="text-body sm:text-title tabular-nums font-bold text-slate-400">{{ summary.startTE }}</span>
+            <span class="text-body sm:text-title tabular-nums font-bold text-slate-600">{{ summary.startTE }}</span>
             <svg class="w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
@@ -256,13 +256,13 @@
 
         <!-- Peak ELR -->
         <div class="space-y-0.5">
-          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-500"></div>
             <span class="sm:hidden">Delivery</span><span class="hidden sm:inline">Delivery Rate</span>
           </div>
           <div class="flex items-center gap-0.5 sm:gap-1.5">
             <span class="text-small sm:text-title tabular-nums font-bold text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
-            <span class="text-slate-400 label">/HR</span>
+            <span class="text-slate-600 label">/HR</span>
           </div>
           <div v-if="summary.alternativeELRs && summary.alternativeELRs.length > 0" class="flex flex-col gap-0.5 mt-0.5">
             <div
@@ -272,17 +272,17 @@
             >
               <span
                 class="text-small tabular-nums font-bold"
-                :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'"
+                :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
               <span class="label" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
-              <span class="label" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
+              <span class="label" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
             </div>
           </div>
         </div>
 
         <!-- Total Duration -->
         <div class="space-y-0.5">
-          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-600"></div>
             Duration
           </div>
@@ -293,7 +293,7 @@
 
         <!-- Longest Single TE Wait -->
         <div v-if="summary.lastTEDurationSeconds > 0" class="space-y-0.5">
-          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
             Last TE Wait
           </div>
@@ -325,7 +325,7 @@
                 v-if="hasLoadoutOverride"
                 class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
               >Overridden</span>
-              <span v-else class="text-small font-bold text-slate-400">As used in C1 and H1</span>
+              <span v-else class="text-small font-bold text-slate-600">As used in C1 and H1</span>
             </div>
             <div class="flex items-center gap-1.5">
               <button
@@ -354,7 +354,7 @@
         <div class="grid grid-cols-3 gap-x-1.5 sm:gap-x-4 gap-y-2 bg-slate-50/50 border border-slate-100 rounded-xl p-2 sm:p-3">
           <!-- SE Cost -->
           <div class="space-y-0.5">
-            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-rose-500"></div>
               SE Consumed
             </div>
@@ -366,7 +366,7 @@
 
           <!-- Ending SE Balance -->
           <div class="space-y-0.5">
-            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-slate-400"></div>
               Ending SE Balance
             </div>
@@ -376,12 +376,12 @@
               </span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-40" alt="SE" />
             </div>
-            <div class="text-slate-400 label">shift count: {{ summary.endShiftCount }}</div>
+            <div class="text-slate-600 label">shift count: {{ summary.endShiftCount }}</div>
           </div>
 
           <!-- Total Eggs Delivered -->
           <div class="space-y-0.5">
-            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-600 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-slate-400"></div>
               Eggs Delivered
             </div>
@@ -414,7 +414,7 @@
                 </div>
 
                 <!-- Eggs Delivered -->
-                <div class="text-small font-bold text-slate-400 tabular-nums leading-none">
+                <div class="text-small font-bold text-slate-600 tabular-nums leading-none">
                   {{ formatNumber(summary.eggsDelivered[egg], 3) }}
                 </div>
               </div>

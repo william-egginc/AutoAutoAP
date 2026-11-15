@@ -27,7 +27,7 @@
             ></template
           >
         </span>
-        <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard<AnimatedDots /></span>
+        <span v-else class="text-small font-bold text-slate-600">Counting the Leaderboard<AnimatedDots /></span>
       </div>
       <!-- The first sentence only, and one line on how old the findings are (fluff review 2, 5 Nov 2026, L22-L23):
            the pointer to Science › How it works went, since that tab is off by default. -->
@@ -68,7 +68,7 @@
             >{{ i + 1 }}</span
           >
           <span class="flex-1">{{ f.headline }}</span>
-          <span class="finding-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+          <span class="finding-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
           <!-- How far the hour holds (the math review's second check, 24 Oct 2026, findings 3 and 10): with hours off,

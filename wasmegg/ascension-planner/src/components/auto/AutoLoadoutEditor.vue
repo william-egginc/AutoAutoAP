@@ -53,11 +53,11 @@
             :style="idx < slotCount ? { backgroundColor: view.kind === 'artifact' ? slotTint(view.artifactId) : 'white' } : {}"
           >
             <span
-              class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+              class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
               v-text="idx + 1"
             />
             <template v-if="idx >= slotCount">
-              <span class="text-small text-gray-400 italic">Empty slot</span>
+              <span class="text-small text-gray-600 italic">Empty slot</span>
               <span
                 class="ml-auto flex-shrink-0 whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-small font-bold text-amber-700"
               >
@@ -110,7 +110,7 @@
                 </div>
               </div>
             </template>
-            <span v-else class="text-small text-gray-400 italic">Empty slot</span>
+            <span v-else class="text-small text-gray-600 italic">Empty slot</span>
           </div>
 
           <!-- What H1 may choose from. Edited by hand to try out an inventory you don't have. -->
@@ -136,7 +136,7 @@
                   :class="
                     hasCandidate(option.id)
                       ? 'border-indigo-500 ring-1 ring-indigo-500 text-slate-900'
-                      : 'border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 bg-white'
+                      : 'border-slate-200 text-slate-600 hover:text-slate-700 hover:border-slate-300 bg-white'
                   "
                   :style="hasCandidate(option.id) ? { backgroundColor: slotTint(option.id) } : {}"
                   :aria-pressed="hasCandidate(option.id)"
@@ -159,14 +159,14 @@
                   <img :src="iconURL(getArtifact(candidate.artifactId)!.iconPath, 64)" class="w-4 h-4" />
                   {{ getArtifact(candidate.artifactId)!.label }}
                   <button
-                    class="w-4 h-4 rounded text-slate-400 hover:text-rose-600 hover:bg-white/60 leading-none"
+                    class="w-4 h-4 rounded text-slate-600 hover:text-rose-600 hover:bg-white/60 leading-none"
                     :aria-label="`Remove ${getArtifact(candidate.artifactId)!.label}`"
                     @click="toggleCandidate(candidate.artifactId)"
                   >
                     ×
                   </button>
                 </span>
-                <span v-if="holderCandidates.length === 0" class="text-small text-gray-400 italic">None</span>
+                <span v-if="holderCandidates.length === 0" class="text-small text-gray-600 italic">None</span>
               </div>
               <ArtifactSelect
                 :model-value="null"
@@ -193,7 +193,7 @@
           <!-- The last slot as a stone holder: only its stone slots count. -->
           <div v-if="stoneHolders" class="section-premium p-3 flex items-center gap-3">
             <span
-              class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+              class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
               >{{ fixedDeliveryDisplay.length }}</span
             >
             <span class="text-small font-bold text-slate-800">Stone holder</span>
@@ -205,7 +205,7 @@
                 :class="
                   fixedHolder === holder.id
                     ? 'border-indigo-500 ring-1 ring-indigo-500 text-slate-900 bg-indigo-50'
-                    : 'border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 bg-white'
+                    : 'border-slate-200 text-slate-600 hover:text-slate-700 hover:border-slate-300 bg-white'
                 "
                 :aria-pressed="fixedHolder === holder.id"
                 @click="setFixedHolder(holder.id)"
@@ -222,12 +222,12 @@
     <div class="space-y-2">
       <div class="flex items-center justify-between px-1">
         <h4 class="text-slate-500 label">Stones Available</h4>
-        <span class="text-small font-bold text-slate-400">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
+        <span class="text-small font-bold text-slate-600">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-slate-400 label">
+            <tr class="text-slate-600 label">
               <th class="text-left font-bold px-1 py-1"></th>
               <th v-for="tier in STONE_TIERS" :key="tier" class="font-bold px-1 py-1">T{{ tier }}</th>
             </tr>
@@ -268,7 +268,7 @@
                 </div>
                 <div
                   v-if="defaultValue && defaultValue.stones[family][tier] !== modelValue.stones[family][tier]"
-                  class="text-center text-small text-slate-400"
+                  class="text-center text-small text-slate-600"
                 >
                   {{ defaultLabel }} {{ defaultValue.stones[family][tier] }}
                 </div>

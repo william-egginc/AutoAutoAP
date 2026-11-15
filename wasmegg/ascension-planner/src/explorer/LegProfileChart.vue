@@ -67,7 +67,7 @@
       :entries="legendEntries"
       label="Accounts: click to hide or show"
     />
-    <p class="text-small text-slate-400 px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
+    <p class="text-small text-slate-600 px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
 </template>
 

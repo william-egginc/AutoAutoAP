@@ -11,7 +11,7 @@
     <!-- Flex, not inline: Vue drops the whitespace between v-for siblings, so inline nowrap spans had
          no place to wrap and pushed a phone's page sideways. -->
     <p v-if="countBests.length" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-body text-slate-600">
-      <span class="text-slate-400 label">Best per ascension count</span>
+      <span class="text-slate-600 label">Best per ascension count</span>
       <span
         v-for="b in countBests"
         :key="b.ascensions"
@@ -24,16 +24,16 @@
       >
         <b class="text-slate-700">{{ b.ascensions }}</b
         >: <span class="tabular-nums">{{ b.chain.join(' ') }}</span> {{ b.days.toFixed(2) }} d
-        <span class="text-slate-400">({{ behindText(b.days - countBestDays, b.days === countBestDays) }})</span>
+        <span class="text-slate-600">({{ behindText(b.days - countBestDays, b.days === countBestDays) }})</span>
       </span>
-      <span v-if="countBests.some(b => b.partial)" class="text-small text-slate-400">
+      <span v-if="countBests.some(b => b.partial)" class="text-small text-slate-600">
         from the part of the table read, so a count whose plans were all among the slowest is missing
       </span>
     </p>
 
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="mr-1 text-slate-400 label">Show</span>
+        <span class="mr-1 text-slate-600 label">Show</span>
         <button
           v-for="l in PLAN_LIMITS"
           :key="l"
@@ -52,7 +52,7 @@
       </div>
       <label
         v-if="counts.length > 1"
-        class="flex items-center gap-1.5 text-slate-400 label"
+        class="flex items-center gap-1.5 text-slate-600 label"
       >
         Ascensions
         <select
@@ -63,7 +63,7 @@
           <option v-for="n in counts" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <label class="flex items-center gap-1.5 text-slate-400 label">
+      <label class="flex items-center gap-1.5 text-slate-600 label">
         Stop TE
         <input
           v-model="filterText"
@@ -102,7 +102,7 @@
     <div class="overflow-x-auto">
       <table class="text-small tabular-nums">
         <thead>
-          <tr class="text-slate-400 label whitespace-nowrap">
+          <tr class="text-slate-600 label whitespace-nowrap">
             <th class="text-right py-1 pr-5" :aria-sort="ariaSort('rank')">
               <button
                 type="button"
@@ -139,7 +139,7 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="p in view.rows" :key="p.rank" class="hover:bg-slate-50">
-            <td class="py-1 pr-5 text-right text-slate-400">{{ p.rank.toLocaleString() }}</td>
+            <td class="py-1 pr-5 text-right text-slate-600">{{ p.rank.toLocaleString() }}</td>
             <td class="py-1 pr-5 tabular-nums text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
             <td class="py-1 pr-5 text-right text-slate-500">{{ p.ascensions }}</td>
             <td class="py-1 pr-5 text-right font-bold text-slate-700 whitespace-nowrap">{{ p.days.toFixed(2) }} d</td>
@@ -157,7 +157,7 @@
             </td>
           </tr>
           <tr v-if="!view.rows.length">
-            <td colspan="6" class="py-3 text-center text-slate-400">No plan in this table matches.</td>
+            <td colspan="6" class="py-3 text-center text-slate-600">No plan in this table matches.</td>
           </tr>
         </tbody>
       </table>
@@ -172,7 +172,7 @@
         ‹ Previous
       </button>
       <template v-for="(p, i) in pageButtons" :key="p ?? `gap-${i}`">
-        <span v-if="p === null" class="px-1 text-slate-400" aria-hidden="true">…</span>
+        <span v-if="p === null" class="px-1 text-slate-600" aria-hidden="true">…</span>
         <button
           v-else
           type="button"

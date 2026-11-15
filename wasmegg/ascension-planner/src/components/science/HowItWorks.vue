@@ -62,7 +62,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">1</span>
         <span class="flex-1 text-body font-bold text-slate-900">The simulator, and what our searches add</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <p>
@@ -160,7 +160,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">2</span>
         <span class="flex-1 text-body font-bold text-slate-900">The instant answer</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <p>
@@ -239,7 +239,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">3</span>
         <span class="flex-1 text-body font-bold text-slate-900">How we checked it</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <p>
@@ -297,7 +297,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">4</span>
         <span class="flex-1 text-body font-bold text-slate-900">Your first ascension</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <p>
@@ -342,7 +342,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">5</span>
         <span class="flex-1 text-body font-bold text-slate-900">The leaderboard, and what is sent</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <p>
@@ -390,7 +390,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">6</span>
         <span class="flex-1 text-body font-bold text-slate-900">Known limits, and what's next</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
         <ul class="hw-list">
@@ -451,7 +451,7 @@
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">7</span>
         <span class="flex-1 text-body font-bold text-slate-900">How {{ NAMES.smart }} search, in detail</span>
-        <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
+        <span class="hw-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="px-4 pb-4">
         <ChainSearchExplainer />

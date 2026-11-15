@@ -40,7 +40,7 @@
         @click="open.how = !open.how"
       >
         <svg
-          class="w-4 h-4 flex-shrink-0 text-slate-400 transition-transform duration-200"
+          class="w-4 h-4 flex-shrink-0 text-slate-600 transition-transform duration-200"
           :class="{ 'rotate-90': open.how }"
           fill="none"
           stroke="currentColor"
@@ -49,7 +49,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
         <span class="text-body font-bold text-slate-700">The problem</span>
-        <span class="text-small font-bold text-slate-400 normal-case tracking-normal ml-auto">
+        <span class="text-small font-bold text-slate-600 normal-case tracking-normal ml-auto">
           and why it is hard
         </span>
       </button>
@@ -74,7 +74,7 @@
           <div class="overflow-x-auto">
             <table class="w-full text-small tabular-nums">
               <thead>
-                <tr class="text-slate-400 label">
+                <tr class="text-slate-600 label">
                   <th class="text-left py-1.5 pr-4 font-bold">Route length</th>
                   <th class="text-right py-1.5 font-bold">Possible routes</th>
                 </tr>
@@ -185,7 +185,7 @@
         @click="open.algorithm = !open.algorithm"
       >
         <svg
-          class="w-4 h-4 flex-shrink-0 text-slate-400 transition-transform duration-200"
+          class="w-4 h-4 flex-shrink-0 text-slate-600 transition-transform duration-200"
           :class="{ 'rotate-90': open.algorithm }"
           fill="none"
           stroke="currentColor"
@@ -194,7 +194,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
         <span class="text-body font-bold text-slate-700">The algorithm</span>
-        <span class="text-small font-bold text-slate-400 normal-case tracking-normal ml-auto">
+        <span class="text-small font-bold text-slate-600 normal-case tracking-normal ml-auto">
           and where it goes wrong
         </span>
       </button>

@@ -15,7 +15,7 @@
     </p>
     <table class="w-full text-small tabular-nums whitespace-nowrap">
       <thead v-if="columns.length">
-        <tr class="text-left label text-slate-400">
+        <tr class="text-left label text-slate-600">
           <th v-if="$slots.expand" class="w-4 py-1"><span class="sr-only">Details</span></th>
           <th v-for="c in columns" :key="c" class="pr-4 py-1">{{ c }}</th>
         </tr>
@@ -27,7 +27,7 @@
               <button
                 v-if="!canExpand || canExpand(row)"
                 type="button"
-                class="px-0.5 text-slate-400 hover:text-emerald-700"
+                class="px-0.5 text-slate-600 hover:text-emerald-700"
                 :aria-expanded="openKey === rowKey(row, i)"
                 :aria-label="`Show when each stop of ${label(row)} happens`"
                 data-testid="result-row-expand"

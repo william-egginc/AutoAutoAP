@@ -22,7 +22,7 @@
   <div class="space-y-2">
     <div v-if="drifts.length" class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-1.5">
-        <span class="label text-slate-400">Account</span>
+        <span class="label text-slate-600">Account</span>
         <select
           v-model="picked"
           class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
@@ -56,7 +56,7 @@
     </div>
 
     <EChart v-if="current && shown.length" :option="option" height="340px" />
-    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>
     <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-500 max-w-prose">
@@ -87,13 +87,13 @@
     <!-- Every account's re-pricings, not just the picked one's: there are few enough to list, and the
          point is how few. A row picks its account. -->
     <div class="space-y-1 pt-1">
-      <p class="text-small font-bold text-slate-400">
+      <p class="text-small font-bold text-slate-600">
         Every plan priced twice, all accounts ({{ tally.repricings }})
       </p>
       <div v-if="tableRows.length" class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-slate-400 label">
+            <tr class="text-slate-600 label">
               <th class="text-left py-1 pr-3">Account</th>
               <th class="text-left py-1 pr-3">Plan</th>
               <th class="text-left py-1 pr-3">Made</th>

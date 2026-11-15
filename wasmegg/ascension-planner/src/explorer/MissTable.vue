@@ -13,7 +13,7 @@
     {{ advice }}
   </p>
   <div v-else-if="table" class="space-y-2">
-    <p class="text-small text-slate-400">
+    <p class="text-small text-slate-600">
       Days after this run's best,
       <span class="tabular-nums text-slate-500">{{ table.best.chain.join(' ') }}</span>
       ({{ table.best.days.toFixed(2) }} d), looked up among {{ truncatedCount ? 'the' : 'its' }}
@@ -24,7 +24,7 @@
     <div class="overflow-x-auto">
       <table class="text-small tabular-nums">
         <thead>
-          <tr class="text-slate-400 label">
+          <tr class="text-slate-600 label">
             <th class="text-left py-1 pr-2 align-bottom">Stop</th>
             <th
               v-for="d in table.offsets"
@@ -45,9 +45,9 @@
               <div class="flex items-start justify-between gap-2">
                 <div class="font-bold leading-4 text-slate-700">
                   {{ row.index + 1 }} · {{ row.te }} TE
-                  <div v-if="row.last" class="text-slate-400 label">last</div>
+                  <div v-if="row.last" class="text-slate-600 label">last</div>
                 </div>
-                <div v-if="!row.last" class="text-right text-small font-normal text-slate-400">
+                <div v-if="!row.last" class="text-right text-small font-normal text-slate-600">
                   <div class="leading-4">keep</div>
                   <div class="leading-4">re-plan</div>
                 </div>
@@ -62,7 +62,7 @@
             >
               <div class="leading-4">
                 <span v-if="cell.keep" class="font-bold text-slate-700">{{ cellDays(cell.keep.behind) }}</span>
-                <span v-else class="italic text-slate-400">{{ missingText }}</span>
+                <span v-else class="italic text-slate-600">{{ missingText }}</span>
               </div>
               <div v-if="!row.last" class="leading-4">
                 <span
@@ -70,14 +70,14 @@
                   :class="replanPays(cell) ? 'font-bold text-emerald-800' : 'font-bold text-slate-700'"
                   >{{ cellDays(cell.replan.behind) }}</span
                 >
-                <span v-else class="italic text-slate-400">{{ missingText }}</span>
+                <span v-else class="italic text-slate-600">{{ missingText }}</span>
               </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="text-small text-slate-400 max-w-3xl">
+    <p class="text-small text-slate-600 max-w-3xl">
       <b class="text-slate-500">Keep</b>: the same plan with only that stop moved.
       <b class="text-slate-500">Re-plan</b>: the fastest plan in this table with the same earlier stops and that one
       moved, whatever it does after. At the last stop they are the same plan.
@@ -97,7 +97,7 @@
     </p>
     <p class="text-body font-bold text-slate-700 max-w-3xl">{{ advice }}</p>
   </div>
-  <p v-else class="text-body text-slate-400">
+  <p v-else class="text-body text-slate-600">
     This table holds no plan at {{ plural(ascensions, 'ascension') }} with a stop to miss.
   </p>
 </template>

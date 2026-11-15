@@ -62,7 +62,7 @@
     <!-- Highlight controls. Laid out as one line because it is one question: which checkpoint, and
          which of its values. -->
     <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-      <span class="text-slate-400 label">Highlight</span>
+      <span class="text-slate-600 label">Highlight</span>
       <select
         v-model="highlightPosition"
         class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-700"
@@ -70,7 +70,7 @@
       >
         <option v-for="p in positions" :key="p.id" :value="p.id">{{ p.label }}</option>
       </select>
-      <span class="text-small font-bold text-slate-400">=</span>
+      <span class="text-small font-bold text-slate-600">=</span>
       <input
         v-model="highlightText"
         type="text"
@@ -80,7 +80,7 @@
       <button
         v-if="highlightText"
         type="button"
-        class="px-2 py-1 rounded-md text-body font-bold text-slate-400 hover:text-slate-600"
+        class="px-2 py-1 rounded-md text-body font-bold text-slate-600 hover:text-slate-600"
         @click="highlightText = ''"
       >
         Clear
@@ -94,7 +94,7 @@
     </div>
 
     <EChart v-if="shown.points.length" :option="option" height="360px" />
-    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-400">
+    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-600">
       Nothing priced yet. The chart fills in as the search reports batches.
     </p>
 
@@ -108,16 +108,16 @@
       >
         <span :style="{ color: group.color }" class="font-bold">●</span>
         <span class="tabular-nums font-bold text-slate-700 w-12">{{ group.value }}</span>
-        <span class="text-slate-400">{{ plural(group.count, 'route') }}</span>
+        <span class="text-slate-600">{{ plural(group.count, 'route') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
-        <span v-if="group.gapDays > 0" class="text-slate-400">+{{ group.gapDays.toFixed(3) }} d</span>
+        <span v-if="group.gapDays > 0" class="text-slate-600">+{{ group.gapDays.toFixed(3) }} d</span>
         <span v-else class="font-bold text-emerald-600">leader</span>
-        <span class="tabular-nums text-slate-400 truncate">{{ group.bestChain.join(' ') }}</span>
+        <span class="tabular-nums text-slate-600 truncate">{{ group.bestChain.join(' ') }}</span>
       </div>
     </div>
 
     <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-400"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-600"
     >
       <span>{{ plural(shown.points.length, 'route') }} priced</span>
       <span v-if="thinned" class="normal-case tracking-normal font-bold"

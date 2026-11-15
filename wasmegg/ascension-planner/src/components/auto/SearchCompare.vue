@@ -33,7 +33,7 @@
           <span class="tabular-nums text-slate-700 break-all">{{ r.entry.chain.join(' ') }}</span>
           <span class="text-small text-slate-500">{{ note(r) }}</span>
         </template>
-        <span v-else class="text-slate-400">not run yet</span>
+        <span v-else class="text-slate-600">not run yet</span>
       </div>
     </div>
   </section>

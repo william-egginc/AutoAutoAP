@@ -469,7 +469,7 @@
             </div>
 
             <div class="flex flex-col gap-0 text-left">
-              <span class="text-slate-400 label leading-none mb-0.5"
+              <span class="text-slate-600 label leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
               <span class="text-small font-bold text-emerald-600">
@@ -482,7 +482,7 @@
           <div class="flex items-center gap-4 relative z-10">
             <!-- Incomplete Only Toggle -->
             <div class="flex items-center gap-2">
-              <span class="text-slate-400 label">Incomplete Only</span>
+              <span class="text-slate-600 label">Incomplete Only</span>
               <button
                 class="relative inline-flex h-4 w-8 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
                 :class="actionsStore.showIncompleteOnly ? 'bg-emerald-500' : 'bg-slate-200'"
@@ -548,7 +548,7 @@
               <h2 class="text-title font-bold text-gray-800">Action History</h2>
               <div class="flex items-center gap-3">
                 <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                  <span class="text-gray-400 label">Compact</span>
+                  <span class="text-gray-600 label">Compact</span>
                   <button
                     type="button"
                     role="switch"
@@ -2293,7 +2293,7 @@ const ChevronIcon: FunctionalComponent<{ expanded?: boolean }> = props =>
   h(
     'svg',
     {
-      class: ['w-5 h-5 text-gray-400 transition-transform', { 'rotate-180': props.expanded }],
+      class: ['w-5 h-5 text-gray-600 transition-transform', { 'rotate-180': props.expanded }],
       fill: 'none',
       stroke: 'currentColor',
       viewBox: '0 0 24 24',

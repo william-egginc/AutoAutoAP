@@ -385,7 +385,7 @@ const pill = (on: boolean) =>
   `min-h-[44px] rounded-lg border px-3 py-1 text-body font-bold sm:min-h-0 sm:px-2.5 ${
     on
       ? 'border-indigo-400 bg-indigo-50 text-indigo-900'
-      : 'border-slate-200 bg-white text-slate-400 line-through hover:border-indigo-300'
+      : 'border-slate-200 bg-white text-slate-600 line-through hover:border-indigo-300'
   }`;
 
 function cellStyle(count: number): Record<string, string> {

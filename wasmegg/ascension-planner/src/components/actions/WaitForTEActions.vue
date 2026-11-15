@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <p class="text-body font-normal text-slate-400 mb-6">
+    <p class="text-body font-normal text-slate-600 mb-6">
       Wait for Truth Eggs to accumulate by shipping eggs.
     </p>
 
@@ -20,15 +20,15 @@
           <div class="text-body font-bold text-slate-800">
             {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}
           </div>
-          <div class="text-slate-400 label">Current Egg</div>
+          <div class="text-slate-600 label">Current Egg</div>
         </div>
       </div>
 
       <!-- Current TE State -->
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
-          <div class="text-slate-400 label">Metric</div>
-          <div class="text-slate-400 label text-right">Value (Initial → Current)</div>
+          <div class="text-slate-600 label">Metric</div>
+          <div class="text-slate-600 label text-right">Value (Initial → Current)</div>
 
           <div class="text-slate-600 label">Eggs Delivered:</div>
           <div class="tabular-nums text-right text-slate-700 font-bold">
@@ -50,16 +50,16 @@
         <div class="grid grid-cols-2 gap-4 text-small pt-3 border-t border-slate-100/50">
           <div class="space-y-1">
             <div class="flex items-center justify-between">
-              <span class="text-slate-400 label">Claimed TE:</span>
+              <span class="text-slate-600 label">Claimed TE:</span>
               <span class="tabular-nums text-slate-700 font-bold">{{ claimedTE }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-slate-400 label">Pending TE:</span>
+              <span class="text-slate-600 label">Pending TE:</span>
               <span class="tabular-nums text-slate-900 font-bold">{{ pendingTE }}</span>
             </div>
           </div>
           <div class="flex flex-col justify-end text-right">
-            <span class="text-slate-400 label">Total Progress:</span>
+            <span class="text-slate-600 label">Total Progress:</span>
             <span class="tabular-nums font-bold text-slate-900 text-body"
               >{{ truthEggsStore.totalTE }} <span class="text-slate-300 font-normal">/ 490</span></span
             >
@@ -83,7 +83,7 @@
 
       <!-- Target TE input with +/- buttons -->
       <div class="flex flex-col gap-3 mb-6">
-        <span class="text-slate-400 label">Add how many TE?</span>
+        <span class="text-slate-600 label">Add how many TE?</span>
         <div class="flex items-center gap-1">
           <button
             class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
@@ -125,37 +125,37 @@
       <!-- Calculated values -->
       <div v-if="teToGain > 0" class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50">
         <div class="flex justify-between items-center text-small">
-          <span class="text-slate-400 label">Reaches:</span>
+          <span class="text-slate-600 label">Reaches:</span>
           <span class="tabular-nums font-bold text-slate-900">TE #{{ targetTENumber }}</span>
         </div>
         <div class="flex justify-between items-center text-small">
-          <span class="text-slate-400 label">TE to Gain:</span>
+          <span class="text-slate-600 label">TE to Gain:</span>
           <span class="tabular-nums font-bold text-slate-900">+{{ teToGain }} TE</span>
         </div>
         <div class="flex justify-between items-center text-small">
-          <span class="text-slate-400 label">Eggs to Lay:</span>
+          <span class="text-slate-600 label">Eggs to Lay:</span>
           <span class="tabular-nums font-bold text-slate-700">{{ formatNumber(eggsToLay, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
           <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
-              <span class="text-slate-400 label">Delivery Rate per hour:</span>
+              <span class="text-slate-600 label">Delivery Rate per hour:</span>
             </div>
             <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerHour, 2) }}</span>
           </div>
           <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
-              <span class="text-slate-400 label">Delivery Rate per day:</span>
+              <span class="text-slate-600 label">Delivery Rate per day:</span>
             </div>
             <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerDay, 2) }}</span>
           </div>
           <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
-            <span class="text-slate-400 label">Time Required:</span>
+            <span class="text-slate-600 label">Time Required:</span>
             <span class="tabular-nums font-bold text-slate-900">{{ formatDuration(timeToLaySeconds) }}</span>
           </div>
           <div class="flex justify-between items-center text-small">
-            <span class="text-slate-400 label">Completion Time:</span>
+            <span class="text-slate-600 label">Completion Time:</span>
             <span class="tabular-nums font-bold text-slate-900">{{ absoluteEarnedTime }}</span>
           </div>
         </div>

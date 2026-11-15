@@ -268,7 +268,7 @@
                 :title="showHour(h - 1) + (hourAwake(h - 1) ? ': awake' : ': asleep')"
               ></span>
             </div>
-            <div class="flex justify-between text-small text-slate-400 mt-0.5">
+            <div class="flex justify-between text-small text-slate-600 mt-0.5">
               <span>{{ showHour(0) }}</span
               ><span>{{ showHour(6) }}</span
               ><span>{{ showHour(12) }}</span
@@ -287,7 +287,7 @@
               :class="
                 store.availableDays.includes(day)
                   ? 'bg-slate-800 text-white'
-                  : 'border border-slate-200 text-slate-400 hover:text-slate-600'
+                  : 'border border-slate-200 text-slate-600 hover:text-slate-600'
               "
               @click="toggleDay(day)"
             >
@@ -635,7 +635,7 @@
                    and every later leg funds its own research out of earnings. -->
               <dl class="grid grid-cols-2 gap-3 text-body break-words border-t border-slate-100 pt-3">
                 <div>
-                  <dt class="text-slate-400 label">Soul eggs</dt>
+                  <dt class="text-slate-600 label">Soul eggs</dt>
                   <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
                     {{ formatSoulEggs(store.setupFacts.soulEggs) }}
                   </dd>
@@ -643,7 +643,7 @@
                 <!-- Both, side by side: a reported failure was exactly these two disagreeing. The save's own only when it
                      differs ("197 · save says 197" said the number twice; spec-tidy). -->
                 <div>
-                  <dt class="text-slate-400 label">Starting TE</dt>
+                  <dt class="text-slate-600 label">Starting TE</dt>
                   <dd
                     class="font-bold"
                     :class="
@@ -653,19 +653,19 @@
                     "
                   >
                     {{ store.setupFacts.currentTE }}
-                    <span v-if="store.setupFacts.backupTE !== store.setupFacts.currentTE" class="font-normal text-slate-400"
+                    <span v-if="store.setupFacts.backupTE !== store.setupFacts.currentTE" class="font-normal text-slate-600"
                       >· save says {{ store.setupFacts.backupTE }}</span
                     >
                   </dd>
                 </div>
                 <div>
-                  <dt class="text-slate-400 label">Epic research</dt>
+                  <dt class="text-slate-600 label">Epic research</dt>
                   <dd class="font-bold text-slate-700">
                     {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
                   </dd>
                 </div>
                 <div>
-                  <dt class="text-slate-400 label">Colleggtibles</dt>
+                  <dt class="text-slate-600 label">Colleggtibles</dt>
                   <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
                 </div>
               </dl>
@@ -732,19 +732,19 @@
                 <div class="mt-3 space-y-3">
                   <dl class="grid grid-cols-2 gap-3 text-body break-words">
                     <div>
-                      <dt class="text-slate-400 label">Logical cores</dt>
+                      <dt class="text-slate-600 label">Logical cores</dt>
                       <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
                     </div>
                     <div>
-                      <dt class="text-slate-400 label">Reported RAM</dt>
+                      <dt class="text-slate-600 label">Reported RAM</dt>
                       <dd class="font-bold text-slate-700">{{ deviceMemoryLabel }}</dd>
                     </div>
                     <div>
-                      <dt class="text-slate-400 label">Tab heap limit</dt>
+                      <dt class="text-slate-600 label">Tab heap limit</dt>
                       <dd class="font-bold text-slate-700">{{ heapLimitMb || 'not reported' }}</dd>
                     </div>
                     <div>
-                      <dt class="text-slate-400 label">Heap in use</dt>
+                      <dt class="text-slate-600 label">Heap in use</dt>
                       <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                     </div>
                   </dl>
@@ -753,7 +753,7 @@
                     browser on purpose, which is why the worker count is yours to choose rather than detected.
                   </p>
                   <label class="block space-y-1">
-                    <span class="text-slate-400 label"
+                    <span class="text-slate-600 label"
                       >Keep per-ascension detail for</span
                     >
                     <span class="flex flex-wrap items-center gap-2">

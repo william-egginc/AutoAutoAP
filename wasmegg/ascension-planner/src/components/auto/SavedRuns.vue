@@ -20,7 +20,7 @@
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h3 class="text-slate-500 label">{{ heading || 'Saved runs' }}</h3>
-      <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
+      <span class="text-small font-bold text-slate-600">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
     <!-- One line and a fold (UX fluff review 2, 5 Nov 2026, item C7); the run is saved from the result card's one Save
          (item C7b: the name box and "Save this run" here were a second Save for the same run). DRAFT (Words). -->
@@ -47,7 +47,7 @@
 
     <p v-if="note" class="text-body font-bold text-amber-700">{{ note }}</p>
 
-    <p v-if="!store.savedRuns.length" class="text-body text-slate-400">Nothing saved yet.</p>
+    <p v-if="!store.savedRuns.length" class="text-body text-slate-600">Nothing saved yet.</p>
     <div v-else class="divide-y divide-slate-100">
       <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
         <div class="flex-1 min-w-[14rem]">
@@ -57,7 +57,7 @@
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
-          <div class="text-small text-slate-400 tabular-nums">
+          <div class="text-small text-slate-600 tabular-nums">
             {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >

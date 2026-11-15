@@ -10,7 +10,7 @@
       <div class="flex items-center min-w-0" :class="compact ? 'gap-2' : 'gap-3 sm:gap-4'">
         <!-- Expand/collapse icon -->
         <svg
-          class="w-4 h-4 text-slate-400 transition-transform duration-300 flex-shrink-0"
+          class="w-4 h-4 text-slate-600 transition-transform duration-300 flex-shrink-0"
           :class="{ 'rotate-90 text-slate-900': isExpanded }"
           fill="none"
           stroke="currentColor"
@@ -43,7 +43,7 @@
             {{ formattedTimestamp }}
           </div>
           <div class="flex flex-col items-start gap-0.5">
-            <div class="text-small font-bold text-slate-400">Time: {{ formattedTimeElapsed }}</div>
+            <div class="text-small font-bold text-slate-600">Time: {{ formattedTimeElapsed }}</div>
             <div class="text-small font-bold text-slate-900">
               {{ formatNumber(props.eggsDelivered, 3) }} Eggs
             </div>
@@ -81,7 +81,7 @@
         <div class="flex items-center gap-1 sm:gap-2" @click.stop>
           <button
             v-if="!isEditing && !(isCurrent && !actionsStore.editingGroupId)"
-            class="text-slate-400 hover:text-slate-900 hover:bg-brand-primary/5 rounded-xl transition-all active:scale-95"
+            class="text-slate-600 hover:text-slate-900 hover:bg-brand-primary/5 rounded-xl transition-all active:scale-95"
             :class="compact ? 'p-1' : 'p-1.5 sm:p-2'"
             v-tippy="'Edit this shift'"
             @click="$emit('start-editing', headerAction.id)"
@@ -105,7 +105,7 @@
 
           <button
             v-if="isShiftAction"
-            class="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+            class="text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
             :class="compact ? 'p-1' : 'p-1.5 sm:p-2'"
             v-tippy="'Undo this shift and all its actions'"
             @click="handleUndo($event, headerAction)"

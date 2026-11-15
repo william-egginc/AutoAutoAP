@@ -98,7 +98,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-small font-bold">{{ g.label }}</span>
-        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-600'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
@@ -111,7 +111,7 @@
             s.state === 'now'
               ? 'font-bold text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
               : s.state === 'passed'
-                ? 'text-slate-400'
+                ? 'text-slate-600'
                 : ''
           "
           :aria-current="s.state === 'now' ? 'step' : undefined"
@@ -199,7 +199,7 @@
       <button
         type="button"
         disabled
-        class="inline-flex min-h-[44px] items-center font-bold text-slate-400 sm:min-h-0"
+        class="inline-flex min-h-[44px] items-center font-bold text-slate-600 sm:min-h-0"
         data-testid="now-follow-save-off-button"
       >
         Save it online ›

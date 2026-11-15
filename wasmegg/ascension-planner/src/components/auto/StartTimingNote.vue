@@ -9,7 +9,7 @@
       class="flex min-h-[44px] cursor-pointer select-none items-center gap-1 font-bold text-slate-500 hover:text-slate-700"
     >
       Why times differ from the instant answer
-      <span aria-hidden="true" class="start-timing-chevron leading-none text-slate-400">›</span>
+      <span aria-hidden="true" class="start-timing-chevron leading-none text-slate-600">›</span>
     </summary>
     <ul class="list-disc space-y-0.5 pb-1 pl-5">
       <li>

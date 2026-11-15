@@ -85,7 +85,7 @@
           <thead>
             <tr>
               <th></th>
-              <th v-for="h in hours" :key="h" class="font-bold text-slate-400 px-0.5">{{ hourLabel(h) }}</th>
+              <th v-for="h in hours" :key="h" class="font-bold text-slate-600 px-0.5">{{ hourLabel(h) }}</th>
             </tr>
           </thead>
           <tbody>

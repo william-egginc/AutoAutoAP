@@ -25,7 +25,7 @@
       <!-- Peak ELR row. Minimal/unstyled list of whatever variants are present — visual layout for
            up to 7 variants is deferred to a later pass. -->
       <div class="flex items-center gap-3 mb-4 px-1 flex-wrap">
-        <span class="text-slate-400 label">Peak Delivery Rate</span>
+        <span class="text-slate-600 label">Peak Delivery Rate</span>
         <template v-for="(entry, i) in presentVariants" :key="entry.key">
           <div v-if="i > 0" class="w-px h-4 bg-slate-200"></div>
           <div class="flex items-center gap-1.5">
@@ -33,7 +33,7 @@
             <span class="text-small tabular-nums font-bold text-indigo-600">
               {{ formatNumber(entry.result.summary.maxELR * 3600, 3) }}
             </span>
-            <span class="text-small font-bold text-slate-400">/hr</span>
+            <span class="text-small font-bold text-slate-600">/hr</span>
           </div>
         </template>
       </div>

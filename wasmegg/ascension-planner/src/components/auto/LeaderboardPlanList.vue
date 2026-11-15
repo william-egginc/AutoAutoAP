@@ -20,14 +20,14 @@
   is one row, with the other sends named on it.
 -->
 <template>
-  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-small text-slate-400">
+  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-small text-slate-600">
     Swipe the table for more columns →
   </p>
   <div class="relative">
     <div :ref="edges.bind" class="overflow-x-auto [container-type:inline-size]" @scroll.passive="edges.update">
       <table class="w-full text-small">
         <thead>
-          <tr class="label text-slate-400 text-left whitespace-nowrap">
+          <tr class="label text-slate-600 text-left whitespace-nowrap">
             <th class="py-1.5 pr-3 w-4"></th>
             <th class="py-1.5 pr-3">Route</th>
             <th class="py-1.5 pr-3">{{ showReason ? 'Would finish' : 'Finishes' }}</th>
@@ -46,7 +46,7 @@
               <td class="py-1.5 pr-3">
                 <button
                   type="button"
-                  class="text-slate-400 hover:text-indigo-700"
+                  class="text-slate-600 hover:text-indigo-700"
                   :aria-expanded="!!open[keyOf(p, i)]"
                   :aria-label="`Show what ${p.row.chain.join(' ')} was simulated with`"
                   @click="open[keyOf(p, i)] = !open[keyOf(p, i)]"
@@ -115,13 +115,13 @@
                 <span v-else-if="gap(p) != null" class="font-bold text-slate-700">{{ gapText(gap(p)!) }}</span>
                 <span
                   v-else-if="best && sameSave(p.row, best.row) && !sameBuild(p.row, best.row)"
-                  class="text-slate-400"
+                  class="text-slate-600"
                   title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to open this route in the Auto Planner, then run it to price it on this version."
                   >other version</span
                 >
                 <span
                   v-else
-                  class="text-slate-400"
+                  class="text-slate-600"
                   title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to open it in the Auto Planner, then run it to price it from the save you loaded."
                   >other save</span
                 >
@@ -132,7 +132,7 @@
               <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap" :title="plannedText(p, { zone: viewZone })">
                 {{ plannedText(p, { zone: viewZone, brief: true }) }}
               </td>
-              <td class="py-1.5 pr-3 text-slate-400 whitespace-nowrap" :title="p.row.window || undefined">
+              <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap" :title="p.row.window || undefined">
                 {{ scheduleText(p.row.window) }}
               </td>
               <td v-if="showReason" class="py-1.5 pr-3 text-slate-600 min-w-[16rem]">{{ p.reason }}</td>

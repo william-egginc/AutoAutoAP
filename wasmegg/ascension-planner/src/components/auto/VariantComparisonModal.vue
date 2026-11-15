@@ -32,7 +32,7 @@
             :class="
               activeTab === tab.key
                 ? 'border-indigo-600 text-indigo-700'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
+                : 'border-transparent text-slate-600 hover:text-slate-600'
             "
             @click="activeTab = tab.key"
           >
@@ -45,7 +45,7 @@
             <div class="p-4 overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="text-slate-400 label">
+                  <tr class="text-slate-600 label">
                     <th class="px-2 py-1.5">Variant</th>
                     <th class="px-2 py-1.5">Tier 13</th>
                     <th class="px-2 py-1.5">Build</th>
@@ -96,10 +96,10 @@
             </div>
 
             <div class="px-4 pb-4 overflow-x-auto">
-              <h4 class="px-2 pb-1.5 text-slate-400 label">Research Levels</h4>
+              <h4 class="px-2 pb-1.5 text-slate-600 label">Research Levels</h4>
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="text-slate-400 label">
+                  <tr class="text-slate-600 label">
                     <th class="px-2 py-1.5">Variant</th>
                     <th v-for="col in RESEARCH_COLUMNS" :key="col.id" class="px-1 py-1.5 w-[4.75rem] align-bottom">
                       <div class="flex flex-col items-center gap-1">

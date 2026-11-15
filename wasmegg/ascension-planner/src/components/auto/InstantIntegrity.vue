@@ -6,7 +6,7 @@
   one grey line (the panel holds the routes back for those seconds).
 -->
 <template>
-  <p v-if="state.kind === 'checking'" class="text-body text-slate-400" data-testid="instant-integrity">
+  <p v-if="state.kind === 'checking'" class="text-body text-slate-600" data-testid="instant-integrity">
     Checking whether this account can build<AnimatedDots />
   </p>
   <div

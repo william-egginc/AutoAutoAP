@@ -26,7 +26,7 @@
 
         <span
           class="text-body font-bold leading-none mb-1"
-          :class="selectedTab === setName ? 'text-blue-700' : 'text-gray-400'"
+          :class="selectedTab === setName ? 'text-blue-700' : 'text-gray-600'"
         >
           {{ setName }}
         </span>
@@ -50,7 +50,7 @@
 
             <template v-if="isDirty">
               <button
-                class="text-body font-bold text-gray-400 hover:text-gray-600"
+                class="text-body font-bold text-gray-600 hover:text-gray-600"
                 @click="undoChanges"
               >
                 Undo
@@ -65,7 +65,7 @@
           </div>
 
           <div v-if="selectedTab === 'earnings' && earningsClothedTe !== null" class="flex items-center gap-1.5">
-            <span class="text-gray-400 label">Clothed TE</span>
+            <span class="text-gray-600 label">Clothed TE</span>
             <span class="text-small tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
           </div>
         </div>

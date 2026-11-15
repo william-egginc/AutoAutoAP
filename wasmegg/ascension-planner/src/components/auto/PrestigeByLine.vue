@@ -6,7 +6,7 @@
 <template>
   <!-- A quiet one-liner only while it is working, and for at most STILL_WORKING_MS: past that it says nothing until a
        line comes (UX review 26 Oct 2026, item 7: it sat in the green box until the player had scrolled away). -->
-  <p v-if="status === 'running' && working" class="text-body text-slate-400" data-testid="prestige-by-running">
+  <p v-if="status === 'running' && working" class="text-body text-slate-600" data-testid="prestige-by-running">
     Working out how long your next prestige can wait<AnimatedDots />
   </p>
   <div
@@ -58,7 +58,7 @@
   </div>
   <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. Not on By a date
        (UX review 26 Oct 2026, item 8): nothing there until it is closer. -->
-  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-body text-slate-400 max-w-prose" data-testid="prestige-by-far">
+  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-body text-slate-600 max-w-prose" data-testid="prestige-by-far">
     Prestige by: your next prestige is more than 7 days away (the cutoff is about {{ line.farOff }}). This line
     shows when it's closer.
   </p>

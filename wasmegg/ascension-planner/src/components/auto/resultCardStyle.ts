@@ -19,5 +19,5 @@ export const CARD_NOTE = 'text-body text-emerald-800';
 /** The leg table under the card: header row and cells. */
 export const LEG_TABLE = 'w-full text-small tabular-nums';
 /** A table's column heads (on the <tr> or each <th>): the caps label. */
-export const LEG_HEAD = 'label text-slate-400 text-left whitespace-nowrap';
+export const LEG_HEAD = 'label text-slate-600 text-left whitespace-nowrap';
 export const LEG_ROW = 'border-t border-slate-100';

@@ -31,7 +31,7 @@
       <span v-if="hint" class="min-w-0 flex-[1_1_12rem] font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
         hint
       }}<AnimatedDots v-if="hintBusy" /></span>
-      <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-400">›</span>
+      <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-600">›</span>
     </summary>
     <slot />
   </details>

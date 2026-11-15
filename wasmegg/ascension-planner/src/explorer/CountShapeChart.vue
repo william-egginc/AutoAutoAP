@@ -54,7 +54,7 @@
           {{ mode.label }}
         </button>
       </div>
-      <span class="text-small font-bold text-slate-400">
+      <span class="text-small font-bold text-slate-600">
         {{ bests.length }} account{{ bests.length === 1 ? '' : 's' }} ({{ rows.length }} run{{
           rows.length === 1 ? '' : 's'
         }}) · {{ summary.length }} stop{{ summary.length === 1 ? '' : 's' }}
@@ -76,14 +76,14 @@
       :entries="[...accountEntries, MEDIAN_ENTRY]"
       label="Accounts: click to hide or show"
     />
-    <p class="text-small text-slate-400 px-1">{{ hint }}</p>
+    <p class="text-small text-slate-600 px-1">{{ hint }}</p>
 
     <!-- The same numbers as the chart, for the reader who wants to copy one: the TEs the best plans
          really used, the same as TE above the start, and the slope that says which travels. -->
     <div class="overflow-x-auto">
       <table class="w-full text-small">
         <thead>
-          <tr class="text-slate-400 label">
+          <tr class="text-slate-600 label">
             <th class="text-left py-1 pr-3">Stop</th>
             <th class="text-right py-1 pr-3">Accounts</th>
             <th class="text-left py-1 pr-3">TE</th>
@@ -96,9 +96,9 @@
           <tr v-for="cp in summary" :key="cp.index">
             <td class="py-1 pr-3 font-bold text-slate-600">
               {{ cp.index + 1
-              }}<span v-if="cp.index === summary.length - 1" class="font-normal text-slate-400"> (last)</span>
+              }}<span v-if="cp.index === summary.length - 1" class="font-normal text-slate-600"> (last)</span>
             </td>
-            <td class="py-1 pr-3 text-right text-slate-400">{{ cp.accounts }}</td>
+            <td class="py-1 pr-3 text-right text-slate-600">{{ cp.accounts }}</td>
             <td class="py-1 pr-3 tabular-nums whitespace-nowrap" :class="tighter(cp) === 'te' ? WIN : LOSE">
               {{ rangeText(cp.te) }}
             </td>
@@ -113,7 +113,7 @@
             </td>
             <td class="py-1 tabular-nums text-slate-500 whitespace-nowrap">
               <b class="text-slate-700">{{ pct(cp.share.mid) }}</b>
-              <span class="text-slate-400"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
+              <span class="text-slate-600"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
             </td>
           </tr>
         </tbody>
@@ -189,7 +189,7 @@ function shadeOf(index: number, n: number): string {
 }
 
 const WIN = 'font-bold text-slate-800';
-const LOSE = 'text-slate-400';
+const LOSE = 'text-slate-600';
 
 const summary = computed<CheckpointSummary[]>(() => summariseCheckpoints(props.bests.map(b => b.row)));
 

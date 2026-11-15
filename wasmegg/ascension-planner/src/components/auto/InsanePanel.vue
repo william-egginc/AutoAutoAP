@@ -62,17 +62,17 @@
 
         <div class="grid gap-2 sm:grid-cols-3 text-small">
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="label text-slate-400">Routes</div>
+            <div class="label text-slate-600">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCountLabel }}</div>
           </div>
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="label text-slate-400">Estimated time</div>
+            <div class="label text-slate-600">Estimated time</div>
             <div class="font-bold text-slate-800">
               {{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
               >{{ ' ' }}(measuring<AnimatedDots />)</template
             >
             </div>
-            <div class="text-small text-slate-400">
+            <div class="text-small text-slate-600">
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}
             </div>
           </div>
@@ -325,7 +325,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-slate-400 label">Final target TE</span>
+                <span class="text-slate-600 label">Final target TE</span>
                 <HelpTip
                   >The TE every route ends at. It's added to the end of each route automatically, so it never goes in
                   the ranges below.</HelpTip
@@ -336,7 +336,7 @@
             </label>
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-slate-400 label">Your TE now</span>
+                <span class="text-slate-600 label">Your TE now</span>
                 <HelpTip
                   >Read from your backup, not editable here. It is the floor for every stop in the ranges.</HelpTip
                 >
@@ -357,7 +357,7 @@
                 Box 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="text-slate-400 label">
+                <span class="text-slate-600 label">
                   Ranges, one per stop
                 </span>
                 <HelpTip>
@@ -390,7 +390,7 @@
                     @input="markAscTouched"
                   />
                 </label>
-                <span v-if="chain1FromInstant" class="text-small text-slate-400" data-testid="asc-follow-hint"
+                <span v-if="chain1FromInstant" class="text-small text-slate-600" data-testid="asc-follow-hint"
                   >(from the instant answer)</span
                 >
                 <SpaceSliders
@@ -454,7 +454,7 @@
                 />
               </div>
 
-              <span class="block text-small text-slate-400">
+              <span class="block text-small text-slate-600">
                 <template v-if="bands.length">
                   {{ plural(bands.length, 'range') }} → {{ plural(bands.length + 1, 'ascension') }} ·
                   {{ bands.map(b => b.length).join(' × ') }} values
@@ -541,7 +541,7 @@
 
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
-                <span class="text-small font-bold text-slate-400">
+                <span class="text-small font-bold text-slate-600">
                   Keep stops at least this many TE apart
                 </span>
                 <HelpTip>
@@ -582,7 +582,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-slate-400 label">Values tried</span>
+                <span class="text-slate-600 label">Values tried</span>
                 <HelpTip
                   >Stop values across all the ranges, after anything outside (your TE, target) is dropped.</HelpTip
                 >
@@ -591,7 +591,7 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-slate-400 label">Routes it will run</span>
+                <span class="text-slate-600 label">Routes it will run</span>
                 <HelpTip
                   >Every route through the ranges that can actually be played: each stop above the one before it (and at
                   least the minimum gap above it), with the target added at the end. Combinations that go down, stand
@@ -615,7 +615,7 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-small font-bold text-slate-400">Est. time</span>
+                <span class="text-small font-bold text-slate-600">Est. time</span>
                 <HelpTip
                   >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
@@ -632,7 +632,7 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-slate-400 label">Assumed cost</span>
+                <span class="text-slate-600 label">Assumed cost</span>
                 <HelpTip
                   >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
@@ -789,7 +789,7 @@
               data-run-progress="full"
               class="scroll-mt-24"
             >
-              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-400 font-bold tabular-nums">
+              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-600 font-bold tabular-nums">
                 Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
               </p>
             </div>

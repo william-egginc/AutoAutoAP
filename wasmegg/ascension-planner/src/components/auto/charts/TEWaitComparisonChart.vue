@@ -1,11 +1,11 @@
 <template>
-  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-400">
+  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-600">
     No variant in this comparison has a TE-wait phase to compare.
   </div>
   <template v-else>
     <EChart :option="option" height="420px" />
     <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-small font-bold text-slate-400"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-small font-bold text-slate-600"
     >
       <span class="flex items-center gap-1"
         ><span class="inline-block w-3 border-t-2 border-slate-400" /> Simulated</span

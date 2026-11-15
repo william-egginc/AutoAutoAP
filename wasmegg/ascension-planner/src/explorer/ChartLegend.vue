@@ -20,11 +20,11 @@
         @click="emit('update:hidden', toggled(hidden, e.id))"
       >
         <AccountDot v-bind="markOf(e)" /><span :class="hidden.has(e.id) ? 'line-through' : ''">{{ e.label }}</span
-        ><span v-if="e.note" class="text-slate-400">{{ e.note }}</span>
+        ><span v-if="e.note" class="text-slate-600">{{ e.note }}</span>
       </button>
       <span v-else class="inline-flex items-center gap-1" :title="e.title">
         <AccountDot v-bind="markOf(e)" /><span>{{ e.label }}</span
-        ><span v-if="e.note" class="text-slate-400">{{ e.note }}</span>
+        ><span v-if="e.note" class="text-slate-600">{{ e.note }}</span>
       </span>
     </template>
     <button

@@ -48,7 +48,7 @@
           v-if="rows.length > minRows"
           type="button"
           :disabled="disabled"
-          class="ml-auto text-body font-bold text-slate-400 hover:text-rose-600 disabled:opacity-40"
+          class="ml-auto text-body font-bold text-slate-600 hover:text-rose-600 disabled:opacity-40"
           @click="emit('remove', k)"
         >
           Remove

@@ -322,7 +322,7 @@
           Less certain with these awake hours: an ascension's first shifts take longer than your awake hours last, so some of them
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
-        <p v-if="backgroundStatus === 'running'" class="text-body text-slate-400">
+        <p v-if="backgroundStatus === 'running'" class="text-body text-slate-600">
           Polishing the routes in the background<AnimatedDots />
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
@@ -497,7 +497,7 @@
                   data-testid="counts-row-head"
                   @click="toggleCount(r)"
                 >
-                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  <span class="text-slate-600 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
                   {{ ' ' }}
                   <span class="font-bold text-slate-800 tabular-nums"
                     >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }},</span
@@ -710,7 +710,7 @@
                   data-testid="counts-row-head"
                   @click="toggleCount(r)"
                 >
-                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  <span class="text-slate-600 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
                   {{ ' ' }}
                   <span class="font-bold text-slate-800 tabular-nums"
                     >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }}, reaches {{ store.finalTE }}</span
@@ -731,7 +731,7 @@
                     ><span
                       v-if="nearTie(r)"
                       class="block whitespace-normal text-small"
-                      :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-400'"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-600'"
                       :data-testid="`near-tie-${nearTie(r)!.kind}`"
                       >{{ nearTie(r)!.text }}</span
                     ></span

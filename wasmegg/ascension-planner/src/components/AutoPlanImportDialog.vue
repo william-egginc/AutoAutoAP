@@ -53,7 +53,7 @@ const emit = defineEmits<{
             @click="emit('resolve', 'individual')"
             class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200 transition-all text-left group"
           >
-            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm group-hover:scale-110 transition-transform">
+            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-sm group-hover:scale-110 transition-transform">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
@@ -68,7 +68,7 @@ const emit = defineEmits<{
         <div class="mt-8 flex justify-center">
           <button 
             @click="emit('cancel')"
-            class="text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
+            class="text-body font-bold text-slate-600 hover:text-slate-600 transition-colors"
           >
             Cancel
           </button>
