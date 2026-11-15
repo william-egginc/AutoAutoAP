@@ -194,7 +194,9 @@ describe('InstantRoute wiring', () => {
     expect(date.indexOf('<AnswerCaveatLine')).toBeLessThan(date.indexOf('<PreferFewerNote'));
   });
   it('the gear effect only for the gear shift (it leads whenever it shows), in instantCardWords\' words, the days from answerCaveat', () => {
-    expect(src).toContain('const gearEffect = computed(() => (shiftedTable.value && headCaveat.value ? gearEffectLine(GEAR_CAVEAT_DAYS) : null));');
+    expect(src).toContain(
+      'const gearEffect = computed(() =>\n  shiftedTable.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null\n);'
+    );
   });
   it('with the box on screen, the bound, the low-TE note and the gear box are not shown on their own', () => {
     expect(template).toContain('v-else-if="bracketText && !boxShown"');
@@ -212,3 +214,21 @@ describe('InstantRoute wiring', () => {
     expect(body).toContain('line: bracketHeadline(bracketInput.value)');
   });
 });
+
+describe('form G below its reach (review 15 Nov, T2)', () => {
+  // Below TE 55 + g the form G stands in the maxed table's first row (search/precomputedTable.ts formGBelowReach):
+  // still optimistic, by more than the usual few days, so the caveat says so instead of the usual window.
+  const p = { gearShift: true, gearDiffers: false, optimistic: false, bonusShort: 0, deliveryScale: 1, fullResearchTe: 275 };
+  it('says the answer is likely later than shown, by more than the usual window', async () => {
+    const { gearCaveat, GEAR_CAVEAT_DAYS } = await import('./answerCaveat');
+    const c = gearCaveat({ ...p, belowReach: true }, '')!;
+    expect(c.line).toBe(BELOW_REACH_LINE);
+    const { BELOW_REACH_EFFECT } = await import('./answerCaveat');
+    expect(BELOW_REACH_EFFECT).toBe('Likely later than shown, maybe by more than a few days.');
+    expect(c.text).toContain(BELOW_REACH_LINE);
+    expect(c.line).not.toContain(`${GEAR_CAVEAT_DAYS} days`);
+    expect(gearCaveat({ ...p, belowReach: false }, '')!.line).toContain(`${GEAR_CAVEAT_DAYS} days`);
+  });
+});
+const BELOW_REACH_LINE =
+  "Likely later than shown, maybe by more than a few days: at your TE your gear is below what the instant answers cover. Fast checks it on your save.";

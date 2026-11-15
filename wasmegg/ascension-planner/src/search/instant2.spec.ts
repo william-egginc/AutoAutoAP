@@ -171,10 +171,10 @@ describe('gearShiftTable (the weak-gear form G)', () => {
       expect(got[i].extras!.k3At).toBe(b.extras.k3At);
     });
   });
-  it('below the table\'s first row once shifted, falls back to the old single scale', () => {
+  it('below the table\'s first row once shifted, takes the first row moved onto the TE (formGReach.spec)', () => {
     const c = cells.find(x => x.te === 120)!;
     const t = gearShiftTable(v2, { g: 10, geo: 0.8, cap: Infinity, k: 0.75 });
-    expect(t.lookup(120, c.h)!.map(b => b.peakELR)).toEqual(c.builds.map(b => b.peakELR * 0.75));
+    expect(t.lookup(120, c.h)!.map(b => b.peakELR)).toEqual(c.builds.map(b => b.peakELR * 0.8));
     expect(t.header.gearShift).toEqual({ g: 10, geo: 0.8, cap: Infinity, k: 0.75 });
   });
   it('round-trips its url', () => {

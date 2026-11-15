@@ -55,10 +55,20 @@ export function answerCaveat(caveats: ReadonlyArray<Caveat | null | undefined | 
  *  review W1-12). By a date's box calls its spare tight inside this window when that caveat shows (`gearTightSeconds`). */
 export const GEAR_CAVEAT_DAYS = 5;
 
+/** The caveat's line for a form G answer below its reach. */
+export const BELOW_REACH_LINE =
+  'Likely later than shown, maybe by more than a few days: at your TE your gear is below what the instant answers cover. Fast checks it on your save.';
+
+/** The card's short effect line for it (InstantRoute `gearEffect`; lib/instantCardWords.ts gearEffectLine otherwise). */
+export const BELOW_REACH_EFFECT = 'Likely later than shown, maybe by more than a few days.';
+
 /** What the instant answer's gear note says (GearCaveat.vue renders these; the "Why?" list joins them). */
 export interface GearCaveatInput {
   /** The answer is the form G: the maxed table moved to the player's gear. */
   gearShift?: boolean;
+  /** The form G is below its reach at the player's TE (search/precomputedTable.ts formGBelowReach): the maxed table's
+   *  first row stands in, so the answer is optimistic by more than GEAR_CAVEAT_DAYS (review 15 Nov 2026, T2). */
+  belowReach?: boolean;
   /** The player's gear is not the instant answer's, below full research. */
   gearDiffers: boolean;
   /** "May be optimistic for your gear" (lib/optimisticAnswer.ts). */
@@ -70,6 +80,14 @@ export interface GearCaveatInput {
 
 /** The words GearCaveat.vue shows: the main sentence(s), and the optimistic label (bold there). */
 export function gearCaveatParts(p: GearCaveatInput, optimisticText: string): { main: string; optimistic: string } {
+  if (p.gearShift && p.belowReach)
+    return {
+      main:
+        `${BELOW_REACH_LINE} Your gear isn't one the instant answers were built for, and at your TE it is weaker than ` +
+        "anything they were built at, so this answer is the weakest one they have, moved to your TE. Your ascensions " +
+        'from here can take noticeably longer than shown.',
+      optimistic: '',
+    };
   if (p.gearShift)
     return {
       main:
@@ -94,7 +112,9 @@ export function gearCaveat(p: GearCaveatInput, optimisticText: string): Caveat |
   const { main, optimistic } = gearCaveatParts(p, optimisticText);
   const text = [main, optimistic].filter(Boolean).join(' ');
   if (!text) return null;
-  const line = p.gearShift
+  const line = p.belowReach && p.gearShift
+    ? BELOW_REACH_LINE
+    : p.gearShift
     ? `Up to about ${GEAR_CAVEAT_DAYS} days later than shown: your gear isn't one the instant answers were built for.`
     : p.gearDiffers
       ? `Ascensions below about TE ${p.fullResearchTe} can take a few percent more or less: your gear isn't the gear the instant answer was built on.`

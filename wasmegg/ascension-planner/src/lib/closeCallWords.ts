@@ -11,8 +11,11 @@ export const CLOSE_CALL_SECONDS = 2 * 86400;
 export const CLOSE_CALL_TAG = 'close call';
 
 /** `gearCaveat`: the caveat that the quick estimate can be late shows for this answer (as lib/spareLine.ts takes it).
- *  `hoursLimited`: the awake hours limit the answer, which route checks found up to days early (review T3, 15 Nov 2026). */
-export function isCloseCall(spareSeconds: number, gearCaveat: boolean, hoursLimited = false): boolean {
+ *  `hoursLimited`: the awake hours limit the answer, which route checks found up to days early (review T3, 15 Nov 2026).
+ *  `belowReach`: the form G stood in its first row at the player's TE (search/precomputedTable.ts formGBelowReach), so
+ *  no spare is safe (review 15 Nov 2026, T2). */
+export function isCloseCall(spareSeconds: number, gearCaveat: boolean, hoursLimited = false, belowReach = false): boolean {
+  if (gearCaveat && belowReach) return true;
   return (gearCaveat || hoursLimited) && spareSeconds < CLOSE_CALL_SECONDS;
 }
 

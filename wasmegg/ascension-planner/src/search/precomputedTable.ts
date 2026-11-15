@@ -351,9 +351,18 @@ export function parseGearShiftUrl(
  * sale count), moved onto TE's canonical counts, with every delivery rate x `geo` and the peak no
  * higher than `cap`. Below the correction's TE (search/formG.ts) the rates are also x geoEr^erExponent,
  * for a player short on delivery epic research or colleggtibles. A row whose shifted rows fall below
- * the table's first falls back to the old single scale (the same row, peak x k): the table does not
- * reach that far down.
+ * the table's first (TE - g < from) takes the first row, moved onto TE's counts: the table does not reach that far
+ * down, so the cell is still optimistic, and `formGBelowReach` tells the page so. (It used the player's own row with
+ * only the peak scaled, ignoring the earnings gap: 5-32% too fast per ascension, and a stronger start slower than a
+ * weaker one at TE from + g; review 15 Nov 2026, T2.)
  */
+/** Whether a form G table's cell for start TE `te` is below its reach (te - g under the maxed table's first row):
+ *  the first row stands in, so the answer is optimistic by an unknown amount. False for any other table. */
+export function formGBelowReach(header: Pick<TableHeader, 'from' | 'gearShift'>, te: number): boolean {
+  const g = header.gearShift?.g ?? 0;
+  return g > 0 && te - g < header.from;
+}
+
 export function gearShiftTable(
   maxed: Table,
   shift: { g: number; geo: number; cap: number; k: number; geoEr?: number },
@@ -438,11 +447,8 @@ export function gearShiftTable(
       let out: BuildWithExtras[] | null;
       if (hi && lo) out = blend(hi, lo);
       else if (hi) out = hi;
-      else {
-        // Below the table's first row once shifted: the old single scale on this row.
-        const raw = maxed.lookup(te, hour) as BuildWithExtras[] | null;
-        out = raw ? raw.map(b => ({ ...b, peakELR: b.peakELR * k })) : null;
-      }
+      // Below the table's first row once shifted: the first row, moved onto this TE (formGBelowReach).
+      else out = moved(te, maxed.header.from, hour);
       cache.set(key, out);
       return out;
     },

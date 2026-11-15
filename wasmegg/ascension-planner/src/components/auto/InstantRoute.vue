@@ -814,6 +814,7 @@
              carries it in its caveat line. -->
         <GearCaveat
           :gear-shift="shiftedTable"
+          :below-reach="belowReach"
           :gear-differs="gearDiffers"
           :optimistic="optimistic"
           :bonus-short="bonusShort"
@@ -1005,7 +1006,7 @@ import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
 import AnswerCaveatLine from './AnswerCaveatLine.vue';
 import PanelFold from './PanelFold.vue';
-import { GEAR_CAVEAT_DAYS, answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
+import { BELOW_REACH_EFFECT, GEAR_CAVEAT_DAYS, answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
 import { OPTIMISTIC_TEXT, gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
@@ -1074,7 +1075,7 @@ import { TIP_SIMULATE } from '@/lib/tipWords';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
-import { compositeUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
+import { compositeUrl, formGBelowReach, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
@@ -1208,6 +1209,12 @@ const tableUrl = ref(TABLE_URL);
 const own = computed(() => tableUrl.value !== TABLE_URL && !shiftedTable.value);
 /** INSTANT ANSWER V2: the maxed table moved to the player's gear (search/instantGear.ts, the form G). */
 const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value));
+/** The form G is below its reach at the player's TE (search/precomputedTable.ts formGBelowReach; review 15 Nov 2026,
+ *  T2): the answer is a close call whatever its spare, and the caveat says it is likely later than shown. */
+const belowReach = computed(() => {
+  const s = parseGearShiftUrl(tableUrl.value);
+  return !!s && !!header.value && formGBelowReach({ from: header.value.from, gearShift: s }, Math.floor(store.currentTE));
+});
 /** A gear combination's table below GEAR_TABLE_TO, the maxed one from it. */
 const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value));
 /** What changed since the player's own table was made, when it no longer fits their save. */
@@ -2388,7 +2395,7 @@ const dateSpare = computed(() => {
 /** The close-call line under a By a date answer with under about 2 days to spare (lib/closeCallWords.ts), or null. */
 const closeCall = computed(() => {
   const b = result.value?.byDate;
-  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value, hoursLimited.value)) return null;
+  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value, hoursLimited.value, belowReach.value)) return null;
   const f = searchFound.value;
   return closeCallLine({ te: dateBoxOf(b).endTE, found: f ? { level: f.level, endTE: f.endTE } : null });
 });
@@ -2594,6 +2601,7 @@ const headCaveat = computed(() =>
     gearCaveat(
       {
         gearShift: shiftedTable.value,
+        belowReach: belowReach.value,
         gearDiffers: gearDiffers.value,
         optimistic: optimistic.value,
         bonusShort: bonusShort.value,
@@ -2610,7 +2618,9 @@ const headCaveat = computed(() =>
 );
 /** The gear warning cut to its effect on the card (Jordan, 12 Nov 2026): only for the gear shift (the form G), which
  *  leads the caveats whenever it shows; its line and the Why list go behind the "?" (AnswerCaveatLine `effect`). */
-const gearEffect = computed(() => (shiftedTable.value && headCaveat.value ? gearEffectLine(GEAR_CAVEAT_DAYS) : null));
+const gearEffect = computed(() =>
+  shiftedTable.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null
+);
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
 function dateBoxOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
