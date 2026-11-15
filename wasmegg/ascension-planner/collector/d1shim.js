@@ -29,6 +29,22 @@ export function makeD1(failInsert = { n: 0 }) {
       return { success: true, meta: { changes: Number(r.changes) } };
     },
   });
-  return { prepare: sql => statement(sql), _db: db };
+  return {
+    prepare: sql => statement(sql),
+    /** D1's batch: the statements run in order inside one transaction; one error undoes them all and is thrown. */
+    async batch(statements) {
+      db.exec('BEGIN');
+      try {
+        const out = [];
+        for (const st of statements) out.push(await st.run());
+        db.exec('COMMIT');
+        return out;
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+    },
+    _db: db,
+  };
 }
 

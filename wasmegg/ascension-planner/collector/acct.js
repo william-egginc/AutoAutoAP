@@ -53,11 +53,22 @@ async function saltedRowsExist(env) {
   return exists;
 }
 
-/** Moves every row of the raw code `k` to the salted key `sk`; a record already under `sk` wins over the raw one. */
+/**
+ * Moves every row of the raw code `k` to the salted key `sk`; a record already under `sk` wins over the raw one.
+ * One atomic batch per table (UPDATE then DELETE of the leftovers): if the UPDATE fails nothing is deleted. Only
+ * "no such table" (a migration this database has not had yet) is swallowed; any other error is thrown, the raw
+ * rows stay where they were and the next touch (or the next sweep) tries again.
+ */
 async function moveRows(env, k, sk) {
   for (const t of TABLES) {
-    await env.WATCH.prepare(`UPDATE OR IGNORE ${t} SET key = ? WHERE key = ?`).bind(sk, k).run().catch(() => null);
-    await env.WATCH.prepare(`DELETE FROM ${t} WHERE key = ?`).bind(k).run().catch(() => null);
+    try {
+      await env.WATCH.batch([
+        env.WATCH.prepare(`UPDATE OR IGNORE ${t} SET key = ? WHERE key = ?`).bind(sk, k),
+        env.WATCH.prepare(`DELETE FROM ${t} WHERE key = ?`).bind(k),
+      ]);
+    } catch (e) {
+      if (!/no such table/i.test(String(e?.message ?? e))) throw e;
+    }
   }
 }
 
@@ -93,8 +104,12 @@ export async function rekeyLegacy(env, now, limit = 50) {
   let moved = 0;
   for (const key of legacy) {
     if (!/^[0-9a-f]{64}$/.test(key)) continue;
-    await moveRows(env, key, await saltedKeyOf(env.ACCOUNT_KEY_SALT, key));
-    moved++;
+    try {
+      await moveRows(env, key, await saltedKeyOf(env.ACCOUNT_KEY_SALT, key));
+      moved++;
+    } catch {
+      // This account's move failed and left its rows as they were; the other accounts still move, this one is tried next run.
+    }
   }
   return moved;
 }

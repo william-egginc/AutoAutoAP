@@ -175,3 +175,87 @@ describe('fail closed if the secret goes missing after salting began', () => {
     expect(keys('follows')).toEqual([K]);
   });
 });
+
+// Review 15 Nov, C1: the move used to run UPDATE and DELETE as two statements, each with its error swallowed, so a failed UPDATE
+// was followed by a DELETE of the very rows it should have moved. Each table's move is now one atomic batch.
+describe('a move that fails loses nothing (review C1)', () => {
+  const seed = (k = K) => {
+    db().prepare("INSERT INTO follows (key, goal, version, value, updated) VALUES (?, 'race490', 1, ?, ?)").run(k, JSON.stringify(FOLLOW), T0);
+    db().prepare("INSERT INTO prefs (key, kind, version, value, updated) VALUES (?, 'setup', 1, ?, ?)").run(k, JSON.stringify({ at: T0 - 1000, targetTE: 77 }), T0);
+    db().prepare("INSERT INTO answers (key, e, at, updated, bytes, data) VALUES (?, 'e1', ?, ?, 10, 'AAAA')").run(k, T0, T0);
+  };
+  /** The same database, except that a statement matching `re` fails when it runs (a locked or overloaded D1). */
+  const flaky = re => {
+    const d = env.WATCH;
+    return {
+      _db: d._db,
+      prepare: sql =>
+        re.test(sql)
+          ? {
+              bind() {
+                return this;
+              },
+              async run() {
+                throw new Error('D1_ERROR: database is locked');
+              },
+              async first() {
+                return null;
+              },
+              async all() {
+                return { results: [] };
+              },
+            }
+          : d.prepare(sql),
+      batch: stmts => d.batch(stmts),
+    };
+  };
+  const count = (table, k) => db().prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE key = ?`).get(k).n;
+  beforeEach(() => {
+    env.ACCOUNT_KEY_SALT = SALT;
+    seed();
+  });
+  it('a failed UPDATE leaves the raw rows where they were, and the error is not swallowed', async () => {
+    env.WATCH = flaky(/UPDATE OR IGNORE prefs/);
+    await expect(accountKey(env, K)).rejects.toThrow(/locked/);
+    expect(count('prefs', K)).toBe(1);
+    expect(count('answers', K)).toBe(1);
+  });
+  it('the next touch finishes the job once the database is well again', async () => {
+    const sick = flaky(/UPDATE OR IGNORE prefs/);
+    const well = env.WATCH;
+    env.WATCH = sick;
+    await expect(accountKey(env, K)).rejects.toThrow();
+    env.WATCH = well;
+    const sk = await accountKey(env, K);
+    expect(count('prefs', K)).toBe(0);
+    expect(count('prefs', sk)).toBe(1);
+    expect(count('follows', sk)).toBe(1);
+    expect(count('answers', sk)).toBe(1);
+  });
+  it('a table this database does not have yet is skipped; every other table still moves', async () => {
+    db().exec('DROP TABLE answers');
+    const sk = await accountKey(env, K);
+    expect(count('follows', sk)).toBe(1);
+    expect(count('prefs', sk)).toBe(1);
+    expect(count('follows', K) + count('prefs', K)).toBe(0);
+  });
+  it('the sweep skips an account whose move fails, keeps going, and does not count it', async () => {
+    seed(K2);
+    const well = env.WATCH;
+    // Fail only the batch of one account's prefs: the statement bound to K.
+    env.WATCH = {
+      _db: well._db,
+      prepare: sql => {
+        const st = well.prepare(sql);
+        if (!/UPDATE OR IGNORE prefs/.test(sql)) return st;
+        return {
+          bind: (...a) => (a[1] === K ? { async run() { throw new Error('D1_ERROR: boom'); } } : st.bind(...a)),
+        };
+      },
+      batch: stmts => well.batch(stmts),
+    };
+    expect(await rekeyLegacy(env, T0, 50)).toBe(1);
+    expect(count('prefs', K)).toBe(1);
+    expect(count('prefs', K2)).toBe(0);
+  });
+});
