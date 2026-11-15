@@ -582,7 +582,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (!i.hasSave.value) return 'noSave';
     if (!i.followed.value && !plan.value) return 'noRoute';
     if (finishChosen.value) return 'notBuilding';
-    if (plan.value) return 'ready';
+    // A kept plan is only for the building phase (review U1): Producing, the fold hides and the calendar takes the Next shifts.
+    if (plan.value) return i.building.value ? 'ready' : 'notBuilding';
     if (!i.building.value || freshBuysNothing.value) return 'notBuilding';
     if (i.sim.value?.status === 'failed' || stalled.value) return 'failed';
     return 'working';
