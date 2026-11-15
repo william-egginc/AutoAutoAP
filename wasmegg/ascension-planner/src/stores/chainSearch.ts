@@ -149,6 +149,7 @@ import {
   type ProvisionalRow,
   type Recheck,
   type SearchSpace,
+  type RunCost,
   type Submission,
   type SweepTag,
 } from '@/search/submission';
@@ -246,6 +247,8 @@ import { lastDbAnswerAt } from '@/lib/storage/dbAnswer';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 // Diagnostics only, kept out of the result code hash (lib/blackBoxDiag.ts).
 import * as blackBoxDiag from '@/lib/blackBoxDiag';
+import { SIM_VERSION } from '@/search/simVersion';
+import { deadlineRunCost } from '@/lib/deadlineRunCost';
 import {
   currentWatchLink,
   installWatchLink,
@@ -4412,7 +4415,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     );
   }
 
-  /** What a deadline send reads from its run: a finished result has all of it, a running one too. */
+  /**
+   * The black box's 'run start' entry (lib/blackBoxDiag.ts): build, simulator version, start TE, deadline,
+   * sets, and the fixed micro-benchmark, timed here on the page's main thread before the workers start.
+   * Never in a worker (those are hashed), and never a reason to fail a run.
+   */
+  function noteRunStart(kind: string, startTE: number, extra: { deadline?: number; sets?: number } = {}): void {
+    try {
+      blackBoxDiag.noteRunStart({
+        kind,
+        build: appBuildId() || 'unknown',
+        simVersion: SIM_VERSION,
+        startTE,
+        benchMs: blackBoxDiag.microBenchmarkMs(),
+        ...extra,
+      });
+    } catch {
+      // diagnostics only
+    }
+  }
+
+  /** What a deadline run's send reads from its run: a finished result has all of it, a running one too. */
   type DeadlineSendBase = Pick<
     SavedDeadlineResult,
     'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'level' | 'priced' | 'searched'
@@ -4441,7 +4464,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function deadlineBestSoFarSubmission(nickname: string): Submission | null {
     const best = deadlineProgress.value?.best;
     if (!deadlineRunning.value || !deadlineRun || !best) return null;
-    return buildDeadlineSubmission(best, nickname, { ...deadlineRun, priced: deadlineProgress.value?.priced ?? 0 });
+    const priced = deadlineProgress.value?.priced ?? 0;
+    return buildDeadlineSubmission(best, nickname, { ...deadlineRun, priced }, undefined, runningDeadlineCost(priced));
   }
 
   /**
@@ -4455,10 +4479,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** The run the route came from: the result on screen, or (a best so far) the run still going. */
     r: DeadlineSendBase | null = deadlineResult.value,
     /** The note as Share this result's box has it, when that is what is sent; else the run's own. */
-    note?: string
+    note?: string,
+    /** What the run cost this machine (`deadlineRunCost`): a running run's so far; else the finished result's own. */
+    cost?: RunCost | null
   ): Submission | null {
     if (!r || !route.chain.length || !(route.reachAt > r.planStart)) return null;
-    return buildSubmission({
+    const runCost =
+      cost !== undefined
+        ? cost
+        : r === deadlineResult.value && deadlineCostKept && 'at' in r && deadlineCostKept.at === r.at
+          ? deadlineCostKept.cost
+          : null;
+    const sub = buildSubmission({
       nickname,
       note: note ?? r.note,
       chain: [...route.chain],
@@ -4485,6 +4517,29 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       ...((r.account as AccountSnapshot | undefined) ?? deadlineAccount ?? accountFields(r.te)),
       timeOff: usableTimeOff((r.settings ?? usedSettings()).timeOff),
       deadline: { at: r.deadline, ascendAt: route.ascendAt },
+    });
+    // Not `run`: the board reads that as a Fastest chain's speed (src/lib/deadlineRunCost.ts). Left off
+    // for a result that did not run here (opened from the library, replayed): never guessed.
+    return runCost ? ({ ...sub, deadlineRunCost: { ...runCost } } as Submission) : sub;
+  }
+
+  /** The finished By a date result's cost, kept with its `at` so only that result takes it. */
+  let deadlineCostKept: { at: number; cost: RunCost | null } | null = null;
+  /** What the running By a date run has cost this session so far (Send best so far). */
+  function runningDeadlineCost(priced: number): RunCost | null {
+    return deadlineRunCost({
+      sessionSeconds: (Date.now() - deadlineStartedAt.value) / 1000,
+      suspendedSeconds: deadlinePool?.suspendedSeconds ?? 0,
+      priced,
+      replayed: deadlineReplayed.value,
+      workers: timeWeightedWorkers(
+        deadlineWorkerMs.value,
+        deadlineWorkersChangedAt.value,
+        deadlineWorkersInPool.value,
+        deadlineStartedAt.value,
+        Date.now()
+      ),
+      cores: typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : null,
     });
   }
 
@@ -7127,6 +7182,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     void holdScreenLock();
     document.addEventListener('visibilitychange', onVisibilityChange);
     tabHidden.value = document.visibilityState === 'hidden';
+    noteRunStart('fastest full', startInputs.currentTE);
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,
@@ -8076,6 +8132,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
+    deadlineCostKept = null;
     // The run (and its result) is the account it was started on (`startDeadline`, `resumeDeadline`).
     deadlineResultOwner.value = accountHashNow(currentPlayerId);
     if (!deadlineResultOwner.value) {
@@ -8147,6 +8204,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // background" never slowed a deadline run, and the screen lock was not taken back on return.
     document.addEventListener('visibilitychange', onVisibilityChange);
     tabHidden.value = document.visibilityState === 'hidden';
+    noteRunStart('deadline search', inputs.currentTE, { deadline: spec.deadline, sets: deadlineSets.value });
     let pool: ChainSearchPool | null = null;
     let replayed: ReturnType<typeof replayingEvaluator> | null = null;
     /**
@@ -8406,6 +8464,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         at: Date.now(),
       };
       deadlineAccount = account;
+      deadlineCostKept = {
+        at: deadlineResult.value.at,
+        cost: deadlineRunCost({
+          sessionSeconds: sessionSeconds + Math.max(suspended, gaps),
+          suspendedSeconds: Math.max(suspended, gaps),
+          priced: out.priced,
+          replayed: deadlineReplayed.value,
+          workers: avgWorkers,
+          cores: typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : null,
+        }),
+      };
       let saved = false;
       try {
         await atEnd(saveDeadlineResult(partitionHash, deadlineResult.value));
@@ -9546,6 +9615,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     void holdScreenLock();
     document.addEventListener('visibilitychange', onVisibilityChange);
     tabHidden.value = document.visibilityState === 'hidden';
+    noteRunStart('fastest staged', startInputs.currentTE);
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,

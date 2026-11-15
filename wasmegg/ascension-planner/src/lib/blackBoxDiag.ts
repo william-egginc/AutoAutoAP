@@ -41,6 +41,15 @@ export type DiagBeat = Beat & {
   /** A 'carry on' entry: the workers of the run that stopped, and of the carry-on. */
   workersFrom?: number | null;
   workersTo?: number;
+  /** A 'run start' entry (`noteRunStart`): the build, the simulator version, the TE the run starts
+   *  from, the date a By a date run aims at (unix seconds), its route sets, and the fixed arithmetic
+   *  micro-benchmark's ms (`microBenchmarkMs`), so two runs on one machine read against each other. */
+  build?: string;
+  simVersion?: number | string;
+  startTE?: number;
+  deadline?: number;
+  sets?: number;
+  benchMs?: number;
 };
 
 // ---- The same record as search/blackBox.ts. That file keeps its read and write private, and this one
@@ -106,6 +115,48 @@ export function notePageLoad(
     },
     now
   );
+}
+
+/** Iterations of the micro-benchmark's loop: about 5-20 ms on a current laptop's main thread. */
+export const BENCH_ITERATIONS = 4_000_000;
+
+/**
+ * A fixed arithmetic loop timed on the calling thread: integer multiply-add, no allocation, the same
+ * work every call, so the ms it takes says how fast this machine is right now, apart from the code
+ * (13 Nov 2026: one browser's two runs differed 3x and the board could not say code or device). The
+ * result is read after the loop so the engine cannot drop it. `clock` is injectable for tests.
+ */
+export function microBenchmarkMs(clock: () => number = () => performance.now()): number {
+  const t0 = clock();
+  let x = 1;
+  for (let i = 0; i < BENCH_ITERATIONS; i++) x = (Math.imul(x, 1664525) + 1013904223 + i) | 0;
+  const t1 = clock();
+  benchSink = x;
+  return Math.max(0, Number((t1 - t0).toFixed(1)));
+}
+/** Keeps the loop's result alive. */
+let benchSink = 0;
+void benchSink;
+
+/** A search began: its build, simulator version, start TE, deadline and sets, and how fast this
+ *  machine ran the fixed loop just before. Written from the store, never from a worker. */
+export function noteRunStart(x: {
+  kind: string;
+  build: string;
+  simVersion: number | string;
+  startTE: number;
+  deadline?: number;
+  sets?: number;
+  benchMs: number;
+}): DiagBeat {
+  const { kind, deadline, sets, ...rest } = x;
+  return noteEntry({
+    phase: 'run start',
+    detail: kind,
+    ...rest,
+    ...(deadline !== undefined ? { deadline } : {}),
+    ...(sets ? { sets } : {}),
+  });
 }
 
 /** A stopped run carried on: by the countdown or a click, from what save, on how many workers. */
