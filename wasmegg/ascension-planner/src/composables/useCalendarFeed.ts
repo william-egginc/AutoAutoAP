@@ -62,7 +62,8 @@ export function createCalendarFeed(o: {
   /** The link, shown once. Memory only. */
   const link = ref<string | null>(null);
   const busy = ref(false);
-  const error = ref<'' | CalFail>('');
+  /** `upload`: the plan could not be sent to the calendar (the link buttons use CalFail's `error` instead). */
+  const error = ref<'' | CalFail | 'upload'>('');
   const phase = ref<CalPhase>('idle');
   const copied = ref(false);
   // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
@@ -195,7 +196,7 @@ export function createCalendarFeed(o: {
       return;
     }
     // Not silent: the card says so, and the black box keeps the reason (never the link).
-    error.value = r.why === 'offline' ? 'offline' : r.why === 'off' ? 'off' : 'error';
+    error.value = r.why === 'offline' ? 'offline' : r.why === 'off' ? 'off' : 'upload';
     blackBox.note(`calendar upload failed: ${r.why}`);
   }
   /** The plan as it is now (My runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */

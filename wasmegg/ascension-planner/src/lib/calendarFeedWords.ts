@@ -24,10 +24,13 @@ export const CAL_RESET_DONE = 'Done. Your old links no longer work.';
 
 /** Why a call didn't work, in plain words (Words, 14 Nov 2026). `off` is when the plan has no way to reach the server: no collector, or Save online off (the
  *  calendar has its own switch; the plan only travels through Save online's sync). `limit`: Reset link frees every slot at once. */
-export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off', string> = {
+export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off' | 'upload', string> = {
   limit: 'You already have 3 links. Press Reset link, then Get link.',
   busy: "That's a lot of links today. Try again tomorrow.",
   offline: "Couldn't reach the planner's server. Try again in a moment.",
   error: "That didn't work. Try again in a moment.",
   off: 'Calendar links need Save online turned on in Setup.',
+  // The plan's own upload failing (not a link button): said so, and that the calendar may be stale. It really is sent again: the next plan change, or
+  // My runs opened again, finds the last good list unchanged and sends.
+  upload: "Your plan couldn't be sent to your calendar, so the calendar may be out of date. Try again in a moment.",
 };
