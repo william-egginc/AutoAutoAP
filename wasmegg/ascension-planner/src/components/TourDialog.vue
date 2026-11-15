@@ -68,7 +68,7 @@
           :src="slide.desk.src"
           :width="slide.desk.width"
           :height="slide.desk.height"
-          :alt="FIRST_TOUR_ALT[slide.id]"
+          :alt="words ? words.alt : FIRST_TOUR_ALT[slide.id as TourStepId]"
           loading="lazy"
           decoding="async"
           class="block h-auto w-full rounded-xl border border-slate-200 bg-slate-700"
@@ -78,11 +78,21 @@
       <div class="px-1.5 pt-2 sm:px-0.5 sm:pt-3">
         <p class="label text-indigo-700 tabular-nums" data-testid="tour-step">{{ firstTourLabel(index + 1, total) }}</p>
         <h2 id="tour-title" ref="titleEl" tabindex="-1" class="mt-0.5 text-title font-bold text-slate-900 focus:outline-none">
-          {{ FIRST_TOUR_STEPS[slide.id].title }}
+          {{ words ? words.title : FIRST_TOUR_STEPS[slide.id as TourStepId].title }}
         </h2>
         <div id="tour-body" class="mt-1 space-y-1">
-          <p class="text-body text-slate-700">{{ FIRST_TOUR_STEPS[slide.id].body }}</p>
-          <p v-if="last" class="text-small text-slate-500">{{ FIRST_TOUR_CLOSING }}</p>
+          <p class="text-body text-slate-700">{{ words ? words.body : FIRST_TOUR_STEPS[slide.id as TourStepId].body }}</p>
+          <p v-if="last" class="text-small text-slate-500">{{ mode === 'full' ? FULL_TOUR_CLOSING : FIRST_TOUR_CLOSING }}</p>
+          <!-- The first tour's last card points on to the longer one (never on the full tour's own). -->
+          <button
+            v-if="last && mode !== 'full'"
+            type="button"
+            class="inline-flex min-h-[44px] items-center rounded px-1 text-body font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            data-testid="tour-full"
+            @click="emit('full')"
+          >
+            {{ FULL_TOUR_FROM_FIRST }} ›
+          </button>
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
           <span class="flex items-center gap-1.5" aria-hidden="true">
@@ -114,7 +124,7 @@
           </span>
         </div>
         <div class="mt-2 flex flex-wrap items-center justify-between gap-x-3 border-t border-slate-200">
-          <label class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-body text-slate-700">
+          <label v-if="mode !== 'full'" class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-body text-slate-700">
             <input
               type="checkbox"
               class="h-4 w-4 rounded border-slate-400 text-indigo-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
@@ -141,6 +151,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { TourSlide } from '@/lib/tourSlides';
+import type { TourStepId } from '@/lib/firstTour';
+import type { FullTourSlide } from '@/lib/fullTourSlides';
+import { FULL_TOUR_CLOSING, FULL_TOUR_FROM_FIRST } from '@/lib/fullTourWords';
 import {
   FIRST_TOUR_ALT,
   FIRST_TOUR_BACK,
@@ -160,7 +173,11 @@ const props = defineProps<{
   /** The slide shown (0-based) and how many there are. */
   index: number;
   total: number;
-  slide?: TourSlide | null;
+  slide?: TourSlide | FullTourSlide | null;
+  /** 'full': the full tour (lib/fullTour.ts): its own words, no Remind me later, no pointer to itself. */
+  mode?: 'first' | 'full';
+  /** The full tour's title, body and alt text (lib/fullTourWords.ts); absent: the first tour's, by the slide's id. */
+  words?: { title: string; body: string; alt: string } | null;
 }>();
 const emit = defineEmits<{
   take: [];
@@ -169,6 +186,7 @@ const emit = defineEmits<{
   back: [];
   next: [];
   done: [];
+  full: [];
   'update:remind': [value: boolean];
 }>();
 const last = computed(() => props.index >= props.total - 1);

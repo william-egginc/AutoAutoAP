@@ -24,6 +24,8 @@ describe('the site tabs are back at their round-2 size (Jordan: "not the chain f
       expect(b).not.toContain('lg:min-h-[56px]');
       expect(b).not.toContain('xl:text-title');
       expect(b).toMatch(/text-body font-bold/);
+      // Six tabs beside Home and the menu fit one row at 1100 px (the full tour's pictures): trimmed padding from lg, the old from xl.
+      expect(b).toContain('lg:px-4 xl:px-6');
     }
     expect(on).toContain('ring-2 ring-indigo-200');
     expect(off).not.toContain('ring-2');

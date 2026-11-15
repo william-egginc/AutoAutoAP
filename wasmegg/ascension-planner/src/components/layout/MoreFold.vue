@@ -38,6 +38,15 @@
       </span>
     </button>
     <div :id="bodyId" class="space-y-4" :hidden.attr="open ? undefined : 'until-found'" :data-testid="`${id}-body`" @beforematch="open = true">
+      <!-- The one place the optional full tour is asked for from a screen (lib/fullTour.ts: never by itself). -->
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 text-body font-bold text-indigo-700 underline underline-offset-2 hover:bg-indigo-50 hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        data-testid="more-full-tour"
+        @click="askFullTour()"
+      >
+        {{ FULL_TOUR_ITEM }} ›
+      </button>
       <slot />
       <!-- The foot of the box: folds all of it (the header's twin, same aria). -->
       <button
@@ -64,6 +73,8 @@ import { foldOpen, readFoldToggle, rememberFoldToggle, type FoldSection } from '
 import { useShowEverything } from '@/composables/useShowEverything';
 import { searchTabs } from '@/lib/searchTab';
 import { moreReveals } from '@/composables/useMoreReveal';
+import { askFullTour } from '@/composables/useFirstTour';
+import { FULL_TOUR_ITEM } from '@/lib/fullTourWords';
 
 const props = withDefaults(
   defineProps<{
