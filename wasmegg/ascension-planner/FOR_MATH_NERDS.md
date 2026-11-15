@@ -190,9 +190,12 @@ three hours.
   as you go. The bias is safe (real runs should beat these dates) and it cancels between
   candidates, so it does not change the ranking. It does move the absolute dates, worst at
   the far end, and nobody has quantified by how much.
-- Schedule constraints are applied as a **delay model layered on the simulated timeline**,
-  not re-simulated. It errs one way only: while you wait, the farm keeps laying the egg you
-  have not switched away from, and that progress is not credited.
+- Schedule constraints work in two ways. A **shift that falls outside your hours waits for you
+  inside the simulator** (`src/auto/hold.ts`, "Let me pick my hours"): the farm keeps laying the
+  egg it is on while it waits, so those eggs, and any TE they pass, are credited. A **prestige
+  pushed to your hours** is a delay layered on the simulated timeline, not re-simulated. That
+  one errs one way only: the eggs laid while you wait are not credited, so the real run is, if
+  anything, slightly faster than the plan says.
 
 ---
 

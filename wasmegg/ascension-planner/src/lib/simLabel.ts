@@ -81,6 +81,6 @@ export function simLabel(rowStamp: unknown, currentStamp: string): SimLabel {
     kind,
     words: `${kind} simulator`,
     stamp,
-    title: `Simulator ${stamp}, ${kind} than the one this site runs (${currentStamp}). Finish times may differ a little.`,
+    title: `Simulator ${stamp}, ${kind} than the one this site runs (${currentStamp}). Finish times can differ by up to about a week on a 490 route (about 1%).`,
   };
 }

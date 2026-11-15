@@ -873,11 +873,11 @@
               <p class="mt-1 text-body text-slate-500 max-w-3xl">
                 Where the Leaderboard's accounts sit, and where it has no data. One mark per account, from its newest run that
                 recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
-                delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between
-                +115 and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always
+                delivery set. Clothed TE is TE plus what the earnings set adds, and the accounts so far add between about
+                +90 and +130, so the marks sit on a narrow diagonal between the dashed guides. More TE has always
                 come with more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The
-                pink band is where the planner estimates a first ascension stalls on Integrity, and no account is near
-                it. The grey areas are open asks from {{ NAMES.check }} (the {{ NAMES.science }} tab): places the Leaderboard still
+                pink band is where a September estimate, from before the Oct 13 low-TE opening, put a first ascension
+                stalling on Integrity. A few accounts sit in or under it. The grey areas are open asks from {{ NAMES.check }} (the {{ NAMES.science }} tab): places the Leaderboard still
                 wants more accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough
                 have covered it.
               </p>

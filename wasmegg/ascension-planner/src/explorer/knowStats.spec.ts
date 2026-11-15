@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { knowStats, byDateEntries, startFits } from './knowStats';
+import { knowStats, byDateEntries, startFits, measuredOnLine } from './knowStats';
+import { SIM_VERSION } from '@/search/simVersion';
 import type { CollectorRow } from './collector';
 import type { FinishJudgement } from './analysis';
 
@@ -93,5 +94,43 @@ describe('knowStats', () => {
       expect(s.byDateAccounts).toBe(1);
       expect(s.eggDay).toHaveLength(1);
     });
+  });
+});
+
+describe('measuredOn (review IN-3, 15 Nov 2026): the runs counted by the simulator that priced them', () => {
+  const none = { byId: new Map(), bestByAccount: new Map() } as unknown as FinishJudgement;
+  const stamped = (id: string, simVersion?: string) => row(id, { nickname: id, simVersion } as Partial<CollectorRow>);
+
+  it('groups by stamp: no stamp first (before the first stamp day), then each stamp by name, oldest first', () => {
+    const rows = [
+      stamped('a'),
+      stamped('b'),
+      stamped('c', '2026-10-21-egg-beta2'),
+      stamped('d', '2026-10-13-lowte-gate'),
+      stamped('e', '2026-10-13-lowte-gate'),
+    ];
+    const s = knowStats(rows, none, new Set());
+    expect(s.measuredOn).toEqual([
+      { label: 'before Oct 13', runs: 2 },
+      { label: 'lowte-gate', runs: 2 },
+      { label: 'egg-beta2', runs: 1 },
+    ]);
+    expect(measuredOnLine(s.measuredOn)).toBe(
+      "Measured on: before Oct 13 (2 runs), lowte-gate (2), egg-beta2 (1); none yet on this site's simulator."
+    );
+  });
+
+  it("names this site's simulator when it has runs, and drops 'none yet'", () => {
+    const s = knowStats([stamped('a'), stamped('b', SIM_VERSION)], none, new Set());
+    expect(s.measuredOn).toEqual([
+      { label: 'before Oct 13', runs: 1 },
+      { label: "this site's simulator", runs: 1, current: true },
+    ]);
+    expect(measuredOnLine(s.measuredOn)).toBe("Measured on: before Oct 13 (1 run), this site's simulator (1).");
+  });
+
+  it('says nothing with no runs', () => {
+    expect(knowStats([], none, new Set()).measuredOn).toEqual([]);
+    expect(measuredOnLine([])).toBe('');
   });
 });
