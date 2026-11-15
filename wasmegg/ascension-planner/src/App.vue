@@ -89,7 +89,7 @@
           class="grid transition-all duration-500 ease-in-out"
           :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
         >
-          <div class="overflow-hidden">
+          <div class="overflow-hidden" :inert="isHeaderCollapsed">
             <!-- The page's h1 until a screen shows its own title (`screenHasH1`); then the same words, not a heading. -->
             <component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
               {{ pageTitle }}
@@ -228,7 +228,7 @@
           class="grid transition-all duration-500 ease-in-out"
           :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
         >
-          <div class="overflow-hidden">
+          <div class="overflow-hidden" :inert="isHeaderCollapsed">
             <!-- Plan Library Section -->
             <div v-if="playerId" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary :import-special-file="importAutoPlan" @plan-loaded="handlePlanLoaded">
