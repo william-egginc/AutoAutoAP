@@ -145,6 +145,7 @@
       <InstantGuard>
       <InstantRoute
         :deadline="deadline"
+        :fast-time="levelEstimates.quick?.short"
         share-to="#search-share-by-date"
         more-to="more-bydate-answer"
         filters-to="filters-bydate-answer"
