@@ -22,6 +22,8 @@
  * client adopts it, or for ticks merges and writes again with a fresh `at`. A tie is accepted. The same content again is
  * `unchanged` and writes nothing. No history: one row per record.
  *
+ * A fourth kind, `cal` (slot '0', 24 KB): the events list the client builds for the calendar feed (cal.js validates and prints it).
+ *
  * LIMITS. override 512 bytes, ticks 16 KB (at most 300 ticked and 300 unticked line keys of 120 characters), plan 96 KB gzip (a real kept plan: 57 KB of JSON, 8 KB gzipped; the app caps the JSON at 400,000 characters, about 60 KB gzipped at that ratio).
  * Per key: one override and at most 3 ascensions of ticks and plans (a 4th evicts the lowest). 60 writes an hour a key (`follow_rate`
  * under 'sync|<key>'), SYNC_PUTS_PER_DAY (6,000) writes and SYNC_NEW_KEYS_PER_DAY (100) new keys a day for the whole collector,
@@ -35,11 +37,13 @@
  */
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { dayWait } from './budget.js';
+import { readCal } from './cal.js';
 import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const SYNC_MAX_OVERRIDE_BYTES = 512;
 export const SYNC_MAX_TICKS_BYTES = 16 * 1024;
 export const SYNC_MAX_PLAN_BYTES = 96 * 1024;
+export const SYNC_MAX_CAL_BYTES = 24 * 1024;
 export const SYNC_MAX_SLOTS = 3;
 export const SYNC_WRITES_PER_HOUR = 60;
 export const SYNC_PUTS_PER_DAY = 6000;
@@ -48,7 +52,7 @@ export const SYNC_MAX_KEYS = 3000;
 export const SYNC_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
 const AT_AHEAD_MS = 600_000;
 const EGGS = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'];
-const KINDS = ['override', 'ticks', 'plan'];
+const KINDS = ['override', 'ticks', 'plan', 'cal'];
 const SLOT_RE = /^\d{9,11}$/;
 const TICK_KEY_MAX = 120;
 const TICK_COUNT_MAX = 300;
@@ -160,13 +164,13 @@ export async function handleSync(request, env, now = Date.now()) {
   const atText = url.searchParams.get('at') ?? '';
   const problems = [];
   if (!KINDS.includes(kind)) problems.push(`kind must be one of ${KINDS.join(', ')}`);
-  else if (kind === 'override' ? slot !== '0' : !SLOT_RE.test(slot)) problems.push(kind === 'override' ? "slot must be '0' for the override" : 'slot must be the ascension start in unix seconds');
+  else if (kind === 'override' || kind === 'cal' ? slot !== '0' : !SLOT_RE.test(slot)) problems.push(kind === 'override' || kind === 'cal' ? `slot must be '0' for the ${kind === 'cal' ? 'calendar record' : 'override'}` : 'slot must be the ascension start in unix seconds');
   const at = /^\d{1,16}$/.test(atText) ? Number(atText) : NaN;
   if (!whole(at, UNIX_FROM * 1000, UNIX_TO * 1000)) problems.push('at must be milliseconds since 1970 between 2020 and 2100');
   else if (at > now + AT_AHEAD_MS) problems.push("at is more than 10 minutes ahead of the collector clock: check this device's clock");
   if (problems.length) return bad(problems);
 
-  const cap = kind === 'override' ? SYNC_MAX_OVERRIDE_BYTES : kind === 'ticks' ? SYNC_MAX_TICKS_BYTES : SYNC_MAX_PLAN_BYTES;
+  const cap = kind === 'override' ? SYNC_MAX_OVERRIDE_BYTES : kind === 'ticks' ? SYNC_MAX_TICKS_BYTES : kind === 'cal' ? SYNC_MAX_CAL_BYTES : SYNC_MAX_PLAN_BYTES;
   const declared = request.headers.get('content-length');
   if (declared === null) return reply({ error: 'content-length is required' }, 411);
   if (Number(declared) > cap) return reply({ error: 'too big' }, 413);
@@ -188,7 +192,7 @@ export async function handleSync(request, env, now = Date.now()) {
     } catch {
       return reply({ error: 'body must be JSON' }, 400);
     }
-    const checked = kind === 'override' ? readOverride(parsed) : readTicks(parsed);
+    const checked = kind === 'override' ? readOverride(parsed) : kind === 'cal' ? readCal(parsed) : readTicks(parsed);
     if (checked.problems) return bad(checked.problems);
     enc = 'json';
     data = JSON.stringify(checked.value);
@@ -235,7 +239,7 @@ export async function handleSync(request, env, now = Date.now()) {
   )
     .bind(k, kind, slot, at, now, size, enc, data)
     .run();
-  if (kind !== 'override') {
+  if (kind === 'ticks' || kind === 'plan') {
     // At most SYNC_MAX_SLOTS ascensions a kind: the lowest slots (the oldest ascensions) go.
     await env.WATCH.prepare(
       `DELETE FROM synced WHERE key = ? AND kind = ? AND slot NOT IN (SELECT slot FROM synced WHERE key = ? AND kind = ? ORDER BY CAST(slot AS INTEGER) DESC LIMIT ?)`
@@ -281,7 +285,7 @@ export async function handleForget(request, env, now = Date.now()) {
     return retry(Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000)), 'at most 10 deletions an hour for one key');
   }
   const deleted = {};
-  for (const [name, table] of [['follows', 'follows'], ['prefs', 'prefs'], ['answers', 'answers'], ['synced', 'synced']]) {
+  for (const [name, table] of [['follows', 'follows'], ['prefs', 'prefs'], ['answers', 'answers'], ['synced', 'synced'], ['calFeeds', 'cal_feeds']]) {
     const r = await env.WATCH.prepare(`DELETE FROM ${table} WHERE key = ?`).bind(k).run();
     deleted[name] = r.meta?.changes ?? 0;
   }

@@ -72,6 +72,7 @@ import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, CSVD_TTL_SECONDS, SUBMITS_PER_DAY, csv
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
 import { rekeyLegacy } from './acct.js';
+import { handleCal, isCalRequest, pruneCal } from './cal.js';
 import { handleForget, handleSync, isForgetRequest, isSyncRequest } from './sync.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
@@ -3230,6 +3231,8 @@ export default {
     if (isRunsRequest(url)) return handleRuns(request, env, ctx);
     // Synced records (sync.js): the starting-TE override and the Build-up tracker's ticks and plan, per account; D1 only.
     if (isSyncRequest(url)) return handleSync(request, env);
+    // Calendar feeds (cal.js): a secret link per device, the .ics a calendar app fetches; D1 only.
+    if (isCalRequest(url)) return handleCal(request, env);
     // "Delete everything saved online for this account" (sync.js handleForget): follows, prefs, answers and synced records of one key.
     if (isForgetRequest(url)) return handleForget(request, env);
     // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
@@ -4252,6 +4255,7 @@ export default {
     if (prune) ctx.waitUntil(pruneBudgets(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneRuns(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(rekeyLegacy(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(pruneCal(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneAnswers(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();

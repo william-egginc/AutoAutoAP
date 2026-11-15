@@ -30,7 +30,7 @@ describe('DELETE /forget', () => {
   it('removes every saved route, Setup and consent, answer and synced record of the key, and says how many', async () => {
     const res = await forget();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, deleted: { follows: 2, prefs: 1, answers: 1, synced: 2 } });
+    expect(await res.json()).toEqual({ ok: true, deleted: { follows: 2, prefs: 1, answers: 1, synced: 2, calFeeds: 0 } });
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     for (const t of ['follows', 'prefs', 'answers', 'synced']) expect(n(t, K)).toBe(0);
@@ -42,7 +42,7 @@ describe('DELETE /forget', () => {
   });
   it('an account with nothing saved is ok (nothing deleted)', async () => {
     const res = await forget(`k=${'c'.repeat(64)}&all=1`);
-    expect((await res.json()).deleted).toEqual({ follows: 0, prefs: 0, answers: 0, synced: 0 });
+    expect((await res.json()).deleted).toEqual({ follows: 0, prefs: 0, answers: 0, synced: 0, calFeeds: 0 });
   });
   it('needs all=1: a call without it is 400 and deletes nothing', async () => {
     expect((await forget(`k=${K}`)).status).toBe(400);

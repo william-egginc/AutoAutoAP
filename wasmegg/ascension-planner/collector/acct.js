@@ -22,7 +22,7 @@
  * accounts whose player comes back, and the old rows are then lost to lookups: keep the secret (a backup copy is in the plan).
  */
 export const SALTED_PREFIX = 's1:';
-const TABLES = ['follows', 'prefs', 'answers', 'synced'];
+const TABLES = ['follows', 'prefs', 'answers', 'synced', 'cal_feeds'];
 
 export class AccountKeyError extends Error {}
 
