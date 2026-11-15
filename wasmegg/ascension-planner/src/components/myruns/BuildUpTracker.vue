@@ -41,6 +41,8 @@
       @player-toggle="emit('toggle', $event)"
     >
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
+        <!-- The ascension you are in would reach R1 after your hours end, while R1 is still ahead (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Warning" class="text-amber-800" data-testid="buildup-r1-sleep">{{ r1Warning }}</p>
         <p v-if="state === 'checking'" role="status" data-testid="buildup-checking">Reading your save: its ticks show once it is in.</p>
         <p v-else-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
@@ -508,6 +510,8 @@ import { computed, nextTick, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
 import BuildUpDoneLine from './BuildUpDoneLine.vue';
 import { focusKeyAfterTick } from './trackerFocus';
+import { r1OfTrackerLines } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Tracker } from '@/lib/sleepBeforeR1Words';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayTitle, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
@@ -616,6 +620,14 @@ const emit = defineEmits<{
   pickRoute: [];
 }>();
 
+/** R1 for the ascension you are in: the plan's shifts from now on, with the awake hours (`awakeHours`: null when the shifts are held), only while it is ahead. */
+const r1Warning = computed(() => {
+  if (props.state !== 'ready' || !props.result) return '';
+  const d = r1OfTrackerLines(props.result.lines, props.now, props.awakeHours);
+  if (!d) return '';
+  const zone = props.zone;
+  return sleepBeforeR1Tracker(d, t => (dayTitle(t, zone, props.now) === dayTitle(props.now, zone, props.now) ? clock12(t, zone) : `${dayTitle(t, zone, props.now)} ${clock12(t, zone)}`));
+});
 const root = ref<HTMLElement | null>(null);
 const tickNote = ref('');
 const tickBoxes = (): HTMLInputElement[] => (root.value ? [...root.value.querySelectorAll<HTMLInputElement>('input[data-testid^="buildup-tick-"]')] : []);

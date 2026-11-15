@@ -406,7 +406,7 @@
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
               ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
             </p>
-            <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
+            <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
                  own first prestige is timed by the hours only (search/prestigeBy.ts), so with no-prestige days set it is
                  not drawn (UX fluff review, 5 Nov 2026, item 5: "by Dec 24, 2026 at 2:00 am" with Dec 24 to 26 off). -->
@@ -629,7 +629,7 @@
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
             ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
           </p>
-          <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
+          <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
                drawn with no-prestige days set, as under By a date's box. -->
           <PrestigeByLine

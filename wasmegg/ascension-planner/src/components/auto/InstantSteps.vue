@@ -28,6 +28,10 @@
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
         <span class="whitespace-nowrap">{{ show(l.reachedAt) }}</span>
+        <!-- R1 would come after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Of(l)" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="step-r1-sleep">
+          {{ sleepBeforeR1Card(r1Of(l)!, show) }}
+        </p>
       </li>
     </ol>
     <p class="mt-1 text-small text-slate-600" data-testid="instant-steps-note">
@@ -42,6 +46,8 @@ import { cardTime } from './instantCardTime';
 import { instantSteps, type StepLeg } from '@/lib/instantSteps';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffWindow } from '@/search/types';
+import { r1OfTableAscension } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
 
 const props = defineProps<{
   legs: readonly StepLeg[] | null | undefined;
@@ -49,9 +55,14 @@ const props = defineProps<{
   /** The hours the answer was held to (null: any time). */
   hours?: Availability | null;
   noPrestige?: readonly TimeOffWindow[] | null;
+  /** The player's shifts wait for their hours (deferShifts): the plan already waits, so no R1 warning. */
+  heldShifts?: boolean;
 }>();
 
 const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props.noPrestige ?? null));
+/** The warning for an ascension the table starts (never the one the farm is in): R1 bounded by the opening's span. */
+const r1Of = (l: { now: boolean; prestigeAt: number; fromTE: number }) =>
+  l.now || props.heldShifts ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours });
 /** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
 const show = (t: number) => cardTime(t, props.zone);
 </script>

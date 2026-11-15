@@ -54,6 +54,10 @@
           Your time off starts {{ exact(l.timeOff.from) }}: this ascension ends there at {{ l.timeOff.te }} TE (going
           to your home farm is a prestige), and is built again from {{ exact(l.timeOff.to) }}.
         </p>
+        <!-- R1 would come after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Of(l)" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="ascension-r1-sleep">
+          {{ sleepBeforeR1Card(r1Of(l)!, exact) }}
+        </p>
         <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
         <!-- Its opening's shifts, when its list leaves them out: the simulator's standard count (lib/openingShifts.ts). -->
         <p v-if="l.openingShifts" class="ml-4 text-small text-slate-600" data-testid="now-ascension-opening">
@@ -94,6 +98,9 @@ import { c3Wait } from '@/lib/c3WaitWords';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { roundToHourIn } from '@/lib/nowWords';
 import { stayWords, timeOffDays, type AscensionStep } from '@/lib/instantSteps';
+import { r1OfShifts, r1OfTableAscension } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
+import type { Availability } from '@/search/availabilitySchedule';
 
 const props = defineProps<{
   lines: AscensionStep[];
@@ -102,7 +109,18 @@ const props = defineProps<{
   working?: boolean;
   /** The save is on a known egg: tag the ascension you are in "you are here". */
   here?: boolean;
+  /** The player's awake hours (null or absent: none). */
+  hours?: Availability | null;
+  /** The player's shifts wait for their hours (deferShifts): no R1 warning. */
+  heldShifts?: boolean;
 }>();
+/** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
+const r1Of = (l: AscensionStep) => {
+  if (l.now || props.heldShifts || !props.hours) return null;
+  return l.simulated
+    ? r1OfShifts({ start: l.prestigeAt, shifts: l.shifts, hours: props.hours })
+    : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours });
+};
 
 /** The table's times: to the hour on the player's clock. */
 const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone), props.zone)}`;
