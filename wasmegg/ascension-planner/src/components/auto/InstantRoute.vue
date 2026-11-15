@@ -1937,12 +1937,15 @@ let pool: RoutePool | null = null;
  *  tables, and the exact check only when asked. */
 const small = isSmallDevice();
 function getPool(): RoutePool {
-  pool ??= new RoutePool(
-    small ? Math.min(2, poolSize()) : poolSize(),
-    () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
-  );
-  // On every browser the idle workers are let go after a while (search/routePoolIdle.ts); the next ask spawns them.
-  stopIdleSleep = sleepWhenIdle(pool);
+  if (!pool) {
+    pool = new RoutePool(
+      small ? Math.min(2, poolSize()) : poolSize(),
+      () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
+    );
+    // On every browser the idle workers are let go after a while (search/routePoolIdle.ts); the next ask spawns them. Started
+    // once, with the pool: it used to start on every call and the earlier listeners were never removed (review Q3, 15 Nov 2026).
+    stopIdleSleep = sleepWhenIdle(pool);
+  }
   return pool;
 }
 let stopIdleSleep: (() => void) | null = null;

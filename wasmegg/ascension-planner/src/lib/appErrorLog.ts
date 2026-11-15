@@ -31,3 +31,16 @@ export function installAppErrorLog(app: App): void {
     console.error(appErrorLine(err, info));
   };
 }
+
+/**
+ * Promises nothing caught (review Q4, 15 Nov 2026): a rejected IndexedDB read in the saved-run lists went unhandled and the lists
+ * stayed silently empty. Each gets the same one tagged line as a Vue error (`[app] Error: <message> (unhandled rejection)`, no ID).
+ * Not prevented: the browser still reports it as before.
+ */
+export function installUnhandledRejectionLog(target: {
+  addEventListener(type: 'unhandledrejection', fn: (e: { reason: unknown; preventDefault: () => void }) => void): void;
+}): void {
+  target.addEventListener('unhandledrejection', e => {
+    console.error(appErrorLine(e.reason, 'unhandled rejection'));
+  });
+}
