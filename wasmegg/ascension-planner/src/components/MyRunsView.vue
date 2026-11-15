@@ -404,6 +404,7 @@ import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
+import { useCalendarFeedPush } from '@/composables/useCalendarFeed';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
 import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
@@ -539,6 +540,15 @@ const tracker = useBuildUpTracker({
   // A newer save still coming in (the page's own "Reading your save" pair): the tracker says so (spec-anchornewer).
   saveLoading: computed(() => props.loading || page.saveWaiting.value),
   finishChosen: page.a1Finish,
+});
+/** The calendar feed (Setup › Sharing, off by default): the plan goes up when the tracker's lines or ticks change, only while it is
+ *  on and linked (composables/useCalendarFeed.ts). */
+useCalendarFeedPush({
+  lines: computed(() => (tracker.state.value === 'ready' ? tracker.result.value?.lines : null)),
+  ticks: tracker.ticks,
+  ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  zone: page.zone,
+  hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
 });
 /** The research buy still to do before Next step's own step, from the tracker's lines (M13, lib/nextAction.ts `nextBuyBefore`):
  *  Next step names it first. None while the tracker is not in (its fold shut, or still working out). */

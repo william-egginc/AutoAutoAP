@@ -1,0 +1,32 @@
+/**
+ * The Setup card for the calendar feed (spec-calendar-ui, 14 Nov 2026): Words' text, part 1A of
+ * ~/code/aaap-tools/notes/words-calendar-and-fulltour-2026-11-14.md. The privacy text (their part 1C: About, the wiki,
+ * privacyWords) waits for Jordan's OK and is NOT here. Wording only, so never part of the result hash.
+ */
+export const CAL_LABEL = 'Put my plan in my calendar';
+export const CAL_LINE = 'Makes a private link your calendar can subscribe to. It shows the times of your planned shifts, buys and ascensions.';
+export const CAL_OFF = 'Off. Nothing is shared.';
+export const CAL_STALE = 'Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
+
+export const CAL_GET = 'Get link';
+export const CAL_COPY = 'Copy';
+export const CAL_COPIED = 'Copied';
+export const CAL_APPLE = 'Add to Apple Calendar';
+export const CAL_GOOGLE = 'Add to Google Calendar';
+export const CAL_RESET = 'Reset link';
+
+export const CAL_SHOWN_ONCE = "Copy it now. It is shown only once. Anyone with this link can see your plan, so don't post it.";
+export const CAL_LINKED = 'You have a link. It is shown only once; press Reset link for a new one.';
+export const CAL_RESET_ASK = 'The old link stops working at once. Your calendar will need the new one. Reset?';
+export const CAL_RESET_YES = 'Reset';
+export const CAL_RESET_NO = 'Keep it';
+export const CAL_RESET_DONE = 'Done. The old link no longer works.';
+
+/** Why a call didn't work, in plain words (DRAFT: not in Words' note; Words to confirm). */
+export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off', string> = {
+  limit: 'You already have 3 links. Reset link first, then get a new one.',
+  busy: "That's a lot of links today. Try again tomorrow.",
+  offline: "Couldn't reach the planner's server. Try again in a moment.",
+  error: "That didn't work. Try again in a moment.",
+  off: "Calendar links need Save online turned on in this section's switch above.",
+};

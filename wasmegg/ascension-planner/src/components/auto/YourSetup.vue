@@ -553,6 +553,9 @@
           <!-- The master Save online switch and Delete everything saved online for this account (lib/saveOnline.ts,
                Jordan 7 Nov 2026). -->
           <SaveOnlineSetup />
+          <!-- The calendar feed (spec-calendar-ui, 14 Nov 2026): its own switch, off by default; keyed by the account, so the card is
+               made for the account on screen. -->
+          <CalendarFeedSetup :key="calendarAccount" class="mt-3" />
         </div>
       </div>
 
@@ -904,6 +907,8 @@ import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
+import CalendarFeedSetup from './CalendarFeedSetup.vue';
+import { accountOf } from '@/search/runSaves';
 import { saveOnlineOn } from '@/lib/saveOnline';
 import { askTourReplay } from '@/composables/useFirstTour';
 import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
@@ -948,6 +953,8 @@ watch(
 );
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
+/** The calendar card is made for the account on screen (components/auto/CalendarFeedSetup.vue). */
+const calendarAccount = computed(() => accountOf(initialState.rawBackup));
 const ui = useUIStore();
 /** Change player: Setup closes, the player ID box at the top opens (the save line's Close folds it again), focused. */
 function changePlayer(): void {

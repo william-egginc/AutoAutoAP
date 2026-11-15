@@ -33,7 +33,7 @@ import { followUrlOf, hasPlayerId, isAheadRefusal } from './followCloud';
  */
 export const SYNC_RECORDS = { enabled: true };
 
-export type SyncKind = 'override' | 'ticks' | 'plan';
+export type SyncKind = 'override' | 'ticks' | 'plan' | 'cal';
 /** The override's one slot. */
 export const OVERRIDE_SLOT = '0';
 /** A call that hangs this long counts as offline. */
@@ -161,7 +161,7 @@ export interface SyncMeta {
 export type SyncFailure = { ok: false; why: SyncFail; retryAfter?: number };
 
 const isKey = (k: string) => /^[0-9a-f]{64}$/.test(k);
-const KINDS: readonly SyncKind[] = ['override', 'ticks', 'plan'];
+const KINDS: readonly SyncKind[] = ['override', 'ticks', 'plan', 'cal'];
 const defaultFetch = (): SyncFetch | null =>
   typeof fetch === 'function' ? (((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
 
