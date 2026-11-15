@@ -154,7 +154,7 @@ describe('today: the done run in one line, the rest as it was, the cap on lines 
   it('a line ticked after a gap stays in place, dimmed, with its box', async () => {
     const gap = new Set([boxed[0].key, boxed[1].key, boxed[6].key]);
     const sec = section(await render(gap), '2026-10-30');
-    expect(sec).toMatch(new RegExp(`<li class="[^"]*text-slate-500[^"]*"[^>]*>[\\s\\S]*?data-testid="buildup-tick-${boxed[6].key.replace(':', '\\:')}"`));
+    expect(sec).toMatch(new RegExp(`<li class="[^"]*text-slate-600[^"]*"[^>]*>[\\s\\S]*?data-testid="buildup-tick-${boxed[6].key.replace(':', '\\:')}"`));
     expect(textOf(button(sec, 'buildup-run-2026-10-30'))).toMatch(/^✓ Bought 8:41 AM to 8:42 AM: /);
   });
   it('the cap counts lines still to do: 8 of them, then "Show all N still to do"', async () => {

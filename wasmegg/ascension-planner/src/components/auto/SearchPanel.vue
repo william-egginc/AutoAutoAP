@@ -83,7 +83,7 @@
         </button>
       </Tip>
     </div>
-    <p v-if="running" class="text-body text-slate-500" data-testid="search-panel-locked">
+    <p v-if="running" class="text-body text-slate-600" data-testid="search-panel-locked">
       The choice is locked while a search runs. Stop it to change.
     </p>
 

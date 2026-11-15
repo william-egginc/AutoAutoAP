@@ -15,7 +15,7 @@
           >
             Locked ({{ tierSummaries[tier]?.purchasesNeeded ?? '?' }} more)
           </span>
-          <span v-else class="text-gray-400 label">
+          <span v-else class="text-gray-600 label">
             {{ tierSummaries[tier]?.purchasedLevels ?? 0 }} / {{ tierSummaries[tier]?.totalLevels ?? 0 }}
           </span>
         </div>
@@ -32,7 +32,7 @@
             <span v-if="viewTimes.tiers[tier]" class="ml-1 text-small opacity-70">({{ viewTimes.tiers[tier] }})</span>
           </button>
           <svg
-            class="w-5 h-5 text-gray-400 transition-transform cursor-pointer"
+            class="w-5 h-5 text-gray-600 transition-transform cursor-pointer"
             :class="{ 'rotate-180': expandedTiers.has(tier) }"
             fill="none"
             stroke="currentColor"

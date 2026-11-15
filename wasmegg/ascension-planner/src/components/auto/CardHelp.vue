@@ -23,7 +23,7 @@
     <button
       ref="trigger"
       type="button"
-      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-400 text-slate-500 text-small font-bold leading-none flex items-center justify-center hover:border-slate-600 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-400 text-slate-600 text-small font-bold leading-none flex items-center justify-center hover:border-slate-600 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       :aria-label="label"
       :aria-describedby="id"
       :aria-expanded="tip.shown.value ? 'true' : 'false'"

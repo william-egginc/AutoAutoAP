@@ -8,10 +8,10 @@
       What if you had maxed gear? (all legendary + T4 stones)
     </summary>
     <div class="mt-1 space-y-1 pl-3">
-      <p v-if="letters" class="tabular-nums text-small text-slate-500">{{ letters }}</p>
+      <p v-if="letters" class="tabular-nums text-small text-slate-600">{{ letters }}</p>
       <p v-if="alreadyMaxed">Your gear is already maxed: your instant answer is the maxed one.</p>
       <p v-else-if="status === 'running'" class="text-slate-600">Finding your route again with maxed gear<AnimatedDots /></p>
-      <p v-else-if="status === 'error'" class="text-slate-500">Couldn’t work that out this time.</p>
+      <p v-else-if="status === 'error'" class="text-slate-600">Couldn’t work that out this time.</p>
       <p v-else-if="text" class="font-bold text-emerald-800" data-testid="instant-maxed-result">{{ text }}</p>
       <p class="text-small text-slate-600">
         A ballpark: it assumes you have the gear from your next prestige, uses the maxed instant answer (a few percent

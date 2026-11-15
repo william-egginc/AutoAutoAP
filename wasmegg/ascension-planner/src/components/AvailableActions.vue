@@ -23,8 +23,8 @@
           {{ currentEggName }}
         </span>
       </div>
-      <span class="text-gray-300 mx-1">/</span>
-      <span class="text-small font-bold text-gray-500">{{ availableActionLabel }}</span>
+      <span class="text-gray-600 mx-1">/</span>
+      <span class="text-small font-bold text-gray-600">{{ availableActionLabel }}</span>
     </div>
 
     <!-- Tab buttons -->
@@ -39,7 +39,7 @@
           v-for="tab in availableTabs"
           :key="tab.id"
           class="px-4 py-2 text-body font-normal transition-colors relative whitespace-nowrap shrink-0"
-          :class="activeTab === tab.id ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+          :class="activeTab === tab.id ? 'text-blue-600' : 'text-gray-600 hover:text-gray-700'"
           @click="activeTab = tab.id"
         >
           {{ tab.label }}

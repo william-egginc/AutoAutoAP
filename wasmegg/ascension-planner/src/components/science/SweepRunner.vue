@@ -38,7 +38,7 @@
         <div class="space-y-0.5">
           <p class="text-indigo-500 label">Run a sweep</p>
           <h2 id="sweep-runner-title" class="text-title font-bold text-slate-900">{{ request.label }}</h2>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-600">
             {{ bandsInWords
             }}<template v-if="request.minGap > 0"> · targets at least {{ request.minGap }} TE apart</template
             ><template v-if="request.firstAscension !== null">
@@ -167,7 +167,7 @@
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
-          <span class="block text-small text-slate-500">
+          <span class="block text-small text-slate-600">
             Fewer keep the computer usable and quieter; more finish sooner. It can be changed during the run too, from
             this window.
           </span>
@@ -204,7 +204,7 @@
             </span>
             </template>
           </ConsentBox>
-          <p v-if="showWhat" class="pl-6 text-body text-slate-500 max-w-prose">
+          <p v-if="showWhat" class="pl-6 text-body text-slate-600 max-w-prose">
             The route, its timings and the full CSV, with your artifact inventory, time zone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
@@ -233,7 +233,7 @@
           >
             Start and submit when done
           </button>
-          <span v-if="!consent && chainCount" class="text-small text-slate-500">Tick “I understand” first.</span>
+          <span v-if="!consent && chainCount" class="text-small text-slate-600">Tick “I understand” first.</span>
           <span v-if="store.saveNotReady" class="text-small font-bold text-amber-700">{{
             store.saveNotReady
           }}</span>
@@ -251,7 +251,7 @@
                 {{ pricedSoFar.toLocaleString() }} of {{ plural(store.chainsEstimated, 'route') }}
               </template>
             </span>
-            <span v-if="run.phase === 'running' && leftLabel" class="text-small text-slate-500"
+            <span v-if="run.phase === 'running' && leftLabel" class="text-small text-slate-600"
               >about {{ leftLabel }} left</span
             >
           </div>
@@ -293,7 +293,7 @@
             >
               <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop and send what it has</template>
             </button>
-            <span class="text-small text-slate-500">
+            <span class="text-small text-slate-600">
               You can close this window and look around: it keeps going, with its progress at the top of every tab.
             </span>
           </div>

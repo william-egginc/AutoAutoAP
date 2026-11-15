@@ -21,7 +21,7 @@
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4" data-testid="now-eggs">
     <div class="flex flex-wrap items-center gap-2">
-      <p class="text-body font-bold text-slate-500">Your eggs · from your save</p>
+      <p class="text-body font-bold text-slate-600">Your eggs · from your save</p>
       <div
         v-if="hasGoal"
         class="ml-auto inline-flex rounded-lg border border-slate-300 overflow-hidden"
@@ -66,14 +66,14 @@
       </div>
     </div>
     <!-- "estimated from your save" once; how, and which save, behind the "?" (UX fluff review 2, item R16). DRAFT. -->
-    <p v-if="afterShift && shownView === 'next'" class="mt-1.5 flex items-center gap-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">
+    <p v-if="afterShift && shownView === 'next'" class="mt-1.5 flex items-center gap-1.5 text-small text-slate-600 break-words" data-testid="now-eggs-after-shift-note">
       After a shift: estimated from your save.{{ ' ' }}<HelpTip>{{ afterShift.note }}</HelpTip>
     </p>
     <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div v-for="f in tiles" :key="f.label" class="rounded-lg bg-slate-50 px-2.5 py-1.5 text-small" :data-testid="`now-fact-${f.id}`">
-        <p class="label text-slate-500">{{ f.label }}</p>
+        <p class="label text-slate-600">{{ f.label }}</p>
         <p class="font-bold text-slate-800">{{ f.value }}</p>
-        <p v-if="f.note" class="text-body text-slate-500">{{ f.note }}</p>
+        <p v-if="f.note" class="text-body text-slate-600">{{ f.note }}</p>
       </div>
     </div>
   </section>
@@ -141,17 +141,17 @@ function pick(v: EggsView): void {
 
 /** Each kind's look and test id (the ids the page specs and the harness already read). */
 const LINE_STYLE: Partial<Record<EggLineKind, { cls: string; testid?: string }>> = {
-  [EGG_LINE.nextAtSaveRate]: { cls: 'text-slate-500' },
+  [EGG_LINE.nextAtSaveRate]: { cls: 'text-slate-600' },
   [EGG_LINE.nextAfterShift]: { cls: 'text-slate-600', testid: 'now-egg-after-shift' },
-  [EGG_LINE.nextProgress]: { cls: 'text-slate-500' },
-  [EGG_LINE.nextClock]: { cls: 'text-slate-500', testid: 'now-egg-when' },
+  [EGG_LINE.nextProgress]: { cls: 'text-slate-600' },
+  [EGG_LINE.nextClock]: { cls: 'text-slate-600', testid: 'now-egg-when' },
   [EGG_LINE.goalShift]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalOnEgg]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
-  [EGG_LINE.goalNoShift]: { cls: 'text-slate-500', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalNoShift]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalEggAt]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalEggBy]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
   [EGG_LINE.goalEggByAbout]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
-  [EGG_LINE.goalEggDone]: { cls: 'text-slate-500', testid: 'now-egg-to-goal' },
+  [EGG_LINE.goalEggDone]: { cls: 'text-slate-600', testid: 'now-egg-to-goal' },
 };
 
 /** The egg's lines for the view shown (lib/nextTeEgg.ts `eggViewLines`). */

@@ -1,6 +1,6 @@
 <template>
   <svg
-    class="text-gray-400 cursor-help"
+    class="text-gray-600 cursor-help"
     :class="[`h-${height}`, `w-${width}`]"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 20 20"

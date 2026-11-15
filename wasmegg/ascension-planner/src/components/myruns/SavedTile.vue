@@ -5,7 +5,7 @@
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-1" :data-testid="`now-tile-${goal}`">
-    <p class="label text-slate-500">{{ title }} · saved answer</p>
+    <p class="label text-slate-600">{{ title }} · saved answer</p>
     <template v-if="a">
       <p class="text-title font-bold text-slate-900">{{ headline }}</p>
       <p class="text-body text-slate-600">
@@ -16,7 +16,7 @@
       <p v-if="soulEggsAfter && soulEggsAfter.amber" class="text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-tile-soul-eggs">
         {{ soulEggsAfter.text }}
       </p>
-      <p class="text-body text-slate-500" data-testid="now-tile-when">
+      <p class="text-body text-slate-600" data-testid="now-tile-when">
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
           · from your save of {{ dateAt(a.saveSeconds, now, zone) }}<template v-if="tile.saveGapSeconds"
             >, <span data-testid="now-tile-save-gap">{{ saveGapWords(tile.saveGapSeconds) }}</span></template
@@ -25,7 +25,7 @@
         · {{ howWords(a) }}<template v-if="sourceWords(a)"> · {{ sourceWords(a) }}</template>
       </p>
       <!-- A better answer of this save priced with other hours: secondary, named (fix 22, lib/currentAnswer.ts). -->
-      <p v-if="tile.secondary" class="text-body text-slate-500" data-testid="now-tile-secondary">
+      <p v-if="tile.secondary" class="text-body text-slate-600" data-testid="now-tile-secondary">
         {{ secondaryText }} (calculated {{ dateAt(tile.secondary.calculatedAt / 1000, now, zone) }} · {{ howWords(tile.secondary) }})
       </p>
       <div v-if="tile.sure" class="mt-1 rounded-lg px-2.5 py-1.5 text-body" :class="SURE[tile.sure.level]" data-testid="now-tile-sure">
@@ -52,7 +52,7 @@
       <!-- Answers kept, none in time (lib/eggDayRule.ts): said plainly; the nearest is shown, marked, never the answer. -->
       <template v-if="tile.late">
         <p class="text-body text-slate-700" data-testid="now-tile-no-route-in-time">{{ lateWords }}</p>
-        <p v-if="tile.late.answer" class="text-body text-slate-500" data-testid="now-tile-late">
+        <p v-if="tile.late.answer" class="text-body text-slate-600" data-testid="now-tile-late">
           {{ tile.late.answer.endTE }} TE ·
           <span class="tabular-nums" :title="tile.late.answer.chain.join(' ')">{{ tile.late.answer.chain.join(' ') }}</span> ·
           {{ lateMark }}

@@ -46,7 +46,7 @@
       type="button"
       :class="{ 'tip-info-always': infoAlways }"
       :aria-describedby="infoAlways ? id : undefined"
-      class="tip-info min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      class="tip-info min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-slate-600 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       :aria-label="tipInfoLabel(name)"
       :aria-expanded="tip.pinned.value ? 'true' : 'false'"
       :aria-controls="id"

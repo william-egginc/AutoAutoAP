@@ -2,7 +2,7 @@
   <div class="flex items-center justify-between">
     <div>
       <div class="text-body font-bold text-slate-700">Tank Level</div>
-      <div class="label text-slate-400">Storage capacity tier</div>
+      <div class="label text-slate-600">Storage capacity tier</div>
     </div>
     <select
       :value="tankLevel"

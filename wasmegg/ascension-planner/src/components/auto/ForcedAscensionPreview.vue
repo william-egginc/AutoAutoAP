@@ -29,7 +29,7 @@
         <template v-for="(entry, i) in presentVariants" :key="entry.key">
           <div v-if="i > 0" class="w-px h-4 bg-slate-200"></div>
           <div class="flex items-center gap-1.5">
-            <span class="text-slate-500 label">{{ entry.key }}</span>
+            <span class="text-slate-600 label">{{ entry.key }}</span>
             <span class="text-small tabular-nums font-bold text-indigo-600">
               {{ formatNumber(entry.result.summary.maxELR * 3600, 3) }}
             </span>

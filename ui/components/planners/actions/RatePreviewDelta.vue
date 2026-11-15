@@ -1,7 +1,7 @@
 <template>
   <div class="mt-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md">
     <div class="flex items-center justify-between gap-1.5">
-      <span class="text-gray-400 label">{{ label }}</span>
+      <span class="text-gray-600 label">{{ label }}</span>
       <span class="text-small font-bold" :class="deltaColorClass">{{ deltaText }}</span>
     </div>
     <div class="flex items-center justify-center gap-1.5 mt-0.5">
@@ -37,9 +37,9 @@ const deltaText = computed(() => {
 });
 
 const deltaColorClass = computed(() => {
-  if (deltaPercent.value === null) return props.after > 0 ? 'text-emerald-600' : 'text-gray-400';
-  if (deltaPercent.value > 0) return 'text-emerald-600';
+  if (deltaPercent.value === null) return props.after > 0 ? 'text-emerald-700' : 'text-gray-600';
+  if (deltaPercent.value > 0) return 'text-emerald-700';
   if (deltaPercent.value < 0) return 'text-red-500';
-  return 'text-gray-400';
+  return 'text-gray-600';
 });
 </script>

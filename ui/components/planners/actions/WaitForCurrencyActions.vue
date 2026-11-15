@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <p class="text-body font-normal text-slate-400 mb-6">
+    <p class="text-body font-normal text-slate-600 mb-6">
       Wait until you have accumulated a target amount of {{ currency.name }}.
     </p>
 
@@ -16,7 +16,7 @@
           <div class="text-body font-bold text-slate-800">
             {{ formatNumber(planStore.bankValue, 3) }}
           </div>
-          <div class="text-slate-400 label">Current {{ currency.name }} in Bank</div>
+          <div class="text-slate-600 label">Current {{ currency.name }} in Bank</div>
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@
 
       <!-- Target input -->
       <div class="flex flex-col gap-3 mb-6">
-        <span class="text-slate-400 label">Wait until I have:</span>
+        <span class="text-slate-600 label">Wait until I have:</span>
         <input
           ref="inputEl"
           v-model="targetInput"
@@ -42,7 +42,7 @@
           placeholder="e.g. 1M or 1,234,567"
           class="w-full h-10 px-4 text-body tabular-nums font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
         />
-        <div v-if="parsedTarget !== null" class="text-small font-bold text-slate-500 text-right">
+        <div v-if="parsedTarget !== null" class="text-small font-bold text-slate-600 text-right">
           Parsed: {{ formatNumber(parsedTarget, 3) }}
         </div>
       </div>
@@ -53,21 +53,21 @@
         class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50"
       >
         <div class="flex justify-between items-center text-small">
-          <span class="text-slate-400 label">Required to Earn:</span>
+          <span class="text-slate-600 label">Required to Earn:</span>
           <span class="tabular-nums font-bold text-slate-900">{{ formatNumber(requiredToEarn, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
           <div class="flex justify-between items-center text-small">
-            <span class="text-slate-400 label">Earnings Rate:</span>
-            <span class="tabular-nums text-slate-500">{{ formatNumber(earningsPerSecond, 3) }}/s</span>
+            <span class="text-slate-600 label">Earnings Rate:</span>
+            <span class="tabular-nums text-slate-600">{{ formatNumber(earningsPerSecond, 3) }}/s</span>
           </div>
           <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
-            <span class="text-slate-400 label">Time Required:</span>
+            <span class="text-slate-600 label">Time Required:</span>
             <span class="tabular-nums font-bold text-slate-900">{{ formatDuration(timeToSaveSeconds) }}</span>
           </div>
           <div class="flex justify-between items-center text-small">
-            <span class="text-slate-400 label">Completion Time:</span>
+            <span class="text-slate-600 label">Completion Time:</span>
             <span class="tabular-nums text-slate-600">{{ formattedAbsoluteTime }}</span>
           </div>
         </div>

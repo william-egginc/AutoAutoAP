@@ -35,7 +35,7 @@
       </button>
       <button
         type="button"
-        class="font-bold text-body text-slate-500 underline"
+        class="font-bold text-body text-slate-600 underline"
         data-testid="instant-warning-cancel"
         @click="emit('cancel')"
       >

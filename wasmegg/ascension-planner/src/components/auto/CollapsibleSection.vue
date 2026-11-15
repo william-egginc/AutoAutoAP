@@ -23,7 +23,7 @@
       @click="set(false)"
     >
       <span
-        class="px-2 py-0.5 rounded-full border border-slate-200 bg-white label text-slate-500 group-hover:text-slate-800"
+        class="px-2 py-0.5 rounded-full border border-slate-200 bg-white label text-slate-600 group-hover:text-slate-800"
         >Hide</span
       >
     </button>

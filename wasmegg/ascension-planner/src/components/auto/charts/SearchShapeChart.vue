@@ -40,24 +40,24 @@
           :class="
             axis === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           @click="axis = mode.id"
         >
           {{ mode.label }}
         </button>
       </div>
-      <label class="flex items-center gap-2 text-slate-500 label">
+      <label class="flex items-center gap-2 text-slate-600 label">
         <input
           v-model="connect"
           type="checkbox"
-          class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+          class="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
         />
         Join the dots
       </label>
     </div>
 
-    <p class="text-body text-slate-500 px-1">{{ AXIS_MODES.find(m => m.id === axis)?.hint }}</p>
+    <p class="text-body text-slate-600 px-1">{{ AXIS_MODES.find(m => m.id === axis)?.hint }}</p>
 
     <!-- Highlight controls. Laid out as one line because it is one question: which checkpoint, and
          which of its values. -->
@@ -111,7 +111,7 @@
         <span class="text-slate-600">{{ plural(group.count, 'route') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
         <span v-if="group.gapDays > 0" class="text-slate-600">+{{ group.gapDays.toFixed(3) }} d</span>
-        <span v-else class="font-bold text-emerald-600">leader</span>
+        <span v-else class="font-bold text-emerald-700">leader</span>
         <span class="tabular-nums text-slate-600 truncate">{{ group.bestChain.join(' ') }}</span>
       </div>
     </div>

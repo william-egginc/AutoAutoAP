@@ -10,7 +10,7 @@
 -->
 <template>
   <div class="space-y-1 text-body whitespace-normal text-left" data-testid="route-timeline">
-    <p v-if="!lines.length" class="text-slate-500" data-testid="route-timeline-none">
+    <p v-if="!lines.length" class="text-slate-600" data-testid="route-timeline-none">
       {{ noLegsText || "When each stop happens wasn't kept for this route." }}
     </p>
     <template v-for="l in lines" :key="l.asc">

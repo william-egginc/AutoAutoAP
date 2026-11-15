@@ -7,7 +7,7 @@
         </div>
         {{ profile.missions.activeHeading }}
       </h3>
-      <span class="text-small font-normal text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+      <span class="text-small font-normal text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
         {{ missions.filter(m => !m.statusIsFueling).length }} In-flight
         <template v-if="missions.some(m => m.statusIsFueling)">
           + {{ missions.filter(m => m.statusIsFueling).length }} Fueling
@@ -58,14 +58,14 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-3 text-small text-gray-500 font-normal">
+          <div class="flex items-center gap-3 text-small text-gray-600 font-normal">
             <div class="flex items-center gap-1">
-              <span class="text-gray-400">Target:</span>
+              <span class="text-gray-600">Target:</span>
               <span class="text-gray-700">{{ mission.sensorTarget || 'None' }}</span>
             </div>
             <div class="w-px h-2 bg-gray-200"></div>
             <div class="flex items-center gap-1">
-              <span class="text-gray-400">Capacity:</span>
+              <span class="text-gray-600">Capacity:</span>
               <span class="text-gray-700">{{ mission.capacity }}</span>
             </div>
           </div>

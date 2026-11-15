@@ -5,7 +5,7 @@
        store (set when the save loads, and again by Single run's Generate and this card's Now button),
        shown as it is rather than as a ticking clock the searches would not follow. -->
   <div v-if="!startTimeOverride" class="space-y-2">
-    <label class="text-slate-500 label">Start Time</label>
+    <label class="text-slate-600 label">Start Time</label>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-baseline gap-2 flex-wrap">
         <span class="text-body font-bold text-slate-800 tabular-nums">{{ startLabel }}</span>
@@ -34,7 +34,7 @@
 
   <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
-      <label class="text-slate-500 label">Start Time</label>
+      <label class="text-slate-600 label">Start Time</label>
       <div class="flex flex-wrap gap-3">
         <input
           :value="startDate"
@@ -59,7 +59,7 @@
     </div>
 
     <div class="space-y-2">
-      <label class="text-slate-500 label">Timezone</label>
+      <label class="text-slate-600 label">Timezone</label>
       <div class="flex flex-wrap gap-2">
         <div class="relative flex-grow min-w-0">
           <select
@@ -160,7 +160,7 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
   return {
     text: note.text,
     // Whether the save is old is the save-age banner's (spec-saveage); no amber "past the silos" note since 10 Nov 2026.
-    class: note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-600',
+    class: note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-700',
   };
 });
 

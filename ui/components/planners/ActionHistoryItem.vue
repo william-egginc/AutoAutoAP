@@ -43,7 +43,7 @@
         class="flex-1 min-w-0 font-bold truncate flex items-center gap-1.5"
         :class="[compact ? 'text-small' : 'text-small sm:text-body', isStartAction ? 'text-slate-800' : 'text-slate-700']"
       >
-        <span v-if="eggType" class="label text-slate-400">
+        <span v-if="eggType" class="label text-slate-600">
           {{ action.type === 'start_ascension' ? 'Start:' : 'Egg:' }}
         </span>
         <span :class="{ 'text-slate-900': eggType }">
@@ -63,13 +63,13 @@
         <span
           v-if="waitDuration > 0"
           v-tippy="timeToSaveTitle"
-          class="text-slate-400 label"
+          class="text-slate-600 label"
         >
           Wait {{ waitDurationFormatted }}
         </span>
         <span
           v-if="action.totalTimeSeconds < 1 && action.cost < 0.5 && Math.abs(action.bankDelta) < 0.5"
-          class="text-slate-300 label"
+          class="text-slate-600 label"
         >
           0s
         </span>
@@ -143,7 +143,7 @@
         <button
           v-if="!isStartAction"
           v-tippy="'Undo this action'"
-          class="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+          class="text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
           :class="compact ? 'p-0.5' : 'p-1 sm:p-1.5'"
           @click="handleUndo"
         >
@@ -164,7 +164,7 @@
       <div class="flex-1 min-w-0">
         <!-- Description -->
         <!-- Text, never HTML: a plan file can carry any payload (red team 21 Oct 2026, data-inputs #6). -->
-        <div class="label opacity-60 text-slate-500 mt-0.5">
+        <div class="label opacity-60 text-slate-600 mt-0.5">
           {{ effectDescription }}
         </div>
 
@@ -199,7 +199,7 @@
           >
           <span
             v-if="Math.abs(action.bankDelta) >= 0.5 && (!isPurchaseAction || action.type === 'launch_missions')"
-            :class="action.bankDelta >= 0.5 ? 'text-emerald-600' : 'text-slate-400'"
+            :class="action.bankDelta >= 0.5 ? 'text-emerald-700' : 'text-slate-600'"
           >
             {{ PROFILE.currency.title }} {{ action.bankDelta >= 0.5 ? '+' : '' }}{{ formatPrice(action.bankDelta) }}
           </span>
@@ -220,7 +220,7 @@
               class="text-small font-bold tabular-nums"
               :class="
                 action.bankDelta >= 0.5
-                  ? 'text-emerald-600 font-bold'
+                  ? 'text-emerald-700 font-bold'
                   : action.bankDelta <= -0.5
                     ? 'text-rose-500 font-bold'
                     : 'text-slate-300'
@@ -244,7 +244,7 @@
                 action.cost >= 0.5
                   ? 'text-slate-800'
                   : action.bankDelta >= 0.5
-                    ? 'text-emerald-600 font-bold'
+                    ? 'text-emerald-700 font-bold'
                     : 'text-slate-300',
               ]"
             >
@@ -496,7 +496,7 @@ const isManuallyCompleted = computed(() => {
 
 function deltaClass(delta: number): string {
   if (delta > 0) return 'text-slate-900';
-  return 'text-slate-400';
+  return 'text-slate-600';
 }
 
 function formatDelta(delta: number): string {

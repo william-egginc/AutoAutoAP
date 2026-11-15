@@ -47,7 +47,7 @@
           :class="
             metric === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           @click="metric = mode.id"
         >

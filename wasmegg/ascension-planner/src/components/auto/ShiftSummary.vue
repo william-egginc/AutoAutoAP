@@ -13,7 +13,7 @@
             />
           </svg>
         </div>
-        <span class="text-slate-500 label">{{ title }}</span>
+        <span class="text-slate-600 label">{{ title }}</span>
       </div>
 
       <!-- Col 2 Row 1 (mobile only): Duration, right-aligned -->

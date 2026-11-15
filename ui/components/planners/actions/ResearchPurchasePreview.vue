@@ -1,6 +1,6 @@
 <template>
   <div class="mt-1">
-    <span v-if="label" class="block text-slate-400 label mb-1">{{
+    <span v-if="label" class="block text-slate-600 label mb-1">{{
       label
     }}</span>
     <div v-if="items.length > 0" class="flex flex-col gap-1">
@@ -17,9 +17,9 @@
           <span class="text-small font-bold text-slate-700 leading-tight">{{ item.text }}</span>
         </template>
       </div>
-      <span v-if="overflowCount > 0" class="text-small text-slate-400 italic pl-2.5">+{{ overflowCount }} more</span>
+      <span v-if="overflowCount > 0" class="text-small text-slate-600 italic pl-2.5">+{{ overflowCount }} more</span>
     </div>
-    <p v-else-if="emptyText" class="text-small text-slate-400 italic px-0.5">{{ emptyText }}</p>
+    <p v-else-if="emptyText" class="text-small text-slate-600 italic px-0.5">{{ emptyText }}</p>
   </div>
 </template>
 

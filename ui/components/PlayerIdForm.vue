@@ -6,7 +6,7 @@
         <button
           v-if="activeEid"
           type="button"
-          class="text-gray-400 hover:text-blue-500 focus:outline-none"
+          class="text-gray-600 hover:text-blue-500 focus:outline-none"
           aria-label="Edit name"
           @click="eidsStore.editName(activeEid, eids.get(activeEid)?.nickname)"
         >
@@ -36,7 +36,7 @@
           class="mt-2 inline-flex items-center space-x-1"
         >
           <base-info />
-          <span class="text-xs text-gray-500">Where do I find my ID?</span>
+          <span class="text-xs text-gray-600">Where do I find my ID?</span>
         </span>
       </div>
       <div v-else class="mt-2 mb-2 w-fit mx-auto">
@@ -53,7 +53,7 @@
           >
             <button
               type="button"
-              class="mr-1 text-gray-400 hover:text-blue-500 focus:outline-none"
+              class="mr-1 text-gray-600 hover:text-blue-500 focus:outline-none"
               aria-label="Edit name"
               @click="eidsStore.editName(eid, entry.nickname)"
             >
@@ -67,7 +67,7 @@
             >
             <button
               type="button"
-              class="mx-0.5 text-gray-500 hover:text-red-500 focus:outline-none"
+              class="mx-0.5 text-gray-600 hover:text-red-500 focus:outline-none"
               aria-label="Remove"
               @click="eidsStore.removeEid(eid)"
             >

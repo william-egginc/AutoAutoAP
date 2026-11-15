@@ -3,13 +3,13 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div>
         <span class="text-xs font-bold uppercase tracking-wider text-indigo-700">From the artifact explorer</span>
-        <p v-if="!missionsStore.file" class="text-[11px] text-gray-500 mt-0.5">
+        <p v-if="!missionsStore.file" class="text-[11px] text-gray-600 mt-0.5">
           Import a humility missions file exported from the artifact explorer's mission optimizer.
         </p>
         <p v-else-if="!matchesPlan" class="text-[11px] text-amber-700 mt-0.5">
           This file was exported from "{{ missionsStore.file.planLabel }}". None of its visits are in the current plan.
         </p>
-        <p v-else class="text-[11px] text-gray-500 mt-0.5">
+        <p v-else class="text-[11px] text-gray-600 mt-0.5">
           {{ missionsStore.file.planLabel }} — {{ missionsStore.file.visits.length }} solved visit{{
             missionsStore.file.visits.length === 1 ? '' : 's'
           }}
@@ -25,7 +25,7 @@
         <button
           v-if="missionsStore.file"
           type="button"
-          class="px-2 py-1 text-xs rounded-md text-gray-500 hover:text-gray-700"
+          class="px-2 py-1 text-xs rounded-md text-gray-600 hover:text-gray-700"
           @click="missionsStore.clear()"
         >
           Close
@@ -44,7 +44,7 @@
       >
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <span class="text-xs font-bold text-gray-800">{{ visitName(visit) }}</span>
-          <span class="text-[11px] text-gray-500">
+          <span class="text-[11px] text-gray-600">
             {{ totalShips(visit) }} ship{{ totalShips(visit) === 1 ? '' : 's' }} ·
             {{ formatDuration(visit.makespanSeconds) }} · joint {{ formatProbability(visit.jointProbability) }}
           </span>
@@ -53,7 +53,7 @@
         <ul class="mt-1 space-y-0.5">
           <li v-for="(launch, i) in visit.launches" :key="i" class="text-[11px] text-gray-600">
             {{ launch.count }}× {{ launchLabel(launch) }}
-            <span class="text-gray-400">→ {{ getTargetName(launch.targetAfxId) }}</span>
+            <span class="text-gray-600">→ {{ getTargetName(launch.targetAfxId) }}</span>
           </li>
         </ul>
 

@@ -101,7 +101,7 @@
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
-          <span class="block text-small text-slate-500">
+          <span class="block text-small text-slate-600">
             Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread
             PC we measured, 12 workers were as fast as 19). The estimate above follows the
             slider. You can move it during a run too: the change takes effect within about a minute, and no route in
@@ -175,7 +175,7 @@
           >
             <template v-if="store.isRunning">Running<AnimatedDots /></template><template v-else>Start this sweep</template>
           </button>
-          <span class="text-small text-slate-500">
+          <span class="text-small text-slate-600">
             One press starts it (the button further down does the same). When the sweep finishes, the result is
             submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, what it priced so far is
             sent, marked as partial.
@@ -233,7 +233,7 @@
       <!-- The site's tabs pick the goal now (Fastest route / Highest TE by a date); this switch is
            only for the panel on its own. -->
       <div v-if="!props.goal" class="flex flex-wrap items-center gap-2">
-        <span class="text-small font-bold text-slate-500">What are you after?</span>
+        <span class="text-small font-bold text-slate-600">What are you after?</span>
         <button
           v-for="g in GOALS"
           :key="g.id"
@@ -243,7 +243,7 @@
           :class="
             goal === g.id
               ? 'border-slate-800 bg-slate-800 text-white'
-              : 'border-slate-200 text-slate-500 hover:text-slate-700'
+              : 'border-slate-200 text-slate-600 hover:text-slate-700'
           "
           @click="goal = g.id"
         >
@@ -319,7 +319,7 @@
         <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
              leave it out (`hideRoutes`). -->
         <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
-          <h3 class="text-slate-500 label">The space to search</h3>
+          <h3 class="text-slate-600 label">The space to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -345,7 +345,7 @@
                 :value="store.currentTE"
                 type="number"
                 disabled
-                class="w-full rounded-lg border-slate-200 bg-slate-50 text-body font-bold text-slate-500"
+                class="w-full rounded-lg border-slate-200 bg-slate-50 text-body font-bold text-slate-600"
               />
             </label>
           </div>
@@ -377,7 +377,7 @@
               />
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
-                  class="flex items-center gap-1.5 text-slate-500 label"
+                  class="flex items-center gap-1.5 text-slate-600 label"
                 >
                   Ascensions
                   <input
@@ -520,7 +520,7 @@
             >
               <template #row-after="{ row, k }">
                 <!-- Behind a tip, as Box 1's (UX fluff review 2, item C-pre3), its time beside it. DRAFT (Words). -->
-                <span v-if="row.asc >= 2 && extraSugs[k]" class="inline-flex items-center gap-1.5 text-small text-slate-500">
+                <span v-if="row.asc >= 2 && extraSugs[k]" class="inline-flex items-center gap-1.5 text-small text-slate-600">
                   Suggest: about {{ chainsTimeLabel(extraSugs[k]!.chains) }}
                   <HelpTip
                     >Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
@@ -532,7 +532,7 @@
                 </span>
               </template>
               <template #footer>
-                <span v-if="extraChains.length" class="text-body text-slate-500">
+                <span v-if="extraChains.length" class="text-body text-slate-600">
                   One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} boxes, one
                   after another. Each finished one is saved under Saved for later.
                 </span>
@@ -558,7 +558,7 @@
                 :disabled="store.isRunning"
                 class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
-              <span class="block text-small text-slate-500">
+              <span class="block text-small text-slate-600">
                 {{
                   minGap > 0
                     ? `e.g. after ascending at 200, the next stop is ${200 + minGap} or higher. 0 = no limit.`
@@ -605,10 +605,10 @@
               </div>
               <!-- Only the playable ones (the user, 1 Oct: "we are running the feasible total chains... however
                    the lay user may not know that"). -->
-              <div v-if="runChainsNote" class="text-small text-slate-500">{{ runChainsNote }}</div>
+              <div v-if="runChainsNote" class="text-small text-slate-600">{{ runChainsNote }}</div>
               <div
                 v-else-if="!runLeft && unplayable > 0 && totalChains === chainCount"
-                class="text-small text-slate-500"
+                class="text-small text-slate-600"
               >
                 playable, of {{ combinations.toLocaleString() }} the ranges could make
               </div>
@@ -666,11 +666,11 @@
               <template v-if="store.benchmarking">Benchmarking<AnimatedDots /></template
               ><template v-else>{{ store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}</template>
             </button>
-            <span v-if="store.benchmarking" class="text-body text-slate-500">
+            <span v-if="store.benchmarking" class="text-body text-slate-600">
               Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
               as a real run's opening chunk.
             </span>
-            <span v-else-if="store.benchmarkedAt" class="text-body text-slate-500">
+            <span v-else-if="store.benchmarkedAt" class="text-body text-slate-600">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
               {{ plural(store.benchmarkChainCount, 'route') }} · {{ agoLabel(store.benchmarkedAt) }}
             </span>
@@ -681,7 +681,7 @@
             {{ coverageBefore }}
             <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
           </p>
-          <p class="text-body" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
+          <p class="text-body" :class="tooBig ? 'text-red-800' : 'text-slate-600'">
             <template v-if="!poolSize">
               The ranges are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
@@ -799,7 +799,7 @@
               v-if="queueAt >= 0 || queueResults.length"
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
-              <p class="text-small font-bold text-slate-500">
+              <p class="text-small font-bold text-slate-600">
                 <template v-if="queueAt >= 0">Running box {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
                 <template v-else>All boxes from the last click</template>
               </p>
@@ -810,7 +810,7 @@
                 :row-key="q => q.label"
               >
                 <template #default="{ row: q }">
-                  <td class="pr-4 py-1 text-slate-500">
+                  <td class="pr-4 py-1 text-slate-600">
                     {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
                   </td>
                   <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
@@ -832,7 +832,7 @@
                   </td>
                 </template>
               </ResultTable>
-              <p class="text-small text-slate-500">
+              <p class="text-small text-slate-600">
                 Each is saved under Saved for later, so you can open any of them again. Compare them by finish date.
               </p>
             </div>
@@ -995,7 +995,7 @@
             >
               Check start times for this route</button
             >
-            <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
+            <span class="text-slate-600"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
           <!-- The run's charts are on My runs › Your latest run (LatestRunView.vue; moved off this screen,
                15 Oct 2026): "Dig deeper into your plan ›". -->

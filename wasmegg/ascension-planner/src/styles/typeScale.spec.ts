@@ -204,7 +204,7 @@ describe('line length (step 4): reading paragraphs stop at about 65 characters (
     // Both screens' intro lines live in the "?" beside the switch since 14 Nov 2026 (layout/GoalHelp.vue).
     expect(read('components/layout/GoalHelp.vue')).toContain('<p class="mx-auto text-body text-slate-600 max-w-prose" :data-testid="testid">');
     expect(read('components/StudyForm.vue')).toContain('class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro"');
-    expect(read('components/MyRunsView.vue')).toContain('<span class="block max-w-prose text-body text-slate-500"');
+    expect(read('components/MyRunsView.vue')).toContain('<span class="block max-w-prose text-body text-slate-600"');
     expect(read('components/auto/YourSetup.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(10);
     expect(read('components/auto/InstantRoute.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(8);
   });

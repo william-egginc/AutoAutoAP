@@ -6,7 +6,7 @@
         Hab Space Target
       </div>
       <div class="text-sm font-semibold text-gray-900 truncate">{{ summary.targetLabel }}</div>
-      <div class="text-xs text-gray-500">+{{ formatNumber(summary.addedCapacity, 0) }} hab space</div>
+      <div class="text-xs text-gray-600">+{{ formatNumber(summary.addedCapacity, 0) }} hab space</div>
     </div>
     <div class="text-right shrink-0">
       <div class="text-body font-bold text-gray-900 tabular-nums">
@@ -19,7 +19,7 @@
       </div>
       <div
         v-tippy="`Bought ${summary.finishAbsoluteTime}.`"
-        class="text-small text-gray-500 cursor-help tabular-nums"
+        class="text-small text-gray-600 cursor-help tabular-nums"
       >
         {{ summary.targetWaitSeconds < 1 ? '0s' : formatDuration(summary.targetWaitSeconds) }}
         <span v-if="summary.targetDuringEarningsBoost" class="ml-1 text-amber-600 label"

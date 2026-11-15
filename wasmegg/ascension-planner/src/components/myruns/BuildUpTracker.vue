@@ -98,7 +98,7 @@
         <template v-else-if="result">
           <!-- Two lines (UX fluff review 2, 5 Nov 2026, item R12): the save's age with "Load a newer save", and the silo
                warning below; the plan's save, the check-in spacing and the Smart Buy setting are behind the "?". -->
-          <p class="text-small text-slate-500 tabular-nums" data-testid="buildup-now">
+          <p class="text-small text-slate-600 tabular-nums" data-testid="buildup-now">
             Now {{ dayClock(now, zone, now) }} · your save
             <span :class="saveOld ? 'text-amber-800' : ''">{{ dayClock(saveSeconds, zone, now) }} ({{ saveAge }} old)</span>.
             Load a newer save to tick off what you bought.{{ ' ' }}<HelpTip data-testid="buildup-plan"
@@ -110,7 +110,7 @@
           </p>
           <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts):
                with awake hours set, this plan's research buys can fall outside them, so its finish is a best case. Once. -->
-          <p v-if="nightBuy" class="text-small text-slate-500" data-testid="buildup-night-buy">
+          <p v-if="nightBuy" class="text-small text-slate-600" data-testid="buildup-night-buy">
             {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
           </p>
           <!-- LIST / COMPACT (spec-trackercompact, 8 Nov 2026, Jordan: "all suggested"): two real buttons with aria-pressed
@@ -220,7 +220,7 @@
               <template v-for="d in [row.day]" :key="d.ymd">
               <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                 <h3 class="label text-slate-700" :id="`buildup-dayhead-${d.ymd}`" tabindex="-1">{{ d.title }}</h3>
-                <span class="text-small text-slate-500 tabular-nums">
+                <span class="text-small text-slate-600 tabular-nums">
                   {{ dayWords(d) }}<template v-if="d.clockNote">{{ ' · ' }}{{ d.clockNote }}</template>
                 </span>
                 <!-- Show less only: a collapsed day's way to show all is the "+ N more · show all" under its lines (both were
@@ -280,7 +280,7 @@
                     class="min-h-[44px] min-w-0 flex-1 py-[13px] text-small break-words"
                     :class="l.tickable ? 'cursor-pointer' : ''"
                   >
-                    <span v-if="l.time" class="tabular-nums text-slate-500">{{ l.time }}{{ ' · ' }}</span>
+                    <span v-if="l.time" class="tabular-nums text-slate-600">{{ l.time }}{{ ' · ' }}</span>
                     <span v-if="struck(l)" :class="l.bold ? 'font-bold' : ''" :data-testid="`buildup-parts-${l.key}`"
                       >buy{{ ' ' }}<template v-for="(p, n) in l.parts" :key="n"
                         ><template v-if="n">{{ ', ' }}</template
@@ -290,8 +290,8 @@
                       >{{ sweepTail(l) }}</span
                     >
                     <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
-                    <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
-                    <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
+                    <span v-if="l.tail" class="tabular-nums text-slate-600">{{ ' · ' }}{{ l.tail }}</span>
+                    <span v-if="l.sub" class="text-slate-600">{{ ' · ' }}{{ l.sub }}</span>
                     <!-- A research tier unlocks on this check-in (lib/buildUpTiers.ts): a label, not a control. -->
                     <span v-if="tierAt.get(l.key)" class="font-bold text-indigo-700" :data-testid="`buildup-tier-${l.key}`"
                       >{{ ' · ' }}{{ tierUnlocksWords(tierAt.get(l.key)!) }}</span
@@ -414,8 +414,8 @@
                   @click="jumpToDay(d.ymd)"
                 >
                   <span class="label text-slate-700">{{ d.title }}</span>
-                  <span class="text-small text-slate-500 tabular-nums">{{ compactMeta(d) }}</span>
-                  <span class="ml-auto text-small tabular-nums" :class="dayDone(d, ticked) ? 'text-green-700' : 'text-slate-500'"
+                  <span class="text-small text-slate-600 tabular-nums">{{ compactMeta(d) }}</span>
+                  <span class="ml-auto text-small tabular-nums" :class="dayDone(d, ticked) ? 'text-green-700' : 'text-slate-600'"
                     >{{ compactStatus(d) }}{{ ' ' }}<span class="font-bold text-indigo-700" aria-hidden="true">›</span
                     ><span class="sr-only">{{ ' ' }}{{ COMPACT_JUMP }}</span></span
                   >
@@ -429,7 +429,7 @@
                   :data-testid="`buildup-crun-${d.ymd}`"
                   @toggle="openRun(d.ymd)"
                 />
-                <p class="label mt-2 text-slate-500">{{ STILL_TO_BUY }}</p>
+                <p class="label mt-2 text-slate-600">{{ STILL_TO_BUY }}</p>
               </template>
               <!-- The day split by stage (lib/buildUpStages.ts): each stage's band above its own chips and ranges, so the Tier 13
                    marker sits under the Tier 13 band. A day in one stage (or no stages) is one block, as before. -->
@@ -447,7 +447,7 @@
                   v-for="c in seg.chips"
                   :key="c.key"
                   class="rounded-lg border px-2.5 py-0.5 text-small"
-                  :class="c.event ? 'border-indigo-300 text-indigo-700' : c.done ? 'border-slate-200 text-slate-500' : 'border-slate-400 font-bold text-slate-900'"
+                  :class="c.event ? 'border-indigo-300 text-indigo-700' : c.done ? 'border-slate-200 text-slate-600' : 'border-slate-400 font-bold text-slate-900'"
                   data-testid="buildup-chip"
                 >
                   <template v-if="c.done"><span aria-hidden="true" class="text-green-700">✓</span>{{ ' ' }}</template>{{ c.text
@@ -459,7 +459,7 @@
                   v-for="r in seg.ranges"
                   :key="r.id"
                   class="flex items-baseline gap-x-2 text-small tabular-nums"
-                  :class="r.done ? 'text-slate-500' : 'text-slate-700'"
+                  :class="r.done ? 'text-slate-600' : 'text-slate-700'"
                   data-testid="buildup-range"
                 >
                   <span v-if="r.done" aria-hidden="true" class="font-bold text-green-700">✓</span
@@ -481,7 +481,7 @@
                     </button>
                   </p>
               </div>
-              <p v-for="n in compactKind(d, 'note')" :key="n.key" class="mt-1 text-small text-slate-500">{{ n.text }}</p>
+              <p v-for="n in compactKind(d, 'note')" :key="n.key" class="mt-1 text-small text-slate-600">{{ n.text }}</p>
               <p
                 v-for="w in compactKind(d, 'warning')"
                 :key="w.key"
@@ -493,7 +493,7 @@
             </section>
             </template>
           </template>
-          <p class="text-small text-slate-500" data-testid="buildup-foot">
+          <p class="text-small text-slate-600" data-testid="buildup-foot">
             Times are in your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
             ({{ saleEndWords }}).
           </p>
@@ -1005,9 +1005,9 @@ const replanWhy = computed(() => {
 
 function lineClass(l: TrackerLine): string {
   if (l.kind === 'warning') return 'bg-amber-50 text-amber-800';
-  if (l.kind === 'note') return 'text-slate-500';
+  if (l.kind === 'note') return 'text-slate-600';
   if (l.kind === 'saleStart' || l.kind === 'saleEnd' || l.kind === 'saleWait') return 'text-indigo-700';
-  if (ticked.value.has(l.key)) return 'text-slate-500';
+  if (ticked.value.has(l.key)) return 'text-slate-600';
   if (nextKeys.value.has(l.key)) return 'bg-indigo-50';
   return '';
 }

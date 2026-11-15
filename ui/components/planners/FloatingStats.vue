@@ -11,7 +11,7 @@
       @click="isCollapsed = !isCollapsed"
     >
       <!-- Chevron Indicator -->
-      <div class="text-slate-300 group-hover/toggle:text-slate-500 transition-colors mb-1">
+      <div class="text-slate-600 group-hover/toggle:text-slate-800 transition-colors mb-1">
         <svg
           class="w-4 h-4 transition-transform duration-300"
           :class="{ 'rotate-180': isCollapsed }"
@@ -48,7 +48,7 @@
         <div v-if="activeSet" class="badge-premium badge-brand py-0.5 mb-3 scale-90">
           {{ activeSet === 'earnings' ? 'Earnings' : 'Delivery Rate' }} Set
         </div>
-        <div v-else class="badge-premium py-0.5 mb-3 scale-90 bg-slate-100 text-slate-500">No Active Set</div>
+        <div v-else class="badge-premium py-0.5 mb-3 scale-90 bg-slate-100 text-slate-600">No Active Set</div>
       </template>
 
       <!-- Shift Timing & Duration -->
@@ -71,7 +71,7 @@
       <div class="flex flex-col gap-2.5 w-full">
         <!-- Habs -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label">Habs</span>
+          <span class="text-slate-600 label">Habs</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ habsDisplay }}
           </span>
@@ -81,7 +81,7 @@
 
         <!-- IHR -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label">IHR</span>
+          <span class="text-slate-600 label">IHR</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(offlineIhrHr) }}
           </span>
@@ -91,7 +91,7 @@
 
         <!-- Lay Rate -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label">Lay Rate</span>
+          <span class="text-slate-600 label">Lay Rate</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(layRateHr) }}
           </span>
@@ -101,7 +101,7 @@
 
         <!-- Shipping -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label text-center">Shipping</span>
+          <span class="text-slate-600 label text-center">Shipping</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(shippingHr) }}
           </span>
@@ -111,7 +111,7 @@
 
         <!-- ELR -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label">Delivery</span>
+          <span class="text-slate-600 label">Delivery</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(elrHr) }}
           </span>
@@ -121,7 +121,7 @@
 
         <!-- Offline Earnings -->
         <div class="flex flex-col items-center">
-          <span class="text-slate-400 label text-center leading-none mb-0.5"
+          <span class="text-slate-600 label text-center leading-none mb-0.5"
             >Offline Earnings</span
           >
           <span class="tabular-nums text-small font-bold text-slate-700">
@@ -134,12 +134,12 @@
         <!-- Bank -->
         <div class="flex flex-col items-center">
           <span
-            class="flex items-center gap-1 text-slate-400 label text-center leading-none mb-0.5"
+            class="flex items-center gap-1 text-slate-600 label text-center leading-none mb-0.5"
           >
             Bank
             <button
               v-tippy="'Modify Bank Value'"
-              class="text-slate-500 hover:text-slate-800 transition-colors"
+              class="text-slate-600 hover:text-slate-800 transition-colors"
               @click="showModifyBankModal = true"
             >
               <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

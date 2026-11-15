@@ -105,7 +105,7 @@
               <td class="py-1.5 pr-3 whitespace-nowrap text-slate-700" :title="finishTitle(p.finish, p.row.timezone)">
                 {{ finishDateText(p.finish, viewZone) }}
                 <SimChip :stamp="p.row.simVersion" />
-                <div v-if="narrow" class="text-slate-500">{{ daysLeftPhrase(p.finish, now, viewZone) }}</div>
+                <div v-if="narrow" class="text-slate-600">{{ daysLeftPhrase(p.finish, now, viewZone) }}</div>
               </td>
               <td v-if="!narrow" class="py-1.5 pr-3 text-right font-bold text-slate-700">
                 {{ daysLeftText(p.finish, now, viewZone) }}

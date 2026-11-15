@@ -13,7 +13,7 @@
            already says it), the card's own "?" (CardHelp.vue). -->
       <p class="text-body text-slate-700" data-testid="prefer-fewer-line">{{ copy.line }}<template v-if="copy.what">{{ ' ' }}<CardHelp>{{ copy.what }}</CardHelp></template></p>
     </template>
-    <p v-else class="text-body text-slate-500" data-testid="prefer-fewer-showing-best">
+    <p v-else class="text-body text-slate-600" data-testid="prefer-fewer-showing-best">
       Showing the {{ bestWord }} for now; Prefer fewer ascensions is still on.
     </p>
     <button

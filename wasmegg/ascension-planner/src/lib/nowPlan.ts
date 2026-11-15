@@ -582,7 +582,11 @@ export function markPrestigeWaits(events: readonly PlanEvent[], lines: readonly 
       ...(l?.prestigeInTimeOff ? { prestigeInTimeOff: l.prestigeInTimeOff } : {}),
       ...(l?.onNoPrestigeDay ? { onNoPrestigeDay: true } : {}),
     };
-    return l?.wait ? { ...e, wait: l.wait, prestigeAt: l.prestigeAt, ...flags } : { ...e, ...flags };
+    if (l?.wait) return { ...e, wait: l.wait, prestigeAt: l.prestigeAt, ...flags };
+    // No hours or day wait, but the next ascension starts later than the stop (the instant answer ascends on the hour): that start is the
+    // prestige's time, as Next shifts says it (QA, 15 Nov 2026: "around 10:00 PM" over "11:00 PM" one line below).
+    if (l && Number.isFinite(l.prestigeAt) && l.prestigeAt > e.at + 60) return { ...e, prestigeAt: l.prestigeAt, ...flags };
+    return { ...e, ...flags };
   });
 }
 

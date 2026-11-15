@@ -32,13 +32,13 @@
           <span class="break-words min-w-0">{{ words }}</span>
         </label>
       </fieldset>
-      <p class="text-body text-slate-500" :data-testid="`${testid}-untick-note`">
+      <p class="text-body text-slate-600" :data-testid="`${testid}-untick-note`">
         Tick what you are happy to share; anything you leave unticked stays off.
       </p>
     </template>
 
     <fieldset class="space-y-1 sm:space-y-1.5">
-      <legend class="text-slate-500 label">On the leaderboard</legend>
+      <legend class="text-slate-600 label">On the leaderboard</legend>
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
         <label class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700">
           <input
@@ -85,7 +85,7 @@
       <p v-if="credit === 'name' && !nickname.trim()" class="text-body text-amber-700" :data-testid="`${testid}-name-needed`">
         Type a name to be credited; until then you stay anonymous.
       </p>
-      <p v-else-if="keptNote && credit === 'anon' && nickname.trim()" class="text-body text-slate-500">
+      <p v-else-if="keptNote && credit === 'anon' && nickname.trim()" class="text-body text-slate-600">
         Anonymous; the name is kept for when you pick Credit me as.
       </p>
     </fieldset>

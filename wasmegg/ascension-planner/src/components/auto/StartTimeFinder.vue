@@ -6,7 +6,7 @@
 -->
 <template>
   <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
-    <h3 v-if="!bare" class="text-slate-500 label">{{ NAMES.start }}</h3>
+    <h3 v-if="!bare" class="text-slate-600 label">{{ NAMES.start }}</h3>
     <p class="text-body text-slate-600 max-w-prose">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
@@ -30,7 +30,7 @@
           <option :value="180">3 hours</option>
         </select>
       </label>
-      <span class="text-small text-slate-500">about {{ estimateLabel }} on {{ store.workerBudget }} workers</span>
+      <span class="text-small text-slate-600">about {{ estimateLabel }} on {{ store.workerBudget }} workers</span>
       <button
         v-if="!store.startSweepRunning"
         type="button"
@@ -54,7 +54,7 @@
       <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
         <div class="h-full bg-indigo-500 transition-all" :style="{ width: `${pct}%` }"></div>
       </div>
-      <p class="text-body text-slate-500">{{ sweep.done }} of {{ sweep.total }} start times priced</p>
+      <p class="text-body text-slate-600">{{ sweep.done }} of {{ sweep.total }} start times priced</p>
     </div>
 
     <template v-if="best && sweep && !store.startSweepRunning">
@@ -90,7 +90,7 @@
           </thead>
           <tbody>
             <tr v-for="d in grid" :key="d.label">
-              <th class="pr-2 text-left font-bold text-slate-500 whitespace-nowrap">{{ d.label }}</th>
+              <th class="pr-2 text-left font-bold text-slate-600 whitespace-nowrap">{{ d.label }}</th>
               <td
                 v-for="(c, i) in d.cells"
                 :key="i"
@@ -102,7 +102,7 @@
           </tbody>
         </table>
       </div>
-      <p class="text-small text-slate-500">
+      <p class="text-small text-slate-600">
         Each square is a start time. Darker green finishes sooner; grey finishes last of the week. Hover a square for
         when it finishes and how long the run takes. Empty squares are outside your awake hours.
       </p>

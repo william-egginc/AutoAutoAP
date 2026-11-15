@@ -4,7 +4,7 @@
   list is in CustomBoxesHelp.spec.ts.
 -->
 <template>
-  <div class="max-w-prose space-y-1.5 text-body text-slate-500" data-testid="custom-boxes-help">
+  <div class="max-w-prose space-y-1.5 text-body text-slate-600" data-testid="custom-boxes-help">
     <p data-testid="custom-boxes-lead">
       Each box is one range of TEs per ascension before the last, like {{ fastestName(finalTe) }} ›
       {{ NAMES.fullFirst }}'s.

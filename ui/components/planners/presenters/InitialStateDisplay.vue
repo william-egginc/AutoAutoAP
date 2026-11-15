@@ -9,7 +9,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 md:flex-wrap">
           <div>
             <div class="text-body font-bold text-slate-700">{{ PROFILE.planLabel }} Start</div>
-            <div class="hidden md:block label text-slate-400">When this journey begins</div>
+            <div class="hidden md:block label text-slate-600">When this journey begins</div>
           </div>
           <div class="flex flex-col md:flex-row md:items-center md:flex-wrap md:justify-end gap-2 w-full md:w-auto mt-1 md:mt-0">
             <DateTimeZonePicker
@@ -36,7 +36,7 @@
           <div>
             <div class="text-body font-bold text-slate-700">Assume Double Earnings</div>
             <div
-              class="hidden sm:block text-small font-bold text-slate-400 group-hover:text-slate-500 transition-colors"
+              class="hidden sm:block text-small font-bold text-slate-600 group-hover:text-slate-500 transition-colors"
             >
               Active Video Doubler or Ultra
             </div>
@@ -93,7 +93,7 @@
             </span>
           </div>
           <svg
-            class="w-4 h-4 text-slate-400 transition-transform duration-300"
+            class="w-4 h-4 text-slate-600 transition-transform duration-300"
             :class="{ 'rotate-180': fuelTankExpanded }"
             fill="none"
             stroke="currentColor"
@@ -136,7 +136,7 @@
           <h3 class="style-guide-label mb-0">Epic Research</h3>
         </div>
         <svg
-          class="w-4 h-4 text-slate-400 transition-transform duration-300"
+          class="w-4 h-4 text-slate-600 transition-transform duration-300"
           :class="{ 'rotate-180': epicResearchExpanded }"
           fill="none"
           stroke="currentColor"
@@ -182,13 +182,13 @@
                     )
                   "
                 />
-                <span class="text-slate-300 label w-10"
+                <span class="text-slate-600 label w-10"
                   >/ {{ research.maxLevel }}</span
                 >
               </div>
             </div>
           </div>
-          <div class="text-small text-slate-500 font-normal italic pl-14 pr-2 pb-1">
+          <div class="text-small text-slate-600 font-normal italic pl-14 pr-2 pb-1">
             {{ research.effect }}
           </div>
         </div>
@@ -208,7 +208,7 @@
           <h3 class="style-guide-label mb-0">Colleggtibles</h3>
         </div>
         <svg
-          class="w-4 h-4 text-slate-400 transition-transform duration-300"
+          class="w-4 h-4 text-slate-600 transition-transform duration-300"
           :class="{ 'rotate-180': colleggtiblesExpanded }"
           fill="none"
           stroke="currentColor"
@@ -236,7 +236,7 @@
               </div>
               <div class="min-w-0">
                 <div class="text-slate-800 label">{{ egg.name }}</div>
-                <div class="text-small text-slate-400 font-normal truncate italic">
+                <div class="text-small text-slate-600 font-normal truncate italic">
                   {{ egg.bonusText }} {{ egg.effect.toLowerCase() }}
                 </div>
               </div>

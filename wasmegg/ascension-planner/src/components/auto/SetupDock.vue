@@ -63,7 +63,7 @@
         <span class="flex flex-col items-start leading-tight" :class="round ? 'max-sm:hidden' : ''">
           <span class="text-body font-bold">Setup</span>
           <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
-          <span v-if="summary" class="text-small font-normal text-white/85 text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
+          <span v-if="summary" class="text-small font-normal text-white text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
           v-if="errors"

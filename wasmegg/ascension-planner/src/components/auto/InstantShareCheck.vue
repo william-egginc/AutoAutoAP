@@ -24,7 +24,7 @@
         ><span
           v-if="status"
           class="text-small font-normal"
-          :class="sent ? 'text-emerald-700' : 'text-slate-500'"
+          :class="sent ? 'text-emerald-700' : 'text-slate-600'"
           data-testid="share-status"
           >· {{ status }}</span
         ></template
@@ -44,7 +44,7 @@
           <span
             v-if="status"
             class="text-small"
-            :class="sent ? 'text-emerald-700' : 'text-slate-500'"
+            :class="sent ? 'text-emerald-700' : 'text-slate-600'"
             data-testid="share-status"
             >{{ status }}</span
           >
@@ -52,7 +52,7 @@
       </template>
       <template #text><span>Share my search results</span></template>
       <template #after>
-        <p class="text-small text-slate-500">
+        <p class="text-small text-slate-600">
           Sends this result and the instant answer for the same goal to the planner's maintainer when a search
           finishes, to make the instant answer more accurate. Never your player ID, never shown on the board. At most
           once an hour per save.

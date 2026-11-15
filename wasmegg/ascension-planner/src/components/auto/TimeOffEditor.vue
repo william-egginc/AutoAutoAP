@@ -12,7 +12,7 @@
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <!-- The box's heading in the same small caps as Awake hours beside it (it was small bold, a third style; spec-tidy). -->
-      <span class="label text-slate-500">{{ words.title }}</span>
+      <span class="label text-slate-600">{{ words.title }}</span>
       <button
         type="button"
         :disabled="store.isRunning || rows.length >= 8"
@@ -26,7 +26,7 @@
     <!-- One line in view, the full explainer behind a 44 px "?" opening in place, word for word (UX fluff review 2, S20
          and S22; the short lines are DRAFT for Words). Time off's line keeps its safety clause: it is a prestige. -->
     <div class="flex items-start gap-1">
-      <p class="min-w-0 flex-1 py-1 text-body text-slate-500" :data-testid="`${kind}-short`">{{ words.short }}</p>
+      <p class="min-w-0 flex-1 py-1 text-body text-slate-600" :data-testid="`${kind}-short`">{{ words.short }}</p>
       <button
         type="button"
         class="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-body font-bold text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
@@ -42,7 +42,7 @@
     <p
       :id="explainId"
       :hidden.attr="moreOpen ? undefined : 'until-found'"
-      class="text-body text-slate-500"
+      class="text-body text-slate-600"
       :data-testid="`${kind}-explain`"
       @beforematch="moreOpen = true"
     >

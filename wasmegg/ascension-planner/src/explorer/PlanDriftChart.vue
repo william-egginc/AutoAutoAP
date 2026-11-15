@@ -45,7 +45,7 @@
         :class="
           view === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
-            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         "
         :aria-pressed="view === mode.id"
         :disabled="mode.id === 'repriced' && !current?.repricedPlans"
@@ -59,7 +59,7 @@
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>
-    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-500 max-w-prose">
+    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-600 max-w-prose">
       None of {{ current.label }}'s plans has been priced twice yet, so there is no line to draw: each mark is one plan
       at the date it was made.
     </p>
@@ -69,7 +69,7 @@
 
     <div
       v-if="current && shown.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-600"
       aria-label="How to read the marks"
     >
       <span class="text-slate-600">Colour is the ascension count, not an account</span>
@@ -113,18 +113,18 @@
             >
               <td class="py-1 pr-3 whitespace-nowrap font-bold text-slate-700">{{ r.account }}</td>
               <td class="py-1 pr-3 whitespace-nowrap tabular-nums text-slate-600">{{ r.plan }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.made }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.again }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap text-slate-600">{{ r.made }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap text-slate-600">{{ r.again }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-right tabular-nums text-slate-600">{{ r.apart }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-right tabular-nums font-bold" :class="r.movedClass">
                 {{ r.moved }}
               </td>
-              <td class="py-1 whitespace-nowrap text-slate-500">{{ r.by }}</td>
+              <td class="py-1 whitespace-nowrap text-slate-600">{{ r.by }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-else class="text-body text-slate-500">No plan to {{ finalTE }} TE has been priced twice yet.</p>
+      <p v-else class="text-body text-slate-600">No plan to {{ finalTE }} TE has been priced twice yet.</p>
     </div>
 
     <p class="px-1 text-body text-slate-600 max-w-3xl">
@@ -490,7 +490,7 @@ const tableRows = computed(() =>
         again: dateText(r.to.start),
         apart: apartText(r.apart),
         moved: movedText(r.moved),
-        movedClass: dir === 'later' ? 'text-rose-700' : dir === 'earlier' ? 'text-emerald-700' : 'text-slate-500',
+        movedClass: dir === 'later' ? 'text-rose-700' : dir === 'earlier' ? 'text-emerald-700' : 'text-slate-600',
         by: KIND_TEXT[r.to.kind],
       };
     })

@@ -24,7 +24,7 @@
                 <span class="text-slate-600 label leading-none">{{ formatTimeRange(summary.startTime, summary.endTime) }}</span>
                 <button
                   v-tippy="hasEndTimeOverride ? 'Edit overridden end time' : 'Override end time'"
-                  class="text-slate-300 hover:text-indigo-500 transition-colors flex-shrink-0"
+                  class="text-slate-600 hover:text-indigo-700 transition-colors flex-shrink-0"
                   @click="startEditingEndTime"
                 >
                   <svg class="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,12 +63,12 @@
                 @click="saveEndTimeOverride"
               >Save</button>
               <button
-                class="px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-500 text-body font-bold rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-600 text-body font-bold rounded-lg transition-all"
                 @click="cancelEditingEndTime"
               >Cancel</button>
               <button
                 v-if="hasEndTimeOverride"
-                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-600 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
                 @click="resetEndTimeOverride"
               >Reset to Auto</button>
             </div>
@@ -77,7 +77,7 @@
             <div v-if="displayComparisons.length > 0" class="flex flex-wrap gap-2 mt-1">
               <div v-for="(comp, ci) in displayComparisons" :key="ci"
                 class="px-1.5 py-0.5 rounded text-small font-bold flex items-center gap-1 shadow-sm w-fit"
-                :class="comp.message ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'">
+                :class="comp.message ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'">
                 <svg v-if="!comp.message" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
@@ -94,7 +94,7 @@
         <div class="flex items-center gap-2 flex-wrap ml-[38px] sm:ml-[44px]">
           <button
             @click="isExpanded = !isExpanded"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors group shadow-sm flex-shrink-0"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-600 hover:text-indigo-600 transition-colors group shadow-sm flex-shrink-0"
           >
             <span>{{ isExpanded ? 'Hide details' : 'View details' }}</span>
             <svg
@@ -110,7 +110,7 @@
           <div class="relative flex-shrink-0" ref="dropdownRef">
             <button
               @click.stop="isDropdownOpen = !isDropdownOpen"
-              class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm"
+              class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-600 hover:text-indigo-600 transition-colors shadow-sm"
             >
               <span>{{ activeVariantShortLabel }}</span>
               <svg class="w-3 h-3 transition-transform duration-200" :class="isDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +166,7 @@
                 <span v-if="!continueAvailable" v-tippy="continueDisabledTooltip" class="block">
                   <button
                     disabled
-                    class="w-full text-left px-3 py-1.5 text-body font-bold flex items-center gap-1.5 opacity-40 cursor-not-allowed text-slate-500"
+                    class="w-full text-left px-3 py-1.5 text-body font-bold flex items-center gap-1.5 opacity-40 cursor-not-allowed text-slate-600"
                   >
                     <span class="w-2.5 flex-shrink-0" />
                     Continue Asc.
@@ -201,7 +201,7 @@
           <button
             v-if="variantRows.length > 1 || continueAvailable"
             v-tippy="'Compare all variants side by side'"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-600 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0"
             @click="isComparisonOpen = true"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +220,7 @@
             @click="emit('saveSingleToLibrary')"
             :disabled="isSavingSingle"
             v-tippy="saveSingleSuccess ? 'Saved to plan library!' : 'Save to plan library'"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-600 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg v-if="isSavingSingle" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -249,7 +249,7 @@
             <svg class="w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-            <span class="text-body sm:text-headline tabular-nums font-black text-emerald-600">{{ summary.endTE }}</span>
+            <span class="text-body sm:text-headline tabular-nums font-black text-emerald-700">{{ summary.endTE }}</span>
           </div>
           <div class="text-emerald-500/80 label mt-0.5">+{{ summary.teGained }}</div>
         </div>
@@ -274,7 +274,7 @@
                 class="text-small tabular-nums font-bold"
                 :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
-              <span class="label" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
+              <span class="label" :class="alt.isActive ? 'text-indigo-600' : 'text-slate-600'">/hr</span>
               <span class="label" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
             </div>
           </div>
@@ -320,7 +320,7 @@
         <div v-if="loadoutEditorValue" class="bg-slate-50/50 border border-slate-100 rounded-xl p-2 sm:p-3 space-y-2">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <h4 class="text-slate-500 label">Artifacts &amp; Stones</h4>
+              <h4 class="text-slate-600 label">Artifacts &amp; Stones</h4>
               <span
                 v-if="hasLoadoutOverride"
                 class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
@@ -335,7 +335,7 @@
               >Apply</button>
               <button
                 v-if="hasLoadoutOverride"
-                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-600 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
                 @click="emit('overrideLoadout', null)"
               >Remove override</button>
             </div>

@@ -3,7 +3,7 @@
     <!-- Current State -->
     <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
       <div class="flex justify-between items-center mb-5">
-        <h4 class="text-slate-400 label">Silos Owned</h4>
+        <h4 class="text-slate-600 label">Silos Owned</h4>
         <div class="badge-premium bg-slate-50 text-slate-600 border-slate-100 px-3 py-1 flex items-center gap-1.5">
           <span class="opacity-60 label">Active:</span>
           <span class="text-body tabular-nums font-bold text-slate-900"
@@ -38,7 +38,7 @@
           />
           <div v-else class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
 
-          <span class="absolute bottom-1 right-1.5 text-slate-300 label">#{{ index }}</span>
+          <span class="absolute bottom-1 right-1.5 text-slate-600 label">#{{ index }}</span>
         </div>
       </div>
 
@@ -132,7 +132,7 @@
         <!-- Simplified Decoration -->
         <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-50"></div>
 
-        <p class="text-slate-400 label mb-3 leading-none relative z-10">
+        <p class="text-slate-600 label mb-3 leading-none relative z-10">
           Total Away Time
         </p>
         <p class="text-headline tabular-nums font-black text-slate-900 mb-3 relative z-10">
@@ -142,7 +142,7 @@
         <div
           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-100 shadow-sm relative z-10"
         >
-          <span class="text-slate-400 label">
+          <span class="text-slate-600 label">
             {{ siloOutput.siloCount }} silo{{ siloOutput.siloCount !== 1 ? 's' : '' }}
           </span>
           <div class="w-1 h-1 rounded-full bg-slate-200"></div>
@@ -169,7 +169,7 @@
             />
           </div>
           <div>
-            <p class="text-slate-400 label mb-0.5">Silo Capacity</p>
+            <p class="text-slate-600 label mb-0.5">Silo Capacity</p>
             <p class="text-body font-bold text-indigo-900">Epic Research: +6 min/silo/level</p>
           </div>
         </div>
@@ -183,7 +183,7 @@
         </div>
       </div>
       <div
-        class="mt-3 flex items-center gap-2 text-small font-bold text-slate-500 bg-white/50 p-2 rounded-lg border border-indigo-50/50 shadow-inner"
+        class="mt-3 flex items-center gap-2 text-small font-bold text-slate-600 bg-white/50 p-2 rounded-lg border border-indigo-50/50 shadow-inner"
       >
         <span class="opacity-60">Base: 60m</span>
         <div class="w-1 h-px bg-slate-300"></div>

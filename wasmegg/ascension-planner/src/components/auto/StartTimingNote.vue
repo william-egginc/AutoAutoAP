@@ -4,9 +4,9 @@
   <details> like the page's other small explainers (ByDateScreen's "How … works", MaxedWhatIf), so not remembered.
 -->
 <template>
-  <details class="start-timing max-w-prose text-small text-slate-500">
+  <details class="start-timing max-w-prose text-small text-slate-600">
     <summary
-      class="flex min-h-[44px] cursor-pointer select-none items-center gap-1 font-bold text-slate-500 hover:text-slate-700"
+      class="flex min-h-[44px] cursor-pointer select-none items-center gap-1 font-bold text-slate-600 hover:text-slate-700"
     >
       Why times differ from the instant answer
       <span aria-hidden="true" class="start-timing-chevron leading-none text-slate-600">›</span>

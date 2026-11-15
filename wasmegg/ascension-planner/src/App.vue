@@ -103,7 +103,7 @@
                  on Manual only (H4): the other screens say the save's age in their save-age box and Setup. -->
             <div
               v-if="manualShown && initialStateStore.hasData && lastBackupFormatted"
-              class="text-center text-slate-500 label mb-4 -mt-1"
+              class="text-center text-slate-600 label mb-4 -mt-1"
             >
               Player Backup From: {{ lastBackupFormatted }}
             </div>
@@ -179,7 +179,7 @@
            library and action cards), Single run, the Leaderboard and Science. -->
       <div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">
         <button
-          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
+          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
           :aria-expanded="!isHeaderCollapsed"
           @click="toggleHeader"
@@ -266,7 +266,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Start from Scratch</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <p class="text-small text-slate-600 font-bold mt-1.5">
                       Clear your entire plan, reset all settings, and begin with a clean slate
                     </p>
                   </div>
@@ -299,7 +299,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Plan Future Ascension</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <p class="text-small text-slate-600 font-bold mt-1.5">
                       Load your latest backup, include pending TE, reset the clock, and start planning fresh
                     </p>
                   </div>
@@ -331,7 +331,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Continue Current Ascension</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <p class="text-small text-slate-600 font-bold mt-1.5">
                       Resume from your current in-game farm with all events applied
                     </p>
                   </div>
@@ -363,7 +363,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Reconcile Plan</div>
-                    <p class="text-small text-slate-500 font-bold mt-1.5">
+                    <p class="text-small text-slate-600 font-bold mt-1.5">
                       Load a plan and compare against your current farm to track progress
                     </p>
                   </div>
@@ -456,7 +456,7 @@
           <div class="flex items-center gap-3 relative z-10">
             <!-- Icon/Status -->
             <div
-              class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm"
+              class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 shadow-sm"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -472,7 +472,7 @@
               <span class="text-slate-600 label leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
-              <span class="text-small font-bold text-emerald-600">
+              <span class="text-small font-bold text-emerald-700">
                 Backup from {{ lastBackupFormatted }}
                 <span class="text-emerald-400/80 font-normal">({{ lastBackupAge }})</span>
               </span>
@@ -497,7 +497,7 @@
 
             <!-- Refresh Button -->
             <button
-              class="h-8 w-8 rounded-lg bg-white border border-emerald-100 shadow-sm flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
+              class="h-8 w-8 rounded-lg bg-white border border-emerald-100 shadow-sm flex items-center justify-center text-emerald-700 hover:bg-emerald-50 transition-colors"
               title="Reload backup"
               :disabled="loading"
               @click="handleRefreshReconcile"
@@ -747,7 +747,7 @@
         >
           <div class="px-6 py-5 border-b border-slate-100">
             <h3 class="text-title font-bold text-slate-800">Current Artifact Set</h3>
-            <p class="mt-2 text-body text-slate-500">Which artifact set do you currently have equipped in game?</p>
+            <p class="mt-2 text-body text-slate-600">Which artifact set do you currently have equipped in game?</p>
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
             <button
@@ -793,7 +793,7 @@
       </main>
 
       <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
-      <footer class="pt-8 text-center text-small text-slate-500" data-testid="site-footer">
+      <footer class="pt-8 text-center text-small text-slate-600" data-testid="site-footer">
         <a
           href="./about.html"
           class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
@@ -1550,7 +1550,7 @@ const topTabs = computed(() => [
         {
           id: 'compare' as const,
           label: NAMES.compare,
-          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
+          on: 'bg-emerald-700 text-white shadow-lg shadow-emerald-100',
         },
       ]
     : []),

@@ -17,7 +17,7 @@
     <!-- By a date (`compact`, UX fluff review 2, 5 Nov 2026, item D4): the paragraph is behind the button, its title and,
          for a screen reader, its description. -->
     <span v-if="compact && status === 'idle'" :id="whyId" class="sr-only">{{ whyText }} {{ howText }}</span>
-    <p v-if="status === 'idle' && !compact" class="mt-1 text-small text-slate-500">
+    <p v-if="status === 'idle' && !compact" class="mt-1 text-small text-slate-600">
       Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner. This prices
       {{ chain.join(' ') }} with each wait from 1 to 24 hours (about {{ legs }} ascensions on the full simulator, several
       minutes or more).
@@ -26,14 +26,14 @@
       <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <span v-if="stopAsked">Stopping after the routes being priced now<AnimatedDots /></span
       ><span v-else>Trying waits before each prestige<AnimatedDots />{{ ` ${done} of at most ${most} routes priced.` }}</span>
-      <button v-if="!stopAsked" type="button" class="underline text-slate-500" data-testid="wait-stop" @click="stopAsked = true">
+      <button v-if="!stopAsked" type="button" class="underline text-slate-600" data-testid="wait-stop" @click="stopAsked = true">
         Stop
       </button>
     </p>
-    <p v-if="status === 'error'" class="mt-1 text-slate-500">Couldn’t price the waits this time.</p>
+    <p v-if="status === 'error'" class="mt-1 text-slate-600">Couldn’t price the waits this time.</p>
     <div v-if="lines" class="mt-1 space-y-0.5" data-testid="wait-result">
       <p v-if="!pricedOnHours" class="mb-1 font-bold text-amber-700" data-testid="wait-any-hour">{{ ANY_HOUR_WARNING }}</p>
-      <p v-if="report && report.baseSeconds !== null" class="text-slate-500">
+      <p v-if="report && report.baseSeconds !== null" class="text-slate-600">
         Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as the full simulator prices it.
       </p>
       <template v-for="s in lines.singles" :key="s.stop">
@@ -42,7 +42,7 @@
       </template>
       <p v-if="lines.together" class="pt-1 font-bold text-emerald-900" data-testid="wait-together">{{ lines.together }}</p>
       <p v-for="w in lines.togetherWarns" :key="w" class="pl-3 text-amber-700">{{ w }}</p>
-      <p v-if="report?.stopped" class="text-slate-500">Stopped early: this is what was priced so far.</p>
+      <p v-if="report?.stopped" class="text-slate-600">Stopped early: this is what was priced so far.</p>
       <p class="pt-1 text-small text-slate-600">
         While you wait, the farm keeps laying the egg it ended on, and those eggs carry into your next ascension. Stops
         stay whole TE: prestiging before one always costs more than it saves. A wait an hour or two off can lose far more

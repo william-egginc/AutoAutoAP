@@ -9,7 +9,7 @@
     <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="askYourRuns()"
       >Dig deeper into your plan ›</a
     >
-    <span class="text-slate-500"> {{ detail }} ({{ NAMES.myRuns }} › Your runs)</span>
+    <span class="text-slate-600"> {{ detail }} ({{ NAMES.myRuns }} › Your runs)</span>
   </p>
 </template>
 

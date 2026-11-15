@@ -24,7 +24,7 @@
         <b>chain-search-*.csv</b> (or a .csv.gz) and <b>chain-search-diagnostics-*.json</b>, from the two download
         buttons under the results. Pick both at once.
       </p>
-      <p class="text-small font-bold text-slate-500">
+      <p class="text-small font-bold text-slate-600">
         CSV: {{ csvName || '—' }} · diagnostics: {{ diagName || '—' }}
       </p>
     </div>
@@ -38,7 +38,7 @@
         <div class="rounded-lg bg-slate-50 px-3 py-2">
           <div class="label text-slate-600">Run</div>
           <div class="font-bold text-slate-800">{{ csv.currentTE }} → {{ csv.finalTE }} TE</div>
-          <div class="text-slate-500">
+          <div class="text-slate-600">
             best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d ·
             {{ csv.chainsFound.toLocaleString() }}
             routes
@@ -47,7 +47,7 @@
         <div class="rounded-lg bg-slate-50 px-3 py-2">
           <div class="label text-slate-600">Plan start</div>
           <div class="font-bold text-slate-800">{{ preview?.startLocal }} ({{ preview?.startWeekday }})</div>
-          <div class="text-slate-500">{{ csv.timezone }} · backup {{ preview?.backupAgeHours ?? '?' }} h old</div>
+          <div class="text-slate-600">{{ csv.timezone }} · backup {{ preview?.backupAgeHours ?? '?' }} h old</div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">
           <div class="label text-slate-600">Gear</div>
@@ -56,7 +56,7 @@
             TE
             {{ preview?.clothedTE ?? '—' }}
           </div>
-          <div class="text-slate-500">
+          <div class="text-slate-600">
             final ascension
             {{
               check.rate
@@ -142,7 +142,7 @@
         </label>
       </div>
 
-      <details class="text-body text-slate-500">
+      <details class="text-body text-slate-600">
         <summary class="cursor-pointer font-bold">Exactly what gets sent</summary>
         <p class="mt-1">
           This record, plus the CSV (compressed, player IDs removed), is sent as a <b>public</b> row on the leaderboard:

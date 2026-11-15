@@ -33,7 +33,7 @@
         data-testid="calendar-google"
         >Add to Google Calendar</a
       >
-      <p v-else class="px-2 text-small text-slate-500">Google Calendar: import the .ics (Settings › Import).</p>
+      <p v-else class="px-2 text-small text-slate-600">Google Calendar: import the .ics (Settings › Import).</p>
       <p class="px-2 text-small text-slate-600">10-minute alert. Made on {{ device }}; nothing is sent.</p>
     </div>
   </details>

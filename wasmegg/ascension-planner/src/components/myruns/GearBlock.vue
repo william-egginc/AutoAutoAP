@@ -12,12 +12,12 @@
 -->
 <template>
   <div class="mt-3" data-testid="now-gear">
-    <p class="label text-slate-500">Gear · from your save</p>
+    <p class="label text-slate-600">Gear · from your save</p>
     <details v-for="r in rows" :key="r.id" class="border-t border-slate-100 py-1.5" :data-testid="`now-gear-${r.id}`">
       <summary class="cursor-pointer list-none flex flex-wrap items-center gap-2 text-small">
         <span
           class="shrink-0 text-small font-bold"
-          :class="r.id === 'equipped' && match ? 'min-w-[7rem] max-w-full text-slate-700' : 'w-28 text-slate-500'"
+          :class="r.id === 'equipped' && match ? 'min-w-[7rem] max-w-full text-slate-700' : 'w-28 text-slate-600'"
           :data-testid="r.id === 'equipped' ? 'now-gear-match' : undefined"
           :data-match="r.id === 'equipped' ? (match ?? undefined) : undefined"
           >{{ r.name }}</span

@@ -815,6 +815,8 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
     expect(html).toMatch(/data-testid="box-check-fast"[^>]*>\s*Check this date with Fast\s*</);
     expect(html).toContain('Fast checks the instant answer&#39;s route on your save. Custom looks harder.');
+    // The hint is under the button (Words, 15 Nov 2026, final).
+    expect(html.indexOf('box-check-fast"')).toBeLessThan(html.indexOf('box-check-fast-note'));
     const off = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line, checkWithFast: false });
     expect(off).toContain('data-testid="box-close-call"');
     expect(off).not.toContain('data-testid="box-check-fast"');
@@ -1193,7 +1195,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
   it('type: the line text-small slate-500, First step text-body; no px sizes, caps, medium/semibold or mono', () => {
     const t = source.slice(0, source.indexOf('<script'));
     const head = t.slice(t.lastIndexOf('<div', t.indexOf('data-testid="instant-header"')), t.indexOf('data-testid="instant-header"'));
-    expect(head).toContain('text-small text-slate-500');
+    expect(head).toContain('text-small text-slate-600');
     for (const m of t.matchAll(/<p[^>]*data-testid="box-first-step"[^>]*>/g)) {
       expect(m[0]).toContain('text-body');
       expect(m[0]).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
@@ -1374,7 +1376,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     const tags = [...t.matchAll(/<template v-if="stepCaveat\.note">[\s\S]*?<\/template>/g)].map(m => m[0]);
     expect(tags).toHaveLength(2);
     for (const tag of tags) {
-      expect(tag).toMatch(/<span class="text-small font-normal text-slate-500" data-testid="box-quick-estimate">\{\{ QUICK_ESTIMATE_MARKER \}\}<\/span>/);
+      expect(tag).toMatch(/<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">\{\{ QUICK_ESTIMATE_MARKER \}\}<\/span>/);
       expect(tag).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
       expect(tag).toMatch(/<CardHelp[^>]*>\{\{ stepCaveat\.note \}\}\{\{ ' ' \}\}\{\{ INSTANT_NIGHT_BUY_TIP \}\}<\/CardHelp>/);
     }

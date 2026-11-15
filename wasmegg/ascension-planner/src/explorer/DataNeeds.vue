@@ -37,7 +37,7 @@
     <section v-for="group in groups" :key="group.id" class="space-y-2">
       <div v-if="group.items.length" class="space-y-1 pt-1">
         <p class="text-body font-bold text-slate-800">{{ group.title }}</p>
-        <p v-if="group.intro" class="text-body text-slate-500 max-w-3xl">{{ group.intro }}</p>
+        <p v-if="group.intro" class="text-body text-slate-600 max-w-3xl">{{ group.intro }}</p>
       </div>
       <ol v-if="group.items.length" class="space-y-2">
         <li
@@ -52,12 +52,12 @@
               {{ need.title }}
               <span
                 v-if="need.owned"
-                class="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 label text-white"
+                class="ml-1 rounded-full bg-emerald-700 px-2 py-0.5 label text-white"
                 data-testid="need-owned"
                 >{{ need.ownedLabel }}</span
               >
             </span>
-            <span class="text-small font-bold text-slate-500">
+            <span class="text-small font-bold text-slate-600">
               <span :class="need.have >= need.want ? 'text-emerald-700' : ''" data-testid="need-have"
                 >{{ need.have }} of {{ need.want }} {{ need.want === 1 ? 'account' : 'accounts'
                 }}{{ need.have >= need.want ? ' (enough)' : '' }}</span
@@ -87,7 +87,7 @@
                 <span class="text-small font-bold text-slate-700">T{{ s.tier }}</span>
                 <span class="rounded px-1 text-small font-bold" :class="RARITY_CLASS[s.rarity]">{{ s.rarity }}</span>
               </span>
-              <span v-if="part.note" class="text-small text-slate-500">{{ part.note }}</span>
+              <span v-if="part.note" class="text-small text-slate-600">{{ part.note }}</span>
             </div>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span class="w-16 label text-slate-600">Stones</span>
@@ -98,7 +98,7 @@
                   :alt="`${STONE_NAME[st.family]} stone`"
                 />
                 <span class="text-small font-bold text-slate-700">T{{ st.tier }} {{ STONE_NAME[st.family] }}</span>
-                <span class="text-small text-slate-500">{{ st.where }}</span>
+                <span class="text-small text-slate-600">{{ st.where }}</span>
               </span>
             </div>
             <p class="text-small font-bold text-slate-600">{{ need.gear.cte }}</p>
@@ -162,7 +162,7 @@
               From {{ teNow }} TE its ascension ranges, with targets at least {{ need.minGap }} TE apart, leave no room.
             </span>
           </p>
-          <p v-if="!need.byDate && runInPlace && need.chains > 0" class="text-small text-slate-500">{{ SCIENCE_SWEEP_NOTE }}</p>
+          <p v-if="!need.byDate && runInPlace && need.chains > 0" class="text-small text-slate-600">{{ SCIENCE_SWEEP_NOTE }}</p>
           <div v-if="need.byDate || need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
             <!-- Inside the planner (the Science tab) it runs right here, in SweepRunner.vue; on the
                  standalone Explorer page there is no save to run it on, so it opens the planner. -->

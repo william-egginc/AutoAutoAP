@@ -43,7 +43,7 @@
         Why? ›
       </summary>
       <div class="mt-1 space-y-1">
-        <p class="text-small text-slate-500">
+        <p class="text-small text-slate-600">
           Worked out on the instant answer's prices, each later start on the whole hour, with your farm laying while
           you wait for as long as its silos hold.<template v-if="line.spareSeconds !== null">
             At the latest start it lands {{ hours(line.spareSeconds) }} before the date.</template

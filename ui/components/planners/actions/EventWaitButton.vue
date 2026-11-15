@@ -14,7 +14,7 @@
           </div>
           <div>
             <h4 class="text-body font-bold text-slate-800">{{ title }}</h4>
-            <p class="text-body text-slate-500 font-bold">{{ subtitle }}</p>
+            <p class="text-body text-slate-600 font-bold">{{ subtitle }}</p>
           </div>
         </div>
         <div class="text-right">

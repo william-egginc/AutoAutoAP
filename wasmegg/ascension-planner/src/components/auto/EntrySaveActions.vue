@@ -19,7 +19,7 @@
       </button>
       <button
         type="button"
-        class="font-bold text-slate-500 hover:text-slate-800 disabled:opacity-40"
+        class="font-bold text-slate-600 hover:text-slate-800 disabled:opacity-40"
         :disabled="downloading"
         @click="download"
       >

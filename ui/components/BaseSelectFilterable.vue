@@ -337,7 +337,7 @@ class BaseSelectFilterableFactory<T = unknown> {
                     class={['flex-shrink-0', this.iconClass]}
                   />
                 ) : this.showPlaceholderIcon ? (
-                  <QuestionMarkCircleIcon class={['flex-shrink-0 p-px text-gray-400', this.iconClass]} />
+                  <QuestionMarkCircleIcon class={['flex-shrink-0 p-px text-gray-600', this.iconClass]} />
                 ) : null}
               </div>
               <input
@@ -362,7 +362,7 @@ class BaseSelectFilterableFactory<T = unknown> {
               />
               {this.showSelectorIcon && (
                 <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <SelectorIcon class="h-5 w-5 text-gray-400" />
+                  <SelectorIcon class="h-5 w-5 text-gray-600" />
                 </div>
               )}
               {this.allowClearing && this.selected && (
@@ -370,7 +370,7 @@ class BaseSelectFilterableFactory<T = unknown> {
                   class="absolute inset-y-0 right-7 flex items-center cursor-pointer"
                   onClick={this.clearItem}
                 >
-                  <XIcon class="h-4 w-4 text-gray-400" />
+                  <XIcon class="h-4 w-4 text-gray-600" />
                 </div>
               )}
             </div>
@@ -426,7 +426,7 @@ class BaseSelectFilterableFactory<T = unknown> {
               {this.filteredItems.length === 0 && (
                 <div class="py-0.5 pl-3 pr-9">
                   <div class="flex items-center">
-                    <ExclamationCircleIcon class="flex-shrink-0 h-6 w-6 p-px text-gray-400" />
+                    <ExclamationCircleIcon class="flex-shrink-0 h-6 w-6 p-px text-gray-600" />
                     <span class="ml-2 block truncate">No match</span>
                   </div>
                 </div>

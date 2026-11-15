@@ -1,7 +1,7 @@
 <template>
   <div class="px-1 mb-2 space-y-2">
     <div class="flex items-center justify-between">
-      <span class="text-small text-gray-500">Delivery Impact Only</span>
+      <span class="text-small text-gray-600">Delivery Impact Only</span>
       <button
         class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
         :class="deliveryImpactOnly ? 'bg-indigo-500' : 'bg-slate-200'"
@@ -14,7 +14,7 @@
       </button>
     </div>
     <div class="flex items-center justify-between">
-      <span class="text-small text-gray-500">Achieve ROI</span>
+      <span class="text-small text-gray-600">Achieve ROI</span>
       <div class="flex items-center gap-1.5">
         <div class="flex gap-0.5 p-0.5 bg-gray-100 rounded-md shadow-inner">
           <button
@@ -22,7 +22,7 @@
             :class="
               roiMode === 'immediate'
                 ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                : 'text-gray-600 hover:text-gray-700 hover:bg-gray-200'
             "
             @click="$emit('update:roiMode', 'immediate')"
           >
@@ -33,7 +33,7 @@
             :class="
               roiMode === 'maxed_vehicles'
                 ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                : 'text-gray-600 hover:text-gray-700 hover:bg-gray-200'
             "
             @click="$emit('update:roiMode', 'maxed_vehicles')"
           >
@@ -44,7 +44,7 @@
           v-tippy="
             `Max Vehicles mode calculates Achieve ROI as if you had ${PROFILE.maxVehiclesRoiRoute}bought all available vehicles and hyperloop cars — after buying the research in question.`
           "
-          class="w-4 h-4 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-small cursor-help hover:bg-gray-200 transition-colors leading-none shrink-0"
+          class="w-4 h-4 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-small cursor-help hover:bg-gray-200 transition-colors leading-none shrink-0"
           >?</span
         >
       </div>

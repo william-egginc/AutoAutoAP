@@ -22,7 +22,7 @@
     <div v-for="(row, k) in rows" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-slate-600 label">Box {{ k + firstNumber }}</span>
-        <label class="flex items-center gap-1.5 text-slate-500 label">
+        <label class="flex items-center gap-1.5 text-slate-600 label">
           Ascensions
           <input
             :value="row.asc"
@@ -72,7 +72,7 @@
         :disabled="disabled"
         @use="t => emit('text', k, t)"
       />
-      <span class="block text-small" :class="problems[k] ? 'text-rose-600' : 'text-slate-500'">
+      <span class="block text-small" :class="problems[k] ? 'text-rose-600' : 'text-slate-600'">
         {{ problems[k] || summaries[k] }}
       </span>
       <slot name="row-notes" :row="row" :k="k" />

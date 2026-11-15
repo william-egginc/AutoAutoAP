@@ -53,7 +53,7 @@ describe('S12: First ascension', () => {
     expect(FIRST_ASCENSION_CHOICES.map(c => c.value)).toEqual(['auto', 'buildup', 'continue', 'fresh']);
     expect(FIRST_ASCENSION_CHOICES[0].blurb).toBe('whichever finishes first: keep building, just lay, or prestige now.');
     for (const c of FIRST_ASCENSION_CHOICES.slice(1)) expect(c.blurb).toBe('');
-    expect(template).toContain('<template v-if="c.blurb">{{ \' \' }}<span class="text-slate-500">{{ c.blurb }}</span></template>');
+    expect(template).toContain('<template v-if="c.blurb">{{ \' \' }}<span class="text-slate-600">{{ c.blurb }}</span></template>');
   });
 });
 

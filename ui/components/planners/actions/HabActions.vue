@@ -10,7 +10,7 @@
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-            <span class="text-slate-400 label leading-none">Hab Sale</span>
+            <span class="text-slate-600 label leading-none">Hab Sale</span>
           </div>
           <span class="text-blue-600 label">80% off</span>
         </div>
@@ -71,7 +71,7 @@
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4 text-emerald-600"
+            class="h-4 w-4 text-emerald-700"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -99,12 +99,12 @@
         class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:border-blue-200 transition-all duration-300 hover:shadow-md"
       >
         <div class="flex items-center justify-between">
-          <span class="text-slate-400 label">Slot {{ index + 1 }}</span>
+          <span class="text-slate-600 label">Slot {{ index + 1 }}</span>
           <div v-if="habId !== null" class="flex flex-col items-end">
             <span class="text-body tabular-nums font-bold text-slate-900">
               {{ formatNumber(getHabCapacity(habId), 0) }}
             </span>
-            <span class="text-slate-400 label opacity-60">Capacity</span>
+            <span class="text-slate-600 label opacity-60">Capacity</span>
           </div>
         </div>
 
@@ -118,7 +118,7 @@
 
     <!-- Note about slots -->
     <div class="flex items-center justify-between px-2">
-      <p class="text-slate-400 label">{{ purchasedCount }}/4 habs active</p>
+      <p class="text-slate-600 label">{{ purchasedCount }}/4 habs active</p>
     </div>
   </div>
 </template>

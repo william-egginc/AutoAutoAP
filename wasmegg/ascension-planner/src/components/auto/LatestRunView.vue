@@ -47,7 +47,7 @@
         Run a search on {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }} and its routes show here, each with
         when every stop and egg happens.
       </p>
-      <p class="text-body text-slate-500">
+      <p class="text-body text-slate-600">
         Fast, Exact and Custom all count.
       </p>
     </div>
@@ -105,7 +105,7 @@
         ><template v-else-if="dateResult.stoppedEarly">, stopped early</template>.
       </p>
       <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4" data-testid="latest-run-by-date">
-        <p class="text-body text-slate-500 max-w-prose">
+        <p class="text-body text-slate-600 max-w-prose">
           Open a route's arrow for when each stop is reached, then an ascension's for when each egg is shifted and the TE
           it reaches.
         </p>
@@ -120,7 +120,7 @@
             <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="zone" />
           </template>
           <template #default="{ row: r }">
-            <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
+            <td class="pr-4 py-1 text-slate-600">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
             <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
             <td class="pr-4 py-1">{{ when(r.reachAt) }}</td>
             <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
@@ -161,7 +161,7 @@
       <div v-if="store.pricedCount > 1" data-testid="other-options" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="flex items-center justify-between gap-3">
           <!-- "Fastest is not always best…" behind the "?", word for word (UX fluff review 2, 5 Nov 2026, item M4). -->
-          <h3 class="flex items-center gap-1.5 text-slate-500 label">
+          <h3 class="flex items-center gap-1.5 text-slate-600 label">
             Other options worth considering
             <HelpTip>
               Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
@@ -192,7 +192,7 @@
             :class="
               store.shortlistView === v.id
                 ? 'bg-slate-800 border-slate-800 text-white'
-                : 'bg-white border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-700'
             "
             @click="store.setShortlistView(v.id)"
           >
@@ -200,14 +200,14 @@
           </button>
         </div>
 
-        <p class="text-body text-slate-500">{{ activeView?.hint }}</p>
+        <p class="text-body text-slate-600">{{ activeView?.hint }}</p>
 
         <!-- A single-axis sweep prices dozens of chains that are all the same plan nudged by a few
              TE, so "A good mix" can legitimately have nothing to add beyond the leader. The whole
              section used to vanish in that case, which reads as a bug rather than as an answer. -->
         <p
           v-if="store.shortlist.length <= 1"
-          class="text-body text-slate-500 rounded-lg border border-slate-200 bg-slate-50 p-3"
+          class="text-body text-slate-600 rounded-lg border border-slate-200 bg-slate-50 p-3"
         >
           <!-- One line and the way to the Fastest view (UX fluff review 2, 5 Nov 2026, item M7). DRAFT (Words). -->
           Nothing here is a different plan.{{ ' ' }}<button
@@ -267,7 +267,7 @@
                   <td class="py-2 pr-3 font-bold text-slate-600">{{ row.prestiges }}</td>
                   <td class="py-2 pr-3 text-slate-600 whitespace-nowrap">{{ finishInstant(row.seconds) }}</td>
                   <td
-                    class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                    class="py-2 pr-3 text-slate-600 whitespace-nowrap"
                     :title="row.gapSeconds < 1 ? undefined : '+' + (row.gapSeconds / 86400).toFixed(2) + ' days'"
                   >
                     {{ row.gapSeconds < 1 ? '—' : '+' + roundedGap(row.gapSeconds) }}
@@ -365,7 +365,7 @@
            meant finishing a three-hour run and opening a spreadsheet. -->
       <div v-if="store.pricedCount" data-testid="search-shape" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-slate-500 label">The shape of this search</h3>
+          <h3 class="text-slate-600 label">The shape of this search</h3>
           <button
             type="button"
             class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-600 hover:text-slate-600"
@@ -398,7 +398,7 @@
     </template>
 
     <!-- The other search's run, when there is one too: the view shows the newest, this switches. -->
-    <p v-if="other && want === undefined" class="text-body text-slate-500" data-testid="latest-run-other">
+    <p v-if="other && want === undefined" class="text-body text-slate-600" data-testid="latest-run-other">
       <button type="button" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="pick = other">
         Show your {{ other === 'date' ? NAMES.byDate : fastestName(store.finalTE) }} run instead
       </button>

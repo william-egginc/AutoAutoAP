@@ -48,7 +48,7 @@
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
       <div class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3" data-testid="now-head">
-        <p class="label text-slate-500">Right now</p>
+        <p class="label text-slate-600">Right now</p>
         <!-- With the source pill below, only when (UX fluff review 2, 5 Nov 2026, item R1: the pill's line says the
              source, the hours and the save, and the goal switch the goal). The save in it since 12 Nov 2026 (Jordan: the
              save box beside the card went), Words' lib/calculatedFromWords.ts; amber once the loaded save is out of date,
@@ -57,13 +57,13 @@
           <p
             v-if="fromSaveLine"
             class="min-w-0 break-words text-body tabular-nums"
-            :class="saveOld ? 'text-amber-800' : 'text-slate-500'"
+            :class="saveOld ? 'text-amber-800' : 'text-slate-600'"
             data-testid="now-calculated"
           >
             {{ fromSaveLine }}
           </p>
         </template>
-        <p v-else-if="card" class="text-body text-slate-500" data-testid="now-calculated">
+        <p v-else-if="card" class="text-body text-slate-600" data-testid="now-calculated">
           Plan for {{ goalOnlyName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
             >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
@@ -98,7 +98,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-small font-bold">{{ g.label }}</span>
-        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-600'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-600' : 'text-slate-600'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
@@ -124,7 +124,7 @@
     <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
     <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
       <!-- The source explainer in a Tip beside the pill (Tip.vue, info-always; spec-myruns-fix), not a line on the card. -->
-      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-500">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-600">
         <Tip v-if="pillInfo" :text="pillInfo" :name="pill" info-always class="-my-3" v-slot="{ describedby }">
           <span
             class="rounded px-1.5 py-0.5 label bg-emerald-100 text-emerald-800"
@@ -176,7 +176,7 @@
     </p>
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
-    <p v-if="follow && followSetWith" class="text-body text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
+    <p v-if="follow && followSetWith" class="text-body text-slate-600" data-testid="now-follow-set-with">{{ followSetWith }}</p>
     <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
          `notSaved`). -->
     <p v-if="follow && (followSaveWords || followNotSaved) && !saveAndReadFailed" class="text-body text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
@@ -194,7 +194,7 @@
     <!-- Save online is off in Setup (lib/saveOnline.ts; stores/follow.ts `offByChoice`): the route is followed in this
          browser only; "Save it online" is shown disabled with Words' note (Jordan, 7 Nov 2026: off disables it, it never
          turns the switch on). -->
-    <p v-if="follow && followSaveOff" class="text-body text-slate-500" data-testid="now-follow-save-off">
+    <p v-if="follow && followSaveOff" class="text-body text-slate-600" data-testid="now-follow-save-off">
       {{ SAVE_ONLINE_FOLLOW_OFF }}{{ ' ' }}
       <button
         type="button"
@@ -245,7 +245,7 @@
       :now="now"
     />
     <!-- The only way to stop following (25 Oct 2026: off the follow line, quiet, under Earlier versions). -->
-    <p v-if="follow" class="text-body text-slate-500" data-testid="now-follow-back-line">
+    <p v-if="follow" class="text-body text-slate-600" data-testid="now-follow-back-line">
       <button type="button" class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
         {{ STOP_FOLLOWING }}
       </button>
@@ -273,13 +273,13 @@
           Follow
         </button>
         <span v-if="typedError" class="w-full text-rose-700" data-testid="now-follow-error">{{ typedError }}</span>
-        <span v-else class="w-full text-slate-500">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
+        <span v-else class="w-full text-slate-600">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
       </form>
     </details>
     </Teleport>
 
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
-    <p v-if="card?.secondary" class="text-body text-slate-500" data-testid="now-secondary">
+    <p v-if="card?.secondary" class="text-body text-slate-600" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
         (calculated {{ dateAt(card.secondary.plan.calculatedAt / 1000, now, zone) }})</template
       >
@@ -326,10 +326,10 @@
               :data-phase="phase!.phase"
               >{{ phaseText.title }}</span
             >
-            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-small text-slate-500" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
+            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-small text-slate-600" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
           </span>
         </div>
-        <p class="text-body text-slate-500">
+        <p class="text-body text-slate-600">
           <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
           <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
           {{ Math.floor(teSoFar) }} TE so far
@@ -355,7 +355,7 @@
       >
         When should I start? ›
       </button>
-      <span class="block mt-1 text-body text-slate-500 max-w-prose"
+      <span class="block mt-1 text-body text-slate-600 max-w-prose"
         >Prices a route at every hour of the next week for this save ({{ NAMES.science }} › {{ NAMES.start }}).</span
       >
     </div>
@@ -500,7 +500,7 @@
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
           Work it out ›
         </button>
-        <span class="block mt-0.5 text-body text-slate-500 max-w-prose"
+        <span class="block mt-0.5 text-body text-slate-600 max-w-prose"
           >The instant answer for a goal is kept for a day after its screen works it out; a Fast, Exact or Custom result
           for it takes over when it is better.</span
         >
@@ -515,7 +515,7 @@
       <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts): a
            build-up's finish is shown above (Building up / Keep building, or the Keep building choice) with awake hours
            set, and its research buys can fall outside them: the finish is a best case. Once, at the foot of Next step. -->
-      <p v-if="nightBuy" class="mt-1 text-small text-slate-500 max-w-prose" data-testid="now-night-buy">
+      <p v-if="nightBuy" class="mt-1 text-small text-slate-600 max-w-prose" data-testid="now-night-buy">
         {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
       </p>
     </div>

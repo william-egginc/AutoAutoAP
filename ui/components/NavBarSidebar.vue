@@ -79,7 +79,7 @@
                   <span
                     v-if="item.id === 'contact'"
                     class="flex items-center text-xs ml-2"
-                    :class="useCoolGray ? 'text-cool-gray-500' : 'text-gray-500'"
+                    :class="useCoolGray ? 'text-cool-gray-500' : 'text-gray-600'"
                   >
                     <arrow-left-icon class="inline h-3 w-3 mr-1" />Issues & suggestions
                   </span>

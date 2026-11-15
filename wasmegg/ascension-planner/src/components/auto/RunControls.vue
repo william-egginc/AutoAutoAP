@@ -24,7 +24,7 @@
     <IntegrityNotice v-if="integrityNotice" :deadline-offer="deadlineOffer" />
     <slot name="above-find" />
     <!-- Phones only (the user, 12 Oct 2026). -->
-    <p v-if="phone" class="text-body text-slate-500" data-testid="phone-note">{{ PHONE_NOTE }}</p>
+    <p v-if="phone" class="text-body text-slate-600" data-testid="phone-note">{{ PHONE_NOTE }}</p>
     <!-- Many workers on a long run (the user, 12 Oct 2026): a warning, never a block. -->
     <p
       v-if="manyWorkers"

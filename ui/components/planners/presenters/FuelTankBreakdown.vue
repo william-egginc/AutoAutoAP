@@ -3,7 +3,7 @@
     <!-- Capacity Bar -->
     <div class="space-y-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
       <div class="flex justify-between items-end mb-1">
-        <span class="text-slate-400 label">Utilization</span>
+        <span class="text-slate-600 label">Utilization</span>
         <span class="text-small font-bold text-slate-700 tabular-nums">
           {{ formatNumber(totalFuel, 1) }} <span class="opacity-40">/</span> {{ formatNumber(capacity, 1) }}
           <span class="opacity-40">·</span> {{ fillPercent.toFixed(1) }}%
@@ -22,7 +22,7 @@
 
     <!-- Per-Egg Fuel Amounts -->
     <div class="space-y-3">
-      <h4 class="text-slate-400 label ml-1">Stored Inventory</h4>
+      <h4 class="text-slate-600 label ml-1">Stored Inventory</h4>
       <div class="grid grid-cols-1 gap-2">
         <div
           v-for="egg in eggs"

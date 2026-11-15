@@ -13,12 +13,12 @@
     <div class="mt-2 space-y-3 max-w-xl">
       <p v-if="!gaps" class="text-body text-slate-600">{{ headline }}</p>
       <template v-else>
-        <p class="text-body text-slate-500 max-w-prose">
+        <p class="text-body text-slate-600 max-w-prose">
           Perfect here is the maxed instant answer's bar: every artifact T4 Legendary, every stone slot filled at tier
           4. Only rarity, tier and stones are compared, not which artifacts or stone types suit each set.
         </p>
         <div v-for="s in gaps.sets" :key="s.id" class="space-y-1" :data-testid="`now-gear-perfect-${s.id}`">
-          <p class="label text-slate-500">{{ s.name }}</p>
+          <p class="label text-slate-600">{{ s.name }}</p>
           <p v-if="s.sameAs" class="text-body text-slate-600">{{ s.sameAs }}</p>
           <p
             v-else-if="!s.upgrades.length && !s.missing.length && !s.tiers.length"

@@ -17,7 +17,7 @@
     <div class="space-y-0.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-title font-bold text-slate-900">What we know so far</h2>
-        <span v-if="stats" class="text-small font-bold text-slate-500" data-testid="know-header">
+        <span v-if="stats" class="text-small font-bold text-slate-600" data-testid="know-header">
           {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ plural(stats.accounts, 'account') }}<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
@@ -36,8 +36,8 @@
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
         ascensions pay off and where the stops land.
       </p>
-      <p class="text-small text-slate-500">Checked {{ FINDINGS_CHECKED }} on older simulators; this site now runs {{ SIM_NAME }}; not rechecked yet.</p>
-      <p v-if="stats && measuredLine" class="text-small text-slate-500" data-testid="measured-on">{{ measuredLine }}</p>
+      <p class="text-small text-slate-600">Checked {{ FINDINGS_CHECKED }} on older simulators; this site now runs {{ SIM_NAME }}; not rechecked yet.</p>
+      <p v-if="stats && measuredLine" class="text-small text-slate-600" data-testid="measured-on">{{ measuredLine }}</p>
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
@@ -113,7 +113,7 @@
             <div class="overflow-x-auto">
               <table class="text-small tabular-nums border-collapse">
                 <thead>
-                  <tr class="text-left text-slate-500">
+                  <tr class="text-left text-slate-600">
                     <th class="py-1 pr-4 font-bold">from TE</th>
                     <th v-for="h in COUNT_HEADS" :key="h" class="py-1 pr-4 font-bold">{{ h }}</th>
                   </tr>
@@ -196,7 +196,7 @@
         What we need next
       </summary>
       <div class="mt-2 space-y-1.5">
-        <p class="text-body text-slate-500">
+        <p class="text-body text-slate-600">
           These are the asks on the
           <a v-if="scienceHref" :href="scienceHref" class="font-bold text-indigo-700 underline">Science tab</a
           ><template v-else>Science tab</template>.

@@ -10,7 +10,7 @@
     <summary class="cursor-pointer font-bold text-indigo-700" data-testid="follow-history-summary">
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
-    <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading<AnimatedDots /></p>
+    <p v-if="state === 'loading'" class="mt-1 text-slate-600">Loading<AnimatedDots /></p>
     <p v-else-if="state === 'failed'" class="mt-1 text-amber-800" role="status" data-testid="follow-history-failed">
       Couldn't load the earlier versions right now.{{ ' ' }}
       <button
@@ -22,7 +22,7 @@
         Retry ›
       </button>
     </p>
-    <p v-else-if="state === 'ready' && !versions.length" class="mt-1 text-slate-500" data-testid="follow-history-none">
+    <p v-else-if="state === 'ready' && !versions.length" class="mt-1 text-slate-600" data-testid="follow-history-none">
       No earlier versions saved for this goal yet.
     </p>
     <ul v-else-if="state === 'ready'" class="mt-1 space-y-1.5" data-testid="follow-history-list">

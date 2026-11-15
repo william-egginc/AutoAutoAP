@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center justify-between gap-2 px-0.5">
     <div class="flex flex-col leading-tight">
-      <span class="text-small text-slate-500">100% ROI by</span>
+      <span class="text-small text-slate-600">100% ROI by</span>
       <span class="text-small tabular-nums text-slate-700">{{ deadlineLabel }}</span>
     </div>
     <div class="flex items-center gap-1.5">
@@ -13,7 +13,7 @@
       >
         −
       </button>
-      <span class="text-small text-slate-500 w-14 text-center">
+      <span class="text-small text-slate-600 w-14 text-center">
         {{ saleCount }} sale{{ saleCount === 1 ? '' : 's' }}
       </span>
       <button

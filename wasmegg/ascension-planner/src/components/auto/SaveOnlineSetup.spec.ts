@@ -197,7 +197,7 @@ describe('Delete everything: the flow', () => {
 describe('in Setup', () => {
   it('under Sharing, after the "saved online" notices (YourSetup.vue)', () => {
     const src = fs.readFileSync(path.resolve(__dirname, 'YourSetup.vue'), 'utf8');
-    const sharing = src.indexOf('<h3 class="text-slate-500 label">Sharing</h3>');
+    const sharing = src.indexOf('<h3 class="text-slate-600 label">Sharing</h3>');
     const at = src.indexOf('<SaveOnlineSetup');
     expect(sharing).toBeGreaterThan(-1);
     expect(at).toBeGreaterThan(src.indexOf('data-testid="follow-online-unreachable"'));

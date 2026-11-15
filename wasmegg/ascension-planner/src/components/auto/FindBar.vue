@@ -59,7 +59,7 @@
         >
           <SendingText v-if="store.bestSoFarSending" /><template v-else>Send best so far</template>
         </button>
-        <span class="text-small font-bold text-slate-500 text-center" data-testid="best-so-far-hint">{{
+        <span class="text-small font-bold text-slate-600 text-center" data-testid="best-so-far-hint">{{
           asking && !optIn
             ? sendsOnTick
               ? 'Tick the box below and it sends straight away'
@@ -98,7 +98,7 @@
       <!-- Ticked with sharing off: names the fold the ticks are in, and opens it (UX review 26 Oct 2026, item 11:
            "tick the box below" sat above a folded "Before you send"). A player who said yes never has it popped
            open, and with the send unticked a plain Run just finds. -->
-      <p v-if="needsTicks" class="text-small font-bold text-slate-500" data-testid="acknowledge-hint">
+      <p v-if="needsTicks" class="text-small font-bold text-slate-600" data-testid="acknowledge-hint">
         To send the result, open{{ ' ' }}
         <!-- A link to the fold, which can be a long way below on a phone. -->
         <button

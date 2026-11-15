@@ -47,7 +47,7 @@
               </div>
               <div>
                 <div class="text-body font-bold text-slate-800">Overwrite</div>
-                <div class="text-body text-slate-400 font-normal">
+                <div class="text-body text-slate-600 font-normal">
                   Replace the existing plan with the imported one
                 </div>
               </div>
@@ -69,7 +69,7 @@
               </div>
               <div>
                 <div class="text-body font-bold text-slate-800">Keep Both (Rename)</div>
-                <div class="text-body text-slate-400 font-normal">
+                <div class="text-body text-slate-600 font-normal">
                   Save as "{{ renamedName }}"
                 </div>
               </div>
@@ -79,14 +79,14 @@
               class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group text-left"
               @click="$emit('resolve', 'skip')"
             >
-              <div class="p-1.5 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-slate-200 transition-colors">
+              <div class="p-1.5 bg-slate-100 rounded-lg text-slate-600 group-hover:bg-slate-200 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </div>
               <div>
                 <div class="text-body font-bold text-slate-800">Skip</div>
-                <div class="text-body text-slate-400 font-normal">
+                <div class="text-body text-slate-600 font-normal">
                   Don't import this plan
                 </div>
               </div>
@@ -100,14 +100,14 @@
               type="checkbox"
               class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label for="apply-to-all" class="text-small font-normal text-slate-500 cursor-pointer select-none">
+            <label for="apply-to-all" class="text-small font-normal text-slate-600 cursor-pointer select-none">
               Apply to all remaining collisions ({{ remainingCount }})
             </label>
           </div>
 
           <div class="mt-6 flex justify-end">
             <button
-              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-600 hover:text-slate-600 transition-colors"
               @click="$emit('cancel')"
             >
               Cancel Import

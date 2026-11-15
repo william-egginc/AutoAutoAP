@@ -34,7 +34,7 @@
         Load your save first: open {{ fastestName(store.finalTE) }} in {{ NAMES.chainFinder }}, then come back here.
       </p>
       <p v-else-if="store.saveNotReady" class="text-body font-bold text-amber-700">{{ store.saveNotReady }}</p>
-      <p v-if="!choices.length" class="text-body text-slate-500 max-w-prose" data-testid="start-times-empty">
+      <p v-if="!choices.length" class="text-body text-slate-600 max-w-prose" data-testid="start-times-empty">
         It prices the instant answer's best route. Open {{ fastestName(store.finalTE) }} once so the instant answer
         loads, or use "Check start times for this route" under a search's result.
       </p>

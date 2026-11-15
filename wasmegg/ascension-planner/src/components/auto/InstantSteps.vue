@@ -30,7 +30,7 @@
         <span class="whitespace-nowrap">{{ show(l.reachedAt) }}</span>
       </li>
     </ol>
-    <p class="mt-1 text-small text-slate-500" data-testid="instant-steps-note">
+    <p class="mt-1 text-small text-slate-600" data-testid="instant-steps-note">
       Times as the instant answer works them out, to the hour. Each egg shift is in Simulate this plan.
     </p>
   </details>

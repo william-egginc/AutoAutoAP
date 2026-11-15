@@ -134,11 +134,12 @@ export function nextStepText(
   zone: string,
   rounded = false
 ): string {
-  // A prestige that waits (for the player's hours or past a no-prestige day) is said at the time it happens, as the events
-  // table does (M12: "at around 10:00 PM" here over "11:00 PM" there): `prestigeAt`, not the stop's reach time.
+  // A prestige that waits (for the player's hours or past a no-prestige day), or that the next ascension starts later than (the instant
+  // answer ascends on the hour), is said at the time it happens, as the events table and Next shifts do (M12, QA 15 Nov 2026:
+  // "at around 10:00 PM" here over "11:00 PM" there): `prestigeAt`, not the stop's reach time.
   const ahead = events
     .filter(e => !e.past && e.kind !== 'goal')
-    .map(e => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.notDone ? { ...e, at: e.prestigeAt } : e))
+    .map(e => (e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.notDone ? { ...e, at: e.prestigeAt } : e))
     // Moved later, it may now come after an event that was behind it: whichever happens first is named first (stable).
     .sort((a, b) => a.at - b.at);
   const first = ahead[0];

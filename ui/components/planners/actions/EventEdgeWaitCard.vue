@@ -6,9 +6,9 @@
     <div class="flex flex-col gap-0.5 text-left min-w-0">
       <div class="flex items-center gap-2">
         <div class="w-1.5 h-1.5 rounded-full" :class="isActive ? [theme.dot, 'animate-pulse'] : 'bg-slate-300'"></div>
-        <span class="text-slate-400 label leading-none">{{ label }}</span>
+        <span class="text-slate-600 label leading-none">{{ label }}</span>
       </div>
-      <span class="label" :class="isActive ? theme.text : 'text-slate-400'">
+      <span class="label" :class="isActive ? theme.text : 'text-slate-600'">
         {{ isActive ? activeText : 'Inactive' }}
       </span>
     </div>
