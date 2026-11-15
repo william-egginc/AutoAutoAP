@@ -19,6 +19,13 @@ describe('BlackBoxNotice', () => {
     expect(t).toContain('which ends a run. If a run was going');
     expect(t).not.toMatch(/run\.If/);
   });
+  it('says where to send the file (review W4, 15 Nov 2026)', async () => {
+    const store = useChainSearchStore() as any;
+    store.lastCrash = crash();
+    const t = textOf(await renderHtml(BlackBoxNotice, {}));
+    expect(t).toContain('To have it looked at, download the black box and send the file to Williamthe5thc on Discord.');
+    expect(t).not.toMatch(/EI\d{16}/);
+  });
   it('says nothing when the saved run of that search has finished (its own box says it)', async () => {
     const store = useChainSearchStore() as any;
     store.lastCrash = crash();

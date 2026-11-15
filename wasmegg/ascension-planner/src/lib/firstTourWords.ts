@@ -45,7 +45,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   // More, then the Fast and Custom searches inside it (spec-tourmore).
   moreWhere: {
     title: 'More',
-    body: 'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.',
+    body: 'More is the fold at the bottom of Chain Finder and My runs. To have it open every time, tick Show everything in Setup › More options.',
   },
   moreInside: {
     title: 'Inside More',

@@ -25,6 +25,7 @@
         to carry it on.</template
       >
       <template v-else>{{ ' ' }}If a run was going, its progress is saved and it can carry on.</template>
+      {{ ' ' }}To have it looked at, download the black box and send the file to Williamthe5thc on Discord.
     </p>
     <div class="flex flex-wrap gap-3">
       <button

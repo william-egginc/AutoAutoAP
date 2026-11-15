@@ -13,7 +13,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 class="text-title font-bold text-slate-900">Auto-AP</h2>
+          <h2 class="text-title font-bold text-slate-900">Auto Planner</h2>
         </div>
 
         <div class="space-y-8 relative">
@@ -101,7 +101,7 @@
             />
           </svg>
           <p class="leading-relaxed">
-            Auto-AP is really built for players farther along. Below 200 Clothed TE its assumptions (like habs staying
+            The Auto Planner is really built for players farther along. Below 200 Clothed TE its assumptions (like habs staying
             full the whole time) don't hold up well, so the plan it generates may be pretty suboptimal for you right
             now. You can still generate one to see what it does, but for a plan you can rely on, raise your Clothed TE
             in the Virtue Progress section above first.
@@ -141,7 +141,7 @@
               moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
               that search's time off from virtue.
             </li>
-            <li><span class="font-bold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
+            <li><span class="font-bold">You never sleep.</span> The Auto Planner doesn't plan around your awake hours.</li>
           </ul>
           <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
@@ -166,7 +166,7 @@
                 is reached.
               </li>
             </ul>
-            <p class="mt-2 text-amber-600 leading-relaxed">Auto-AP tries several build lengths and keeps the fastest; you can switch to another on each ascension's card.</p>
+            <p class="mt-2 text-amber-600 leading-relaxed">The Auto Planner tries several build lengths and keeps the fastest; you can switch to another on each ascension's card.</p>
           </div>
         </div>
       </div>

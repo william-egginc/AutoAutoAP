@@ -98,11 +98,12 @@ describe('S25, S27, S28: This computer (inside More options)', () => {
     expect(bg).not.toContain('Lets the search keep going at a lower draw');
     expect(bg).toContain('{{ BROWSER_ADVICE[browser] }}');
   });
-  it('keep awake: the label and "(not with the lid closed)"', () => {
+  it('keep awake: the label names the device (review W8), and "(not with the lid closed)" is for a computer only', () => {
     expect(template).not.toContain('every worker freezes until you wake it');
     expect(flat(template)).toContain(
-      '<span class="font-bold text-slate-800">Keep my computer awake while a search runs</span>{{ \' \' }}(not with the lid closed)'
+      '<span class="font-bold text-slate-800">Keep my {{ deviceWord() }} awake while a search runs</span><template v-if="deviceWord() === \'computer\'">{{ \' \' }}(not with the lid closed)</template>'
     );
+    expect(template).not.toContain('Keep my computer awake');
   });
 });
 

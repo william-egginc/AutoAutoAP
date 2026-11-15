@@ -709,7 +709,7 @@
                 <span class="text-body text-slate-600">
                   <!-- The label and one clause (UX fluff review 2, S28; DRAFT). It was: "If it sleeps, every worker freezes
                        until you wake it. It can't stop a laptop sleeping when the lid is closed." -->
-                  <span class="font-bold text-slate-800">Keep my computer awake while a search runs</span>{{ ' ' }}(not with the lid closed)
+                  <span class="font-bold text-slate-800">Keep my {{ deviceWord() }} awake while a search runs</span><template v-if="deviceWord() === 'computer'">{{ ' ' }}(not with the lid closed)</template>
                 </span>
               </label>
               <label class="flex items-start gap-3 cursor-pointer" data-testid="instant-during-search">
@@ -867,7 +867,7 @@
 
 <script setup lang="ts">
 import { consentState, useConsent } from '@/composables/useConsent';
-import { ThisDevice, thisDevice } from '@/search/device';
+import { ThisDevice, deviceWord, thisDevice } from '@/search/device';
 import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';

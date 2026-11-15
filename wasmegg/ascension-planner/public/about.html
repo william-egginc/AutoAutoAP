@@ -135,7 +135,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated Nov 4, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated Nov 15, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <!-- Contents (UX fluff review 2, A4): the page is long on a phone. Links only; the sections' text is unchanged. -->
       <nav class="contents" aria-label="Contents">
@@ -170,7 +170,7 @@
           An unofficial fan tool for planning virtue ascensions in Egg, Inc. It is built on Joo's Auto Ascension Planner
           and the wasmegg tools. It is not affiliated with, or endorsed by, Auxbrain, the makers of Egg, Inc.
         </p>
-        <p>Want to see where everything is? Open More on any screen and press Full tour.</p>
+        <p>Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.</p>
       </section>
 
       <section id="stays">
@@ -446,7 +446,7 @@
           <li><b>What we store:</b> the planned times and short titles, under a scrambled key, never your player ID. They sit on the planner's server so the link can show them, and the maintainer could read them there, but they carry no ID or name.</li>
           <li><b>Who can make one:</b> anyone who knows your player ID can make a link for it, as with saved routes and Setup.</li>
           <li><b>How old it is:</b> your calendar may be up to a day behind the planner.</li>
-          <li><b>Reset or delete:</b> Reset link stops the old link at once. Deleting what is saved online removes your links too. Your calendar company's copy stays until your calendar drops it, which is usually its next refresh.</li>
+          <li><b>Reset or delete:</b> Reset link stops every link you made at once. Deleting what is saved online removes your links too. Your calendar company's copy stays until your calendar drops it, which is usually its next refresh.</li>
           <li><b>How long it is kept:</b> a link is removed after 90 days in which no calendar app has checked it. The 90 days count from the last check, so a calendar that is still subscribed never expires. You can make a new link any time.</li>
         </ul>
       </section>
@@ -555,6 +555,20 @@
               <td>No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.</td>
             </tr>
             <tr>
+              <td>Your starting TE, tracker ticks and plan</td>
+              <td>No time limit. They stay until you delete them (see Delete it above).</td>
+            </tr>
+            <!-- calendar-feed:begin -->
+            <tr>
+              <td>Your calendar link</td>
+              <td>Removed after 90 days in which no calendar app has checked it, or when you reset or delete.</td>
+            </tr>
+            <!-- calendar-feed:end -->
+            <tr>
+              <td>Long-search records</td>
+              <td>Deleted about 3 days after the search ends.</td>
+            </tr>
+            <tr>
               <td>Version counts</td>
               <td>30 days, then deleted.</td>
             </tr>
@@ -565,8 +579,8 @@
             <tr>
               <td>Your IP address</td>
               <td>
-                Not stored in any record. It is used only to slow down floods of requests, held for 2 minutes inside a
-                temporary key.
+                No address is stored. It is used only to slow down floods of requests: held for 2 minutes inside a
+                temporary key and, to limit long-search announcements, inside a keyed code that is deleted after about 3 days.
               </td>
             </tr>
           </tbody>

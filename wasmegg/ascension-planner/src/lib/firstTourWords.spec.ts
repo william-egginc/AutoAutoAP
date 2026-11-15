@@ -42,7 +42,7 @@ describe('first tour words', () => {
     );
     // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
     expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(
-      'More is the fold at the bottom of each screen. To have it open every time, tick Show everything in Setup › More options.'
+      'More is the fold at the bottom of Chain Finder and My runs. To have it open every time, tick Show everything in Setup › More options.'
     );
     expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
       'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'

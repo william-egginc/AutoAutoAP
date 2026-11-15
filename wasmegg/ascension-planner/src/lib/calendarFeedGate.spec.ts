@@ -35,9 +35,9 @@ describe('About: the calendar blocks go with the flag', () => {
     const at = h.indexOf('<nav class="contents" aria-label="Contents">');
     return [...h.slice(at, h.indexOf('</nav>', at)).matchAll(/<a href="#([^"]+)">([^<]+)<\/a>/g)].map(m => ({ id: m[1], title: m[2] }));
   };
-  it('the source has four marked blocks, each begin matched by an end', () => {
-    expect(about.match(/<!-- calendar-feed:begin -->/g)).toHaveLength(4);
-    expect(about.match(/<!-- calendar-feed:end -->/g)).toHaveLength(4);
+  it('the source has five marked blocks (the section, its contents link, a sentence in What is sent, a bullet in What goes online, a row in the storage table), each begin matched by an end', () => {
+    expect(about.match(/<!-- calendar-feed:begin -->/g)).toHaveLength(5);
+    expect(about.match(/<!-- calendar-feed:end -->/g)).toHaveLength(5);
   });
   it('off: no calendar anywhere, 18 sections and a link for each, no marker left', () => {
     const off = applyCalendarFeed(about, false);

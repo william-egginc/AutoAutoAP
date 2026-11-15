@@ -8,7 +8,7 @@ import type { FullTourStepId } from './fullTour';
 export const FULL_TOUR_STEPS_WORDS: Record<FullTourStepId, { title: string; body: string }> = {
   tabs: {
     title: 'The tabs',
-    body: 'The tabs are the page headings: Manual Planner, Auto Planner, Chain Finder, My runs, Leaderboard and Science. The highlighted one is where you are.',
+    body: 'Manual Planner, Auto Planner, Chain Finder and My runs are always there. Leaderboard and Science show once turned on in Setup. The highlighted one is where you are.',
   },
   chip: {
     title: 'Your account',
@@ -52,7 +52,7 @@ export const FULL_TOUR_STEPS_WORDS: Record<FullTourStepId, { title: string; body
   },
   more: {
     title: 'More',
-    body: 'More is the fold at the foot of each screen, closed until you open it. It holds the Search card and the rest of what the page can do.',
+    body: 'More is the fold at the foot of Chain Finder and My runs, closed until you open it. It holds the Search card and the rest of what the page can do.',
   },
   blackBox: {
     title: 'The black box',
@@ -86,7 +86,7 @@ export const FULL_TOUR_CLOSING = "That's everything. Show it again any time from
 /** The entries: More's item, the first tour's last card, About's line. */
 export const FULL_TOUR_ITEM = 'Full tour';
 export const FULL_TOUR_FROM_FIRST = 'More: Full tour';
-export const FULL_TOUR_ABOUT = 'Want to see where everything is? Open More on any screen and press Full tour.';
+export const FULL_TOUR_ABOUT = 'Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.';
 
 /** Said to a screen reader on each step. */
 export const fullTourAnnounce = (n: number, of: number, title: string): string => `Full tour, step ${n} of ${of}: ${title}`;
