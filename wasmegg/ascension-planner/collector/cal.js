@@ -14,7 +14,9 @@
  * ACCESS: anyone who knows a player ID can make a link for it and read the same plan they could already read through /sync (the accepted
  * design); the link adds no new reach, it only avoids putting the account code `k` in a URL a calendar app stores. A link carries no ID.
  * The `key` column holds the account key (salted once ACCOUNT_KEY_SALT is set; acct.js moves these rows with the others).
- * The event text is plain, printable, with no player ID (refused in a title or notes, in any case).
+ * The event text is plain, printable, with no player ID (refused in a title or notes, in any case). The server prints the client's title
+ * and notes VERBATIM and adds no words of its own to an event (the client writes "Planned as of 9:00 AM MST" in the player's zone and a
+ * "Plan last updated" marker event); the calendar's description is the one fixed line (CALDESC).
  */
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { DAY_MS, spend, waitSeconds } from './budget.js';
@@ -85,12 +87,6 @@ export function readCal(v) {
 }
 
 // ------------------------------------------------------------------ the .ics
-const clock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' });
-/** 12-hour Mountain time, e.g. "4:10 pm MST". */
-export function clockText(ms) {
-  const parts = Object.fromEntries(clock.formatToParts(new Date(ms)).map(p => [p.type, p.value]));
-  return `${parts.hour}:${parts.minute} ${String(parts.dayPeriod).toLowerCase()} ${parts.timeZoneName}`;
-}
 const utc = ms => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 const esc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const encoder = new TextEncoder();
@@ -117,13 +113,14 @@ export function fold(line) {
 const DEFAULT_MINUTES = 10;
 const NAME = 'Ascension planner';
 
+/** The only words of its own the server prints: the calendar's description. Everything else is the client's title and notes. */
+const CALDESC = 'Your plan from the Ascension planner. Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
+
 export function renderIcs(cal) {
-  const asOfText = cal ? clockText(cal.asOf) : null;
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//Calendar feed//EN', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(NAME)}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
-  if (cal) lines.push(`X-WR-CALDESC:${esc(`Plan last updated ${asOfText}. Your calendar app may show times up to a day old: open the planner to confirm.`)}`);
+  lines.push(`X-WR-CALDESC:${esc(CALDESC)}`);
   for (const e of cal?.events ?? []) {
-    const note = `${e.notes ? `${e.notes}\n\n` : ''}Planned as of ${asOfText}. Your calendar may be up to a day behind: open the planner to confirm.`;
-    lines.push('BEGIN:VEVENT', `UID:${e.uid}@aaap`, `DTSTAMP:${utc(cal.asOf)}`, `LAST-MODIFIED:${utc(cal.asOf)}`, `SEQUENCE:${e.seq}`, `DTSTART:${utc(e.start)}`, `DTEND:${utc(e.end ?? e.start + DEFAULT_MINUTES * 60_000)}`, `SUMMARY:${esc(e.title)}`, `DESCRIPTION:${esc(note)}`, `CATEGORIES:${e.kind.toUpperCase()}`);
+    lines.push('BEGIN:VEVENT', `UID:${e.uid}@aaap`, `DTSTAMP:${utc(cal.asOf)}`, `LAST-MODIFIED:${utc(cal.asOf)}`, `SEQUENCE:${e.seq}`, `DTSTART:${utc(e.start)}`, `DTEND:${utc(e.end ?? e.start + DEFAULT_MINUTES * 60_000)}`, `SUMMARY:${esc(e.title)}`, ...(e.notes ? [`DESCRIPTION:${esc(e.notes)}`] : []), `CATEGORIES:${e.kind.toUpperCase()}`);
     if (e.lead !== undefined) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(e.title)}`, `TRIGGER:-PT${e.lead}M`, 'END:VALARM');
     lines.push('END:VEVENT');
   }

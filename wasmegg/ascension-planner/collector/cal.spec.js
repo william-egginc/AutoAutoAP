@@ -182,12 +182,16 @@ describe('the feed (GET /cal/<token>.ics)', () => {
     expect(text).toContain('TRIGGER:-PT10M');
     expect(text).toContain('DTEND:20261116T012500Z');
   });
-  it('says when the plan was made, in 12-hour Mountain time', async () => {
-    const text = unfold(await (await feed(await setup())).text());
-    expect(text).toContain('Planned as of 4:10 pm MST');
-    expect(text).toMatch(/up to a day/);
-    expect(text).toContain('X-WR-CALDESC:');
-    expect(text).not.toMatch(/\b1[3-9]:\d\d|\b2\d:\d\d/);
+  it('prints the client\'s title and notes verbatim and adds no words of its own to an event; the calendar says it may be a day old', async () => {
+    await putCal(LIST([EVENT(1, { title: 'Shift to Humility', notes: 'Planned as of 9:00 AM MST. Open the planner to confirm.' }), EVENT(2)]));
+    const token = tokenOf((await mint()).body.url);
+    const text = unfold(await (await feed(token)).text());
+    expect(text).toContain('SUMMARY:Shift to Humility');
+    expect(text).toContain('DESCRIPTION:Planned as of 9:00 AM MST. Open the planner to confirm.');
+    expect(text).not.toMatch(/Planned as of 4:10/);
+    const second = text.split('BEGIN:VEVENT')[2];
+    expect(second).not.toContain('DESCRIPTION:');
+    expect(text).toContain('X-WR-CALDESC:Your plan from the Ascension planner. Your calendar may show times up to a day old.');
   });
   it('escapes text and folds long lines at 75 bytes', async () => {
     await putCal(LIST([EVENT(1, { title: 'Buy; a, b \\ c', notes: 'line one\nline two ' + 'word '.repeat(40) + 'é'.repeat(30) })]));

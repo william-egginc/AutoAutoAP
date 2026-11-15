@@ -1249,7 +1249,7 @@ The client's account code `k` (SHA-256 of the player ID, unsalted) is the key of
 ## Calendar feeds (cal.js, migration 0009)
 A secret link per device that Google or Apple Calendar subscribes to. The client builds the events (`src/lib/calendarEvents.ts`) and saves them as the `cal` kind of `/sync` (slot `0`, 24 KB, last write wins by `at`); the collector validates the list (`readCal`) and prints an .ics. Design: `~/code/aaap-tools/notes/calendar-subscription-design-2026-11-14.md`.
 - `POST /cal/new {k}` -> `{ url }` (token shown once; only its SHA-256 is stored; max 3 live links an account, 5 new a day an account, 20 a day an address, `CAL_MAX_FEEDS` 500 in all).
-- `GET /cal/<22-char token>.ics` -> `text/calendar`, no login. Unknown, revoked or unfetched-for-90-days: 404, empty body. ETag + 304, `CAL_FETCHES_PER_DAY` 300 a link, `last_fetch` written at most once an hour. Each event note says "Planned as of <12-hour Mountain time>".
+- `GET /cal/<22-char token>.ics` -> `text/calendar`, no login. Unknown, revoked or unfetched-for-90-days: 404, empty body. ETag + 304, `CAL_FETCHES_PER_DAY` 300 a link, `last_fetch` written at most once an hour. The server prints the client's title and notes verbatim (the client writes "Planned as of ..." in the player's zone); only the calendar description is its own text.
 - `POST /cal/revoke {token}` or `{k, all: true}`. `DELETE /forget` also deletes the account's links (`deleted.calFeeds`) and its `cal` record.
 - `cal_feeds.key` is the account key (salted with the others; `acct.js` moves and sweeps it). The hourly cron runs `pruneCal`.
 - Deploy: migration `0009_cal_feeds.sql` first (inert), then the Worker. Test collector first; live needs Jordan's go. Rollback: the previous version (the table can stay).
