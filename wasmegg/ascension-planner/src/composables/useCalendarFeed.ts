@@ -18,6 +18,7 @@ import { computed, ref } from 'vue';
 import { buildCalendarEvents, sameCalendar, type CalEventList, type CalendarInput } from '@/lib/calendarFeedEvents';
 import { CALENDAR_FEED, mintCalendarLink, putCalendar, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
+import * as blackBox from '@/search/blackBox';
 
 export const CAL_DEBOUNCE_MS = 10_000;
 
@@ -130,9 +131,15 @@ export function createCalendarFeed(o: {
       linked.value = true;
       write(key('.linked'), '1');
       phase.value = 'idle';
+      // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
+      keep(null);
+      pending = latest;
+      if (timer) clearTimeout(timer);
+      timer = null;
     } finally {
       busy.value = false;
     }
+    await flush();
   }
   async function copy(): Promise<void> {
     if (!link.value) return;
@@ -169,6 +176,8 @@ export function createCalendarFeed(o: {
 
   // ------------------------------------------------------------------------------------------ the plan going up
   let pending: CalendarFeedInput | null = null;
+  /** The newest plan handed to `note`, kept even before a link exists so Get link can send it at once. */
+  let latest: CalendarFeedInput | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   async function flush(): Promise<void> {
     const input = pending;
@@ -180,11 +189,20 @@ export function createCalendarFeed(o: {
     if (sameCalendar(last, next)) return;
     let r = await putCalendar(t.url, t.k, Date.now(), next, f);
     if (!r.ok && r.why === 'newer') r = await putCalendar(t.url, t.k, Date.now(), next, f);
-    if (r.ok) keep({ events: next.events, src: next.src, asOf: next.asOf });
+    if (r.ok) {
+      keep({ events: next.events, src: next.src, asOf: next.asOf });
+      if (error.value) error.value = '';
+      return;
+    }
+    // Not silent: the card says so, and the black box keeps the reason (never the link).
+    error.value = r.why === 'offline' ? 'offline' : r.why === 'off' ? 'off' : 'error';
+    blackBox.note(`calendar upload failed: ${r.why}`);
   }
   /** The plan as it is now (My runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */
   function note(input: CalendarFeedInput): void {
-    if (!CALENDAR_FEED.enabled || !enabled.value || !linked.value) return;
+    if (!CALENDAR_FEED.enabled) return;
+    latest = input;
+    if (!enabled.value || !linked.value) return;
     pending = input;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);
