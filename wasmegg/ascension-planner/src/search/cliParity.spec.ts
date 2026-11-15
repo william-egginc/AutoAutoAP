@@ -122,7 +122,9 @@ describe('tables as the page reads them', () => {
     await tableAtUrl(compositeUrl('./gear-x.v2.bin', './table-v2.bin', 340, 1), fetch);
     expect(asked).toEqual(['./table-v2.bin', './table-v2.bin', './gear-x.v2.bin', './table-v2.bin']);
     const worker = src('../workers/routeFinder.worker.ts');
-    expect(worker).toContain('table = tableAtUrl(url, fetchTable);');
+    // The same loader, its files fetched once each (search/tableFileCache.ts, review 15 Nov 2026 P6).
+    expect(worker).toContain('const files = new TableFileCache(fetchTable);');
+    expect(worker).toContain('table = tableAtUrl(url, u => files.get(u));');
     expect(worker).toContain("reply({ kind: 'first-legs', id: m.id, firstLegs: firstLegsOn(t, m) });");
   });
   it("precompute reads NAME.gz first (own and gear tables are served .gz only) and --pack writes it", () => {

@@ -26,6 +26,7 @@ import { MAXED_TABLE_FILE } from '@/search/tableBracket';
 import { tableLoadFailed, tableNewerThanPage } from '@/search/tableFetch';
 import { ownTableNames } from '@/search/tableGear';
 import { chooseInstantTable, instantFirstLegs, instantPricingOptions, instantScaleOf } from '@/search/instantCompute';
+import { fetchListedTableNames } from '@/search/tableListing';
 import type { Availability } from '@/search/availabilitySchedule';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { getSimulationContext } from 'lib/planners/engine/adapter';
@@ -90,6 +91,8 @@ export async function computeInstantPricing(req: InstantComputeRequest, p: Insta
     },
     inputs: () => store.collectInputs(),
     earnings: () => store.readInventory().earnings,
+    // Only the own and gear names tables.json lists are asked for (search/tableListing.ts).
+    listed: () => fetchListedTableNames(BASE),
   });
   if (!alive()) return null;
   if (te < choice.header.from) throw new PlainFailure(`the instant answer starts at ${choice.header.from} TE and your save is at ${te} TE`);
