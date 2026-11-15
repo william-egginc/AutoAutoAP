@@ -243,6 +243,7 @@ import {
   GENERATOR_SETTINGS,
   inventoryOfStamp,
   sampleCells,
+  checkHours,
   verdictOf,
   type CellRef,
 } from '@/search/tableCheck';
@@ -555,6 +556,16 @@ function crossesEvent(start: number, seconds: number): boolean {
   return next <= start + seconds + BOUNDARY_EPSILON_SECONDS;
 }
 
+/** One cell's builds as the te-NNN.jsonl files hold them: with each build's `extras` in a version 2 table. */
+function cellBuilds(build: ReturnType<typeof buildAt>, start: number, v2: boolean): BuildParams[] {
+  return v2
+    ? build.variants.map(v => {
+        const { params, extras } = paramsAndExtrasOf(build, v, start);
+        return { ...params, extras };
+      })
+    : build.variants.map(v => paramsOf(build, v, start));
+}
+
 /** One start TE's 168 hours, as JSON lines; `stats` counts reuse when --reuse-prefix / --verify-reuse is on. */
 function generateStartTE(
   inputs: SearchInputs,
@@ -565,15 +576,8 @@ function generateStartTE(
   const v2 = has('v2');
   const verify = has('verify-reuse');
   const reuse = verify || has('reuse-prefix');
-  const cell = (build: ReturnType<typeof buildAt>, h: number, start: number) => {
-    const builds = v2
-      ? build.variants.map(v => {
-          const { params, extras } = paramsAndExtrasOf(build, v, start);
-          return { ...params, extras };
-        })
-      : build.variants.map(v => paramsOf(build, v, start));
-    return JSON.stringify({ te, h, builds });
-  };
+  const cell = (build: ReturnType<typeof buildAt>, h: number, start: number) =>
+    JSON.stringify({ te, h, builds: cellBuilds(build, start, v2) });
   const seeds = new Map<PrefixClass, ReturnType<typeof buildAt>>();
   const seedOf = (cls: PrefixClass) => {
     let b = seeds.get(cls);
@@ -948,16 +952,19 @@ async function verifyCells(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error('--verify-cells needs --table DIR');
   const table = loadTable(dir);
-  const meta = table.meta as TableMeta & { reference?: boolean };
+  const meta = table.meta as TableMeta & { reference?: boolean; tableVersion?: number };
+  // A version 2 table's cells carry each build's extras (review 15 Nov, T8: every v2 cell read as different).
+  const v2 = meta.tableVersion === 2;
   if (!table.tes.length) throw new Error('the table has no start TEs yet');
   if (meta.referenceWeek !== REFERENCE_WEEK) throw new Error('the table was built on another reference week');
   if (!!meta.reference !== has('reference'))
     throw new Error('pass --reference exactly when the table was built with it');
   const list = (s: string) => s.split(',').map(Number);
-  // By default the lowest and highest start TEs and three between them, at three hours of the week.
+  // By default the lowest and highest start TEs and three between them, at hours 0, 83 and 167 and the sale and 2x
+  // boost hours (search/tableCheck.ts checkHours).
   const spread = [0, 0.25, 0.5, 0.75, 1].map(f => table.tes[Math.round(f * (table.tes.length - 1))]);
   const tes = arg('tes') ? list(arg('tes')!) : [...new Set(spread)];
-  const hours = list(arg('hours', '0,83,167')!);
+  const hours = arg('hours') ? list(arg('hours')!) : checkHours(REFERENCE_WEEK);
   const inputs = await loadInputs(file);
   let same = 0;
   const differ: string[] = [];
@@ -971,7 +978,7 @@ async function verifyCells(file: string): Promise<void> {
       const start = REFERENCE_WEEK + h * 3600;
       const build = buildAt(inputs, startStateAt(inputs, te), start, te);
       // The files hold JSON.stringify of these, so equal strings mean equal to the bit.
-      const mine = build.variants.map(v => paramsOf(build, v, start));
+      const mine = cellBuilds(build, start, v2);
       if (JSON.stringify(mine) === JSON.stringify(stored)) same++;
       else {
         differ.push(`TE ${te} hour ${h}`);
@@ -1480,7 +1487,7 @@ async function checkBin(): Promise<void> {
       if (truthBin) inputsWords = `the cells of ${truthBin.replace(/^.*\//, '')} (--truth-bin), not a rebuild`;
       const rows: NonNullable<typeof truth>['rows'] = [];
       const counts = { same: 0, close: 0, differ: 0 };
-      for (const c of sampleCells(header, samples, seed)) {
+      for (const c of sampleCells(header, samples, seed, checkHours(header.referenceWeek))) {
         const truthCell = other ? other.lookup(c.te, c.h) : rebuild(inputs, c.te, c.h);
         const cmp = truthCell
           ? compareCell(table.lookup(c.te, c.h)!, truthCell)

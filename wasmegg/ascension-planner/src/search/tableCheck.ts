@@ -14,7 +14,7 @@
  *  4. A verdict (`verdictOf`): PASS / CLOSE / FAIL / STALE.
  *  5. Still current (`currentChanges`): does the stamp still match a save, or today's maxed account?
  */
-import { getBuildPhaseEndForSaleCount } from 'lib/planners/events';
+import { getBuildPhaseEndForSaleCount, isEarningsBoostActive, isResearchSaleActive } from 'lib/planners/events';
 import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { colleggtibleDefs, modifiersFromColleggtibleTiers, type Modifiers } from 'lib/collegtibles';
 import { canonicalDelivered, EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
@@ -338,17 +338,38 @@ export function rng(seed: number): () => number {
 export interface CellRef {
   te: number;
   h: number;
-  /** An edge (the first and last start TE at hours 0, 83, 167), checked every time. */
+  /** An edge (the first and last start TE at `edgeHours`), checked every time. */
   edge?: boolean;
 }
 
-/** The edges, then `n` distinct random cells from `seed` (none of them an edge). */
-export function sampleCells(header: Pick<TableHeader, 'from' | 'to'>, n: number, seed: number): CellRef[] {
+/**
+ * The hours of the reference week a cell check always looks at (review 15 Nov, T8): 0, 83 and 167, the first hour
+ * of the week's first research sale and first 2x boost, and the hour before each starts (C2's and I1's 4 h lookahead
+ * and the opening read a coming event there). Ascending, no repeats.
+ */
+export function checkHours(referenceWeek: number): number[] {
+  const at = (h: number) => referenceWeek + h * 3600;
+  const hours = new Set([0, 83, 167]);
+  for (const active of [isResearchSaleActive, isEarningsBoostActive]) {
+    const first = Array.from({ length: WEEK_HOURS }, (_, h) => h).find(h => h > 0 && active(at(h)) && !active(at(h - 1)));
+    if (first !== undefined) hours.add(first).add(first - 1);
+  }
+  return [...hours].sort((a, b) => a - b);
+}
+
+/** The edges (the first and last start TE at `edgeHours`), then `n` distinct random cells from `seed` (none of them
+ *  an edge). */
+export function sampleCells(
+  header: Pick<TableHeader, 'from' | 'to'>,
+  n: number,
+  seed: number,
+  edgeHours: readonly number[] = [0, 83, 167]
+): CellRef[] {
   const out: CellRef[] = [];
   const seen = new Set<number>();
   const key = (te: number, h: number) => te * WEEK_HOURS + h;
   for (const te of [...new Set([header.from, header.to])])
-    for (const h of [0, 83, 167]) {
+    for (const h of edgeHours) {
       seen.add(key(te, h));
       out.push({ te, h, edge: true });
     }

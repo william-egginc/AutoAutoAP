@@ -69,8 +69,10 @@ export const SIM_SOURCES = [
  *  catch-up. Not a SIM_VERSION bump: the merged build's start-TE files are byte-identical to the sim4
  *  tables (11 of 11 on the Mac; the PC sweep over every finished table is in aaap-tools notes).
  *  14 Nov 2026 (spec-upstream1114): re-pasted with the sim5 bump for upstream fa805e2d1, the merge's
- *  boostTransitionsFrom silo fix (engine/apply/math.ts) and the two generator files added above. */
-export const SIM_SOURCE_HASH = '963376a9b319b9ed6384750d5a760a2f682964ff167b0ae4db1126847421507e';
+ *  boostTransitionsFrom silo fix (engine/apply/math.ts) and the two generator files added above.
+ *  15 Nov 2026 (spec-tables1115): re-pasted for --verify-cells on version 2 tables (precompute.ts cellBuilds, shared
+ *  with --generate): a refactor, the generated cells byte-identical (maxed TE 489, the old and new generator). */
+export const SIM_SOURCE_HASH = 'ff3ab5d5a256f1bc7a55921cf4032d7a2a7e3d954898a738e336d7a5eb47eeaa';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
