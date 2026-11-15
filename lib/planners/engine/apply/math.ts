@@ -85,8 +85,8 @@ export function boostTransitionsFrom(
   // moment (about a tenth of a sim4 build went here, PC profile 9 Nov). The lists are frozen, since
   // every caller shares them; `getTimeToSave`/`calculateEarningsForTime` only read them.
   const flag = snapshot.earningsBoost.active;
-  if (horizonSeconds !== BOOST_TRANSITION_HORIZON_SECONDS || (flag !== true && flag !== false)) {
-    return walkBoostTransitions(snapshot, absTime, horizonSeconds);
+  if (siloSeconds > 0 || horizonSeconds !== BOOST_TRANSITION_HORIZON_SECONDS || (flag !== true && flag !== false)) {
+    return walkBoostTransitions(snapshot, absTime, horizonSeconds, siloSeconds);
   }
   const memo = boostTransitionsMemo[flag ? 1 : 0];
   let list = memo.get(absTime);
@@ -109,7 +109,8 @@ const BOOST_TRANSITIONS_MEMO_SIZE = 4096;
 export function walkBoostTransitions(
   snapshot: BaseCalculationsSnapshot,
   absTime: number,
-  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS
+  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS,
+  siloSeconds: number = 0
 ): EarningsRateTransition[] {
   const trueActiveNow = isEarningsBoostActive(absTime);
   const transitions: EarningsRateTransition[] = [];
