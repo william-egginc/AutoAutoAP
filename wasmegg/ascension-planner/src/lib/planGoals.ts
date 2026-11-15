@@ -177,19 +177,21 @@ export function plansByGoal(
  * The goal Right now opens on: the one with a plan checked LAST (after the save and setup tiers, as the tiles
  * rank); with no plan anywhere, the goal last checked at all, else the first (Race).
  *
- * A FOLLOWED GOAL (R7 red-team #3, 31 Oct 2026): one a route is followed for ranks right after this save's plans
- * (FOLLOWED_TIER), before an older save's plan or nothing: its route is priced on this save (useNowPage
+ * A FOLLOWED GOAL (R7 red-team #3, 31 Oct 2026; first of all since 15 Nov 2026, Jordan): one a route is followed for opens
+ * before every goal that is not followed, whatever was looked at or planned last: its route is priced on this save (useNowPage
  * `followState`). Before, an Egg Day route followed with nothing kept for either goal opened My runs on Fastest to 490
- * (first in the list), and the Build-up tracker, which is the shown goal's, said "follow a route first".
+ * (first in the list), and the Build-up tracker, which is the shown goal's, said "follow a route first". With nothing followed it
+ * is the goal last looked at, as before.
  */
-/** A followed goal's tier for the default: after this save's plans (0, 1), before an older save's (2, 3) and none (4). */
-const FOLLOWED_TIER = 1.5;
+/** A followed goal ranks before every goal that is not followed (Jordan, 15 Nov 2026: My runs opens on the route being FOLLOWED, not the
+ *  one last looked at). Among followed goals the usual tiers still decide: this save's plan first. */
+const FOLLOWED_FIRST = 10;
 
 export function defaultGoalKey(list: readonly GoalPlans[], loadedSave: number): GoalKey | null {
   if (!list.length) return null;
   const order = list.map((p, i) => ({
     p,
-    o: { tier: Math.min(p.pick ? cardTier(p.pick.candidate, loadedSave) : 4, p.followed ? FOLLOWED_TIER : 4), lastAt: p.lastAt, order: i },
+    o: { tier: (p.pick ? cardTier(p.pick.candidate, loadedSave) : 4) - (p.followed ? FOLLOWED_FIRST : 0), lastAt: p.lastAt, order: i },
   }));
   order.sort((a, b) => compareGoals(a.o, b.o));
   return order[0].p.goal.key;

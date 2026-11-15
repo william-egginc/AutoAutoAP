@@ -180,6 +180,10 @@ async function setup(
   if (o.select !== false) {
     page.selectGoal(goalKey);
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+  } else {
+    // "Another goal picked": My runs now opens on the FOLLOWED route (Jordan, 15 Nov 2026), so these cases pick the other goal by hand,
+    // as the player does, where they used to rely on it being the default.
+    page.selectGoal(goalKey.startsWith('eggday') ? 'fastest-490' : `eggday-${nextEggDayYear()}`);
   }
   return { page, scope, now, eggDayAt, te };
 }
@@ -253,7 +257,12 @@ function route490(now: number, end: number): Route {
 const FOLLOWED = { chain: [226, 277, 317, 490], from: 'typed', source: 'manual' };
 /** The followed routes' requests: Egg Day's own instant route (200 → 238) is also priced again, for its shifts only
  *  (useNowPage `shiftRequest`, 26 Oct 2026). */
-const followCalls = () => calls.filter(c => c.chain.join(',') !== '200,238');
+/** Only the live ones: a request the page let go (My runs now opens on the followed goal, 15 Nov 2026, so picking another goal at once lets
+ *  its first request go and the background asks again) is superseded by the later one for the same route. */
+const followCalls = () => {
+  const own = calls.filter(c => c.chain.join(',') !== '200,238');
+  return own.filter((c, i) => !own.slice(i + 1).some(d => d.chain.join(',') === c.chain.join(',')));
+};
 const pillOf = (page: Awaited<ReturnType<typeof setup>>['page'], key: string) => page.goalChoices.value.find(g => g.key === key);
 
 describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jordan's Fastest to 490 TE)", () => {
