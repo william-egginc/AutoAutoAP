@@ -24,7 +24,9 @@
  *     number. A re-run sent without a name from the same account still counts: it joins the named
  *     player's line rather than leaving the plan replaced by nothing;
  *   - the player is not behind it: a later run started at a TE 2 or more below where this plan said
- *     they would be by then (linear inside each leg; rows without legs skip this test);
+ *     they would be by then (linear inside each leg, placed by the legs' `end` when the row has them,
+ *     and through a leg's first 30% no higher than the TE it started at; rows without legs skip this
+ *     test, see `behindMark`);
  *   - it was planned within the last 30 days.
  *
  * WHO COUNTS AS THE SAME PLAYER. Phase 1 had no owner code to go on, so it used what the rows carry:
@@ -97,6 +99,8 @@ const WHAT_IF_LEAD_MS = 12 * HOUR_MS;
 const LATER_MS = HOUR_MS;
 /** How far below the plan's own projection a later run has to be to call the plan "behind". */
 const BEHIND_TE = 2;
+/** Through this share of a leg, "behind" measures from the TE the leg started at, not the straight line. */
+const BEHIND_GRACE = 0.3;
 /** Plans older than this need a re-plan. */
 const MAX_AGE_MS = 30 * DAY_MS;
 /** Two plans are "from the same save" when their save moments agree to this. */
@@ -209,7 +213,9 @@ export interface BoardRow {
   delivery?: { artifact: string; stones?: string[] }[];
   earnings?: { artifact: string; stones?: string[] }[];
   stones?: { label: string; count: number }[];
-  legs?: { te: number; strategy?: string; days: number; peakDeliveryQph?: number }[];
+  /** `end`: days from the plan's start to the leg's end, so waits between legs show (`planPace`). Not
+   *  sent or kept by the collector yet; a row without it reads its legs back to back. */
+  legs?: { te: number; strategy?: string; days: number; peakDeliveryQph?: number; end?: number }[];
   /** Insane mode only: the space the run enumerated to prove its answer. */
   space?: {
     mode: 'bands' | 'range';
@@ -844,26 +850,76 @@ export function samePlan(earlier: BoardRow, later: BoardRow): boolean {
 }
 
 /**
- * Where `plan` said the player would be at instant `at`: linear inside each leg, starting from the
- * plan's own TE. Null when the plan has no legs or no start.
+ * Where `plan` said the player would be at instant `at`, starting from the plan's own TE, and where in
+ * its ascension that is. Null when the plan has no legs or no start.
+ *
+ * `te` rises linearly through each leg's own `days`, since the TE a row is sent with includes pending
+ * TE (startingTE.ts `rollUpPendingTE`), so it climbs inside an ascension rather than stepping at each
+ * stop. When every leg carries a sane `end` (days from the plan's start to the leg's end, the stop's
+ * moment), a leg runs over the `days` before its `end`, and the time between one leg's end and the next
+ * leg's start -- a prestige wait or time off -- holds at the TE of the stop before. Without ends the legs
+ * run back to back, so a wait reads as progress the player never planned to make.
+ *
+ * `from` is the TE the plan had at the start of the leg (or wait) holding `at`, and `into` how far
+ * through that leg's own days `at` is (0 during a wait, 1 past the last leg).
  */
-export function projectedTE(plan: BoardRow, at: number): number | null {
+export function planPace(plan: BoardRow, at: number): { te: number; from: number; into: number } | null {
   const start = startMs(plan);
   const legs = plan.legs ?? [];
   if (start == null || !legs.length || typeof plan.currentTE !== 'number') return null;
   const elapsed = (at - start) / DAY_MS;
-  if (elapsed <= 0) return plan.currentTE;
+  if (elapsed <= 0) return { te: plan.currentTE, from: plan.currentTE, into: 0 };
+  const ends = legEnds(legs);
   let prev = plan.currentTE;
   let acc = 0;
-  for (const leg of legs) {
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i];
     if (!Number.isFinite(leg.days) || !Number.isFinite(leg.te)) return null;
-    if (elapsed <= acc + leg.days) {
-      return leg.days > 0 ? prev + ((leg.te - prev) * (elapsed - acc)) / leg.days : leg.te;
+    const end = ends ? ends[i] : acc + leg.days;
+    if (elapsed <= end) {
+      const begin = end - leg.days;
+      if (elapsed <= begin) return { te: prev, from: prev, into: 0 };
+      const into = leg.days > 0 ? (elapsed - begin) / leg.days : 1;
+      return { te: leg.days > 0 ? prev + (leg.te - prev) * into : leg.te, from: prev, into };
     }
-    acc += leg.days;
+    acc = end;
     prev = leg.te;
   }
-  return plan.finalTE;
+  return { te: plan.finalTE, from: plan.finalTE, into: 1 };
+}
+
+/** Each leg's `end`, when every leg has one that fits: finite, at least its own days after the end
+ *  before it. Else null, and the legs are read back to back. */
+function legEnds(legs: NonNullable<BoardRow['legs']>): number[] | null {
+  let prev = 0;
+  const out: number[] = [];
+  for (const leg of legs) {
+    const end = leg.end;
+    if (typeof end !== 'number' || !Number.isFinite(end) || !Number.isFinite(leg.days)) return null;
+    // A thousandth of a day of slack: `days` and `end` are each rounded to 3 places when sent.
+    if (end - prev < leg.days - 0.002) return null;
+    out.push(end);
+    prev = end;
+  }
+  return out;
+}
+
+/** Where `plan` said the player would be at instant `at` (`planPace`). Null when the plan has no legs or no start. */
+export function projectedTE(plan: BoardRow, at: number): number | null {
+  return planPace(plan, at)?.te ?? null;
+}
+
+/**
+ * The TE below which (by `BEHIND_TE`) a run at `at` shows the player behind `plan`, or null when the
+ * plan cannot say. Through the first `BEHIND_GRACE` of a leg it is the TE the plan had when the leg
+ * began, not the straight line: an ascension earns slowly at first and fast at the end, so the line
+ * runs ahead of an on-schedule player early on (65 of 98 false flags in a 62-day replay of the live race
+ * fell in the first 30% of a leg). A player short of the stop the plan already made is still behind.
+ */
+function behindMark(plan: BoardRow, at: number): number | null {
+  const pace = planPace(plan, at);
+  if (!pace) return null;
+  return pace.into < BEHIND_GRACE ? pace.from : pace.te;
 }
 
 /** When the save the plan was made from was taken: its start minus how stale the save was. */
@@ -1223,12 +1279,13 @@ export function assessPlans<T extends BoardRow>(
     const newest = real.length ? real[real.length - 1] : null;
     for (const e of later) {
       const projected = projectedTE(p.row, e.start);
-      if (projected == null || e.te == null) continue;
+      const mark = behindMark(p.row, e.start);
+      if (projected == null || mark == null || e.te == null) continue;
       last = { te: e.te, projected, at: e.start };
       // The newest run that shows it wins the wording: it is the closest to "where you are now".
-      if (e.te <= projected - BEHIND_TE) {
+      if (e.te <= mark - BEHIND_TE) {
         const when = e === newest ? 'now' : `on ${dayOf(e.start, e.row)}`;
-        behind = `behind: at TE ${e.te} ${when}, the plan said ${projected.toFixed(1)}`;
+        behind = `behind: at TE ${e.te} ${when}, the plan said ${mark.toFixed(1)}`;
       }
     }
     p.progress = last;

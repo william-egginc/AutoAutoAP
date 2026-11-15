@@ -634,6 +634,98 @@ describe('plans that no longer count', () => {
     ]);
   });
 
+  describe("'behind' early in a leg and across waits (review L1)", () => {
+    /** Planned from TE 190 on 13 Sep 12:00 UTC: 200 after 10 days, 225 after 20 more, then 490. */
+    const plan = (over: Partial<BoardRow> = {}) =>
+      row({
+        id: 'plan',
+        timezone: 'UTC',
+        currentTE: 190,
+        chain: [200, 225, 490],
+        startLocal: '2026-09-13 12:00',
+        submittedAt: '2026-09-13T12:05:00Z',
+        durationDays: 640,
+        legs: [
+          { te: 200, days: 10 },
+          { te: 225, days: 20 },
+          { te: 490, days: 610 },
+        ],
+        ...over,
+      });
+    /** A later run of another route by the same player, `days` after the plan's start, at `te`. */
+    const runAt = (days: number, te: number) => {
+      const at = Date.parse('2026-09-13T12:00:00Z') + days * DAY_MS;
+      return row({
+        id: 'now',
+        timezone: 'UTC',
+        currentTE: te,
+        chain: [230, 490],
+        startLocal: stamp(at, 'UTC'),
+        submittedAt: new Date(at + 5 * 60_000).toISOString(),
+        durationDays: 700,
+      });
+    };
+    const dropped = (rows: BoardRow[]) =>
+      groupPlayers(rows, { target: 490, now: NOW })[0].plans.map(p => [p.row.id, p.state, p.reason]);
+
+    it('keeps an on-schedule plan in the first part of a leg', () => {
+      // 1 day into the 20-day leg from 200 (5%): the straight line says 201.25, but an ascension earns
+      // slowly at first, and the player at 199 is within 2 of the stop the plan just made.
+      const p = plan();
+      expect(projectedTE(p, Date.parse('2026-09-24T12:00:00Z'))).toBeCloseTo(201.25, 9);
+      expect(dropped([p, runAt(11, 199)])[0]).toEqual(['plan', 'current', '']);
+      // 3 days into the first leg (30% is day 3): 193 is the line, 190 the start.
+      expect(dropped([plan(), runAt(2.9, 190)])[0].slice(0, 2)).toEqual(['plan', 'current']);
+    });
+
+    it('keeps a plan during a wait that legs[].end shows', () => {
+      // The second leg takes 10 days but ends at day 40, not 20: twenty days off before it starts (day
+      // 30 to 40 it runs from 200 to 225). Day 25 is inside the wait, so the plan still says 200.
+      const p = plan({
+        legs: [
+          { te: 200, days: 10, end: 10 },
+          { te: 225, days: 10, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(projectedTE(p, Date.parse('2026-09-13T12:00:00Z') + 25 * DAY_MS)).toBe(200);
+      // Day 35: halfway through the leg's own 10 days.
+      expect(projectedTE(p, Date.parse('2026-09-13T12:00:00Z') + 35 * DAY_MS)).toBeCloseTo(212.5, 9);
+      expect(dropped([p, runAt(25, 200)])[0].slice(0, 2)).toEqual(['plan', 'current']);
+      // Without the end offsets the same day reads as past 225 already, so 200 is behind.
+      const slope = dropped([plan(), runAt(25, 200)])[0];
+      expect(slope.slice(0, 2)).toEqual(['plan', 'behind']);
+    });
+
+    it('still drops a plan the player is really behind', () => {
+      // Early in the second leg but short of the stop the first leg reached.
+      expect(dropped([plan(), runAt(11, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      // During a wait, below the TE the plan holds through it.
+      const waits = plan({
+        legs: [
+          { te: 200, days: 10, end: 10 },
+          { te: 225, days: 10, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(dropped([waits, runAt(25, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      // Past the first 30% of a leg the straight line applies again: day 20 is half of 200 -> 225.
+      expect(dropped([plan(), runAt(20, 208)])[0]).toEqual(['plan', 'behind', 'behind: at TE 208 now, the plan said 212.5']);
+    });
+
+    it('ignores leg ends that do not add up and uses the straight line', () => {
+      // An end before the leg's own days could fit, or ends going backwards: not trusted.
+      const bad = plan({
+        legs: [
+          { te: 200, days: 10, end: 5 },
+          { te: 225, days: 20, end: 40 },
+          { te: 490, days: 600, end: 640 },
+        ],
+      });
+      expect(projectedTE(bad, Date.parse('2026-09-13T12:00:00Z') + 25 * DAY_MS)).toBeCloseTo(218.75, 9);
+    });
+  });
+
   it('keeps a plan the player is on track with, and says so', () => {
     const plan = row({
       id: 'plan',
