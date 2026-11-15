@@ -214,8 +214,9 @@ function titleOf(kind: CalKind, lines: readonly CalLine[]): string {
   return clean(`${clean(lineTitle(kind, top), Math.max(8, room))}${suffix}`, CAL_TITLE_MAX);
 }
 
-/** Longest the "Planned as of 12:00 AM MST. Open the planner to confirm." line (and its newline) can be, with room to spare for a long zone name. */
-const FOOTER_RESERVE = 70;
+/** Longest the "Planned as of Sep 30, 2026 at 12:00 AM GMT-10:30. Open the planner to confirm." line (and its newline) can be: 80 characters, with room to spare. The dated
+ *  footer grew it from 70 (15 Nov 2026), so a body now has 215 characters, not 230. */
+const FOOTER_RESERVE = 85;
 const BODY_MAX = CAL_NOTES_MAX - FOOTER_RESERVE;
 
 function bodyOf(lines: readonly CalLine[]): string | undefined {
@@ -317,10 +318,13 @@ function mergeBuys(sorted: readonly Draft[], zone: string, breaks: readonly numb
   return result;
 }
 
-const clockParts = (ms: number, zone: string): { time: string; zone: string } => {
+const clockParts = (ms: number, zone: string): { date: string; time: string; zone: string } => {
   const fmt = (z: string) =>
     new Intl.DateTimeFormat('en-US', {
       timeZone: z,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -333,15 +337,23 @@ const clockParts = (ms: number, zone: string): { time: string; zone: string } =>
     parts = fmt('UTC');
   }
   const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
-  return { time: `${get('hour')}:${get('minute')} ${get('dayPeriod').toUpperCase()}`, zone: get('timeZoneName') };
+  return {
+    date: `${get('month')} ${get('day')}, ${get('year')}`,
+    time: `${get('hour')}:${get('minute')} ${get('dayPeriod').toUpperCase()}`,
+    zone: get('timeZoneName'),
+  };
 };
-/** "Planned as of 9:00 AM MST. Open the planner to confirm." in the player's zone (Words' text; the server prints notes as they are). */
+/** "Planned as of Nov 15, 2026 at 9:00 AM MST. Open the planner to confirm." in the player's zone (Words, 15 Nov 2026: the date and year, since a
+ *  calendar note is read days or weeks later; the server prints notes as they are). */
 export const plannedAsOf = (ms: number, zone: string): string => {
   const c = clockParts(ms, zone);
-  return `Planned as of ${c.time} ${c.zone}. Open the planner to confirm.`;
+  return `Planned as of ${c.date} at ${c.time} ${c.zone}. Open the planner to confirm.`;
 };
-/** "Plan last updated 9:00 AM": the marker event's title. */
-export const lastUpdated = (ms: number, zone: string): string => `Plan last updated ${clockParts(ms, zone).time}`;
+/** "Plan last updated Nov 15, 2026 at 9:00 AM": the marker event's title (no zone, as before). */
+export const lastUpdated = (ms: number, zone: string): string => {
+  const c = clockParts(ms, zone);
+  return `Plan last updated ${c.date} at ${c.time}`;
+};
 
 const FOOTER_RE = /\n?Planned as of [^\n]*$/;
 const bodyNotes = (notes: string | undefined): string => (notes ?? '').replace(FOOTER_RE, '');

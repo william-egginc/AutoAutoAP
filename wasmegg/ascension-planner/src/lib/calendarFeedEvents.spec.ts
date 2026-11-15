@@ -44,7 +44,7 @@ const build = (lines: CalLine[], more: Partial<Parameters<typeof buildCalendarEv
   const out = buildFull(lines, more);
   return { ...out, events: real(out.events) };
 };
-const FOOT = 'Planned as of 4:10 PM MST. Open the planner to confirm.';
+const FOOT = 'Planned as of Nov 15, 2026 at 4:10 PM MST. Open the planner to confirm.';
 
 describe('buildCalendarEvents', () => {
   it('makes one event per check-in, uid from the ascension and the first line key', () => {
@@ -338,17 +338,26 @@ describe("Words' wording (14 Nov)", () => {
     for (const e of build([buy(1), buy(2, { kind: 'shift', text: 'shift to Humility' })]).events)
       expect(e.notes!.endsWith(FOOT)).toBe(true);
     const utc = build([buy(1)], { zone: 'UTC' }).events[0]!;
-    expect(utc.notes).toBe('Planned as of 11:10 PM UTC. Open the planner to confirm.');
+    expect(utc.notes).toBe('Planned as of Nov 15, 2026 at 11:10 PM UTC. Open the planner to confirm.');
     const tokyo = build([buy(1)], { zone: 'Asia/Tokyo' }).events[0]!;
-    expect(tokyo.notes).toMatch(/^Planned as of 8:10 AM (GMT\+9|JST)\./);
+    expect(tokyo.notes).toMatch(/^Planned as of Nov 16, 2026 at 8:10 AM (GMT\+9|JST)\./);
+  });
+  it('the dated footer fits the notes budget with the longest zone name and a full body (Words, 15 Nov 2026)', () => {
+    const long = Array.from({ length: 40 }, (_, i) => `buy A very long research name number ${i} (10 → 11)`);
+    for (const zone of ['Pacific/Marquesas', 'Asia/Kolkata', 'America/St_Johns', 'Pacific/Chatham']) {
+      const lines = long.map((t, i) => buy(1, { key: `k${i}`, text: t }));
+      const e = build(lines, { zone }).events[0]!;
+      expect(e.notes!.length).toBeLessThanOrEqual(CAL_NOTES_MAX);
+      expect(e.notes!).toMatch(/\nPlanned as of [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2} (AM|PM) .+\. Open the planner to confirm\.$/);
+    }
   });
   it('a bad zone falls back to UTC instead of throwing', () => {
-    expect(build([buy(1)], { zone: 'Not/AZone' }).events[0]!.notes).toMatch(/^Planned as of 11:10 PM UTC\./);
+    expect(build([buy(1)], { zone: 'Not/AZone' }).events[0]!.notes).toMatch(/^Planned as of Nov 15, 2026 at 11:10 PM UTC\./);
   });
   it('the marker event "Plan last updated 9:00 AM" is in the list when there are events, at the time the plan last changed', () => {
     const out = buildFull([buy(1)]);
     const m = out.events.find(e => e.uid === 'asof')!;
-    expect(m).toMatchObject({ kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM', seq: 0 });
+    expect(m).toMatchObject({ kind: 'note', start: NOW, title: 'Plan last updated Nov 15, 2026 at 4:10 PM', seq: 0 });
     expect(m.notes).toBeUndefined();
   });
   it('every number in the list is a whole millisecond, even when now and the line times are fractions (QA 14 Nov: window.to was refused)', () => {
@@ -483,7 +492,7 @@ describe("Words' wording (14 Nov)", () => {
   it('with no check-ins in the window the list is still the marker alone (an empty feed looks broken; QA 14 Nov)', () => {
     const out = buildFull([]);
     expect(out.events).toHaveLength(1);
-    expect(out.events[0]).toMatchObject({ uid: 'asof', kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM' });
+    expect(out.events[0]).toMatchObject({ uid: 'asof', kind: 'note', start: NOW, title: 'Plan last updated Nov 15, 2026 at 4:10 PM' });
   });
   it("the marker's seq goes up when the plan changes; the footers keep their seq when only the time moves", () => {
     const a = buildFull([buy(1), buy(2)]);
