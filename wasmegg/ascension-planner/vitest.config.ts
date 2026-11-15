@@ -36,6 +36,9 @@ export default defineConfig({
     // their own and time out at vitest's 5 s default when the full run shares the machine with other
     // work. Real hangs still fail, just later.
     testTimeout: 20_000,
+    // The console guard (src/test/consoleGuard.ts): pinia's node-only warning is dropped and nothing prints after a
+    // file's tests end, so late output can't fail a run with "Closing rpc while onUserConsoleLog was pending".
+    setupFiles: ['./src/test/vitestSetup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
