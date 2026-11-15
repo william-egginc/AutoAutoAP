@@ -369,7 +369,7 @@ const isLightRow = s => s.level === 'light' || s.effort === 'light';
  */
 const SIM_STAMP = /^(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+){0,6}$/;
 const SIM_STAMP_MAX = 40;
-const SIM_KNOWN = new Set(['2026-10-13-lowte-gate', '2026-10-21-egg-beta2', '2026-11-03-sim3']);
+const SIM_KNOWN = new Set(['2026-10-13-lowte-gate', '2026-10-21-egg-beta2', '2026-11-03-sim3', '2026-11-14-sim5']);
 const SIM_NEWEST_DAY = [...SIM_KNOWN]
   .map(v => v.slice(0, 10))
   .sort()

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 /**
  * The second hardening round (21 Oct 2026, red team + review): edge limits on the write and read routes,
  * "ranked only with its evidence", simulator stamps, the snapshot's row cap, the board's cache key and
@@ -306,6 +307,11 @@ describe('simulator stamps', () => {
       simVersion: '2026-11-03-sim3',
       simNewer: undefined,
     });
+    // R9 (review 15 Nov, SE-1): sim5, the simulator the beta stamps. Without it in SIM_KNOWN every R9 send says simNewer.
+    expect(await stampOf('2026-11-14-sim5', '4.0.0.8')).toEqual({
+      simVersion: '2026-11-14-sim5',
+      simNewer: undefined,
+    });
   });
   it('keeps an older unknown stamp, unmarked (old rows are history)', async () => {
     expect(await stampOf('2026-09-30-first', '4.0.0.3')).toEqual({
@@ -314,8 +320,8 @@ describe('simulator stamps', () => {
     });
   });
   it('marks a stamp newer than this Worker knows, or an unknown one claiming to be current', async () => {
-    expect(await stampOf('2026-11-09-next', '4.0.0.4')).toEqual({ simVersion: '2026-11-09-next', simNewer: true });
-    expect(await stampOf('2026-11-03-forged', '4.0.0.5')).toEqual({ simVersion: '2026-11-03-forged', simNewer: true });
+    expect(await stampOf('2026-11-20-next', '4.0.0.4')).toEqual({ simVersion: '2026-11-20-next', simNewer: true });
+    expect(await stampOf('2026-11-14-forged', '4.0.0.5')).toEqual({ simVersion: '2026-11-14-forged', simNewer: true });
   });
   it('drops anything not a date and words, or too long, without refusing the row', async () => {
     for (const [v, ip] of [
@@ -348,6 +354,14 @@ describe('simulator gate (RANK_SIMS, red team 6 Nov C9)', () => {
     expect(j.flagged).toEqual(['other-simulator']);
     expect(await board()).toEqual([]);
     expect(keysOf('flag:')).toHaveLength(1);
+  });
+  it("the live list (wrangler.toml's RANK_SIMS) ranks sim3 and sim5 and flags egg-beta2 and anything else", async () => {
+    const live = /^RANK_SIMS = "([^"]*)"/m.exec(readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8'))[1];
+    expect(live.split(',').map(x => x.trim())).toEqual(['2026-11-03-sim3', '2026-11-14-sim5']);
+    env.RANK_SIMS = live;
+    expect((await (await sendSim('2026-11-14-sim5', 6)).json()).flagged).toBeUndefined();
+    expect((await (await sendSim('2026-11-03-sim3', 7)).json()).flagged).toBeUndefined();
+    expect((await (await sendSim('2026-10-21-egg-beta2', 8)).json()).flagged).toEqual(['other-simulator']);
   });
   it('a row with no stamp (an older app) is not judged: it ranks', async () => {
     expect((await (await sendSim(undefined, 3)).json()).flagged).toBeUndefined();

@@ -101,11 +101,13 @@ RANK_NEEDS_EVIDENCE = "1"
 # and README "Old builds". An ISO time; delete the line to turn it off, raise it to refuse more.
 MIN_BUILD_STAMP = "2026-10-23T00:13:48.000Z"
 
-# Release 8 (8 Nov 2026). RANK_SIMS: a row from a simulator not listed here is kept but unranked (flag other-simulator, the
-# flagged board). The live site runs sim3 from R8 and R7 tabs still send egg-beta2 until they reload, so both are listed for the
-# changeover; drop the egg-beta2 stamp once the reload is done. FLAG_TYPED_TE: a run that started from a typed starting-TE
-# override (start.teSrc 'typed') is unranked too (flag typed-te); the page sends teSrc from R8, older pages send none and rank as before.
-RANK_SIMS = "2026-10-21-egg-beta2,2026-11-03-sim3"
+# RANK_SIMS: a row from a simulator not listed here is kept but unranked (flag other-simulator, the flagged board).
+# R8 (8 Nov 2026) ran sim3; R9 ships sim5 (2026-11-14-sim5). Both are listed for the changeover, because R8 tabs
+# keep sending sim3 until they reload. PLANNED END: R9 live date + 7 days, then set this to "2026-11-14-sim5" alone
+# (a redeploy with no code change). egg-beta2 is no longer listed (dropped 15 Nov 2026 with the sim5 update).
+# FLAG_TYPED_TE: a run that started from a typed starting-TE override (start.teSrc 'typed') is unranked too
+# (flag typed-te); the page sends teSrc from R8, older pages send none and rank as before.
+RANK_SIMS = "2026-11-03-sim3,2026-11-14-sim5"
 FLAG_TYPED_TE = "1"
 
 # "Follow in the cloud" (follow.js): per-address, counted at the edge, no D1 or KV spent. 60 a minute for GET and
