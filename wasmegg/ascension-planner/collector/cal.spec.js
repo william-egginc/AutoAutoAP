@@ -223,7 +223,7 @@ describe('the feed (GET /cal/<token>.ics)', () => {
     expect(text).not.toMatch(/Planned as of 4:10/);
     const second = text.split('BEGIN:VEVENT')[2];
     expect(second).not.toContain('DESCRIPTION:');
-    expect(text).toContain('X-WR-CALDESC:Your plan from the Ascension Planner. Your calendar may show times up to a day old.');
+    expect(text).toContain('X-WR-CALDESC:The plan from the Ascension Planner. Your calendar may show times up to a day old.');
   });
   it('escapes text and folds long lines at 75 bytes', async () => {
     await putCal(LIST([EVENT(1, { title: 'Buy; a, b \\ c', notes: 'line one\nline two ' + 'word '.repeat(40) + 'é'.repeat(30) })]));

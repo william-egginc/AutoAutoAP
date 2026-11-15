@@ -128,7 +128,7 @@ const DEFAULT_MINUTES = 10;
 const NAME = 'Ascension Planner';
 
 /** The only words of its own the server prints: the calendar's description. Everything else is the client's title and notes. */
-const CALDESC = 'Your plan from the Ascension Planner. Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
+const CALDESC = 'The plan from the Ascension Planner. Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
 
 export function renderIcs(cal) {
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension Planner//Calendar feed//EN', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(NAME)}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
