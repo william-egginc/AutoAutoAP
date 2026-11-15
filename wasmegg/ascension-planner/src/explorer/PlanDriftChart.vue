@@ -21,11 +21,11 @@
 <template>
   <div class="space-y-2">
     <div v-if="drifts.length" class="flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-1.5">
+      <label class="flex min-w-0 max-w-full items-center gap-1.5">
         <span class="label text-slate-600">Account</span>
         <select
           v-model="picked"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
+          class="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
         >
           <option v-for="d in drifts" :key="d.key" :value="d.key">
             {{ d.label }} ·
@@ -55,7 +55,7 @@
       </button>
     </div>
 
-    <EChart v-if="current && shown.length" :option="option" height="340px" />
+    <EChart v-if="current && shown.length" :option="option" height="340px" label="Chart: how the best plan moves from one day to the next" />
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>

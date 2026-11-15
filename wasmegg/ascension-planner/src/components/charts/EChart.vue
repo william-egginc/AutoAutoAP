@@ -4,7 +4,7 @@
        leave the whole page scrolling sideways. Styled there rather than in a <style> block here,
        which would ship as one more render-blocking stylesheet on both pages. -->
   <div class="echart-frame" :style="{ width: '100%', height }" :aria-busy="state === 'loading'">
-    <div ref="containerRef" class="h-full w-full" />
+    <div ref="containerRef" class="h-full w-full" :role="label ? 'img' : undefined" :aria-label="label" />
     <div
       v-if="state !== 'ready'"
       class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-body text-slate-600"
@@ -31,6 +31,8 @@ const props = withDefaults(
   defineProps<{
     option: ChartOption;
     height?: string;
+    /** A plain name, so the chart is announced as an image with a name (review IN-7). Absent: not announced. */
+    label?: string;
   }>(),
   {
     height: '320px',

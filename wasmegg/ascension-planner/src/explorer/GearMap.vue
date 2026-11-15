@@ -22,7 +22,7 @@
     <div v-if="points.length" class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <div class="space-y-1.5 min-w-0">
         <div ref="chartBox">
-          <EChart :option="option" :height="`${CHART_HEIGHT}px`" />
+          <EChart :option="option" :height="`${CHART_HEIGHT}px`" label="Chart: gear data still wanted" />
         </div>
         <div
           class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"

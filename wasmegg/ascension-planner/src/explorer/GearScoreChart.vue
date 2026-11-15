@@ -24,11 +24,11 @@
     <div v-if="bars.length" class="grid gap-3 md:grid-cols-2">
       <div>
         <h4 class="px-1 text-slate-600 label">Delivery set</h4>
-        <EChart :option="deliveryOption" :height="`${chartHeight}px`" />
+        <EChart :option="deliveryOption" :height="`${chartHeight}px`" label="Chart: delivery set scores" />
       </div>
       <div>
         <h4 class="px-1 text-slate-600 label">Earnings set</h4>
-        <EChart :option="earningsOption" :height="`${chartHeight}px`" />
+        <EChart :option="earningsOption" :height="`${chartHeight}px`" label="Chart: earnings set scores" />
       </div>
     </div>
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">No run here recorded its artifact sets.</p>

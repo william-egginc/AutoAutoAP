@@ -59,7 +59,7 @@
       </span>
     </div>
 
-    <EChart v-if="withLegs.length" :option="option" height="310px" />
+    <EChart v-if="withLegs.length" :option="option" height="310px" label="Chart: each ascension of the selected routes" />
     <!-- In HTML so every account is on screen at any width (legend.ts); each hides all its runs. -->
     <ChartLegend
       v-if="withLegs.length"

@@ -22,7 +22,7 @@
 -->
 <template>
   <div class="space-y-2">
-    <EChart v-if="points.length" :option="option" height="300px" />
+    <EChart v-if="points.length" :option="option" height="300px" label="Chart: whether each final ascension reached its gear's rate" />
     <!-- In HTML so every account is on screen at any width (legend.ts); each hides its runs. -->
     <ChartLegend
       v-if="points.length"
