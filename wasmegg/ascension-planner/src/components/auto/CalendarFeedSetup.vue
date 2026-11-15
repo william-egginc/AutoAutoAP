@@ -83,7 +83,7 @@
       </p>
 
       <!-- Reset link: asks first. -->
-      <template v-if="feed.linked.value">
+      <template v-if="feed.canReset.value || feed.phase.value === 'confirm'">
         <button
           v-if="feed.phase.value !== 'confirm'"
           type="button"
@@ -117,6 +117,7 @@
           </div>
         </div>
       </template>
+      <p v-if="feed.needsMyRuns.value" class="text-body text-slate-600 max-w-prose" data-testid="calendar-feed-open-myruns">{{ CAL_OPEN_MYRUNS }}</p>
       <p v-if="feed.phase.value === 'reset-done'" class="text-body text-emerald-800 max-w-prose" role="status" data-testid="calendar-feed-reset-done">{{ CAL_RESET_DONE }}</p>
       <p v-if="feed.error.value" class="text-body text-rose-700 max-w-prose" role="alert" data-testid="calendar-feed-error">{{ CAL_ERRORS[feed.error.value] }}</p>
     </div>
@@ -131,6 +132,7 @@ import {
   CAL_COPIED,
   CAL_COPY,
   CAL_ERRORS,
+  CAL_OPEN_MYRUNS,
   CAL_GET,
   CAL_GOOGLE,
   CAL_LABEL,

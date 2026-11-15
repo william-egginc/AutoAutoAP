@@ -96,6 +96,30 @@ describe('the card', () => {
   });
 });
 
+describe('QA 14 Nov: Reset link at the 3-link error, and the My runs line', () => {
+  const limitFetch: SyncFetch = async () => ({ ok: false, status: 409, json: async () => ({}), headers: { get: () => null } });
+  it('with the limit hit and no link here: the error and a Reset link button (the way out)', async () => {
+    const feed = createCalendarFeed({ storage: store(), env: { account: 'a1', target: () => ({ url: 'https://collector.example/sync', k: K }) }, fetch: limitFetch });
+    feed.turnOn();
+    await feed.getLink();
+    const html = await render(feed);
+    expect(textOf(html)).toContain(W.CAL_ERRORS.limit);
+    expect(html).toMatch(/data-testid="calendar-feed-reset"/);
+  });
+  it('no link and no error: no Reset link button', async () => {
+    const feed = make();
+    feed.turnOn();
+    expect(await render(feed)).not.toMatch(/data-testid="calendar-feed-reset"/);
+  });
+  it('a link made before My runs gave a plan: the card asks to open My runs once', async () => {
+    const feed = make();
+    feed.turnOn();
+    await feed.getLink();
+    expect(feed.needsMyRuns.value).toBe(true);
+    expect(textOf(await render(feed))).toContain(W.CAL_OPEN_MYRUNS);
+  });
+});
+
 describe('where it is, and what it is not', () => {
   const setup = readFileSync(new URL('./YourSetup.vue', import.meta.url), 'utf8');
   it('in Setup right after Save online, made for the account on screen', () => {

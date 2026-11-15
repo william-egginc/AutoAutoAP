@@ -5,6 +5,7 @@
  * as they are. Wording only, so never part of the result code hash (lib/resultCodeHash.ts `isWordingOnly`).
  */
 import type { ForgetCounts } from './syncedRecords';
+import { calDeletedWords } from './calendarFeedWords';
 
 // ---------------------------------------------------------------------------------------- the switch
 
@@ -35,8 +36,10 @@ const n = (count: number, one: string, many: string) => `${count} ${count === 1 
  * up to 5 each, so these are saved versions, not routes).
  */
 export function forgetCountsWords(d: ForgetCounts): string {
-  if (d.follows + d.prefs + d.answers + d.synced === 0) return 'Nothing was saved online for this account.';
-  return `Deleted from the planner's server: ${n(d.follows, 'saved version', 'saved versions')} of your followed routes, ${n(d.prefs, 'saved version', 'saved versions')} of your Setup and choices, ${n(d.answers, 'instant answer', 'instant answers')}, ${n(d.synced, 'starting TE or tracker record', 'starting TE or tracker records')}.`;
+  const cal = d.calFeeds ?? 0;
+  if (d.follows + d.prefs + d.answers + d.synced + cal === 0) return 'Nothing was saved online for this account.';
+  const base = `Deleted from the planner's server: ${n(d.follows, 'saved version', 'saved versions')} of your followed routes, ${n(d.prefs, 'saved version', 'saved versions')} of your Setup and choices, ${n(d.answers, 'instant answer', 'instant answers')}, ${n(d.synced, 'starting TE or tracker record', 'starting TE or tracker records')}.`;
+  return cal > 0 ? `${base} ${calDeletedWords(cal)}` : base;
 }
 
 /** "2 minutes", "1 hour" (rounded up). */

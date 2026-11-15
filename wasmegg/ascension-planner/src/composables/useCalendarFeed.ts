@@ -36,6 +36,14 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type Last = Pick<CalEventList, 'events' | 'src' | 'asOf'>;
 export type CalPhase = 'idle' | 'confirm' | 'reset-done';
 
+function browserZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function createCalendarFeed(o: {
   storage: StorageLike | null;
   env: CalendarFeedEnv;
@@ -69,6 +77,10 @@ export function createCalendarFeed(o: {
   const error = ref<'' | CalFail | 'upload'>('');
   const phase = ref<CalPhase>('idle');
   const copied = ref(false);
+  /** A link was made before My runs gave any plan: only the marker is up, and the card says to open My runs once. */
+  const needsMyRuns = ref(false);
+  /** Reset link is offered with a link kept here, and also when the server says the limit is hit (3 links made on another device). */
+  const canReset = computed(() => linked.value || error.value === 'limit');
   // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
   const available = computed(() => CALENDAR_FEED.enabled && SYNC_RECORDS.enabled && !!o.env.account && o.env.target() !== null);
 
@@ -137,7 +149,9 @@ export function createCalendarFeed(o: {
       phase.value = 'idle';
       // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
       keep(null);
-      pending = latest;
+      // The plan My runs gave so far, else just the marker (a fresh subscription is never empty); the card asks for My runs.
+      needsMyRuns.value = !latest;
+      pending = latest ?? { now: Date.now(), ascensionStart: 0, lines: [], ticks: new Set<string>(), zone: browserZone(), hours: null };
       if (timer) clearTimeout(timer);
       timer = null;
     } finally {
@@ -206,13 +220,14 @@ export function createCalendarFeed(o: {
   function note(input: CalendarFeedInput): void {
     if (!CALENDAR_FEED.enabled) return;
     latest = input;
+    needsMyRuns.value = false;
     if (!enabled.value || !linked.value) return;
     pending = input;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);
   }
 
-  return { enabled, linked, link, busy, error, phase, copied, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 

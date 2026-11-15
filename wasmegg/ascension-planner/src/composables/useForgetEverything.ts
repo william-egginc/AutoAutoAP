@@ -18,6 +18,8 @@ import { SYNC_RECORDS, forgetEverything, forgetUrlOf, syncedUrlOf, type ForgetRe
 import { syncKnownMissing } from '@/composables/useOverrideSync';
 import { setSaveOnline } from '@/lib/saveOnline';
 import { saveOnlineOffAfterDelete, syncDeleted, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
+import { CALENDAR_FEED } from '@/lib/calendarCloud';
+import { CAL_DELETE_NOTE } from '@/lib/calendarFeedWords';
 import { SYNC_DELETE_STAYS, forgetCountsWords, forgetFailWords } from '@/lib/saveOnlineWords';
 
 /** Delete went through on this page: the switch's line says what it did (saveOnlineOffAfterDelete()). */
@@ -80,7 +82,7 @@ export function useForgetEverything() {
     phase.value = r.ok ? 'done' : 'failed';
   }
 
-  const confirmLines = computed(() => [SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
+  const confirmLines = computed(() => [SYNC_DELETE_CONFIRM, ...(CALENDAR_FEED.enabled ? [CAL_DELETE_NOTE] : []), SYNC_DELETE_STAYS]);
   const lines = computed<string[]>(() => {
     const r = result.value;
     if (!r || (phase.value !== 'done' && phase.value !== 'failed')) return [];
