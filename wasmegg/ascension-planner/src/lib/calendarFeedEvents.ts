@@ -339,13 +339,12 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   const asOf = same ? input.previous!.asOf : input.now;
   const footer = plannedAsOf(asOf, zone);
   for (const e of events) e.notes = e.notes ? `${e.notes}\n${footer}` : footer;
-  if (events.length) {
-    const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
-    const was = previous.get(MARKER_UID);
-    if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
-    events.push(marker);
-    events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
-  }
+  // Always there, even with no check-ins in the window: an empty feed looks broken (QA, 14 Nov).
+  const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
+  const was = previous.get(MARKER_UID);
+  if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
+  events.push(marker);
+  events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
   return {
     v: 1,
     asOf,

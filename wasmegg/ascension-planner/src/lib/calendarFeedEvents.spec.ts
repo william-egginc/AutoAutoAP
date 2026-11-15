@@ -198,7 +198,7 @@ describe('buildCalendarEvents', () => {
   });
   it('an empty plan is an empty list, not an error', () => {
     const out = build([]);
-    expect(out.events).toEqual([]);
+    expect(real(out.events)).toEqual([]);
     expect(out.window.to).toBe(NOW + 14 * 86_400_000);
   });
   it('lead: null or 0 turns the alert off', () => {
@@ -310,7 +310,11 @@ describe("Words' wording (14 Nov)", () => {
     const m = out.events.find(e => e.uid === 'asof')!;
     expect(m).toMatchObject({ kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM', seq: 0 });
     expect(m.notes).toBeUndefined();
-    expect(buildFull([]).events).toEqual([]);
+  });
+  it('with no check-ins in the window the list is still the marker alone (an empty feed looks broken; QA 14 Nov)', () => {
+    const out = buildFull([]);
+    expect(out.events).toHaveLength(1);
+    expect(out.events[0]).toMatchObject({ uid: 'asof', kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM' });
   });
   it("the marker's seq goes up when the plan changes; the footers keep their seq when only the time moves", () => {
     const a = buildFull([buy(1), buy(2)]);
