@@ -3216,8 +3216,31 @@ async function sweepGarbage(env, now, prefix = sweepPrefixOf(now)) {
   return stats;
 }
 
-export default {
-  async fetch(request, env, ctx) {
+/**
+ * The catch-all (review 15 Nov 2026, C3). A thrown D1, KV or R2 error used to reach Cloudflare as an unhandled exception: an
+ * error 1101 page with no CORS headers, which a browser reports as a network error. Now it is a JSON 500 with CORS.
+ * Never 503: the clients read 503 as "off" (bigCsvUpload stops retrying, calendarCloud says "turn on Save online",
+ * syncedRecords gives up), and a 500 is "try again later". The sender is told nothing about the error, and the log gets the
+ * method, the path (never the query: it can hold an account code) and the error's name and first words.
+ */
+async function guarded(request, env, ctx) {
+  try {
+    return await worker.handle(request, env, ctx);
+  } catch (e) {
+    let path = '?';
+    try {
+      path = new URL(request.url).pathname;
+    } catch {
+      // keep '?'
+    }
+    console.error(`unhandled ${request.method} ${path}: ${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 120)}`);
+    return json({ error: 'the collector hit an error; try again later' }, 500);
+  }
+}
+
+const worker = {
+  fetch: (request, env, ctx) => guarded(request, env, ctx),
+  async handle(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -4262,6 +4285,8 @@ export default {
     if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));
   },
 };
+
+export default worker;
 
 // The page is inlined so the Worker is a single file with no build step and no asset hosting.
 // It is small, it has no dependencies, and it reads the same endpoints documented above.
