@@ -23,14 +23,18 @@ import followSimDesk from '@/assets/fulltour/7-followSim-desk.webp';
 import followSimPhone from '@/assets/fulltour/7-followSim-phone.webp';
 import rightNowDesk from '@/assets/fulltour/8-rightNow-desk.webp';
 import rightNowPhone from '@/assets/fulltour/8-rightNow-phone.webp';
-import dockDesk from '@/assets/fulltour/9-dock-desk.webp';
-import dockPhone from '@/assets/fulltour/9-dock-phone.webp';
-import moreDesk from '@/assets/fulltour/10-more-desk.webp';
-import morePhone from '@/assets/fulltour/10-more-phone.webp';
-import blackBoxDesk from '@/assets/fulltour/11-blackBox-desk.webp';
-import blackBoxPhone from '@/assets/fulltour/11-blackBox-phone.webp';
-import leaderboardDesk from '@/assets/fulltour/12-leaderboard-desk.webp';
-import leaderboardPhone from '@/assets/fulltour/12-leaderboard-phone.webp';
+import trackerDesk from '@/assets/fulltour/9-tracker-desk.webp';
+import trackerPhone from '@/assets/fulltour/9-tracker-phone.webp';
+import eggsDesk from '@/assets/fulltour/10-eggs-desk.webp';
+import eggsPhone from '@/assets/fulltour/10-eggs-phone.webp';
+import dockDesk from '@/assets/fulltour/11-dock-desk.webp';
+import dockPhone from '@/assets/fulltour/11-dock-phone.webp';
+import moreDesk from '@/assets/fulltour/12-more-desk.webp';
+import morePhone from '@/assets/fulltour/12-more-phone.webp';
+import blackBoxDesk from '@/assets/fulltour/13-blackBox-desk.webp';
+import blackBoxPhone from '@/assets/fulltour/13-blackBox-phone.webp';
+import leaderboardDesk from '@/assets/fulltour/14-leaderboard-desk.webp';
+import leaderboardPhone from '@/assets/fulltour/14-leaderboard-phone.webp';
 
 const desk = (src: string): TourPicture => ({ src, width: 720, height: 406 });
 const phone = (src: string): TourPicture => ({ src, width: 390, height: 440 });
@@ -49,6 +53,8 @@ const PICTURES: Record<FullTourStepId, { desk: TourPicture; phone: TourPicture }
   answer: { desk: desk(answerDesk), phone: phone(answerPhone) },
   followSim: { desk: desk(followSimDesk), phone: phone(followSimPhone) },
   rightNow: { desk: desk(rightNowDesk), phone: phone(rightNowPhone) },
+  tracker: { desk: desk(trackerDesk), phone: phone(trackerPhone) },
+  eggs: { desk: desk(eggsDesk), phone: phone(eggsPhone) },
   dock: { desk: desk(dockDesk), phone: phone(dockPhone) },
   more: { desk: desk(moreDesk), phone: phone(morePhone) },
   blackBox: { desk: desk(blackBoxDesk), phone: phone(blackBoxPhone) },

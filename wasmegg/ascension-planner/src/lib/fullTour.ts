@@ -7,8 +7,7 @@
  * imports this file.
  */
 
-/** The steps, in the order of the page: the top, the Chain Finder card, My runs (its tracker and Your eggs are in that card),
- *  the floating parts, then the rest. Words' twelve cards, 14 Nov 2026. */
+/** The steps, in the order of the page: the top, the Chain Finder card, My runs, the floating parts, then the rest. */
 export const FULL_TOUR_STEPS = [
   'tabs',
   'chip',
@@ -18,6 +17,8 @@ export const FULL_TOUR_STEPS = [
   'answer',
   'followSim',
   'rightNow',
+  'tracker',
+  'eggs',
   'dock',
   'more',
   'blackBox',

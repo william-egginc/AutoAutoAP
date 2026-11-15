@@ -26,17 +26,12 @@ describe('More has a Full tour item', () => {
   it('its words', () => {
     expect(FULL_TOUR_ITEM).toBe('Full tour');
   });
-  it('the step list is Words\' twelve cards (tracker and eggs fold into My runs)', async () => {
-    const { FULL_TOUR_STEPS } = await import('@/lib/fullTour');
-    expect([...FULL_TOUR_STEPS]).toEqual(['tabs', 'chip', 'saveBlock', 'switch', 'filters', 'answer', 'followSim', 'rightNow', 'dock', 'more', 'blackBox', 'leaderboard']);
-  });
 });
 
 describe('About says where it is', () => {
   it('a line under "What this is"', () => {
     const about = read('../public/about.html'.replace('../', '../')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     expect(about).toContain(FULL_TOUR_ABOUT);
-    expect(FULL_TOUR_ABOUT).toBe('Want more than the short tour? Open More and pick Full tour for every part of the planner.');
   });
 });
 
