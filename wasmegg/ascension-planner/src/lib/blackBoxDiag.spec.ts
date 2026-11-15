@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as blackBox from '@/search/blackBox';
-import { noteCarryOn, notePageLoad, readLive, watcherReopenPath } from './blackBoxDiag';
+import { BENCH_ITERATIONS, microBenchmarkMs, noteCarryOn, noteRunStart, notePageLoad, readLive, watcherReopenPath } from './blackBoxDiag';
 
 let backing: Map<string, string>;
 beforeEach(() => {
@@ -65,5 +65,25 @@ describe('watcherReopenPath', () => {
     expect(watcherReopenPath({ reopens: [1000] }, 1000 + 3 * 60_000 + 1)).toBeNull();
     expect(watcherReopenPath({ reopens: [] }, 6000)).toBeNull();
     expect(watcherReopenPath(null, 6000)).toBeNull();
+  });
+});
+
+describe('noteRunStart and microBenchmarkMs', () => {
+  it("a run-start entry goes into blackBox's history with its fields, and keeps the open beat", () => {
+    const b = blackBox.beat({ phase: 'deadline search', done: 1 });
+    noteRunStart({ kind: 'deadline search', build: 'abc', simVersion: 'sim-x', startTE: 196, deadline: 1_790_000_000, sets: 40, benchMs: 9.5 });
+    noteRunStart({ kind: 'fastest full', build: 'abc', simVersion: 'sim-x', startTE: 196, benchMs: 8 });
+    const h = readLive().history;
+    expect(h.at(-2)).toMatchObject({ phase: 'run start', detail: 'deadline search', build: 'abc', simVersion: 'sim-x', startTE: 196, deadline: 1_790_000_000, sets: 40, benchMs: 9.5 });
+    expect(h.at(-1)).not.toHaveProperty('deadline');
+    expect(h.at(-1)).not.toHaveProperty('sets');
+    expect(blackBox.readUnfinished()!.last).toEqual(b);
+  });
+
+  it('the benchmark is a fixed loop: elapsed ms between two clock reads, the same work every call', () => {
+    const reads = [100, 112.34];
+    expect(microBenchmarkMs(() => reads.shift()!)).toBe(12.3);
+    expect(BENCH_ITERATIONS).toBeGreaterThan(0);
+    expect(microBenchmarkMs(() => 5)).toBe(0);
   });
 });
