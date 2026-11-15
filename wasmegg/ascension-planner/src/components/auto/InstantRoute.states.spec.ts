@@ -813,6 +813,8 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     const html = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line });
     expect(html).toMatch(/data-testid="box-check-fast"[^>]*>\s*Check this date with Fast\s*</);
     expect(html).toContain('Fast checks the instant answer&#39;s route on your save. Custom looks harder.');
+    // The hint is under the button (Words, 15 Nov 2026, final).
+    expect(html.indexOf('box-check-fast"')).toBeLessThan(html.indexOf('box-check-fast-note'));
     const off = await draw(at('date', true), { dateSpare: spareLine(19 * 3600, true, 'en-US'), closeCall: line, checkWithFast: false });
     expect(off).toContain('data-testid="box-close-call"');
     expect(off).not.toContain('data-testid="box-check-fast"');
