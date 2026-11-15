@@ -7,16 +7,18 @@
  * Not a result code hash input.
  */
 import { putSynced, type PutSyncedResult, type SyncFetch } from './syncedRecords';
+import { calendarFeedOn } from './calendarFlag';
 import type { CalEventList } from './calendarFeedEvents';
 
 /**
  * THE CALENDAR FEED'S BUILD FLAG (14 Nov 2026): off in the repo, because beta's collector address is the LIVE collector, which has
  * no /cal and no 'cal' sync kind yet. Flipped on (the `=== '1'` here becomes `true`) in the release that deploys the live
- * collector. A QA build against the TEST collector turns it on with VITE_CALENDAR_FEED=1. An object so the specs can turn it on
+ * collector (lib/calendarFlag.ts CALENDAR_FEED_DEFAULT, one line). A QA build against the TEST collector turns it on with
+ * VITE_CALENDAR_FEED=1. An object so the specs can turn it on
  * and off. Off: no Setup card (components/auto/CalendarFeedSetup.vue), and no request to /cal or of kind=cal, checked here
  * (every call below refuses first) and in composables/useCalendarFeed.ts (`available`, `note`).
  */
-export const CALENDAR_FEED = { enabled: import.meta.env.VITE_CALENDAR_FEED === '1' };
+export const CALENDAR_FEED = { enabled: calendarFeedOn(import.meta.env.VITE_CALENDAR_FEED) };
 
 const KEY = /^[0-9a-f]{64}$/;
 const TIMEOUT_MS = 10_000;

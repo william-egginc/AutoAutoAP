@@ -14,13 +14,17 @@
       <span>What goes online</span>
     </summary>
     <ul class="list-disc space-y-1 pb-1 pl-5">
-      <li v-for="line in PRIVACY_TIP_LINES" :key="line">{{ line }}</li>
+      <li v-for="line in lines" :key="line">{{ line }}</li>
     </ul>
   </details>
 </template>
 
 <script setup lang="ts">
-import { PRIVACY_TIP_LABEL, PRIVACY_TIP_LINES } from '@/lib/privacyWords';
+import { PRIVACY_TIP_CALENDAR_LINE, PRIVACY_TIP_LABEL, PRIVACY_TIP_LINES } from '@/lib/privacyWords';
+import { CALENDAR_FEED } from '@/lib/calendarCloud';
+
+/** The calendar line only while the calendar feed is on (lib/calendarFlag.ts: its Setup card ships dark until the live collector has /cal). */
+const lines = CALENDAR_FEED.enabled ? [...PRIVACY_TIP_LINES, PRIVACY_TIP_CALENDAR_LINE] : PRIVACY_TIP_LINES;
 </script>
 
 <style scoped>

@@ -36,7 +36,7 @@ const lines = [{ key: 'k0', kind: 'research' as const, at: 1_800_000_000, text: 
 describe('the flag', () => {
   it('is off in the repo, and a QA build turns it on with VITE_CALENDAR_FEED=1', () => {
     expect(CALENDAR_FEED.enabled).toBe(false);
-    expect(readFileSync(new URL('./calendarCloud.ts', import.meta.url), 'utf8')).toContain("export const CALENDAR_FEED = { enabled: import.meta.env.VITE_CALENDAR_FEED === '1' };");
+    expect(readFileSync(new URL('./calendarCloud.ts', import.meta.url), 'utf8')).toContain('export const CALENDAR_FEED = { enabled: calendarFeedOn(import.meta.env.VITE_CALENDAR_FEED) };');
   });
 });
 
