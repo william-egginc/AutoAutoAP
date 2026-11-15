@@ -32,5 +32,5 @@ export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off' |
   off: 'Calendar links need Save online turned on in Setup.',
   // The plan's own upload failing (not a link button): said so, and that the calendar may be stale. It really is sent again: the next plan change, or
   // My runs opened again, finds the last good list unchanged and sends.
-  upload: "Your plan couldn't be sent to your calendar, so the calendar may be out of date. Try again in a moment.",
+  upload: "Couldn't send the plan to your calendar, so it may be out of date. Try again in a moment.",
 };
