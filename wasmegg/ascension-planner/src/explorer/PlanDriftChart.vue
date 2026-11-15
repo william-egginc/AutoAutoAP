@@ -55,7 +55,7 @@
       </button>
     </div>
 
-    <EChart v-if="current && shown.length" :option="option" height="340px" label="Chart: how the best plan moves from one day to the next" />
+    <EChart v-if="current && shown.length" :option="option" height="340px" label="Chart: how an account's best route changes from one day to the next" />
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>

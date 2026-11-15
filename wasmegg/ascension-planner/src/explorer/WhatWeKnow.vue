@@ -72,7 +72,7 @@
             aria-hidden="true"
             >{{ i + 1 }}</span
           >
-          <span class="flex-1">{{ f.headline }}</span>
+          <span class="flex-1">{{ headlineOf(f) }}</span>
           <span class="finding-chevron mt-0.5 text-small text-slate-600" aria-hidden="true">&#9662;</span>
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
@@ -227,7 +227,7 @@ import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import { SIM_VERSION } from '@/search/simVersion';
-import { measuredOnLine, type KnowStats } from './knowStats';
+import { eggDayHeadline, measuredOnLine, type KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
 const FINDINGS_CHECKED = 'Oct 10-24, 2026';
@@ -246,6 +246,10 @@ const props = defineProps<{
 /** Review IN-3: the runs counted by simulator, under the header. */
 const measuredLine = computed(() => (props.stats ? measuredOnLine(props.stats.measuredOn) : ''));
 
+/** A finding's headline: the Egg Day one is counted from its list (knowStats `eggDayHeadline`), the rest are written. */
+const headlineOf = (f: { id: string; headline: string }): string =>
+  f.id === 'eggday' ? (props.stats ? eggDayHeadline(props.stats.eggDay, props.stats.eggDayYear) ?? '' : '') : f.headline;
+
 const findings = [
   {
     id: 'match',
@@ -254,7 +258,8 @@ const findings = [
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },
-  { id: 'eggday', headline: 'By Egg Day 2027, a well-geared account gains about 100-135 TE, with 3-5 ascensions.' },
+  // Its headline is counted from the list (`headlineOf`): nothing listed, none.
+  { id: 'eggday', headline: '' },
   { id: 'bydate', headline: 'The instant answer matches Highest TE by a date runs ascension by ascension.' },
   { id: 'buildup', headline: 'Halfway through a build, finishing it first can beat prestiging now.' },
   { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension may stall (a September estimate).' },

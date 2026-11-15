@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { knowStats, byDateEntries, startFits, measuredOnLine } from './knowStats';
+import { knowStats, byDateEntries, startFits, measuredOnLine, eggDayHeadline } from './knowStats';
 import { eggDaySeconds } from '@/lib/eggDay';
 import { SIM_VERSION } from '@/search/simVersion';
 import type { CollectorRow } from './collector';
@@ -156,5 +156,27 @@ describe('measuredOn (review IN-3, 15 Nov 2026): the runs counted by the simulat
   it('says nothing with no runs', () => {
     expect(knowStats([], none, new Set()).measuredOn).toEqual([]);
     expect(measuredOnLine([])).toBe('');
+  });
+});
+
+describe('the Egg Day headline is counted from the list (Words, 15 Nov 2026)', () => {
+  const e = (from: number, reaches: number, ascensions: number) => ({ label: 'x', from, reaches, ascensions });
+  it('several lines: the range of gains and of ascensions', () => {
+    expect(eggDayHeadline([e(200, 300, 3), e(170, 305, 5), e(190, 300, 4)], 2027)).toBe('By Egg Day 2027, the accounts here gain 100-135 TE, with 3-5 ascensions.');
+  });
+  it('one line: singular account, "gains", the number once', () => {
+    expect(eggDayHeadline([e(200, 320, 4)], 2027)).toBe('By Egg Day 2027, the one account here gains 120 TE, with 4 ascensions.');
+    expect(eggDayHeadline([e(200, 320, 1)], 2028)).toBe('By Egg Day 2028, the one account here gains 120 TE, with 1 ascension.');
+  });
+  it('equal ends collapse to one number', () => {
+    expect(eggDayHeadline([e(200, 320, 4), e(180, 300, 4)], 2027)).toBe('By Egg Day 2027, the accounts here gain 120 TE, with 4 ascensions.');
+  });
+  it('none: no headline, and nothing about gear', () => {
+    expect(eggDayHeadline([], 2027)).toBeNull();
+    expect(eggDayHeadline([e(200, 320, 4)], 2027)).not.toMatch(/geared/);
+  });
+  it('the stats carry the year of that Egg Day', () => {
+    const s = knowStats([], { byId: new Map(), bestByAccount: new Map() }, new Set(), [], Date.UTC(2026, 10, 15));
+    expect(s.eggDayYear).toBe(2027);
   });
 });
