@@ -26,10 +26,9 @@
  *   - The final leg is NOT pushed. Reaching the final target is not an action; there is nothing to
  *     do at that instant, so being unavailable for it costs nothing.
  *
- *   - The delay is charged in full, and the TE you keep earning while away is NOT credited. Once
- *     the target is hit the farm goes on laying, so in real life you come back slightly past the
- *     checkpoint and the next leg is slightly shorter. The model is therefore CONSERVATIVE: a plan
- *     built with a schedule will, if anything, run marginally faster than it says.
+ *   - The delay is charged in full, and the eggs the farm keeps laying while you wait ARE credited
+ *     (creditWait), up to what the silos hold. The silo count is the save's, for every later
+ *     ascension, which is cautious because later ascensions buy silos again.
  *
  * Setting a schedule changes what "best" means, so it is part of the run fingerprint (see
  * persistence.ts) and there is none by default. Chains scored with and without one are not
