@@ -268,6 +268,7 @@ function ctxOf(s: State): Record<string, unknown> {
     showMoreCounts: false,
     shownRows: result ? [result.best] : [],
     simNote: null,
+    simMismatchWords: () => '',
     simulateNote: () => '',
     spareOf: (d: { end: number }) => (deadline ?? 0) - d.end,
     status: s.status,
