@@ -159,7 +159,10 @@ const heldAt = (e: PlanEvent): number | null => (e.kind === 'prestige' && e.wait
 /** The row as it happens: a waiting prestige at its held time (When, How far, the calendar). */
 const shown = (e: PlanEvent): PlanEvent => {
   const h = heldAt(e);
-  return h == null ? e : { ...e, at: h };
+  if (h != null) return { ...e, at: h };
+  // No wait, but the next ascension starts later than the stop (the instant answer ascends on the hour): the row is the prestige, so the
+  // time is that start, as Next step and Next shifts say it (QA, 15 Nov 2026). Nothing is said about waiting.
+  return e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.past && !e.notDone ? { ...e, at: e.prestigeAt } : e;
 };
 const when = (e: PlanEvent) => whenWords(shown(e), props.goal, props.now, props.zone, roundedFor(e));
 const far = (e: PlanEvent) => howFar(shown(e), props.now, props.zone, roundedFor(e), props.goal);

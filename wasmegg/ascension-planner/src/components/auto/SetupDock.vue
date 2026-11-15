@@ -29,7 +29,7 @@
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
       <!-- Below sm, as the round gear (Jordan, 12 Nov 2026 pm), there is no handle: the gear itself drags (onGearDown). -->
       <span
-        class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white/70 hover:text-white"
+        class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white hover:text-white"
         :class="round ? 'max-sm:hidden' : ''"
         title="Drag to move · double-click to put back"
         aria-hidden="true"

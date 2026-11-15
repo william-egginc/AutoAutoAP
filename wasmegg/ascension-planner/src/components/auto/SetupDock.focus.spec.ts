@@ -83,3 +83,13 @@ describe('a folded header is out of the tab order', () => {
     expect(app.match(/:inert="isHeaderCollapsed"/g)?.length).toBe(2);
   });
 });
+
+describe('the drag handle on the indigo pill (QA 15 Nov 2026: white at 70% is 3.92:1)', () => {
+  it('is full white (it is decorative: aria-hidden, the pill is named by its button)', async () => {
+    const html = await render();
+    const handle = html.match(/<span[^>]*title="Drag to move[^"]*"[^>]*>/)?.[0] ?? '';
+    expect(handle).toContain('aria-hidden="true"');
+    expect(handle).toMatch(/class="[^"]*\btext-white\b(?!\/)[^"]*"/);
+    expect(handle).not.toContain('text-white/70');
+  });
+});
