@@ -31,7 +31,7 @@
  *
  *   DELETE /forget?k=&all=1   "Delete everything saved online for this account": the saved routes (/follow), Setup and consent (/prefs),
  *                             instant answers (/answers) and synced records (this file) under the key, in one call:
- *                             { ok, deleted: { follows, prefs, answers, synced } } (rows). `all=1` is required. 10 a hour a key. The
+ *                             { ok, deleted: { follows, prefs, answers, synced, calFeeds } } (rows). `all=1` is required. 10 a hour a key. The
  *                             budget rows stay (forgetting is not a way to reset a limit). It does NOT reach results shared with the
  *                             leaderboard, the private instant records or CSVs (kept under the owner code, not this key).
  */

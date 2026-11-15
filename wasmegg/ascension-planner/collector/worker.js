@@ -1,11 +1,12 @@
 /**
  * Cloudflare Worker: collects chain-search submissions and serves the leaderboard.
  *
- * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. Everything
- * lives in one Worker plus one KV namespace, because the whole dataset is a few thousand small
- * JSON objects and reaching for a database would be borrowing trouble. (The exceptions are the
- * phone watch in watch.js, the followed routes in follow.js and the daily build counts in
- * buildcount.js, which keep their rows in a small D1 database.)
+ * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. The board itself
+ * lives in one KV namespace, because the whole dataset is a few thousand small JSON objects. Everything
+ * per account or per device keeps its rows in a small D1 database instead: the phone watch (watch.js), followed
+ * routes (follow.js), Setup and consent (prefs.js), instant answers (answers.js), synced records and the
+ * calendar feed (sync.js, cal.js), run alerts (runs.js) and the daily build counts (buildcount.js). The full-detail
+ * CSV of a very large run goes to a private R2 bucket (bigcsv.js).
  *
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
@@ -45,9 +46,10 @@
  * the thing posting to it is the app. The rules are kept identical by being short enough to read
  * side by side; if they drift, the Worker's copy is the one that matters.
  *
- * WHAT THIS DELIBERATELY DOES NOT STORE. No IP addresses beyond a rate-limit key that lives in
- * KV under a 120-second TTL and is never read back into any record, no cookies, nothing derived
- * from the connection. The one header read into a record is `x-owner-token`: a random code the
+ * WHAT THIS DELIBERATELY DOES NOT STORE. No IP address is kept in a record. Rate limits use a key made from the
+ * address: `gate:<ip>` in KV under a 120-second TTL (the flood guard), an HMAC of it under CSV_UPLOAD_KEY in a D1 budget
+ * row pruned after 3 days (run alerts and calendar links), and for /instant an unkeyed SHA-256 of it plus the day,
+ * kept 2 days in KV (`instn:`). None is read back into any record. No cookies, nothing else derived from the connection. The one header read into a record is `x-owner-token`: a random code the
  * app keeps per account in the submitter's browser, stored here only as its SHA-256 and never
  * served back. It is not derived from the player id. It is what lets a player -- and only that
  * player -- see their own rows on the flagged board and in /mine, put a name on a row they sent

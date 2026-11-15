@@ -18,11 +18,10 @@ compatibility_date = "2026-01-01"
 binding = "SUBMISSIONS"
 id = "77c966d5ec964cc2979f59a190737fd4"
 
-# NO R2 BINDING, DELIBERATELY. A run's CSV is gzipped in the browser before it is sent -- 15.3 MB
-# of chain table measures 0.66 MB compressed -- so it fits KV's 25 MB per-value limit and lives
-# under `csv:<id>` in the namespace above. R2 would mean a payment method on the account for a
-# payload that does not need it. See collector/README.md for the tradeoff this makes on the
-# player-id sweep.
+# An ordinary run's CSV is gzipped in the browser before it is sent -- 15.3 MB of chain table measures
+# 0.66 MB compressed -- so it fits KV's 25 MB per-value limit and lives under `csv:<id>` in the namespace
+# above. Only the FULL-detail CSV of a very large run goes to R2 (the BIGCSV binding, further down; bigcsv.js).
+# See collector/README.md for the tradeoff this makes on the player-id sweep.
 
 # "Watch this run from your phone" (watch.js): heartbeats every 5 min per watched run. D1, NOT KV:
 # KV's free plan allows 1,000 writes a day for the whole account, and one run left going writes ~290.
@@ -34,8 +33,9 @@ database_name = "aaap-watch"
 database_id = "a83ae6ba-4a22-4107-b4a6-49c9185032c3"
 migrations_dir = "migrations"
 
-# Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago, and (once an hour) the
-# deletion of watch rows not updated in 7 days (D1). Once an hour at :30 it also sweeps one KV prefix
+# Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago. Once an hour (the prune hour, D1): watch rows
+# not updated in 7 days, budget rows older than 3 days, old runs, expired calendar links and old instant answers, and up to 50
+# raw-keyed accounts moved to their salted keys (acct.js rekeyLegacy). Once an hour at :30 it also sweeps one KV prefix
 # for orphan CSVs and TTL-less counters, 1 list a run (worker.js "the sweep", README "The sweep").
 [triggers]
 crons = ["*/5 * * * *"]
