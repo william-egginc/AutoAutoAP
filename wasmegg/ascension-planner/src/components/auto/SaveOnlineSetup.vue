@@ -25,6 +25,7 @@
     <div v-if="forget.available.value" class="ml-7 space-y-2" data-testid="sync-delete">
       <button
         v-if="forget.phase.value !== 'confirm'"
+        ref="deleteBtn"
         type="button"
         class="inline-flex min-h-[44px] items-center rounded text-left text-body font-bold text-rose-700 underline hover:text-rose-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 disabled:no-underline"
         :disabled="forget.busy.value"
@@ -53,6 +54,7 @@
             {{ SYNC_DELETE_YES }}
           </button>
           <button
+            ref="noBtn"
             type="button"
             class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             data-testid="sync-delete-no"
@@ -86,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { saveOnlineSwitch } from '@/lib/saveOnline';
 import { SYNC_RECORDS } from '@/lib/syncedRecords';
 import { deletedThisVisit, useForgetEverything } from '@/composables/useForgetEverything';
@@ -107,6 +109,19 @@ const on = computed({
   set: v => (sw.value = v),
 });
 const forget = useForgetEverything();
+const deleteBtn = ref<HTMLElement | null>(null);
+const noBtn = ref<HTMLElement | null>(null);
+// The confirm takes focus (on "No", the safe button) and, dismissed, gives it back to Delete when it would be lost to the page (review W6).
+watch(
+  () => forget.phase.value,
+  (phase, was) => {
+    if (phase === 'confirm') void nextTick(() => noBtn.value?.focus());
+    else if (was === 'confirm')
+      void nextTick(() => {
+        if (typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) deleteBtn.value?.focus();
+      });
+  }
+);
 // Words' on line names the starting TE and the tracker, saved online only once SYNC_RECORDS is on.
 const line = computed(() =>
   on.value
