@@ -14,19 +14,19 @@ const bound = { r1At: 4, doneBy: 4, sleepAt: 3, exact: false };
 describe('sleepBeforeR1Words', () => {
   it('card: R1 starts before bedtime but is not done by it', () => {
     expect(sleepBeforeR1Card(spans, fmt)).toBe(
-      'Your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
+      'Your silo buys (R1) start at 10:40 PM and run until about 11:20 PM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
     );
   });
-  it('card: R1 starts after bedtime; an upper bound says "may be done as late as"', () => {
+  it('card: R1 starts after bedtime; an upper bound says "may come as late as"', () => {
     expect(sleepBeforeR1Card(late, fmt)).toBe('Your silo buys (R1) start at 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.');
     expect(sleepBeforeR1Card(bound, fmt)).toBe(
-      'Your silo buys (R1) may be done as late as 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
+      'Your silo buys (R1) may come as late as 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
     );
   });
   it('Next step ("if you prestige now") and the tracker use the same clause', () => {
-    expect(sleepBeforeR1NextStep(spans, fmt)).toBe('If you prestige now, your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM.');
-    expect(sleepBeforeR1Tracker(spans, fmt)).toBe('Your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM.');
-    expect(sleepBeforeR1Tracker(bound, fmt)).toBe('Your silo buys (R1) may be done as late as 1:10 AM, after your hours end at 11:00 PM.');
+    expect(sleepBeforeR1NextStep(spans, fmt)).toBe('If you prestige now, your silo buys (R1) start at 10:40 PM and run until about 11:20 PM, after your hours end at 11:00 PM.');
+    expect(sleepBeforeR1Tracker(spans, fmt)).toBe('Your silo buys (R1) start at 10:40 PM and run until about 11:20 PM, after your hours end at 11:00 PM.');
+    expect(sleepBeforeR1Tracker(bound, fmt)).toBe('Your silo buys (R1) may come as late as 1:10 AM, after your hours end at 11:00 PM.');
   });
   it('plain words: no Click or Tap, no "recalculate", no Your plan at the start, no player ID', () => {
     const all = [sleepBeforeR1Card(spans, fmt), sleepBeforeR1NextStep(bound, fmt), sleepBeforeR1Tracker(late, fmt)].join(' ');

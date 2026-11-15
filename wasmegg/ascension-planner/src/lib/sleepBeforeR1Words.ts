@@ -13,9 +13,9 @@ type Fmt = (unixSeconds: number) => string;
 /** What happens to R1 against the hours, said once for all three places. */
 function clause(d: SleepBeforeR1, fmt: Fmt): string {
   const end = `after your hours end at ${fmt(d.sleepAt)}`;
-  if (!d.exact) return `may be done as late as ${fmt(d.doneBy)}, ${end}`;
+  if (!d.exact) return `may come as late as ${fmt(d.doneBy)}, ${end}`;
   if (d.r1At >= d.sleepAt) return `start at ${fmt(d.r1At)}, ${end}`;
-  return `start at ${fmt(d.r1At)} and finish by ${fmt(d.doneBy)}, ${end}`;
+  return `start at ${fmt(d.r1At)} and run until about ${fmt(d.doneBy)}, ${end}`;
 }
 
 /** A route card or a timeline ascension. */
