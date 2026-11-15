@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCalendarFeed, CAL_DEBOUNCE_MS, type CalendarFeedEnv } from './useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
+import * as blackBox from '@/search/blackBox';
 
 const K = 'b'.repeat(64);
 const SYNC = 'https://collector.example/sync';
@@ -197,5 +198,63 @@ describe('the plan goes up only when it changed', () => {
     c.note(input(2));
     await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
     for (const p of col.puts()) expect(p.body).not.toMatch(/EI\d{16}/);
+  });
+});
+
+describe('a failed plan upload shows, and a new link sends the plan at once', () => {
+  it('a 400 on the cal PUT: the card error line and a black-box note (no link in it)', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [400] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(c.error.value).toBe('error');
+    expect(note).toHaveBeenCalledTimes(1);
+    expect(String(note.mock.calls[0][0])).toMatch(/calendar/i);
+    expect(String(note.mock.calls[0][0])).not.toContain('AbCdEf');
+    note.mockRestore();
+  });
+  it('a later good upload clears the line', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [400, 200] });
+    const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    c.note(input(3));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(c.error.value).toBe('');
+    note.mockRestore();
+  });
+  it('getLink forgets the kept last list, and sends the plan right after minting (no 10 s wait)', async () => {
+    const { st, m } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    expect(col.puts()).toHaveLength(1);
+    expect(m.get('aap.calFeed.acct1.last')).toBeTruthy();
+    // a second link, same plan: it must still go up now
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(2);
+  });
+  it('a failed mint sends nothing and keeps the last list', async () => {
+    const { st, m } = memStore();
+    const col = collector({ mint: 409 });
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    c.note(input(2));
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(col.puts()).toHaveLength(0);
+    expect(m.has('aap.calFeed.acct1.last')).toBe(false);
   });
 });
