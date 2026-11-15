@@ -383,6 +383,31 @@ describe("Words' wording (14 Nov)", () => {
       expect(merged).toBeTruthy();
     });
   });
+  it('a Producing player (no tracker lines): synthesised shift and prestige lines with checkIn -1 become their own events, marker kept', () => {
+    const shift = line({
+      key: 'shift:1',
+      kind: 'shift' as CalLine['kind'],
+      at: SEC + 7200,
+      text: 'shift to Humility',
+      tickable: true,
+      checkIn: -1,
+    });
+    const prestige = line({
+      key: 'prestige',
+      kind: 'prestige' as CalLine['kind'],
+      at: SEC + 20000,
+      text: 'ascend',
+      tickable: true,
+      checkIn: -1,
+    });
+    const out = buildFull([shift, prestige]);
+    expect(real(out.events).map(e => e.title)).toEqual(['Shift to Humility', 'Ascend']);
+    expect(real(out.events).map(e => [e.kind, e.critical])).toEqual([
+      ['shift', true],
+      ['prestige', true],
+    ]);
+    expect(out.events.some(e => e.uid === 'asof')).toBe(true);
+  });
   it('with no check-ins in the window the list is still the marker alone (an empty feed looks broken; QA 14 Nov)', () => {
     const out = buildFull([]);
     expect(out.events).toHaveLength(1);
