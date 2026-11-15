@@ -401,11 +401,7 @@ describe("Words' wording (14 Nov)", () => {
       checkIn: -1,
     });
     const out = buildFull([shift, prestige]);
-    expect(out.events.map(e => e.title)).toEqual(
-      ['Shift to Humility', 'Plan last updated 4:10 PM', 'Ascend'].sort(
-        (a, b) => out.events.findIndex(e => e.title === a) - out.events.findIndex(e => e.title === b)
-      )
-    );
+    expect(real(out.events).map(e => e.title)).toEqual(['Shift to Humility', 'Ascend']);
     expect(real(out.events).map(e => [e.kind, e.critical])).toEqual([
       ['shift', true],
       ['prestige', true],
