@@ -236,9 +236,6 @@ export async function handlePrefs(request, env, now = Date.now()) {
     }
   }
 
-  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
-  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
-
   // The hour's budget, in one statement (as follow.js does): a refused write changes no row, so it costs no read.
   const budgetKey = `prefs|${k}`;
   const hourAgo = now - HOUR_MS;
@@ -256,6 +253,9 @@ export async function handlePrefs(request, env, now = Date.now()) {
     const wait = Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000));
     return retry(wait, `at most ${FOLLOW_WRITES_PER_HOUR} changes an hour for one key`);
   }
+  // The collector's day budget comes after the key's hour (review 15 Nov, C2): a write the key's own hour refuses spends nothing shared.
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   const ins = await insertTwice(() =>
     env.WATCH.prepare(

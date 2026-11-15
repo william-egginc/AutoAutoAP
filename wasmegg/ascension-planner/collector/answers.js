@@ -118,9 +118,6 @@ export async function handleAnswers(request, env, now = Date.now()) {
     if ((total?.n ?? 0) >= ANSWER_MAX_TOTAL || (total?.b ?? 0) + body.length > ANSWER_MAX_TOTAL_BYTES) return retry(3600, 'the cloud save is full right now');
   }
 
-  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
-  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
-
   // The hour's budget in one statement (as follow.js): a refused write changes no row, so it needs no read.
   const budgetKey = `answers|${k}`;
   const hourAgo = now - HOUR_MS;
@@ -138,6 +135,9 @@ export async function handleAnswers(request, env, now = Date.now()) {
     const wait = Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000));
     return retry(wait, `at most ${FOLLOW_WRITES_PER_HOUR} changes an hour for one key`);
   }
+  // The collector's day budget comes after the key's hour (review 15 Nov, C2): a write the key's own hour refuses spends nothing shared.
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   await env.WATCH.prepare(
     `INSERT INTO answers (key, e, at, updated, bytes, data) VALUES (?, ?, ?, ?, ?, ?)

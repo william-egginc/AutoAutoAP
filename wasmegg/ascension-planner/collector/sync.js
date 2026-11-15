@@ -216,8 +216,6 @@ export async function handleSync(request, env, now = Date.now()) {
     if ((total?.b ?? 0) + size > (Number(env.SYNC_MAX_TOTAL_BYTES) || SYNC_MAX_TOTAL_BYTES)) return retry(3600, 'the cloud save is full right now');
   }
 
-  const putWait = await dayWait(env, 'sync-puts-day', Number(env.SYNC_PUTS_PER_DAY) || SYNC_PUTS_PER_DAY, now);
-  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
   const hourAgo = now - HOUR_MS;
   const budget = await env.WATCH.prepare(
     `INSERT INTO follow_rate (key, since, n) VALUES (?, ?, 1)
@@ -232,6 +230,9 @@ export async function handleSync(request, env, now = Date.now()) {
     const r = await env.WATCH.prepare('SELECT since FROM follow_rate WHERE key = ?').bind(`sync|${k}`).first();
     return retry(Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000)), `at most ${SYNC_WRITES_PER_HOUR} changes an hour for one key`);
   }
+  // The collector's day budget comes after the key's hour (review 15 Nov, C2): a write the key's own hour refuses spends nothing shared.
+  const putWait = await dayWait(env, 'sync-puts-day', Number(env.SYNC_PUTS_PER_DAY) || SYNC_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   await env.WATCH.prepare(
     `INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)

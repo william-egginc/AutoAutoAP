@@ -269,10 +269,6 @@ export async function handleFollow(request, env, now = Date.now()) {
     }
   }
 
-  // Every cloud write counts against a day-wide budget (D1's free plan: 100,000 rows written a day).
-  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
-  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
-
   // The hour's budget for this key, in one statement: a new hour starts the count over, a write past the
   // budget changes no row (so `changes` says it was refused, and no read was needed).
   const hourAgo = now - HOUR_MS;
@@ -290,6 +286,9 @@ export async function handleFollow(request, env, now = Date.now()) {
     const wait = Math.max(1, Math.ceil(((r?.since ?? now) + HOUR_MS - now) / 1000));
     return retry(wait, `at most ${FOLLOW_WRITES_PER_HOUR} changes an hour for one key`);
   }
+  // The collector's day budget comes after the key's hour (review 15 Nov, C2): a write the key's own hour refuses spends nothing shared.
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The next version number, taken in the insert itself so two writes cannot share one.
   const ins = await insertTwice(() =>
