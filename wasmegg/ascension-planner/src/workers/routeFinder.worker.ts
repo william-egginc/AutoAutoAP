@@ -4,11 +4,13 @@
  * so the search uses several cores; merging and reading routes back stay on the page.
  *
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
- * worker's life, so a second search (another start time, another target) costs no download.
+ * worker's life, so a second search (another start time, another target) costs no download. The files under it are
+ * kept apart (search/tableFileCache.ts), so another URL made of the same files costs none either.
  */
 import type { Table } from '@/search/precomputedTable';
 import { firstLegsOn, tableAtUrl } from '@/search/tableUrlLoad';
 import { fetchTable } from '@/search/tableFetch';
+import { TableFileCache } from '@/search/tableFileCache';
 import { expandArrivals, polishFound, priceChain } from '@/search/routeFinder';
 import { estimateProfile } from '@/search/prestigeBy';
 import { SweepCache } from '@/search/sweepCache';
@@ -21,6 +23,9 @@ const cache = new SweepCache();
 let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
+/** The files the URL kinds are made of, each fetched once however many URLs read it (search/tableFileCache.ts: the
+ *  maxed file was fetched for every composite and the form G, up to 9 times per fresh instant answer). */
+const files = new TableFileCache(fetchTable);
 
 /** Kept by URL: an own or gear table's `.v2` name (tableGear.ts v2TableName) is another URL from its plain one, so
  *  the file read under one name is never reused for the other. */
@@ -28,7 +33,7 @@ function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;
     // The URL's kinds (composite, the form G, one table) read as the command line reads them (search/tableUrlLoad.ts).
-    table = tableAtUrl(url, fetchTable);
+    table = tableAtUrl(url, u => files.get(u));
     // A failed load is retried on the next request rather than remembered.
     table.catch(() => (table = null));
   }
