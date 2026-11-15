@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp, effectScope, h, markRaw, ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { createPinia, setActivePinia } from 'pinia';
@@ -34,6 +34,7 @@ const ZONE = 'America/Denver';
 const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
 const H = 3600;
 const EGG_DAY_AT = Date.UTC(2027, 6, 14, 16) / 1000;
+const PINNED_AT = new Date(NOW * 1000);
 
 beforeEach(() => {
   const mem = new Map<string, string>();
@@ -251,6 +252,14 @@ function save(id: string, hoursAgo: number) {
 }
 
 describe('the page: the default is the goal checked last, the pick follows everything, and resets', () => {
+  // The clock is pinned (review X1, 15 Nov 2026): 'another date' is Egg Day minus 120 days, which is in the past from
+  // about Mar 14 to Jul 14 every year, so on the real clock this failed for four months a year.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(PINNED_AT);
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('Race (older) and Egg Day (newer) kept, and a plan for another date: Egg Day opens; Race picked moves the card', async () => {
     const a = save(A_ID, 2);
     loadAndSyncBackup(A_ID, a, 'plan_next');
