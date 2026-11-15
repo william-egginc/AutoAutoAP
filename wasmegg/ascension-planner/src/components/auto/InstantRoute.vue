@@ -2382,7 +2382,7 @@ const dateSpare = computed(() => {
 /** The close-call line under a By a date answer with under about 2 days to spare (lib/closeCallWords.ts), or null. */
 const closeCall = computed(() => {
   const b = result.value?.byDate;
-  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value)) return null;
+  if (!b || !isCloseCall(spareOf(dateBoxOf(b)), shiftedTable.value, hoursLimited.value)) return null;
   const f = searchFound.value;
   return closeCallLine({ te: dateBoxOf(b).endTE, found: f ? { level: f.level, endTE: f.endTE } : null });
 });

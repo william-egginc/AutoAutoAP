@@ -11,6 +11,12 @@ describe('close call: a By a date answer with under 2 days to spare (13 Nov 2026
     expect(isCloseCall(2.1 * D, true)).toBe(false);
     expect(isCloseCall(19 * 3600, false)).toBe(false);
   });
+  it('is also a close call when the awake hours limit the answer (review T3: hours-on answers came out days early)', () => {
+    expect(isCloseCall(19 * 3600, false, true)).toBe(true);
+    expect(isCloseCall(1.9 * D, false, true)).toBe(true);
+    expect(isCloseCall(2.1 * D, false, true)).toBe(false);
+    expect(isCloseCall(19 * 3600, false, false)).toBe(false);
+  });
   it('does not say the TE is reached; says it may miss and points to Custom', () => {
     const t = closeCallLine({ te: 314 });
     expect(t).toBe(
@@ -24,8 +30,9 @@ describe('close call: a By a date answer with under 2 days to spare (13 Nov 2026
       'Custom found 313 TE for this date, which is confirmed. The 314 TE above may miss.'
     );
   });
-  it('a Custom result at the same TE or higher does not change the line; Fast and Exact are not "confirmed"', () => {
-    expect(closeCallLine({ te: 314, found: { level: 'Custom', endTE: 314 } })).toBe(closeCallLine({ te: 314 }));
+  it('a finished Custom result at the same TE or higher confirms it: no close-call line at all (review T12); Fast and Exact do not confirm', () => {
+    expect(closeCallLine({ te: 314, found: { level: 'Custom', endTE: 314 } })).toBeNull();
+    expect(closeCallLine({ te: 314, found: { level: 'Custom', endTE: 315.4 } })).toBeNull();
     expect(closeCallLine({ te: 314, found: { level: 'Fast', endTE: 313 } })).toBe(closeCallLine({ te: 314 }));
   });
 });
