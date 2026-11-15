@@ -59,7 +59,8 @@ describe('first tour words', () => {
     expect(FIRST_TOUR_STEPS.moreInside.body).not.toMatch(/filters|every number/i);
     // No minutes anywhere: the time varies by device.
     expect(FIRST_TOUR_STEPS.fast.body).not.toMatch(/\d/);
-    expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
+    // Words, 14 Nov 2026: points on to the full tour (the replay link keeps "show it again").
+    expect(FIRST_TOUR_CLOSING).toBe("That's the tour. For every part of the planner, open More and pick Full tour.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {
     expect('FIRST_TOUR_MYRUNS_NOT_YET' in (await import('./firstTourWords'))).toBe(false);

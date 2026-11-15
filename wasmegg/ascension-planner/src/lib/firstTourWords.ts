@@ -62,7 +62,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
 };
 
 /** The last card's closing line. */
-export const FIRST_TOUR_CLOSING = "That's the tour. You can show it again from the foot of the page or from Setup.";
+export const FIRST_TOUR_CLOSING = "That's the tour. For every part of the planner, open More and pick Full tour.";
 
 export const FIRST_TOUR_BACK = 'Back';
 export const FIRST_TOUR_NEXT = 'Next';

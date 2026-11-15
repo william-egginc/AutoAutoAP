@@ -1,66 +1,62 @@
 /**
- * Every word of the full tour (spec-fulltour, 14 Nov 2026). DRAFT: Words owns the final text. Each card's body stays within
- * the first tour's cap (169 characters, lib/firstTourWords.spec.ts), in plain words, "Press" for what you do. Wording only,
- * so never part of the result hash.
+ * Every word of the full tour (spec-fulltour, 14 Nov 2026). Words' cards (~/code/aaap-tools/notes/words-calendar-and-
+ * fulltour-2026-11-14.md), each body within the first tour's cap (169 characters, at most 3 sentences), "Press" not Click.
+ * Four cards differ from Words' draft because the screen does something else (reported to Words; theirs to reword): the
+ * tabs' order (the real row), the chip (it shows the name only, and opens the player box), the filters button (it opens
+ * Setup; the ascension boxes sit under it) and the black box (a downloaded file after a stopped visit, in More). The
+ * Leaderboard card says where you share (a finished result) and hide (My runs, Leaderboard › Mine). Wording only, so
+ * never part of the result hash.
  */
 import type { FullTourStepId } from './fullTour';
 
 export const FULL_TOUR_STEPS_WORDS: Record<FullTourStepId, { title: string; body: string }> = {
   tabs: {
     title: 'The tabs',
-    body: 'The tabs are the page headings: Manual Planner, Auto Planner, Chain Finder, My runs, Leaderboard and Science. The lit one is where you are.',
+    body: 'The tabs along the top are Manual Planner, Auto Planner, Chain Finder, My runs, Leaderboard and Science. Chain Finder is the one to start with.',
   },
   chip: {
-    title: 'Your account',
-    body: 'The chip shows whose save is loaded. Press it to switch player or load another save; the player box opens above.',
+    title: 'Your player chip',
+    body: 'The chip shows whose save is loaded. Press it to switch account or load a fresh save; the player box opens above.',
   },
   saveBlock: {
-    title: 'How fresh your save is',
-    body: 'Top right of the card: how old your save is, and when your silos run out. Amber means old or low. Details and Load latest save are inside.',
+    title: 'Is your save fresh?',
+    body: 'A banner tells you when your save is getting old. While your farm runs on its own, the planner counts no earnings, so load a fresh save.',
   },
   switch: {
     title: 'Target TE | By a date',
-    body: 'Target TE finds the quickest way to a TE such as 490. By a date finds the most TE by a date such as Egg Day. The ? beside it says what the page does.',
+    body: 'Target TE finds the fastest way to a TE you pick. By a date finds the highest TE by a day such as Egg Day. Press the question mark beside it for what it means.',
   },
   filters: {
     title: 'More filters in Setup',
-    body: 'This button opens Setup for more filters. Ascensions from and to, and Prefer fewer ascensions, sit right under it and change the answer at once.',
+    body: 'The button above the answer opens Setup for more filters. Ascensions from and to, and Prefer fewer ascensions, sit under it and change the answer at once.',
   },
   answer: {
     title: 'The instant answer',
-    body: "The finish date, each stop's TE and a short first step, worked out ahead of time so it shows at once. Every number of ascensions is below it.",
+    body: "The finish date, each stop's TE and the first step, worked out ahead of time. Press a row to see its ascension. A close call is marked, so run Custom to confirm.",
   },
   followSim: {
-    title: 'Follow and Simulate',
-    body: 'Follow this route keeps it, so My runs can track it. Simulate this plan opens it in the Auto Planner and plays it out shift by shift.',
+    title: 'Follow or Simulate',
+    body: 'Follow this route keeps it, so My runs can track it. Simulate this plan plays it out in the Auto Planner, shift by shift.',
   },
   rightNow: {
-    title: 'Right now and Next step',
-    body: 'On My runs, Right now shows where you are, and Next step says what to do next, such as a prestige, a shift or a buy, and when.',
-  },
-  tracker: {
-    title: 'The Build-up tracker',
-    body: 'The tracker lists every check-in of the build: what to buy and when. Tick each one as you do it. Compact view fits more on screen.',
-  },
-  eggs: {
-    title: 'Your eggs',
-    body: "Your eggs, on My runs under the tracker, shows each egg's TE and facts about your farm, all read from your save.",
+    title: 'My runs',
+    body: "Right now says what you're doing. Next step says what to do next. The Build-up tracker lists buys to tick off, and Your eggs shows your shifts.",
   },
   dock: {
     title: 'The Setup button',
-    body: 'Setup floats at the bottom of the screen. Drag it out of the way. Press it for your awake hours, Save online and the rest.',
+    body: 'Setup opens from the round button. Drag it where you like, and double-click it to put it back.',
   },
   more: {
     title: 'More',
-    body: 'More is the fold at the foot of each screen, closed until you open it. It holds the Search card and the rest of what the page can do.',
+    body: 'More is the fold at the bottom of each screen. It holds the Search card and extra detail, and you can keep it open from Setup.',
   },
   blackBox: {
     title: 'The black box',
-    body: 'If a search stops without finishing, the page offers the black box: a file of what it was doing. Download it and send it to the maintainer.',
+    body: 'If a search stops without finishing, More offers the black box: a file of what it was doing, with no player ID. Download it and send it to the maintainer.',
   },
   leaderboard: {
     title: 'The Leaderboard',
-    body: 'The Leaderboard lists runs that players chose to share. You share one only by pressing a share button yourself.',
+    body: "Leaderboard shows other players' runs, Egg Day first. Share yours from a finished result, if you want to, and hide it later from My runs.",
   },
 };
 
@@ -74,8 +70,6 @@ export const FULL_TOUR_ALT: Record<FullTourStepId, string> = {
   answer: 'The instant answer, highlighted: the finish date, the TE stops and the short first step.',
   followSim: 'The Follow this route and Simulate this plan buttons under the instant answer, highlighted.',
   rightNow: 'The Right now card on My runs, highlighted, with its Next step.',
-  tracker: "A sample account's Build-up tracker on My runs, highlighted.",
-  eggs: 'The Your eggs card on My runs, highlighted.',
   dock: 'The round Setup button floating at the bottom of the screen, highlighted.',
   more: 'The closed More fold at the foot of the screen, highlighted.',
   blackBox: 'The notice offering to download the black box, highlighted.',
@@ -83,10 +77,10 @@ export const FULL_TOUR_ALT: Record<FullTourStepId, string> = {
 };
 
 export const FULL_TOUR_CLOSING = 'That is everything. Show it again any time from More › Full tour.';
-/** The entries: More's item, the first tour's last card, About's line. */
+/** The entries: More's item, the first tour's last card, About's line (Words). */
 export const FULL_TOUR_ITEM = 'Full tour';
 export const FULL_TOUR_FROM_FIRST = 'More: Full tour';
-export const FULL_TOUR_ABOUT = 'Want to see where everything is? Open More on any screen and press Full tour.';
+export const FULL_TOUR_ABOUT = 'Want more than the short tour? Open More and pick Full tour for every part of the planner.';
 
 /** Said to a screen reader on each step. */
 export const fullTourAnnounce = (n: number, of: number, title: string): string => `Full tour, step ${n} of ${of}: ${title}`;

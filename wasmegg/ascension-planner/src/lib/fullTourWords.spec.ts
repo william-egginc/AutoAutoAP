@@ -29,7 +29,8 @@ describe('full tour words', () => {
       FULL_TOUR_CLOSING,
       FULL_TOUR_ABOUT,
     ].join(' ');
-    expect(all).not.toMatch(/\b(click|tap)\b/i);
+    // "double-click" is the Setup button's own gesture (its tooltip says it); no other Click, and no Tap.
+    expect(all.replace(/double-click/gi, '')).not.toMatch(/\b(click|tap)\b/i);
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all).not.toMatch(/Stronger check|Nearby routes|Exhaustive|Check exactly|Race to|Classic|Your plan|checkpoint|baseline/);
   });
