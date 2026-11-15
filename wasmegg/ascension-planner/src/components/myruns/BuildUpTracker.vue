@@ -73,7 +73,7 @@
           Nothing to buy until your next prestige: the build-up list shows while you build.
         </p>
         <p v-else-if="state === 'working'" data-testid="buildup-working">
-          Working out your build-up (it can take a few minutes). Right now's shifts still hold meanwhile.
+          Working out your build-up (it can take a few minutes).
         </p>
         <div v-else-if="state === 'failed'" class="space-y-1" data-testid="buildup-failed">
           <p v-if="failStopped" class="text-amber-800" role="status" data-testid="buildup-failed-stopped">

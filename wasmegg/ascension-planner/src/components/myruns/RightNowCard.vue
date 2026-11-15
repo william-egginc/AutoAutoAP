@@ -414,6 +414,7 @@
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
         <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
@@ -610,7 +611,7 @@ import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
 import { freshSoonerLine } from '@/lib/freshSoonerWords';
 import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextBuy, type NextShiftLine } from '@/lib/nextAction';
-import { roundToHourIn } from '@/lib/nowWords';
+import { ROUGH_NEXT_STEP, roundToHourIn } from '@/lib/nowWords';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
