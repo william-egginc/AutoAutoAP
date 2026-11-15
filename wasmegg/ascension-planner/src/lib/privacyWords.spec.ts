@@ -27,7 +27,7 @@ describe('privacy words', () => {
     expect(PRIVACY_TIP_LABEL).toBe('What goes online, and what never does');
     expect(PRIVACY_TIP_LINES).toEqual([
       'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them. You can switch all of it off with Save online in Setup.',
-      'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',
+      'The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and read or change what is saved under it. The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.',
       'On the Leaderboard: only what you tick. Never your player ID or your save.',
       "Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.",
       "A search expected to take 2 hours or more tells the planner's server that it started and ended, with a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you. You can turn it off in Setup.",
@@ -35,10 +35,11 @@ describe('privacy words', () => {
     expect(SCIENCE_CREDIT_NAME).toContain('saved online with your Setup');
   });
 
-  it('says scrambled, never anonymous, about the code, and says it is not salted', () => {
+  it('says scrambled, never anonymous, about the code, and says the server stores it under a secret salt', () => {
     const tip = PRIVACY_TIP_LINES.join(' ');
     expect(tip).toContain('scrambled, not anonymous');
-    expect(tip).toContain('not salted yet');
+    expect(tip).toContain('under a secret salt');
+    expect(tip).not.toMatch(/not salted yet|salted code is planned/);
   });
 
   it('the words file is wording only (out of the result code hash)', () => {

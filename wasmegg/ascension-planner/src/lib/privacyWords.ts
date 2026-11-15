@@ -17,7 +17,7 @@ export const PRIVACY_TIP_CALENDAR_LINE =
   'If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID.';
 export const PRIVACY_TIP_LINES = [
   'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them. You can switch all of it off with Save online in Setup.',
-  'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.',
+  'The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and read or change what is saved under it. The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.',
   'On the Leaderboard: only what you tick. Never your player ID or your save.',
   "Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.",
   'A search expected to take 2 hours or more tells the planner\'s server that it started and ended, with a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you. You can turn it off in Setup.',

@@ -405,7 +405,7 @@ describe('About and privacy page', () => {
       'Saved online while Save online in Setup is on (it is on to start), under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.'
     );
     expect(text).toContain(
-      'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.'
+      'The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and read or change what is saved under it. The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.'
     );
     expect(text).toContain("Never leaves your browser: your full save, with your ID.");
   });
