@@ -17,9 +17,8 @@ import { useFollowStore } from '@/stores/follow';
 import { SYNC_RECORDS, forgetEverything, forgetUrlOf, syncedUrlOf, type ForgetResult } from '@/lib/syncedRecords';
 import { syncKnownMissing } from '@/composables/useOverrideSync';
 import { setSaveOnline } from '@/lib/saveOnline';
-import { saveOnlineOffAfterDelete, syncDeleted, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
+import { saveOnlineOffAfterDelete, syncDeleted, syncDeleteConfirm, SYNC_DELETE_CONFIRM } from '@/lib/syncWords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
-import { CAL_DELETE_NOTE } from '@/lib/calendarFeedWords';
 import { SYNC_DELETE_STAYS, forgetCountsWords, forgetFailWords } from '@/lib/saveOnlineWords';
 
 /** Delete went through on this page: the switch's line says what it did (saveOnlineOffAfterDelete()). */
@@ -82,12 +81,12 @@ export function useForgetEverything() {
     phase.value = r.ok ? 'done' : 'failed';
   }
 
-  const confirmLines = computed(() => [SYNC_DELETE_CONFIRM, ...(CALENDAR_FEED.enabled ? [CAL_DELETE_NOTE] : []), SYNC_DELETE_STAYS]);
+  const confirmLines = computed(() => [CALENDAR_FEED.enabled ? syncDeleteConfirm(null) : SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
   const lines = computed<string[]>(() => {
     const r = result.value;
     if (!r || (phase.value !== 'done' && phase.value !== 'failed')) return [];
     // A failure says Save online is off on this device now (it went off before the call), beside why.
-    return r.ok ? [forgetCountsWords(r.deleted), syncDeleted()] : [forgetFailWords(r.why, r.retryAfter), saveOnlineOffAfterDelete()];
+    return r.ok ? [forgetCountsWords(r.deleted), syncDeleted(r.deleted.calFeeds ?? 0)] : [forgetFailWords(r.why, r.retryAfter), saveOnlineOffAfterDelete()];
   });
   const canRetry = computed(() => phase.value === 'failed' && !!result.value && !result.value.ok && result.value.why === 'offline');
 

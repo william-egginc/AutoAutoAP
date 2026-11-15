@@ -49,4 +49,21 @@ export const SYNC_DELETE_CONFIRM =
   "This deletes your followed routes, Setup and sharing choices, instant answers, starting TE, tracker ticks and plan from the planner's server. Your save and what is kept in this browser stay. It cannot be undone.";
 export const SYNC_DELETE_YES = 'Delete';
 export const SYNC_DELETE_NO = 'Keep it';
-export const syncDeleted = (): string => `Deleted. Nothing is saved online for this account now, and Save online is off on ${thisDevice()}.`;
+/**
+ * The confirm with the calendar links named (QA 14 Nov 2026, Words). `links` 0: the plain SYNC_DELETE_CONFIRM, byte for byte. A number: how many links are
+ * live. null: a build with the calendar feed on, before the call, when the count is not known ("any calendar links").
+ */
+export function syncDeleteConfirm(links: number | null = 0): string {
+  if (links === 0) return SYNC_DELETE_CONFIRM;
+  const [head, tail] = SYNC_DELETE_CONFIRM.split(' Your save and what is kept') as [string, string];
+  const also =
+    links === null ? 'It also stops any calendar links working.' : links === 1 ? 'It also stops your calendar link working (1 link).' : `It also stops your calendar links working (${links} links).`;
+  return `${head} ${also} Your save and what is kept${tail}`;
+}
+/** The result; with `links` > 0 it says how many calendar links stopped (Words, QA 14 Nov 2026). 0: the plain text. */
+export const syncDeleted = (links = 0): string => {
+  const base = `Deleted. Nothing is saved online for this account now, and Save online is off on ${thisDevice()}.`;
+  if (links <= 0) return base;
+  const stopped = links === 1 ? '1 calendar link stopped working.' : `${links} calendar links stopped working.`;
+  return `${base} ${stopped} Your calendar may keep the events it already has until it next refreshes.`;
+};

@@ -120,10 +120,10 @@ describe('Delete everything: the flow', () => {
     d.ask();
     expect(d.confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
     const { CALENDAR_FEED } = await import('@/lib/calendarCloud');
-    const { CAL_DELETE_NOTE } = await import('@/lib/calendarFeedWords');
+    const { syncDeleteConfirm } = await import('@/lib/syncWords');
     CALENDAR_FEED.enabled = true;
     try {
-      expect(useForgetEverything().confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, CAL_DELETE_NOTE, SYNC_DELETE_STAYS]);
+      expect(useForgetEverything().confirmLines.value).toEqual([syncDeleteConfirm(null), SYNC_DELETE_STAYS]);
     } finally {
       CALENDAR_FEED.enabled = false;
     }

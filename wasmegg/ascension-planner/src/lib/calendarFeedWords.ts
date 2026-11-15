@@ -35,9 +35,5 @@ export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off' |
   upload: "Couldn't send the plan to your calendar, so it may be out of date. Try again in a moment.",
 };
 
-/** Under a link just made while My runs has not given the plan yet (only the marker is up). Words to confirm (QA 14 Nov 2026). */
-export const CAL_OPEN_MYRUNS = 'Open My runs once so your calendar gets your plan.';
-/** Delete everything's confirm, when the calendar is in this build: the links go with the rest. Words to confirm. */
-export const CAL_DELETE_NOTE = 'Your calendar links stop working too.';
-/** Delete everything's result: how many links were removed. Words to confirm. */
-export const calDeletedWords = (count: number): string => `${count} calendar ${count === 1 ? 'link' : 'links'} stopped working.`;
+/** Under a link just made while My runs has not given the plan yet (only the marker is up). Words, 14 Nov 2026. */
+export const CAL_OPEN_MYRUNS = 'Open My runs once so the plan reaches your calendar. It is only sent from there.';
