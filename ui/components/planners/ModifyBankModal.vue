@@ -119,7 +119,7 @@
               <span
                 class="tabular-nums font-bold"
                 :class="
-                  hasRawInput && delta < 0 ? 'text-rose-500' : hasRawInput ? 'text-emerald-700' : 'text-slate-300'
+                  hasRawInput && delta < 0 ? 'text-rose-700' : hasRawInput ? 'text-emerald-700' : 'text-slate-300'
                 "
               >
                 {{ hasRawInput && delta >= 0 ? '+' : '' }}{{ formatNumber(hasRawInput ? delta : 0, 3) }}
@@ -139,7 +139,7 @@
             </div>
             <div
               v-if="hasRawInput && newValue < 0"
-              class="text-small text-amber-600 font-bold pt-1"
+              class="text-small text-amber-700 font-bold pt-1"
             >
               Bank will show as 0 until earnings catch up
             </div>

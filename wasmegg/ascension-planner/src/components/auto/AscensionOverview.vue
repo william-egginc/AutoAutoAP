@@ -33,12 +33,12 @@
                 </button>
                 <span
                   v-if="hasEndTimeOverride"
-                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
+                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 label leading-none"
                 >Overridden</span>
                 <span
                   v-if="hasLoadoutOverride"
                   v-tippy="'This ascension uses its own artifacts & stones — see View details'"
-                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none flex items-center gap-0.5"
+                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 label leading-none flex items-center gap-0.5"
                 >
                   <img :src="iconURL('egginc/afx_quantum_metronome_4.png', 32)" class="w-2.5 h-2.5" alt="" />
                   Artifacts
@@ -72,7 +72,7 @@
                 @click="resetEndTimeOverride"
               >Reset to Auto</button>
             </div>
-            <div v-if="endTimeEditError" class="text-small font-bold text-rose-500 mt-1">{{ endTimeEditError }}</div>
+            <div v-if="endTimeEditError" class="text-small font-bold text-rose-700 mt-1">{{ endTimeEditError }}</div>
 
             <div v-if="displayComparisons.length > 0" class="flex flex-wrap gap-2 mt-1">
               <div v-for="(comp, ci) in displayComparisons" :key="ci"
@@ -151,7 +151,7 @@
                   class="px-1.5 py-1 text-body font-bold rounded-md border transition-colors flex-shrink-0"
                   :class="
                     row.tier13Key === activeVariantKey
-                      ? 'bg-amber-50 text-amber-600 border-amber-200'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
                       : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                   "
                   @click="selectVariant(row.tier13Key)"
@@ -251,7 +251,7 @@
             </svg>
             <span class="text-body sm:text-headline tabular-nums font-black text-emerald-700">{{ summary.endTE }}</span>
           </div>
-          <div class="text-emerald-500/80 label mt-0.5">+{{ summary.teGained }}</div>
+          <div class="text-emerald-700/80 label mt-0.5">+{{ summary.teGained }}</div>
         </div>
 
         <!-- Peak ELR -->
@@ -272,10 +272,10 @@
             >
               <span
                 class="text-small tabular-nums font-bold"
-                :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'"
+                :class="alt.isActive ? 'text-indigo-600' : 'text-slate-600'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
               <span class="label" :class="alt.isActive ? 'text-indigo-600' : 'text-slate-600'">/hr</span>
-              <span class="label" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-600'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
+              <span class="label" :class="alt.isActive ? 'text-indigo-600' : 'text-slate-600'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
             </div>
           </div>
         </div>
@@ -298,7 +298,7 @@
             Last TE Wait
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-body sm:text-title tabular-nums font-bold text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
+            <span class="text-body sm:text-title tabular-nums font-bold text-indigo-600">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
           </div>
         </div>
       </div>
@@ -306,7 +306,7 @@
       <!-- Warnings -->
       <div v-if="warnings.length > 0" class="mb-3 space-y-1">
         <div v-for="warning in warnings" :key="warning" 
-             class="bg-amber-50 border border-amber-100 rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-amber-600">
+             class="bg-amber-50 border border-amber-100 rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-amber-700">
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -323,7 +323,7 @@
               <h4 class="text-slate-600 label">Artifacts &amp; Stones</h4>
               <span
                 v-if="hasLoadoutOverride"
-                class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
+                class="px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 label leading-none"
               >Overridden</span>
               <span v-else class="text-small font-bold text-slate-600">As used in C1 and H1</span>
             </div>
@@ -408,7 +408,7 @@
                   <span class="text-small sm:text-body tabular-nums font-bold text-slate-800 leading-none">
                     {{ summary.finalTE[egg] || 0 }}
                   </span>
-                  <span v-if="summary.teEarned[egg]" class="text-small font-bold text-emerald-500 leading-none">
+                  <span v-if="summary.teEarned[egg]" class="text-small font-bold text-emerald-700 leading-none">
                     (+{{ summary.teEarned[egg] }})
                   </span>
                 </div>

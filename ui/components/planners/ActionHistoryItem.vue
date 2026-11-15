@@ -56,7 +56,7 @@
         <span
           v-if="savingDuration > 0 || (isPurchaseAction && action.cost > 0)"
           v-tippy="timeToSaveTitle"
-          class="text-rose-500 label"
+          class="text-rose-700 label"
         >
           Save {{ savingDurationFormatted }}
         </span>
@@ -101,7 +101,7 @@
               <input
                 type="checkbox"
                 :checked="isManuallyCompleted"
-                class="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer transition-all"
+                class="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-400 cursor-pointer transition-all"
                 @change="actionsStore.toggleManualOverride(action.id)"
               />
             </label>
@@ -112,7 +112,7 @@
             <div
               v-if="reconciliationStatus === 'completed'"
               v-tippy="'Action completed in-game'"
-              class="text-emerald-500"
+              class="text-emerald-700"
             >
               <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -125,7 +125,7 @@
             <div
               v-else-if="reconciliationStatus === 'pending'"
               v-tippy="'Action pending in-game'"
-              class="text-amber-500 animate-pulse"
+              class="text-amber-700 animate-pulse"
             >
               <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -222,7 +222,7 @@
                 action.bankDelta >= 0.5
                   ? 'text-emerald-700 font-bold'
                   : action.bankDelta <= -0.5
-                    ? 'text-rose-500 font-bold'
+                    ? 'text-rose-700 font-bold'
                     : 'text-slate-300'
               "
             >

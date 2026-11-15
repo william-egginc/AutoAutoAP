@@ -41,7 +41,7 @@
         class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50/50 border border-amber-100/50"
       >
         <img :src="iconURL('egginc/icon_virtue_gem.png', 32)" class="w-3 h-3" alt="Gems" />
-        <span class="text-small font-bold text-amber-600">{{
+        <span class="text-small font-bold text-amber-700">{{
           formatGemPrice(totalResearchCost)
         }}</span>
       </div>

@@ -22,7 +22,7 @@
 
     <!-- Artifact Warning -->
     <div v-if="showArtifactWarning" class="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-      <div class="text-amber-500 mt-0.5">
+      <div class="text-amber-700 mt-0.5">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path
             fill-rule="evenodd"

@@ -88,7 +88,7 @@
           class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 flex gap-3"
         >
           <svg
-            class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500"
+            class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-700"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -143,7 +143,7 @@
             </li>
             <li><span class="font-bold">You never sleep.</span> The Auto Planner doesn't plan around your awake hours.</li>
           </ul>
-          <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
+          <p class="text-amber-700 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
           <div class="border-t border-amber-200 pt-3 mt-1">
             <p class="label text-amber-700 mb-2">How each ascension runs</p>
@@ -166,7 +166,7 @@
                 is reached.
               </li>
             </ul>
-            <p class="mt-2 text-amber-600 leading-relaxed">The Auto Planner tries several build lengths and keeps the fastest; you can switch to another on each ascension's card.</p>
+            <p class="mt-2 text-amber-700 leading-relaxed">The Auto Planner tries several build lengths and keeps the fastest; you can switch to another on each ascension's card.</p>
           </div>
         </div>
       </div>
@@ -349,7 +349,7 @@
     >
       <div class="w-6 h-6 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin"></div>
       <div class="space-y-0.5 pr-2">
-        <div class="label text-indigo-400">Updating Roadmap</div>
+        <div class="label text-indigo-600">Updating Roadmap</div>
         <div class="text-small font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
       </div>
     </div>

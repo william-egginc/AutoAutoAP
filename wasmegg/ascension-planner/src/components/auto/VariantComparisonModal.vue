@@ -78,7 +78,7 @@
                     <td class="px-2 py-2">
                       <span
                         v-if="row.tier13Unlocked"
-                        class="px-1.5 py-0.5 rounded label bg-amber-50 text-amber-600 border border-amber-200"
+                        class="px-1.5 py-0.5 rounded label bg-amber-50 text-amber-700 border border-amber-200"
                       >
                         Unlocked
                       </span>
@@ -130,7 +130,7 @@
                       v-for="col in RESEARCH_COLUMNS"
                       :key="col.id"
                       class="px-1 py-2 text-center tabular-nums"
-                      :class="(row.researchLevels[col.id] || 0) >= col.maxLevel ? 'text-amber-600' : ''"
+                      :class="(row.researchLevels[col.id] || 0) >= col.maxLevel ? 'text-amber-700' : ''"
                     >
                       {{ (row.researchLevels[col.id] || 0) >= col.maxLevel ? 'Max' : row.researchLevels[col.id] || 0 }}
                     </td>

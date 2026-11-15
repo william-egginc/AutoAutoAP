@@ -160,7 +160,7 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
   return {
     text: note.text,
     // Whether the save is old is the save-age banner's (spec-saveage); no amber "past the silos" note since 10 Nov 2026.
-    class: note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-700',
+    class: note.level !== 'ok' ? 'text-amber-700' : 'text-emerald-700',
   };
 });
 

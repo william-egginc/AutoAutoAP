@@ -46,7 +46,7 @@
                 class="ml-1 w-10 text-right font-bold text-small"
                 :class="{
                   'text-indigo-600': stat.id === 'truth' && stat.delta > 0,
-                  'text-emerald-500': stat.id !== 'truth' && stat.delta > 0,
+                  'text-emerald-700': stat.id !== 'truth' && stat.delta > 0,
                   'text-slate-300': stat.delta === 0
                 }"
               >

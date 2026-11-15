@@ -26,7 +26,7 @@
           {{ formatDuration(group.totalTimeSeconds) }}
         </span>
         <div v-if="group.totalCost > 0" class="flex items-center gap-1">
-          <span class="text-small font-bold text-amber-600">{{ formatPrice(group.totalCost) }}</span>
+          <span class="text-small font-bold text-amber-700">{{ formatPrice(group.totalCost) }}</span>
           <img :src="iconURL(PROFILE.currency.iconPath, 32)" class="w-2.5 h-2.5" :alt="PROFILE.currency.name" />
         </div>
       </div>

@@ -175,11 +175,11 @@ const timeTooltipContent = computed(() => {
 });
 
 const eggThemes: Record<VirtueEgg, { bg: string; text: string }> = {
-  curiosity: { bg: 'bg-amber-50', text: 'text-amber-500' },
+  curiosity: { bg: 'bg-amber-50', text: 'text-amber-700' },
   integrity: { bg: 'bg-blue-50', text: 'text-blue-500' },
   humility: { bg: 'bg-purple-50', text: 'text-purple-500' },
-  resilience: { bg: 'bg-rose-50', text: 'text-rose-500' },
-  kindness: { bg: 'bg-emerald-50', text: 'text-emerald-500' },
+  resilience: { bg: 'bg-rose-50', text: 'text-rose-700' },
+  kindness: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
 };
 
 const eggTheme = computed(() => eggThemes[props.egg] || eggThemes.curiosity);

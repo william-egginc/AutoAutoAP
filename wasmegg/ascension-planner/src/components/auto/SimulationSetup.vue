@@ -84,7 +84,7 @@
               :key="st.label"
               class="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-small font-bold text-indigo-800"
             >
-              <span v-if="st.count > 1" class="text-indigo-400">{{ st.count }}&#215; </span>{{ st.label }}
+              <span v-if="st.count > 1" class="text-indigo-600">{{ st.count }}&#215; </span>{{ st.label }}
             </span>
           </div>
           <p class="text-body text-slate-600 max-w-prose">

@@ -7,7 +7,7 @@
     title="Wait for Research Sale"
     subtitle="Friday 9:00 am PT"
     :seconds="secondsUntilNextSale"
-    seconds-class="text-rose-500"
+    seconds-class="text-rose-700"
     @click="waitForNextSale"
   />
 </template>

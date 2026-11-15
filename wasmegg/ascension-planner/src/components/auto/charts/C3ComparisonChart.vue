@@ -10,7 +10,7 @@
       <span class="flex items-center gap-1"
         ><span class="text-slate-600">●</span> Graviton Coupling / Multiversal Layering purchase</span
       >
-      <span class="flex items-center gap-1"><span class="text-amber-500">◆</span> Tier 13 unlocked</span>
+      <span class="flex items-center gap-1"><span class="text-amber-700">◆</span> Tier 13 unlocked</span>
       <span class="flex items-center gap-1"
         ><span class="text-slate-600">▲ / ▼</span> Research Sale or 2× earnings start / end</span
       >

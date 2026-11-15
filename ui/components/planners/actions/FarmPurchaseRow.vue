@@ -15,7 +15,7 @@
     <div class="flex items-start justify-between w-full pl-[38px] gap-4">
       <div class="text-small text-gray-600 leading-snug">{{ item.detail }}</div>
       <div class="text-right shrink-0">
-        <div class="flex items-center justify-end gap-1 text-small text-amber-600 font-bold tabular-nums">
+        <div class="flex items-center justify-end gap-1 text-small text-amber-700 font-bold tabular-nums">
           {{ formatPrice(item.price) }}
           <img :src="iconURL(currency.iconPath, 64)" class="w-2.5 h-2.5 object-contain opacity-80" :alt="currency.name" />
         </div>
@@ -51,7 +51,7 @@
             <span
               v-if="item.showSaleWarning"
               v-tippy="'This purchase won\'t earn back 70% of its cost before the next Friday sale, and its research part is cheaper then. It is likely better to wait.'"
-              class="ml-0.5 cursor-help text-amber-500"
+              class="ml-0.5 cursor-help text-amber-700"
               >⚠️</span
             >
           </div>

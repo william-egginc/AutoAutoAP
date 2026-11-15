@@ -57,7 +57,7 @@
           <span class="text-body font-bold text-slate-900 group-hover:text-indigo-700"
             >Max Vehicles</span
           >
-          <span v-if="maxVehiclesTime" class="text-small tabular-nums font-bold text-indigo-500 mt-0.5">{{
+          <span v-if="maxVehiclesTime" class="text-small tabular-nums font-bold text-indigo-600 mt-0.5">{{
             maxVehiclesTime
           }}</span>
         </div>
@@ -169,7 +169,7 @@
         <p class="text-small font-bold text-slate-600">
           Fleet Capacity: {{ activeVehicleCount }}/{{ maxVehicleSlots }} active
         </p>
-        <p class="text-small text-indigo-400 italic font-normal">(Fleet Size research unlocks more slots)</p>
+        <p class="text-small text-indigo-600 italic font-normal">(Fleet Size research unlocks more slots)</p>
       </div>
     </div>
   </div>

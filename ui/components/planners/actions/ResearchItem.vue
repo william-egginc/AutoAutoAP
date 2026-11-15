@@ -58,7 +58,7 @@
       <!-- Price -->
       <div class="text-right shrink-0">
         <template v-if="!isMaxed">
-          <div class="flex items-center justify-end gap-1 text-small tabular-nums text-amber-600 font-bold">
+          <div class="flex items-center justify-end gap-1 text-small tabular-nums text-amber-700 font-bold">
             {{ formatPrice(price) }}
             <img :src="iconURL(currency.iconPath, 64)" class="w-2.5 h-2.5 object-contain opacity-80" :alt="currency.name" />
           </div>
@@ -135,7 +135,7 @@
               {{ extraStats }}
               <span
                 v-if="showSaleWarning"
-                class="ml-0.5 cursor-help text-amber-500"
+                class="ml-0.5 cursor-help text-amber-700"
                 v-tippy="'This research won\'t earn back 70% of its cost before the next Friday sale. It is likely better to wait.'"
               >
                 ⚠️
@@ -235,7 +235,7 @@
           <span>
             <span class="label mr-1">Pair Suggestion:</span>
             {{ recommendationNote }}
-            <span v-if="showSaleWarning" class="block mt-0.5 text-amber-600 font-bold">
+            <span v-if="showSaleWarning" class="block mt-0.5 text-amber-700 font-bold">
               ⚠️ Even paired, this won't earn back 70% before the next sale.
             </span>
           </span>

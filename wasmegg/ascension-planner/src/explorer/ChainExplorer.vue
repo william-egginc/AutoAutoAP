@@ -105,7 +105,7 @@
                   {{ flagged.size === 1 ? 'is' : 'are' }} left out.</span
                 >
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
-                  <input v-model="showFlagged" type="checkbox" class="rounded border-slate-300 text-amber-600" />
+                  <input v-model="showFlagged" type="checkbox" class="rounded border-slate-300 text-amber-700" />
                   Include {{ flagged.size === 1 ? 'it' : 'them' }}
                 </label>
               </p>
@@ -116,7 +116,7 @@
                   rebuilt).</span
                 >
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
-                  <input v-model="showTimeOff" type="checkbox" class="rounded border-slate-300 text-amber-600" />
+                  <input v-model="showTimeOff" type="checkbox" class="rounded border-slate-300 text-amber-700" />
                   Include {{ withTimeOff.size === 1 ? 'it' : 'them' }}
                 </label>
               </p>
