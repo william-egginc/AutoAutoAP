@@ -99,6 +99,8 @@
     </table>
     <div v-if="upcoming.length > 1" class="mt-2">
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
+      <!-- The cloud calendar (the subscription feed): a suggestion, or "Update cloud calendar" when it is set up. Only with the calendar flag on. -->
+      <CalendarCloudNod />
     </div>
     <!-- Rounded (the instant answer's): no footer; the card's tag line says it once (spec-uxpass item 1, 8 Nov 2026). -->
     <!-- One clause, the rest behind a "?" (UX fluff review 2, 5 Nov 2026, item R15). DRAFT (Words). -->
@@ -115,6 +117,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import CalendarButton from './CalendarButton.vue';
+import CalendarCloudNod from './CalendarCloudNod.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import { dateAt } from '@/lib/eventWhen';
 import { eventTitle, howFar, notDoneTitle, whenWords } from '@/lib/nowWords';

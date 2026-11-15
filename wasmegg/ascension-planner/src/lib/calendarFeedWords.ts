@@ -40,3 +40,10 @@ export const CAL_OPEN_MYRUNS = 'Open My runs once so the plan reaches your calen
 
 /** On the card between My runs opening and the first plan upload: the tracker takes a minute or more under load (QA, 15 Nov 2026). Words' text; the plan is worked out and sent from My runs, so leaving it stops the work (third sentence). */
 export const CAL_WORKING = 'The plan is being worked out for your calendar. It goes out as soon as it is ready, which can take a minute or two. Keep this page open until then.';
+
+/** The nod under "Add all N upcoming to calendar" on My runs' plan table (Jordan, 15 Nov 2026). DRAFT: Words writes these. */
+export const CAL_NOD_SUGGEST = 'Want it to update itself? Turn on Put my plan in my calendar in Setup › Sharing, and there is nothing to add again.';
+export const CAL_NOD_UPDATE = 'Update cloud calendar';
+export const CAL_NOD_SENT = 'Sent to your calendar.';
+export const CAL_NOD_SAME = 'Your calendar already has this plan.';
+export const CAL_NOD_HINT = 'It also updates by itself when the plan changes.';

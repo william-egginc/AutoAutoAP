@@ -20,6 +20,8 @@ import { CALENDAR_FEED, mintCalendarLink, putCalendar, revokeCalendarLinks, type
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
 import * as blackBox from '@/search/blackBox';
 
+/** "Update cloud calendar" can be pressed again after this: the account's sync budget is 60 writes an hour (the plan also goes up by itself). */
+export const CAL_MANUAL_PUSH_MIN_MS = 15_000;
 export const CAL_DEBOUNCE_MS = 10_000;
 /** How many days ahead the feed shows for a PRODUCING player (the Next shifts stand in for the tracker's lines): shifts are days apart. Buying keeps the
  *  builder's default (lib/calendarFeedEvents.ts CAL_DEFAULT_DAYS, 14). Jordan, 14 Nov 2026. */
@@ -84,6 +86,9 @@ export function createCalendarFeed(o: {
   /** A plan (not the bare marker) has gone up since the link was made; until then, with My runs open, the card says it is being worked out. */
   const planSent = ref(false);
   let planNoted = false;
+  /** After "Update cloud calendar": the plan went up, or the calendar already had it ('same'). Cleared when the plan changes. */
+  const pushed = ref<'' | 'sent' | 'same'>('');
+  const pushCoolingDown = ref(false);
   /** Reset link is offered with a link kept here, and also when the server says the limit is hit (3 links made on another device). */
   const canReset = computed(() => linked.value || error.value === 'limit');
   // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
@@ -232,6 +237,7 @@ export function createCalendarFeed(o: {
     if (!CALENDAR_FEED.enabled) return;
     latest = input;
     planNoted = true;
+    pushed.value = '';
     needsMyRuns.value = false;
     if (!enabled.value || !linked.value) return;
     pending = input;
@@ -239,6 +245,21 @@ export function createCalendarFeed(o: {
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);
   }
 
+  /** "Update cloud calendar": send the current plan now instead of 10 s after the last change (Jordan, 15 Nov 2026). Writes nothing when the calendar
+   *  already has this plan (`flush`'s sameCalendar), at most once per `CAL_MANUAL_PUSH_MIN_MS`, and a failure is the usual upload error. */
+  async function pushNow(): Promise<void> {
+    if (!enabled.value || !linked.value || pushCoolingDown.value) return;
+    const input = pending ?? latest;
+    if (!input) return;
+    pushCoolingDown.value = true;
+    setTimeout(() => (pushCoolingDown.value = false), CAL_MANUAL_PUSH_MIN_MS);
+    if (timer) clearTimeout(timer);
+    timer = null;
+    pending = input;
+    const was = last;
+    await flush();
+    pushed.value = error.value ? '' : last !== was ? 'sent' : 'same';
+  }
   /** My runs calls this when it opens (useCalendarFeedPush). */
   function viewing(): void {
     onMyRuns.value = true;
@@ -246,7 +267,7 @@ export function createCalendarFeed(o: {
   /** Linked, My runs open, no plan sent yet and no upload error: "Working out your plan for the calendar" (the tracker takes 60-100 s under load). */
   const working = computed(() => enabled.value && linked.value && onMyRuns.value && !planSent.value && !error.value);
 
-  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, pushNow, pushed, pushCoolingDown, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 

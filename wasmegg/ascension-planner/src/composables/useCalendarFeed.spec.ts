@@ -4,7 +4,7 @@
  * and changed (sameCalendar), 10 s after the last change, once more on a 409.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCalendarFeed, CAL_DEBOUNCE_MS, type CalendarFeedEnv } from './useCalendarFeed';
+import { createCalendarFeed, CAL_DEBOUNCE_MS, CAL_MANUAL_PUSH_MIN_MS, type CalendarFeedEnv } from './useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
 import * as blackBox from '@/search/blackBox';
@@ -72,6 +72,72 @@ describe('off by default; its own switch', () => {
     c.turnOn();
     await c.getLink();
     expect(c.error.value).toBe('off');
+  });
+});
+
+describe('Update cloud calendar: push the current plan now (Jordan, 15 Nov 2026)', () => {
+  const linkedFeed = async () => {
+    const { st } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    return { c, col };
+  };
+  it('sends the plan at once, not 10 s from now, and says it was sent', async () => {
+    const { c, col } = await linkedFeed();
+    c.note(input(2));
+    const before = col.puts().length;
+    await c.pushNow();
+    expect(col.puts()).toHaveLength(before + 1);
+    expect(JSON.parse(col.puts()[before].body!).events.length).toBeGreaterThan(1);
+    expect(c.pushed.value).toBe('sent');
+  });
+  it('writes nothing when the plan is what the calendar already has (the 60-writes-an-hour budget), and says so', async () => {
+    const { c, col } = await linkedFeed();
+    c.note(input(2));
+    await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+    const before = col.puts().length;
+    vi.advanceTimersByTime(30_000);
+    await c.pushNow();
+    expect(col.puts()).toHaveLength(before);
+    expect(c.pushed.value).toBe('same');
+  });
+  it('a second press within the cool-down does nothing, however it is asked', async () => {
+    const { c, col } = await linkedFeed();
+    c.note(input(2));
+    await c.pushNow();
+    const after = col.puts().length;
+    c.note(input(3));
+    await c.pushNow();
+    expect(col.puts()).toHaveLength(after);
+    expect(c.pushCoolingDown.value).toBe(true);
+    await vi.advanceTimersByTimeAsync(CAL_MANUAL_PUSH_MIN_MS + 10);
+    expect(c.pushCoolingDown.value).toBe(false);
+    await c.pushNow();
+    expect(col.puts()).toHaveLength(after + 1);
+  });
+  it('a failed send shows the existing upload error, never "sent"', async () => {
+    const { st } = memStore();
+    const col = collector({ putStatus: [200, 500] });
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    await c.getLink();
+    c.note(input(2));
+    await c.pushNow();
+    expect(c.error.value).toBe('upload');
+    expect(c.pushed.value).toBe('');
+  });
+  it('nothing without a link or the switch, or with no plan yet', async () => {
+    const { st } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    await c.pushNow();
+    c.turnOn();
+    await c.pushNow();
+    expect(col.puts()).toHaveLength(0);
+    expect(c.pushed.value).toBe('');
   });
 });
 
