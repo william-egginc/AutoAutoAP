@@ -150,3 +150,22 @@ describe('Words\' final lines (14 Nov 2026)', () => {
     expect(readFileSync(new URL('../../lib/calendarCloud.ts', import.meta.url), 'utf8')).toContain('{ k, all: true }');
   });
 });
+
+describe('between opening My runs and the first plan upload (QA 15 Nov 2026)', () => {
+  it('"Open My runs once…" while My runs is closed; "Working out your plan…" once it is open, until the plan is sent', async () => {
+    const feed = make();
+    feed.turnOn();
+    await feed.getLink();
+    const closed = await render(feed);
+    expect(textOf(closed)).toContain(W.CAL_OPEN_MYRUNS);
+    expect(textOf(closed)).not.toContain(W.CAL_WORKING);
+    feed.viewing();
+    const open = await render(feed);
+    expect(textOf(open)).toContain(W.CAL_WORKING);
+    expect(textOf(open)).not.toContain(W.CAL_OPEN_MYRUNS);
+    expect(open).toContain('data-testid="calendar-feed-working"');
+  });
+  it('the words (a draft: Words writes them)', () => {
+    expect(W.CAL_WORKING).toBe('Working out your plan for the calendar. It is sent as soon as it is ready.');
+  });
+});
