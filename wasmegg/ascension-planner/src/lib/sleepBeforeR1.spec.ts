@@ -52,11 +52,30 @@ describe('sleepBeforeR1', () => {
     expect(sleepBeforeR1({ start: at(18, '21:00'), shifts: noR1, hours: HOURS })).toBeNull();
   });
 
-  it('no flag without hours, with hours that cover the whole day, or with held shifts (the plan already waits)', () => {
+  it('no flag without hours, or with hours that cover the whole day', () => {
     const leg = { start: at(18, '21:00'), shifts: shifts(at(19, '01:00')) };
     expect(sleepBeforeR1({ ...leg, hours: null })).toBeNull();
     expect(sleepBeforeR1({ ...leg, hours: { days: [], fromHour: 0, toHour: 0, timezone: 'America/Denver' } })).toBeNull();
-    expect(sleepBeforeR1({ ...leg, hours: HOURS, heldShifts: true })).toBeNull();
+  });
+
+  it("held shifts (the default): R1 waits for the player, so the farm has 1 silo overnight; held: true and when it waits until (Jordan, 15 Nov 2026)", () => {
+    // Held, the plan's own R1 is at 7:00 AM (the simulator waited for the player); the night is before it.
+    const r = sleepBeforeR1({ start: at(18, '21:00'), shifts: shifts(at(19, '07:00')), hours: HOURS, heldShifts: true });
+    expect(r).toEqual({
+      r1At: at(19, '07:00'),
+      doneBy: at(19, '07:30'),
+      sleepAt: at(18, '23:00'),
+      exact: true,
+      held: true,
+      waitsUntil: at(19, '07:00'),
+    });
+    // Done before bedtime: nothing to say, held or not.
+    expect(sleepBeforeR1({ start: at(18, '20:00'), shifts: shifts(at(18, '22:00')), hours: HOURS, heldShifts: true })).toBeNull();
+  });
+
+  it('not held: no held fields', () => {
+    const r = sleepBeforeR1({ start: at(18, '21:00'), shifts: shifts(at(19, '01:00')), hours: HOURS });
+    expect(r && 'held' in r).toBe(false);
   });
 
   it('a leg that never shifts to Resilience (a continue) has no R1: no flag', () => {
