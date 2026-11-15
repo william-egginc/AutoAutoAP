@@ -57,7 +57,7 @@ export const GEAR_CAVEAT_DAYS = 5;
 
 /** The caveat's line for a form G answer below its reach. */
 export const BELOW_REACH_LINE =
-  'Likely later than shown, maybe by more than a few days: at your TE, your gear is below what the instant answers reach. Fast gives your real date.';
+  'Likely later than shown, maybe by more than a few days: at your TE your gear is below what the instant answers cover. Fast checks it on your save.';
 
 /** The card's short effect line for it (InstantRoute `gearEffect`; lib/instantCardWords.ts gearEffectLine otherwise). */
 export const BELOW_REACH_EFFECT = 'Likely later than shown, maybe by more than a few days.';

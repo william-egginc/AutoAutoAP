@@ -231,4 +231,4 @@ describe('form G below its reach (review 15 Nov, T2)', () => {
   });
 });
 const BELOW_REACH_LINE =
-  "Likely later than shown, maybe by more than a few days: at your TE, your gear is below what the instant answers reach. Fast gives your real date.";
+  "Likely later than shown, maybe by more than a few days: at your TE your gear is below what the instant answers cover. Fast checks it on your save.";
