@@ -26,7 +26,7 @@ describe('nextAction: a fresh start not begun', () => {
   });
   it('the save producing: the prestige, as soon as the hours allow', () => {
     const leg = { ...fresh, unstarted: { te: 147 } };
-    expect(nextAction({ now: NOW, leg, last: false })).toEqual({ kind: 'prestige', at: NOW, te: null });
+    expect(nextAction({ now: NOW, leg, last: false })).toEqual({ kind: 'prestige', at: NOW, te: null, due: true });
     const a = nextAction({ now: NOW, leg, last: false, prestigeAt: t => t + 2 * H })!;
     expect(a).toEqual({ kind: 'prestige', at: NOW + 2 * H, te: null });
     expect(nextActionWords(a, t => String(t))).toBe(`Prestige on ${NOW + 2 * H}`);

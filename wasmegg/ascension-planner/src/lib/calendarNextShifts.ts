@@ -33,10 +33,12 @@ export function calLinesFromNextShifts(lines: readonly NextShiftLine[] | null | 
         checkIn: -1,
       });
     } else if (l.kind === 'prestige') {
+      // A prestige due now has only the minute it was asked for: stamped at the start of the hour so the feed does not change every
+      // minute (review U2: 60 writes an hour is the account's whole sync budget).
       out.push({
         key: `ns:prestige:${nth('p')}`,
         kind: 'prestige',
-        at: l.at,
+        at: l.due ? Math.floor(l.at / 3600) * 3600 : l.at,
         text: l.te ? `prestige at ${l.te} TE` : 'prestige',
         tickable: true,
         checkIn: -1,

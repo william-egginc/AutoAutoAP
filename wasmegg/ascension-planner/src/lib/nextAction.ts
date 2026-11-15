@@ -81,7 +81,7 @@ export type NextAction =
   | { kind: 'keepbuilding'; until: number; left: string[] }
   | { kind: 'shift'; egg: string; at: number }
   /** `inTimeOff`: it would fall in a time off (the estimate knows none): said in amber, never as a plain time. */
-  | { kind: 'prestige'; at: number; te: number | null; inTimeOff?: { from: number; to: number } }
+  | { kind: 'prestige'; at: number; te: number | null; inTimeOff?: { from: number; to: number }; due?: true }
   | { kind: 'goal'; at: number; te: number }
   /** Time off starts: go to the home farm (a prestige), the ascension ending at `te`. */
   | { kind: 'timeoff'; at: number; te: number }
@@ -138,7 +138,11 @@ function nextActionOf(o: {
   if (t && o.now >= t.from && o.now < t.to) return { kind: 'back', at: t.to };
   const leg = partAt(o.leg, o.now);
   if (o.now < leg.start) return { kind: 'prestige', at: leg.start, te: null };
-  if (leg.unstarted && !leg.live) return { kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: null };
+  if (leg.unstarted && !leg.live) {
+    const at = o.prestigeAt ? o.prestigeAt(o.now) : o.now;
+    // Due now (the hours allow it): said so, not stamped with this minute (review U2, 15 Nov 2026).
+    return at <= o.now ? { kind: 'prestige', at, te: null, due: true } : { kind: 'prestige', at, te: null };
+  }
   const keep = keepBuildingUntil(leg, o.now);
   if (keep !== null) return { kind: 'keepbuilding', until: keep, left: [...leg.building!] };
   const until = buildUntil(leg);
@@ -220,6 +224,7 @@ function nextActionWordsOf(a: NextAction, when: (t: number) => string): string {
   if (a.kind === 'back') return `Back from your time off: prestige on ${when(a.at)} to build again`;
   if (a.inTimeOff)
     return `Your time off starts ${when(a.inTimeOff.from)}: this ascension ends there (going to your home farm is a prestige); Fast prices the rest`;
+  if (a.due) return 'Prestige now';
   return `Prestige on ${when(a.at)}`;
 }
 
@@ -236,6 +241,8 @@ export interface NextShiftLine {
   exact: boolean;
   /** A prestige that would fall in a time off (the estimate knows none). */
   inTimeOff?: boolean;
+  /** A prestige that is due now (review U2): `at` is only the minute it was asked, so words say "now" and the calendar rounds it. */
+  due?: boolean;
   /** 'keepbuilding': what the save's build still has to buy. */
   left?: string[];
 }
@@ -300,7 +307,8 @@ function shiftLines(o: {
       // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow. A start still
       // a little ahead of `now` (the page's minute clock lags the real time by up to 59 s) is that start, as nextActionOf
       // says (14 Nov 2026): Next shifts no longer begins with a shift while Next step says Prestige.
-      out.push({ kind: 'prestige', at: o.now < leg.start ? leg.start : o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
+      const at = o.now < leg.start ? leg.start : o.prestigeAt ? o.prestigeAt(o.now) : o.now;
+      out.push({ kind: 'prestige', at, te: leg.unstarted.te, exact, ...(at <= o.now ? { due: true } : {}) });
     } else if (i === 0 && leg.simulated && keepBuildingUntil(leg, o.now) !== null) {
       // The save's build carried on: said first, then every shift (those made while building too).
       out.push({ kind: 'keepbuilding', at: leg.buildEnd!, left: [...leg.building!], exact });
@@ -344,5 +352,6 @@ export function nextShiftWords(l: NextShiftLine, when: (t: number, exact: boolea
   if (l.kind === 'timeoff') return `Time off: to your home farm at ${l.te} TE · ${t}`;
   if (l.kind === 'back') return `Back: prestige to build again · ${t}`;
   if (l.inTimeOff) return `Prestige at ${l.te} TE · ${t}, in your time off: Fast prices it`;
+  if (l.due) return `Prestige at ${l.te} TE · now`;
   return `Prestige at ${l.te} TE · ${t}`;
 }
