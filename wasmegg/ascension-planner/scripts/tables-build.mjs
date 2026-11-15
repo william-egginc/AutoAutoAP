@@ -94,10 +94,14 @@ for (const [hash, file] of expected) {
 }
 const git = spawnSync('git', ['rev-parse', '--short=9', 'HEAD'], { cwd: APP, encoding: 'utf8' }).stdout.trim() || 'unknown';
 
+// Fresh builds only (review 15 Nov, T1): --reuse-prefix made a TE 95 all-common Monday 3-sale cell 15.9 h faster than
+// a fresh build, for about 3% less work. tables.json must not ask for it, and verify rebuilds fresh whatever it says.
+if (LIST.flags.includes('--reuse-prefix')) fail('tables.json asks for --reuse-prefix: sim5 tables are built fresh (no prefix reuse)');
+const FRESH_FLAGS = LIST.flags.filter(f => f !== '--reuse-prefix' && f !== '--verify-reuse');
 const generate = (out, extra) => {
   // The maxed table is the reference (its header says so; the page reads its k3, research and colleggtibles).
   const gear = [...(table.reference ? ['--reference'] : []), '--combos', combos, '--combo', table.combo];
-  const args = [join(dist, 'precompute.js'), '--backup', backup, ...gear, ...LIST.flags,
+  const args = [join(dist, 'precompute.js'), '--backup', backup, ...gear, ...FRESH_FLAGS,
     '--out', out, '--from', String(table.from), '--to', String(table.to), '--jobs', String(opt('jobs', '4')), ...extra];
   console.log(`node ${args.slice(1).join(' ')}`);
   const r = spawnSync(process.execPath, args, { cwd: APP, stdio: 'inherit' });

@@ -14,8 +14,7 @@
  },
  "flags": [
   "--generate",
-  "--v2",
-  "--reuse-prefix"
+  "--v2"
  ],
  "tables": [
   {
