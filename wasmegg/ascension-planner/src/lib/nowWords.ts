@@ -249,4 +249,4 @@ export function setupSummary(
 
 /** Under the Next step line that comes from the plan's events while the ascension you are in is not simulated yet (review U5,
  *  15 Nov 2026): it has none of this ascension's shifts or sale. DRAFT (Words reviews). */
-export const ROUGH_NEXT_STEP = 'A rough estimate: your shifts for this ascension are not worked out yet.';
+export const ROUGH_NEXT_STEP = "This time is a rough estimate. The planner hasn't worked out this ascension's shifts or sale yet.";

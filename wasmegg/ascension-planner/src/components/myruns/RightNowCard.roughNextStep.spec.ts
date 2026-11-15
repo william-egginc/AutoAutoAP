@@ -12,7 +12,7 @@ const tracker = readFileSync(new URL('./BuildUpTracker.vue', import.meta.url), '
 
 describe('the rough Next step says so', () => {
   it('the words', () => {
-    expect(ROUGH_NEXT_STEP).toBe('A rough estimate: your shifts for this ascension are not worked out yet.');
+    expect(ROUGH_NEXT_STEP).toBe("This time is a rough estimate. The planner hasn't worked out this ascension's shifts or sale yet.");
   });
   it('shows after the plan-events line only, never under the simulated action, and does not split the v-else chain', () => {
     const at = card.indexOf('data-testid="now-next-rough"');
