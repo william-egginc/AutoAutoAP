@@ -1039,6 +1039,21 @@ describe('run cost', () => {
     expect(stored()[0][1].run).toBeUndefined();
   });
 
+  // By a date speed (Reliability's telemetry, db7d9ad89): the same shape under its own name, validated the same way.
+  it('stores deadlineRunCost, with the suspended minutes, and keeps it apart from run', async () => {
+    const dc = { workers: 8, cores: 10, minutes: 12.5, suspendedMinutes: 1.5, secondsPerChain: 0.9 };
+    await post('/submit', { ...MINIMAL, deadlineRunCost: dc });
+    expect(stored()[0][1].deadlineRunCost).toEqual(dc);
+    expect(stored()[0][1].run).toBeUndefined();
+  });
+
+  it('drops an impossible or partial deadlineRunCost, and fields it does not name', async () => {
+    await post('/submit', { ...MINIMAL, deadlineRunCost: { workers: 1e9, cores: 8, minutes: 10, secondsPerChain: 1 } });
+    expect(stored()[0][1].deadlineRunCost).toBeUndefined();
+    await post('/submit', { ...MINIMAL, deadlineRunCost: { workers: 8 } }, '9.9.9.9');
+    expect(stored().at(-1)[1].deadlineRunCost).toBeUndefined();
+  });
+
   it('keeps a null core count, which means "not reported"', async () => {
     await post('/submit', { ...MINIMAL, run: { workers: 8, cores: null, minutes: 10, secondsPerChain: 1 } });
     expect(stored()[0][1].run.cores).toBeNull();

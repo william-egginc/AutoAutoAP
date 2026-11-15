@@ -850,6 +850,8 @@ function pickSubmission(s) {
     // desktop at everybody. Absent from older clients and from checkpoint replays, and `defined`
     // drops the key entirely in that case rather than storing a zeroed row.
     run: runCost(s.run),
+    // By a date speed (Reliability telemetry): the same fields and bounds, under their own name.
+    deadlineRunCost: runCost(s.deadlineRunCost),
 
     // Additive in schema 3. Already summarised by the app (max / how many short / a short list),
     // and re-bounded here anyway: the list is what a brand-new account would otherwise post its
