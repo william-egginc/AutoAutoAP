@@ -24,7 +24,6 @@ const readCal: (v: unknown) => any = haveCollector
 const NOW = Date.UTC(2026, 10, 15, 23, 10, 0); // 4:10 pm MST
 const SEC = Math.floor(NOW / 1000);
 const START = 1793000000;
-const n = 0;
 const line = (o: Partial<CalLine> & { key: string }): CalLine => ({
   kind: 'research',
   at: SEC + 3600,
@@ -35,8 +34,15 @@ const line = (o: Partial<CalLine> & { key: string }): CalLine => ({
 });
 const buy = (i: number, o: Partial<CalLine> = {}): CalLine =>
   line({ key: `${SEC + i * 3600}:0`, at: SEC + i * 3600, checkIn: i, text: `buy Research ${i} (1 → 2)`, ...o });
-const build = (lines: CalLine[], more: Partial<Parameters<typeof buildCalendarEvents>[0]> = {}) =>
-  buildCalendarEvents({ now: NOW, ascensionStart: START, lines, ticks: new Set(), ...more });
+const real = <T extends { uid: string }>(events: T[]): T[] => events.filter(e => e.uid !== 'asof');
+const buildFull = (lines: CalLine[], more: Partial<Parameters<typeof buildCalendarEvents>[0]> = {}) =>
+  buildCalendarEvents({ now: NOW, ascensionStart: START, lines, ticks: new Set(), zone: 'America/Denver', ...more });
+/** The list without the "Plan last updated" marker, for the tests about the events themselves. */
+const build = (lines: CalLine[], more: Partial<Parameters<typeof buildCalendarEvents>[0]> = {}) => {
+  const out = buildFull(lines, more);
+  return { ...out, events: real(out.events) };
+};
+const FOOT = 'Planned as of 4:10 PM MST. Open the planner to confirm.';
 
 describe('buildCalendarEvents', () => {
   it('makes one event per check-in, uid from the ascension and the first line key', () => {
@@ -49,8 +55,8 @@ describe('buildCalendarEvents', () => {
     expect(out.asOf).toBe(NOW);
     expect(out.events.map(e => e.uid)).toEqual([`${START}:${SEC + 3600}:0`, `${START}:${SEC + 7200}:0`]);
     expect(out.events[0]).toMatchObject({ kind: 'buy', start: (SEC + 3600) * 1000, seq: 0 });
-    expect(out.events[0]!.title).toBe('Buy: buy Research 1 (1 → 2) +1 more');
-    expect(out.events[0]!.notes).toBe('- buy Research 1 (1 → 2)\n- buy Another (2 → 3)');
+    expect(out.events[0]!.title).toBe('Buy: Research 1 (1 → 2) +1 more');
+    expect(out.events[0]!.notes).toBe(`- buy Research 1 (1 → 2)\n- buy Another (2 → 3)\n${FOOT}`);
   });
   it('the kind is the most urgent line: prestige over shift over buy; shifts and the prestige are critical with a lead', () => {
     const at = SEC + 3600;
@@ -68,7 +74,7 @@ describe('buildCalendarEvents', () => {
     const lines = [buy(1), line({ key: `${SEC + 3600}:1`, at: SEC + 3600, checkIn: 1, text: 'buy B' }), buy(2)];
     const part = build(lines, { ticks: new Set([`${SEC + 3600}:0`]) });
     expect(part.events.length).toBe(2);
-    expect(part.events[0]!.title).toBe('Buy: buy B');
+    expect(part.events[0]!.title).toBe('Buy: B');
     expect(part.events[0]!.uid).toBe(`${START}:${SEC + 3600}:1`);
     const all = build(lines, { ticks: new Set([`${SEC + 3600}:0`, `${SEC + 3600}:1`]) });
     expect(all.events.map(e => e.start)).toEqual([(SEC + 7200) * 1000]);
@@ -82,8 +88,8 @@ describe('buildCalendarEvents', () => {
       line({ key: 'e:5', kind: 'research', at: SEC + 9000, tickable: false, checkIn: -1, text: 'x' }),
     ]);
     expect(out.events.map(e => [e.kind, e.title])).toEqual([
-      ['note', 'Note: sale starts'],
-      ['note', 'Note: back online'],
+      ['note', 'Sale starts'],
+      ['note', 'Back online'],
     ]);
     expect(out.events.every(e => e.lead === undefined)).toBe(true);
   });
@@ -97,7 +103,7 @@ describe('buildCalendarEvents', () => {
     expect(r).toMatchObject({
       uid: 'route:bydate:1800000000',
       start: route.finish * 1000,
-      title: 'Route: your route ends (120 TE)',
+      title: 'Reach 120 TE (about)',
     });
   });
   it('keeps events from a day ago to `days` ahead, soonest first, and says how far the list reaches', () => {
@@ -108,10 +114,11 @@ describe('buildCalendarEvents', () => {
   });
   it('at most 100 events: the soonest, window.to is the last one so the record says how far it reaches', () => {
     const lines = Array.from({ length: 150 }, (_, i) => buy(i + 1));
-    const out = build(lines);
-    expect(out.events.length).toBe(CAL_MAX_EVENTS);
-    expect(out.window.to).toBe(out.events[99]!.start);
-    expect(out.events[0]!.start).toBe((SEC + 3600) * 1000);
+    const out = buildFull(lines);
+    expect(out.events.length).toBe(CAL_MAX_EVENTS); // 99 check-ins and the marker
+    expect(real(out.events).length).toBe(CAL_MAX_EVENTS - 1);
+    expect(out.window.to).toBe(real(out.events)[98]!.start);
+    expect(real(out.events)[0]!.start).toBe((SEC + 3600) * 1000);
   });
   it('text: titles to 80, notes to 300, no player ID, no control characters, nothing the collector would refuse', () => {
     const long = 'buy ' + 'Very Long Research Name '.repeat(20);
@@ -150,18 +157,15 @@ describe('buildCalendarEvents', () => {
     });
     expect(lead.events.map(e => e.seq)).toEqual([3, 1]);
   });
-  it('src: equal for the same events, not tied to asOf or seq; different when anything an event says changes', () => {
-    const a = build([buy(1), buy(2)]);
-    const later = buildCalendarEvents({
-      now: NOW + 60_000,
-      ascensionStart: START,
-      lines: [buy(1), buy(2)],
-      ticks: new Set(),
-      previous: a,
-    });
-    expect(later.asOf).not.toBe(a.asOf);
+  it('src: equal for the same events; the time stays the one the plan last changed, and moves when anything an event says changes', () => {
+    const a = buildFull([buy(1), buy(2)]);
+    const later = buildFull([buy(1), buy(2)], { now: NOW + 60_000, previous: a });
     expect(sameCalendar(a, later)).toBe(true);
-    expect(sameCalendar(a, build([buy(1), buy(2, { text: 'other' })]))).toBe(false);
+    expect(later.asOf).toBe(a.asOf);
+    expect(JSON.stringify(later.events)).toBe(JSON.stringify(a.events)); // the events do not change at all, so nothing to send
+    const changed = buildFull([buy(1), buy(2, { text: 'other' })], { now: NOW + 60_000, previous: a });
+    expect(sameCalendar(a, changed)).toBe(false);
+    expect(changed.asOf).toBe(NOW + 60_000);
     expect(sameCalendar(null, a)).toBe(false);
   });
   it('is deterministic and does not touch its input', () => {
@@ -248,5 +252,42 @@ describe.skipIf(!haveCollector)('the collector contract', () => {
     expect(out.window.to).toBe(out.events[out.events.length - 1]!.start);
     expect(out.events[0]!.start).toBe((SEC + 3600) * 1000);
     expect(readCal(JSON.parse(JSON.stringify(out))).problems).toBeUndefined();
+  });
+});
+
+describe("Words' wording (14 Nov)", () => {
+  const at = SEC + 3600;
+  const one = (kind: CalLine['kind'], text: string) =>
+    build([line({ key: 'w:0', at, checkIn: 0, kind, text })]).events[0]!;
+  it('titles: Shift to Humility, Buy: {item}, Ascend, Reach 120 TE (about)', () => {
+    expect(one('shift', 'shift to Humility').title).toBe('Shift to Humility');
+    expect(one('research', 'buy Grav Plating (17 → 18)').title).toBe('Buy: Grav Plating (17 → 18)');
+    expect(one('prestige', 'prestige: start the ascension on Curiosity').title).toBe('Ascend');
+    expect(one('prestige', 'prestige: start the ascension on Curiosity').notes).toBe(FOOT);
+  });
+  it('every event ends with "Planned as of <time> <the player\'s zone>. Open the planner to confirm." (12-hour, capitals)', () => {
+    for (const e of build([buy(1), buy(2, { kind: 'shift', text: 'shift to Humility' })]).events)
+      expect(e.notes!.endsWith(FOOT)).toBe(true);
+    const utc = build([buy(1)], { zone: 'UTC' }).events[0]!;
+    expect(utc.notes).toBe('Planned as of 11:10 PM UTC. Open the planner to confirm.');
+    const tokyo = build([buy(1)], { zone: 'Asia/Tokyo' }).events[0]!;
+    expect(tokyo.notes).toMatch(/^Planned as of 8:10 AM (GMT\+9|JST)\./);
+  });
+  it('a bad zone falls back to UTC instead of throwing', () => {
+    expect(build([buy(1)], { zone: 'Not/AZone' }).events[0]!.notes).toMatch(/^Planned as of 11:10 PM UTC\./);
+  });
+  it('the marker event "Plan last updated 9:00 AM" is in the list when there are events, at the time the plan last changed', () => {
+    const out = buildFull([buy(1)]);
+    const m = out.events.find(e => e.uid === 'asof')!;
+    expect(m).toMatchObject({ kind: 'note', start: NOW, title: 'Plan last updated 4:10 PM', seq: 0 });
+    expect(m.notes).toBeUndefined();
+    expect(buildFull([]).events).toEqual([]);
+  });
+  it("the marker's seq goes up when the plan changes; the footers keep their seq when only the time moves", () => {
+    const a = buildFull([buy(1), buy(2)]);
+    const b = buildFull([buy(1), buy(2, { text: 'buy other' })], { now: NOW + 3_600_000, previous: a });
+    expect(b.events.find(e => e.uid === 'asof')!.seq).toBe(1);
+    expect(b.events.find(e => e.uid === `${START}:${SEC + 3600}:0`)!.seq).toBe(0); // unchanged event: no bump
+    expect(b.events.find(e => e.uid === `${START}:${SEC + 7200}:0`)!.seq).toBe(1);
   });
 });

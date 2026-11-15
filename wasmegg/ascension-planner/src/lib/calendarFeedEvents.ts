@@ -14,7 +14,12 @@
  * the same calendar entry. `seq` bumps only when an event's start, end, title, notes or lead changed since `previous`.
  * `src` is a hash of what an event says (not `asOf`, not `seq`): equal to the last one sent means there is nothing to PUT.
  *
- * LIMITS the collector enforces (and this keeps): at most 100 events, soonest first, from a day ago to `days` ahead (a longer
+ * WORDS (Words, 14 Nov): titles "Shift to Humility", "Buy: {item}", "Ascend", "Reach 120 TE (about)"; every event's notes end with
+ * "Planned as of 9:00 AM MST. Open the planner to confirm." in the player's own zone, and the first thing in the feed is a marker event
+ * "Plan last updated 9:00 AM" (uid `asof`). The collector prints titles and notes as they are, with no words of its own. The time in both
+ * is when the plan last CHANGED (a rebuild that changes nothing keeps `previous.asOf`), so it does not move on every rebuild.
+ *
+ * LIMITS the collector enforces (and this keeps): at most 100 events (the marker is one of them), soonest first, from a day ago to `days` ahead (a longer
  * list ends where the 100th event is: `window.to` is then that event's time, so the record says how far it reaches); a title is
  * at most 80 characters and notes 300; plain text, no player ID.
  */
@@ -79,7 +84,7 @@ export interface CalendarInput {
   /** The lines the player has done: the save's ticks and the player's own, with the unticks applied (`effectiveTicks().ticked`). */
   ticks: ReadonlySet<string>;
   /** The last list sent: keeps `seq` going. */
-  previous?: Pick<CalEventList, 'events'> | null;
+  previous?: Pick<CalEventList, 'events' | 'src' | 'asOf'> | null;
   /** The followed route's finish (Fastest to a TE, By a date...): one `route` event at the time it ends. Off by default. */
   route?: { goal: string; finish?: number | null; endTE?: number | null } | null;
   /** The player's hours (the followed route's `hours`): events outside them are `quiet`. */
@@ -92,13 +97,6 @@ export interface CalendarInput {
 const LEAD_DEFAULT: Record<CalKind, number | null> = { shift: 10, prestige: 30, buy: 5, note: null, route: null };
 const INCLUDE_DEFAULT: Record<CalKind, boolean> = { shift: true, buy: true, prestige: true, note: true, route: false };
 const RANK: Record<CalKind, number> = { prestige: 4, shift: 3, buy: 2, route: 1, note: 0 };
-const LABEL: Record<CalKind, string> = {
-  prestige: 'Prestige',
-  shift: 'Shift',
-  buy: 'Buy',
-  route: 'Route',
-  note: 'Note',
-};
 
 /** Tracker line kinds -> calendar kinds; null: no event of its own (a wait or warning has no time). */
 const KIND_OF: Record<LineKind, CalKind | null> = {
@@ -179,27 +177,69 @@ interface Draft {
   start: number;
   kind: CalKind;
   title: string;
-  notes?: string;
+  /** The notes before the "Planned as of" line is added. */
+  body?: string;
 }
 
-/** The title: the most urgent line's words after its label, '+N more' when the check-in has others, cut to 80. */
+const upFirst = (t: string): string => (t ? t[0]!.toUpperCase() + t.slice(1) : t);
+
+/** One line's title (Words, 14 Nov): "Shift to Humility", "Buy: Grav Plating (17 → 18)", "Ascend", a note as its own words. */
+function lineTitle(kind: CalKind, l: CalLine): string {
+  if (kind === 'prestige') return 'Ascend';
+  if (kind === 'buy') return `Buy: ${l.text.replace(/^buy\s+/i, '')}`;
+  return upFirst(l.text);
+}
+
+/** The title: the most urgent line's title, '+N more' when the check-in has other lines, cut to 80. */
 function titleOf(kind: CalKind, lines: readonly CalLine[]): string {
   const top = lines.find(l => KIND_OF[l.kind] === kind) ?? lines[0]!;
   const more = lines.length - 1;
   const suffix = more > 0 ? ` +${more} more` : '';
-  const head = `${LABEL[kind]}: `;
-  const room = CAL_TITLE_MAX - head.length - suffix.length;
-  const body = clean(top.text, Math.max(8, room));
-  return clean(`${head}${body}${suffix}`, CAL_TITLE_MAX);
+  const room = CAL_TITLE_MAX - suffix.length;
+  return clean(`${clean(lineTitle(kind, top), Math.max(8, room))}${suffix}`, CAL_TITLE_MAX);
 }
 
-function notesOf(lines: readonly CalLine[]): string | undefined {
+/** Longest the "Planned as of 12:00 AM MST. Open the planner to confirm." line (and its newline) can be, with room to spare for a long zone name. */
+const FOOTER_RESERVE = 70;
+const BODY_MAX = CAL_NOTES_MAX - FOOTER_RESERVE;
+
+function bodyOf(lines: readonly CalLine[]): string | undefined {
   if (lines.length <= 1 && !lines[0]?.tail) return undefined;
   const text = lines.map(l => `- ${clean(l.text, 120)}`).join('\n');
   const tail = lines[lines.length - 1]?.tail ? `\n${clean(lines[lines.length - 1]!.tail!, 40)}` : '';
   const all = `${text}${tail}`;
-  return all.length <= CAL_NOTES_MAX ? all : `${all.slice(0, CAL_NOTES_MAX - 1).trimEnd()}…`;
+  return all.length <= BODY_MAX ? all : `${all.slice(0, BODY_MAX - 1).trimEnd()}…`;
 }
+
+const clockParts = (ms: number, zone: string): { time: string; zone: string } => {
+  const fmt = (z: string) =>
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: z,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
+    }).formatToParts(new Date(ms));
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = fmt(zone);
+  } catch {
+    parts = fmt('UTC');
+  }
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+  return { time: `${get('hour')}:${get('minute')} ${get('dayPeriod').toUpperCase()}`, zone: get('timeZoneName') };
+};
+/** "Planned as of 9:00 AM MST. Open the planner to confirm." in the player's zone (Words' text; the server prints notes as they are). */
+export const plannedAsOf = (ms: number, zone: string): string => {
+  const c = clockParts(ms, zone);
+  return `Planned as of ${c.time} ${c.zone}. Open the planner to confirm.`;
+};
+/** "Plan last updated 9:00 AM": the marker event's title. */
+export const lastUpdated = (ms: number, zone: string): string => `Plan last updated ${clockParts(ms, zone).time}`;
+
+const FOOTER_RE = /\n?Planned as of [^\n]*$/;
+const bodyNotes = (notes: string | undefined): string => (notes ?? '').replace(FOOTER_RE, '');
+const MARKER_UID = 'asof';
 
 export function buildCalendarEvents(input: CalendarInput): CalEventList {
   const include = { ...INCLUDE_DEFAULT, ...(input.options?.include ?? {}) };
@@ -226,8 +266,8 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
       uid: uidOf(input.ascensionStart, l.key),
       start: l.at * 1000,
       kind,
-      title: clean(`${LABEL[kind]}: ${l.text}`, CAL_TITLE_MAX),
-      ...(l.tail ? { notes: clean(l.tail, CAL_NOTES_MAX) } : {}),
+      title: clean(lineTitle(kind, l), CAL_TITLE_MAX),
+      ...(l.tail ? { body: clean(l.tail, BODY_MAX) } : {}),
     });
   }
   for (const lines of groups.values()) {
@@ -237,23 +277,22 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
     if (!kinds.length) continue;
     const kind = kinds.reduce((a, b) => (RANK[b] > RANK[a] ? b : a));
     const first = left[0]!;
-    const notes = notesOf(left);
+    const body = bodyOf(left);
     drafts.push({
       uid: uidOf(input.ascensionStart, first.key),
       start: first.at * 1000,
       kind,
       title: titleOf(kind, left),
-      ...(notes ? { notes } : {}),
+      ...(body ? { body } : {}),
     });
   }
   const route = input.route;
   if (route && route.finish && route.finish > 0) {
-    const end = route.endTE ? ` (${route.endTE} TE)` : '';
     drafts.push({
       uid: `route:${route.goal.replace(/[^A-Za-z0-9._:-]/g, '_')}`.slice(0, 80),
       start: route.finish * 1000,
       kind: 'route',
-      title: clean(`Route: your route ends${end}`, CAL_TITLE_MAX),
+      title: route.endTE ? `Reach ${route.endTE} TE (about)` : 'Your route ends (about)',
     });
   }
 
@@ -261,24 +300,28 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   const picked = drafts
     .filter(d => include[d.kind] && d.start >= from && d.start <= to)
     .sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
-  let kept = picked.slice(0, CAL_MAX_EVENTS);
+  // One place of the 100 is the "Plan last updated" marker.
+  let kept = picked.slice(0, CAL_MAX_EVENTS - 1);
 
+  const footerNow = plannedAsOf(input.now, zone);
   const events: CalEvent[] = kept.map(d => {
     const lead = leadOf[d.kind];
     const e: CalEvent = { uid: d.uid, seq: 0, start: d.start, kind: d.kind, title: d.title };
-    if (d.notes) e.notes = d.notes;
+    if (d.body) e.notes = d.body;
     if (typeof lead === 'number' && lead > 0) e.lead = lead;
     if (d.kind === 'shift' || d.kind === 'prestige') e.critical = true;
     if (input.hours && !inHours(d.start, input.hours, zone)) e.quiet = true;
     const was = previous.get(d.uid);
-    if (was) e.seq = was.seq + (sameContent(was, e) ? 0 : 1);
+    if (was) e.seq = was.seq + (sameContent({ ...was, notes: bodyNotes(was.notes) || undefined }, e) ? 0 : 1);
     return e;
   });
 
-  // Stay under the record's size cap: the latest events go first (the longest titles and notes can make 100 events too big).
+  // Stay under the record's size cap, counting the footer each event will carry: the latest events go first.
   const encoder = new TextEncoder();
-  const sizes = events.map(e => encoder.encode(JSON.stringify(e)).length + 1);
-  let total = 200 + sizes.reduce((a, b) => a + b, 0);
+  const sizes = events.map(
+    e => encoder.encode(JSON.stringify({ ...e, notes: `${e.notes ?? ''}\n${footerNow}` })).length + 1
+  );
+  let total = 400 + sizes.reduce((a, b) => a + b, 0);
   while (events.length && total > CAL_MAX_BYTES) {
     total -= sizes[events.length - 1]!;
     events.pop();
@@ -286,10 +329,23 @@ export function buildCalendarEvents(input: CalendarInput): CalEventList {
   kept = kept.slice(0, events.length);
   const truncated = picked.length > events.length;
 
+  // `src` says what the events say, without the footer's time: unchanged means nothing to send, and the time stays the one
+  // the plan last changed (not "now" on every rebuild).
   const src = hash(JSON.stringify(events.map(({ seq: _seq, ...rest }) => rest)));
+  const same = !!input.previous && input.previous.src === src && typeof input.previous.asOf === 'number';
+  const asOf = same ? input.previous!.asOf : input.now;
+  const footer = plannedAsOf(asOf, zone);
+  for (const e of events) e.notes = e.notes ? `${e.notes}\n${footer}` : footer;
+  if (events.length) {
+    const marker: CalEvent = { uid: MARKER_UID, seq: 0, start: asOf, kind: 'note', title: lastUpdated(asOf, zone) };
+    const was = previous.get(MARKER_UID);
+    if (was) marker.seq = was.seq + (was.title === marker.title ? 0 : 1);
+    events.push(marker);
+    events.sort((a, b) => a.start - b.start || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
+  }
   return {
     v: 1,
-    asOf: input.now,
+    asOf,
     window: { from, to: truncated && kept.length ? kept[kept.length - 1]!.start : to },
     src,
     events,
