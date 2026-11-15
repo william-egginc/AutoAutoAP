@@ -209,6 +209,44 @@ describe('buildCalendarEvents', () => {
   });
 });
 
+describe('invisible and direction-changing characters (red team round 2, 14 Nov)', () => {
+  const HIDDEN = [
+    '\u00ad',
+    '\u061c',
+    '\u180e',
+    '\u200b',
+    '\u200c',
+    '\u200d',
+    '\u200e',
+    '\u200f',
+    '\u202a',
+    '\u202b',
+    '\u202c',
+    '\u202d',
+    '\u202e',
+    '\u2060',
+    '\u2064',
+    '\u2066',
+    '\u2067',
+    '\u2068',
+    '\u2069',
+    '\ufeff',
+  ];
+  it.each(HIDDEN)('%j is removed from titles and notes, the words around it join', c => {
+    const out = build([
+      line({ key: 'h:0', checkIn: 0, text: `buy Grav${c}Plating` }),
+      line({ key: 'h:1', checkIn: 0, text: `buy Other${c}x`, tail: `off${c}line 1 min` }),
+    ]);
+    const all = out.events.map(e => `${e.title}|${e.notes ?? ''}`).join('');
+    expect(all).not.toMatch(/[\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/);
+    expect(out.events[0]!.title).toContain('GravPlating');
+  });
+  it('combining marks and other scripts stay', () => {
+    const out = build([line({ key: 'c:0', checkIn: 0, text: 'buy e\u0301 \u4e2d\u6587' })]);
+    expect(out.events[0]!.title).toBe('Buy: e\u0301 \u4e2d\u6587');
+  });
+});
+
 describe('line breaks (QA red team, 14 Nov)', () => {
   const BREAKS = [
     '\u000b',
