@@ -349,6 +349,78 @@ describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is op
     expect(c.needsMyRuns.value).toBe(false);
     expect(JSON.parse(col.puts()[0].body!).events.length).toBeGreaterThan(1);
   });
+  describe('between opening My runs and the first plan upload (QA 15 Nov 2026: 60-100 s under load, the feed held only the marker)', () => {
+    it('"working" from My runs being open with a link and no plan sent, until the first plan upload succeeds', async () => {
+      const { st } = memStore();
+      const col = collector();
+      const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+      c.turnOn();
+      await c.getLink();
+      await vi.advanceTimersByTimeAsync(0);
+      // The marker is up, My runs is not open: the card asks for it, nothing is "working".
+      expect(c.needsMyRuns.value).toBe(true);
+      expect(c.onMyRuns.value).toBe(false);
+      expect(c.working.value).toBe(false);
+      // My runs opens, its tracker not worked out yet: no plan to send, so working, and not asking any more.
+      c.viewing();
+      expect(c.onMyRuns.value).toBe(true);
+      expect(c.working.value).toBe(true);
+      // The plan comes in: it is sent 10 s later, and only then does "working" end.
+      c.note(input(2));
+      expect(c.working.value).toBe(true);
+      await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+      expect(col.puts()).toHaveLength(2);
+      expect(c.working.value).toBe(false);
+    });
+    it('a link made while My runs is already open is "working" at once', async () => {
+      const { st } = memStore();
+      const c = createCalendarFeed({ storage: st, env: ENV, fetch: collector().f });
+      c.turnOn();
+      c.viewing();
+      expect(c.working.value).toBe(false);
+      await c.getLink();
+      expect(c.working.value).toBe(true);
+    });
+    it('after a page reload the same plan is already up (nothing to send): not "working" for good', async () => {
+      const { st } = memStore();
+      const col = collector();
+      const a = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+      a.turnOn();
+      await a.getLink();
+      a.note(input(2));
+      await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+      const sent = col.puts().length;
+      // A new page load: same storage, nothing in memory.
+      const b = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+      expect(b.linked.value).toBe(true);
+      b.viewing();
+      expect(b.working.value).toBe(true);
+      b.note(input(2));
+      await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+      expect(col.puts()).toHaveLength(sent);
+      expect(b.working.value).toBe(false);
+    });
+    it('a failed plan upload ends "working": the upload error says it instead', async () => {
+      const { st } = memStore();
+      const col = collector({ putStatus: [200, 500] });
+      const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+      c.turnOn();
+      await c.getLink();
+      c.viewing();
+      c.note(input(2));
+      await vi.advanceTimersByTimeAsync(CAL_DEBOUNCE_MS + 10);
+      expect(c.error.value).toBe('upload');
+      expect(c.working.value).toBe(false);
+    });
+    it('no link, or switched off: never working', async () => {
+      const { st } = memStore();
+      const c = createCalendarFeed({ storage: st, env: ENV, fetch: collector().f });
+      c.viewing();
+      expect(c.working.value).toBe(false);
+      c.turnOn();
+      expect(c.working.value).toBe(false);
+    });
+  });
   it('a failed mint puts nothing up and does not ask', async () => {
     const { st } = memStore();
     const col = collector({ mint: 503 });

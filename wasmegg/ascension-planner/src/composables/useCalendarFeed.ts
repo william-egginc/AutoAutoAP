@@ -79,6 +79,11 @@ export function createCalendarFeed(o: {
   const copied = ref(false);
   /** A link was made before My runs gave any plan: only the marker is up, and the card says to open My runs once. */
   const needsMyRuns = ref(false);
+  /** My runs is open (its page called `viewing`): the plan is on its way, so the card stops asking for it (QA, 15 Nov 2026). */
+  const onMyRuns = ref(false);
+  /** A plan (not the bare marker) has gone up since the link was made; until then, with My runs open, the card says it is being worked out. */
+  const planSent = ref(false);
+  let planNoted = false;
   /** Reset link is offered with a link kept here, and also when the server says the limit is hit (3 links made on another device). */
   const canReset = computed(() => linked.value || error.value === 'limit');
   // The build flag first (lib/calendarCloud.ts CALENDAR_FEED): off, never available, whatever an earlier build stored.
@@ -149,6 +154,7 @@ export function createCalendarFeed(o: {
       phase.value = 'idle';
       // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
       keep(null);
+      planSent.value = false;
       // The plan My runs gave so far, else just the marker (a fresh subscription is never empty); the card asks for My runs.
       needsMyRuns.value = !latest;
       pending = latest ?? { now: Date.now(), ascensionStart: 0, lines: [], ticks: new Set<string>(), zone: browserZone(), hours: null };
@@ -204,12 +210,17 @@ export function createCalendarFeed(o: {
     const t = o.env.target();
     if (!input || !t || !enabled.value || !linked.value) return;
     const next = buildCalendarEvents({ ...input, previous: last });
-    if (sameCalendar(last, next)) return;
+    if (sameCalendar(last, next)) {
+      // Already up (kept from an earlier visit): nothing to send, and the plan is where it should be.
+      if (planNoted) planSent.value = true;
+      return;
+    }
     let r = await putCalendar(t.url, t.k, Date.now(), next, f);
     if (!r.ok && r.why === 'newer') r = await putCalendar(t.url, t.k, Date.now(), next, f);
     if (r.ok) {
       keep({ events: next.events, src: next.src, asOf: next.asOf });
       if (error.value) error.value = '';
+      if (planNoted) planSent.value = true;
       return;
     }
     // Not silent: the card says so, and the black box keeps the reason (never the link).
@@ -220,6 +231,7 @@ export function createCalendarFeed(o: {
   function note(input: CalendarFeedInput): void {
     if (!CALENDAR_FEED.enabled) return;
     latest = input;
+    planNoted = true;
     needsMyRuns.value = false;
     if (!enabled.value || !linked.value) return;
     pending = input;
@@ -227,7 +239,14 @@ export function createCalendarFeed(o: {
     timer = setTimeout(() => void flush(), CAL_DEBOUNCE_MS);
   }
 
-  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  /** My runs calls this when it opens (useCalendarFeedPush). */
+  function viewing(): void {
+    onMyRuns.value = true;
+  }
+  /** Linked, My runs open, no plan sent yet and no upload error: "Working out your plan for the calendar" (the tracker takes 60-100 s under load). */
+  const working = computed(() => enabled.value && linked.value && onMyRuns.value && !planSent.value && !error.value);
+
+  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 
@@ -294,6 +313,8 @@ export function useCalendarFeedPush(src: {
       const own = src.lines.value;
       const lines = own ?? src.fallbackLines?.value;
       const account = accountOf(initial.rawBackup);
+      // My runs is open (whether or not a plan is ready yet): the card stops asking for it and says the plan is being worked out.
+      if (account) calendarFeedFor(account).viewing();
       if (!lines || !account) return;
       // The tracker's lines need the ascension's start (their uids). The stand-ins are keyed without a time and always use slot 0: the plan's
       // start is the follow time, so a re-follow would give every shift a new uid (an entry the player dismissed would come back).
