@@ -111,13 +111,13 @@ export function fold(line) {
   return out.join('\r\n');
 }
 const DEFAULT_MINUTES = 10;
-const NAME = 'Ascension planner';
+const NAME = 'Ascension Planner';
 
 /** The only words of its own the server prints: the calendar's description. Everything else is the client's title and notes. */
-const CALDESC = 'Your plan from the Ascension planner. Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
+const CALDESC = 'Your plan from the Ascension Planner. Your calendar may show times up to a day old. For a step that matters to the minute, open the planner.';
 
 export function renderIcs(cal) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//Calendar feed//EN', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(NAME)}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension Planner//Calendar feed//EN', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${esc(NAME)}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
   lines.push(`X-WR-CALDESC:${esc(CALDESC)}`);
   for (const e of cal?.events ?? []) {
     lines.push('BEGIN:VEVENT', `UID:${e.uid}@aaap`, `DTSTAMP:${utc(cal.asOf)}`, `LAST-MODIFIED:${utc(cal.asOf)}`, `SEQUENCE:${e.seq}`, `DTSTART:${utc(e.start)}`, `DTEND:${utc(e.end ?? e.start + DEFAULT_MINUTES * 60_000)}`, `SUMMARY:${esc(e.title)}`, ...(e.notes ? [`DESCRIPTION:${esc(e.notes)}`] : []), `CATEGORIES:${e.kind.toUpperCase()}`);
