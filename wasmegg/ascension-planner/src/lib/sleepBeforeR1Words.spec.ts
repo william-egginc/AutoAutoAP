@@ -1,26 +1,35 @@
-/** "You won't reach R1 before you sleep" (Jordan's option a, 15 Nov 2026; Words). The data is Reliability's `{ r1At, sleepAt, exact }`. */
+/** "You won't reach R1 before you sleep" (Jordan's option a, 15 Nov 2026; Words). The data is Reliability's `{ r1At, doneBy, sleepAt, exact }`. */
 import { describe, expect, it } from 'vitest';
 import { sleepBeforeR1Card, sleepBeforeR1NextStep, sleepBeforeR1Tracker } from './sleepBeforeR1Words';
 
-const at = (n: number) => (n === 1000 ? '1:10 AM' : n === 2000 ? '11:00 PM' : '?');
-const exact = { r1At: 1000, sleepAt: 2000, exact: true };
-const bound = { r1At: 1000, sleepAt: 2000, exact: false };
+const T: Record<number, string> = { 1: '10:40 PM', 2: '11:20 PM', 3: '11:00 PM', 4: '1:10 AM' };
+const fmt = (n: number) => T[n] ?? '?';
+// R1 starts before bedtime but its buys finish after it.
+const spans = { r1At: 1, doneBy: 2, sleepAt: 3, exact: true };
+// R1 itself is after bedtime.
+const late = { r1At: 4, doneBy: 4, sleepAt: 3, exact: true };
+// An upper bound only.
+const bound = { r1At: 4, doneBy: 4, sleepAt: 3, exact: false };
 
 describe('sleepBeforeR1Words', () => {
-  it('card (a route card or a timeline ascension)', () => {
-    expect(sleepBeforeR1Card(exact, at)).toBe('Your silo buys (R1) come at 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.');
-    expect(sleepBeforeR1Card(bound, at)).toBe('Your silo buys (R1) may come as late as 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.');
+  it('card: R1 starts before bedtime but is not done by it', () => {
+    expect(sleepBeforeR1Card(spans, fmt)).toBe(
+      'Your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
+    );
   });
-  it('Next step ("if you prestige now")', () => {
-    expect(sleepBeforeR1NextStep(exact, at)).toBe('If you prestige now, your silo buys (R1) come at 1:10 AM, after your hours end at 11:00 PM.');
-    expect(sleepBeforeR1NextStep(bound, at)).toBe('If you prestige now, your silo buys (R1) may come as late as 1:10 AM, after your hours end at 11:00 PM.');
+  it('card: R1 starts after bedtime; an upper bound says "may be done as late as"', () => {
+    expect(sleepBeforeR1Card(late, fmt)).toBe('Your silo buys (R1) start at 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.');
+    expect(sleepBeforeR1Card(bound, fmt)).toBe(
+      'Your silo buys (R1) may be done as late as 1:10 AM, after your hours end at 11:00 PM. Prestige in the morning, or re-plan.'
+    );
   });
-  it('Build-up tracker (the ascension you are in)', () => {
-    expect(sleepBeforeR1Tracker(exact, at)).toBe('Your silo buys (R1) come at 1:10 AM, after your hours end at 11:00 PM.');
-    expect(sleepBeforeR1Tracker(bound, at)).toBe('Your silo buys (R1) may come as late as 1:10 AM, after your hours end at 11:00 PM.');
+  it('Next step ("if you prestige now") and the tracker use the same clause', () => {
+    expect(sleepBeforeR1NextStep(spans, fmt)).toBe('If you prestige now, your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM.');
+    expect(sleepBeforeR1Tracker(spans, fmt)).toBe('Your silo buys (R1) start at 10:40 PM and finish by 11:20 PM, after your hours end at 11:00 PM.');
+    expect(sleepBeforeR1Tracker(bound, fmt)).toBe('Your silo buys (R1) may be done as late as 1:10 AM, after your hours end at 11:00 PM.');
   });
-  it('plain words: Press not Click, no "recalculate", no Your plan at the start, no player ID', () => {
-    const all = [sleepBeforeR1Card(exact, at), sleepBeforeR1NextStep(bound, at), sleepBeforeR1Tracker(exact, at)].join(' ');
+  it('plain words: no Click or Tap, no "recalculate", no Your plan at the start, no player ID', () => {
+    const all = [sleepBeforeR1Card(spans, fmt), sleepBeforeR1NextStep(bound, fmt), sleepBeforeR1Tracker(late, fmt)].join(' ');
     expect(all).not.toMatch(/\b(click|tap)\b|recalculate|EI\d{16}/i);
     expect(all).not.toMatch(/^Your plan/m);
   });
