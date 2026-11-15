@@ -130,6 +130,27 @@ describe('Unicode line breaks (QA red team, 14 Nov: a lenient reader could see a
   });
 });
 
+describe('invisible and direction-changing characters (red team round 2, 14 Nov)', () => {
+  const HIDDEN = ['­', '؜', '᠎', '​', '‌', '‍', '‎', '‏', '‪', '‫', '‬', '‭', '‮', '⁠', '⁤', '⁦', '⁧', '⁨', '⁩', '﻿'];
+  const name = c => `U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+  it.each(HIDDEN)('readCal refuses %j in a title and in notes (400, nothing stored)', async c => {
+    expect((await putCal(LIST([EVENT(1, { title: `Buy: a${c}b` })]))).status, name(c)).toBe(400);
+    expect((await putCal(LIST([EVENT(1, { notes: `a${c}b` })]))).status, name(c)).toBe(400);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM synced').get().n).toBe(0);
+  });
+  it('combining marks and ordinary non-Latin text stay allowed', async () => {
+    expect((await putCal(LIST([EVENT(1, { title: 'Buy: é é 中文 שלום', notes: 'ä' })]))).status).toBe(200);
+  });
+  it('an old row that holds them prints without them', async () => {
+    const token = tokenOf((await mint()).body.url);
+    const data = JSON.stringify(LIST([EVENT(1, { title: `Buy: a${HIDDEN.join('')}b`, notes: `x${HIDDEN.join('')}y` })]));
+    env.WATCH._db.prepare("INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, 'cal', '0', ?, ?, ?, 'json', ?)").run(K, T0, T0, data.length, data);
+    const out = unfold(await (await feed(token)).text());
+    expect(out).toContain('SUMMARY:Buy: ab');
+    expect(out).toContain('DESCRIPTION:xy');
+  });
+});
+
 describe('making a link (POST /cal/new)', () => {
   it('returns a url with a random 22-character token, and stores only its hash', async () => {
     const { res, body } = await mint();

@@ -41,9 +41,13 @@ const EVENT_FIELDS = ['uid', 'seq', 'start', 'end', 'kind', 'title', 'notes', 'l
 // and the Unicode line and paragraph separators (U+2028, U+2029). A lenient .ics reader treats any of these as a line end, so one
 // could fake an END:VEVENT / BEGIN:VEVENT (QA red team, 14 Nov 2026). The printer escapes them too (`esc`), in case an old row has one.
 // eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+// Invisible and direction-changing characters (soft hyphen, ALM, Mongolian vowel separator, zero-width, bidi, word joiner, BOM) change what a
+// title looks like without changing its text (red team round 2, 14 Nov). Combining marks stay.
+const HIDDEN = '\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff';
+const CONTROL = new RegExp(`[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029${HIDDEN}]`);
 // eslint-disable-next-line no-control-regex
-const CONTROL_NO_NEWLINE = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/;
+const CONTROL_NO_NEWLINE = new RegExp(`[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f\\u2028\\u2029${HIDDEN}]`);
+const HIDDEN_ALL = new RegExp(`[${HIDDEN}]`, 'g');
 const MS_FROM = UNIX_FROM * 1000;
 const MS_TO = UNIX_TO * 1000;
 const SEVEN_DAYS = 7 * DAY_MS;
@@ -102,7 +106,7 @@ const esc = s =>
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(BREAKS, '\\n')
-    .replace(OTHER_CONTROL, ' ');
+    .replace(OTHER_CONTROL, ' ').replace(HIDDEN_ALL, '');
 const encoder = new TextEncoder();
 /** One content line, folded so no physical line is over 75 bytes (continuations start with a space). */
 export function fold(line) {
