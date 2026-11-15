@@ -1,6 +1,6 @@
 # The instant answer (precomputed tables)
 
-Last checked against the code on 14 Oct 2026.
+Last checked against the code on 15 Nov 2026 (sim5).
 
 The Auto Planner's _Fastest to 490 TE_ and _Highest TE by a date_ screens open on an **instant
 answer**. (It was built on a separate `precompute` branch, now merged into `ascension-chain-search`.)
@@ -40,9 +40,9 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
   (`BuildParams`). A build is moved onto a route's real egg counts when it is used (`rebase`), so a
   route carries exact counts from one ascension to the next.
 - **Range.** The generator's default is start TE 100–489 (`TABLE_FROM`, `TABLE_TO` in
-  `scripts/precompute.ts`); the deployed tables start at 120 (an own table at the account's TE).
-  `--max-start-te N` stops a build at N; the next rebuild stops at 339, since above the useful stops
-  the page simulates a player's one ascension live (`src/search/liveCell.ts`).
+  `scripts/precompute.ts`). The sim5 tables are built 55–489 for maxed (75–489 for gear and Carpet
+  tables), as `tables/sim5/tables.json` on the `sim5-tables` branch lists them. `--max-start-te N` stops a
+  build at N.
 - **Reference week** (`REFERENCE_WEEK`, `src/search/tableBuild.ts`): Monday 11 January 2027, 00:00
   Pacific, clear of daylight-saving changes. `--generate` refuses to run if its hour 0 is not Monday
   00:00 Pacific, and `--verify-cells` refuses a table built on another week.
@@ -226,7 +226,7 @@ loads a save (`--backup FILE.json`) the way the site does. Main modes:
 | `--reference`                                                | Build on a perfect maxed account (the save plus the missing top artifacts and stones).                                         |
 | `--combos FILE --combo NAME`                                 | Build on a gear combination (artifacts and stones) instead of the save's own inventory.                                        |
 | `--k3 --table DIR`                                           | Record the research and delivery set a build waits with (`DIR/k3.json`; `--generate` already writes it).                       |
-| `--verify-cells --table DIR [--tes …] [--hours …] [--show-diff]` | The bit-check: rebuild sample cells and compare them to the bit, e.g. on a second machine. Defaults: the lowest and highest TE and three between, hours `0,83,167`. |
+| `--verify-cells --table DIR [--tes …] [--hours …] [--show-diff]` | The bit-check: rebuild sample cells and compare them to the bit, e.g. on a second machine (version 2 cells with their extras). Defaults: the lowest and highest TE and three between, at hours `0,83,167` and the week's first sale and 2x boost hours and the hour before each (`checkHours`, `src/search/tableCheck.ts`). |
 | `--check-bin FILE.bin [--samples 24] [--seed N\|random] [--json] [--ignore-sim] [--base SAVE] [--own-inventory] [--against-save SAVE.json \| --current-max]` | Check a table file someone sent: structure, stamps, and random cells (printed seed) plus the edges rebuilt from the table's own inputs. PASS / CLOSE / FAIL / STALE, exit 0 / 1 / 1 / 2. See README.md, "Checking a table someone sent". |
 | `--pack --table DIR --out FILE [--fake-below TE]`            | Pack the generated files into the one file the site loads (the longest run of TEs ending at the top). A version 2 own or gear table must be `--out …/acct-<hex>.v2.bin` or `gear-<hex>.v2.bin`. |
 | `--stamp-sim --dir DIR [--sim-version V] [--write]`          | Set `simVersion` in every table header in DIR; a dry run unless `--write`, which also remakes the `.bin.gz`.                   |
@@ -246,7 +246,11 @@ node dist-search/precompute.js --route --table tables/own-DIR --backup me.json -
   --start 2026-10-11T01:10:00Z --deadline 2027-07-14T16:00:00Z --available-from 7 --available-to 23 --timezone America/Denver
 ```
 
-A typical pipeline (a version 2 table, so its `.v2` name; a version 1 one keeps the plain name):
+The sim5 tables are built with `pnpm tables:build NAME` and checked with `pnpm tables:verify NAME DIR` on the
+`sim5-tables` branch (`scripts/tables-build.mjs`): the same generator flags everywhere (`--generate --v2`, pinned
+inputs and bundle), and no `--reuse-prefix`, which made some cells near sale hours faster than a fresh build (review
+15 Nov 2026: a TE 95 Monday 3-sale cell by 15.9 h). By hand, a typical pipeline (a version 2 table, so its `.v2`
+name; a version 1 one keeps the plain name):
 
 ```bash
 node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --v2 --out tables/NAME --from 120 --to 489 --jobs 8
@@ -266,20 +270,20 @@ the same process could otherwise differ.
 ### Keeping tables in step with the simulator
 
 - **The stamp.** Each table header carries the `SIM_VERSION` its cells came from
-  (`src/search/simVersion.ts`, now `2026-10-21-egg-beta2`). The page says so when a table's stamp
+  (`src/search/simVersion.ts`, now `2026-11-14-sim5`). The page says so when a table's stamp
   differs from the code's (`tableSimMismatch`), and `--generate` will not mix simulators in one DIR
   without `--allow-sim-change`.
-- **The guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`,
-  `src/search/tableBuild.ts` and `src/search/precomputedLeg.ts` (every `.ts` but specs) and compares
-  the hash with `SIM_SOURCE_HASH`, so any edit there, even a comment, fails it. Then: if results
+- **The guard.** `src/search/simVersion.spec.ts` hashes `SIM_SOURCES` (`src/search/simVersion.ts`: the engine,
+  the ascension and shift code, the calculations here and in `lib/planners`, the table build and generator, and
+  the calendar, pricing, planners and data they read; every `.ts` in a folder but specs) and compares the hash with
+  `SIM_SOURCE_HASH`, so any edit there, even a comment, fails it. Then: if results
   changed, bump `SIM_VERSION` and regenerate the tables, or restamp them (`--stamp-sim --write`, then
   `--manifest`) once a bit-check shows them identical; if it was a refactor or comment only, update
-  `SIM_SOURCE_HASH`. Not everything a cell touches is hashed (`lib/`, `calculations/`), so a
-  change there needs a bump by hand.
+  `SIM_SOURCE_HASH`. Not everything a cell touches is hashed (`leg.ts`, the action executors, save decoding and
+  artifact data in `lib/`; see `simVersion.ts`), so a change there that moves results needs a bump by hand.
 - **The bit-check** is `--verify-cells` run with a CLI build of the commit under test on each deployed
   table's source dir, with the same `--backup` and `--reference` or `--combos/--combo` it was built
-  with. The last full bit-check, on 13 Oct 2026 at 6:44 pm on the merged low-TE build: 13 tables × 15
-  cells, 195 of 195 identical.
+  with. For the sim5 tables, `tables:verify` rebuilds whole start TEs fresh and compares their bytes.
 - **The opening switch** (`src/auto/lowTeOpening.ts`, since egg-beta2, 21 Oct 2026, which merged Joo's
   planner up to 39261255): every fresh build's first C1/K1/I1 pass caps I1 at 4 hours; when that can't
   max the habs, the build takes PR 717's rounds (our default) or Joo's v2 openings
