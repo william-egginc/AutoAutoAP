@@ -98,6 +98,38 @@ describe('the cal sync kind', () => {
   });
 });
 
+describe('Unicode line breaks (QA red team, 14 Nov: a lenient reader could see a fake END:VEVENT / BEGIN:VEVENT)', () => {
+  const BREAKS = ['\u000b', '\u000c', '\u001c', '\u001d', '\u001e', '\u0085', '\u2028', '\u2029', '\u0080', '\u009f'];
+  const name = c => `U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+  it.each(BREAKS)('readCal refuses %j in a title and in notes (400, nothing stored)', async c => {
+    expect((await putCal(LIST([EVENT(1, { title: `Buy: a${c}END:VEVENT` })]))).status, name(c)).toBe(400);
+    expect((await putCal(LIST([EVENT(1, { notes: `a${c}END:VEVENT\nBEGIN:VEVENT` })]))).status, name(c)).toBe(400);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM synced').get().n).toBe(0);
+  });
+  it('other control characters in an old row become a space, never a raw byte in the feed', async () => {
+    const token = tokenOf((await mint()).body.url);
+    const data = JSON.stringify(LIST([EVENT(1, { title: 'Buy: a\u0080b\u009fc\u0007d' })]));
+    env.WATCH._db.prepare("INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, 'cal', '0', ?, ?, ?, 'json', ?)").run(K, T0, T0, data.length, data);
+    expect(unfold(await (await feed(token)).text())).toContain('SUMMARY:Buy: a b c d');
+  });
+  it('a plain newline in notes is still fine', async () => {
+    expect((await putCal(LIST([EVENT(1, { notes: 'a\nb' })]))).status).toBe(200);
+  });
+  it.each(BREAKS.filter(c => c !== '\u0080' && c !== '\u009f').concat(['\r', '\n']))('esc prints %j as a literal \\n even if an old row holds it (no injected lines)', async c => {
+    const token = tokenOf((await mint()).body.url);
+    const data = JSON.stringify(LIST([EVENT(1, { title: `Buy: a${c}END:VEVENT`, notes: `x${c}END:VEVENT${c}BEGIN:VEVENT${c}SUMMARY:fake` })]));
+    env.WATCH._db.prepare("INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, 'cal', '0', ?, ?, ?, 'json', ?)").run(K, T0, T0, data.length, data);
+    const raw = await (await feed(token)).text();
+    // eslint-disable-next-line no-control-regex
+    expect(raw).not.toMatch(new RegExp('[\\u000b\\u000c\\u001c-\\u001e\\u0085\\u2028\\u2029\\u0080-\\u009f]'));
+    const physical = raw.split('\r\n').filter(l => l.length);
+    expect(physical.filter(l => l === 'BEGIN:VEVENT').length).toBe(1);
+    expect(physical.filter(l => l === 'END:VEVENT').length).toBe(1);
+    expect(physical.filter(l => /^SUMMARY:/.test(l)).length).toBe(1);
+    expect(unfold(raw)).toContain('\\nEND:VEVENT\\nBEGIN:VEVENT\\nSUMMARY:fake');
+  });
+});
+
 describe('making a link (POST /cal/new)', () => {
   it('returns a url with a random 22-character token, and stores only its hash', async () => {
     const { res, body } = await mint();
@@ -199,7 +231,7 @@ describe('the feed (GET /cal/<token>.ics)', () => {
     const raw = await (await feed(token)).text();
     expect(raw.split('\r\n').every(l => new TextEncoder().encode(l).length <= 75)).toBe(true);
     const text = unfold(raw);
-    expect(text).toContain('SUMMARY:Buy\; a\\, b \\\\ c');
+    expect(text).toContain('SUMMARY:Buy\\; a\\, b \\\\ c');
     expect(text).toContain('line one\\nline two');
     expect(text).toContain('é'.repeat(30));
   });
@@ -299,7 +331,7 @@ describe('revoking and resetting', () => {
     expect((await post('/cal/revoke', { k: K })).status).toBe(400);
     expect((await post('/cal/revoke', { token: 'A'.repeat(22), x: 'EI1234567890123456' })).status).toBe(400);
   });
-  it('DELETE /forget removes the account links and the cal record', async () => {
+  it('DELETE /forget removes the account links AND the cal list (/sync kind cal)', async () => {
     await putCal(LIST());
     const a = tokenOf((await mint(K)).body.url);
     const b = tokenOf((await mint(K2)).body.url);
@@ -309,6 +341,11 @@ describe('revoking and resetting', () => {
     expect(body.deleted.synced).toBe(1);
     expect((await feed(a)).status).toBe(404);
     expect((await feed(b)).status).toBe(200);
+    // the cal list itself is gone too (not just the links), and no row of this account is left in either table
+    expect((await handleSync(new Request(`https://c.example/sync/get?k=${K}&kind=cal&slot=0`), env, T0)).status).toBe(404);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM synced WHERE key = ?').get(K).n).toBe(0);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM cal_feeds WHERE key = ?').get(K).n).toBe(0);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM cal_feeds WHERE key = ?').get(K2).n).toBe(1);
   });
 });
 

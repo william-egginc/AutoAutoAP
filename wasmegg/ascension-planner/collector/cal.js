@@ -37,10 +37,13 @@ const KINDS = ['shift', 'buy', 'prestige', 'route', 'note'];
 const UID_RE = /^[A-Za-z0-9._:-]{1,80}$/;
 const SRC_RE = /^[A-Za-z0-9._:-]{1,40}$/;
 const EVENT_FIELDS = ['uid', 'seq', 'start', 'end', 'kind', 'title', 'notes', 'lead', 'critical', 'quiet'];
+// Line breaks and control characters a title or notes may not hold: C0 (except a plain newline in notes), DEL, C1 (U+0085 is NEL),
+// and the Unicode line and paragraph separators (U+2028, U+2029). A lenient .ics reader treats any of these as a line end, so one
+// could fake an END:VEVENT / BEGIN:VEVENT (QA red team, 14 Nov 2026). The printer escapes them too (`esc`), in case an old row has one.
 // eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u001f\u007f]/;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 // eslint-disable-next-line no-control-regex
-const CONTROL_NO_NEWLINE = /[\u0000-\u0009\u000b-\u001f\u007f]/;
+const CONTROL_NO_NEWLINE = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/;
 const MS_FROM = UNIX_FROM * 1000;
 const MS_TO = UNIX_TO * 1000;
 const SEVEN_DAYS = 7 * DAY_MS;
@@ -88,7 +91,18 @@ export function readCal(v) {
 
 // ------------------------------------------------------------------ the .ics
 const utc = ms => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-const esc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+// Any line break (CR, LF, VT, FF, FS, GS, RS, NEL, LS, PS) becomes a literal \n; other control characters become a space.
+// eslint-disable-next-line no-control-regex
+const BREAKS = /\r\n|[\r\n\u000b\u000c\u001c-\u001e\u0085\u2028\u2029]/g;
+// eslint-disable-next-line no-control-regex
+const OTHER_CONTROL = /[\u0000-\u0008\u000e-\u001b\u001f\u007f-\u009f]/g;
+const esc = s =>
+  String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(BREAKS, '\\n')
+    .replace(OTHER_CONTROL, ' ');
 const encoder = new TextEncoder();
 /** One content line, folded so no physical line is over 75 bytes (continuations start with a space). */
 export function fold(line) {
