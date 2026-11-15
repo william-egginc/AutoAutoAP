@@ -158,6 +158,7 @@
       <WhatWeKnow
         v-if="part === 'insights'"
         :stats="knowSummary"
+        :empty="knowEmpty"
         :science-href="scienceHref('check')"
       />
 
@@ -1374,6 +1375,8 @@ const rows = computed(() => (simFiltered.value ? bySimToggle(loadedRows.value, f
 const simHidden = computed(() => hiddenSimText(loadedRows.value.length - rows.value.length));
 /** By a date answers, kept apart: no chart reads them, the What we know card does. */
 const byDateRows = ref<CollectorRow[]>([]);
+/** By a date rows through the same older-simulators toggle as the runs (review IN-5: they skipped it). */
+const byDateShown = computed(() => (simFiltered.value ? bySimToggle(byDateRows.value, false) : byDateRows.value));
 const loading = ref(false);
 /** A failed read, or a typed URL that is not one. Cleared by each load. */
 const fetchError = ref('');
@@ -1684,6 +1687,8 @@ const assessAt = computed(() => (showFlagged.value ? assessWithFlagged.value : a
  *  checkboxes above let through can be an account's best. */
 const judged = computed(() => finishJudgement(assessAt.value(finalTE.value), new Set(visible.value.map(r => r.id))));
 
+/** The board answered and nothing is left to count: the card says so instead of "Counting the Leaderboard" for good (review IN-5). */
+const knowEmpty = computed(() => answered.value && !loading.value && !rows.value.length);
 /** The What we know card's counted numbers: always the runs to 490, whatever target is picked below. */
 const knowSummary = computed(() =>
   rows.value.length
@@ -1691,7 +1696,7 @@ const knowSummary = computed(() =>
         usable.value,
         finishJudgement(assessAt.value(490), new Set(visible.value.map(r => r.id))),
         whatIfs.value,
-        byDateRows.value,
+        byDateShown.value,
         now.value
       )
     : null

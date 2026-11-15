@@ -27,6 +27,7 @@
             ></template
           >
         </span>
+        <span v-else-if="empty" class="text-small font-bold text-slate-600" data-testid="know-empty">No runs on this site's simulator yet</span>
         <span v-else class="text-small font-bold text-slate-600">Counting the Leaderboard<AnimatedDots /></span>
       </div>
       <!-- The first sentence only, and one line on how old the findings are (fluff review 2, 5 Nov 2026, L22-L23):
@@ -238,6 +239,8 @@ const props = defineProps<{
   stats?: KnowStats | null;
   /** The Science tab's address, when the page can link to it. */
   scienceHref?: string;
+  /** The board answered and no run is left to count (every run hidden by the older-simulators toggle, review IN-5): not "Counting". */
+  empty?: boolean;
 }>();
 
 /** Review IN-3: the runs counted by simulator, under the header. */

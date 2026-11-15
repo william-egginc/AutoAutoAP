@@ -8,6 +8,8 @@
 -->
 <template>
   <div v-if="feed.available.value" class="space-y-2" data-testid="calendar-feed">
+    <!-- Always there, filled when there is something to say (an element added already full is not announced): the link, once, and Copied (review W6). -->
+    <p class="sr-only" role="status" aria-live="polite" data-testid="calendar-feed-live">{{ liveText }}</p>
     <label class="flex items-start gap-3 cursor-pointer min-h-[44px]">
       <input
         type="checkbox"
@@ -86,6 +88,7 @@
       <template v-if="feed.canReset.value || feed.phase.value === 'confirm'">
         <button
           v-if="feed.phase.value !== 'confirm'"
+          ref="resetBtn"
           type="button"
           class="inline-flex min-h-[44px] items-center rounded text-left text-body font-bold text-rose-700 underline hover:text-rose-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50"
           :disabled="feed.busy.value"
@@ -107,6 +110,7 @@
               {{ CAL_RESET_YES }}
             </button>
             <button
+              ref="keepBtn"
               type="button"
               class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               data-testid="calendar-feed-reset-no"
@@ -125,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue';
 import { useCalendarFeed, type CalendarFeed } from '@/composables/useCalendarFeed';
 import { googleCalendarUrl, webcalUrl } from '@/lib/calendarCloud';
 import {
@@ -150,6 +155,21 @@ import {
 
 const props = defineProps<{ /** Specs: a feed made with a fake collector. */ feed?: CalendarFeed }>();
 const feed = props.feed ?? useCalendarFeed();
+/** What the live region says: Copied, else the shown-once line while the link is on screen (review W6). */
+const liveText = computed(() => (feed.copied.value ? CAL_COPIED : feed.link.value ? CAL_SHOWN_ONCE : ''));
+const resetBtn = ref<HTMLElement | null>(null);
+const keepBtn = ref<HTMLElement | null>(null);
+// The Reset confirm takes focus (on the safe button) and, dismissed, gives it back to Reset link when it would be lost to the page.
+watch(
+  () => feed.phase.value,
+  (phase, was) => {
+    if (phase === 'confirm') void nextTick(() => keepBtn.value?.focus());
+    else if (was === 'confirm')
+      void nextTick(() => {
+        if (typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) resetBtn.value?.focus();
+      });
+  }
+);
 function toggle(on: boolean): void {
   if (on) feed.turnOn();
   else void feed.turnOff();

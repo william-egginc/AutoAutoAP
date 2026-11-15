@@ -64,7 +64,7 @@
         {{ clipped }} point{{ clipped === 1 ? '' : 's' }} above {{ NEAR_DAYS }} days, drawn as ↑ at the top edge
       </span>
     </div>
-    <EChart v-if="comparisons.length" :option="option" height="300px" />
+    <EChart v-if="comparisons.length" :option="option" height="300px" label="Chart: which ascension count finishes first, account by account" />
     <!-- In HTML so every line is on screen at any width (legend.ts); each hides its line. -->
     <ChartLegend
       v-if="comparisons.length"

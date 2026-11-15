@@ -39,7 +39,7 @@
       </span>
     </div>
 
-    <EChart v-if="legs.length" :option="option" height="380px" />
+    <EChart v-if="legs.length" :option="option" height="380px" label="Chart: which sale plan wins each ascension" />
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here that still stands carried per-ascension detail past its first ascension.
     </p>

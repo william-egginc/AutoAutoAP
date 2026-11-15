@@ -61,7 +61,7 @@
       </span>
     </div>
 
-    <EChart v-if="bests.length" :option="option" height="300px" />
+    <EChart v-if="bests.length" :option="option" height="300px" label="Chart: how the stops fall for each ascension count" />
 
     <!-- In HTML, so every entry is on screen at any width (legend.ts). The map: which checkpoint is
          which (only with two or more), then which stalk is whose, without hovering. The share view:
