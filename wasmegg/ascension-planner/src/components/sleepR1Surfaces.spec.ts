@@ -65,6 +65,11 @@ describe('the cards are wired (source pin)', () => {
     expect(card).toContain('sleepBeforeR1NextStep(');
     expect(card).toContain('r1IfPrestigeNow(');
     expect(card).toMatch(/if \(a\?\.kind !== 'prestige'\) return ''/);
+    // The line never sits inside the action / plan line / "Nothing left" v-if chain: the next element after it is
+    // never a v-else or v-else-if (that would hide the plan's line, or show "Nothing left" under the action).
+    for (const m of card.matchAll(/data-testid="now-r1-sleep"[^\n]*\n\s*<[a-z]+([^>]*)>/g)) {
+      expect(m[1]).not.toMatch(/\bv-else/);
+    }
   });
   it('the Build-up tracker: the current ascension, only while R1 is ahead', () => {
     const t = read('./myruns/BuildUpTracker.vue');

@@ -411,13 +411,13 @@
         <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
-        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
-        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
         <p v-else-if="nextText" class="text-body text-slate-800">
           <b>{{ nextText }}</b>
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
         <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
         <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
