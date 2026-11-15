@@ -41,8 +41,18 @@ describe('Producing: the Next shifts stand in for the tracker\'s lines', () => {
     expect(arg.ascensionStart).toBe(0);
     scope.stop();
   });
-  it('a plan with a start keeps it', async () => {
-    const { note, scope } = run({ lines: null, fallback: [line('ns:shift:kindness:1', 'shift')], start: 1_799_000_000 });
+  it('the stand-ins always use slot 0, even when the plan has a start (the start is the follow time and changes on a re-follow): the uid of "shift to Kindness #1" stays', async () => {
+    const a = run({ lines: null, fallback: [line('ns:shift:kindness:1', 'shift')], start: 1_799_000_000 });
+    await nextTick();
+    const b = run({ lines: null, fallback: [line('ns:shift:kindness:1', 'shift')], start: 1_799_004_560 });
+    await nextTick();
+    expect(a.note.mock.calls[0]![0].ascensionStart).toBe(0);
+    expect(b.note.mock.calls[0]![0].ascensionStart).toBe(0);
+    a.scope.stop();
+    b.scope.stop();
+  });
+  it('the tracker\'s own lines keep the plan\'s start', async () => {
+    const { note, scope } = run({ lines: [line('1:0', 'research')], start: 1_799_000_000 });
     await nextTick();
     expect(note.mock.calls[0]![0].ascensionStart).toBe(1_799_000_000);
     scope.stop();

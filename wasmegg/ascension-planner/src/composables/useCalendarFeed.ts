@@ -280,8 +280,9 @@ export function useCalendarFeedPush(src: {
       const lines = own ?? src.fallbackLines?.value;
       const account = accountOf(initial.rawBackup);
       if (!lines || !account) return;
-      // The tracker's lines need the ascension's start (their uids); the stand-ins are keyed without a time, so slot 0 does.
-      const ascensionStart = src.ascensionStart.value || 0;
+      // The tracker's lines need the ascension's start (their uids). The stand-ins are keyed without a time and always use slot 0: the plan's
+      // start is the follow time, so a re-follow would give every shift a new uid (an entry the player dismissed would come back).
+      const ascensionStart = own ? src.ascensionStart.value || 0 : 0;
       if (own && !ascensionStart) return;
       calendarFeedFor(account).note({
         now: Date.now(),

@@ -98,3 +98,12 @@ describe('the window: 60 days when Producing, 14 when buying (Jordan, 14 Nov)', 
     expect(out.events.filter(e => e.kind === 'prestige')).toHaveLength(0);
   });
 });
+
+describe('the uid of a stand-in does not move when the route is re-followed', () => {
+  it('slot 0 and the same key: the same uid whatever the plan start was', () => {
+    const l = calLinesFromNextShifts([{ kind: 'shift', egg: 'kindness', at: NOW + DAY, exact: true }]);
+    const uid = (at: number) => buildCalendarEvents({ now: NOW * 1000, ascensionStart: 0, lines: l.map(x => ({ ...x, at })), ticks: new Set(), zone: 'UTC' }).events.find(e => e.kind === 'shift')!.uid;
+    expect(uid(NOW + DAY)).toBe(uid(NOW + 2 * DAY));
+    expect(uid(NOW + DAY)).toBe('0:ns:shift:kindness:1');
+  });
+});
