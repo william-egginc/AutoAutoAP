@@ -9,6 +9,8 @@ import { ref, watch, type Ref } from 'vue';
 import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
+import { isSafari } from '@/search/device';
+import { writeSafariCrashWorkers } from '@/lib/safariWorkers';
 import { consentAgreed, consentState } from './useConsent';
 
 /** The options. All off unless the player ticks them. The three ticks (carry on, the watcher tab, send my
@@ -302,6 +304,8 @@ export function stepAwayBeginCarryOn(): number | null {
   const from = deps.workerBudget.value;
   carryOnCap = Math.min(n, from);
   setBudget(carryOnCap);
+  // Safari: the next run starts here too (lib/safariWorkers.ts), so it doesn't crash the same way.
+  if (isSafari()) writeSafariCrashWorkers(carryOnCap);
   // Into the black box too, so the run's first beats say why the count is not the player's own.
   blackBox.note(`carry-on workers: ${from} -> ${deps.workerBudget.value} (the crashed run had ${m.workers || from})`);
   return deps.workerBudget.value;

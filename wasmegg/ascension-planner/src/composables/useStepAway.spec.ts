@@ -115,3 +115,23 @@ describe('a carried-on run keeps its reduced worker count', () => {
     expect([...backing.values()].join('\n')).toContain('carry-on workers: 15 -> 10 (the crashed run had 14)');
   });
 });
+
+describe("Safari: the crash's carry-on count is the next start (lib/safariWorkers.ts, 15 Nov 2026)", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+  const SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15';
+  const CHROME = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+
+  it('on Safari the carry-on count is kept for the next start', async () => {
+    const { m } = await setup();
+    vi.stubGlobal('navigator', { userAgent: SAFARI });
+    expect(m.stepAwayBeginCarryOn()).toBe(10);
+    expect(backing.get('aap-safari-crash-workers')).toBe('10');
+  });
+
+  it('elsewhere nothing is kept', async () => {
+    const { m } = await setup();
+    vi.stubGlobal('navigator', { userAgent: CHROME });
+    m.stepAwayBeginCarryOn();
+    expect(backing.has('aap-safari-crash-workers')).toBe(false);
+  });
+});

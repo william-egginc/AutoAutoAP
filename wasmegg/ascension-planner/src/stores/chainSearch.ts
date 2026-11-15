@@ -387,7 +387,8 @@ import { useActionsStore } from './actions';
 import { useAutoPlannerStore, type VariantKey } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
-import { thisDevice } from '@/search/device';
+import { isSafari, thisDevice } from '@/search/device';
+import { readSafariCrashWorkers, safariStartWorkers, writeSafariCrashWorkers } from '@/lib/safariWorkers';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
 import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
 import { keptForTop, type PricedRoute } from '@/lib/topRoutes';
@@ -1110,12 +1111,31 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * not "how many may you have". Held to the machine's core count when a pool is built.
    */
   const chosenWorkers = readStoredCount(WORKERS_KEY);
-  const workerBudget = ref(chosenWorkers ? clampPoolSize(chosenWorkers) : defaultWorkerCount());
+  // Safari starts lower (lib/safariWorkers.ts, 15 Nov 2026): at most threads - 3, or the last crash's carry-on
+  // count. The stored choice is left as it is; other browsers start at it.
+  const workerBudget = ref(
+    safariStartWorkers({
+      chosen: chosenWorkers ? clampPoolSize(chosenWorkers) : defaultWorkerCount(),
+      threads: hardwareThreads(),
+      safari: isSafari(),
+      lastCrashCarryOn: readSafariCrashWorkers(),
+    })
+  );
+  const safariStartedAt = workerBudget.value;
+  const safariStartCleared = ref(false);
+  /** Safari started below the player's count (Setup says so), or null. */
+  const safariStart = computed<{ workers: number; chosen: number } | null>(() => {
+    const chosen = chosenWorkers ? clampPoolSize(chosenWorkers) : defaultWorkerCount();
+    return safariStartedAt < chosen && !safariStartCleared.value ? { workers: safariStartedAt, chosen } : null;
+  });
   /** The player set the worker count (this visit or an earlier one, remembered under WORKERS_KEY):
    *  nothing here sets the count for them after that. */
   const workersByHand = ref(chosenWorkers > 0);
   function setWorkersByHand(n: number): void {
     workersByHand.value = true;
+    // A count set by hand is the player's: the Safari crash count no longer applies, and the note goes.
+    writeSafariCrashWorkers(null);
+    safariStartCleared.value = true;
     longRunWorkers.value = null;
     workerBudget.value = n;
     writeStoredCount(WORKERS_KEY, n);
@@ -10534,6 +10554,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resumeBlocker,
     resumeOpenedRun,
     workerBudget,
+    /** Safari started below the player's worker count (lib/safariWorkers.ts): Setup's note, or null. */
+    safariStart,
     machineThreads,
     legDetailBudget,
     legsHeld,
