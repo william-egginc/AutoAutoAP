@@ -92,3 +92,16 @@ describe('What we know: review fixes IN-1 to IN-4 (15 Nov 2026)', () => {
     expect(text).toContain("Measured on: before Oct 13 (189 runs), lowte-gate (31), egg-beta2 (20); none yet on this site's simulator.");
   });
 });
+
+describe('What we know: the Egg Day headline (Words, 15 Nov 2026)', () => {
+  it('is counted from the listed lines, with no "well-geared" claim, and absent with none', async () => {
+    const { knowStats } = await import('./knowStats');
+    const base = knowStats([], { byId: new Map(), bestByAccount: new Map() }, new Set());
+    const withLines = { ...base, eggDayYear: 2027, eggDay: [{ label: 'A', from: 200, reaches: 320, ascensions: 4 }] };
+    const t = textOf(await renderHtml(WhatWeKnow, { stats: withLines }));
+    expect(t).toContain('By Egg Day 2027, the one account here gains 120 TE, with 4 ascensions.');
+    expect(t).not.toContain('well-geared');
+    const none = textOf(await renderHtml(WhatWeKnow, { stats: { ...base, eggDayYear: 2027, eggDay: [] } }));
+    expect(none).not.toContain('By Egg Day 2027, the');
+  });
+});

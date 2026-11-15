@@ -33,12 +33,12 @@ describe('every Insights chart has a name', () => {
     ['./CountCompareChart.vue', ['Chart: which ascension count finishes first, account by account']],
     ['./CountShapeChart.vue', ['Chart: how the stops fall for each ascension count']],
     ['./LegProfileChart.vue', ['Chart: each ascension of the selected routes']],
-    ['./SweepCurvesChart.vue', ['Chart: each sweep, every account']],
+    ['./SweepCurvesChart.vue', ["Chart: how much later than the best route a run finishes as one stop's TE changes, one line for each account"]],
     ['./GearScoreChart.vue', ['Chart: delivery set scores', 'Chart: earnings set scores']],
-    ['./GearMap.vue', ['Chart: gear data still wanted']],
+    ['./GearMap.vue', ['Chart: which gear sets the Leaderboard still needs runs for']],
     ['./SaleChoiceMap.vue', ['Chart: which sale plan wins each ascension']],
-    ['./PlanDriftChart.vue', ['Chart: how the best plan moves from one day to the next']],
-    ['./FinalLegChart.vue', ["Chart: whether each final ascension reached its gear's rate"]],
+    ['./PlanDriftChart.vue', ["Chart: how an account's best route changes from one day to the next"]],
+    ['./FinalLegChart.vue', ["Chart: each account's final ascension, as a percentage of the rate its gear should give"]],
   ];
   for (const [f, names] of files)
     it(`${f.slice(2)}: ${names.length} named`, () => {

@@ -61,6 +61,27 @@ export function byDateEntries(byDateRows: readonly CollectorRow[], now: number):
   return out.sort((a, b) => b.reaches - a.reaches || a.from - b.from);
 }
 
+/**
+ * The Egg Day finding's headline, counted from the listed lines (Words, 15 Nov 2026): "By Egg Day 2027, the accounts here gain 100-135 TE,
+ * with 3-5 ascensions." (gain = reaches minus from); one line: "the one account here gains 120 TE, with 4 ascensions"; equal ends are one
+ * number; no lines, null (no headline). Claims nothing about gear: only what the list shows.
+ */
+export function eggDayHeadline(entries: readonly ByDateEntry[], year: number): string | null {
+  if (!entries.length) return null;
+  const gains = entries.map(e => e.reaches - e.from);
+  const asc = entries.map(e => e.ascensions);
+  const range = (v: number[]) => {
+    const lo = Math.min(...v);
+    const hi = Math.max(...v);
+    return lo === hi ? `${lo}` : `${lo}-${hi}`;
+  };
+  const lo = Math.min(...asc);
+  const hi = Math.max(...asc);
+  const noun = hi === 1 ? 'ascension' : 'ascensions';
+  const who = entries.length === 1 ? 'the one account here gains' : 'the accounts here gain';
+  return `By Egg Day ${year}, ${who} ${range(gains)} TE, with ${range(asc)} ${noun}.`;
+}
+
 export interface KnowStats {
   /** Runs to 490 TE. */
   runsTo490: number;
@@ -70,6 +91,8 @@ export interface KnowStats {
   byDateAccounts: number;
   /** Each account's best answer that passes the board's checks (`byDateEntries`). */
   eggDay: ByDateEntry[];
+  /** The year of the Egg Day those lines are for (`nextEggDayYear`). */
+  eggDayYear: number;
   /** Accounts with a run to 490. */
   accounts: number;
   /** Starting TE range of the runs to 490, what-ifs left out (their TE was typed in). Null with none. */
@@ -151,6 +174,7 @@ export function knowStats(
     byDate: byDateRows.length,
     byDateAccounts: new Set(byDateRows.map(r => accountKey(r))).size,
     eggDay: byDateEntries(byDateRows, now),
+    eggDayYear: nextEggDayYear(now),
     accounts: new Set(to490.map(r => accountKey(r))).size,
     te: tes.length ? { min: Math.min(...tes), max: Math.max(...tes) } : null,
     plans: usable.reduce((n, r) => n + (r.chainsPriced || 0), 0),

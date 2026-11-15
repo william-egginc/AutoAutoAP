@@ -177,7 +177,7 @@
     </div>
     <p v-if="error" class="text-body font-bold text-rose-700 px-1">{{ error }}</p>
 
-    <EChart v-if="curves.length" :option="option" height="310px" label="Chart: each sweep, every account" />
+    <EChart v-if="curves.length" :option="option" height="310px" label="Chart: how much later than the best route a run finishes as one stop's TE changes, one line for each account" />
     <!-- In HTML so every run is on screen at any width (legend.ts); each hides its line. -->
     <ChartLegend
       v-if="curves.length"
