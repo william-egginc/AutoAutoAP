@@ -24,11 +24,11 @@ export function longRunBannerWords(plannedAt: string): string {
 export const LONG_RUN_BANNER_CLOSE = 'Close';
 
 /**
- * The start line on the card of a search expected to take 2 hours or more (spec-longstart, Jordan, 16 Nov 2026), for the
- * whole run. DRAFT (Words writes the final text). The meaning, in Jordan's words: "we sent a message to the updater, so if
+ * The line shown while setting up a search expected to take 2 hours or more (spec-longstart, Jordan, 16 Nov 2026), before
+ * Run, future tense. DRAFT (Words writes the final text). The meaning, in Jordan's words: "we send a message to the updater, so if
  * an update is being prepped for launch it'll tell the maintainer to wait". `estimateSeconds`: the screen's estimate.
  */
 export function longRunStartWords(estimateSeconds: number): string {
   const h = Math.round(estimateSeconds / 1800) / 2;
-  return `This search should take about ${h} ${h === 1 ? 'hour' : 'hours'}, so the planner's server was told it started. If an update is being prepared, the maintainer will see this search is running and wait for it.`;
+  return `This search should take about ${h} ${h === 1 ? 'hour' : 'hours'}. If you start it, the planner will tell its server it started, so if an update is being prepared, the maintainer will see this search is running and wait for it.`;
 }
