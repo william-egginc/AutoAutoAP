@@ -12,19 +12,14 @@ import { FIRST_TOUR_ALT } from './firstTourWords';
 const asset = (n: string) => new URL(`../assets/tour/${n}`, import.meta.url);
 
 describe('tour slides', () => {
-  it('eight slides in order (Jordan, 9 Nov 2026: Simulate this plan after the answer, and Setup as two: where it is, then inside); slide 6 is the Build-up tracker picture', () => {
-    // Thirteen since spec-tourfix (Jordan, 16 Nov 2026: "My runs isn't shown how to get to my runs": a slide for the My runs tab before the tracker); twelve since spec-tourmore (Jordan, 9 Nov 2026: "add the more section and the custom and fast runs"): More (where,
-    // then inside), Fast and Custom after Setup, as they sit inside the answer screen's More.
-    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myrunsWhere', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']);
-    expect(TOUR_IMAGES.moreWhere).toEqual({ desk: '9-more-where-desk.webp', phone: '9-more-where-phone.webp' });
-    expect(TOUR_IMAGES.moreInside).toEqual({ desk: '10-more-inside-desk.webp', phone: '10-more-inside-phone.webp' });
-    expect(TOUR_IMAGES.fast).toEqual({ desk: '11-fast-desk.webp', phone: '11-fast-phone.webp' });
-    expect(TOUR_IMAGES.custom).toEqual({ desk: '12-custom-desk.webp', phone: '12-custom-phone.webp' });
-    expect(TOUR_IMAGES.simulate).toEqual({ desk: '4-simulate-desk.webp', phone: '4-simulate-phone.webp' });
-    expect(TOUR_IMAGES.myrunsWhere).toEqual({ desk: '6-myruns-where-desk.webp', phone: '6-myruns-where-phone.webp' });
-    expect(TOUR_IMAGES.myruns).toEqual({ desk: '6-tracker-desk.webp', phone: '6-tracker-phone.webp' });
-    expect(TOUR_IMAGES.setupWhere).toEqual({ desk: '7-setup-where-desk.webp', phone: '7-setup-where-phone.webp' });
-    expect(TOUR_IMAGES.setup).toEqual({ desk: '8-setup-desk.webp', phone: '8-setup-phone.webp' });
+  it('fifteen slides in order (tour v3, spec-tour-v3, Jordan, 16 Nov 2026: one thing a slide, big things first; the tab row is four slides, the goal switch two); each has its own picture pair', () => {
+    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow', 'tracker', 'setupWhere', 'setup', 'moreWhere']);
+    const files: Record<string, string> = {
+      tabManual: '1-tab-manual', tabAuto: '2-tab-auto', tabChain: '3-tab-chain', tabMyruns: '4-tab-myruns', load: '5-load',
+      goalTarget: '6-goal-target', goalDate: '7-goal-date', date: '8-date', firstStep: '9-first-step', simulate: '10-simulate',
+      follow: '11-follow', tracker: '12-tracker', setupWhere: '13-setup-where', setup: '14-setup', moreWhere: '15-more-where',
+    };
+    for (const [id, f] of Object.entries(files)) expect(TOUR_IMAGES[id as keyof typeof TOUR_IMAGES]).toEqual({ desk: `${f}-desk.webp`, phone: `${f}-phone.webp` });
   });
 
   it('every slide has a desk and a phone WebP, each under 25 KB and a few hundred KB in all, with alt text', () => {
@@ -44,10 +39,10 @@ describe('tour slides', () => {
     expect(total).toBeLessThan(300_000);
   });
 
-  it('a save file with no player ID: five slides, Simulate this plan included, ending at Follow this route', () => {
-    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['load', 'goal', 'answer', 'simulate', 'follow']);
-    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(13);
-    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(13);
+  it('a save file with no player ID: ten slides (no My runs tab), Simulate this plan included, ending at Follow this route', () => {
+    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow']);
+    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(15);
+    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(15);
   });
 
   it('imported, so vite hashes them (not public/): the module imports each file', () => {
