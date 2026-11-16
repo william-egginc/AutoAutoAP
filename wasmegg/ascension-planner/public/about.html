@@ -488,11 +488,11 @@
         </ul>
       </section>
 
-      <!-- lib/runBeaconWords.ts: this section and Setup's switch and the banner go with that code. -->
+      <!-- lib/runBeaconWords.ts: this section and Setup's line and the banner go with that code. -->
       <section id="long-searches">
         <h2>Long searches tell the maintainer they are running</h2>
         <p>
-          When you start a search that is expected to take 2 hours or more, your page tells the planner's server. The
+          When you start a search that is expected to take 2 hours or more, your page tells the planner's server when it starts and when it stops. There is no switch for this. It stays on while the maintainer is updating the site, and will be switched off later. The
           maintainer uses it to see that a long search is running, and waits before updating the site. An update makes
           open pages reload, which would lose the search. The page shows a banner only if the maintainer plans an update of the site
           while your long search is still running. It says when, and asks you to message Williamthe5thc on Discord so the update waits for it. You can close the banner.
@@ -504,7 +504,7 @@
           <li><b>Who sees it:</b> only the maintainer, privately. A phone note tells the maintainer that a long search started or ended: its kind, its estimated time, when it started and should end, how many are running, and, at the end, why it ended and how long it ran. The note has no search code, no page version and no address.</li>
           <li><b>How long it is kept:</b> deleted about 3 days after the search ends. If a page disappears without saying the search ended, the record is deleted about 3 days after the search should have ended.</li>
           <li><b>What it does not do:</b> it does not check whether the page is still open. If you close the tab, the page tries to say so. If the tab or the browser is lost another way, nothing is sent.</li>
-          <li><b>Turn it off:</b> in Setup. Nothing is then sent about your searches. The banner does not depend on the switch.</li>
+          <li><b>No switch:</b> this is on for every long search for as long as the maintainer is updating the site. It will be switched off later. Nothing about you or your account is sent.</li>
         </ul>
       </section>
 
