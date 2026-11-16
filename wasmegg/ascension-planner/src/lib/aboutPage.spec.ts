@@ -411,7 +411,7 @@ describe('About and privacy page', () => {
   });
   it('says long searches are reported to the maintainer, what is sent and not, how long it is kept, the banner and the off switch (7 Nov 2026)', () => {
     expect(text).toContain('Long searches tell the maintainer they are running');
-    expect(text).toContain('When you start a search that is expected to take 2 hours or more, your page tells the planner\'s server when it starts and when it stops. There is no switch for this. It stays on while the maintainer is updating the site, and will be switched off later.');
+    expect(text).toContain('When you start a search that is expected to take 2 hours or more, your page tells the planner\'s server when it starts and when it stops. If an update of the site is being prepared, the maintainer is told to wait for your search. There is no switch for this. It stays on while the maintainer is updating the site, and will be switched off later.');
     expect(text).toContain('The page shows a banner only if the maintainer plans an update of the site while your long search is still running. It says when, and asks you to message Williamthe5thc on Discord so the update waits for it. You can close the banner.');
     expect(text).toContain('a random code made for this one search (not linked to your player ID, an account code, a name or any other record)');
     expect(text).toContain('your player ID, your save, your route, your name, your Setup or any account code.');
