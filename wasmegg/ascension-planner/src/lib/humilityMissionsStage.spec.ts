@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { allResearches, ei, shiftCost } from 'lib';
 import { createBaseEngineState, getSimulationContext } from 'lib/planners/engine/adapter';
@@ -348,6 +348,18 @@ describe('staging a Humility visit', () => {
 });
 
 describe('swapping to the earnings set for the launch', () => {
+  // A fixed clock (16 Nov 2026, Reliability). The plan starts "now", and this launch saves for millions
+  // of years, past the engine's three-year 2x-earnings lookahead (BOOST_TRANSITION_HORIZON_SECONDS): its
+  // last regime then runs on forever. When now + 3.5 years (the staged launch) + 3 years lands inside a
+  // Monday 2x window, staging prices the rest at 2x and the preview, three years ahead from the plan start,
+  // does not, so the two differ by exactly 2 for one day a week (first seen 16 Nov, gate-bc). A Wednesday
+  // noon UTC start lands both lookaheads outside one. Real launches save for far less than three years.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   // On the elr set with the earnings set defined and a low bank, so the launch has to save.
   function elrBase() {
     const base = baseState();
