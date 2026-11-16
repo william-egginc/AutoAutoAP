@@ -468,6 +468,8 @@
             route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
             can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
           </p>
+          <!-- The long-run alert has no switch (lib/runBeacon.ts RUN_BEACON_SENDS; Jordan, 16 Nov 2026): one plain line says it. -->
+          <p class="text-body text-slate-600 max-w-prose" data-testid="run-beacon-line">{{ BEACON_SETUP_LINE }}</p>
           <!-- The three "saved online" notices and the Before you send line, word for word (lib/aboutPage.spec.ts pins them
                to about.html), in one fold that opens in place (UX fluff review 2, 5 Nov 2026). -->
           <button
@@ -863,6 +865,7 @@ import SaveFileBar from './SaveFileBar.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
 import { useShowEverything } from '@/composables/useShowEverything';
+import { BEACON_SETUP_LINE } from '@/lib/runBeaconWords';
 import { SHARING_FOLD_TITLE, SHOW_EVERYTHING_LABEL, SHOW_EVERYTHING_LINE, sharingSummaryWords } from '@/lib/layoutWords';
 import { studyState } from '@/composables/useStudy';
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue';

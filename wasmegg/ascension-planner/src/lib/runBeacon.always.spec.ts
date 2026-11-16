@@ -94,6 +94,11 @@ describe('no switch for the player', () => {
     expect(setup).not.toContain('data-testid="run-beacon"');
     expect(setup).not.toContain('runBeaconSwitch');
     expect(setup).not.toContain('BEACON_SETUP_LABEL');
+    expect(setup).not.toContain('BEACON_SETUP_OFF');
+    // One plain line says it, with no checkbox.
+    expect(setup).toContain('{{ BEACON_SETUP_LINE }}');
+    const at = setup.indexOf('data-testid="run-beacon-line"');
+    expect(setup.slice(setup.lastIndexOf('\n', at), at + 120)).not.toContain('type="checkbox"');
     expect(sharingSummaryWords({ help: 'no', saveOnline: true })).toBe('Help improve: no thanks · Save online: on');
     expect(sharingSummaryWords({ help: 'yes', saveOnline: false, searchResults: true, instantWithRuns: false })).not.toContain('Long searches');
   });
