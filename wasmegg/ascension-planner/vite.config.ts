@@ -630,7 +630,7 @@ export default defineConfig(({ mode }) => {
       previewRedirects(),
       immutableAssets(),
       watcherIsolation(),
-      collectorEarlyStart(env.VITE_SUBMIT_URL),
+      collectorEarlyStart(env.VITE_BOARD_SUBMIT_URL || env.VITE_SUBMIT_URL),
       appLoadWatch(),
     ],
     define: {

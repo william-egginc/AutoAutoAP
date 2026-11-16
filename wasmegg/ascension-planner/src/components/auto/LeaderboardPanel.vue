@@ -217,6 +217,7 @@
         </div>
       </div>
 
+      <TestBoardLabel class="self-start" />
       <div role="tablist" aria-label="Leaderboard views" class="flex flex-wrap gap-1 border-b border-indigo-100">
         <button
           v-for="t in TABS"
@@ -986,6 +987,7 @@
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import TestBoardLabel from '@/components/auto/TestBoardLabel.vue';
 import FollowButton from '../FollowButton.vue';
 import { boardGoalKey, followableRow } from '@/lib/follow';
 import { plural } from '@/lib/format';

@@ -4671,17 +4671,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * Where the board's SENDS go (lib/boardSubmitUrl.ts): the result, a progress send / Send best so far, and what
    * follows a sent row (its CSV and deltas, the full CSV, Put my name on it). `VITE_BOARD_SUBMIT_URL` when the build
-   * has one (egg-beta: a newer simulator, so a test board), else `submitUrl` itself. Reading the board, My runs and
-   * everything else stay on `submitUrl`. A `--collector` on the command line names one collector for all of it.
+   * has one (egg-beta: a newer simulator, so a test board), else `submitUrl` itself. Reading the board, My runs and the
+   * rechecks follow it (spec-betaboard, 16 Nov 2026); the rest (follow, prefs, answers, sync, the beacon) stays on
+   * `submitUrl`. A `--collector` on the command line names one collector for all of it.
    */
   const boardSetting = cliSubmitUrl ? '' : buildBoardSetting();
   const sendUrl = boardSubmitUrlOf(boardSetting, submitUrl);
   /** This build sends results to a board of their own (the note near Before you send says so). */
   const boardSendSeparate = !!boardSetting;
 
-  /** The board itself, derived from the submit endpoint rather than configured separately: they
-   *  are the same Worker, and two env vars that have to agree is one more thing to get wrong. */
-  const leaderboardUrl = computed(() => submitUrl.replace(/\/submit\/?$/, '/'));
+  /** The board itself, derived from the send endpoint (the submit endpoint unless the build has its own board, spec-betaboard):
+   *  they are the same Worker, and two env vars that have to agree is one more thing to get wrong. */
+  const leaderboardUrl = computed(() => sendUrl.replace(/\/submit\/?$/, '/'));
 
   /**
    * Ship it. Resolves to a short status string for the UI; never throws.
@@ -4840,7 +4841,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     mineFor = partition;
     const token = existingOwnerToken(partition);
     if (!token) return;
-    const load = fetchMineRows(submitUrl.replace(/\/submit\/?$/, ''), token).then(rows => {
+    const load = fetchMineRows(sendUrl.replace(/\/submit\/?$/, ''), token).then(rows => {
       if (mineFor === partition && rows) mineRows.value = rows;
     });
     mineLoad = load.finally(() => {
@@ -4942,7 +4943,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   async function fetchRecheckPlans(partition: string, target: number): Promise<Plan[]> {
-    const base = submitUrl.replace(/\/submit\/?$/, '');
+    const base = sendUrl.replace(/\/submit\/?$/, '');
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), RECHECK_BUDGET_MS);
     try {

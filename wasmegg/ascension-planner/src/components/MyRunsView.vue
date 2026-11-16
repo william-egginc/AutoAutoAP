@@ -294,7 +294,7 @@
           @toggle="sync('board', $event)"
         >
           <summary :class="SUMMARY">
-            Your runs on the Leaderboard<span :class="COUNT" data-testid="board-count">{{ boardCountText }}</span>
+            Your runs on the Leaderboard<span :class="COUNT" data-testid="board-count">{{ boardCountText }}</span>{{ ' ' }}<TestBoardLabel />
           </summary>
           <div class="mt-3">
             <LeaderboardPanel
@@ -386,6 +386,7 @@
 <script setup lang="ts">
 import { thisDevice } from '@/search/device';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import TestBoardLabel from '@/components/auto/TestBoardLabel.vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

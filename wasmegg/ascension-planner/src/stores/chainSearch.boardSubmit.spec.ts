@@ -1,7 +1,8 @@
 /**
  * VITE_BOARD_SUBMIT_URL (lib/boardSubmitUrl.ts, Jordan, 4 Nov 2026): egg-beta runs a newer simulator, so its Run results
- * go to a board of their own. Only the SENDS move (the result, a progress send, the CSV that follows a sent row); the
- * board read, My runs and the rest stay on VITE_SUBMIT_URL. Unset, nothing changes.
+ * go to a board of their own. The SENDS move (the result, a progress send, the CSV that follows a sent row) and, since
+ * spec-betaboard (16 Nov 2026), the board READS (lib/boardReadUrl.spec.ts); follow, prefs and the rest stay on
+ * VITE_SUBMIT_URL. Unset, nothing changes.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
@@ -61,10 +62,10 @@ describe('the board send URL', () => {
 });
 
 describe('VITE_BOARD_SUBMIT_URL set', () => {
-  it('sends the result and its CSV to the board URL; reading stays on VITE_SUBMIT_URL', async () => {
+  it('sends the result and its CSV to the board URL; the board is read from the board URL too (spec-betaboard, 16 Nov 2026)', async () => {
     const s = await store(BOARD);
     expect(s.submitUrl).toBe(LIVE);
-    expect(s.leaderboardUrl).toBe('https://live-collector.test/');
+    expect(s.leaderboardUrl).toBe(`${BOARD}/`);
     expect(s.sendUrl).toBe(`${BOARD}/submit`);
     expect(s.boardSendSeparate).toBe(true);
     const calls = collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), json({ ok: true, bytes: 10 }));

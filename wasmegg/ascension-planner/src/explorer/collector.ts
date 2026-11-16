@@ -13,7 +13,7 @@
  *   1. `?collector=https://…` on the page's own URL. A static copy of this page can be pointed at
  *      a different collector without rebuilding it, which is the difference between "hostable" and
  *      "hostable by the person who ran the build".
- *   2. `VITE_SUBMIT_URL` minus its `/submit`, so a build already configured to submit is already
+ *   2. `VITE_BOARD_SUBMIT_URL` (a beta's test board), else `VITE_SUBMIT_URL`, minus its `/submit`, so a build already configured to submit is already
  *      configured to read.
  *   3. Nothing, and the page says so and offers a box. A fork with no collector is a normal state,
  *      not an error -- the planner hides its own Submit button in the same situation.
@@ -81,7 +81,8 @@ export function resolveCollectorBase(search = typeof location === 'undefined' ? 
   // build-time default: someone who put `?collector=` on the URL asked for that collector, and
   // quietly showing them a different one's data would be worse than showing them nothing.
   if (fromQuery) return normaliseCollectorBase(fromQuery);
-  const configured = import.meta.env.VITE_SUBMIT_URL as string | undefined;
+  // The board's own collector when the build has one (spec-betaboard, lib/boardSubmitUrl.ts), else the build's collector.
+  const configured = ((import.meta.env.VITE_BOARD_SUBMIT_URL as string | undefined) ?? '').trim() || (import.meta.env.VITE_SUBMIT_URL as string | undefined);
   return configured ? stripSubmit(configured) : null;
 }
 
