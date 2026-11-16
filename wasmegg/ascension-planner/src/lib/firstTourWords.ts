@@ -29,7 +29,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'Follow this route',
     body: 'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.',
   },
-  // DRAFT for Words (spec-tourfix, 16 Nov 2026): how to get to My runs, before the tracker.
+  // How to get to My runs, before the tracker (the menu does not list it; the tab is the only way).
   myrunsWhere: {
     title: 'Where My runs is',
     body: 'My runs is the tab along the top, beside Chain Finder. Press it any time to see the route you follow.',
@@ -45,7 +45,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   },
   setup: {
     title: 'Inside Setup',
-    body: 'Inside it: your awake hours, so prestiges wait for you, and Save online, so your choices show on every device. The filters button just above the answer opens it too.',
+    body: 'Inside it: your awake hours, so prestiges wait for you. The filters button just above the answer opens it too.',
   },
   // More, then the Fast and Custom searches inside it (spec-tourmore).
   moreWhere: {
