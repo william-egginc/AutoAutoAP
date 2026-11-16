@@ -58,6 +58,7 @@
     />
     <!-- A planned update while this screen's long search runs: please message the maintainer (ReloadPlannedBanner.vue).
          In the flow under Run / Stop, only on the screen whose run it is. -->
+    <LongRunStartNote v-if="running" />
     <ReloadPlannedBanner v-if="running" />
 
     <RunSendReport
@@ -115,6 +116,7 @@ import type { SearchOption } from '@/lib/searchOption';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
 import IntegrityNotice from './IntegrityNotice.vue';
+import LongRunStartNote from './LongRunStartNote.vue';
 import ReloadPlannedBanner from './ReloadPlannedBanner.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import RunSendReport from './RunSendReport.vue';
