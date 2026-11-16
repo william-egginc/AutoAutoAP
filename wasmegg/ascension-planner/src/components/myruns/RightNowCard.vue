@@ -175,6 +175,22 @@
       >
     </p>
 
+    <!-- THE FOLLOWED ROUTE NOW MISSES ITS DATE (Jordan, 16 Nov 2026; an exception to the 13 Nov "no better-route offer on
+         My runs", lib/followMiss.ts): the finish Right now has for it is after the By a date goal's date. Said plainly, with the
+         way to look again: the same date search on the latest save (`recalc`). Words: lib/followMissWords.ts. -->
+    <div v-if="followMiss" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
+      <p class="font-bold" data-testid="now-follow-misses">{{ followMissText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-misses-search"
+        @click="emit('recalc', recalcRequest)"
+      >
+        {{ FOLLOW_MISS_SEARCH }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_MISS_NOTE }}</p>
+    </div>
+
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
     <p v-if="follow && followSetWith" class="text-body text-slate-600" data-testid="now-follow-set-with">{{ followSetWith }}</p>
     <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
@@ -610,6 +626,8 @@ import A1Choice from './A1Choice.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { followMissOf } from '@/lib/followMiss';
+import { FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followMissLine } from '@/lib/followMissWords';
 import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
@@ -915,6 +933,21 @@ const followLate = computed(() => {
 const followedLate = computed(() =>
   props.card && props.card.goal.goal === 'date'
     ? followedLateLine(selectedOption.value?.follow, props.card.plan.end, t => dayWords(t, props.zone), lateMark.value)
+    : ''
+);
+// ------------------------------------------------------------------- the followed route that misses its date
+/** The followed By a date route's finish here is after the date (lib/followMiss.ts): the finish Right now already has for
+ *  it, from the newest save. Nothing without a priced finish. */
+const followMiss = computed(() => {
+  const f = props.follow;
+  const c = props.card;
+  if (!f || !c || c.goal.goal !== 'date') return null;
+  const finish = f.finish?.end ?? (f.price === 'exact' || f.price === 'instant' || f.price === 'estimate' ? c.plan.end : null);
+  return followMissOf({ goal: c.goal.goal, deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish });
+});
+const followMissText = computed(() =>
+  followMiss.value
+    ? followMissLine(followMiss.value, t => dateAt(t, props.now, props.zone), (selectedOption.value?.kind ?? '') === 'eggday')
     : ''
 );
 const radios = ref<(HTMLButtonElement | null)[]>([]);
