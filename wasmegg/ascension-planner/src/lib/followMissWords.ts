@@ -19,3 +19,12 @@ export function followMissLine(m: FollowMiss, at: (unix: number) => string, eggD
 export const FOLLOW_MISS_SEARCH = 'Look for a better route';
 /** Under the button. */
 export const FOLLOW_MISS_NOTE = 'Runs the same date search again on your newest save.';
+
+/** DRAFT (Words writes the final text, spec-myruns-nobetter, 16 Nov 2026): the search found nothing faster. `when`: "just now"
+ *  or the time it ran, as the player reads it. "Checked just now: your route is still the fastest. It finishes Jul 17,
+ *  2027 at 9:00 AM, 2d 17h after Egg Day starts." */
+export function followNoBetterLine(m: FollowMiss, at: (unix: number) => string, eggDay: boolean, when: string): string {
+  const gap = compactDuration(Math.max(60, m.lateSeconds));
+  const after = eggDay ? 'Egg Day starts' : 'your date';
+  return `Checked ${when}: your route is still the fastest. It finishes ${at(m.finish)}, ${gap} after ${after}.`;
+}

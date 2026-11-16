@@ -14,6 +14,8 @@ import RightNowCard from './RightNowCard.vue';
 import { planEvents, tableEvents, type NowPlan } from '@/lib/nowPlan';
 import type { CardPlan, FollowCard } from '@/composables/useNowPage';
 import type { GoalOption } from '@/lib/planGoals';
+import { followLook } from '@/lib/followMiss';
+import { askGoal } from '@/lib/recalc';
 
 const ZONE = 'America/Denver';
 const H = 3600;
@@ -60,7 +62,7 @@ const goals: GoalOption[] = [
     open: { auto: 'by-date', byDate: { eggDay: true } },
   },
 ];
-const render = (end: number, o: { goal?: 'date' | 'fastest'; follow?: FollowCard | null } = {}) => {
+const render = (end: number, o: { goal?: 'date' | 'fastest'; follow?: FollowCard | null; search?: { end: number; at: number; level?: string } } = {}) => {
   const goal = o.goal ?? 'date';
   const p = plan(end, goal);
   const events = planEvents(p, NOW);
@@ -70,6 +72,9 @@ const render = (end: number, o: { goal?: 'date' | 'fastest'; follow?: FollowCard
     state: 'this-save',
     key: goal === 'date' ? 'eggday-2027' : 'fastest-490',
     name: goal === 'date' ? 'Egg Day 2027' : 'Fastest to 490 TE',
+    ...(o.search
+      ? { driving: { plan: p, instant: p, search: { ...plan(o.search.end, goal), from: { level: o.search.level ?? 'Fast', at: o.search.at } } as NowPlan, takeover: null, wentBack: false } }
+      : {}),
   };
   return renderHtml(
     RightNowCard,
@@ -139,12 +144,54 @@ describe('the button', () => {
     const at = src.indexOf('data-testid="now-follow-misses-search"');
     expect(at).toBeGreaterThan(0);
     const tag = src.slice(src.lastIndexOf('<button', at), src.indexOf('</button>', at));
-    expect(tag).toContain("emit('recalc', recalcRequest)");
+    expect(tag).toContain('askLook()');
+    // ...and askLook remembers the press, then emits that same request.
+    const fn = src.slice(src.indexOf('function askLook()'), src.indexOf('function askLook()') + 260);
+    expect(fn).toContain("emit('recalc', recalcRequest.value)");
   });
   it('the block is outside any v-if/v-else chain (a v-if between a v-if and its v-else breaks it)', () => {
     const at = src.indexOf('data-testid="now-follow-misses"');
     const open = src.lastIndexOf('<p', at);
     expect(src.slice(src.lastIndexOf('\n', open), open + 3)).not.toMatch(/v-else/);
     expect(src.slice(open, at)).not.toContain('v-else');
+  });
+});
+
+describe('"Look for a better route" found nothing faster (spec-myruns-nobetter, Jordan, 16 Nov 2026)', () => {
+  const ask = () => followLook.ask(askGoal({ goal: 'date', target: 490, deadline: DEADLINE }), NOW * 1000 - 120_000);
+  const FAST_AT = NOW * 1000 - 30_000;
+  it('asked, then a Fast result no faster than the followed route: the card says so, in the amber box under the button', async () => {
+    followLook.reset();
+    ask();
+    const html = await render(JUL17, { search: { end: JUL17, at: FAST_AT } });
+    expect(html).toContain('data-testid="now-follow-nobetter"');
+    expect(textOf(html)).toContain('Checked just now: your route is still the fastest. It finishes Jul 17, 2027 at 3:00 AM, 2d 17h after Egg Day starts.');
+    expect(html.indexOf('now-follow-nobetter')).toBeGreaterThan(html.indexOf('now-follow-misses-search'));
+    expect(html.indexOf('now-follow-nobetter')).toBeLessThan(html.indexOf('now-follow-misses-box') + html.slice(html.indexOf('now-follow-misses-box')).indexOf('</div>'));
+  });
+  it('a result from a few minutes before says when, in 12-hour time, not "just now"', async () => {
+    followLook.reset();
+    followLook.ask(askGoal({ goal: 'date', target: 490, deadline: DEADLINE }), NOW * 1000 - 3_600_000);
+    const t = textOf(await render(JUL17, { search: { end: JUL17, at: NOW * 1000 - 1_800_000 } }));
+    expect(t).toMatch(/Checked Nov 16 at 12:30 PM: your route is still the fastest\./);
+  });
+  it('no line when the button was not pressed, however good the Fast result', async () => {
+    followLook.reset();
+    expect(await render(JUL17, { search: { end: JUL17, at: FAST_AT } })).not.toContain('now-follow-nobetter');
+  });
+  it('no line for a result older than the press', async () => {
+    followLook.reset();
+    ask();
+    expect(await render(JUL17, { search: { end: JUL17, at: NOW * 1000 - 600_000 } })).not.toContain('now-follow-nobetter');
+  });
+  it('no line when the result is faster than the followed route (the replace lines say that)', async () => {
+    followLook.reset();
+    ask();
+    expect(await render(JUL17, { search: { end: JUL11, at: FAST_AT } })).not.toContain('now-follow-nobetter');
+  });
+  it('the press is remembered by the button itself: it asks before it emits recalc', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
+    const at = src.indexOf('data-testid="now-follow-misses-search"');
+    expect(src.slice(at, at + 300)).toContain('askLook');
   });
 });

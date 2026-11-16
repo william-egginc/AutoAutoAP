@@ -184,11 +184,13 @@
         type="button"
         class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
         data-testid="now-follow-misses-search"
-        @click="emit('recalc', recalcRequest)"
+        @click="askLook()"
       >
         {{ FOLLOW_MISS_SEARCH }}
       </button>
       <p class="text-slate-700">{{ FOLLOW_MISS_NOTE }}</p>
+      <!-- The search for this goal finished after the press and found nothing faster (lib/followMiss.ts; DRAFT words). -->
+      <p v-if="noBetterText" class="mt-1 font-bold" data-testid="now-follow-nobetter">{{ noBetterText }}</p>
     </div>
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
@@ -626,8 +628,8 @@ import A1Choice from './A1Choice.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
-import { followMissOf } from '@/lib/followMiss';
-import { FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followMissLine } from '@/lib/followMissWords';
+import { followLook, followLookNothingBetter, followMissOf } from '@/lib/followMiss';
+import { FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followMissLine, followNoBetterLine } from '@/lib/followMissWords';
 import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
@@ -950,6 +952,22 @@ const followMissText = computed(() =>
     ? followMissLine(followMiss.value, t => dateAt(t, props.now, props.zone), (selectedOption.value?.kind ?? '') === 'eggday')
     : ''
 );
+/** "Look for a better route": remember the press (the goal's screen takes over from here), then open the goal on Fast. */
+function askLook(): void {
+  followLook.ask(recalcRequest.value.goal, Date.now());
+  emit('recalc', recalcRequest.value);
+}
+/** The search the player ran for this goal after the press found nothing faster than the followed route. */
+const noBetterText = computed(() => {
+  const m = followMiss.value;
+  const s = props.card?.driving?.search;
+  if (!m || !s?.from) return '';
+  const askedAt = followLook.askedAt(recalcRequest.value.goal);
+  if (!followLookNothingBetter({ askedAt, search: { level: s.from.level, at: s.from.at, end: s.end }, miss: m })) return '';
+  const at = (t: number) => dateAt(t, props.now, props.zone);
+  const when = props.now - s.from.at / 1000 < 120 ? 'just now' : at(s.from.at / 1000);
+  return followNoBetterLine(m, at, (selectedOption.value?.kind ?? '') === 'eggday', when);
+});
 const radios = ref<(HTMLButtonElement | null)[]>([]);
 /** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
  *  line no longer starts with it.) */
