@@ -34,6 +34,8 @@ export type TourStepId =
   | 'answer'
   | 'simulate'
   | 'follow'
+  // spec-tourfix (Jordan, 16 Nov 2026: "My runs isn't shown how to get to my runs"): the My runs tab, before the tracker.
+  | 'myrunsWhere'
   | 'myruns'
   | 'setupWhere'
   | 'setup'
@@ -50,6 +52,7 @@ export const TOUR_STEPS: readonly TourStepId[] = [
   'answer',
   'simulate',
   'follow',
+  'myrunsWhere',
   'myruns',
   'setupWhere',
   'setup',

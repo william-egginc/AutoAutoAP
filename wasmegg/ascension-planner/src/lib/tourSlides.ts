@@ -17,6 +17,8 @@ import simulateDesk from '@/assets/tour/4-simulate-desk.webp';
 import simulatePhone from '@/assets/tour/4-simulate-phone.webp';
 import followDesk from '@/assets/tour/5-follow-desk.webp';
 import followPhone from '@/assets/tour/5-follow-phone.webp';
+import myrunsWhereDesk from '@/assets/tour/6-myruns-where-desk.webp';
+import myrunsWherePhone from '@/assets/tour/6-myruns-where-phone.webp';
 import trackerDesk from '@/assets/tour/6-tracker-desk.webp';
 import trackerPhone from '@/assets/tour/6-tracker-phone.webp';
 import setupWhereDesk from '@/assets/tour/7-setup-where-desk.webp';
@@ -40,6 +42,7 @@ export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = 
   answer: { desk: '3-answer-desk.webp', phone: '3-answer-phone.webp' },
   simulate: { desk: '4-simulate-desk.webp', phone: '4-simulate-phone.webp' },
   follow: { desk: '5-follow-desk.webp', phone: '5-follow-phone.webp' },
+  myrunsWhere: { desk: '6-myruns-where-desk.webp', phone: '6-myruns-where-phone.webp' },
   myruns: { desk: '6-tracker-desk.webp', phone: '6-tracker-phone.webp' },
   setupWhere: { desk: '7-setup-where-desk.webp', phone: '7-setup-where-phone.webp' },
   setup: { desk: '8-setup-desk.webp', phone: '8-setup-phone.webp' },
@@ -71,6 +74,7 @@ export const TOUR_SLIDES: TourSlide[] = [
   { id: 'answer', desk: desk(answerDesk), phone: phone(answerPhone) },
   { id: 'simulate', desk: desk(simulateDesk), phone: phone(simulatePhone) },
   { id: 'follow', desk: desk(followDesk), phone: phone(followPhone) },
+  { id: 'myrunsWhere', desk: desk(myrunsWhereDesk), phone: phone(myrunsWherePhone) },
   { id: 'myruns', desk: desk(trackerDesk), phone: phone(trackerPhone) },
   { id: 'setupWhere', desk: desk(setupWhereDesk), phone: phone(setupWherePhone) },
   { id: 'setup', desk: desk(setupDesk), phone: phone(setupPhone) },

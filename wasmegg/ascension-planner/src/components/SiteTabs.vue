@@ -19,6 +19,7 @@
           v-for="(t, i) in tabs"
           :key="t.id"
           type="button"
+          :data-testid="`top-tab-${t.id}`"
           :class="[
             i === tabs.length - 1 && tabs.length % 2 === 1 ? 'col-span-2' : 'col-span-1',
             current === t.id ? [t.on, 'ring-2 ring-indigo-200'] : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50',

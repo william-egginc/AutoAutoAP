@@ -1,0 +1,660 @@
+{
+ "load-desk": {
+  "target": [
+   "form:has(#playerId)",
+   "[data-testid=\"no-account-save-file\"] > *"
+  ],
+  "ring": {
+   "x": 338,
+   "y": 164,
+   "w": 423,
+   "h": 206
+  },
+  "rects": [
+   {
+    "x": 390,
+    "y": 172,
+    "w": 320,
+    "h": 126
+   },
+   {
+    "x": 346,
+    "y": 327,
+    "w": 407,
+    "h": 35
+   }
+  ],
+  "cropTop": 52,
+  "cropH": 620
+ },
+ "goal-desk": {
+  "target": [
+   "[role=\"radiogroup\"][aria-label=\"Goal\"]"
+  ],
+  "ring": {
+   "x": 365,
+   "y": 160,
+   "w": 321,
+   "h": 74
+  },
+  "rects": [
+   {
+    "x": 373,
+    "y": 168,
+    "w": 305,
+    "h": 58
+   }
+  ],
+  "cropTop": 48,
+  "cropH": 620
+ },
+ "answer-desk": {
+  "target": [
+   "[data-testid=\"filters-button\"]",
+   "[data-testid=\"instant-box\"]",
+   "[data-shot=\"table-head\"]"
+  ],
+  "ring": {
+   "x": 111,
+   "y": 338,
+   "w": 861,
+   "h": 563
+  },
+  "rects": [
+   {
+    "x": 119,
+    "y": 346,
+    "w": 279,
+    "h": 44
+   },
+   {
+    "x": 136,
+    "y": 564,
+    "w": 828,
+    "h": 290
+   },
+   {
+    "x": 136,
+    "y": 872,
+    "w": 219,
+    "h": 21
+   }
+  ],
+  "cropTop": 301,
+  "cropH": 620
+ },
+ "simulate-desk": {
+  "target": [
+   "[data-testid=\"instant-box\"] [data-testid=\"box-simulate\"]"
+  ],
+  "ring": {
+   "x": 293,
+   "y": 794,
+   "w": 165,
+   "h": 55
+  },
+  "rects": [
+   {
+    "x": 301,
+    "y": 802,
+    "w": 149,
+    "h": 39
+   }
+  ],
+  "cropTop": 410,
+  "cropH": 620
+ },
+ "follow-desk": {
+  "target": [
+   "[data-testid=\"instant-box\"] [data-testid=\"follow-route\"]"
+  ],
+  "ring": {
+   "x": 145,
+   "y": 796,
+   "w": 156,
+   "h": 51
+  },
+  "rects": [
+   {
+    "x": 153,
+    "y": 804,
+    "w": 140,
+    "h": 35
+   }
+  ],
+  "cropTop": 412,
+  "cropH": 620
+ },
+ "myrunsWhere-desk": {
+  "target": [
+   "[data-testid=\"top-tab-myruns\"]"
+  ],
+  "ring": {
+   "x": 798,
+   "y": 35,
+   "w": 121,
+   "h": 60
+  },
+  "rects": [
+   {
+    "x": 804,
+    "y": 41,
+    "w": 109,
+    "h": 48
+   }
+  ],
+  "cropTop": 0,
+  "cropH": 620
+ },
+ "myruns-desk": {
+  "target": [
+   "[data-testid=\"buildup-tracker\"] summary",
+   "[data-testid=\"buildup-now\"]",
+   "[data-testid=\"buildup-view\"]",
+   "[data-testid=\"buildup-key\"]",
+   "[data-testid^=\"buildup-line-\"]"
+  ],
+  "ring": {
+   "x": 40,
+   "y": 692,
+   "w": 1020,
+   "h": 352
+  },
+  "rects": [
+   {
+    "x": 46,
+    "y": 698,
+    "w": 1008,
+    "h": 33
+   },
+   {
+    "x": 46,
+    "y": 768,
+    "w": 1008,
+    "h": 17
+   },
+   {
+    "x": 46,
+    "y": 793,
+    "w": 144,
+    "h": 46
+   },
+   {
+    "x": 46,
+    "y": 847,
+    "w": 1008,
+    "h": 17
+   },
+   {
+    "x": 46,
+    "y": 994,
+    "w": 1008,
+    "h": 44
+   }
+  ],
+  "cropTop": 630,
+  "cropH": 620
+ },
+ "setupWhere-desk": {
+  "target": [
+   "[data-testid=\"setup-dock-pill\"]"
+  ],
+  "ring": {
+   "x": 958,
+   "y": 837,
+   "w": 132,
+   "h": 53
+  },
+  "rects": [
+   {
+    "x": 964,
+    "y": 843,
+    "w": 120,
+    "h": 41
+   }
+  ],
+  "cropTop": 280,
+  "cropH": 620
+ },
+ "setup-desk": {
+  "target": [
+   "[role=\"dialog\"][aria-label=\"Setup\"]",
+   "[data-testid=\"filters-button\"]"
+  ],
+  "ring": {
+   "x": 115,
+   "y": 201,
+   "w": 973,
+   "h": 638
+  },
+  "rects": [
+   {
+    "x": 348,
+    "y": 205,
+    "w": 736,
+    "h": 630
+   },
+   {
+    "x": 119,
+    "y": 346,
+    "w": 279,
+    "h": 44
+   }
+  ],
+  "cropTop": 89,
+  "cropH": 620
+ },
+ "moreWhere-desk": {
+  "target": [
+   "[data-testid=\"more-moreFastest-button\"]"
+  ],
+  "ring": {
+   "x": 111,
+   "y": 1362,
+   "w": 878,
+   "h": 72
+  },
+  "rects": [
+   {
+    "x": 119,
+    "y": 1370,
+    "w": 862,
+    "h": 56
+   }
+  ],
+  "cropTop": 1011,
+  "cropH": 620
+ },
+ "moreInside-desk": {
+  "target": [
+   "section[data-testid^=\"search-panel-\"] > div:first-child",
+   "[data-testid=\"search-option-custom\"]"
+  ],
+  "ring": {
+   "x": 144,
+   "y": 1570,
+   "w": 815,
+   "h": 166
+  },
+  "rects": [
+   {
+    "x": 152,
+    "y": 1578,
+    "w": 799,
+    "h": 26
+   },
+   {
+    "x": 688,
+    "y": 1655,
+    "w": 257,
+    "h": 73
+   }
+  ],
+  "cropTop": 1458,
+  "cropH": 620
+ },
+ "fast-desk": {
+  "target": [
+   "[data-testid=\"search-option-fast\"]"
+  ],
+  "ring": {
+   "x": 150,
+   "y": 1647,
+   "w": 273,
+   "h": 89
+  },
+  "rects": [
+   {
+    "x": 158,
+    "y": 1655,
+    "w": 257,
+    "h": 73
+   }
+  ],
+  "cropTop": 1368,
+  "cropH": 620
+ },
+ "custom-desk": {
+  "target": [
+   "[data-testid=\"search-option-custom\"]"
+  ],
+  "ring": {
+   "x": 680,
+   "y": 1647,
+   "w": 273,
+   "h": 89
+  },
+  "rects": [
+   {
+    "x": 688,
+    "y": 1655,
+    "w": 257,
+    "h": 73
+   }
+  ],
+  "cropTop": 1368,
+  "cropH": 620
+ },
+ "load-phone": {
+  "target": [
+   "form:has(#playerId)",
+   "[data-testid=\"no-account-save-file\"] > *"
+  ],
+  "ring": {
+   "x": 24,
+   "y": 204,
+   "w": 342,
+   "h": 236
+  },
+  "rects": [
+   {
+    "x": 33,
+    "y": 212,
+    "w": 324,
+    "h": 126
+   },
+   {
+    "x": 32,
+    "y": 367,
+    "w": 326,
+    "h": 65
+   }
+  ],
+  "cropTop": 125,
+  "cropH": 440
+ },
+ "goal-phone": {
+  "target": [
+   "[role=\"radiogroup\"][aria-label=\"Goal\"]"
+  ],
+  "ring": {
+   "x": 8,
+   "y": 260,
+   "w": 326,
+   "h": 74
+  },
+  "rects": [
+   {
+    "x": 16,
+    "y": 268,
+    "w": 310,
+    "h": 58
+   }
+  ],
+  "cropTop": 181,
+  "cropH": 440
+ },
+ "answer-phone": {
+  "target": [
+   "[data-testid=\"instant-box\"]"
+  ],
+  "ring": {
+   "x": 8,
+   "y": 823,
+   "w": 374,
+   "h": 477
+  },
+  "rects": [
+   {
+    "x": 16,
+    "y": 831,
+    "w": 358,
+    "h": 461
+   }
+  ],
+  "cropTop": 797,
+  "cropH": 440
+ },
+ "simulate-phone": {
+  "target": [
+   "[data-testid=\"instant-box\"] [data-testid=\"box-simulate\"]"
+  ],
+  "ring": {
+   "x": 21,
+   "y": 1227,
+   "w": 165,
+   "h": 60
+  },
+  "rects": [
+   {
+    "x": 29,
+    "y": 1235,
+    "w": 149,
+    "h": 44
+   }
+  ],
+  "cropTop": 954,
+  "cropH": 440
+ },
+ "follow-phone": {
+  "target": [
+   "[data-testid=\"instant-box\"] [data-testid=\"follow-route\"]"
+  ],
+  "ring": {
+   "x": 21,
+   "y": 1175,
+   "w": 156,
+   "h": 60
+  },
+  "rects": [
+   {
+    "x": 29,
+    "y": 1183,
+    "w": 140,
+    "h": 44
+   }
+  ],
+  "cropTop": 902,
+  "cropH": 440
+ },
+ "myrunsWhere-phone": {
+  "target": [
+   "[data-testid=\"top-tab-myruns\"]"
+  ],
+  "ring": {
+   "x": 191,
+   "y": 137,
+   "w": 184,
+   "h": 60
+  },
+  "rects": [
+   {
+    "x": 197,
+    "y": 143,
+    "w": 172,
+    "h": 48
+   }
+  ],
+  "cropTop": 0,
+  "cropH": 440
+ },
+ "myruns-phone": {
+  "target": [
+   "[data-testid=\"buildup-tracker\"] summary",
+   "[data-testid=\"buildup-now\"]",
+   "[data-testid=\"buildup-view\"]",
+   "[data-testid=\"buildup-key\"]",
+   "[data-testid^=\"buildup-line-\"]"
+  ],
+  "ring": {
+   "x": 40,
+   "y": 1093,
+   "w": 310,
+   "h": 568
+  },
+  "rects": [
+   {
+    "x": 46,
+    "y": 1099,
+    "w": 298,
+    "h": 98
+   },
+   {
+    "x": 46,
+    "y": 1297,
+    "w": 298,
+    "h": 51
+   },
+   {
+    "x": 46,
+    "y": 1356,
+    "w": 144,
+    "h": 46
+   },
+   {
+    "x": 46,
+    "y": 1410,
+    "w": 298,
+    "h": 38
+   },
+   {
+    "x": 46,
+    "y": 1611,
+    "w": 298,
+    "h": 44
+   }
+  ],
+  "cropTop": 1049,
+  "cropH": 440
+ },
+ "setupWhere-phone": {
+  "target": [
+   "[data-testid=\"setup-dock-pill\"]"
+  ],
+  "ring": {
+   "x": 320,
+   "y": 774,
+   "w": 60,
+   "h": 60
+  },
+  "rects": [
+   {
+    "x": 326,
+    "y": 780,
+    "w": 48,
+    "h": 48
+   }
+  ],
+  "cropTop": 404,
+  "cropH": 440
+ },
+ "setup-phone": {
+  "target": [
+   "[role=\"dialog\"][aria-label=\"Setup\"]",
+   "[data-testid=\"filters-button\"]"
+  ],
+  "ring": {
+   "x": 3,
+   "y": 177,
+   "w": 375,
+   "h": 599
+  },
+  "rects": [
+   {
+    "x": 7,
+    "y": 181,
+    "w": 367,
+    "h": 591
+   },
+   {
+    "x": 16,
+    "y": 521,
+    "w": 279,
+    "h": 44
+   }
+  ],
+  "cropTop": 98,
+  "cropH": 440
+ },
+ "moreWhere-phone": {
+  "target": [
+   "[data-testid=\"more-moreFastest-button\"]"
+  ],
+  "ring": {
+   "x": 8,
+   "y": 2005,
+   "w": 374,
+   "h": 89
+  },
+  "rects": [
+   {
+    "x": 16,
+    "y": 2013,
+    "w": 358,
+    "h": 73
+   }
+  ],
+  "cropTop": 1807,
+  "cropH": 440
+ },
+ "moreInside-phone": {
+  "target": [
+   "section[data-testid^=\"search-panel-\"] > div:first-child",
+   "[data-testid=\"search-option-custom\"]"
+  ],
+  "ring": {
+   "x": 37,
+   "y": 2263,
+   "w": 319,
+   "h": 196
+  },
+  "rects": [
+   {
+    "x": 45,
+    "y": 2271,
+    "w": 303,
+    "h": 26
+   },
+   {
+    "x": 248,
+    "y": 2346,
+    "w": 96,
+    "h": 105
+   }
+  ],
+  "cropTop": 2184,
+  "cropH": 440
+ },
+ "fast-phone": {
+  "target": [
+   "[data-testid=\"search-option-fast\"]"
+  ],
+  "ring": {
+   "x": 41,
+   "y": 2338,
+   "w": 112,
+   "h": 121
+  },
+  "rects": [
+   {
+    "x": 49,
+    "y": 2346,
+    "w": 96,
+    "h": 105
+   }
+  ],
+  "cropTop": 2140,
+  "cropH": 440
+ },
+ "custom-phone": {
+  "target": [
+   "[data-testid=\"search-option-custom\"]"
+  ],
+  "ring": {
+   "x": 240,
+   "y": 2338,
+   "w": 112,
+   "h": 121
+  },
+  "rects": [
+   {
+    "x": 248,
+    "y": 2346,
+    "w": 96,
+    "h": 105
+   }
+  ],
+  "cropTop": 2140,
+  "cropH": 440
+ }
+}

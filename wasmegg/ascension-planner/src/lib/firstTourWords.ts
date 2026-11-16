@@ -29,6 +29,11 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
     title: 'Follow this route',
     body: 'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.',
   },
+  // DRAFT for Words (spec-tourfix, 16 Nov 2026): how to get to My runs, before the tracker.
+  myrunsWhere: {
+    title: 'Where My runs is',
+    body: 'My runs is the tab along the top, beside Chain Finder. Press it any time to see the route you follow.',
+  },
   myruns: {
     title: 'My runs and the tracker',
     body: 'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.',
@@ -99,6 +104,7 @@ export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the short first step.',
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
   follow: 'The Follow this route button under the instant answer, highlighted.',
+  myrunsWhere: 'The My runs tab along the top of the page, beside Chain Finder, highlighted.',
   myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
   setupWhere: 'The round gear Setup button at the bottom of the screen, highlighted.',
   setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',

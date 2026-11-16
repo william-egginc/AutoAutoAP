@@ -61,3 +61,10 @@ describe("Chain Finder's goal switch (GoalSwitch.vue; was the Auto Planner sub-t
     expect(buttons[0]).toContain('min-h-[48px]');
   });
 });
+
+describe('SiteTabs test ids (spec-tourfix, 16 Nov 2026)', () => {
+  it('each tab carries data-testid top-tab-<id>, so the tour picture can ring My runs', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'SiteTabs.vue'), 'utf8');
+    expect(src).toMatch(/:data-testid="`top-tab-\$\{t\.id\}`"/);
+  });
+});
