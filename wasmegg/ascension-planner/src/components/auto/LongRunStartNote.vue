@@ -2,7 +2,7 @@
   The long-search line (spec-longstart, Jordan, 16 Nov 2026): while a player sets up a search the screen expects to take
   2 hours or more, before Run, it says what starting it will do: the planner's server is told, so a planned update waits.
   Shown at selection time only, never during or after the run (RunControls.vue passes `v-if="!running"`). Only while the
-  alert's sends are on (`beaconEnabled`), because the line promises a message. Nothing is sent from here. DRAFT words:
+  alert's sends are on (`beaconEnabled`), because the line promises a message. Nothing is sent from here. Words' text:
   lib/runBeaconWords.ts `longRunStartWords`.
 -->
 <template>

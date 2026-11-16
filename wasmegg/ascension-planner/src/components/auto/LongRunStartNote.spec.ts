@@ -1,8 +1,8 @@
 /**
  * The long-search line (spec-longstart, Jordan, 16 Nov 2026): while a player SETS UP a search the screen expects to take
  * 2 hours or more, before they press Run, a line says what starting it will do (the planner's server is told, so a planned
- * update waits). Gone once the run starts, and not shown during or after it. Future tense. DRAFT words
- * (lib/runBeaconWords.ts `longRunStartWords`), Words writes the final text. In the run controls' flow, under the run buttons.
+ * update waits). Gone once the run starts, and not shown during or after it. Future tense. Words' text
+ * (lib/runBeaconWords.ts `longRunStartWords`). In the run controls' flow, under the run buttons.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,12 +53,11 @@ const controls = (p: Record<string, unknown> = {}) => renderHtml(RunControls, { 
 const NOTE = 'data-testid="long-run-start-note"';
 
 describe('the long-search line, at selection time', () => {
-  it('a search expected at 3 hours, not started: the line, with the hours, in the future tense', async () => {
+  it("a search expected at 3 hours, not started: Words' line, in the future tense", async () => {
     const html = await controls({ estimateSeconds: 3 * 3600 });
     expect(html).toContain(NOTE);
     expect(textOf(html)).toContain(textOf(longRunStartWords(3 * 3600)));
-    expect(textOf(longRunStartWords(3 * 3600))).toContain('3 hours');
-    expect(textOf(longRunStartWords(9000))).toContain('2.5 hours');
+    expect(longRunStartWords(3 * 3600)).toBe("This is a long search (2 hours or more). If you start it, the planner will tell the site's updater, so if an update is being prepared, the maintainer waits for your search.");
     expect(longRunStartWords(3 * 3600)).toMatch(/If you start it/);
     expect(longRunStartWords(3 * 3600)).not.toMatch(/was told|were told/);
   });

@@ -25,10 +25,10 @@ export const LONG_RUN_BANNER_CLOSE = 'Close';
 
 /**
  * The line shown while setting up a search expected to take 2 hours or more (spec-longstart, Jordan, 16 Nov 2026), before
- * Run, future tense. DRAFT (Words writes the final text). The meaning, in Jordan's words: "we send a message to the updater, so if
- * an update is being prepped for launch it'll tell the maintainer to wait". `estimateSeconds`: the screen's estimate.
+ * Run, future tense. Words' text (16 Nov 2026, notes/words-tour-v3-and-c3-2026-11-16.md). The meaning, in Jordan's words:
+ * "we send a message to the updater, so if an update is being prepped for launch it'll tell the maintainer to wait".
+ * `_estimateSeconds`: the screen's estimate (not in the text: the line only shows from 2 hours).
  */
-export function longRunStartWords(estimateSeconds: number): string {
-  const h = Math.round(estimateSeconds / 1800) / 2;
-  return `This search should take about ${h} ${h === 1 ? 'hour' : 'hours'}. If you start it, the planner will tell its server it started, so if an update is being prepared, the maintainer will see this search is running and wait for it.`;
+export function longRunStartWords(_estimateSeconds?: number): string {
+  return "This is a long search (2 hours or more). If you start it, the planner will tell the site's updater, so if an update is being prepared, the maintainer waits for your search.";
 }
