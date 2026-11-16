@@ -15,7 +15,7 @@ import RunControls from './RunControls.vue';
 import ReloadPlannedBanner from './ReloadPlannedBanner.vue';
 import { resetConsents } from '@/composables/useConsent';
 import { liveVersionJson } from '@/composables/useNewVersion';
-import { armLongRun, resetRunBeacon, runBeaconRunEnded, runBeaconRunStarted, runBeaconSwitch } from '@/lib/runBeacon';
+import { armLongRun, resetRunBeacon, runBeaconRunEnded, runBeaconRunStarted } from '@/lib/runBeacon';
 import { dismissReloadPlanned, resetReloadPlannedDismissal } from '@/lib/reloadPlanned';
 import { LONG_RUN_BANNER_CLOSE, longRunBannerWords } from '@/lib/runBeaconWords';
 import { eventWhen } from '@/lib/eventWhen';
@@ -147,14 +147,6 @@ describe('the planned-update banner', () => {
       runBeaconRunEnded(how);
       expect(await controls(), how).not.toContain(BANNER);
     }
-  });
-
-  it('shown with the long-run alert switched off (it is local), and nothing is sent', async () => {
-    runBeaconSwitch().value = false;
-    startRun(3 * 3600);
-    plan(AT);
-    expect(await controls()).toContain(BANNER);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('only on the screen whose search is running', async () => {

@@ -28,14 +28,14 @@ describe('layout words', () => {
     expect(W.SEARCH_CARD_LINE).toBe('Checks the instant answer on your save.');
   });
   it('My runs and Setup', () => {
-    expect(W.sharingSummaryWords({ help: 'no', longSearches: true, saveOnline: true })).toBe(
-      'Help improve: no thanks · Long searches: on · Save online: on'
+    expect(W.sharingSummaryWords({ help: 'no', saveOnline: true })).toBe(
+      'Help improve: no thanks · Save online: on'
     );
-    expect(W.sharingSummaryWords({ help: 'none', longSearches: false, saveOnline: false })).toBe(
-      'Help improve: not answered · Long searches: off · Save online: off'
+    expect(W.sharingSummaryWords({ help: 'none', saveOnline: false })).toBe(
+      'Help improve: not answered · Save online: off'
     );
-    expect(W.sharingSummaryWords({ help: 'yes', longSearches: false, saveOnline: true, searchResults: true, instantWithRuns: false })).toBe(
-      'Help improve: yes · Long searches: off · Save online: on · Search results: on · Instant answer with runs: off'
+    expect(W.sharingSummaryWords({ help: 'yes', saveOnline: true, searchResults: true, instantWithRuns: false })).toBe(
+      'Help improve: yes · Save online: on · Search results: on · Instant answer with runs: off'
     );
     expect([W.SAVE_LINE_CLOSE, W.CHANGE_PLAYER]).toEqual(['Close player box', 'Change player']);
     expect(W.SHOW_EVERYTHING_LINE).toBe('Every More fold starts open, like the old page.');

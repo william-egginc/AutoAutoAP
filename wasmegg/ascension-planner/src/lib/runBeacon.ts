@@ -23,19 +23,20 @@
  * the watcher reopened, a sweep queue's later boxes) sends nothing. The store's run watcher calls `runBeaconRunEnded`, and
  * its pagehide `runBeaconPageClosing` (sendBeacon). A stop only follows a start this page sent, and only once.
  *
- * THE PLANNED-UPDATE BANNER (ReloadPlannedBanner.vue, lib/reloadPlanned.ts) reads `longRun`: a long run started with Run,
- * switch on or off (the banner is local); only the sends follow the switch.
+ * THE PLANNED-UPDATE BANNER (ReloadPlannedBanner.vue, lib/reloadPlanned.ts) reads `longRun`: a long run started with Run
+ * (the banner is local, and does not depend on the sends).
  *
  * NEVER TOUCHES THE RUN. Every hook returns nothing to wait on, and every step is in try/catch; a fetch is bounded by
  * BEACON_TIMEOUT_MS and its promise caught; the answer (200, 404, 429, 503, anything) is ignored. Nothing is sent with
- * the switch off (`beaconEnabled`), offline, or with no collector.
+ * the flag off (`beaconEnabled`), offline, or with no collector.
  *
- * THE SWITCH: one per browser (localStorage RUN_BEACON_KEY, '1' / '0'), in Setup's Sharing. Its default is
- * RUN_BEACON_DEFAULT, read in one place (`readSwitch`); runBeacon.spec.ts pins it, so making it opt-in is deliberate. The
- * gate is one function, `beaconEnabled`: tying the alert to "Help improve the planner" instead (Words' Option 2) changes
- * only that function (and drops the Setup tick).
+ * NO PLAYER SWITCH (Jordan, 16 Nov 2026: "don't give the users an option to disable the long sends, just send a first
+ * signal and last (if possible); we will disable that once we stop updating things"). It was a tick in Setup's Sharing
+ * (localStorage RUN_BEACON_KEY, '1' / '0'); the tick, its summary entry and the reading of the key are gone, and an "off"
+ * an older page stored is ignored (runBeacon.always.spec.ts). The one place to turn the sends off for everyone is the
+ * flag RUN_BEACON_SENDS below; `beaconEnabled` is its only reader.
  */
-import { computed, ref, shallowRef, watch, type Ref } from 'vue';
+import { computed, shallowRef } from 'vue';
 import { appBuildId } from '@/search/submission';
 import type { SearchOption } from '@/lib/searchOption';
 import { BEACON_MIN_HOURS } from '@/lib/runBeaconWords';
@@ -44,10 +45,11 @@ import { BEACON_MIN_HOURS } from '@/lib/runBeaconWords';
  *  BEACON_MIN_HOURS in lib/runBeaconWords.ts). The collector takes 0.25 hours and up, so this can change without a
  *  collector change. */
 export const BEACON_MIN_SECONDS = BEACON_MIN_HOURS * 3600;
-/** The Setup switch's default: ON for now. Jordan may make it opt-in: change this one line (and its pin in
- *  runBeacon.spec.ts). */
-export const RUN_BEACON_DEFAULT = true;
-/** Where this browser keeps the switch ('1' on, '0' off; absent: RUN_BEACON_DEFAULT). */
+/** THE FLAG: the page sends the start and the stop of a long run. One line: `false` stops the sends for everyone (the
+ *  banner is unaffected). Jordan: to go false once the maintainer stops updating the site. */
+export const RUN_BEACON_SENDS = true;
+/** Where an older page kept the player's switch ('1' on, '0' off). Nothing reads or writes it now; the name is kept so a
+ *  spec can store an old "off" and show it stops nothing. */
 export const RUN_BEACON_KEY = 'aap.runBeacon';
 /** A run code's length: 16 random bytes in base64url, unpadded. */
 export const RUN_CODE_LENGTH = 22;
@@ -84,78 +86,9 @@ export function beaconKindOf(screen: 'smart' | 'full' | 'by-date', option: Searc
   return option === 'fast' || option === 'exact' || option === 'custom' ? option : 'other';
 }
 
-// ---- the switch ----
-
-function storage(): Pick<Storage, 'getItem' | 'setItem'> | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
-/** The ONE place RUN_BEACON_DEFAULT is read. */
-function readSwitch(): boolean {
-  try {
-    const v = storage()?.getItem(RUN_BEACON_KEY);
-    return v === '1' ? true : v === '0' ? false : RUN_BEACON_DEFAULT;
-  } catch {
-    return RUN_BEACON_DEFAULT;
-  }
-}
-
-let shared: Ref<boolean> | null = null;
-const listeningOn = new WeakSet<object>();
-/** Taking another tab's value in: not written back. */
-let fromOtherTab = false;
-/** Setup's switch: this browser's one value (created on first use). Follows the other tabs (QA review 7 Nov 2026,
- *  finding 8: off in one tab, another still announced its runs): the `storage` event of RUN_BEACON_KEY. A start or
- *  stop re-checks the switch when it would send (`canSend`). */
-export function runBeaconSwitch(): Ref<boolean> {
-  if (shared) return shared;
-  const on = ref(readSwitch());
-  watch(
-    on,
-    v => {
-      if (fromOtherTab) return;
-      try {
-        storage()?.setItem(RUN_BEACON_KEY, v ? '1' : '0');
-      } catch {
-        /* this visit only */
-      }
-    },
-    { flush: 'sync' }
-  );
-  try {
-    const w = typeof window === 'undefined' ? null : (window as unknown as EventTarget | null);
-    if (w && typeof w.addEventListener === 'function' && !listeningOn.has(w)) {
-      listeningOn.add(w);
-      w.addEventListener('storage', e => {
-        try {
-          const ev = e as unknown as { key: string | null; storageArea: unknown };
-          if (!shared || ev.storageArea !== storage() || (ev.key !== RUN_BEACON_KEY && ev.key !== null)) return;
-          fromOtherTab = true;
-          shared.value = readSwitch();
-        } catch {
-          /* keep this tab's value */
-        } finally {
-          fromOtherTab = false;
-        }
-      });
-    }
-  } catch {
-    /* no events: this tab keeps its own value */
-  }
-  return (shared = on);
-}
-
-/** THE GATE: whether the alert may send anything. Option 2 (Words): `consentAgreed('<its study tick>')` instead. */
+/** THE GATE: whether the alert may send anything. */
 export function beaconEnabled(): boolean {
-  try {
-    return runBeaconSwitch().value;
-  } catch {
-    return false;
-  }
+  return RUN_BEACON_SENDS;
 }
 
 // ---- the run ----
@@ -172,9 +105,9 @@ let startedUnarmed: { url: string; at: number } | null = null;
 /** The run this page announced and has not yet said ended. */
 let current: { run: string; url: string } | null = null;
 
-/** The long run going now (started with Run, estimated at BEACON_MIN_SECONDS or more), switch on or off: its estimate
- *  and when it started. For the planned-refresh banner (ReloadPlannedBanner.vue, lib/reloadPlanned.ts), which is local
- *  and does not depend on the switch (Jordan, 7 Nov 2026); only the sends follow the switch. Never the run code. */
+/** The long run going now (started with Run, estimated at BEACON_MIN_SECONDS or more): its estimate and when it
+ *  started. For the planned-refresh banner (ReloadPlannedBanner.vue, lib/reloadPlanned.ts), which is local and does not
+ *  depend on the sends (Jordan, 7 Nov 2026). Never the run code. */
 export interface LongRun {
   estimateSeconds: number;
   startedAt: number;
@@ -211,7 +144,7 @@ function post(url: string, body: string): void {
   }
 }
 
-/** A long run started with Run: `longRun` (the planned-update banner reads it), always; the start, when the switch is on
+/** A long run started with Run: `longRun` (the planned-update banner reads it), always; the start, when the flag is on
  *  and the page online. No collector (a self-hosted copy): neither, since its updates are not the maintainer's. */
 function longRunStarted(url: string, kind: BeaconKind, estimateSeconds: number): void {
   try {
@@ -318,10 +251,9 @@ export function runBeaconPageClosing(): void {
   }
 }
 
-/** For specs: forget the run and the switch (the next read takes storage again). */
+/** For specs: forget the run. */
 export function resetRunBeacon(): void {
   armed = null;
   startedUnarmed = null;
   forget();
-  shared = null;
 }

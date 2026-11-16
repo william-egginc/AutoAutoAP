@@ -468,18 +468,6 @@
             route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
             can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
           </p>
-          <!-- The long-run alert's off switch (lib/runBeacon.ts): a search estimated at 2 hours or more tells the planner's
-               server it started and ended (a random code for that search, its kind, estimate and the page version;
-               never the player ID). Its default is in lib/runBeacon.ts; this browser's own. Words: lib/runBeaconWords.ts. -->
-          <label class="flex items-start gap-3 cursor-pointer" data-testid="run-beacon">
-            <input v-model="runBeaconOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-body text-slate-600">
-              <span class="font-bold text-slate-800">{{ BEACON_SETUP_LABEL }}</span>
-            </span>
-          </label>
-          <p class="ml-7 text-body text-slate-600 max-w-prose" data-testid="run-beacon-line">
-            {{ runBeaconOn ? BEACON_SETUP_LINE : BEACON_SETUP_OFF }}
-          </p>
           <!-- The three "saved online" notices and the Before you send line, word for word (lib/aboutPage.spec.ts pins them
                to about.html), in one fold that opens in place (UX fluff review 2, 5 Nov 2026). -->
           <button
@@ -890,8 +878,6 @@ import { safariStartWords } from '@/lib/safariStartWords';
 import { useTabPrefs } from '@/composables/useTabPrefs';
 import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
-import { runBeaconSwitch } from '@/lib/runBeacon';
-import { BEACON_SETUP_LABEL, BEACON_SETUP_LINE, BEACON_SETUP_OFF } from '@/lib/runBeaconWords';
 import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
@@ -934,8 +920,6 @@ defineProps<{
 const store = useChainSearchStore();
 const safariStartLine = computed(() => safariStartWords(store.safariStart));
 const instantDuringSearch = useInstantDuringSearch();
-/** The long-run alert's switch (lib/runBeacon.ts), this browser's. */
-const runBeaconOn = runBeaconSwitch();
 /** "Share my search results" (mirrors the box under a search's result): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
 /** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
@@ -1080,7 +1064,6 @@ const sharingLine = computed(() => {
   const help = rec.answer === null ? 'none' : rec.answer === 'yes' && rec.accounts[consentState.hash] === 'yes' ? 'yes' : 'no';
   return sharingSummaryWords({
     help,
-    longSearches: !!runBeaconOn.value,
     saveOnline: !!saveOnlineState.value,
     ...(canShareInstant ? { searchResults: !!shareInstantOn.value, instantWithRuns: !!shareBaselineOn.value } : {}),
   });

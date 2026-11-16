@@ -34,9 +34,9 @@ describe('Sharing and privacy', () => {
   it('its line names every setting that sends, and its state', () => {
     expect(tpl).toContain('{{ sharingLine }}');
     const line = src.slice(src.indexOf('const sharingLine'), src.indexOf('\n});', src.indexOf('const sharingLine')));
-    for (const s of ['runBeaconOn', 'saveOnlineState', 'shareInstantOn', 'shareBaselineOn', 'studyState.rec']) expect(line, s).toContain(s);
-    expect(sharingSummaryWords({ help: 'no', longSearches: true, saveOnline: true })).toBe(
-      'Help improve: no thanks · Long searches: on · Save online: on'
+    for (const s of ['saveOnlineState', 'shareInstantOn', 'shareBaselineOn', 'studyState.rec']) expect(line, s).toContain(s);
+    expect(sharingSummaryWords({ help: 'no', saveOnline: true })).toBe(
+      'Help improve: no thanks · Save online: on'
     );
   });
 });

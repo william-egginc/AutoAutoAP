@@ -9,8 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BEACON_MIN_SECONDS,
-  RUN_BEACON_DEFAULT,
-  RUN_BEACON_KEY,
   armLongRun,
   beaconEnabled,
   beaconKindOf,
@@ -19,7 +17,6 @@ import {
   runBeaconPageClosing,
   runBeaconRunEnded,
   runBeaconRunStarted,
-  runBeaconSwitch,
   runsUrlOf,
 } from './runBeacon';
 
@@ -256,66 +253,6 @@ describe('the tab closing (pagehide)', () => {
     runBeaconPageClosing();
     expect(beaconMock).toHaveBeenCalledTimes(1);
     expect(beaconed()[0]).toMatchObject({ t: 'stop', reason: 'closed' });
-  });
-
-  it('no send when the switch is off', () => {
-    startLong();
-    runBeaconSwitch().value = false;
-    runBeaconPageClosing();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(beaconMock).not.toHaveBeenCalled();
-  });
-});
-
-describe('the off switch', () => {
-  it(`is ${RUN_BEACON_DEFAULT ? 'ON' : 'OFF'} by default (RUN_BEACON_DEFAULT): changing it is deliberate`, () => {
-    // Jordan may make this opt-in: flip RUN_BEACON_DEFAULT in lib/runBeacon.ts and this line with it.
-    expect(RUN_BEACON_DEFAULT).toBe(true);
-    expect(runBeaconSwitch().value).toBe(true);
-    expect(beaconEnabled()).toBe(true);
-  });
-
-  it('is remembered in this browser', () => {
-    runBeaconSwitch().value = false;
-    expect(mem.get(RUN_BEACON_KEY)).toBe('0');
-    resetRunBeacon();
-    expect(runBeaconSwitch().value).toBe(false);
-    runBeaconSwitch().value = true;
-    expect(mem.get(RUN_BEACON_KEY)).toBe('1');
-  });
-
-  it('off: nothing is sent, start, stop or closed', () => {
-    runBeaconSwitch().value = false;
-    expect(beaconEnabled()).toBe(false);
-    startLong();
-    runBeaconRunEnded('finished');
-    startLong();
-    runBeaconPageClosing();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(beaconMock).not.toHaveBeenCalled();
-  });
-
-  it('turned off during a run: the stop is not sent either', () => {
-    startLong();
-    runBeaconSwitch().value = false;
-    runBeaconRunEnded('finished');
-    runBeaconPageClosing();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(beaconMock).not.toHaveBeenCalled();
-  });
-
-  it('blocked storage: the default holds, nothing throws', () => {
-    vi.stubGlobal('localStorage', {
-      getItem: () => {
-        throw new Error('blocked');
-      },
-      setItem: () => {
-        throw new Error('blocked');
-      },
-    });
-    resetRunBeacon();
-    expect(runBeaconSwitch().value).toBe(RUN_BEACON_DEFAULT);
-    expect(() => (runBeaconSwitch().value = false)).not.toThrow();
   });
 });
 

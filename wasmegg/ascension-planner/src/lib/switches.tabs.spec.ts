@@ -1,7 +1,7 @@
 /**
- * QA review 7 Nov 2026, finding 1 (HIGH) and 8: the Save online switch (lib/saveOnline.ts) and the run alert's switch
- * (lib/runBeacon.ts) were read once per page, so turning one off (or Delete everything, which turns Save online off)
- * in one tab left the other tabs saving online / announcing runs. Each now follows the `storage` event of its key.
+ * QA review 7 Nov 2026, finding 1 (HIGH): the Save online switch (lib/saveOnline.ts) was read once per page, so turning it
+ * off (or Delete everything, which turns Save online off) in one tab left the other tabs saving online. It now follows
+ * the `storage` event of its key. (Finding 8, the run alert's switch, went with that switch: 16 Nov 2026.)
  *
  * Two tabs here: one shared storage, and this page's `window` (an EventTarget) receiving the `storage` event a browser
  * dispatches in the OTHER tabs when one tab writes (a browser never sends it to the tab that wrote). The repo's vitest
@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAVE_ONLINE_KEY, cloudSubmitUrl, resetSaveOnline, saveOnlineOn, saveOnlineSwitch } from './saveOnline';
-import { RUN_BEACON_KEY, armLongRun, beaconEnabled, resetRunBeacon, runBeaconRunStarted, runBeaconSwitch } from './runBeacon';
+import { resetRunBeacon } from './runBeacon';
 
 let mem: Map<string, string>;
 let ls: Storage;
@@ -62,18 +62,5 @@ describe('Save online follows the other tabs', () => {
     mem.set(SAVE_ONLINE_KEY, '0');
     win.dispatchEvent(Object.assign(new Event('storage'), { key: null, newValue: null, storageArea: ls }));
     expect(saveOnlineOn()).toBe(false);
-  });
-});
-
-describe('the run alert switch follows the other tabs', () => {
-  it('turned off in another tab: a long run started here sends nothing', () => {
-    runBeaconSwitch();
-    otherTabWrites(RUN_BEACON_KEY, '0');
-    expect(beaconEnabled()).toBe(false);
-    armLongRun('fast', 3 * 3600);
-    runBeaconRunStarted('https://x.example/submit');
-    expect(fetch).not.toHaveBeenCalled();
-    // Taking it in writes nothing back.
-    expect(mem.get(RUN_BEACON_KEY)).toBe('0');
   });
 });

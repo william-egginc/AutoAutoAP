@@ -71,7 +71,6 @@ export const SHARING_FOLD_TITLE = 'Sharing and privacy';
 /** The fold's line: every setting that sends, with its state, so nothing is hidden without being named. */
 export function sharingSummaryWords(o: {
   help: 'yes' | 'no' | 'none';
-  longSearches: boolean;
   saveOnline: boolean;
   /** The two share ticks, when the account can share (omit them otherwise). */
   searchResults?: boolean;
@@ -79,7 +78,7 @@ export function sharingSummaryWords(o: {
 }): string {
   const help = o.help === 'yes' ? 'yes' : o.help === 'no' ? 'no thanks' : 'not answered';
   const onOff = (b: boolean) => (b ? 'on' : 'off');
-  const base = `Help improve: ${help} · Long searches: ${onOff(o.longSearches)} · Save online: ${onOff(o.saveOnline)}`;
+  const base = `Help improve: ${help} · Save online: ${onOff(o.saveOnline)}`;
   if (o.searchResults === undefined || o.instantWithRuns === undefined) return base;
   return `${base} · Search results: ${onOff(o.searchResults)} · Instant answer with runs: ${onOff(o.instantWithRuns)}`;
 }
