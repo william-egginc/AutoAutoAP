@@ -73,6 +73,13 @@ describe('an old "off" in this browser stops nothing', () => {
     expect(stop.reason).toBe('cancelled');
   });
 
+  it('Save online off does not stop it either (Jordan, 16 Nov 2026)', () => {
+    mem.set('aap.saveOnline', '0');
+    longRun();
+    runBeaconRunEnded('finished');
+    expect(sent().map(b => b.t)).toEqual(['start', 'stop']);
+  });
+
   it('nothing reads or writes the old key any more', () => {
     mem.set(RUN_BEACON_KEY, '0');
     const writes = vi.fn();
