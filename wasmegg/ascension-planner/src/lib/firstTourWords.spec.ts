@@ -20,14 +20,14 @@ describe('first tour words', () => {
     expect(B('result')).toBe('This is the result: when you would finish, and the TE you would reach. It is worked out from your save.');
     expect(B('filters')).toBe('The filters button opens Setup, where you set what the answer is worked out for.');
     expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
-    expect(B('setupTimeOff')).toBe('Time off marks days you will not prestige. The route plans around them.');
-    expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it finishes only a little later, so you do less.');
+    expect(B('setupTimeOff')).toBe('No prestige days and Time off mark days when the route will not prestige. The route plans around them.');
+    expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
     expect(B('gear')).toBe('What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.');
     expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
     expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.');
     expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next.');
     expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');
-    expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It changes as you check in.');
+    expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.');
     expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when, so you can tick each one off as you go.');
     expect(B('setupWhere')).toBe('Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.');
     expect(B('setupInside')).toBe('Setup holds your awake hours, time off and Save online. The planner works out every answer from them.');
