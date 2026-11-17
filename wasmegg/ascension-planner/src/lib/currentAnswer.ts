@@ -8,6 +8,8 @@
  *   0. By a date (Egg Day too): only an answer whose last TE counts by the date (lib/eggDayRule.ts, Jordan 22 Oct
  *      2026); a late one is never the pick, whatever it reaches;
  *   1. an answer of the loaded save (or of one at most CURRENT_SAVE_SECONDS older, fix 21) before any other;
+ *      among those, My runs' plans of the loaded save ITSELF (`ofThisSave`) before an older one's, whatever the TE
+ *      (Jordan, 17 Nov 2026: a later save's own 198 TE plan leads the earlier save's 199);
  *   2. an answer priced with the CURRENT setup (hours and time off as Your setup has them now) before one priced
  *      with other hours or with hours not recorded, EVEN IF that one finishes sooner;
  *   3. (current saves) checked or searched before the instant answer's table alone;
@@ -150,6 +152,9 @@ export interface Rankable {
   calculatedAt: number;
   /** A plan Right now can show (a kept snapshot): it leads a tie, so the card and the tile name the same one. */
   plan?: boolean;
+  /** Of the loaded save itself (within a minute), not just a current one: it leads every other current save's answer, whatever the TE
+   *  (Jordan, 17 Nov 2026). Set for My runs' plans (`rankableOf`); unset ranks as before. */
+  thisSave?: boolean;
 }
 
 /** Whether an answer's save is current against the loaded one (`ownKey`: under this save's own key). */
@@ -170,6 +175,7 @@ export function compareAnswers(goal: 'fastest' | 'date') {
   const q = quality(goal);
   return (a: Rankable, b: Rankable): number => {
     if (a.currentSave !== b.currentSave) return a.currentSave ? -1 : 1;
+    if (a.currentSave && !!a.thisSave !== !!b.thisSave) return a.thisSave ? -1 : 1;
     const fit = (x: Rankable) => (x.fit === 'current' ? 0 : 1);
     if (fit(a) !== fit(b)) return fit(a) - fit(b);
     if (!a.currentSave) return b.calculatedAt - a.calculatedAt;
@@ -221,8 +227,16 @@ export interface CardPick {
   secondary: CardCandidate | null;
 }
 
+/** A plan of the loaded save itself: its save time within a minute; without one, its own key. Not ownKey alone: two saves
+ *  minutes apart share the key (QA's two-save run, 17 Nov 2026). */
+export function ofThisSave(c: Pick<CardCandidate, 'plan' | 'ownKey'>, loaded: number): boolean {
+  const bt = c.plan.meta?.backupTime;
+  return typeof bt === 'number' ? Math.abs(bt - loaded) <= 60 : c.ownKey;
+}
+
 const rankableOf = (c: CardCandidate, loaded: number): Rankable => ({
   currentSave: isCurrentSave(c.plan.meta?.backupTime ?? null, loaded, c.ownKey),
+  thisSave: ofThisSave(c, loaded),
   fit: c.check.fit,
   how: c.plan.exact ? 'check' : 'instant',
   end: c.plan.end,
