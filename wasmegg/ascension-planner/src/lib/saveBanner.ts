@@ -17,11 +17,16 @@
 import { SYNC_AFTER_SECONDS, saveState, toneLines, type SaveState, type SaveStateInput } from './saveFreshness';
 import { ageWords } from './saveAge';
 import { dateAt } from './eventWhen';
-import { quietSaveWord, siloLine, thresholdsDetail } from './saveFreshnessWords';
+import { quietSaveWord, saveFreshAgeLine, siloLine, thresholdsDetail } from './saveFreshnessWords';
 
 /** The silo line turns amber with under this share of the silo time left (Jordan, 12 Nov 2026: 30%). Details says it as
  *  lib/saveFreshnessWords.ts SILO_AMBER_PERCENT_WORDS; a spec pins the two equal. */
 export const SILO_LINE_LOW_FRACTION = 0.3;
+
+/** The silo warning (low or already run out) is for a fresh save only: under this age (17 Nov 2026, Jordan). Older than an
+ *  hour, the player has likely opened the game since, which refills the silos, so the line just says the save's age. One
+ *  hour is also where the save strip first turns yellow (saveFreshness.ts TONE_FLOOR_SECONDS); a spec pins the two equal. */
+export const FRESH_SAVE_SECONDS = 3600;
 
 /** The save strip's state: saveState's, with `old` (Why and Details shown) and `outOfDate` (amber text). */
 export type SaveBannerState = SaveState & { old?: boolean; outOfDate?: boolean };
@@ -80,6 +85,12 @@ export function siloLineState(s: SaveState | null, nowSeconds: number, zone: str
   const left = runOut - nowSeconds;
   const past = left <= 0;
   const low = left < SILO_LINE_LOW_FRACTION * s.siloSeconds;
+  // Not fresh (or its true age unknown: the clock looks behind): no warning, just the save's age.
+  const fresh = !s.clockBehindSeconds && s.saveAgeSeconds < FRESH_SAVE_SECONDS;
   const when = dateAt(runOut, nowSeconds, zone);
+  if ((low || past) && !fresh) {
+    if (s.clockBehindSeconds) return when ? { text: siloLine({ when, low: false }), low: false, past: false } : null;
+    return { text: saveFreshAgeLine(ageWords(s.saveAgeSeconds)), low: false, past: false };
+  }
   return when ? { text: siloLine({ when, past, low }), low, past } : null;
 }

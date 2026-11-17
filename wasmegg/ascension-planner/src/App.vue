@@ -21,9 +21,9 @@
     ]"
     :style="setupDockShown ? { paddingBottom: pageRoom } : undefined"
   >
-    <!-- From sm to 1099 px the Setup pill is the 48 px round gear at the right edge (SetupDock.vue): the page keeps a right margin for it
+    <!-- From sm to 1279 px the Setup pill is the 48 px round gear at the right edge (SetupDock.vue): the page keeps a right margin for it
          (4.5 rem), so no content lies under it (Jordan, 17 Nov 2026). -->
-    <div class="max-w-6xl mx-auto p-4" :class="setupDockShown ? 'sm:max-[1099px]:pr-[4.5rem]' : ''">
+    <div class="max-w-6xl mx-auto p-4" :class="setupDockShown ? 'sm:max-[1279px]:pr-[4.5rem]' : ''">
       <CustomEggWatcher v-if="isDev" />
 
       <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Hidden while the egg-beta

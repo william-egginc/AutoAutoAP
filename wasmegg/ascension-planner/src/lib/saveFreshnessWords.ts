@@ -30,6 +30,12 @@ export function siloLine(o: { when: string; past?: boolean; low?: boolean }): st
 }
 
 /**
+ * THE SILO LINE OF A SAVE THAT IS NOT FRESH (17 Nov 2026, Jordan: the amber warning only for a fresh save; an older one
+ * just says its age). `age`: lib/saveAge.ts `ageWords`, e.g. "2h". PLACEHOLDER until Words' line lands.
+ */
+export const saveFreshAgeLine = (age: string) => `From your save ${age} ago`;
+
+/**
  * The thresholds sentences behind "Details" (moved out of lib/saveFreshness.ts, which is hashed; saveBanner.ts swaps this
  * in for its older "Getting old after…" line). `yellow` / `red`: where Getting old and Out of date start, already as words
  * (lib/saveAge.ts `ageWords`); `clockRight`: the clock-behind state's ending.

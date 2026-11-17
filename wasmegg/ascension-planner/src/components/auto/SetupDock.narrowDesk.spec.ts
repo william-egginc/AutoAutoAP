@@ -1,12 +1,12 @@
 /**
- * The Setup pill on a window 640 to 1100 px wide (Jordan, 17 Nov 2026, about 890 css px on a retina Mac; his Oct test list: "The Setup
- * button shouldn't cover anything"). Measured on a built page: at 1100 px and up the pill sits in the margin beside the 828 px column;
+ * The Setup pill on a window 640 to 1280 px wide (Jordan, 17 Nov 2026, about 890 css px on a retina Mac; his Oct test list: "The Setup
+ * button shouldn't cover anything"). Measured on a built page: at 1280 px and up the pill sits in the margin beside the 828 px column;
  * below about 1090 it lay over the instant answer. Two rules:
  *  (a) a remembered drag position is forgotten when the window's width has changed by more than 40 px since it was saved (an old entry
  *      with no width is forgotten once), so a spot left at one size cannot sit over the content at another;
- *  (b) from sm to 1099 px the pill is the small round gear at the right edge (My runs included: its hours are one tap away in Setup), and
+ *  (b) from sm to 1279 px the pill is the small round gear at the right edge (My runs included: its hours are one tap away in Setup), and
  *      App.vue keeps a right margin for it so no content lies under it. A running search keeps the pill (its workers stay adjustable).
- * CSS arbitrary breakpoints (sm:max-[1099px]:), so it is right from the first paint.
+ * CSS arbitrary breakpoints (sm:max-[1279px]:), so it is right from the first paint.
  */
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -70,27 +70,27 @@ describe('(a) a remembered position is forgotten when the window width has chang
   });
 });
 
-describe('(b) from sm to 1099 px the pill is the round gear, My runs included', () => {
-  it('at rest: the pill is 48 px round and the gear fills it (the word and the handle are hidden), sm to 1099 px', async () => {
+describe('(b) from sm to 1279 px the pill is the round gear, My runs included', () => {
+  it('at rest: the pill is 48 px round and the gear fills it (the word and the handle are hidden), sm to 1279 px', async () => {
     const c = classOf(pillTag(await render()));
-    expect(c).toEqual(expect.arrayContaining(['max-[1099px]:w-12', 'max-[1099px]:h-12', 'max-[1099px]:p-0', 'max-[1099px]:rounded-full']));
+    expect(c).toEqual(expect.arrayContaining(['max-[1279px]:w-12', 'max-[1279px]:h-12', 'max-[1279px]:p-0', 'max-[1279px]:rounded-full']));
   });
-  it('My runs (its summary): the same round gear from sm to 1099 px, its summary line hidden there', async () => {
+  it('My runs (its summary): the same round gear from sm to 1279 px, its summary line hidden there', async () => {
     const html = await render({ screen: 'fastest', summary: 'Awake 8:00 AM to 11:00 PM' });
-    expect(classOf(pillTag(html))).toEqual(expect.arrayContaining(['sm:max-[1099px]:w-12', 'sm:max-[1099px]:h-12', 'sm:max-[1099px]:rounded-full']));
+    expect(classOf(pillTag(html))).toEqual(expect.arrayContaining(['sm:max-[1279px]:w-12', 'sm:max-[1279px]:h-12', 'sm:max-[1279px]:rounded-full']));
     expect(html).toMatch(/data-testid="setup-dock-summary"[^>]*>/);
-    expect(html.match(/<span[^>]*class="[^"]*sm:max-\[1099px\]:hidden[^"]*"[^>]*data-testid="setup-dock-summary"/) ?? html.match(/<span[^>]*data-testid="setup-dock-summary"[^>]*class="[^"]*sm:max-\[1099px\]:hidden/)).toBeTruthy();
+    expect(html.match(/<span[^>]*class="[^"]*sm:max-\[1279px\]:hidden[^"]*"[^>]*data-testid="setup-dock-summary"/) ?? html.match(/<span[^>]*data-testid="setup-dock-summary"[^>]*class="[^"]*sm:max-\[1279px\]:hidden/)).toBeTruthy();
   });
   it('a running search keeps the pill (its workers stay adjustable)', async () => {
     const c = classOf(pillTag(await render({ screen: 'fastest' }, { searching: true })));
-    expect(c.join(' ')).not.toContain('max-[1099px]:w-12');
+    expect(c.join(' ')).not.toContain('max-[1279px]:w-12');
   });
   it("App.vue keeps a right margin for the gear on those widths, so no content lies under it", () => {
     const app = readFileSync(new URL('../../App.vue', import.meta.url), 'utf8');
-    expect(app).toMatch(/setupDockShown \? 'sm:max-\[1099px\]:pr-\[4\.5rem\]' : ''/);
+    expect(app).toMatch(/setupDockShown \? 'sm:max-\[1279px\]:pr-\[4\.5rem\]' : ''/);
   });
-  it('the gear drags itself up to 1099 px, not only on a phone', () => {
+  it('the gear drags itself up to 1279 px, not only on a phone', () => {
     const src = readFileSync(new URL('./SetupDock.vue', import.meta.url), 'utf8');
-    expect(src).toContain('viewport.value.w < 1100');
+    expect(src).toContain('viewport.value.w < 1280');
   });
 });

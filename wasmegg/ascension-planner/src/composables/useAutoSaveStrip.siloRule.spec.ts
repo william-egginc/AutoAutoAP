@@ -127,8 +127,8 @@ describe('the silo line: always with a virtue farm, amber under 30%', () => {
     stop();
   });
 
-  it('under 30% of the silo time left: Words\' low words and an amber tint', async () => {
-    const { s, stop } = strip(NOW - (S - 0.25 * S), { silos: 10 });
+  it('under 30% of the silo time left on a FRESH save: Words\' low words and an amber tint', async () => {
+    const { s, stop } = strip(NOW - 10 * 60, { silos: 10, farmAt: NOW - 0.75 * S });
     const l = s.silo.value!;
     expect(l.low).toBe(true);
     expect(l.text).toMatch(/^Silos are low: from your save, they run out about .*\. If you've opened the game since, they've refilled/);
@@ -138,14 +138,25 @@ describe('the silo line: always with a virtue farm, amber under 30%', () => {
     stop();
   });
 
+  it('the same low silos on a save over an hour old: just its age, no warning, no amber (17 Nov 2026)', async () => {
+    const { s, stop } = strip(NOW - 2 * H, { silos: 10, farmAt: NOW - 0.75 * S });
+    const l = s.silo.value!;
+    expect(l.low).toBe(false);
+    expect(l.text).toBe('From your save 2h ago');
+    const html = await renderHtml(SiloLine, { silo: l });
+    expect(html).not.toContain('text-amber-800');
+    expect(html).toContain('data-low="false"');
+    stop();
+  });
+
   it('exactly 30% left is not low yet', () => {
     const { s, stop } = strip(NOW - 0.7 * S, { silos: 10 });
     expect(s.silo.value?.low).toBe(false);
     stop();
   });
 
-  it('already gone by: "they ran out about …", low', () => {
-    const { s, stop } = strip(NOW - S - 3 * H, { silos: 10 });
+  it('already gone by, on a fresh save: "they ran out about …"', () => {
+    const { s, stop } = strip(NOW - 10 * 60, { silos: 10, farmAt: NOW - S - 3 * H });
     expect(s.silo.value?.past).toBe(true);
     expect(s.silo.value?.text).toMatch(/^From your save, your silos ran out about /);
     stop();
