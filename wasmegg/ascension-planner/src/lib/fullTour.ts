@@ -59,7 +59,11 @@ export type FullTourStepId = (typeof FULL_TOUR_STEPS)[number];
 
 /** The steps for what is loaded: all of them, whoever asks (Jordan, 16 Nov 2026: the pictures are baked screenshots of a sample account,
  *  so a visitor with no player ID or save sees the same forty-two; a slide about something that needs a loaded save just shows its
- *  picture). `p` stays in the signature for the callers that pass what is loaded. */
-export function fullStepsFor(_p: { hasAccount: boolean }): FullTourStepId[] {
-  return [...FULL_TOUR_STEPS];
+ *  picture). `p` stays in the signature for the callers that pass what is loaded.
+ *  `seen`: the steps the first tour just showed, when the full one is opened from the end of it (17 Nov 2026, Jordan: it repeated what
+ *  the first tour had said): they are left out, the order of the rest kept, so it starts at the first slide the first tour did not cover.
+ *  From More or About nothing is left out (that player may not have taken the first tour). */
+export function fullStepsFor(_p: { hasAccount: boolean }, seen: readonly string[] = []): FullTourStepId[] {
+  const skip = new Set<string>(seen);
+  return FULL_TOUR_STEPS.filter(id => !skip.has(id));
 }

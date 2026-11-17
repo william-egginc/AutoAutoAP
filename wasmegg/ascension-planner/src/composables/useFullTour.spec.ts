@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTourController, type TourEnv } from './useFirstTour';
 import { FULL_TOUR_STEPS, fullStepsFor } from '@/lib/fullTour';
+import { stepsFor } from '@/lib/firstTour';
 import { FULL_TOUR_STEPS_WORDS, fullTourAnnounce } from '@/lib/fullTourWords';
 
 /** A storage that counts every touch. */
@@ -105,5 +106,53 @@ describe('from the first tour: "More: Full tour"', () => {
     t.fullFromFirst(ENV);
     expect(t.state.mode).toBe('first');
     expect(t.state.index).toBe(0);
+  });
+});
+
+describe('opened from the end of the first tour: only what the first tour did not say (17 Nov 2026, Jordan: it repeated)', () => {
+  const fromQuick = (env: TourEnv = ENV) => {
+    const { st } = counting();
+    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
+    t.replay(env);
+    for (let i = 0; i < t.total.value - 1; i++) t.next();
+    t.fullFromFirst(env);
+    return t;
+  };
+  it('starts at the first slide the first tour did not cover, and no covered slide comes after it either', () => {
+    const t = fromQuick();
+    const seen = new Set<string>(stepsFor(ENV));
+    const mine = fullStepsFor(ENV, stepsFor(ENV));
+    expect(t.state.mode).toBe('full');
+    expect(t.total.value).toBe(mine.length);
+    expect(t.step.value).toBe('tabLeaderboard');
+    expect(mine.some(id => seen.has(id))).toBe(false);
+    expect(mine.length).toBeLessThan(FULL_TOUR_STEPS.length);
+    // Order kept: the full list with the covered ones taken out.
+    expect(mine).toEqual(FULL_TOUR_STEPS.filter(id => !seen.has(id)));
+  });
+  it('walks to its last card and Done closes it, as always', () => {
+    const t = fromQuick();
+    for (let i = 0; i < t.total.value - 1; i++) t.next();
+    expect(t.step.value).toBe('r6boardRuns');
+    t.done();
+    expect(t.state.phase).toBe('closed');
+  });
+  it('a player with a save file and no ID saw fewer in the first tour, so the full one keeps what they did not see', () => {
+    const env = { ...ENV, hasAccount: false, hasSaveFile: true };
+    const t = fromQuick(env);
+    const seen = new Set<string>(stepsFor(env));
+    expect(t.total.value).toBe(FULL_TOUR_STEPS.filter(id => !seen.has(id)).length);
+    expect(t.state.announce).toContain(`1 of ${t.total.value}`);
+  });
+  it('More: Full tour (not from the first tour) keeps all of them, and so does a later replay of it', () => {
+    const { st } = counting();
+    const t = createTourController({ storage: st, blocked: false, newVisitor: false });
+    t.startFull(ENV);
+    expect(t.total.value).toBe(FULL_TOUR_STEPS.length);
+    expect(t.step.value).toBe('tabManual');
+    const u = fromQuick();
+    u.done();
+    u.startFull(ENV);
+    expect(u.total.value).toBe(FULL_TOUR_STEPS.length);
   });
 });

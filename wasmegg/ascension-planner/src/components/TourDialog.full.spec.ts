@@ -70,3 +70,23 @@ describe('opening the full tour puts focus on slide 1\'s heading (17 Nov 2026, Q
     expect(dialog).toMatch(/ref="titleEl"[^>]*tabindex="-1"|tabindex="-1"[^>]*ref="titleEl"/);
   });
 });
+
+describe('the dots and Back / Next fit at any width (17 Nov 2026, Jordan: Next spilled over in the full tour at about 1000 px)', () => {
+  it('up to 24 slides: the dots', async () => {
+    const html = await renderHtml(TourDialog, { ...full(1), total: 22 });
+    expect(html).not.toContain('data-testid="tour-progress"');
+    expect(html.match(/block h-2 rounded-full/g)).toHaveLength(22);
+  });
+  it('more than 24 (the full tour has 42): one thin progress bar, not a dot a slide', async () => {
+    const html = await renderHtml(TourDialog, { ...full(1), total: 42 });
+    expect(html).toContain('data-testid="tour-progress"');
+    expect(html).not.toMatch(/block h-2 rounded-full/);
+    expect(html).toMatch(/data-testid="tour-progress"[\s\S]{0,300}width:\s*4\.7/);
+  });
+  it('the row can shrink, and Back / Next never do', () => {
+    const tpl = dialog.slice(0, dialog.indexOf('<script'));
+    const row = tpl.slice(tpl.indexOf('mt-2 flex min-w-0 items-center justify-between'), tpl.indexOf('data-testid="tour-back"'));
+    expect(row).toContain('min-w-0');
+    expect(tpl).toMatch(/ml-auto flex shrink-0 gap-2/);
+  });
+});

@@ -83,11 +83,13 @@ export function createTourController(opts: { storage?: TourStorage | null; block
     /** Set when the box closes: where focus goes (TourModal.vue calls `focusRestored()`). */
     restore: null as TourRestore | null,
     announce: '',
+    /** Full tour only: the first tour's steps it was opened after (left out of its list); empty from More or About. */
+    fullSeen: [] as string[],
   });
   const env = ref<TourEnv>({ hasAccount: false, hasSaveFile: false, running: false });
   let stored: TourStored = { kind: 'absent' };
 
-  const steps = computed<AnyTourStepId[]>(() => (state.mode === 'full' ? fullStepsFor(env.value) : stepsFor(env.value)));
+  const steps = computed<AnyTourStepId[]>(() => (state.mode === 'full' ? fullStepsFor(env.value, state.fullSeen) : stepsFor(env.value)));
   const step = computed<AnyTourStepId>(() => steps.value[Math.min(state.index, steps.value.length - 1)] ?? TOUR_STEPS[0]);
   const total = computed(() => steps.value.length);
   const isLast = computed(() => state.index >= steps.value.length - 1);
@@ -155,9 +157,10 @@ export function createTourController(opts: { storage?: TourStorage | null; block
     /** THE FULL TOUR (lib/fullTour.ts): "Full tour" in More, the first tour's last card or About. Slide 1 of its own list at
      *  once, no Remind me later, never reading or writing aap.tour; Skip, Esc and Done only close it, back to where focus was.
      *  Not while a search runs. */
-    startFull(e: TourEnv): void {
+    startFull(e: TourEnv, seen: readonly string[] = []): void {
       env.value = { ...e };
       if (e.running) return;
+      state.fullSeen = [...seen];
       state.mode = 'full';
       state.phase = 'slides';
       state.index = 0;
@@ -171,7 +174,8 @@ export function createTourController(opts: { storage?: TourStorage | null; block
       if (state.mode !== 'first' || state.phase !== 'slides' || !isLast.value) return;
       stored = afterDone();
       write(stored);
-      api.startFull(e);
+      // What the first tour just showed this player is not said again (fullStepsFor).
+      api.startFull(e, steps.value);
     },
     /** Shown on the page now: open and nothing to wait behind. */
     visible(w: TourWait): boolean {

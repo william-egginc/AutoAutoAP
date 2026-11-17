@@ -123,14 +123,19 @@
             {{ FULL_TOUR_FROM_FIRST }} ›
           </button>
         </div>
-        <div class="mt-2 flex items-center justify-between gap-2">
-          <span class="hidden items-center gap-1.5 sm:flex" aria-hidden="true">
+        <div class="mt-2 flex min-w-0 items-center justify-between gap-2">
+          <!-- Up to 24 slides a dot each; the full tour's 42 would push Back and Next out of the box at about 1000 px, so past that one
+               thin bar fills as the tour goes (the step line above says where, in words). -->
+          <span v-if="total <= 24" class="hidden min-w-0 items-center gap-1.5 sm:flex" aria-hidden="true">
             <span
               v-for="k in total"
               :key="k"
               class="block h-2 rounded-full"
               :class="k - 1 === index ? 'w-5 bg-indigo-600' : 'w-2 bg-slate-300'"
             ></span>
+          </span>
+          <span v-else class="block h-1.5 min-w-0 max-w-[16rem] flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden="true" data-testid="tour-progress">
+            <span class="block h-full rounded-full bg-indigo-600" :style="{ width: `${((index + 1) / total) * 100}%` }"></span>
           </span>
           <span class="ml-auto flex shrink-0 gap-2">
             <button
