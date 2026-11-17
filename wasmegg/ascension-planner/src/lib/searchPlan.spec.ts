@@ -249,6 +249,51 @@ describe('liveSearchResult: the store result for this goal and save (the instant
   });
 });
 
+describe('liveSearchResult stamps the save it was priced on (17 Nov 2026)', () => {
+  const fastest: LiveSearchInput['fastest'] = {
+    running: false, bestDays: 475, bestChain: [197, 490], bestLegs: [], planStart: NOW, custom: false, effort: 'quick', at: 5, owner: '', saveAt: NOW - 1800,
+  };
+  const base: LiveSearchInput = {
+    goal: 'fastest', deadline: null, target: 490, currentTE: 186.4, ownerOk: () => true, fastest,
+    date: {
+      running: false, owner: '',
+      result: { deadline: DEADLINE, te: 186, simple: true, level: 'quick', at: 7, planStart: NOW, backupAt: NOW - 1800, routes: [{ chain: [197, 312], reachAt: DEADLINE - D }] },
+    },
+  };
+  it('both goals carry backupAt (unknown: null)', () => {
+    expect(liveSearchResult(base)?.backupAt).toBe(NOW - 1800);
+    expect(liveSearchResult({ ...base, goal: 'date', deadline: DEADLINE })?.backupAt).toBe(NOW - 1800);
+    expect(liveSearchResult({ ...base, fastest: { ...fastest, saveAt: 0 } })?.backupAt).toBeNull();
+    const d = { ...base.date.result!, backupAt: null };
+    expect(liveSearchResult({ ...base, goal: 'date', deadline: DEADLINE, date: { ...base.date, result: d } })?.backupAt).toBeNull();
+  });
+  it('fromOtherSave: same save within 10 minutes, 30 minutes newer, unknown either side', async () => {
+    const { fromOtherSave } = await import('./searchPlan');
+    const s = liveSearchResult(base)!;
+    expect(fromOtherSave(s, NOW - 1800 + 300)).toBe(false);
+    expect(fromOtherSave(s, NOW)).toBe(true);
+    expect(fromOtherSave(s, null)).toBe(false);
+    expect(fromOtherSave({ ...s, backupAt: null }, NOW)).toBe(false);
+    expect(fromOtherSave({ ...s, backupAt: undefined }, NOW)).toBe(false);
+    expect(fromOtherSave(null, NOW)).toBe(false);
+  });
+  it('readSearch keeps backupAt', () => {
+    expect(readSearch(liveSearchResult(base))?.backupAt).toBe(NOW - 1800);
+  });
+  it('keptEntryOf: another save is kept under its own backupAt with no setup or teByEgg', async () => {
+    const { keptEntryOf } = await import('./searchPlan');
+    const s = liveSearchResult(base)!;
+    const meta = { account: 'acct', goal: 'target 490', backupTime: NOW, setup: { availability: null, timeOff: [] }, teByEgg: [1, 2, 3, 4, 5] };
+    const other = keptEntryOf(meta, s);
+    expect(other.backupTime).toBe(NOW - 1800);
+    expect(other.setup).toBeUndefined();
+    expect(other.teByEgg).toBeUndefined();
+    const same = keptEntryOf({ ...meta, backupTime: NOW - 1700 }, s);
+    expect(same.backupTime).toBe(NOW - 1700);
+    expect(same.teByEgg).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
 describe('results kept beyond the snapshot (aap-search-plans)', () => {
   const mem = () => {
     const m = new Map<string, string>();

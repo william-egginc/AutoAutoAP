@@ -83,6 +83,8 @@ import {
   readKeptSearches,
   readSearch,
   recordKeptSearch,
+  keptEntryOf,
+  fromOtherSave,
   type Driving,
   type KeptSearch,
   type SnapSearch,
@@ -495,6 +497,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         effort: store.runSettingsUsed?.effort,
         at: store.chainResultAt,
         owner: store.chainResultOwner,
+        saveAt: store.chainRunSaveAt,
       },
       date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner },
     });
@@ -522,8 +525,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    *  store's result, the snapshot's or the one kept beyond it, the newest. */
   function drivingOf(g: Goal, goalKey: GoalKey, snapKey: string | null): Driving {
     const k = keptFor(g);
+    // A store result priced on another save never drives this save's plan (17 Nov 2026).
+    const lv = liveFor(g);
     return drivingPlan(snapOf(snapKey), g.goal, g.deadline, {
-      live: newerSearch(liveFor(g), k?.search ?? null),
+      live: newerSearch(fromOtherSave(lv, saveSeconds.value) ? null : lv, k?.search ?? null),
       // Gone back in this visit, or on an earlier one (kept with the result).
       back: wentBack.value[backKey(goalKey)] ?? (k?.back ? k.search.at : null),
       meta: k ? { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup } : null,
@@ -534,14 +539,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const acct = account.value;
     if (!acct || !hasSave.value) return false;
     const sn = setupNow.value;
-    return recordKeptSearch({
-      account: acct,
-      goal: goalWordsOf(g),
-      backupTime: saveSeconds.value,
-      setup: { availability: sn.setup.availability ? JSON.parse(JSON.stringify(sn.setup.availability)) : null, timeOff: JSON.parse(JSON.stringify(sn.setup.timeOff ?? [])) },
-      teByEgg: [...teByEgg.value],
-      search: s,
-    });
+    // A result priced on another save is kept under that save's own time, without this save's setup and TE by egg.
+    return recordKeptSearch(
+      keptEntryOf(
+        {
+          account: acct,
+          goal: goalWordsOf(g),
+          backupTime: saveSeconds.value,
+          setup: { availability: sn.setup.availability ? JSON.parse(JSON.stringify(sn.setup.availability)) : null, timeOff: JSON.parse(JSON.stringify(sn.setup.timeOff ?? [])) },
+          teByEgg: [...teByEgg.value],
+        },
+        s
+      )
+    );
   }
 
   // ------------------------------------------------------------------------- the answers kept
@@ -595,7 +605,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         const s = snapKey ? (snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null) : null;
         const newest = newerSearch(live, readSearch(s?.search));
         if (newest && keepResult(g, newest)) changed = true;
-        if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at) continue;
+        if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at || fromOtherSave(live, saveSeconds.value)) continue;
         if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
           parsed.delete(snapKey);
           changed = true;
@@ -782,7 +792,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const results: FollowResult[] = [];
     const olderResultsFromBoard: FollowResult[] = [];
     const live = liveFor(g);
-    if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
+    const olderLive: FollowResult[] = [];
+    // Priced on another save (17 Nov 2026): an older save's result, as the board run's older case below.
+    if (live && fromOtherSave(live, saveSeconds.value))
+      olderLive.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: live.backupAt as number }, check: setupCheck(null, sn.setup, sn.today) });
+    else if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
     // The account's Leaderboard run of this route, sent from another browser (`boardRuns`): this save's when its save is
     // the loaded one (within ten minutes), else an older save's.
     const run = boardRuns.value[sel.goal.key];
@@ -805,7 +819,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       });
     // The account's results for the goal kept from older saves (or this save under another setup): a followed route
     // that is one of them shows its timeline, said to be priced on that save.
-    const olderResults: FollowResult[] = [...olderResultsFromBoard];
+    const olderResults: FollowResult[] = [...olderLive, ...olderResultsFromBoard];
     for (const e of keptList.value) {
       if (!acct || e.account !== acct || e.goal !== words || e.search.at === k?.search.at) continue;
       olderResults.push({

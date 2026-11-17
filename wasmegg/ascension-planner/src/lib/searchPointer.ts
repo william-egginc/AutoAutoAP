@@ -4,10 +4,15 @@
  * instant card gains one line, "Fast found 312 TE on your account. See it ↓" (By a date) or "Fast found Feb 8, 2028
  * at 9:10 am on your account. See it ↓" (Fastest), and nothing else on it changes. The link scrolls to the result.
  *
+ * A result priced on ANOTHER save of the account (the player loaded a newer save at the same TE, 17 Nov 2026) is still
+ * shown, but says so: "Fast found 312 TE on your save from Nov 16, 9:10 AM. Run Fast again to check it on this save."
+ * (searchPointerWords.ts). The caller hands the result's own save time (`otherSaveAt`) only when it is from another save.
+ *
  * Pure: InstantRoute.vue reads the chain-search store and hands the finished result here.
  */
 
 import type { LegSummary } from '@/search/types';
+import { otherSavePointer } from './searchPointerWords';
 import { firstLegShifts, oneMoreTE, type FirstShift, type OneMoreTE } from '@/search/routeExtras';
 
 /** A search's level as the panel names it (lib/searchOption.ts): Fast, Exact or Custom. */
@@ -38,16 +43,22 @@ export interface Pointer {
   value: string;
   /** The whole sentence, without the link. */
   text: string;
+  /** Another save's result: the sentence says so (the value stays in bold). */
+  otherSave?: boolean;
 }
 
 /** The pointer line's words for a result, or null with none. */
 export function pointerOf(
   goal: 'date' | 'fastest',
   found: FoundResult | null,
-  show: (unix: number) => string
+  show: (unix: number) => string,
+  /** The save the result was priced on, unix seconds, when that is not the loaded one (`fromOtherSave`). */
+  otherSaveAt?: number | null
 ): Pointer | null {
   if (!found || !found.chain.length) return null;
   const value = goal === 'date' ? `${Math.floor(found.endTE)} TE` : show(found.end);
+  if (otherSaveAt && otherSaveAt > 0)
+    return { level: found.level, value, text: otherSavePointer(found.level, value, show(otherSaveAt)), otherSave: true };
   return { level: found.level, value, text: `${found.level} found ${value} on your account.` };
 }
 

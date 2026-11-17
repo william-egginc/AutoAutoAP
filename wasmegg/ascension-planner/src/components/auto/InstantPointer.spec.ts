@@ -42,6 +42,13 @@ describe('the pointer at the top of the instant area', () => {
     expect(textOf(html)).toBe('Fast found 313 TE on your account. See it ↓');
     expect(html).toContain('data-testid="instant-pointer-link"');
   });
+  it('a result from another save says so, with the bold value and the link (17 Nov 2026)', async () => {
+    const p = pointerOf('date', dateRun(), String, NOW - 1800);
+    const html = await renderHtml(InstantPointer, { pointer: p! });
+    expect(textOf(html)).toBe(`Fast found 313 TE on your save from ${NOW - 1800}. Run Fast again to check it on this save. See it ↓`);
+    expect(html).toContain('<b>313 TE</b>');
+    expect(html).toContain('data-testid="instant-pointer-link"');
+  });
   it('none while it runs, or for another date or another TE', () => {
     expect(dateRun({ running: true })).toBeNull();
     expect(dateRun({ deadline: DEADLINE + 3600 })).toBeNull();
