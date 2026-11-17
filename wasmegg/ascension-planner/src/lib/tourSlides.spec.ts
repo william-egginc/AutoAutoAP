@@ -12,7 +12,7 @@ import { FIRST_TOUR_ALT } from './firstTourWords';
 
 describe('tour slides', () => {
   it('twenty-two slides in order (tour v3, spec-tour-v3, Jordan, 16 Nov 2026: one thing a slide, big things first; the tab row is four slides, the goal switch two); each has its own picture pair', () => {
-    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
+    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
     const files: Record<string, string> = {
       tabManual: '1-tab-manual',
       tabAuto: '2-tab-auto',

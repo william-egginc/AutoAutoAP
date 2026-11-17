@@ -33,9 +33,9 @@ export const FULL_TOUR_STEPS = [
   'followedRoute',
   'nextStep',
   'tracker',
+  'shifts',
   'setupWhere',
   'setupInside',
-  'shifts',
   'm1more',
   'm2search',
   'm3fast',
@@ -57,9 +57,9 @@ export const FULL_TOUR_STEPS = [
 ] as const;
 export type FullTourStepId = (typeof FULL_TOUR_STEPS)[number];
 
-/** The steps for what is loaded: with no account there is no My runs, Setup button or More to show, so the tour is the tabs and the
- *  answer screen's top (the tabs, the goal switch, the filters button). */
-export function fullStepsFor(p: { hasAccount: boolean }): FullTourStepId[] {
-  const noAccount = new Set<FullTourStepId>(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate']);
-  return p.hasAccount ? [...FULL_TOUR_STEPS] : FULL_TOUR_STEPS.filter(s => noAccount.has(s));
+/** The steps for what is loaded: all of them, whoever asks (Jordan, 16 Nov 2026: the pictures are baked screenshots of a sample account,
+ *  so a visitor with no player ID or save sees the same forty-two; a slide about something that needs a loaded save just shows its
+ *  picture). `p` stays in the signature for the callers that pass what is loaded. */
+export function fullStepsFor(_p: { hasAccount: boolean }): FullTourStepId[] {
+  return [...FULL_TOUR_STEPS];
 }

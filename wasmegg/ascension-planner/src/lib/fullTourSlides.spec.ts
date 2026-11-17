@@ -22,7 +22,7 @@ describe('the full tour slides', () => {
     }
   });
   it("the slides it shares with the first tour use the first tour's pictures and overlays (no second copy)", () => {
-    for (const id of ['load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts'] as const) {
+    for (const id of ['load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside'] as const) {
       const full = FULL_TOUR_SLIDES.find(s => s.id === id)!;
       const first = TOUR_SLIDES.find(s => s.id === id)!;
       expect(full.desk.src, id).toBe(first.desk.src);

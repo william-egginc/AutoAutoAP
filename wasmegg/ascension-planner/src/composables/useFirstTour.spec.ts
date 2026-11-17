@@ -113,10 +113,10 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
+    expect(seen).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
     t.focused();
     t.back();
-    expect(t.step.value).toBe('shifts');
+    expect(t.step.value).toBe('setupInside');
     expect(t.state.wantFocus).toBe('title');
     t.next();
     t.done();

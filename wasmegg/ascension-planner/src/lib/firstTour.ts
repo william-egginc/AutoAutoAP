@@ -73,9 +73,9 @@ export const TOUR_STEPS: readonly TourStepId[] = [
   'followedRoute',
   'nextStep',
   'tracker',
+  'shifts',
   'setupWhere',
   'setupInside',
-  'shifts',
   'closing',
 ];
 
