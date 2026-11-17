@@ -28,6 +28,7 @@ interface Ov {
   cw: number;
   ch: number;
   rect: Rect;
+  inset: { sprite: string; rect: Rect; ring: Rect } | null;
   ring: Rect;
   mag: string | null;
   tabs: Rect[];
