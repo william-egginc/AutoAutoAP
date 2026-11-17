@@ -62,19 +62,38 @@
     </template>
 
     <template v-else-if="slide">
-      <picture>
-        <source media="(max-width: 639px)" :srcset="slide.phone.src" :width="slide.phone.width" :height="slide.phone.height" />
-        <img
-          :src="slide.desk.src"
-          :width="slide.desk.width"
-          :height="slide.desk.height"
-          :alt="words ? words.alt : FIRST_TOUR_ALT[slide.id as TourStepId]"
-          loading="lazy"
-          decoding="async"
-          class="block h-auto w-full rounded-xl border border-slate-200 bg-slate-700"
-          data-testid="tour-picture"
-        />
-      </picture>
+      <!-- The picture, with a short crossfade from the one before (lib/tourFade.ts; off under prefers-reduced-motion): the one
+           before is kept under the new one for FADE_MS as a copy (empty alt, hidden from a screen reader). -->
+      <div class="relative">
+        <picture
+          v-if="prev"
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-0"
+          data-testid="tour-picture-prev"
+        >
+          <source media="(max-width: 639px)" :srcset="prev.phone.src" :width="prev.phone.width" :height="prev.phone.height" />
+          <img
+            :src="prev.desk.src"
+            :width="prev.desk.width"
+            :height="prev.desk.height"
+            alt=""
+            class="block h-auto w-full rounded-xl border border-slate-200 bg-slate-700"
+          />
+        </picture>
+        <picture :key="slide.id" :class="prev ? 'tour-fade-in' : ''">
+          <source media="(max-width: 639px)" :srcset="slide.phone.src" :width="slide.phone.width" :height="slide.phone.height" />
+          <img
+            :src="slide.desk.src"
+            :width="slide.desk.width"
+            :height="slide.desk.height"
+            :alt="words ? words.alt : FIRST_TOUR_ALT[slide.id as TourStepId]"
+            loading="lazy"
+            decoding="async"
+            class="block h-auto w-full rounded-xl border border-slate-200 bg-slate-700"
+            data-testid="tour-picture"
+          />
+        </picture>
+      </div>
       <div class="px-1.5 pt-2 sm:px-0.5 sm:pt-3">
         <p class="label text-indigo-700 tabular-nums" data-testid="tour-step">{{ firstTourLabel(index + 1, total) }}</p>
         <h2 id="tour-title" ref="titleEl" tabindex="-1" class="mt-0.5 text-title font-bold text-slate-900 focus:outline-none">
@@ -149,7 +168,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { FADE_MS, shouldFade } from '@/lib/tourFade';
 import type { TourSlide } from '@/lib/tourSlides';
 import type { TourStepId } from '@/lib/firstTour';
 import type { FullTourSlide } from '@/lib/fullTourSlides';
@@ -191,6 +211,22 @@ const emit = defineEmits<{
 }>();
 const last = computed(() => props.index >= props.total - 1);
 
+// The slide before, kept for FADE_MS under the new one (a crossfade; none for the first slide or under reduced motion).
+const prev = ref<TourSlide | FullTourSlide | null>(null);
+let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+watch(
+  () => props.slide,
+  (now, before) => {
+    if (fadeTimer) clearTimeout(fadeTimer);
+    prev.value = before && shouldFade(before.id, now?.id, reducedMotion()) ? before : null;
+    if (prev.value) fadeTimer = setTimeout(() => (prev.value = null), FADE_MS + 40);
+  }
+);
+onBeforeUnmount(() => {
+  if (fadeTimer) clearTimeout(fadeTimer);
+});
+
 const titleEl = ref<HTMLElement | null>(null);
 const takeEl = ref<HTMLElement | null>(null);
 defineExpose({
@@ -198,3 +234,23 @@ defineExpose({
   focusTitle: () => titleEl.value?.focus(),
 });
 </script>
+
+<style scoped>
+.tour-fade-in {
+  display: block;
+  animation: tour-fade-in 200ms ease-out both;
+}
+@keyframes tour-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-fade-in {
+    animation: none;
+  }
+}
+</style>
