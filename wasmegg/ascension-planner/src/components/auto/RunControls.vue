@@ -6,6 +6,7 @@
     anything the screen must say right above Run (`above-find`)
     Run Fast / Exact / Custom and its send tick / Send best so far / Stop & keep best, the acknowledge box,
       the name, the CSV and diagnostics boxes and the run note (FindBar.vue)
+    a search expected at 2 hours or more, before Run, says what starting it does (LongRunStartNote.vue)
     while a long search runs and the maintainer plans an update, please message him (ReloadPlannedBanner.vue)
     how the automatic send went (RunSendReport.vue)
     results kept until sent (UnsentResults.vue)
@@ -58,6 +59,7 @@
     />
     <!-- A planned update while this screen's long search runs: please message the maintainer (ReloadPlannedBanner.vue).
          In the flow under Run / Stop, only on the screen whose run it is. -->
+    <LongRunStartNote v-if="!running" :estimate-seconds="estimateSeconds" />
     <ReloadPlannedBanner v-if="running" />
 
     <RunSendReport
@@ -115,6 +117,7 @@ import type { SearchOption } from '@/lib/searchOption';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
 import IntegrityNotice from './IntegrityNotice.vue';
+import LongRunStartNote from './LongRunStartNote.vue';
 import ReloadPlannedBanner from './ReloadPlannedBanner.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import RunSendReport from './RunSendReport.vue';
