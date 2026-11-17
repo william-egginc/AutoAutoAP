@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { saveBannerState } from './saveBanner';
-import { siloLine, thresholdsDetail } from './saveFreshnessWords';
+import { saveAgeLine, siloLine, siloWarningFresh, thresholdsDetail } from './saveFreshnessWords';
 
 const NOW = Date.UTC(2026, 9, 15, 23, 36) / 1000;
 const H = 3600;
@@ -47,5 +47,17 @@ describe('the save banner words', () => {
     expect(s?.tone).toBe('green');
     expect(s?.old).toBe(true);
     expect(s?.word).toBe('Save is 20h old');
+  });
+});
+
+describe('fresh-and-low warning, and the save-age line (Jordan, 17 Nov 2026)', () => {
+  it('the warning is short and has no "opened the game since" hedge', () => {
+    expect(siloWarningFresh({ when: 'Nov 12 at 2:40 PM' })).toBe('Silos are low. They run out about Nov 12 at 2:40 PM.');
+    expect(siloWarningFresh({ when: 'Nov 12 at 1:29 PM', past: true })).toBe('Silos have run out. They ran out about Nov 12 at 1:29 PM.');
+  });
+  it('the age line says the time and the age, 12-hour, no banned phrase', () => {
+    const t = saveAgeLine('10:53 AM', '3h');
+    expect(t).toBe('Save from 10:53 AM, 3h ago');
+    expect(t).not.toMatch(/this device|this computer/i);
   });
 });

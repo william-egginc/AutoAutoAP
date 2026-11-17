@@ -17,7 +17,8 @@
 import { SYNC_AFTER_SECONDS, saveState, toneLines, type SaveState, type SaveStateInput } from './saveFreshness';
 import { ageWords } from './saveAge';
 import { dateAt } from './eventWhen';
-import { quietSaveWord, saveFreshAgeLine, siloLine, thresholdsDetail } from './saveFreshnessWords';
+import { calendarOf, formatClock } from './clock';
+import { quietSaveWord, saveAgeLine, siloLine, siloWarningFresh, thresholdsDetail } from './saveFreshnessWords';
 
 /** The silo line turns amber with under this share of the silo time left (Jordan, 12 Nov 2026: 30%). Details says it as
  *  lib/saveFreshnessWords.ts SILO_AMBER_PERCENT_WORDS; a spec pins the two equal. */
@@ -90,7 +91,12 @@ export function siloLineState(s: SaveState | null, nowSeconds: number, zone: str
   const when = dateAt(runOut, nowSeconds, zone);
   if ((low || past) && !fresh) {
     if (s.clockBehindSeconds) return when ? { text: siloLine({ when, low: false }), low: false, past: false } : null;
-    return { text: saveFreshAgeLine(ageWords(s.saveAgeSeconds)), low: false, past: false };
+    const at = nowSeconds - s.saveAgeSeconds;
+    const same = calendarOf(at * 1000, zone)?.ymd === calendarOf(nowSeconds * 1000, zone)?.ymd;
+    const time = same ? formatClock(at * 1000, zone) : dateAt(at, nowSeconds, zone);
+    return { text: saveAgeLine(time, ageWords(s.saveAgeSeconds)), low: false, past: false };
   }
-  return when ? { text: siloLine({ when, past, low }), low, past } : null;
+  if (!when) return null;
+  // Fresh and low (or run out): Words' short warning, with no "if you've opened the game since" hedge (a fresh save has had no time to go stale).
+  return { text: low || past ? siloWarningFresh({ when, past }) : siloLine({ when }), low, past };
 }
