@@ -13,6 +13,7 @@ import RunControls from './RunControls.vue';
 import { resetConsents } from '@/composables/useConsent';
 import { armLongRun, resetRunBeacon, runBeaconRunStarted } from '@/lib/runBeacon';
 import { longRunStartWords } from '@/lib/runBeaconWords';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const SUBMIT = 'https://collector.example.workers.dev/submit';
 let pinia: Pinia;
@@ -86,4 +87,32 @@ describe('the long-search line, at selection time', () => {
     expect(src).toContain('beaconEnabled');
     expect(src).not.toMatch(/fetch\(|sendBeacon|longRun\b/);
   });
+
+  // QA, 16 Nov 2026 (local build c870d15b3): the line stayed on screen while an Exact search ran, and showed beside a chip that said
+  // ~24 min. It must follow the SAME estimate as the chip beside Run, and say nothing while any search runs, whichever panel runs it.
+  it("not while ANY search runs, even one this panel's controls did not start (another option's panel, a sweep)", async () => {
+    const store = useChainSearchStore(pinia);
+    store.isRunning = true;
+    expect(await controls({ estimateSeconds: 3 * 3600, running: false })).not.toContain(NOTE);
+    store.isRunning = false;
+    expect(await controls({ estimateSeconds: 3 * 3600, running: false })).toContain(NOTE);
+  });
+  it('the line carries the estimate it reads (so QA can compare it with the chip): data-estimate-seconds', async () => {
+    const html = await controls({ estimateSeconds: 3 * 3600 });
+    expect(html).toContain('data-estimate-seconds="10800"');
+  });
+  it('the Fast / Exact panel hands the run controls the estimate of the CHIP that is selected (stronger.level), not a remembered effort', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(src).toContain(':estimate-seconds="store.smartEstimate(chipLevel(strongerStore.level, store.effort)).seconds"');
+    expect(src).not.toContain(':estimate-seconds="store.smartEstimate(store.effort).seconds"');
+  });
+  it('the note, the run alert and Stepping away? all read the SAME estimate prop, so the 2 h threshold is one number (player privacy)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'RunControls.vue'), 'utf8');
+    expect(src).toContain('<LongRunStartNote v-if="!running" :estimate-seconds="estimateSeconds" />');
+    expect(src).toContain('armLongRun(beaconKindOf(props.kind, props.option), props.estimateSeconds);');
+    expect(src).toContain('nudgeStepAway(stepAwayKind.value, props.estimateSeconds);');
+    // ...and the note's threshold is the beacon's own constant, not a second 2.
+    expect(fs.readFileSync(path.resolve(__dirname, 'LongRunStartNote.vue'), 'utf8')).toContain('>= BEACON_MIN_SECONDS');
+  });
 });
+

@@ -459,7 +459,7 @@
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
       <RunControls
         :long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"
-        :estimate-seconds="store.smartEstimate(store.effort).seconds"
+        :estimate-seconds="store.smartEstimate(chipLevel(strongerStore.level, store.effort)).seconds"
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
@@ -1091,7 +1091,7 @@ import { pricedWithShort } from '@/lib/pricedWithWords';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { runMetaLine } from '@/lib/lastRunLine';
-import { choiceForEffort } from '@/lib/searchOption';
+import { choiceForEffort, chipLevel } from '@/lib/searchOption';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';

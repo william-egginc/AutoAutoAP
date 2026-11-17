@@ -40,6 +40,16 @@ export function levelFor(c: SearchChoice): NearbyLevel | null {
   return e === 'boxes' ? null : e;
 }
 
+/** The Nearby routes level whose estimate the chip beside Run shows: the selected chip's (`stronger.level`; Light shows Fast's), else the
+ *  search's effort, else Fast. The run controls take their estimate (the long-search line, Stepping away?, the run alert) from this, so
+ *  they never read a different number from the one the player sees. */
+export function chipLevel(level: string | null | undefined, effort: string | null | undefined): 'quick' | 'normal' | 'thorough' {
+  if (level === 'quick' || level === 'light') return 'quick';
+  if (level === 'normal' || level === 'thorough') return level;
+  const c = choiceForEffort(effort);
+  return c.option === 'exact' ? (c.veryHigh ? 'thorough' : 'normal') : 'quick';
+}
+
 /** The option a level or effort shows under: Light and quick on Fast, normal and thorough on Exact,
  *  Exhaustive (`boxes`, `full`, `exhaustive`) on Custom. Very high's box is ticked for thorough. */
 export function choiceForEffort(e: string | null | undefined): SearchChoice {
