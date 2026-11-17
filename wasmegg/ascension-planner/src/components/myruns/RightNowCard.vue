@@ -178,7 +178,21 @@
     <!-- THE FOLLOWED ROUTE NOW MISSES ITS DATE (Jordan, 16 Nov 2026; an exception to the 13 Nov "no better-route offer on
          My runs", lib/followMiss.ts): the finish Right now has for it is after the By a date goal's date. Said plainly, with the
          way to look again: the same date search on the latest save (`recalc`). Words: lib/followMissWords.ts. -->
-    <div v-if="followMiss" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
+    <!-- NO ROUTE MAKES THE DATE (17 Nov 2026): the followed By a date route is priced on an older save and this save's answer for the date
+         has no route above the TE: said plainly, with the way on, a later date (the same date again cannot help). Words: lib/followMissWords.ts. -->
+    <div v-if="followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-cannot-box">
+      <p class="font-bold" data-testid="now-follow-cannot">{{ followCannotText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-cannot-later"
+        @click="emit('open', { auto: 'by-date' })"
+      >
+        {{ FOLLOW_CANNOT_LATER }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_CANNOT_LATER_NOTE }}</p>
+    </div>
+    <div v-if="followMiss && !followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
       <p class="font-bold" data-testid="now-follow-misses">{{ followMissText }}</p>
       <button
         type="button"
@@ -629,7 +643,7 @@ import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { followLook, followLookNothingBetter, followMissOf } from '@/lib/followMiss';
-import { FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followMissLine, followNoBetterLine } from '@/lib/followMissWords';
+import { FOLLOW_CANNOT_LATER, FOLLOW_CANNOT_LATER_NOTE, FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followCannotLine, followMissLine, followNoBetterLine, followOldPlanLabel } from '@/lib/followMissWords';
 import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
@@ -947,6 +961,12 @@ const followMiss = computed(() => {
   const finish = f.finish?.end ?? (f.price === 'exact' || f.price === 'instant' || f.price === 'estimate' ? c.plan.end : null);
   return followMissOf({ goal: c.goal.goal, deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish });
 });
+/** No route makes the followed date on this save (useNowPage `cannotDate`). */
+const followCannot = computed(() => !!props.follow?.cannotDate && props.card?.goal.goal === 'date');
+const followCannotText = computed(() => {
+  const d = selectedOption.value?.deadline ?? props.card?.goal.deadline ?? null;
+  return followCannotLine(d ? dayWords(d, props.zone) : 'your date', (selectedOption.value?.kind ?? '') === 'eggday');
+});
 const followMissText = computed(() =>
   followMiss.value
     ? followMissLine(followMiss.value, t => dateAt(t, props.now, props.zone), (selectedOption.value?.kind ?? '') === 'eggday')
@@ -1004,6 +1024,10 @@ const hereRow = computed(() =>
 const fromSaveLine = computed(() => {
   const p = props.card?.plan;
   if (!p) return '';
+  // The followed route's plan was worked out on an OLDER save than the loaded one: say so, never "Calculated from your <newer> save"
+  // above the old plan (QA's live run, 17 Nov 2026; Words' followOldPlanLabel).
+  const f = props.follow;
+  if (f?.source === 'older-save' && f.pricedSave && props.saveSeconds && f.pricedSave < props.saveSeconds) return followOldPlanLabel(dateAt(f.pricedSave, props.now, props.zone));
   return calculatedFromLine({ saveSeconds: p.meta?.backupTime || props.saveSeconds, nowSeconds: p.calculatedAt / 1000, zone: props.zone });
 });
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));

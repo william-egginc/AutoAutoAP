@@ -4,7 +4,7 @@
  * goal's date. Pure rule; the card shows it (RightNowCard.followMisses.spec.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { followMissOf } from './followMiss';
+import { followCannotOf, followMissOf } from './followMiss';
 
 const DEADLINE = Date.UTC(2027, 6, 14, 16) / 1000;
 const H = 3600;
@@ -74,5 +74,25 @@ describe('followNoBetterLine (DRAFT words, Words writes the final text)', () => 
   it('Egg Day, and a chosen date', () => {
     expect(followNoBetterLine(miss, at, true, 'just now')).toBe(`Checked just now: your route is still the fastest. It finishes <${miss.finish}>, 2d 2h after Egg Day starts.`);
     expect(followNoBetterLine(miss, at, false, 'just now')).toBe(`Checked just now: your route is still the fastest. It finishes <${miss.finish}>, 2d 2h after your date.`);
+  });
+});
+
+// ----------------------------------------------------------------------------- no route makes the date (17 Nov 2026)
+describe('followCannotOf: on the newest save no route gets above the TE by the date', () => {
+  const base = { goal: 'date' as const, deadline: DEADLINE, checkedHere: true, planInTime: false, lateKept: false, pricedOnOlderSave: true };
+  it('a followed date goal, priced on an older save, whose date was worked out on this save with no route in time and none late: yes', () => {
+    expect(followCannotOf(base)).toBe(true);
+  });
+  it('not when a plan in time or a late one is kept for this save (the miss line says it, with its finish)', () => {
+    expect(followCannotOf({ ...base, planInTime: true })).toBe(false);
+    expect(followCannotOf({ ...base, lateKept: true })).toBe(false);
+  });
+  it('not when the date has not been worked out on this save (nothing to say yet), or the route is priced on this save', () => {
+    expect(followCannotOf({ ...base, checkedHere: false })).toBe(false);
+    expect(followCannotOf({ ...base, pricedOnOlderSave: false })).toBe(false);
+  });
+  it('not for Fastest, and not without a date', () => {
+    expect(followCannotOf({ ...base, goal: 'fastest' })).toBe(false);
+    expect(followCannotOf({ ...base, deadline: null })).toBe(false);
   });
 });

@@ -41,8 +41,6 @@ export function followCannotLine(date: string, eggDay: boolean): string {
 /** The next step, option 1 (the default; searching the same date again cannot help): open By a date to choose another. */
 export const FOLLOW_CANNOT_LATER = 'Choose a later date';
 export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By a date, where you pick the date to search for.';
-/** The next step, option 2, only if UI opens the same date's answer: */
-export const FOLLOW_CANNOT_SEE = 'See By a date for this date';
 /** The card shows the OLD followed route under a newer save. `when`: the save the route was worked out on, as the player
  *  reads it ("Nov 14, 2026 at 9:00 AM"). */
 export function followOldPlanLabel(when: string): string {
