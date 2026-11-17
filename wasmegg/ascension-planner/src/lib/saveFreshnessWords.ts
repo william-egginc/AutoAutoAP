@@ -30,6 +30,26 @@ export function siloLine(o: { when: string; past?: boolean; low?: boolean }): st
 }
 
 /**
+ * JORDAN, 17 Nov 2026: the silo warning shows only when the save is fresh AND the silos are low; every other case just states
+ * the save's age. A fresh save has not had time to go stale, so the "if you've opened the game since…" hedge goes.
+ * `when`: as above ("Nov 12 at 2:40 PM"); `past`: that time has gone by.
+ *   "Silos are low. They run out about Nov 12 at 2:40 PM."   (past: "Silos have run out. They ran out about Nov 12 at 2:40 PM.")
+ * Additive: siloLine above is unchanged, UI picks which to call.
+ */
+export function siloWarningFresh(o: { when: string; past?: boolean }): string {
+  return o.past ? `Silos have run out. They ran out about ${o.when}.` : `Silos are low. They run out about ${o.when}.`;
+}
+
+/**
+ * THE SAVE-AGE LINE, for every other case (Jordan, 17 Nov 2026), short, beside the name line. `at`: the save's time as the
+ * app writes it, 12-hour ("10:53 AM", or "Nov 12 at 10:53 AM" when it is not today); `age`: lib/saveAge.ts `ageWords`
+ * ("3h"). "Save from 10:53 AM, 3h ago"
+ */
+export function saveAgeLine(at: string, age: string): string {
+  return `Save from ${at}, ${age} ago`;
+}
+
+/**
  * The thresholds sentences behind "Details" (moved out of lib/saveFreshness.ts, which is hashed; saveBanner.ts swaps this
  * in for its older "Getting old after…" line). `yellow` / `red`: where Getting old and Out of date start, already as words
  * (lib/saveAge.ts `ageWords`); `clockRight`: the clock-behind state's ending.
