@@ -4,7 +4,7 @@
  * goal's date. Pure rule; the card shows it (RightNowCard.followMisses.spec.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { followCannotOf, followMissOf } from './followMiss';
+import { followBelowOf, followCannotOf, followMissOf, workedOutHereAt } from './followMiss';
 import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE } from './followMissWords';
 
 const DEADLINE = Date.UTC(2027, 6, 14, 16) / 1000;
@@ -108,5 +108,41 @@ describe('the best for the date is below the followed TE (Words, 17 Nov 2026)', 
       expect(s.length).toBeLessThan(170);
       expect(s).not.toMatch(/this device|this computer|^Your plan|[io]n your plan/i);
     }
+  });
+});
+
+// ----------------------------------------------------------------------------- the best on the newest save is below the TE followed
+describe('followBelowOf: this save\'s own answer for the date tops out below the TE you follow (QA, 17 Nov 2026: 198 against 199)', () => {
+  const base = { goal: 'date' as const, deadline: DEADLINE, pricedOnOlderSave: true, followedTE: 199, bestHere: { endTE: 198 } };
+  it('a followed date goal priced on an older save, with this save\'s best below it: the two numbers', () => {
+    expect(followBelowOf(base)).toEqual({ bestTE: 198, followedTE: 199 });
+  });
+  it('not when this save\'s best equals or beats the followed TE', () => {
+    expect(followBelowOf({ ...base, bestHere: { endTE: 199 } })).toBeNull();
+    expect(followBelowOf({ ...base, bestHere: { endTE: 204 } })).toBeNull();
+  });
+  it('not without this save\'s best, or when the route is priced on this save (the miss line speaks then)', () => {
+    expect(followBelowOf({ ...base, bestHere: null })).toBeNull();
+    expect(followBelowOf({ ...base, pricedOnOlderSave: false })).toBeNull();
+  });
+  it('not for Fastest, without a date, or without numbers', () => {
+    expect(followBelowOf({ ...base, goal: 'fastest' })).toBeNull();
+    expect(followBelowOf({ ...base, deadline: null })).toBeNull();
+    expect(followBelowOf({ ...base, followedTE: NaN })).toBeNull();
+  });
+});
+
+describe('workedOutHereAt: an older save\'s plan must not look worked out on the loaded save (17 Nov 2026)', () => {
+  const SAVE = 1_800_000_000;
+  const cand = (backupTime: number, at: number, ownKey = false) => ({ goalKey: 'date-1', ownKey, plan: { calculatedAt: at, meta: { backupTime } } });
+  it('an older save\'s plan alone: 0', () => {
+    expect(workedOutHereAt({ goalKey: 'date-1', loadedSave: SAVE, candidates: [cand(SAVE - 3 * 86400, 5000)], answers: [] })).toBe(0);
+  });
+  it('a plan priced on the loaded save, or an answer kept for it: its time', () => {
+    expect(workedOutHereAt({ goalKey: 'date-1', loadedSave: SAVE, candidates: [cand(SAVE - 3 * 86400, 5000), cand(SAVE, 7000)], answers: [] })).toBe(7000);
+    expect(workedOutHereAt({ goalKey: 'date-1', loadedSave: SAVE, candidates: [], answers: [{ goalKey: 'date-1', calculatedAt: 9000, saveSeconds: SAVE, ownKey: true }] })).toBe(9000);
+  });
+  it('another goal\'s plans do not count', () => {
+    expect(workedOutHereAt({ goalKey: 'date-2', loadedSave: SAVE, candidates: [cand(SAVE, 7000)], answers: [] })).toBe(0);
   });
 });

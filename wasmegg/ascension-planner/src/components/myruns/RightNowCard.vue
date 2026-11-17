@@ -180,6 +180,20 @@
          way to look again: the same date search on the latest save (`recalc`). Words: lib/followMissWords.ts. -->
     <!-- NO ROUTE MAKES THE DATE (17 Nov 2026): the followed By a date route is priced on an older save and this save's answer for the date
          has no route above the TE: said plainly, with the way on, a later date (the same date again cannot help). Words: lib/followMissWords.ts. -->
+    <!-- THE BEST ON THE NEWEST SAVE IS BELOW THE TE FOLLOWED (17 Nov 2026, QA: 198 against 199): said with both numbers; the way on is By a date
+         for the date, where the best route has Follow and Fast can look for better. Words: lib/followMissWords.ts. -->
+    <div v-if="followBelow && !followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-below-box">
+      <p class="font-bold" data-testid="now-follow-below">{{ followBelowText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-below-see"
+        @click="emit('open', goalOpen)"
+      >
+        {{ FOLLOW_BELOW_BUTTON }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_BELOW_NOTE }}</p>
+    </div>
     <div v-if="followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-cannot-box">
       <p class="font-bold" data-testid="now-follow-cannot">{{ followCannotText }}</p>
       <button
@@ -192,7 +206,7 @@
       </button>
       <p class="text-slate-700">{{ FOLLOW_CANNOT_LATER_NOTE }}</p>
     </div>
-    <div v-if="followMiss && !followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
+    <div v-if="followMiss && !followCannot && !followBelow" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
       <p class="font-bold" data-testid="now-follow-misses">{{ followMissText }}</p>
       <button
         type="button"
@@ -643,7 +657,7 @@ import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';
 import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import { followLook, followLookNothingBetter, followMissOf } from '@/lib/followMiss';
-import { FOLLOW_CANNOT_LATER, FOLLOW_CANNOT_LATER_NOTE, FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followCannotLine, followMissLine, followNoBetterLine, followOldPlanLabel } from '@/lib/followMissWords';
+import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE, FOLLOW_CANNOT_LATER, FOLLOW_CANNOT_LATER_NOTE, FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followCannotLine, followMissLine, followNoBetterLine, followOldPlanLabel } from '@/lib/followMissWords';
 import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
 import type { Availability } from '@/search/availabilitySchedule';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
@@ -960,6 +974,14 @@ const followMiss = computed(() => {
   if (!f || !c || c.goal.goal !== 'date') return null;
   const finish = f.finish?.end ?? (f.price === 'exact' || f.price === 'instant' || f.price === 'estimate' ? c.plan.end : null);
   return followMissOf({ goal: c.goal.goal, deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish });
+});
+/** This save's best for the followed date is below the TE followed (useNowPage `belowTE`). */
+const followBelow = computed(() => (props.card?.goal.goal === 'date' ? props.follow?.belowTE ?? null : null));
+const followBelowText = computed(() => {
+  const b = followBelow.value;
+  if (!b) return '';
+  const d = selectedOption.value?.deadline ?? props.card?.goal.deadline ?? null;
+  return FOLLOW_BELOW_LINE(d ? dayWords(d, props.zone) : 'your date', b.bestTE, b.followedTE, (selectedOption.value?.kind ?? '') === 'eggday');
 });
 /** No route makes the followed date on this save (useNowPage `cannotDate`). */
 const followCannot = computed(() => !!props.follow?.cannotDate && props.card?.goal.goal === 'date');

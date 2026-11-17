@@ -7,6 +7,7 @@
  */
 import { reactive } from 'vue';
 import { finishesBefore } from './eggDayRule';
+import { isCurrentSave } from './currentAnswer';
 
 export interface FollowMiss {
   /** When the followed route lands, unix seconds. */
@@ -31,6 +32,23 @@ export function followMissOf(o: {
   return { finish, deadline, lateSeconds: finish - deadline };
 }
 
+// ----------------------------------------------------------------------------- worked out on the loaded save
+/**
+ * When a goal was worked out ON THE LOADED SAVE, ms (0: not): the newest of a plan priced on it and an answer kept for it. (planGoals'
+ * `lastAt` also counts an older save's plan when the loaded one has none, so it cannot say this.) Kept here, not in planGoals.ts, so the
+ * result code hash does not move for a flag. Pure.
+ */
+export function workedOutHereAt(o: {
+  goalKey: string;
+  loadedSave: number;
+  candidates: readonly { goalKey?: string; ownKey: boolean; plan: { calculatedAt: number; meta?: { backupTime?: number | null } | null } }[];
+  answers: readonly { goalKey: string; calculatedAt: number; saveSeconds: number | null; ownKey?: boolean }[];
+}): number {
+  const plans = o.candidates.filter(c => c.goalKey === o.goalKey && isCurrentSave(c.plan.meta?.backupTime ?? null, o.loadedSave, c.ownKey)).map(c => c.plan.calculatedAt);
+  const said = o.answers.filter(a => a.goalKey === o.goalKey && isCurrentSave(a.saveSeconds, o.loadedSave, a.ownKey)).map(a => a.calculatedAt);
+  return Math.max(0, ...plans, ...said);
+}
+
 // ----------------------------------------------------------------------------- no route makes the date
 /**
  * (Jordan's 16 Nov rule, QA's live run, 17 Nov 2026) A followed By a date route, still priced on an OLDER save, while the loaded save's own
@@ -51,6 +69,26 @@ export function followCannotOf(o: {
 }): boolean {
   if (o.goal !== 'date' || typeof o.deadline !== 'number' || !(o.deadline > 0)) return false;
   return o.checkedHere && !o.planInTime && !o.lateKept && o.pricedOnOlderSave;
+}
+
+// ----------------------------------------------------------------------------- the best here is below the TE followed
+/**
+ * (QA's live run, 17 Nov 2026) The followed By a date route is priced on an OLDER save and this save's own By a date answer for the
+ * date (a plan in time, priced on this save) tops out BELOW the TE the route was followed for: 198 now against the 199 followed. Nothing
+ * else fires (the followed route has no price here to be late), yet the player should hear it. Pure; the flag is useNowPage's `belowTE`.
+ */
+export function followBelowOf(o: {
+  goal: 'fastest' | 'date' | null | undefined;
+  deadline: number | null | undefined;
+  pricedOnOlderSave: boolean;
+  /** The TE the followed route reaches (its older price). */
+  followedTE: number;
+  /** This save's own best plan in time for the date, null when none. */
+  bestHere: { endTE: number } | null;
+}): { bestTE: number; followedTE: number } | null {
+  if (o.goal !== 'date' || typeof o.deadline !== 'number' || !(o.deadline > 0) || !o.pricedOnOlderSave) return null;
+  if (!o.bestHere || !Number.isFinite(o.bestHere.endTE) || !Number.isFinite(o.followedTE)) return null;
+  return o.bestHere.endTE < o.followedTE ? { bestTE: o.bestHere.endTE, followedTE: o.followedTE } : null;
 }
 
 // ----------------------------------------------------------------------------- "Look for a better route" found nothing

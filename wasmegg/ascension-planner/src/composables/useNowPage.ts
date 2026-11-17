@@ -179,7 +179,7 @@ import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
-import { followCannotOf } from '@/lib/followMiss';
+import { followBelowOf, followCannotOf, workedOutHereAt } from '@/lib/followMiss';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -225,6 +225,9 @@ export interface FollowCard {
   /** By a date, priced on an older save, and this save's own answer for the date has no route above the TE (lib/followMiss.ts
    *  followCannotOf): the card says no route can make the date and offers a later one. */
   cannotDate?: boolean;
+  /** By a date, priced on an older save, and this save's own best plan for the date is below the TE followed (lib/followMiss.ts
+   *  followBelowOf): the card says so and opens By a date for the date. */
+  belowTE?: { bestTE: number; followedTE: number };
   /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
    *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
    *  ('nosource': only when working it out here failed, `instantFailure`), or the estimate failed ('failed'). With no
@@ -1093,11 +1096,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return followCannotOf({
       goal: g.goal,
       deadline: g.deadline,
-      checkedHere: !!pg && pg.lastAt > 0,
-      planInTime: !!pg?.pick,
+      // Worked out on THIS save (an older save's plan, or a result re-stamped from one, does not count), with no plan in time on it.
+      checkedHere: !!pg && workedOutHereAt({ goalKey: key, loadedSave: saveSeconds.value, candidates: snapCandidates.value, answers: goalAnswers.value }) > 0,
+      planInTime: !!pg?.pick && pg.pick.state !== 'older-save',
       lateKept: !!pg?.late,
       pricedOnOlderSave: source === 'older-save',
     });
+  }
+  /** This save's best plan for the followed date is below the TE followed (lib/followMiss.ts followBelowOf). */
+  function belowTEOf(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string, followedTE: number): { belowTE?: { bestTE: number; followedTE: number } } {
+    const pick = planGoals.value.find(p => p.goal.key === key)?.pick;
+    const here = pick && pick.state !== 'older-save' ? { endTE: pick.candidate.plan.endTE } : null;
+    const b = followBelowOf({ goal: g.goal, deadline: g.deadline, pricedOnOlderSave: source === 'older-save', followedTE, bestHere: here });
+    return b ? { belowTE: b } : {};
   }
   function followStateNow(
     fp: FollowPriced | null,
@@ -1119,6 +1130,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         pricedSave: p.meta?.backupTime ?? null,
         ...(g.deadline && !finishesBefore(planFinish(p), g.deadline) ? { missesDate: true } : {}),
         ...(cannotMakeDate(sel.goal.key, g, price.source) ? { cannotDate: true } : {}),
+        ...belowTEOf(sel.goal.key, g, price.source, p.endTE),
       };
       return {
         card,

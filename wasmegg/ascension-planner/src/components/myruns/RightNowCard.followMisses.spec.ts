@@ -229,3 +229,28 @@ describe('no route makes the date, and the old plan under a newer save (17 Nov 2
   });
 });
 
+describe('the best on the newest save is below the TE you follow (17 Nov 2026)', () => {
+  const below = () => render(JUL11, { follow: followCard(JUL11, { belowTE: { bestTE: 198, followedTE: 199 }, source: 'older-save', pricedSave: NOW - 30 * H } as Partial<FollowCard>) });
+  it("says it with both numbers (Words' line) and offers See the best route now, which opens By a date for the date (no search)", async () => {
+    const html = await below();
+    const t = textOf(html);
+    expect(html).toContain('data-testid="now-follow-below"');
+    expect(t).toContain('On your newest save, the best by Egg Day is 198 TE, below the 199 TE you follow.');
+    expect(html).toContain('data-testid="now-follow-below-see"');
+    expect(t).toContain('See the best route now');
+    expect(t).toContain('Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.');
+    expect(html).not.toContain('data-testid="now-follow-misses-search"');
+    const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
+    expect(src).toMatch(/data-testid="now-follow-below-see"[\s\S]{0,200}@click="emit\('open', goalOpen\)"/);
+  });
+  it('not without the flag; the cannot line outranks it; it replaces the miss box', async () => {
+    expect(await render(JUL11)).not.toContain('now-follow-below');
+    const both = await render(JUL17, { follow: followCard(JUL17, { belowTE: { bestTE: 198, followedTE: 199 } } as Partial<FollowCard>) });
+    expect(both).toContain('now-follow-below');
+    expect(both).not.toContain('data-testid="now-follow-misses-box"');
+    const cannot = await render(JUL11, { follow: followCard(JUL11, { cannotDate: true, belowTE: { bestTE: 198, followedTE: 199 } } as Partial<FollowCard>) });
+    expect(cannot).toContain('now-follow-cannot');
+    expect(cannot).not.toContain('now-follow-below');
+  });
+});
+
