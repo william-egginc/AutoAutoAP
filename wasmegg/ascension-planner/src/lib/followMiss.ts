@@ -31,6 +31,28 @@ export function followMissOf(o: {
   return { finish, deadline, lateSeconds: finish - deadline };
 }
 
+// ----------------------------------------------------------------------------- no route makes the date
+/**
+ * (Jordan's 16 Nov rule, QA's live run, 17 Nov 2026) A followed By a date route, still priced on an OLDER save, while the loaded save's own
+ * answer for that date has no plan in time and none even landing late: the date was worked out on this save and no route gets above the
+ * TE by then ("No route gets above your TE by then"), so there is no priced finish to be late. Said anyway, and the way on is a later date
+ * (searching the same date again cannot help). Pure; the flag is useNowPage's `cannotDate`.
+ */
+export function followCannotOf(o: {
+  goal: 'fastest' | 'date' | null | undefined;
+  deadline: number | null | undefined;
+  /** The goal was checked on the loaded save (planGoals `lastAt` above 0). */
+  checkedHere: boolean;
+  /** This save has a plan in time (the goal's pick) or one landing late (`late`). */
+  planInTime: boolean;
+  lateKept: boolean;
+  /** The followed route's price is an older save's (followPrice `older-save`). */
+  pricedOnOlderSave: boolean;
+}): boolean {
+  if (o.goal !== 'date' || typeof o.deadline !== 'number' || !(o.deadline > 0)) return false;
+  return o.checkedHere && !o.planInTime && !o.lateKept && o.pricedOnOlderSave;
+}
+
 // ----------------------------------------------------------------------------- "Look for a better route" found nothing
 /**
  * (spec-myruns-nobetter, Jordan, 16 Nov 2026) The button opens the goal's screen on Fast; the player runs it there and

@@ -28,3 +28,21 @@ export function followNoBetterLine(m: FollowMiss, at: (unix: number) => string, 
   const after = eggDay ? 'Egg Day starts' : 'your date';
   return `Checked ${when}: your route is still the fastest. It finishes ${at(m.finish)}, ${gap} after ${after}.`;
 }
+
+/**
+ * NO ROUTE MAKES THE DATE (Words, 17 Nov 2026, for UI): on the newest save no route gets above the player's TE by the
+ * date, a stronger case than a late finish. `date`: the date as the player reads it ("Jul 14, 2027"). Under 170 characters.
+ * "No route can make Jul 14, 2027 now. On your newest save, none gets you above your current TE by then. Choose a later date."
+ */
+export function followCannotLine(date: string, eggDay: boolean): string {
+  const what = eggDay ? 'Egg Day' : date;
+  return `No route can make ${what} now. On your newest save, none gets you above your current TE by then. Choose a later date.`;
+}
+/** The next step, option 1 (the default; searching the same date again cannot help): open By a date to choose another. */
+export const FOLLOW_CANNOT_LATER = 'Choose a later date';
+export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By a date, where you pick the date to search for.';
+/** The card shows the OLD followed route under a newer save. `when`: the save the route was worked out on, as the player
+ *  reads it ("Nov 14, 2026 at 9:00 AM"). */
+export function followOldPlanLabel(when: string): string {
+  return `This is the route you follow, worked out on your save from ${when}. It was not checked against your newest save.`;
+}

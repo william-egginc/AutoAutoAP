@@ -177,6 +177,7 @@ import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
+import { followCannotOf } from '@/lib/followMiss';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -219,6 +220,9 @@ export interface FollowCard {
    *  'finish': only its finish, from Check exactly's history; 'estimate': priced on the instant answer's data on this
    *  page (lib/followEstimate.ts; the card's plan is it, rounded); 'none': not priced yet. */
   price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none';
+  /** By a date, priced on an older save, and this save's own answer for the date has no route above the TE (lib/followMiss.ts
+   *  followCannotOf): the card says no route can make the date and offers a later one. */
+  cannotDate?: boolean;
   /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
    *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
    *  ('nosource': only when working it out here failed, `instantFailure`), or the estimate failed ('failed'). With no
@@ -1069,6 +1073,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       }
     }
   );
+  /** No route makes the followed date on THIS save (lib/followMiss.ts followCannotOf). */
+  function cannotMakeDate(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string): boolean {
+    const pg = planGoals.value.find(p => p.goal.key === key);
+    return followCannotOf({
+      goal: g.goal,
+      deadline: g.deadline,
+      checkedHere: !!pg && pg.lastAt > 0,
+      planInTime: !!pg?.pick,
+      lateKept: !!pg?.late,
+      pricedOnOlderSave: source === 'older-save',
+    });
+  }
   function followStateNow(
     fp: FollowPriced | null,
     pick: PickedPricing,
@@ -1088,6 +1104,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         source: price.source,
         pricedSave: p.meta?.backupTime ?? null,
         ...(g.deadline && !finishesBefore(planFinish(p), g.deadline) ? { missesDate: true } : {}),
+        ...(cannotMakeDate(sel.goal.key, g, price.source) ? { cannotDate: true } : {}),
       };
       return {
         card,
