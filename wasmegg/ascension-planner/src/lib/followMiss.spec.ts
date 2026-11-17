@@ -4,7 +4,7 @@
  * goal's date. Pure rule; the card shows it (RightNowCard.followMisses.spec.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { FOLLOW_VERDICTS_ON, followBelowOf, followCannotOf, followMissOf, workedOutHereAt } from './followMiss';
+import { FOLLOW_BELOW_ON, FOLLOW_CANNOT_ON, followBelowOf, followCannotOf, followMissOf, plansOfThisSave, workedOutHereAt } from './followMiss';
 import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE } from './followMissWords';
 
 const DEADLINE = Date.UTC(2027, 6, 14, 16) / 1000;
@@ -155,7 +155,29 @@ describe('QA\'s 3d78e4e5f findings (17 Nov 2026)', () => {
     expect(workedOutHereAt({ goalKey: 'g', loadedSave: SAVE, candidates: [{ goalKey: 'g', ownKey: true, plan: { calculatedAt: 8000, meta: { backupTime: SAVE - 3000 } } }], answers: [] })).toBe(0);
     expect(workedOutHereAt({ goalKey: 'g', loadedSave: SAVE, candidates: [], answers: [{ goalKey: 'g', calculatedAt: 9000, saveSeconds: SAVE, ownKey: true }] })).toBe(9000);
   });
-  it('the two verdicts are OFF until verified live (the card\'s other lines and the old-plan label are not behind it)', () => {
-    expect(FOLLOW_VERDICTS_ON).toBe(false);
+  it('the flags: "best below the TE you follow" ON (seen live), "no route can make the date" OFF (not reachable with the fixtures, so unseen)', () => {
+    expect(FOLLOW_BELOW_ON).toBe(true);
+    expect(FOLLOW_CANNOT_ON).toBe(false);
+  });
+});
+
+describe('plansOfThisSave: the plans priced ON the loaded save, read from the candidates, not from the pick (Reliability\'s fix, live run 17 Nov 2026)', () => {
+  const SAVE = 1_800_000_000;
+  const D = 1_900_000_000;
+  const plan = (te: number, bt: number, end: number) => ({ goal: 'date' as const, deadline: D, end, endTE: te, meta: { backupTime: bt } });
+  const c = (p: ReturnType<typeof plan>) => ({ goalKey: 'g', plan: p });
+  it('the pick can be an older save\'s 199 (a save 30 min older ranks as current) while this save has a 198 in time: the 198 is read', () => {
+    const r = plansOfThisSave({ goalKey: 'g', loadedSave: SAVE, candidates: [c(plan(199, SAVE - 1800, D - 100)), c(plan(198, SAVE, D - 3600))] });
+    expect(r).toEqual({ count: 2 - 1, bestInTime: { endTE: 198 } });
+  });
+  it('plans of this save that all land after the date: counted, none in time', () => {
+    expect(plansOfThisSave({ goalKey: 'g', loadedSave: SAVE, candidates: [c(plan(198, SAVE, D + 3600))] })).toEqual({ count: 1, bestInTime: null });
+  });
+  it('only an older save\'s plans: nothing of this save', () => {
+    expect(plansOfThisSave({ goalKey: 'g', loadedSave: SAVE, candidates: [c(plan(199, SAVE - 1800, D - 100))] })).toEqual({ count: 0, bestInTime: null });
+  });
+  it('the best of several in time is the highest TE; another goal\'s plans do not count', () => {
+    const r = plansOfThisSave({ goalKey: 'g', loadedSave: SAVE, candidates: [c(plan(198, SAVE, D - 100)), c(plan(204, SAVE, D - 200)), { goalKey: 'other', plan: plan(300, SAVE, D - 1) }] });
+    expect(r).toEqual({ count: 2, bestInTime: { endTE: 204 } });
   });
 });

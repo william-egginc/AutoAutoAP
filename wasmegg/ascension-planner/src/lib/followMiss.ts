@@ -7,6 +7,7 @@
  */
 import { reactive } from 'vue';
 import { finishesBefore } from './eggDayRule';
+import { planInTime } from './currentAnswer';
 
 export interface FollowMiss {
   /** When the followed route lands, unix seconds. */
@@ -31,14 +32,15 @@ export function followMissOf(o: {
   return { finish, deadline, lateSeconds: finish - deadline };
 }
 
-// ----------------------------------------------------------------------------- the two verdicts are OFF until they are verified live
+// ----------------------------------------------------------------------------- the two verdicts and their flags
 /**
- * THE FLAG (orchestrator, 17 Nov 2026, after QA's 3d78e4e5f retest): the "no route can make the date" and "best below the TE you follow"
- * flags stay OFF. Traced live: on a later save, opening By a date copies the OLD save's kept Fast result into the NEW save's snapshot
- * (search.backupAt stays the old save's), and the card then builds the followed plan with the snapshot's save time, so the followed route
- * reads as priced on the new save and neither rule has anything to read. Turn this on only once that is fixed and both are seen live.
+ * THE FLAGS (orchestrator, 17 Nov 2026). "Best below the TE you follow" is ON: seen live on QA's two-save run (the later, habs-cut save; By a
+ * date Nov 9 10:30: the 198 TE row, the followed 199 TE priced on the older save) once Reliability's second save-stamp fix (201f79cb1) landed.
+ * "No route can make the date" stays OFF: its state (a save with no plan in time and none late for the date) cannot be reached with QA's
+ * fixtures, so it has only specs, and a wrong "can't make it" is worse than no line. Turn it on once someone sees it live.
  */
-export const FOLLOW_VERDICTS_ON = false;
+export const FOLLOW_BELOW_ON = true;
+export const FOLLOW_CANNOT_ON = false;
 
 // ----------------------------------------------------------------------------- worked out on the loaded save
 /**
@@ -59,6 +61,22 @@ export function workedOutHereAt(o: {
   const plans = o.candidates.filter(c => c.goalKey === o.goalKey && same(c.plan.meta?.backupTime)).map(c => c.plan.calculatedAt);
   const said = o.answers.filter(a => a.goalKey === o.goalKey && same(a.saveSeconds)).map(a => a.calculatedAt);
   return Math.max(0, ...plans, ...said);
+}
+
+/**
+ * The plans priced ON the loaded save for a goal (the same one-minute rule as workedOutHereAt), read from the candidates and not from the
+ * goal's pick: the pick ranks a save up to 2 h older as current and by TE, so with Reliability's save-stamp fix it is the OLDER save's 199 TE
+ * plan while this save's own 198 TE plan sits in the candidates (live run, 17 Nov 2026). `count`: plans of this save, any time;
+ * `bestInTime`: the highest TE among those that finish by the date, null when none does. Pure.
+ */
+export function plansOfThisSave(o: {
+  goalKey: string;
+  loadedSave: number;
+  candidates: readonly { goalKey?: string; plan: Parameters<typeof planInTime>[0] & { endTE: number; meta?: { backupTime?: number | null } | null } }[];
+}): { count: number; bestInTime: { endTE: number } | null } {
+  const mine = o.candidates.filter(c => c.goalKey === o.goalKey && typeof c.plan.meta?.backupTime === 'number' && Math.abs(c.plan.meta.backupTime - o.loadedSave) <= 60);
+  const inTime = mine.filter(c => planInTime(c.plan)).map(c => c.plan.endTE);
+  return { count: mine.length, bestInTime: inTime.length ? { endTE: Math.max(...inTime) } : null };
 }
 
 // ----------------------------------------------------------------------------- no route makes the date

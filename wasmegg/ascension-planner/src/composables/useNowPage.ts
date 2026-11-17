@@ -180,7 +180,7 @@ import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
-import { FOLLOW_VERDICTS_ON, followBelowOf, followCannotOf, workedOutHereAt } from '@/lib/followMiss';
+import { FOLLOW_BELOW_ON, FOLLOW_CANNOT_ON, followBelowOf, followCannotOf, plansOfThisSave, workedOutHereAt } from '@/lib/followMiss';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -1093,23 +1093,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   );
   /** No route makes the followed date on THIS save (lib/followMiss.ts followCannotOf). */
   function cannotMakeDate(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string): boolean {
-    if (!FOLLOW_VERDICTS_ON) return false;
-    const pg = planGoals.value.find(p => p.goal.key === key);
+    if (!FOLLOW_CANNOT_ON) return false;
+    // Read from the plans priced ON this save, not the goal's pick (which can be an older save's better plan).
+    const here = plansOfThisSave({ goalKey: key, loadedSave: saveSeconds.value, candidates: snapCandidates.value });
     return followCannotOf({
       goal: g.goal,
       deadline: g.deadline,
-      // Worked out on THIS save (an older save's plan, or a result re-stamped from one, does not count), with no plan in time on it.
-      checkedHere: !!pg && workedOutHereAt({ goalKey: key, loadedSave: saveSeconds.value, candidates: snapCandidates.value, answers: goalAnswers.value }) > 0,
-      planInTime: !!pg?.pick && pg.pick.state !== 'older-save',
-      lateKept: !!pg?.late,
+      checkedHere: workedOutHereAt({ goalKey: key, loadedSave: saveSeconds.value, candidates: snapCandidates.value, answers: goalAnswers.value }) > 0,
+      planInTime: here.bestInTime !== null,
+      lateKept: here.count > 0 && here.bestInTime === null,
       pricedOnOlderSave: source === 'older-save',
     });
   }
   /** This save's best plan for the followed date is below the TE followed (lib/followMiss.ts followBelowOf). */
   function belowTEOf(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string, followedTE: number): { belowTE?: { bestTE: number; followedTE: number } } {
-    if (!FOLLOW_VERDICTS_ON) return {};
-    const pick = planGoals.value.find(p => p.goal.key === key)?.pick;
-    const here = pick && pick.state !== 'older-save' ? { endTE: pick.candidate.plan.endTE } : null;
+    if (!FOLLOW_BELOW_ON) return {};
+    const here = plansOfThisSave({ goalKey: key, loadedSave: saveSeconds.value, candidates: snapCandidates.value }).bestInTime;
     const b = followBelowOf({ goal: g.goal, deadline: g.deadline, pricedOnOlderSave: source === 'older-save', followedTE, bestHere: here });
     return b ? { belowTE: b } : {};
   }
