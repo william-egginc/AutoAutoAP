@@ -7,79 +7,42 @@
  * asks for them only when the slideshow shows, and a <picture> fetches one set (desk from 640 px, phone below).
  * Nothing the result hash covers imports this file.
  */
-import { stepsFor, type TourStepId } from './firstTour';
-import tabManualDesk from '@/assets/tour/1-tab-manual-desk.webp';
-import tabManualPhone from '@/assets/tour/1-tab-manual-phone.webp';
-import tabAutoDesk from '@/assets/tour/2-tab-auto-desk.webp';
-import tabAutoPhone from '@/assets/tour/2-tab-auto-phone.webp';
-import tabChainDesk from '@/assets/tour/3-tab-chain-desk.webp';
-import tabChainPhone from '@/assets/tour/3-tab-chain-phone.webp';
-import tabMyrunsDesk from '@/assets/tour/4-tab-myruns-desk.webp';
-import tabMyrunsPhone from '@/assets/tour/4-tab-myruns-phone.webp';
-import loadDesk from '@/assets/tour/5-load-desk.webp';
-import loadPhone from '@/assets/tour/5-load-phone.webp';
-import goalTargetDesk from '@/assets/tour/6-goal-target-desk.webp';
-import goalTargetPhone from '@/assets/tour/6-goal-target-phone.webp';
-import goalDateDesk from '@/assets/tour/7-goal-date-desk.webp';
-import goalDatePhone from '@/assets/tour/7-goal-date-phone.webp';
-import resultDesk from '@/assets/tour/8-result-desk.webp';
-import resultPhone from '@/assets/tour/8-result-phone.webp';
-import filtersDesk from '@/assets/tour/9-filters-desk.webp';
-import filtersPhone from '@/assets/tour/9-filters-phone.webp';
-import setupAwakeDesk from '@/assets/tour/10-setup-awake-desk.webp';
-import setupAwakePhone from '@/assets/tour/10-setup-awake-phone.webp';
-import setupTimeOffDesk from '@/assets/tour/11-setup-time-off-desk.webp';
-import setupTimeOffPhone from '@/assets/tour/11-setup-time-off-phone.webp';
-import preferDesk from '@/assets/tour/12-prefer-desk.webp';
-import preferPhone from '@/assets/tour/12-prefer-phone.webp';
-import gearDesk from '@/assets/tour/13-gear-desk.webp';
-import gearPhone from '@/assets/tour/13-gear-phone.webp';
-import simulateDesk from '@/assets/tour/14-simulate-desk.webp';
-import simulatePhone from '@/assets/tour/14-simulate-phone.webp';
-import followDesk from '@/assets/tour/15-follow-desk.webp';
-import followPhone from '@/assets/tour/15-follow-phone.webp';
-import myrunsPageDesk from '@/assets/tour/16-myruns-page-desk.webp';
-import myrunsPagePhone from '@/assets/tour/16-myruns-page-phone.webp';
-import followedRouteDesk from '@/assets/tour/17-followed-route-desk.webp';
-import followedRoutePhone from '@/assets/tour/17-followed-route-phone.webp';
-import nextStepDesk from '@/assets/tour/18-next-step-desk.webp';
-import nextStepPhone from '@/assets/tour/18-next-step-phone.webp';
-import trackerDesk from '@/assets/tour/19-tracker-desk.webp';
-import trackerPhone from '@/assets/tour/19-tracker-phone.webp';
-import setupWhereDesk from '@/assets/tour/20-setup-where-desk.webp';
-import setupWherePhone from '@/assets/tour/20-setup-where-phone.webp';
-import setupInsideDesk from '@/assets/tour/21-setup-inside-desk.webp';
-import setupInsidePhone from '@/assets/tour/21-setup-inside-phone.webp';
-import shiftsDesk from '@/assets/tour/22-shifts-desk.webp';
-import shiftsPhone from '@/assets/tour/22-shifts-phone.webp';
-import closingDesk from '@/assets/tour/23-closing-desk.webp';
-import closingPhone from '@/assets/tour/23-closing-phone.webp';
+import { stepsFor, TOUR_STEPS, type TourStepId } from './firstTour';
+import overlayData from '@/assets/tour/overlays.json';
 
-/** The files behind each slide (src/assets/tour/), numbered in tour order (tour v3, spec-tour-v3, 16 Nov 2026). */
-export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = {
-  tabManual: { desk: '1-tab-manual-desk.webp', phone: '1-tab-manual-phone.webp' },
-  tabAuto: { desk: '2-tab-auto-desk.webp', phone: '2-tab-auto-phone.webp' },
-  tabChain: { desk: '3-tab-chain-desk.webp', phone: '3-tab-chain-phone.webp' },
-  tabMyruns: { desk: '4-tab-myruns-desk.webp', phone: '4-tab-myruns-phone.webp' },
-  load: { desk: '5-load-desk.webp', phone: '5-load-phone.webp' },
-  goalTarget: { desk: '6-goal-target-desk.webp', phone: '6-goal-target-phone.webp' },
-  goalDate: { desk: '7-goal-date-desk.webp', phone: '7-goal-date-phone.webp' },
-  result: { desk: '8-result-desk.webp', phone: '8-result-phone.webp' },
-  filters: { desk: '9-filters-desk.webp', phone: '9-filters-phone.webp' },
-  setupAwake: { desk: '10-setup-awake-desk.webp', phone: '10-setup-awake-phone.webp' },
-  setupTimeOff: { desk: '11-setup-time-off-desk.webp', phone: '11-setup-time-off-phone.webp' },
-  prefer: { desk: '12-prefer-desk.webp', phone: '12-prefer-phone.webp' },
-  gear: { desk: '13-gear-desk.webp', phone: '13-gear-phone.webp' },
-  simulate: { desk: '14-simulate-desk.webp', phone: '14-simulate-phone.webp' },
-  follow: { desk: '15-follow-desk.webp', phone: '15-follow-phone.webp' },
-  myrunsPage: { desk: '16-myruns-page-desk.webp', phone: '16-myruns-page-phone.webp' },
-  followedRoute: { desk: '17-followed-route-desk.webp', phone: '17-followed-route-phone.webp' },
-  nextStep: { desk: '18-next-step-desk.webp', phone: '18-next-step-phone.webp' },
-  tracker: { desk: '19-tracker-desk.webp', phone: '19-tracker-phone.webp' },
-  setupWhere: { desk: '20-setup-where-desk.webp', phone: '20-setup-where-phone.webp' },
-  setupInside: { desk: '21-setup-inside-desk.webp', phone: '21-setup-inside-phone.webp' },
-  shifts: { desk: '22-shifts-desk.webp', phone: '22-shifts-phone.webp' },
-  closing: { desk: '23-closing-desk.webp', phone: '23-closing-phone.webp' },
+/** Every picture in src/assets/tour/, by file stem (vite fingerprints them; eager, so each is a URL, loaded by the page only
+ *  when the slideshow asks for it). */
+const FILES = import.meta.glob('../assets/tour/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+export const tourUrl = (stem: string): string => {
+  const u = FILES[`../assets/tour/${stem}.webp`];
+  if (!u) throw new Error(`tour picture missing: ${stem}`);
+  return u;
+};
+
+/** The baked picture of a slide that has no live overlay (several targets), numbered in tour order. */
+export const TOUR_FILES: Record<TourStepId, string> = {
+  tabManual: '1-tab-manual',
+  tabAuto: '2-tab-auto',
+  tabChain: '3-tab-chain',
+  tabMyruns: '4-tab-myruns',
+  load: '5-load',
+  goalTarget: '6-goal-target',
+  goalDate: '7-goal-date',
+  result: '8-result',
+  filters: '9-filters',
+  setupAwake: '10-setup-awake',
+  setupTimeOff: '11-setup-time-off',
+  prefer: '12-prefer',
+  simulate: '14-simulate',
+  follow: '15-follow',
+  myrunsPage: '16-myruns-page',
+  followedRoute: '17-followed-route',
+  nextStep: '18-next-step',
+  tracker: '19-tracker',
+  setupWhere: '20-setup-where',
+  setupInside: '21-setup-inside',
+  shifts: '22-shifts',
+  closing: '23-closing',
 };
 
 export interface TourPicture {
@@ -87,41 +50,63 @@ export interface TourPicture {
   width: number;
   height: number;
 }
+export interface TourRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+/** What the dialog draws over a shared page picture (all numbers in the picture's own crop pixels, `cw` x `ch`): the ring
+ *  (round `rect`, the thing), an arrow whose tip (x, y) touches the ring, an enlarged copy of the thing (`sprite`, drawn in
+ *  `rect`) when it is one small thing, and light rings round the top tab it lives under (`tabs`). The dim is the ring's own
+ *  shadow. Slides that share a picture slide the ring, arrow and copy from one to the next (components/TourOverlay.vue). */
+export interface SlideOverlay {
+  cw: number;
+  ch: number;
+  rect: TourRect;
+  ring: TourRect;
+  sprite: string | null;
+  tabs: TourRect[];
+  /** When the top tab the thing lives under is scrolled out of the picture: a small copy of the tab row at the top left, with that tab
+   *  ringed lightly (`sprite` drawn in `rect`, the ring round the tab in `ring`). */
+  inset: { sprite: string; rect: TourRect; ring: TourRect } | null;
+  arrow: { dir: 'left' | 'right' | 'up' | 'down'; x: number; y: number; len: number };
+}
+export interface SlideForm {
+  picture: TourPicture;
+  overlay: SlideOverlay | null;
+}
 export interface TourSlide {
   id: TourStepId;
   /** From 640 px: 720×406 (a 1100 px screen's 1100×620 crop). */
   desk: TourPicture;
   /** Below 640 px: 390×440. */
   phone: TourPicture;
+  /** The live overlay, desk and phone, or absent (a baked picture: the ring is in the picture). */
+  overlay?: { desk: SlideOverlay; phone: SlideOverlay };
 }
 const desk = (src: string): TourPicture => ({ src, width: 720, height: 406 });
 const phone = (src: string): TourPicture => ({ src, width: 390, height: 440 });
 
-export const TOUR_SLIDES: TourSlide[] = [
-  { id: 'tabManual', desk: desk(tabManualDesk), phone: phone(tabManualPhone) },
-  { id: 'tabAuto', desk: desk(tabAutoDesk), phone: phone(tabAutoPhone) },
-  { id: 'tabChain', desk: desk(tabChainDesk), phone: phone(tabChainPhone) },
-  { id: 'tabMyruns', desk: desk(tabMyrunsDesk), phone: phone(tabMyrunsPhone) },
-  { id: 'load', desk: desk(loadDesk), phone: phone(loadPhone) },
-  { id: 'goalTarget', desk: desk(goalTargetDesk), phone: phone(goalTargetPhone) },
-  { id: 'goalDate', desk: desk(goalDateDesk), phone: phone(goalDatePhone) },
-  { id: 'result', desk: desk(resultDesk), phone: phone(resultPhone) },
-  { id: 'filters', desk: desk(filtersDesk), phone: phone(filtersPhone) },
-  { id: 'setupAwake', desk: desk(setupAwakeDesk), phone: phone(setupAwakePhone) },
-  { id: 'setupTimeOff', desk: desk(setupTimeOffDesk), phone: phone(setupTimeOffPhone) },
-  { id: 'prefer', desk: desk(preferDesk), phone: phone(preferPhone) },
-  { id: 'gear', desk: desk(gearDesk), phone: phone(gearPhone) },
-  { id: 'simulate', desk: desk(simulateDesk), phone: phone(simulatePhone) },
-  { id: 'follow', desk: desk(followDesk), phone: phone(followPhone) },
-  { id: 'myrunsPage', desk: desk(myrunsPageDesk), phone: phone(myrunsPagePhone) },
-  { id: 'followedRoute', desk: desk(followedRouteDesk), phone: phone(followedRoutePhone) },
-  { id: 'nextStep', desk: desk(nextStepDesk), phone: phone(nextStepPhone) },
-  { id: 'tracker', desk: desk(trackerDesk), phone: phone(trackerPhone) },
-  { id: 'setupWhere', desk: desk(setupWhereDesk), phone: phone(setupWherePhone) },
-  { id: 'setupInside', desk: desk(setupInsideDesk), phone: phone(setupInsidePhone) },
-  { id: 'shifts', desk: desk(shiftsDesk), phone: phone(shiftsPhone) },
-  { id: 'closing', desk: desk(closingDesk), phone: phone(closingPhone) },
-];
+type RawOverlay = { base: string; cw: number; ch: number; rect: TourRect; ring: TourRect; mag: string | null; tabs: TourRect[]; inset?: { sprite: string; rect: TourRect; ring: TourRect } | null; arrow: SlideOverlay['arrow'] };
+const raw = overlayData as Record<string, RawOverlay>;
+const overlayOf = (key: string): SlideOverlay | null => {
+  const o = raw[key];
+  return o ? { cw: o.cw, ch: o.ch, rect: o.rect, ring: o.ring, sprite: o.mag ? tourUrl(o.mag) : null, tabs: o.tabs, inset: o.inset ? { ...o.inset, sprite: tourUrl(o.inset.sprite) } : null, arrow: o.arrow } : null;
+};
+/** A slide of the tour from the generator's output: live (a shared base picture + overlay) or baked. Exported for the full tour. */
+export function buildSlide<Id extends string>(id: Id, bakedStem: string, key: string = id): { id: Id; desk: TourPicture; phone: TourPicture; overlay?: { desk: SlideOverlay; phone: SlideOverlay } } {
+  const d = raw[`${key}-desk`], p = raw[`${key}-phone`];
+  if (d && p) return { id, desk: desk(tourUrl(d.base)), phone: phone(tourUrl(p.base)), overlay: { desk: overlayOf(`${key}-desk`)!, phone: overlayOf(`${key}-phone`)! } };
+  return { id, desk: desk(tourUrl(`${bakedStem}-desk`)), phone: phone(tourUrl(`${bakedStem}-phone`)) };
+}
+
+export const TOUR_SLIDES: TourSlide[] = TOUR_STEPS.map(id => buildSlide(id, TOUR_FILES[id]));
+
+/** Whether two slides share one page picture (so the dialog slides the overlay instead of fading). */
+export function sharesPicture(a: { desk: TourPicture; phone: TourPicture } | null | undefined, b: { desk: TourPicture; phone: TourPicture } | null | undefined): boolean {
+  return !!a && !!b && a.desk.src === b.desk.src && a.phone.src === b.phone.src;
+}
 
 /** The slides for what is loaded: a save file with no player ID has no My runs tab and ends at Follow this route (lib/firstTour.ts stepsFor). */
 export function slidesFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourSlide[] {

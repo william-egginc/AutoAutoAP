@@ -38,8 +38,8 @@ describe('the full tour opens only when asked', () => {
     expect(t.state.index).toBe(0);
     expect(t.state.remind).toBe(false);
     expect(t.total.value).toBe(FULL_TOUR_STEPS.length);
-    expect(t.step.value).toBe('tabs');
-    expect(t.state.announce).toBe(fullTourAnnounce(1, FULL_TOUR_STEPS.length, FULL_TOUR_STEPS_WORDS.tabs.title));
+    expect(t.step.value).toBe('tabManual');
+    expect(t.state.announce).toBe(fullTourAnnounce(1, FULL_TOUR_STEPS.length, FULL_TOUR_STEPS_WORDS.tabManual.title));
     expect(t.visible(NO_WAIT)).toBe(true);
   });
   it('not while a search runs', () => {
@@ -53,7 +53,7 @@ describe('the full tour opens only when asked', () => {
     const t = createTourController({ storage: st, blocked: false, newVisitor: false });
     t.startFull({ hasAccount: false, hasSaveFile: true, running: false });
     expect(t.steps.value).toEqual(fullStepsFor({ hasAccount: false }));
-    expect(t.steps.value).not.toContain('chip');
+    expect(t.steps.value).not.toContain('m1more');
   });
 });
 

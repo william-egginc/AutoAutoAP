@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { FADE_MS, shouldFade } from './tourFade';
 
 const dialog = readFileSync(new URL('../components/TourDialog.vue', import.meta.url), 'utf8');
+const overlay = readFileSync(new URL('../components/TourOverlay.vue', import.meta.url), 'utf8');
 
 describe('the slide crossfade', () => {
   it('fades from a slide to a different one', () => {
@@ -33,5 +34,25 @@ describe('the slide crossfade', () => {
   });
   it('still exactly one live picture a slide (the one before is a copy for the fade, with empty alt text)', () => {
     expect(dialog).toMatch(/alt=""/);
+  });
+  it('Jordan, 16 Nov (~10:40 PM): NO fade between slides that share one page picture; the picture is keyed by its own files, so only a new picture fades', () => {
+    // The pure rule is given the picture's identity (desk + phone files), not the slide's: two slides on one picture are "the same".
+    expect(dialog).toMatch(/shouldFade\(\s*before\.desk\.src \+ before\.phone\.src/);
+    expect(dialog).toMatch(/<picture :key="slide\.desk\.src \+ slide\.phone\.src"/);
+    expect(shouldFade('a.webp b.webp', 'a.webp b.webp', false)).toBe(false);
+    expect(shouldFade('a.webp b.webp', 'c.webp d.webp', false)).toBe(true);
+  });
+  it('the overlay SLIDES: its parts stay mounted and move by a CSS transition (left, top, size, turn, fade), none under prefers-reduced-motion', () => {
+    for (const p of ['left 320ms', 'top 320ms', 'width 320ms', 'height 320ms', 'transform 320ms', 'opacity 200ms']) expect(overlay).toContain(p);
+    expect(overlay).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.tov-move \{\s*transition: none;/);
+    // One ring, one arrow, one copy and one tab ring element, never v-for'd or v-if'd away, so they move instead of popping.
+    expect(overlay.match(/data-testid="tour-ring"/g)).toHaveLength(1);
+    expect(overlay.match(/data-testid="tour-arrow"/g)).toHaveLength(1);
+    expect(overlay).not.toMatch(/v-for/);
+  });
+  it('the dialog draws the overlay for desk (from 640 px) and phone (below) from the slide, keyed by the picture so a new picture starts fresh', () => {
+    expect(dialog).toMatch(/<TourOverlay class="hidden sm:block" :overlay="slide\.overlay\.desk"/);
+    expect(dialog).toMatch(/<TourOverlay class="sm:hidden" :overlay="slide\.overlay\.phone"/);
+    expect(dialog).toMatch(/v-if="slide\.overlay" :key=/);
   });
 });

@@ -22,7 +22,6 @@ describe('first tour words', () => {
     expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
     expect(B('setupTimeOff')).toBe('No prestige days are days you play but do not prestige. Time off is days away on the home farm. The route plans around both.');
     expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
-    expect(B('gear')).toBe('What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.');
     expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
     expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.');
     expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next.');
@@ -34,7 +33,7 @@ describe('first tour words', () => {
     expect(B('shifts')).toBe('The shifts are listed on My runs, each with when it happens and how far away it is.');
     expect(B('closing')).toBe('That is the important part. For everything else, open More and take the Full tour.');
     // The tabs, the goal sides and what the planner does before the player has a save never say "press": the tabs show only after a load.
-    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate'] as const) expect(B(id), id).not.toMatch(/\bpress\b/i);
+    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate'] as const) expect(B(id), id).not.toMatch(/\bpress\b/i);
     expect(JSON.stringify(FIRST_TOUR_STEPS)).not.toMatch(/Single run/);
     // The slides dropped from v2 are in the Full tour, not here.
     for (const gone of ['goal', 'answer', 'date', 'firstStep', 'myruns', 'myrunsWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']) expect(Object.keys(FIRST_TOUR_STEPS)).not.toContain(gone);

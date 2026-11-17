@@ -1,37 +1,44 @@
 /**
  * The full tour's pictures (spec-fulltour, 14 Nov 2026; ~/code/aaap-tools/harness-r7/spec-fulltour/make-full-tour-images.mjs):
- * one desk and one phone picture per step, each a WebP under 25 KB, all together under 300 KB (the first tour's budget,
- * lib/tourSlides.spec.ts, its own set), and fetched only when the full tour opens: nothing statically imports them.
+ * one desk and one phone picture per step (the first tour's own where they share a slide; the budget is lib/tourSlides.spec.ts's), and
+ * fetched only when the full tour opens: nothing statically imports them.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FULL_TOUR_STEPS } from './fullTour';
 import { FULL_TOUR_SLIDES } from './fullTourSlides';
+import { TOUR_SLIDES, sharesPicture } from './tourSlides';
 
-const dir = path.resolve(__dirname, '..', 'assets', 'fulltour');
 const src = (f: string) => readFileSync(path.resolve(__dirname, '..', f), 'utf8');
 
 describe('the full tour slides', () => {
-  it('one slide per step, in the tour\'s order, 720x406 desk and 390x440 phone', () => {
+  it("forty-two slides, one per step, in the tour's order, 720x406 desk and 390x440 phone (spec-tour-v4: the v3 style, plus everything inside More)", () => {
+    expect(FULL_TOUR_STEPS).toHaveLength(42);
     expect(FULL_TOUR_SLIDES.map(s => s.id)).toEqual([...FULL_TOUR_STEPS]);
     for (const s of FULL_TOUR_SLIDES) {
       expect([s.desk.width, s.desk.height]).toEqual([720, 406]);
       expect([s.phone.width, s.phone.height]).toEqual([390, 440]);
     }
   });
-  it('every file is a WebP under 25 KB and the set is under 300 KB; two files per step and none left over', () => {
-    const files = readdirSync(dir).filter(f => f.endsWith('.webp'));
-    expect(files).toHaveLength(FULL_TOUR_STEPS.length * 2);
-    let total = 0;
-    for (const f of files) {
-      const b = readFileSync(path.join(dir, f));
-      expect(b.subarray(0, 4).toString('latin1'), f).toBe('RIFF');
-      expect(b.subarray(8, 12).toString('latin1'), f).toBe('WEBP');
-      expect(statSync(path.join(dir, f)).size, f).toBeLessThan(25 * 1024);
-      total += b.length;
+  it("the slides it shares with the first tour use the first tour's pictures and overlays (no second copy)", () => {
+    for (const id of ['load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts'] as const) {
+      const full = FULL_TOUR_SLIDES.find(s => s.id === id)!;
+      const first = TOUR_SLIDES.find(s => s.id === id)!;
+      expect(full.desk.src, id).toBe(first.desk.src);
+      expect(full.phone.src, id).toBe(first.phone.src);
     }
-    expect(total).toBeLessThan(300 * 1024);
+  });
+  it('every slide of More is live (its own overlay, desk and phone), so the ring slides between neighbours that share a picture', () => {
+    for (const s of FULL_TOUR_SLIDES.filter(x => /^[mr]\d/.test(x.id))) expect(s.overlay, s.id).toBeDefined();
+    const by = (id: string) => FULL_TOUR_SLIDES.find(s => s.id === id)!;
+    expect(sharesPicture(by('m3fast'), by('m4exact'))).toBe(true);
+    expect(sharesPicture(by('m4exact'), by('m5custom'))).toBe(true);
+  });
+  it('the optional tabs are shown on (their real state): the tab slides have pictures of their own, shared with each other', () => {
+    const by = (id: string) => FULL_TOUR_SLIDES.find(s => s.id === id)!;
+    expect(sharesPicture(by('tabManual'), by('tabLeaderboard'))).toBe(true);
+    expect(by('tabManual').desk.src).not.toBe(TOUR_SLIDES.find(s => s.id === 'tabManual')!.desk.src);
   });
   it('fetched only when the tour opens: the modal imports the slides dynamically, nothing else imports them', () => {
     expect(src('components/TourModal.vue')).toContain("await import('@/lib/fullTourSlides')");

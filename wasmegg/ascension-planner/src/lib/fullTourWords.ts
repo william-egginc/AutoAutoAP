@@ -1,86 +1,75 @@
 /**
- * Every word of the full tour (spec-fulltour, 14 Nov 2026). DRAFT: Words owns the final text. Each card's body stays within
- * the first tour's cap (169 characters, lib/firstTourWords.spec.ts), in plain words, "Press" for what you do. Wording only,
- * so never part of the result hash.
+ * Every word of the full tour (spec-fulltour, 14 Nov 2026; rebuilt as 42 slides, spec-tour-v4, 16 Nov 2026). Words owns the text
+ * (~/code/aaap-tools/notes/words-full-tour-text-2026-11-16.md): the slides that are also in the first tour say what the first
+ * tour says (lib/firstTourWords.ts), the rest are Words' for the full tour. Titles are DRAFT (UI's). Each body stays within the
+ * first tour's cap (lib/firstTourWords.spec.ts), plain words, "Press" for what you do. Wording only, so never part of the result hash.
  */
 import type { FullTourStepId } from './fullTour';
+import { FIRST_TOUR_ALT, FIRST_TOUR_STEPS } from './firstTourWords';
+import type { TourStepId } from './firstTour';
 
-export const FULL_TOUR_STEPS_WORDS: Record<FullTourStepId, { title: string; body: string }> = {
-  tabs: {
-    title: 'The tabs',
-    body: 'Manual Planner, Auto Planner, Chain Finder and My runs are always there. Leaderboard and Science show once turned on in Setup. The highlighted one is where you are.',
-  },
-  chip: {
-    title: 'Your account',
-    body: 'The chip shows whose save is loaded. Press it to switch player or load another save; the player box opens above.',
-  },
-  saveBlock: {
-    title: 'How fresh your save is',
-    body: 'Top right of the card: how old your save is, and when your silos run out. Amber means old or low. Details and Load latest save are inside.',
-  },
-  switch: {
-    title: 'Target TE | By a date',
-    body: 'Target TE finds the quickest way to a TE such as 490. By a date finds the most TE by a date such as Egg Day. The ? beside it says what the page does.',
-  },
-  filters: {
-    title: 'More filters in Setup',
-    body: 'This button opens Setup for more filters. Ascensions from and to, and Prefer fewer ascensions, sit right under it and change the answer at once.',
-  },
-  answer: {
-    title: 'The instant answer',
-    body: "The finish date, each stop's TE and a short first step, worked out ahead of time so it shows at once. Every number of ascensions is below it.",
-  },
-  followSim: {
-    title: 'Follow and Simulate',
-    body: 'Follow this route keeps it, so My runs can track it. Simulate this plan opens it in the Auto Planner and plays it out shift by shift.',
-  },
-  rightNow: {
-    title: 'Right now and Next step',
-    body: 'On My runs, Right now shows where you are, and Next step says what to do next, such as an ascension, a shift or a buy, and when.',
-  },
-  tracker: {
-    title: 'The Build-up tracker',
-    body: 'The tracker lists every check-in of the build: what to buy and when. Tick each one as you do it. Compact view fits more on screen.',
-  },
-  eggs: {
-    title: 'Your eggs',
-    body: "Your eggs, on My runs under the tracker, shows each egg's TE and facts about your farm, all read from your save.",
-  },
-  dock: {
-    title: 'The Setup button',
-    body: 'Setup floats at the bottom of the screen. Press it for your awake hours, Save online and the rest. Drag it out of the way, and double-click it to put it back.',
-  },
-  more: {
-    title: 'More',
-    body: 'More is the fold at the foot of Chain Finder and My runs, closed until you open it. It holds the Search card and the rest of what the page can do.',
-  },
-  blackBox: {
-    title: 'The black box',
-    body: 'If a search stops without finishing, the page offers the black box: a file of what it was doing. Download it and send it to the maintainer.',
-  },
-  leaderboard: {
-    title: 'The Leaderboard',
-    body: 'The Leaderboard lists runs that players chose to share. You share one only by pressing a share button yourself.',
-  },
+/** The slides the full tour shares with the first tour. */
+const SHARED = ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts'] as const satisfies readonly TourStepId[];
+type SharedId = (typeof SHARED)[number];
+type OwnId = Exclude<FullTourStepId, SharedId>;
+
+const OWN: Record<OwnId, { title: string; body: string }> = {
+  tabLeaderboard: { title: "Leaderboard", body: "Leaderboard shows everyone's shared runs. It shows only once turned on, in Setup › More options › How the site shows things." },
+  tabScience: { title: "Science", body: "Science explains how the planner works and how it was checked. It shows only once turned on, in Setup › More options › How the site shows things." },
+  tabInsights: { title: "Insights", body: "Insights shows what the planner has learned from shared runs. It is part of the Leaderboard, so turn that tab on first, in Setup › More options." },
+  m1more: { title: "More", body: "More is the fold at the foot of Chain Finder. It holds the searches, maxed gear and how it works, and stays shut until you open it." },
+  m2search: { title: "Search", body: "Search has three choices: Fast, Exact and Custom. Each shows how long it takes on this device, and what it is for." },
+  m3fast: { title: "Fast", body: "Fast is a quick check near the instant answer. It is usually close to the best." },
+  m4exact: { title: "Exact", body: "Exact is a slower, wider check. Press it for a second opinion on the instant answer." },
+  m5custom: { title: "Custom", body: "Custom lets you set the search boxes yourself, to prove the answer inside them." },
+  m6run: { title: "Run", body: "Run starts the search you picked. The estimate beside it is how long it takes on this device." },
+  m7send: { title: "Send to the Leaderboard", body: "Tick this to send the result to the Leaderboard when it finishes. Before you send shows what goes: never your player ID or your save." },
+  m8whatThisDoes: { title: "What this does", body: "What this does says what the search checks, and what it leaves out." },
+  m9searchSettings: { title: "Search settings", body: "Search settings sets the ascension counts the search tries, how many routes it checks and how long it may run." },
+  m10maxedGear: { title: "Maxed gear", body: "What if you had maxed gear? finds your route again as if all your gear were maxed (all legendary, T4 stones). It is a ballpark, to show what is possible." },
+  m11steppingAway: { title: "Stepping away", body: "Stepping away? has helpers for a long search: carry on after a crash, watch it from your phone, and send progress." },
+  m12howItWorks: { title: "How it works", body: "How it works opens Science, which shows how the answer is worked out and how it was checked." },
+  r1changeRoute: { title: "Change route", body: "Change route is where you stop following, go back to an earlier version, or follow another route by typing or picking one." },
+  r2gearSets: { title: "Gear sets", body: "Gear sets for the route shows what you wear now, the earnings set, the production set, and what you are missing for a perfect set." },
+  r3tryNext: { title: "Try next", body: "Try next offers the next searches to run on your route: Egg Day with Fast, Exact on your 490 route, or Custom." },
+  r4share: { title: "Share my instant answer", body: "Share my instant answer with my runs sends its route and date beside each run you send, so the Leaderboard shows what the search gained. Never your ID or save." },
+  r5yourRuns: { title: "Your runs", body: "Your runs lists your searches: the latest Fastest, the latest By a date, or all of them. Each is compared with the instant answer for your save that day." },
+  r6boardRuns: { title: "Leaderboard runs", body: "Your runs on the Leaderboard lists the runs you sent. A run of yours isn't here? says why a run is missing, from its id." },
 };
+const OWN_ALT: Record<OwnId, string> = {
+  tabLeaderboard: "The tab row, with the Leaderboard tab turned on and ringed, an arrow pointing at it.",
+  tabScience: "The tab row, with the Science tab turned on and ringed, an arrow pointing at it.",
+  tabInsights: "The Leaderboard screen with its Insights view ringed, an arrow pointing at it.",
+  m1more: "The More fold on Chain Finder, with an arrow pointing at its header.",
+  m2search: "The Search card inside More, with an arrow pointing at the Fast, Exact and Custom choices.",
+  m3fast: "The Fast choice, ringed, with an arrow pointing at it.",
+  m4exact: "The Exact choice, ringed, with an arrow pointing at it.",
+  m5custom: "The Custom choice, ringed, with an arrow pointing at it.",
+  m6run: "The Run button and its time estimate, with an arrow pointing at them.",
+  m7send: "The tick to send the result to the Leaderboard when the search finishes, with an arrow pointing at it.",
+  m8whatThisDoes: "The What this does fold, with an arrow pointing at it.",
+  m9searchSettings: "The Search settings fold, with an arrow pointing at it.",
+  m10maxedGear: "The What if you had maxed gear? line in More, with an arrow pointing at it.",
+  m11steppingAway: "The Stepping away? fold, with an arrow pointing at it.",
+  m12howItWorks: "The How it works link at the foot of More, with an arrow pointing at it.",
+  r1changeRoute: "The Change route card inside More on My runs, with an arrow pointing at it.",
+  r2gearSets: "The gear sets for the route inside More on My runs, with an arrow pointing at them.",
+  r3tryNext: "The Try next buttons inside More on My runs, with an arrow pointing at them.",
+  r4share: "The Share my instant answer with my runs tick inside More on My runs, with an arrow pointing at it.",
+  r5yourRuns: "The Latest and All my runs choices under Your runs, with an arrow pointing at them.",
+  r6boardRuns: "The Your runs on the Leaderboard fold and the A run of yours is not here? fold, with an arrow pointing at them.",
+};
+
+export const FULL_TOUR_STEPS_WORDS = Object.fromEntries([
+  ...SHARED.map(id => [id, FIRST_TOUR_STEPS[id]] as const),
+  ...(Object.keys(OWN) as OwnId[]).map(id => [id, OWN[id]] as const),
+]) as Record<FullTourStepId, { title: string; body: string }>;
 
 /** Each picture's alt text: what is highlighted, on the sample account. */
-export const FULL_TOUR_ALT: Record<FullTourStepId, string> = {
-  tabs: 'The row of tabs at the top, highlighted, with Chain Finder lit.',
-  chip: "The account chip under the tabs, highlighted, showing the sample account's name.",
-  saveBlock: "The save's age and the silo line, highlighted, at the top right of the Target TE card.",
-  switch: 'The Target TE | By a date switch and the ? beside it, highlighted.',
-  filters: 'The button that opens more filters in Setup, highlighted, with the filters under it.',
-  answer: 'The instant answer, highlighted: the finish date, the TE stops and the short first step.',
-  followSim: 'The Follow this route and Simulate this plan buttons under the instant answer, highlighted.',
-  rightNow: 'The Right now card on My runs, highlighted, with its Next step.',
-  tracker: "A sample account's Build-up tracker on My runs, highlighted.",
-  eggs: 'The Your eggs card on My runs, highlighted.',
-  dock: 'The round Setup button floating at the bottom of the screen, highlighted.',
-  more: 'The closed More fold at the foot of the screen, highlighted.',
-  blackBox: 'The notice offering to download the black box, highlighted.',
-  leaderboard: 'The Leaderboard screen, highlighted.',
-};
+export const FULL_TOUR_ALT = Object.fromEntries([
+  ...SHARED.map(id => [id, FIRST_TOUR_ALT[id]] as const),
+  ...(Object.keys(OWN_ALT) as OwnId[]).map(id => [id, OWN_ALT[id]] as const),
+]) as Record<FullTourStepId, string>;
 
 export const FULL_TOUR_CLOSING = "That's everything. Show it again any time from More › Full tour.";
 /** The entries: More's item, the first tour's last card, About's line. */

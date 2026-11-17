@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { FULL_TOUR_STEPS } from './fullTour';
+import { FIRST_TOUR_STEPS } from './firstTourWords';
 import { FULL_TOUR_ABOUT, FULL_TOUR_ALT, FULL_TOUR_CLOSING, FULL_TOUR_FROM_FIRST, FULL_TOUR_ITEM, FULL_TOUR_STEPS_WORDS } from './fullTourWords';
 
 describe('full tour words', () => {
@@ -34,12 +35,11 @@ describe('full tour words', () => {
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all).not.toMatch(/Stronger check|Nearby routes|Exhaustive|Check exactly|Race to|Classic|Your plan|checkpoint|baseline/);
   });
-  it('the tabs and More cards say only what is true: two tabs are off by default, More is on two screens (review W4, 15 Nov 2026)', () => {
-    expect(FULL_TOUR_STEPS_WORDS.tabs.body).toBe(
-      'Manual Planner, Auto Planner, Chain Finder and My runs are always there. Leaderboard and Science show once turned on in Setup. The highlighted one is where you are.'
-    );
-    expect(FULL_TOUR_STEPS_WORDS.more.body).toContain('More is the fold at the foot of Chain Finder and My runs');
-    expect(FULL_TOUR_STEPS_WORDS.more.body).not.toContain('each screen');
+  it("the slides the full tour shares with the first tour say the first tour's words; the rest are Words' (16 Nov 2026, ~/code/aaap-tools/notes/words-full-tour-text-2026-11-16.md)", () => {
+    for (const id of ['tabManual', 'goalTarget', 'setupTimeOff', 'nextStep', 'shifts'] as const) expect(FULL_TOUR_STEPS_WORDS[id]).toEqual(FIRST_TOUR_STEPS[id]);
+    expect(FULL_TOUR_STEPS_WORDS.m1more.body).toContain('More is the fold at the foot of Chain Finder');
+    expect(FULL_TOUR_STEPS_WORDS.m10maxedGear.body).toContain('What if you had maxed gear? finds your route again as if all your gear were maxed');
+    expect(FULL_TOUR_STEPS_WORDS.tabLeaderboard.body).toContain('Setup › More options › How the site shows things');
     expect(FULL_TOUR_ABOUT).toBe('Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.');
   });
   it('the entries', () => {

@@ -62,8 +62,10 @@
     </template>
 
     <template v-else-if="slide">
-      <!-- The picture, with a short crossfade from the one before (lib/tourFade.ts; off under prefers-reduced-motion): the one
-           before is kept under the new one for FADE_MS as a copy (empty alt, hidden from a screen reader). -->
+      <!-- The picture. When the next slide uses the SAME page picture (lib/tourSlides.ts sharesPicture) the picture stays and the
+           overlay (ring, arrow, copy, tab ring: TourOverlay.vue) slides to the new target; only when the picture itself changes
+           does the new one fade in over the one before (lib/tourFade.ts; both off under prefers-reduced-motion), the one before
+           kept under it for FADE_MS as a copy (empty alt, hidden from a screen reader). -->
       <div class="relative">
         <picture
           v-if="prev"
@@ -79,8 +81,12 @@
             alt=""
             class="block h-auto w-full rounded-xl border border-slate-200 bg-slate-700"
           />
+          <template v-if="prev.overlay">
+            <TourOverlay class="hidden sm:block" :overlay="prev.overlay.desk" :base="prev.desk.src" />
+            <TourOverlay class="sm:hidden" :overlay="prev.overlay.phone" :base="prev.phone.src" />
+          </template>
         </picture>
-        <picture :key="slide.id" :class="prev ? 'tour-fade-in' : ''">
+        <picture :key="slide.desk.src + slide.phone.src" :class="prev ? 'tour-fade-in' : ''">
           <source media="(max-width: 639px)" :srcset="slide.phone.src" :width="slide.phone.width" :height="slide.phone.height" />
           <img
             :src="slide.desk.src"
@@ -93,6 +99,10 @@
             data-testid="tour-picture"
           />
         </picture>
+        <div v-if="slide.overlay" :key="`o${slide.desk.src}${slide.phone.src}`" :class="prev ? 'tour-fade-in' : ''" class="pointer-events-none absolute inset-0">
+          <TourOverlay class="hidden sm:block" :overlay="slide.overlay.desk" :base="slide.desk.src" />
+          <TourOverlay class="sm:hidden" :overlay="slide.overlay.phone" :base="slide.phone.src" />
+        </div>
       </div>
       <div class="px-1.5 pt-2 sm:px-0.5 sm:pt-3">
         <p class="label text-indigo-700 tabular-nums" data-testid="tour-step">{{ firstTourLabel(index + 1, total) }}</p>
@@ -169,6 +179,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import TourOverlay from '@/components/TourOverlay.vue';
 import { FADE_MS, shouldFade } from '@/lib/tourFade';
 import type { TourSlide } from '@/lib/tourSlides';
 import type { TourStepId } from '@/lib/firstTour';
@@ -219,7 +230,8 @@ watch(
   () => props.slide,
   (now, before) => {
     if (fadeTimer) clearTimeout(fadeTimer);
-    prev.value = before && shouldFade(before.id, now?.id, reducedMotion()) ? before : null;
+    // Fade only when the PICTURE changes: slides sharing one picture keep it and slide the overlay (TourOverlay.vue).
+    prev.value = before && shouldFade(before.desk.src + before.phone.src, now ? now.desk.src + now.phone.src : null, reducedMotion()) ? before : null;
     if (prev.value) fadeTimer = setTimeout(() => (prev.value = null), FADE_MS + 40);
   }
 );

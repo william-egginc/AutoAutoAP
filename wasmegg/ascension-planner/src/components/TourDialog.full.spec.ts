@@ -27,10 +27,10 @@ describe('TourDialog in full mode', () => {
   it('its own title, body and alt text; the step line counts the full list', async () => {
     const html = await renderHtml(TourDialog, full(2));
     const t = textOf(html);
-    expect(t).toContain(FULL_TOUR_STEPS_WORDS.saveBlock.title);
-    expect(t).toContain(FULL_TOUR_STEPS_WORDS.saveBlock.body);
+    expect(t).toContain(FULL_TOUR_STEPS_WORDS.tabChain.title);
+    expect(t).toContain(FULL_TOUR_STEPS_WORDS.tabChain.body);
     expect(t).toContain(`Step 3 of ${N}`);
-    expect(html).toContain(`alt="${FULL_TOUR_ALT.saveBlock.replace(/'/g, '&#39;')}"`);
+    expect(html).toContain(`alt="${FULL_TOUR_ALT.tabChain.replace(/'/g, '&#39;')}"`);
   });
   it('no Remind me later; Skip tour stays', async () => {
     const t = textOf(await renderHtml(TourDialog, full(0)));
