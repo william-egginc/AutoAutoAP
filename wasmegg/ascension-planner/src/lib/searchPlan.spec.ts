@@ -322,3 +322,35 @@ describe('results kept beyond the snapshot (aap-search-plans)', () => {
     expect(st.getItem(KEPT_SEARCH_KEY)).not.toMatch(/EI\d{16}/);
   });
 });
+
+describe("a snapshot's search from another save is nobody's (17 Nov 2026, second path)", () => {
+  const OLD_SAVE = NOW - 1800;
+  it('searchFitsSave: identical, 59 s, 30 minutes, unknown either side', async () => {
+    const { searchFitsSave } = await import('./searchPlan');
+    expect(searchFitsSave({ backupAt: NOW }, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: NOW - 59 }, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: NOW - 61 }, NOW)).toBe(false);
+    expect(searchFitsSave({ backupAt: OLD_SAVE }, NOW)).toBe(false);
+    expect(searchFitsSave({ backupAt: null }, NOW)).toBe(true);
+    expect(searchFitsSave({}, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: OLD_SAVE }, null)).toBe(true);
+    expect(searchFitsSave(null, NOW)).toBe(true);
+  });
+  it('snapSearchOf: this save is read, another save and a bad value are null', async () => {
+    const { snapSearchOf } = await import('./searchPlan');
+    expect(snapSearchOf({ search: fast({ backupAt: NOW - 30 }), meta: { backupTime: NOW } })?.level).toBe('Fast');
+    expect(snapSearchOf({ search: fast({ backupAt: OLD_SAVE }), meta: { backupTime: NOW } })).toBeNull();
+    expect(snapSearchOf({ search: fast(), meta: { backupTime: NOW } })?.level).toBe('Fast');
+    expect(snapSearchOf({ search: 'x' })).toBeNull();
+    expect(snapSearchOf(null)).toBeNull();
+  });
+  it('drivingPlan: a snapshot of this save holding a result priced 30 minutes earlier: no takeover, the instant plan', () => {
+    const d = drivingPlan(snap({ meta: { account: 'a', goal: 'date', backupTime: NOW, teByEgg: [] } as never, search: fast({ backupAt: OLD_SAVE }) }), 'date', DEADLINE);
+    expect(d.takeover).toBeNull();
+    expect(d.search).toBeNull();
+    expect(d.plan?.from).toBeUndefined();
+    expect(d.plan?.endTE).toBe(313);
+    const same = drivingPlan(snap({ meta: { account: 'a', goal: 'date', backupTime: NOW, teByEgg: [] } as never, search: fast({ backupAt: NOW }) }), 'date', DEADLINE);
+    expect(same.takeover).toBe('makes-date');
+  });
+});

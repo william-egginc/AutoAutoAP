@@ -1149,7 +1149,7 @@ import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
 import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
-import { fromOtherSave, keptEntryOf, liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
+import { fromOtherSave, keptEntryOf, liveSearchResult, newerSearch, readSearch, recordKeptSearch, searchFitsSave, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 import { instantLiveText } from '@/lib/liveStatus';
 import { useShareTarget } from '@/composables/useShareTarget';
@@ -3104,6 +3104,7 @@ function currentSnapshot(): InstantSnapshot | null {
       prestige: prestige.value,
       meta: snapMeta(),
       whatIf: whatIfResult.value,
+      // `keptSearch` holds only this save's (`applySnapshot`), and writeSnapshot drops one priced on another save (17 Nov 2026).
       search: newerSearch(keptSearch.value, thisSaveFound.value),
       tables: runTables,
       pricing: answerPricing,
@@ -3221,7 +3222,13 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   prestige.value = s.prestige && typeof s.prestige.route === 'string' ? s.prestige : null;
   if (prestige.value) cachePrestige(s.result, prestige.value);
   whatIfResult.value = s.whatIf ?? null;
-  keptSearch.value = readSearch(s.search);
+  // Another save's snapshot put back as the stale answer (or a result priced on another save) is not this save's result
+  // (17 Nov 2026): it would be written into this save's own snapshot.
+  const kept = readSearch(s.search);
+  keptSearch.value =
+    kept && searchFitsSave({ backupAt: s.meta?.backupTime }, initialState.lastBackupTime) && searchFitsSave(kept, initialState.lastBackupTime) && searchFitsSave(kept, s.meta?.backupTime)
+      ? kept
+      : null;
   answerPricing = stale ? null : readPricing(s.pricing);
   // A saved answer put back feeds My runs too (it is for this key: this save and setup); a stale one never.
   if (!stale) keepPricing();

@@ -217,3 +217,23 @@ describe("followPrice: the instant answer's route and this save's results keep t
     expect(q.priced === 'exact' && q.plan.end).toBe(SAVE + 71 * H);
   });
 });
+
+describe("followPrice: a snapshot's search priced on another save is nobody's (17 Nov 2026)", () => {
+  const route = (chain: number[], end: number) => ({ chain, end, legs: chain.map((to, i) => ({ to, endTE: to, start: SAVE + i * 10 * H, end: SAVE + (i + 1) * 10 * H })) });
+  const found = (backupAt: number) => ({
+    level: 'Fast' as const, chain: [222, 490], end: SAVE + 70 * H, endTE: 490, legs: [], at: SAVE * 1000, planStart: SAVE, backupAt,
+  });
+  const mk = (ownKey: boolean, bt: number, backupAt: number): FollowSnap => ({
+    snap: { ...snap({ backupTime: bt, te: 200, exact: {} }), result: { best: route([230, 490], SAVE + 80 * H), byAscensions: [] }, search: found(backupAt) } as SnapLike,
+    startTE: 200, ownKey, check: ownKey ? here : elsewhere,
+  });
+  it("this save's snapshot carrying the older save's result is not priced as this save's", () => {
+    const p = followPrice({ ...base, chain: [222, 490], snaps: [mk(true, SAVE, OLD)] });
+    expect(p.priced).toBe('none');
+    const ok = followPrice({ ...base, chain: [222, 490], snaps: [mk(true, SAVE, SAVE - 20)] });
+    expect(ok.priced === 'exact' && ok.source).toBe('this-save');
+  });
+  it("an older save's snapshot whose result was priced on yet another save is not matched either", () => {
+    expect(followPrice({ ...base, chain: [222, 490], snaps: [mk(false, OLD, SAVE)] }).priced).toBe('none');
+  });
+});

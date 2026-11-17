@@ -6,6 +6,7 @@
  *
  *   the loaded save            the raw backup itself (its time, farm, TE, eggs: lib/saveFreshness.ts, lib/farmFacts.ts);
  *                              the stores only for the instant answer's key and the gear sets, once they hold it
+ *   (17 Nov 2026: a snapshot's `search` counts only when priced on the snapshot's own save, `snapSearchOf`)
  *   saved instant answers      localStorage `aap-instant-snap:<key>|0` (the whole answer, kept after Check exactly,
  *                              24 h at most) and its index (each answer's account, goal and save), parsed once per
  *                              key; `aap-instant-answer:<key>` (the last checked answer, no age limit)
@@ -81,7 +82,7 @@ import {
   newerSearch,
   planFromSearch,
   readKeptSearches,
-  readSearch,
+  snapSearchOf,
   recordKeptSearch,
   keptEntryOf,
   fromOtherSave,
@@ -606,7 +607,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       let changed = false;
       for (const { g, snapKey, live } of list) {
         const s = snapKey ? (snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null) : null;
-        const newest = newerSearch(live, readSearch(s?.search));
+        const newest = newerSearch(live, snapSearchOf(s));
         if (newest && keepResult(g, newest)) changed = true;
         if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at || fromOtherSave(live, saveSeconds.value)) continue;
         if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
