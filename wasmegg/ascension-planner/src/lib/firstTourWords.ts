@@ -21,7 +21,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   result: { title: 'The result', body: 'This is the result: when you would finish, and the TE you would reach. It is worked out from your save.' },
   filters: { title: 'The filters button', body: 'The filters button opens Setup, where you set what the answer is worked out for.' },
   setupAwake: { title: 'Awake hours', body: 'Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.' },
-  setupTimeOff: { title: 'No prestige days and Time off', body: 'No prestige days and Time off mark days when the route will not prestige. The route plans around them.' },
+  setupTimeOff: { title: 'No prestige days and Time off', body: 'No prestige days are days you play but do not prestige. Time off is days away on the home farm. The route plans around both.' },
   prefer: { title: 'Prefer fewer ascensions', body: 'Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.' },
   gear: { title: 'Maxed gear', body: 'What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.' },
   simulate: { title: 'Simulate this plan', body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys." },

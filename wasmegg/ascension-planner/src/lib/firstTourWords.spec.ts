@@ -20,7 +20,7 @@ describe('first tour words', () => {
     expect(B('result')).toBe('This is the result: when you would finish, and the TE you would reach. It is worked out from your save.');
     expect(B('filters')).toBe('The filters button opens Setup, where you set what the answer is worked out for.');
     expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
-    expect(B('setupTimeOff')).toBe('No prestige days and Time off mark days when the route will not prestige. The route plans around them.');
+    expect(B('setupTimeOff')).toBe('No prestige days are days you play but do not prestige. Time off is days away on the home farm. The route plans around both.');
     expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
     expect(B('gear')).toBe('What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.');
     expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
