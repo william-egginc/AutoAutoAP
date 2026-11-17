@@ -86,6 +86,7 @@ import {
   recordKeptSearch,
   keptEntryOf,
   fromOtherSave,
+  notThisSave,
   type Driving,
   type KeptSearch,
   type SnapSearch,
@@ -532,7 +533,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     // A store result priced on another save never drives this save's plan (17 Nov 2026).
     const lv = liveFor(g);
     return drivingPlan(snapOf(snapKey), g.goal, g.deadline, {
-      live: newerSearch(fromOtherSave(lv, saveSeconds.value) ? null : lv, k?.search ?? null),
+      live: newerSearch(notThisSave(lv, saveSeconds.value) ? null : lv, k?.search ?? null),
       // Gone back in this visit, or on an earlier one (kept with the result).
       back: wentBack.value[backKey(goalKey)] ?? (k?.back ? k.search.at : null),
       meta: k ? { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup } : null,
@@ -609,7 +610,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         const s = snapKey ? (snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null) : null;
         const newest = newerSearch(live, snapSearchOf(s));
         if (newest && keepResult(g, newest)) changed = true;
-        if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at || fromOtherSave(live, saveSeconds.value)) continue;
+        if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at || notThisSave(live, saveSeconds.value)) continue;
         if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
           parsed.delete(snapKey);
           changed = true;
@@ -798,9 +799,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const live = liveFor(g);
     const olderLive: FollowResult[] = [];
     // Priced on another save (17 Nov 2026): an older save's result, as the board run's older case below.
+    // Done before this save with no save of its own (`notThisSave`): neither this save's nor one we can name, so not used.
     if (live && fromOtherSave(live, saveSeconds.value))
       olderLive.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: live.backupAt as number }, check: setupCheck(null, sn.setup, sn.today) });
-    else if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
+    else if (live && !notThisSave(live, saveSeconds.value)) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
     // The account's Leaderboard run of this route, sent from another browser (`boardRuns`): this save's when its save is
     // the loaded one (within ten minutes), else an older save's.
     const run = boardRuns.value[sel.goal.key];
