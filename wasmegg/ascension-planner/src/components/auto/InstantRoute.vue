@@ -402,9 +402,9 @@
               class="max-w-prose"
               data-testid="box-first-step"
             >
-              <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
+              <template v-if="firstStepWarn"
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-              ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
+                ><template v-else><b>{{ firstStepShortLead }}</b>{{ ' ' }}{{ firstStepShortRest }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
             </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
@@ -625,9 +625,9 @@
             class="max-w-prose"
             data-testid="box-first-step"
           >
-            <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}<template v-if="firstStepWarn"
+            <template v-if="firstStepWarn"
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
-            ><template v-else>{{ firstStepShortText }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
+              ><template v-else><b>{{ firstStepShortLead }}</b>{{ ' ' }}{{ firstStepShortRest }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
           </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
@@ -1136,6 +1136,7 @@ import {
   firstStepKind,
   firstStepLine,
   firstStepShort,
+  splitStepLead,
   instantHeaderLine,
   noPrestigeDayCount,
 } from '@/lib/instantWords';
@@ -1832,8 +1833,11 @@ const firstStepShortText = computed(() => {
     hours: hoursLimited.value,
     buildUpMissing: answerBuildUpMissing.value,
   });
-  return short.slice(FIRST_STEP_LABEL.length + 1);
+  return short;
 });
+/** The card's prestige line split into its bold lead and the rest (lib/instantWords.ts `splitStepLead`). */
+const firstStepShortLead = computed(() => splitStepLead(firstStepShortText.value).lead);
+const firstStepShortRest = computed(() => splitStepLead(firstStepShortText.value).rest);
 /** First step is a build-up-could-not-be-worked-out line (a fresh start or, spec-buildupmissing-continue, the ascension
  *  you are in): its part after the bold lead, drawn amber (spec-buildupmissing-words); '' otherwise. */
 const firstStepWarn = computed(() => buildUpMissingRestOf(firstStep.value));

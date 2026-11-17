@@ -139,23 +139,30 @@ export function firstStepLine(o: {
 }
 
 /**
- * THE SHORT FIRST STEP (Jordan, 12 Nov 2026, pm): one sentence on the card, the full sentence behind its "?".
- *   short: "First step: continue your build-up to 203 TE, then prestige Nov 20 at 9:00 AM sharp."
- *   full:  `firstStepLine` (with when each TE is reached and the awake-hours clause).
- * "sharp" only where the awake-hours clause would show (`hours` and a prestige time): a few minutes late can cost days. The
- * "?" is for the caller to draw when `full !== short`. A build-up that could not be worked out has nothing to shorten.
+ * THE PRESTIGE LINE ON THE CARD (Jordan, 16 Nov 2026, replacing the short First step of 12 Nov: the card says when to
+ * PRESTIGE, not "step"). DRAFT, Words owns the final text. One sentence, the full sentence behind its "?" (`full`, today's
+ * `firstStepLine`, unchanged: it still names when each TE is reached and carries the awake-hours clause):
+ *   the build-up or the ascension you are in:  "Prestige at 226 TE: Jan 11, 2027 at 8:00 AM sharp."
+ *   a fresh start:                             "Prestige: now, then reach 220 TE."  /  "Prestige: Jan 11, 2027 at 8:00 AM, then reach 220 TE."
+ *   no later prestige on the route:            "No prestige needed: keep going to 491 TE."
+ * "sharp" only where the awake-hours clause would show (`hours` and a prestige time): a few minutes late can cost days.
+ * The bold lead is up to the first colon (`splitStepLead`). A build-up that could not be worked out has nothing to shorten:
+ * its amber warning is `full`, drawn with no label by the page.
  */
 export function firstStepShort(o: Parameters<typeof firstStepLine>[0]): { short: string; full: string } {
   const full = firstStepLine(o);
   if (o.buildUpMissing && o.kind !== 'buildup') return { short: full, full };
-  const first =
-    o.kind === 'buildup'
-      ? `continue your build-up to ${o.stopTE} TE`
-      : o.kind === 'continue'
-        ? `continue your current ascension to ${o.stopTE} TE`
-        : `prestige ${o.start ? o.start : 'now'} and reach ${o.stopTE} TE`;
-  const timed = !!o.prestigeDate || (o.kind === 'fresh' && !!o.start);
-  const sharp = o.hours && timed && !!o.prestigeDate ? ' sharp' : '';
-  const next = o.prestigeDate ? `, then prestige ${o.sameDay && o.prestigeTime ? `at ${o.prestigeTime}` : o.prestigeDate}${sharp}` : '';
-  return { short: `${FIRST_STEP_LABEL} ${first}${next}.`, full };
+  if (o.kind === 'fresh') {
+    return { short: `Prestige: ${o.start ? o.start : 'now'}, then reach ${o.stopTE} TE.`, full };
+  }
+  if (!o.prestigeDate) return { short: `No prestige needed: keep going to ${o.stopTE} TE.`, full };
+  const sharp = o.hours ? ' sharp' : '';
+  const when = o.sameDay && o.prestigeTime ? o.prestigeTime : o.prestigeDate;
+  return { short: `Prestige at ${o.stopTE} TE: ${when}${sharp}.`, full };
+}
+
+/** A line's bold lead (up to and including its first colon) and the rest; no colon: no lead. */
+export function splitStepLead(line: string): { lead: string; rest: string } {
+  const i = line.indexOf(': ');
+  return i < 0 ? { lead: '', rest: line } : { lead: line.slice(0, i + 1), rest: line.slice(i + 2) };
 }

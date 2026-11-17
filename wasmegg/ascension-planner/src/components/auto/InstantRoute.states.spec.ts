@@ -135,6 +135,8 @@ function ctxOf(s: State): Record<string, unknown> {
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
     firstStepShortText: '',
+    firstStepShortLead: '',
+    firstStepShortRest: '',
     firstStepWarn: '',
     nightBuyNote: false,
     stepCaveat: { step: '', note: null },
@@ -1127,6 +1129,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
   });
   const HEADER = 'Worked out ahead of time, a few days either side of a search on your save. Keeps your awake hours (8 am to 11 pm) and your 9 no-prestige days.';
   const STEP = 'continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
+  const SHORT_LINE = 'Prestige at 218 TE: Dec 22 at 9:00 PM sharp.';
   const slim = { headerLine: HEADER, firstStep: STEP, noPrestigeOn: true, boxSimulateNote: 'This route’s first ascension continues your build-up' };
   for (const [name, answer, deadline] of [
     ['By a date', 'date', true],
@@ -1157,26 +1160,26 @@ describe('the slim card: one line under the title, First step in the box', () =>
       expect(out).not.toContain('Each prestige waits for your awake hours');
       expect(out).not.toContain('Your no-prestige days are kept');
     });
-    it(`${name}: First step in the green box, the label bold, before When each step happens`, async () => {
-      const html = await draw(at(answer, deadline), slim);
+    it(`${name}: First step in the green box, the lead bold ("Prestige at 218 TE:"), before When each step happens`, async () => {
+      const html = await draw(at(answer, deadline), { ...slim, firstStepShortText: SHORT_LINE, firstStepShortLead: 'Prestige at 218 TE:', firstStepShortRest: 'Dec 22 at 9:00 PM sharp.' });
       const box = html.slice(html.indexOf('data-testid="instant-box"'));
       const step = box.indexOf('data-testid="box-first-step"');
       expect(step).toBeGreaterThan(-1);
-      expect(textOf(box.slice(step - 200, box.indexOf('</p>', step)))).toContain(`First step: ${STEP}`);
-      expect(box.slice(step, box.indexOf('</p>', step))).toContain('<b>First step:</b>');
+      expect(textOf(box.slice(step - 200, box.indexOf('</p>', step)))).toContain(SHORT_LINE);
+      expect(box.slice(step, box.indexOf('</p>', step))).toContain('<b>Prestige at 218 TE:</b>');
       expect(step).toBeLessThan(box.indexOf('data-testid="box-actions"'));
       expect(step).toBeLessThan(box.indexOf('<InstantSteps'));
     });
-    it(`${name}: First step is the short sentence, today's whole sentence behind its "?" (Jordan, 12 Nov 2026 pm)`, async () => {
-      const SHORT = 'continue your current ascension to 218 TE, then prestige Dec 22 at 9:00 PM sharp.';
-      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: SHORT })).replace(/<!--[\s\S]*?-->/g, '');
+    it(`${name}: the card says when to prestige, today's whole First step sentence behind its "?" (Jordan, 16 Nov 2026)`, async () => {
+      const SHORT = SHORT_LINE;
+      const html = (await draw(at(answer, deadline), { ...slim, firstStepShortText: SHORT, firstStepShortLead: 'Prestige at 218 TE:', firstStepShortRest: 'Dec 22 at 9:00 PM sharp.' })).replace(/<!--[\s\S]*?-->/g, '');
       const box = html.slice(html.indexOf('data-testid="instant-box"'));
       const i = box.indexOf('data-testid="box-first-step"');
       const p = box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
       const help = p.indexOf('data-part="CardHelp"');
       expect(help).toBeGreaterThan(-1);
-      // Visible: the label and the short sentence, then the "?".
-      expect(textOf(p.slice(0, p.lastIndexOf('<', help)))).toBe(`First step: ${SHORT}`);
+      // Visible: the prestige line (bold lead, then the rest), then the "?".
+      expect(textOf(p.slice(0, p.lastIndexOf('<', help)))).toBe(SHORT);
       // Behind the "?": today's whole sentence, word for word, with its label.
       expect(textOf(p.slice(p.indexOf('>', help) + 1))).toBe(`First step: ${STEP}`);
       expect(p).toContain('text-body text-slate-800');
@@ -1264,18 +1267,19 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
     ['By a date', 'date', true],
     ['Fastest', 'fastest', false],
   ] as const) {
-    it(`${name}: the warning is drawn as First step, small and amber; a plain First step stays as it was`, async () => {
+    it(`${name}: the warning is drawn with no label, amber and body size; a plain First step stays as it was`, async () => {
       const step = (html: string) => {
         const box = html.slice(html.indexOf('data-testid="instant-box"'));
         const i = box.indexOf('data-testid="box-first-step"');
         return box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
       };
       const warned = step(await draw(at(answer, deadline), { firstStep: FIRST_STEP_BUILDUP_MISSING, firstStepWarn: FIRST_STEP_BUILDUP_MISSING_REST }));
-      expect(textOf(warned)).toContain(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
+      expect(textOf(warned)).toContain(FIRST_STEP_BUILDUP_MISSING);
+      expect(textOf(warned)).not.toContain('First step');
       expect(warned).toMatch(/class="[^"]*text-body text-amber-800/);
       expect(warned).not.toContain('text-small');
-      // The first sentence bold after the bold label; the rest plain, in the same amber paragraph at body size (a warning is never smaller than the line it replaces).
-      expect(warned.replace(/<!--[\s\S]*?-->/g, '')).toContain(`<b>First step:</b> <b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_REST}`);
+      // The first sentence bold, with no label before it (Jordan, 16 Nov 2026); the rest plain, in the same amber paragraph at body size (a warning is never smaller than the line it replaces).
+      expect(warned.replace(/<!--[\s\S]*?-->/g, '')).toContain(`<b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_REST}`);
       const plain = step(await draw(at(answer, deadline), { firstStep: 'prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).' }));
       expect(plain).toMatch(/class="[^"]*text-body text-slate-800/);
       expect(plain).not.toContain('amber');
@@ -1285,7 +1289,8 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
       const i = box.indexOf('data-testid="box-first-step"', box.indexOf('data-testid="instant-box"'));
       const warned = box.slice(box.lastIndexOf('<p', i), box.indexOf('</p>', i) + 4);
       expect(warned).toMatch(/class="[^"]*text-body text-amber-800/);
-      expect(warned).toContain(`<b>First step:</b> <b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST}`);
+      expect(warned).toContain(`<b>${FIRST_STEP_BUILDUP_MISSING_LEAD}</b> ${FIRST_STEP_BUILDUP_MISSING_CONTINUE_REST}`);
+      expect(warned).not.toContain('First step');
       expect(textOf(warned)).not.toContain('then prestige');
     });
   }

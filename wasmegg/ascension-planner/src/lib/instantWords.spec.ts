@@ -5,7 +5,7 @@
  * the awake-hours clause that was the HOURS_NOTE paragraph under it). Wording only: never a result code input.
  */
 import { describe, expect, it } from 'vitest';
-import { FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, firstStepLine, firstStepShort, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount } from './instantWords';
+import { FIRST_STEP_BUILDUP_MISSING, FIRST_STEP_HOURS, FIRST_STEP_HOURS_NIGHT_BUY, FIRST_STEP_LABEL, firstStepLine, firstStepShort, instantHeaderLine, mergeFirstStepCaveats, noPrestigeDayCount, splitStepLead } from './instantWords';
 import { INSTANT_NIGHT_BUY_NOTE } from './nightBuyWords';
 import { isWordingOnly } from './resultCodeHash';
 
@@ -84,21 +84,36 @@ describe('First step: the hours clause and the night-buy note as ONE line (spec-
   });
 });
 
-describe('The short First step (Jordan, 12 Nov 2026, pm)', () => {
+describe('The short prestige line on the card (Jordan, 16 Nov 2026, replacing the short First step of 12 Nov)', () => {
   const at = { reached: 'Nov 20 at 8:11 PM', prestigeDate: 'Nov 21 at 9:00 AM', prestigeTime: '9:00 AM' };
-  it('one sentence, "sharp" with awake hours; the full sentence for the "?"', () => {
+  it('continue the build-up: "Prestige at 203 TE: Nov 21 at 9:00 AM sharp." ("sharp" with awake hours); the full sentence for the "?" is the old one', () => {
     const r = firstStepShort({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true });
-    expect(r.short).toBe('First step: continue your build-up to 203 TE, then prestige Nov 21 at 9:00 AM sharp.');
+    expect(r.short).toBe('Prestige at 203 TE: Nov 21 at 9:00 AM sharp.');
     expect(r.full).toBe(firstStepLine({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true }));
     expect(r.full).toContain('a few minutes late can cost days');
+    expect(splitStepLead(r.short)).toEqual({ lead: 'Prestige at 203 TE:', rest: 'Nov 21 at 9:00 AM sharp.' });
   });
-  it('no "sharp" without awake hours; the same day gives only the time', () => {
-    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: false }).short).toBe(
-      'First step: continue your current ascension to 218 TE, then prestige at 9:00 AM.'
+  it('the ascension you are in reads the same; no "sharp" without awake hours; the same day gives only the time', () => {
+    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: false, hours: false }).short).toBe('Prestige at 218 TE: Nov 21 at 9:00 AM.');
+    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: false }).short).toBe('Prestige at 218 TE: 9:00 AM.');
+  });
+  it('a fresh start: now, or held to a time, then the TE it reaches', () => {
+    expect(firstStepShort({ kind: 'fresh', stopTE: 220, ...at, sameDay: false, hours: true }).short).toBe('Prestige: now, then reach 220 TE.');
+    expect(firstStepShort({ kind: 'fresh', start: 'Jan 11, 2027 at 8:00 AM', stopTE: 220, ...at, sameDay: false, hours: true }).short).toBe(
+      'Prestige: Jan 11, 2027 at 8:00 AM, then reach 220 TE.'
     );
+    expect(splitStepLead('Prestige: now, then reach 220 TE.')).toEqual({ lead: 'Prestige:', rest: 'now, then reach 220 TE.' });
   });
-  it('a build-up that could not be worked out: nothing to shorten', () => {
+  it('a route with no later prestige: says none is needed (DRAFT)', () => {
+    const r = firstStepShort({ kind: 'continue', stopTE: 291, reached: 'Jul 13, 2027 at 5:14 PM', prestigeDate: null, prestigeTime: null, sameDay: false, hours: true });
+    expect(r.short).toBe('No prestige needed: keep going to 291 TE.');
+  });
+  it('a build-up that could not be worked out: nothing to shorten, no label (the amber warning stays as it is)', () => {
     const r = firstStepShort({ kind: 'fresh', stopTE: 203, ...at, sameDay: false, hours: true, buildUpMissing: true });
     expect(r.short).toBe(r.full);
+    expect(splitStepLead(`${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`).lead).toBe(FIRST_STEP_LABEL);
+  });
+  it('the old "First step" words are gone from the short line', () => {
+    for (const kind of ['buildup', 'continue', 'fresh'] as const) expect(firstStepShort({ kind, stopTE: 203, ...at, sameDay: false, hours: true }).short).not.toMatch(/First step|continue your|then prestige/);
   });
 });
