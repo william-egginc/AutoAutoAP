@@ -487,7 +487,7 @@
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
             <div
-              class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label text-slate-600 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
+              class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label whitespace-nowrap text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
               data-testid="counts-head"
             >
@@ -500,7 +500,7 @@
                   :id="`${countIds}-${r.legs.length}-head`"
                   :aria-expanded="countOpen(r) ? 'true' : 'false'"
                   :aria-controls="`${countIds}-${r.legs.length}`"
-                  class="grid w-full min-h-[44px] items-center gap-x-1.5 md:gap-x-2 gap-y-0.5 px-1 py-1.5 text-left text-body rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
+                  class="grid w-full min-h-[44px] items-center gap-x-1.5 md:gap-x-2 gap-y-0.5 px-1 py-1.5 text-left text-body rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
                   :class="dateRowLit(r) ? 'bg-emerald-50' : 'hover:bg-slate-50'"
                   data-testid="counts-row-head"
                   @click="toggleCount(r)"
@@ -700,7 +700,7 @@
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
             <div
-              class="grid items-end gap-x-2 px-1 pb-1 label text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
+              class="grid items-end gap-x-2 px-1 pb-1 whitespace-nowrap label text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
               data-testid="counts-head"
             >

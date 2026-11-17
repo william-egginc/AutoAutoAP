@@ -31,7 +31,8 @@ describe('full tour words', () => {
       FULL_TOUR_ABOUT,
     ].join(' ');
     // "double-click" is the Setup button's own gesture (its tooltip says it); no other Click, and no Tap.
-    expect(all.replace(/double-click/gi, '')).not.toMatch(/\b(click|tap)\b/i);
+    // ...and Jordan's own "Click Next to learn more about ..." on the Chain Finder and My runs slides (16 Nov 2026).
+    expect(all.replace(/double-click/gi, '').replace(/Click Next to learn more about/g, '')).not.toMatch(/\b(click|tap)\b/i);
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all).not.toMatch(/Stronger check|Nearby routes|Exhaustive|Check exactly|Race to|Classic|Your plan|checkpoint|baseline/);
   });

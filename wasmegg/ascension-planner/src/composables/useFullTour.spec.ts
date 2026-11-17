@@ -48,12 +48,14 @@ describe('the full tour opens only when asked', () => {
     t.startFull({ ...ENV, running: true });
     expect(t.state.phase).toBe('closed');
   });
-  it('no account: only the steps that exist without one', () => {
+  it('no account: all forty-two slides (Jordan, 16 Nov 2026: the pictures are baked Sample screenshots, so everyone sees the whole tour)', () => {
     const { st } = counting();
     const t = createTourController({ storage: st, blocked: false, newVisitor: false });
     t.startFull({ hasAccount: false, hasSaveFile: true, running: false });
     expect(t.steps.value).toEqual(fullStepsFor({ hasAccount: false }));
-    expect(t.steps.value).not.toContain('m1more');
+    expect(t.steps.value).toHaveLength(42);
+    expect(t.steps.value).toEqual([...FULL_TOUR_STEPS]);
+    expect(fullStepsFor({ hasAccount: true })).toEqual(fullStepsFor({ hasAccount: false }));
   });
 });
 

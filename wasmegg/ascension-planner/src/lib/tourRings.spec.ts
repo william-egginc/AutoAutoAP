@@ -103,7 +103,7 @@ describe('tour picture overlays (v4)', () => {
   });
 
   it('Jordan: a thing under a top tab (Chain Finder or My runs) is shown with that tab ringed lightly, at least on a desk, wherever the tab fits in the picture', () => {
-    const under = ['goalTarget', 'goalDate', 'filters', 'myrunsPage', 'followedRoute', 'nextStep'];
+    const under = ['goalTarget', 'goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My runs slide rings the My runs tab itself)
     for (const id of under) expect(overlays[`${id}-desk`].tabs.length, `${id}-desk`).toBeGreaterThan(0);
   });
 

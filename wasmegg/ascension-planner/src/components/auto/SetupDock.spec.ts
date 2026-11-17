@@ -100,7 +100,7 @@ describe('the Setup pill at 1280', () => {
     // The pill floats over the page like any floating button (orchestrator, 26 Oct 2026: a 28rem right padding left
     // an empty right half at 1280, worse than the overlap).
     expect(app).not.toMatch(/xl:pr-\[/);
-    expect(app).toContain('<div class="max-w-6xl mx-auto p-4">');
+    expect(app).toContain('<div class="max-w-6xl mx-auto p-4"');
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'" class="max-w-6xl mx-auto mt-6">');
     // The room under the page for the pill, on My runs too.
     expect(app).toContain(":style=\"setupDockShown ? { paddingBottom: pageRoom } : undefined\"");

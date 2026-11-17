@@ -51,14 +51,14 @@ describe('the Setup pill on Single run', () => {
 
   it('a pill dragged to the bottom is kept above the bar, inside the window', async () => {
     store.clear();
-    store.set('aap-setup-dock-pos', JSON.stringify({ x: 100, y: 820 }));
+    store.set('aap-setup-dock-pos', JSON.stringify({ x: 100, y: 820, w: 390 }));
     const p = createPinia();
     setActivePinia(p);
     const html = await renderHtml(SetupDock, { screen: 'classic', bottomOffset: 150 }, {}, [p]);
     // 844 tall window, 44 px pill (the stand-in height before it is measured), 4 px margin, 150 px bar room.
     expect(dockTag(html)).toContain(`top:${844 - 44 - 4 - 150}px`);
     // And one dragged above the bar stays where it was left.
-    store.set('aap-setup-dock-pos', JSON.stringify({ x: 100, y: 300 }));
+    store.set('aap-setup-dock-pos', JSON.stringify({ x: 100, y: 300, w: 390 }));
     const html2 = await renderHtml(SetupDock, { screen: 'classic', bottomOffset: 150 }, {}, [p]);
     expect(dockTag(html2)).toContain('top:300px');
   });

@@ -102,4 +102,19 @@ describe('FollowButton: the route in its name', () => {
     const plain = await renderHtml(FollowButton, { chain: [166, 198], goalKey: 'fastest-490', from: 'count' }, {}, [createPinia()]);
     expect(plain).not.toContain('aria-label');
   });
+
+  // Jordan, 16 Nov 2026 (By a date, three accounts): "ASCENSIONS" ran into "HIGHEST TE" (it read "ASCENSIONSTE" with HIGHEST on a second
+  // line above). Below md the first columns were 5.25 rem and 3.5 rem (84 and 56 px, measured): "Highest TE" needs about 80 px in the
+  // small caps, so it wrapped and pressed on the name before it.
+  it("By a date's column names each fit on one line below md: Ascensions 5.5 rem, Highest TE 5 rem, names never wrap", () => {
+    const names = headOf(lists[0])[0].match(/class="([^"]+)"/)![1];
+    const row = rowHead(lists[0]).match(/\bclass="([^"]+)"/)![1];
+    expect(cols(names).phone).toBe('1.25rem_minmax(0,5.5rem)_minmax(0,5rem)_minmax(0,1fr)');
+    expect(cols(row).phone).toBe(cols(names).phone);
+    expect(names).toMatch(/\bwhitespace-nowrap\b/);
+  });
+  it("Fastest's names do not wrap either", () => {
+    expect(headOf(lists[1])[0].match(/class="([^"]+)"/)![1]).toMatch(/\bwhitespace-nowrap\b/);
+  });
 });
+
