@@ -12,7 +12,7 @@ import { PRIVACY_TIP_LINES } from './privacyWords';
 describe('run beacon words', () => {
   it('Setup line: plain, always on, no switch', () => {
     expect(BEACON_SETUP_LINE).toBe(
-      "A search expected to take 2 hours or more tells the planner's server when it starts and when it stops: a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you or your account. This is always on while the maintainer is updating the site, so an update doesn't lose your search."
+      "A search expected to take 2 hours or more tells the planner's server when it starts and when it stops: a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you or your account. If an update is being prepared, the maintainer is told to wait for your search. This is always on while the maintainer is updating the site."
     );
     expect(BEACON_MIN_HOURS).toBe(2);
     expect(BEACON_SETUP_LINE).toContain(`${BEACON_MIN_HOURS} hours or more`);
