@@ -40,8 +40,8 @@ export function noPrestigeDayCount(dates: readonly { from: string; to: string }[
   return days.size;
 }
 
-/** The First step line's own name, drawn bold (components/auto/InstantRoute.vue). */
-export const FIRST_STEP_LABEL = 'First step:';
+/** The full sentence's label behind the card's "?" (Jordan, 16 Nov 2026: the card line now says when to prestige, so the "?" explains how to get there; was "First step:"). */
+export const FIRST_STEP_LABEL = 'To get there:';
 /** The awake-hours clause at the end of First step (was HOURS_NOTE's paragraph under the box; the math review's
  *  second check, 24 Oct 2026: one route moved 6.3 days between at once and on the hour). DRAFT. */
 export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a few minutes late can cost days.';
@@ -135,7 +135,9 @@ export function firstStepLine(o: {
         : `prestige ${o.start ? o.start : 'now'} and reach ${o.stopTE} TE`;
   const next = o.prestigeDate ? `, then prestige ${o.sameDay && o.prestigeTime ? `at ${o.prestigeTime}` : o.prestigeDate}` : '';
   const timed = !!o.prestigeDate || (o.kind === 'fresh' && !!o.start);
-  return `${FIRST_STEP_LABEL} ${first} (${o.reached})${next}.${o.hours && timed ? ` ${FIRST_STEP_HOURS}` : ''}`;
+  // A build-up or the ascension you are in, with a prestige later: you keep building until then.
+  const lead = o.prestigeDate && o.kind !== 'fresh' ? `Keep building until then. ${first[0].toUpperCase()}${first.slice(1)}` : first;
+  return `${FIRST_STEP_LABEL} ${lead} (${o.reached})${next}.${o.hours && timed ? ` ${FIRST_STEP_HOURS}` : ''}`;
 }
 
 /**

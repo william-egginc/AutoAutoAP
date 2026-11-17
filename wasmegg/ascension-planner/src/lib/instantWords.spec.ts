@@ -40,28 +40,28 @@ describe('First step (DRAFT)', () => {
   const at = { reached: 'Dec 22, 2026 at 8:11 PM', prestigeDate: 'Dec 22, 2026 at 9:00 PM', prestigeTime: '9:00 PM' };
   it('as in the mock: continue the current ascension, then prestige at the time, with the hours clause', () => {
     expect(firstStepLine({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: true })).toBe(
-      'First step: continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. With awake hours, prestige at the time shown: a few minutes late can cost days.'
+      'To get there: Keep building until then. Continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. With awake hours, prestige at the time shown: a few minutes late can cost days.'
     );
   });
   it('a prestige on another day names the date; no hours clause without hours', () => {
     expect(firstStepLine({ kind: 'continue', stopTE: 218, ...at, prestigeDate: 'Dec 23, 2026 at 8:00 AM', sameDay: false, hours: false })).toBe(
-      'First step: continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige Dec 23, 2026 at 8:00 AM.'
+      'To get there: Keep building until then. Continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige Dec 23, 2026 at 8:00 AM.'
     );
   });
   it('a build-up continued (Single run can’t: its banner says so), a fresh start now or held', () => {
     expect(firstStepLine({ kind: 'buildup', stopTE: 218, ...at, sameDay: true, hours: false })).toBe(
-      'First step: continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
+      'To get there: Keep building until then. Continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
     );
     expect(firstStepLine({ kind: 'fresh', stopTE: 218, ...at, sameDay: true, hours: false })).toBe(
-      'First step: prestige now and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
+      'To get there: prestige now and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
     );
     expect(firstStepLine({ kind: 'fresh', start: 'Dec 21, 2026 at 8:00 AM', stopTE: 218, ...at, sameDay: true, hours: true })).toBe(
-      'First step: prestige Dec 21, 2026 at 8:00 AM and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. ' + FIRST_STEP_HOURS
+      'To get there: prestige Dec 21, 2026 at 8:00 AM and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. ' + FIRST_STEP_HOURS
     );
   });
   it('one ascension: no prestige after it, so no hours clause either', () => {
     expect(firstStepLine({ kind: 'continue', stopTE: 291, reached: 'Jul 13, 2027 at 5:14 PM', prestigeDate: null, prestigeTime: null, sameDay: false, hours: true })).toBe(
-      'First step: continue your current ascension to 291 TE (Jul 13, 2027 at 5:14 PM).'
+      'To get there: continue your current ascension to 291 TE (Jul 13, 2027 at 5:14 PM).'
     );
   });
   it('wording only: out of the result code hash', () => {
@@ -69,7 +69,7 @@ describe('First step (DRAFT)', () => {
   });
 });
 
-describe('First step: the hours clause and the night-buy note as ONE line (spec-uxpass item 9, 8 Nov 2026)', () => {
+describe('To get there: the hours clause and the night-buy note as ONE line (spec-uxpass item 9, 8 Nov 2026)', () => {
   const STEP = 'continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
   it('both would show: the step without its hours clause, the note is the merged line (both meanings kept)', () => {
     const r = mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, true);

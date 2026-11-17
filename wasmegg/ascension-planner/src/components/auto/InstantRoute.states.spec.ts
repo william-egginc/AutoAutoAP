@@ -131,7 +131,7 @@ function ctxOf(s: State): Record<string, unknown> {
     $slots: {},
     FULL_RESEARCH_TE: 340,
     HOURS_NOTE,
-    FIRST_STEP_LABEL: 'First step:',
+    FIRST_STEP_LABEL: 'To get there:',
     headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
     firstStep: '',
     firstStepShortText: '',
@@ -1181,7 +1181,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
       // Visible: the prestige line (bold lead, then the rest), then the "?".
       expect(textOf(p.slice(0, p.lastIndexOf('<', help)))).toBe(SHORT);
       // Behind the "?": today's whole sentence, word for word, with its label.
-      expect(textOf(p.slice(p.indexOf('>', help) + 1))).toBe(`First step: ${STEP}`);
+      expect(textOf(p.slice(p.indexOf('>', help) + 1))).toBe(`To get there: ${STEP}`);
       expect(p).toContain('text-body text-slate-800');
     });
     it(`${name}: no "?" when the short sentence is the whole sentence (Words: draw it only when they differ)`, async () => {
@@ -1240,13 +1240,13 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
 
   it('the first leg: a fresh start or the ascension you are in with buildUpMissing says so; a build-up first leg never does', () => {
     for (const fresh of ['2-sale', '0-sale', '3-sale-tier13'])
-      expect(lineFor(fresh, true)).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING}`);
-    expect(lineFor('2-sale', false)).toBe('First step: prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).');
-    expect(lineFor('buildup', true)).toBe('First step: continue your build-up to 220 TE (Jan 1, 2027 at 2:11 AM).');
+      expect(lineFor(fresh, true)).toBe(`To get there: ${FIRST_STEP_BUILDUP_MISSING}`);
+    expect(lineFor('2-sale', false)).toBe('To get there: prestige now and reach 220 TE (Jan 1, 2027 at 2:11 AM).');
+    expect(lineFor('buildup', true)).toBe('To get there: continue your build-up to 220 TE (Jan 1, 2027 at 2:11 AM).');
     // spec-buildupmissing-continue (QA, 7 Nov 2026): continue warns too; an unknown label reads as continue.
     for (const cont of ['continue', ''])
-      expect(lineFor(cont, true)).toBe(`First step: ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`);
-    expect(lineFor('continue', false)).toBe('First step: continue your current ascension to 220 TE (Jan 1, 2027 at 2:11 AM).');
+      expect(lineFor(cont, true)).toBe(`To get there: ${FIRST_STEP_BUILDUP_MISSING_CONTINUE}`);
+    expect(lineFor('continue', false)).toBe('To get there: continue your current ascension to 220 TE (Jan 1, 2027 at 2:11 AM).');
   });
 
   it('the page: First step reads the kind from the first leg and the answer\'s buildUpMissing', () => {
