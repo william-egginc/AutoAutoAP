@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { followCannotOf, followMissOf } from './followMiss';
+import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE } from './followMissWords';
 
 const DEADLINE = Date.UTC(2027, 6, 14, 16) / 1000;
 const H = 3600;
@@ -94,5 +95,18 @@ describe('followCannotOf: on the newest save no route gets above the TE by the d
   it('not for Fastest, and not without a date', () => {
     expect(followCannotOf({ ...base, goal: 'fastest' })).toBe(false);
     expect(followCannotOf({ ...base, deadline: null })).toBe(false);
+  });
+});
+
+describe('the best for the date is below the followed TE (Words, 17 Nov 2026)', () => {
+  it('says the best and the followed TE, or Egg Day', () => {
+    expect(FOLLOW_BELOW_LINE('Nov 9', 198, 199, false)).toBe('On your newest save, the best by Nov 9 is 198 TE, below the 199 TE you follow.');
+    expect(FOLLOW_BELOW_LINE('Nov 9', 198.6, 199.2, true)).toBe('On your newest save, the best by Egg Day is 198 TE, below the 199 TE you follow.');
+  });
+  it('each is under 170 characters, with no banned phrase', () => {
+    for (const s of [FOLLOW_BELOW_LINE('Nov 9, 2026', 198, 199, false), FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_NOTE]) {
+      expect(s.length).toBeLessThan(170);
+      expect(s).not.toMatch(/this device|this computer|^Your plan|[io]n your plan/i);
+    }
   });
 });

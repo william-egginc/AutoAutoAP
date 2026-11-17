@@ -46,3 +46,18 @@ export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By a date, where you pick the dat
 export function followOldPlanLabel(when: string): string {
   return `This is the route you follow, worked out on your save from ${when}. It was not checked against your newest save.`;
 }
+
+/**
+ * THE BEST FOR THE DATE IS NOW BELOW THE FOLLOWED TE (Words, 17 Nov 2026, for UI's "below" rule): a By a date route is
+ * followed (say to 199 TE) and on the newest save the best for that date is lower (198 TE). `date`: the date as the player
+ * reads it ("Nov 9"); `eggDay`: the goal is Egg Day. Under 170 characters each.
+ * "On your newest save, the best by Nov 9 is 198 TE, below the 199 TE you follow."
+ */
+export function FOLLOW_BELOW_LINE(date: string, bestTE: number, followedTE: number, eggDay: boolean): string {
+  const by = eggDay ? 'Egg Day' : date;
+  return `On your newest save, the best by ${by} is ${Math.floor(bestTE)} TE, below the ${Math.floor(followedTE)} TE you follow.`;
+}
+/** The button: opens By a date for that date, where the best row has Follow and Fast can check for better. */
+export const FOLLOW_BELOW_BUTTON = 'See the best route now';
+/** Under the button. */
+export const FOLLOW_BELOW_NOTE = 'Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.';
