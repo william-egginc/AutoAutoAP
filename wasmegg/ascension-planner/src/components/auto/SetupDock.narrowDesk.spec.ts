@@ -23,10 +23,13 @@ const mem = new Map<string, string>();
 beforeAll(() => {
   had = g.window;
   hadLs = g.localStorage;
-  g.window = { innerWidth: 890, innerHeight: 800, addEventListener: () => {}, removeEventListener: () => {} };
+  g.window = { innerWidth: 890, innerHeight: 800, location: { href: 'http://localhost/ascension-planner' }, addEventListener: () => {}, removeEventListener: () => {} };
   g.localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => mem.set(k, v), removeItem: (k: string) => mem.delete(k) };
 });
-afterAll(() => {
+afterAll(async () => {
+  // A render with a search running starts the step-away run mark, which finishes after the test (it reads window.location.href);
+  // let it finish before the fake window goes (PC gate-tv5, 17 Nov: unhandled rejection after teardown).
+  await new Promise((r) => setTimeout(r, 200));
   g.window = had;
   g.localStorage = hadLs;
 });
