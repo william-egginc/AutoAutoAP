@@ -24,20 +24,34 @@
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-manual-desk",
+   "rect": {
+    "x": 708,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 710,
+    "y": 10,
+    "w": 102,
+    "h": 35
+   }
+  }
  },
  "tabAuto-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "2-tab-auto-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 455,
+   "x": 427,
    "y": 41,
    "w": 200,
    "h": 48
   },
   "ring": {
-   "x": 447,
+   "x": 419,
    "y": 33,
    "w": 216,
    "h": 64
@@ -46,25 +60,39 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 555,
+   "x": 527,
    "y": 99,
-   "len": 66
+   "len": 120
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-auto-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 109,
+    "y": 10,
+    "w": 126,
+    "h": 35
+   }
+  }
  },
  "tabChain-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "3-tab-chain-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 659,
+   "x": 631,
    "y": 41,
    "w": 141,
    "h": 48
   },
   "ring": {
-   "x": 651,
+   "x": 623,
    "y": 33,
    "w": 157,
    "h": 64
@@ -73,26 +101,40 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 730,
+   "x": 702,
    "y": 99,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "tabMyruns-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "4-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 804,
-   "y": 41,
+   "x": 776,
+   "y": 27,
    "w": 109,
    "h": 48
   },
   "ring": {
-   "x": 796,
-   "y": 33,
+   "x": 768,
+   "y": 19,
    "w": 125,
    "h": 64
   },
@@ -100,25 +142,39 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 859,
-   "y": 99,
+   "x": 831,
+   "y": 85,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 319,
+    "y": 10,
+    "w": 72,
+    "h": 35
+   }
+  }
  },
  "goalTarget-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "6-goal-target-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 378,
+   "x": 350,
    "y": 173,
    "w": 146,
    "h": 48
   },
   "ring": {
-   "x": 370,
+   "x": 342,
    "y": 165,
    "w": 162,
    "h": 64
@@ -126,7 +182,7 @@
   "mag": null,
   "tabs": [
    {
-    "x": 655,
+    "x": 627,
     "y": 37,
     "w": 149,
     "h": 56
@@ -134,25 +190,39 @@
   ],
   "arrow": {
    "dir": "up",
-   "x": 451,
+   "x": 423,
    "y": 231,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "goalDate-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "6-goal-target-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 528,
+   "x": 500,
    "y": 173,
    "w": 146,
    "h": 48
   },
   "ring": {
-   "x": 520,
+   "x": 492,
    "y": 165,
    "w": 162,
    "h": 64
@@ -160,7 +230,7 @@
   "mag": null,
   "tabs": [
    {
-    "x": 655,
+    "x": 627,
     "y": 37,
     "w": 149,
     "h": 56
@@ -168,25 +238,39 @@
   ],
   "arrow": {
    "dir": "up",
-   "x": 601,
+   "x": 573,
    "y": 231,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "filters-desk": {
-  "base": "1-tab-manual-base-desk",
+  "base": "6-goal-target-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 99,
+   "x": 71,
    "y": 338,
    "w": 319,
    "h": 60
   },
   "ring": {
-   "x": 91,
+   "x": 63,
    "y": 330,
    "w": 335,
    "h": 76
@@ -194,7 +278,7 @@
   "mag": "9-filters-desk-mag",
   "tabs": [
    {
-    "x": 655,
+    "x": 627,
     "y": 37,
     "w": 149,
     "h": 56
@@ -202,25 +286,39 @@
   ],
   "arrow": {
    "dir": "left",
-   "x": 428,
+   "x": 400,
    "y": 368,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "result-desk": {
   "base": "8-result-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 153,
+   "x": 125,
    "y": 571,
    "w": 143,
    "h": 30
   },
   "ring": {
-   "x": 145,
+   "x": 117,
    "y": 563,
    "w": 159,
    "h": 46
@@ -228,7 +326,7 @@
   "mag": null,
   "tabs": [
    {
-    "x": 655,
+    "x": 627,
     "y": 11,
     "w": 149,
     "h": 56
@@ -236,25 +334,39 @@
   ],
   "arrow": {
    "dir": "left",
-   "x": 306,
+   "x": 278,
    "y": 586,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "prefer-desk": {
   "base": "8-result-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 119,
+   "x": 91,
    "y": 407,
    "w": 862,
    "h": 44
   },
   "ring": {
-   "x": 111,
+   "x": 83,
    "y": 399,
    "w": 878,
    "h": 60
@@ -262,7 +374,7 @@
   "mag": null,
   "tabs": [
    {
-    "x": 655,
+    "x": 627,
     "y": 11,
     "w": 149,
     "h": 56
@@ -270,25 +382,39 @@
   ],
   "arrow": {
    "dir": "up",
-   "x": 550,
+   "x": 522,
    "y": 461,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "simulate-desk": {
   "base": "14-simulate-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 301,
+   "x": 273,
    "y": 290,
    "w": 149,
    "h": 39
   },
   "ring": {
-   "x": 293,
+   "x": 265,
    "y": 282,
    "w": 165,
    "h": 55
@@ -297,25 +423,39 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 460,
+   "x": 432,
    "y": 310,
    "len": 120
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "follow-desk": {
   "base": "14-simulate-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 153,
+   "x": 125,
    "y": 292,
    "w": 140,
    "h": 35
   },
   "ring": {
-   "x": 145,
+   "x": 117,
    "y": 284,
    "w": 156,
    "h": 51
@@ -324,26 +464,40 @@
   "tabs": [],
   "arrow": {
    "dir": "right",
-   "x": 143,
+   "x": 115,
    "y": 310,
-   "len": 120
+   "len": 90
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "closing-desk": {
   "base": "23-closing-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 124,
-   "y": 72,
+   "x": 96,
+   "y": 280,
    "w": 112,
    "h": 60
   },
   "ring": {
-   "x": 116,
-   "y": 64,
+   "x": 88,
+   "y": 272,
    "w": 128,
    "h": 76
   },
@@ -351,13 +505,13 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 246,
-   "y": 102,
+   "x": 218,
+   "y": 310,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "strip-desk",
+   "sprite": "strip-chain-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -373,17 +527,17 @@
   }
  },
  "myrunsPage-desk": {
-  "base": "16-myruns-page-base-desk",
+  "base": "4-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 804,
+   "x": 776,
    "y": 27,
    "w": 109,
    "h": 48
   },
   "ring": {
-   "x": 796,
+   "x": 768,
    "y": 19,
    "w": 125,
    "h": 64
@@ -392,67 +546,95 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 859,
+   "x": 831,
    "y": 85,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 319,
+    "y": 10,
+    "w": 72,
+    "h": 35
+   }
+  }
  },
  "followedRoute-desk": {
-  "base": "16-myruns-page-base-desk",
+  "base": "4-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
    "x": 33,
    "y": 264,
-   "w": 1034,
+   "w": 978,
    "h": 21
   },
   "ring": {
    "x": 25,
    "y": 256,
-   "w": 1050,
+   "w": 994,
    "h": 37
   },
   "mag": null,
   "tabs": [
    {
-    "x": 800,
+    "x": 772,
     "y": 23,
     "w": 117,
     "h": 56
    }
   ],
   "arrow": {
-   "dir": "down",
-   "x": 550,
-   "y": 254,
-   "len": 48
+   "dir": "left",
+   "x": 1021,
+   "y": 275,
+   "len": 66
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 319,
+    "y": 10,
+    "w": 72,
+    "h": 35
+   }
+  }
  },
  "nextStep-desk": {
-  "base": "16-myruns-page-base-desk",
+  "base": "4-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
    "x": 46,
    "y": 464,
-   "w": 1008,
+   "w": 952,
    "h": 37
   },
   "ring": {
    "x": 38,
    "y": 456,
-   "w": 1024,
+   "w": 968,
    "h": 53
   },
   "mag": null,
   "tabs": [
    {
-    "x": 800,
+    "x": 772,
     "y": 23,
     "w": 117,
     "h": 56
@@ -460,12 +642,26 @@
   ],
   "arrow": {
    "dir": "up",
-   "x": 550,
+   "x": 522,
    "y": 511,
    "len": 90
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 319,
+    "y": 10,
+    "w": 72,
+    "h": 35
+   }
+  }
  },
  "tracker-desk": {
   "base": "19-tracker-base-desk",
@@ -473,27 +669,27 @@
   "ch": 620,
   "rect": {
    "x": 46,
-   "y": 72,
-   "w": 1008,
+   "y": 270,
+   "w": 952,
    "h": 33
   },
   "ring": {
    "x": 38,
-   "y": 64,
-   "w": 1024,
+   "y": 262,
+   "w": 968,
    "h": 49
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "up",
-   "x": 550,
-   "y": 115,
-   "len": 120
+   "dir": "left",
+   "x": 1008,
+   "y": 287,
+   "len": 66
   },
-  "overText": true,
+  "overText": false,
   "inset": {
-   "sprite": "strip-desk",
+   "sprite": "strip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -514,27 +710,27 @@
   "ch": 620,
   "rect": {
    "x": 33,
-   "y": 72,
-   "w": 1034,
+   "y": 134,
+   "w": 978,
    "h": 230
   },
   "ring": {
    "x": 25,
-   "y": 64,
-   "w": 1050,
+   "y": 126,
+   "w": 994,
    "h": 246
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 550,
-   "y": 312,
+   "x": 522,
+   "y": 374,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "strip-desk",
+   "sprite": "strip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -554,27 +750,41 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 964,
-   "y": 563,
-   "w": 120,
-   "h": 41
+   "x": 1002,
+   "y": 526,
+   "w": 84,
+   "h": 84
   },
   "ring": {
-   "x": 956,
-   "y": 555,
-   "w": 136,
-   "h": 57
+   "x": 994,
+   "y": 518,
+   "w": 100,
+   "h": 100
   },
-  "mag": null,
+  "mag": "20-setup-where-desk-mag",
   "tabs": [],
   "arrow": {
    "dir": "down",
-   "x": 1024,
-   "y": 553,
+   "x": 1044,
+   "y": 516,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 384,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "setupInside-desk": {
   "base": "21-setup-inside-base-desk",
@@ -636,13 +846,13 @@
   "ch": 620,
   "rect": {
    "x": 298,
-   "y": 235,
+   "y": 228,
    "w": 788,
    "h": 172
   },
   "ring": {
    "x": 290,
-   "y": 227,
+   "y": 220,
    "w": 804,
    "h": 188
   },
@@ -651,7 +861,7 @@
   "arrow": {
    "dir": "right",
    "x": 288,
-   "y": 321,
+   "y": 314,
    "len": 120
   },
   "overText": false,
@@ -682,20 +892,34 @@
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-manual-desk",
+   "rect": {
+    "x": 553,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 555,
+    "y": 10,
+    "w": 102,
+    "h": 35
+   }
+  }
  },
  "full-tabAuto-desk": {
-  "base": "30-full-tab-manual-base-desk",
+  "base": "31-full-tab-auto-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 326,
+   "x": 298,
    "y": 41,
    "w": 200,
    "h": 48
   },
   "ring": {
-   "x": 318,
+   "x": 290,
    "y": 33,
    "w": 216,
    "h": 64
@@ -704,25 +928,39 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 426,
+   "x": 398,
    "y": 99,
-   "len": 66
+   "len": 120
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-auto-desk",
+   "rect": {
+    "x": 553,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 654,
+    "y": 10,
+    "w": 126,
+    "h": 35
+   }
+  }
  },
  "full-tabChain-desk": {
-  "base": "30-full-tab-manual-base-desk",
+  "base": "32-full-tab-chain-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 530,
+   "x": 502,
    "y": 41,
    "w": 141,
    "h": 48
   },
   "ring": {
-   "x": 522,
+   "x": 494,
    "y": 33,
    "w": 157,
    "h": 64
@@ -731,25 +969,39 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 601,
+   "x": 573,
    "y": 99,
    "len": 66
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 572,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 574,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "full-tabMyruns-desk": {
-  "base": "30-full-tab-manual-base-desk",
+  "base": "33-full-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 675,
+   "x": 647,
    "y": 41,
    "w": 109,
    "h": 48
   },
   "ring": {
-   "x": 667,
+   "x": 639,
    "y": 33,
    "w": 125,
    "h": 64
@@ -758,15 +1010,29 @@
   "tabs": [],
   "arrow": {
    "dir": "up",
-   "x": 730,
+   "x": 702,
    "y": 99,
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-myruns-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 319,
+    "y": 10,
+    "w": 72,
+    "h": 35
+   }
+  }
  },
  "full-tabLeaderboard-desk": {
-  "base": "30-full-tab-manual-base-desk",
+  "base": "34-full-tab-leaderboard-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
@@ -790,10 +1056,24 @@
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-compare-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 386,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "full-tabScience-desk": {
-  "base": "30-full-tab-manual-base-desk",
+  "base": "35-full-tab-science-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
@@ -817,20 +1097,34 @@
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-science-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 474,
+    "y": 10,
+    "w": 71,
+    "h": 35
+   }
+  }
  },
  "m1more-desk": {
   "base": "40-m1-more-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 119,
+   "x": 91,
    "y": 359,
    "w": 862,
    "h": 56
   },
   "ring": {
-   "x": 111,
+   "x": 83,
    "y": 351,
    "w": 878,
    "h": 72
@@ -839,40 +1133,13 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 991,
+   "x": 963,
    "y": 387,
-   "len": 90
-  },
-  "overText": false,
-  "inset": null
- },
- "m2search-desk": {
-  "base": "41-m2-search-base-desk",
-  "cw": 1100,
-  "ch": 620,
-  "rect": {
-   "x": 158,
-   "y": 203,
-   "w": 787,
-   "h": 73
-  },
-  "ring": {
-   "x": 150,
-   "y": 195,
-   "w": 803,
-   "h": 89
-  },
-  "mag": null,
-  "tabs": [],
-  "arrow": {
-   "dir": "left",
-   "x": 955,
-   "y": 240,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -882,6 +1149,47 @@
    "ring": {
     "x": 232,
     "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
+ },
+ "m2search-desk": {
+  "base": "41-m2-search-base-desk",
+  "cw": 1100,
+  "ch": 620,
+  "rect": {
+   "x": 130,
+   "y": 174,
+   "w": 787,
+   "h": 73
+  },
+  "ring": {
+   "x": 122,
+   "y": 166,
+   "w": 803,
+   "h": 89
+  },
+  "mag": null,
+  "tabs": [],
+  "arrow": {
+   "dir": "left",
+   "x": 927,
+   "y": 211,
+   "len": 120
+  },
+  "overText": false,
+  "inset": {
+   "sprite": "fstrip-chain-desk",
+   "rect": {
+    "x": 553,
+    "y": 572,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -892,37 +1200,37 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 75,
-   "y": 186,
+   "x": 47,
+   "y": 157,
    "w": 346,
    "h": 107
   },
   "ring": {
-   "x": 67,
-   "y": 178,
+   "x": 39,
+   "y": 149,
    "w": 362,
    "h": 123
   },
   "mag": "42-m3-fast-desk-mag",
   "tabs": [],
   "arrow": {
-   "dir": "right",
-   "x": 65,
-   "y": 240,
-   "len": 48
+   "dir": "up",
+   "x": 220,
+   "y": 274,
+   "len": 90
   },
-  "overText": false,
+  "overText": true,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -933,14 +1241,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 423,
-   "y": 203,
+   "x": 395,
+   "y": 174,
    "w": 257,
    "h": 73
   },
   "ring": {
-   "x": 415,
-   "y": 195,
+   "x": 387,
+   "y": 166,
    "w": 273,
    "h": 89
   },
@@ -948,22 +1256,22 @@
   "tabs": [],
   "arrow": {
    "dir": "down",
-   "x": 552,
-   "y": 193,
+   "x": 524,
+   "y": 164,
    "len": 66
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -974,14 +1282,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 688,
-   "y": 203,
+   "x": 660,
+   "y": 174,
    "w": 257,
    "h": 73
   },
   "ring": {
-   "x": 680,
-   "y": 195,
+   "x": 652,
+   "y": 166,
    "w": 273,
    "h": 89
   },
@@ -989,22 +1297,22 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 955,
-   "y": 240,
+   "x": 927,
+   "y": 211,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -1015,14 +1323,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 152,
-   "y": 517,
+   "x": 124,
+   "y": 488,
    "w": 799,
    "h": 55
   },
   "ring": {
-   "x": 144,
-   "y": 509,
+   "x": 116,
+   "y": 480,
    "w": 815,
    "h": 71
   },
@@ -1030,22 +1338,22 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 961,
-   "y": 545,
+   "x": 933,
+   "y": 516,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -1056,14 +1364,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 152,
-   "y": 584,
+   "x": 124,
+   "y": 555,
    "w": 375,
    "h": 21
   },
   "ring": {
-   "x": 144,
-   "y": 576,
+   "x": 116,
+   "y": 547,
    "w": 391,
    "h": 37
   },
@@ -1071,22 +1379,22 @@
   "tabs": [],
   "arrow": {
    "dir": "right",
-   "x": 142,
-   "y": 595,
-   "len": 120
+   "x": 114,
+   "y": 566,
+   "len": 90
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -1097,14 +1405,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 165,
-   "y": 395,
+   "x": 137,
+   "y": 366,
    "w": 773,
    "h": 33
   },
   "ring": {
-   "x": 157,
-   "y": 387,
+   "x": 129,
+   "y": 358,
    "w": 789,
    "h": 49
   },
@@ -1112,22 +1420,22 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 948,
-   "y": 412,
+   "x": 920,
+   "y": 383,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -1138,14 +1446,14 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 169,
-   "y": 451,
+   "x": 141,
+   "y": 422,
    "w": 765,
    "h": 33
   },
   "ring": {
-   "x": 161,
-   "y": 443,
+   "x": 133,
+   "y": 414,
    "w": 781,
    "h": 49
   },
@@ -1153,22 +1461,22 @@
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 944,
-   "y": 468,
+   "x": 916,
+   "y": 439,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
    "rect": {
-    "x": 8,
-    "y": 8,
+    "x": 553,
+    "y": 572,
     "w": 539,
     "h": 40
    },
    "ring": {
-    "x": 232,
-    "y": 10,
+    "x": 777,
+    "y": 574,
     "w": 91,
     "h": 35
    }
@@ -1179,28 +1487,69 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 135,
-   "y": 72,
+   "x": 107,
+   "y": 43,
    "w": 833,
    "h": 21
   },
   "ring": {
-   "x": 127,
-   "y": 64,
+   "x": 99,
+   "y": 35,
    "w": 849,
    "h": 37
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "right",
-   "x": 125,
-   "y": 83,
+   "dir": "left",
+   "x": 950,
+   "y": 54,
    "len": 120
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-chain-desk",
+   "rect": {
+    "x": 553,
+    "y": 572,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 777,
+    "y": 574,
+    "w": 91,
+    "h": 35
+   }
+  }
+ },
+ "m11steppingAway-desk": {
+  "base": "50-m11-stepping-away-base-desk",
+  "cw": 1100,
+  "ch": 620,
+  "rect": {
+   "x": 137,
+   "y": 208,
+   "w": 773,
+   "h": 29
+  },
+  "ring": {
+   "x": 129,
+   "y": 200,
+   "w": 789,
+   "h": 45
+  },
+  "mag": null,
+  "tabs": [],
+  "arrow": {
+   "dir": "left",
+   "x": 920,
+   "y": 222,
+   "len": 120
+  },
+  "overText": false,
+  "inset": {
+   "sprite": "fstrip-chain-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1215,45 +1564,18 @@
    }
   }
  },
- "m11steppingAway-desk": {
-  "base": "50-m11-stepping-away-base-desk",
-  "cw": 1100,
-  "ch": 620,
-  "rect": {
-   "x": 165,
-   "y": 208,
-   "w": 773,
-   "h": 29
-  },
-  "ring": {
-   "x": 157,
-   "y": 200,
-   "w": 789,
-   "h": 45
-  },
-  "mag": null,
-  "tabs": [],
-  "arrow": {
-   "dir": "left",
-   "x": 948,
-   "y": 222,
-   "len": 120
-  },
-  "overText": false,
-  "inset": null
- },
  "m12howItWorks-desk": {
   "base": "50-m11-stepping-away-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 135,
+   "x": 107,
    "y": 368,
    "w": 98,
    "h": 44
   },
   "ring": {
-   "x": 127,
+   "x": 99,
    "y": 360,
    "w": 114,
    "h": 60
@@ -1262,12 +1584,26 @@
   "tabs": [],
   "arrow": {
    "dir": "right",
-   "x": 125,
+   "x": 97,
    "y": 390,
-   "len": 120
+   "len": 90
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-chain-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 232,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "r1changeRoute-desk": {
   "base": "60-r1-change-route-base-desk",
@@ -1275,27 +1611,27 @@
   "ch": 620,
   "rect": {
    "x": 32,
-   "y": 122,
-   "w": 1039,
+   "y": 153,
+   "w": 983,
    "h": 130
   },
   "ring": {
    "x": 24,
-   "y": 114,
-   "w": 1055,
+   "y": 145,
+   "w": 999,
    "h": 146
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "down",
-   "x": 552,
-   "y": 112,
-   "len": 48
+   "dir": "left",
+   "x": 1025,
+   "y": 218,
+   "len": 66
   },
-  "overText": true,
+  "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1316,27 +1652,27 @@
   "ch": 620,
   "rect": {
    "x": 32,
-   "y": 291,
-   "w": 1039,
+   "y": 322,
+   "w": 983,
    "h": 144
   },
   "ring": {
    "x": 24,
-   "y": 283,
-   "w": 1055,
+   "y": 314,
+   "w": 999,
    "h": 160
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "up",
-   "x": 552,
-   "y": 445,
-   "len": 120
+   "dir": "left",
+   "x": 1025,
+   "y": 394,
+   "len": 66
   },
-  "overText": true,
+  "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1357,13 +1693,13 @@
   "ch": 620,
   "rect": {
    "x": 49,
-   "y": 72,
+   "y": 120,
    "w": 578,
    "h": 31
   },
   "ring": {
    "x": 41,
-   "y": 64,
+   "y": 112,
    "w": 594,
    "h": 47
   },
@@ -1372,12 +1708,12 @@
   "arrow": {
    "dir": "left",
    "x": 637,
-   "y": 88,
+   "y": 136,
    "len": 120
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1398,27 +1734,27 @@
   "ch": 620,
   "rect": {
    "x": 49,
-   "y": 306,
-   "w": 1005,
+   "y": 354,
+   "w": 949,
    "h": 98
   },
   "ring": {
    "x": 41,
-   "y": 298,
-   "w": 1021,
+   "y": 346,
+   "w": 965,
    "h": 114
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "down",
-   "x": 552,
-   "y": 296,
-   "len": 120
+   "dir": "left",
+   "x": 1008,
+   "y": 403,
+   "len": 66
   },
-  "overText": true,
+  "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1439,27 +1775,27 @@
   "ch": 620,
   "rect": {
    "x": 49,
-   "y": 416,
-   "w": 1005,
+   "y": 464,
+   "w": 949,
    "h": 35
   },
   "ring": {
    "x": 41,
-   "y": 408,
-   "w": 1021,
+   "y": 456,
+   "w": 965,
    "h": 51
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "up",
-   "x": 552,
-   "y": 461,
-   "len": 48
+   "dir": "left",
+   "x": 1008,
+   "y": 482,
+   "len": 66
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1480,27 +1816,27 @@
   "ch": 620,
   "rect": {
    "x": 66,
-   "y": 72,
-   "w": 971,
+   "y": 215,
+   "w": 915,
    "h": 189
   },
   "ring": {
    "x": 58,
-   "y": 64,
-   "w": 987,
+   "y": 207,
+   "w": 931,
    "h": 205
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 1047,
-   "y": 167,
-   "len": 48
+   "x": 991,
+   "y": 310,
+   "len": 90
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-desk",
+   "sprite": "fstrip-myruns-desk",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1547,7 +1883,21 @@
    "len": 120
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-compare-desk",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 539,
+    "h": 40
+   },
+   "ring": {
+    "x": 386,
+    "y": 10,
+    "w": 91,
+    "h": 35
+   }
+  }
  },
  "tabManual-phone": {
   "base": "1-tab-manual-base-phone",
@@ -1574,10 +1924,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-manual-phone",
+   "rect": {
+    "x": 165,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 166,
+    "y": 9,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "tabAuto-phone": {
-  "base": "1-tab-manual-base-phone",
+  "base": "2-tab-auto-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -1601,10 +1965,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-auto-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 115,
+    "y": 9,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "tabChain-phone": {
-  "base": "1-tab-manual-base-phone",
+  "base": "3-tab-chain-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -1628,21 +2006,35 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "tabMyruns-phone": {
-  "base": "1-tab-manual-base-phone",
+  "base": "4-tab-myruns-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 197,
-   "y": 143,
+   "y": 49,
    "w": 172,
    "h": 48
   },
   "ring": {
    "x": 189,
-   "y": 135,
+   "y": 41,
    "w": 188,
    "h": 64
   },
@@ -1651,25 +2043,39 @@
   "arrow": {
    "dir": "up",
    "x": 283,
-   "y": 201,
+   "y": 107,
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "goalTarget-phone": {
-  "base": "1-tab-manual-base-phone",
+  "base": "6-goal-target-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 21,
-   "y": 273,
+   "y": 145,
    "w": 148,
    "h": 48
   },
   "ring": {
    "x": 13,
-   "y": 265,
+   "y": 137,
    "w": 164,
    "h": 64
   },
@@ -1677,7 +2083,7 @@
   "tabs": [
    {
     "x": 17,
-    "y": 139,
+    "y": 11,
     "w": 180,
     "h": 56
    }
@@ -1685,25 +2091,39 @@
   "arrow": {
    "dir": "up",
    "x": 95,
-   "y": 331,
+   "y": 203,
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "goalDate-phone": {
-  "base": "1-tab-manual-base-phone",
+  "base": "6-goal-target-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 173,
-   "y": 273,
+   "y": 145,
    "w": 148,
    "h": 48
   },
   "ring": {
    "x": 165,
-   "y": 265,
+   "y": 137,
    "w": 164,
    "h": 64
   },
@@ -1711,7 +2131,7 @@
   "tabs": [
    {
     "x": 17,
-    "y": 139,
+    "y": 11,
     "w": 180,
     "h": 56
    }
@@ -1719,14 +2139,28 @@
   "arrow": {
    "dir": "up",
    "x": 247,
-   "y": 331,
+   "y": 203,
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "filters-phone": {
-  "base": "9-filters-base-phone",
+  "base": "6-goal-target-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -1757,7 +2191,21 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "result-phone": {
   "base": "8-result-base-phone",
@@ -1784,7 +2232,21 @@
    "len": 70
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 364,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 396,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "prefer-phone": {
   "base": "8-result-base-phone",
@@ -1811,7 +2273,21 @@
    "len": 70
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 364,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 396,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "simulate-phone": {
   "base": "14-simulate-base-phone",
@@ -1819,13 +2295,13 @@
   "ch": 440,
   "rect": {
    "x": 29,
-   "y": 152,
+   "y": 224,
    "w": 149,
    "h": 44
   },
   "ring": {
    "x": 21,
-   "y": 144,
+   "y": 216,
    "w": 165,
    "h": 60
   },
@@ -1834,12 +2310,12 @@
   "arrow": {
    "dir": "left",
    "x": 188,
-   "y": 174,
+   "y": 246,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1860,13 +2336,13 @@
   "ch": 440,
   "rect": {
    "x": 29,
-   "y": 100,
+   "y": 172,
    "w": 140,
    "h": 44
   },
   "ring": {
    "x": 21,
-   "y": 92,
+   "y": 164,
    "w": 156,
    "h": 60
   },
@@ -1875,12 +2351,12 @@
   "arrow": {
    "dir": "left",
    "x": 179,
-   "y": 122,
+   "y": 194,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1901,13 +2377,13 @@
   "ch": 440,
   "rect": {
    "x": 17,
-   "y": 100,
+   "y": 190,
    "w": 112,
    "h": 60
   },
   "ring": {
    "x": 9,
-   "y": 92,
+   "y": 182,
    "w": 128,
    "h": 76
   },
@@ -1916,12 +2392,12 @@
   "arrow": {
    "dir": "left",
    "x": 139,
-   "y": 130,
+   "y": 220,
    "len": 70
   },
   "overText": false,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -1937,7 +2413,7 @@
   }
  },
  "myrunsPage-phone": {
-  "base": "16-myruns-page-base-phone",
+  "base": "4-tab-myruns-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -1961,10 +2437,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "followedRoute-phone": {
-  "base": "16-myruns-page-base-phone",
+  "base": "4-tab-myruns-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -1995,7 +2485,21 @@
    "len": 53
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "strip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "nextStep-phone": {
   "base": "18-next-step-base-phone",
@@ -2003,13 +2507,13 @@
   "ch": 440,
   "rect": {
    "x": 46,
-   "y": 100,
+   "y": 144,
    "w": 298,
    "h": 79
   },
   "ring": {
    "x": 38,
-   "y": 92,
+   "y": 136,
    "w": 314,
    "h": 95
   },
@@ -2018,12 +2522,12 @@
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 189,
+   "y": 233,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2044,13 +2548,13 @@
   "ch": 440,
   "rect": {
    "x": 46,
-   "y": 100,
+   "y": 135,
    "w": 298,
    "h": 98
   },
   "ring": {
    "x": 38,
-   "y": 92,
+   "y": 127,
    "w": 314,
    "h": 114
   },
@@ -2059,12 +2563,12 @@
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 208,
+   "y": 243,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2105,7 +2609,7 @@
   },
   "overText": false,
   "inset": {
-   "sprite": "strip-phone",
+   "sprite": "strip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2145,7 +2649,21 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "strip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 68
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "setupInside-phone": {
   "base": "21-setup-inside-base-phone",
@@ -2253,10 +2771,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-manual-phone",
+   "rect": {
+    "x": 8,
+    "y": 332,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 9,
+    "y": 333,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabAuto-phone": {
-  "base": "30-full-tab-manual-base-phone",
+  "base": "31-full-tab-auto-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -2280,10 +2812,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-auto-phone",
+   "rect": {
+    "x": 8,
+    "y": 332,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 333,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabChain-phone": {
-  "base": "30-full-tab-manual-base-phone",
+  "base": "32-full-tab-chain-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -2307,10 +2853,24 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-chain-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 9,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabMyruns-phone": {
-  "base": "30-full-tab-manual-base-phone",
+  "base": "33-full-tab-myruns-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
@@ -2334,21 +2894,35 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabLeaderboard-phone": {
-  "base": "30-full-tab-manual-base-phone",
+  "base": "34-full-tab-leaderboard-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 21,
-   "y": 195,
+   "y": 160,
    "w": 172,
    "h": 48
   },
   "ring": {
    "x": 13,
-   "y": 187,
+   "y": 152,
    "w": 188,
    "h": 64
   },
@@ -2357,25 +2931,39 @@
   "arrow": {
    "dir": "up",
    "x": 107,
-   "y": 253,
+   "y": 218,
    "len": 70
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-compare-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 9,
+    "y": 72,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabScience-phone": {
-  "base": "30-full-tab-manual-base-phone",
+  "base": "35-full-tab-science-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 197,
-   "y": 195,
+   "y": 168,
    "w": 172,
    "h": 48
   },
   "ring": {
    "x": 189,
-   "y": 187,
+   "y": 160,
    "w": 188,
    "h": 64
   },
@@ -2384,11 +2972,25 @@
   "arrow": {
    "dir": "up",
    "x": 283,
-   "y": 253,
-   "len": 70
+   "y": 226,
+   "len": 53
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-science-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 72,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "m1more-phone": {
   "base": "40-m1-more-base-phone",
@@ -2396,13 +2998,13 @@
   "ch": 440,
   "rect": {
    "x": 16,
-   "y": 204,
+   "y": 219,
    "w": 358,
    "h": 73
   },
   "ring": {
    "x": 8,
-   "y": 196,
+   "y": 211,
    "w": 374,
    "h": 89
   },
@@ -2411,12 +3013,12 @@
   "arrow": {
    "dir": "down",
    "x": 195,
-   "y": 194,
+   "y": 209,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2437,13 +3039,13 @@
   "ch": 440,
   "rect": {
    "x": 49,
-   "y": 132,
+   "y": 131,
    "w": 295,
    "h": 105
   },
   "ring": {
    "x": 41,
-   "y": 124,
+   "y": 123,
    "w": 311,
    "h": 121
   },
@@ -2452,12 +3054,12 @@
   "arrow": {
    "dir": "up",
    "x": 196,
-   "y": 247,
+   "y": 246,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2478,13 +3080,13 @@
   "ch": 440,
   "rect": {
    "x": 49,
-   "y": 132,
+   "y": 131,
    "w": 96,
    "h": 105
   },
   "ring": {
    "x": 41,
-   "y": 124,
+   "y": 123,
    "w": 112,
    "h": 121
   },
@@ -2493,12 +3095,12 @@
   "arrow": {
    "dir": "up",
    "x": 97,
-   "y": 247,
+   "y": 246,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2519,13 +3121,13 @@
   "ch": 440,
   "rect": {
    "x": 149,
-   "y": 132,
+   "y": 131,
    "w": 96,
    "h": 105
   },
   "ring": {
    "x": 141,
-   "y": 124,
+   "y": 123,
    "w": 112,
    "h": 121
   },
@@ -2534,12 +3136,12 @@
   "arrow": {
    "dir": "up",
    "x": 196,
-   "y": 247,
+   "y": 246,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2560,13 +3162,13 @@
   "ch": 440,
   "rect": {
    "x": 248,
-   "y": 132,
+   "y": 131,
    "w": 96,
    "h": 105
   },
   "ring": {
    "x": 240,
-   "y": 124,
+   "y": 123,
    "w": 112,
    "h": 121
   },
@@ -2575,12 +3177,12 @@
   "arrow": {
    "dir": "up",
    "x": 296,
-   "y": 247,
+   "y": 246,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2621,7 +3223,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2662,7 +3264,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2703,7 +3305,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2744,7 +3346,7 @@
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2765,13 +3367,13 @@
   "ch": 440,
   "rect": {
    "x": 28,
-   "y": 132,
+   "y": 156,
    "w": 337,
    "h": 56
   },
   "ring": {
    "x": 20,
-   "y": 124,
+   "y": 148,
    "w": 353,
    "h": 72
   },
@@ -2780,12 +3382,12 @@
   "arrow": {
    "dir": "up",
    "x": 197,
-   "y": 198,
+   "y": 222,
    "len": 70
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2826,7 +3428,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2867,7 +3469,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-chain-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2908,7 +3510,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -2948,7 +3550,21 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "r3tryNext-phone": {
   "base": "62-r3-try-next-base-phone",
@@ -2956,13 +3572,13 @@
   "ch": 440,
   "rect": {
    "x": 45,
-   "y": 132,
+   "y": 148,
    "w": 247,
    "h": 144
   },
   "ring": {
    "x": 37,
-   "y": 124,
+   "y": 140,
    "w": 263,
    "h": 160
   },
@@ -2971,12 +3587,12 @@
   "arrow": {
    "dir": "left",
    "x": 302,
-   "y": 204,
+   "y": 220,
    "len": 70
   },
   "overText": false,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -3017,7 +3633,7 @@
   },
   "overText": true,
   "inset": {
-   "sprite": "fstrip-phone",
+   "sprite": "fstrip-myruns-phone",
    "rect": {
     "x": 8,
     "y": 8,
@@ -3057,7 +3673,21 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "r6boardRuns-phone": {
   "base": "64-r5-your-runs-base-phone",
@@ -3084,7 +3714,21 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-myruns-phone",
+   "rect": {
+    "x": 8,
+    "y": 8,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 115,
+    "y": 40,
+    "w": 109,
+    "h": 35
+   }
+  }
  },
  "full-tabInsights-phone": {
   "base": "36-full-tab-insights-base-phone",
@@ -3118,6 +3762,20 @@
    "len": 70
   },
   "overText": false,
-  "inset": null
+  "inset": {
+   "sprite": "fstrip-compare-phone",
+   "rect": {
+    "x": 8,
+    "y": 332,
+    "w": 217,
+    "h": 100
+   },
+   "ring": {
+    "x": 9,
+    "y": 396,
+    "w": 109,
+    "h": 35
+   }
+  }
  }
 }

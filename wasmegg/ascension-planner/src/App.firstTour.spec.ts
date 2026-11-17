@@ -56,7 +56,7 @@ describe('v1\'s targets on the page are gone (v2 shows pictures, it points at no
   });
 });
 
-describe('replay: "Show the tour again" in the footer and in Setup', () => {
+describe('replay: "Quick tour" and "Full tour" in the footer, "Show the tour again" in Setup', () => {
   const setup = read('./components/auto/YourSetup.vue');
   it('the footer, beside About and privacy, on every screen (the first visit too): 44 px, not while a search runs', () => {
     const foot = template.slice(template.indexOf('data-testid="site-footer"'), template.indexOf('</footer>'));
@@ -66,9 +66,21 @@ describe('replay: "Show the tour again" in the footer and in Setup', () => {
     expect(tag).toContain('@click="askTourReplay()"');
     expect(tag).toContain(':disabled="myRunsRunning"');
     expect(tag).toContain('min-h-[44px]');
-    expect(tag).toContain('{{ FIRST_TOUR_REPLAY }}');
+    expect(tag).toContain('{{ FOOTER_QUICK_TOUR }}');
     const open = template.slice(template.lastIndexOf('<footer', template.indexOf('data-testid="site-footer"')), template.indexOf('data-testid="site-footer"'));
     expect(open).not.toMatch(/v-if=|v-show=/);
+  });
+
+  it('the footer also has "Full tour" (17 Nov 2026: either tour from any page); More and About keep theirs', () => {
+    const foot = template.slice(template.indexOf('data-testid="site-footer"'), template.indexOf('</footer>'));
+    const at = foot.indexOf('data-testid="tour-full-footer"');
+    expect(at).toBeGreaterThan(foot.indexOf('data-testid="tour-replay"'));
+    const tag = foot.slice(foot.lastIndexOf('<button', at), foot.indexOf('</button>', at));
+    expect(tag).toContain('@click="askFullTour()"');
+    expect(tag).toContain(':disabled="myRunsRunning"');
+    expect(tag).toContain('min-h-[44px]');
+    expect(tag).toContain('{{ FOOTER_FULL_TOUR }}');
+    expect(template).toContain("import { askFullTour, askTourReplay }") ;
   });
 
   it('Setup, under How the site shows things: closes Setup, then the tour starts (it waits while Setup is open)', () => {
