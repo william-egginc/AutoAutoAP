@@ -28,7 +28,7 @@ describe('first tour words', () => {
     expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');
     expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.');
     expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when, so you can tick each one off as you go.');
-    expect(B('setupWhere')).toBe('Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.');
+    expect(B('setupWhere')).toBe('Setup is the round gear button at the bottom of the screen. On a wide screen it is a Setup button at the right. Press it any time.');
     expect(B('setupInside')).toBe('Setup holds your awake hours, time off and Save online. The planner works out every answer from them.');
     expect(B('shifts')).toBe('The shifts are listed on My runs, each with when it happens and how far away it is.');
     expect(B('closing')).toBe('That is the important part. For everything else, open More and take the Full tour.');

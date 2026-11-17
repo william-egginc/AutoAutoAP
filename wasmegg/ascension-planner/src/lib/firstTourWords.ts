@@ -29,7 +29,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   followedRoute: { title: 'The route you follow', body: 'This is the route you follow: the TE you reach at the end of each ascension.' },
   nextStep: { title: 'Next step', body: 'Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.' },
   tracker: { title: 'The Build-up tracker', body: 'The Build-up tracker lists what to buy and when, so you can tick each one off as you go.' },
-  setupWhere: { title: 'Where Setup is', body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.' },
+  setupWhere: { title: 'Where Setup is', body: 'Setup is the round gear button at the bottom of the screen. On a wide screen it is a Setup button at the right. Press it any time.' },
   setupInside: { title: 'Inside Setup', body: 'Setup holds your awake hours, time off and Save online. The planner works out every answer from them.' },
   shifts: { title: 'The shifts', body: 'The shifts are listed on My runs, each with when it happens and how far away it is.' },
   closing: { title: 'That is the tour', body: 'That is the important part. For everything else, open More and take the Full tour.' },
