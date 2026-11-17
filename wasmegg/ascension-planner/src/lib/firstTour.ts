@@ -25,43 +25,61 @@ export const TOUR_REMIND_CAP = 3;
 
 export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { kind: 'off' } | { kind: 'done' };
 
-/** The steps, in order. */
-/** Simulate this plan after the answer, and Setup as two (where it is, then what is inside) since spec-simpler2
- *  (Jordan, 9 Nov 2026): eight on the full path. */
+/** The steps, in order. Tour v3 (spec-tour-v3, Jordan, 16 Nov 2026: "use arrows to show important things, one thing at a
+ *  time, start from the big things and work your way down"), as he reviewed it (~1:30 PM): twenty-three. The tab row is four
+ *  slides, one a tab, and the goal switch two (Target TE, By a date); then the result, the filters button, what is inside
+ *  Setup (awake hours, time off), Prefer fewer ascensions, the maxed-gear what-if, Simulate this plan and Follow this
+ *  route; then My runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
+ *  the shifts, and a closing card that points at the Full tour (lib/fullTour.ts), which holds what More holds. */
 export type TourStepId =
+  | 'tabManual'
+  | 'tabAuto'
+  | 'tabChain'
+  | 'tabMyruns'
   | 'load'
-  | 'goal'
-  | 'answer'
+  | 'goalTarget'
+  | 'goalDate'
+  | 'result'
+  | 'filters'
+  | 'setupAwake'
+  | 'setupTimeOff'
+  | 'prefer'
+  | 'gear'
   | 'simulate'
   | 'follow'
-  // spec-tourfix (Jordan, 16 Nov 2026: "My runs isn't shown how to get to my runs"): the My runs tab, before the tracker.
-  | 'myrunsWhere'
-  | 'myruns'
+  | 'myrunsPage'
+  | 'followedRoute'
+  | 'nextStep'
+  | 'tracker'
   | 'setupWhere'
-  | 'setup'
-  // spec-tourmore (Jordan, 9 Nov 2026: "add the more section and the custom and fast runs"): More, where it is and what
-  // is inside, then the Fast and Custom searches inside it. After Setup: they need the answer screen's More, and the
-  // More slide's line points at Setup › More options › Show everything, just shown.
-  | 'moreWhere'
-  | 'moreInside'
-  | 'fast'
-  | 'custom';
+  | 'setupInside'
+  | 'shifts'
+  | 'closing';
 export const TOUR_STEPS: readonly TourStepId[] = [
+  'tabManual',
+  'tabAuto',
+  'tabChain',
+  'tabMyruns',
   'load',
-  'goal',
-  'answer',
+  'goalTarget',
+  'goalDate',
+  'result',
+  'filters',
+  'setupAwake',
+  'setupTimeOff',
+  'prefer',
+  'gear',
   'simulate',
   'follow',
-  'myrunsWhere',
-  'myruns',
+  'myrunsPage',
+  'followedRoute',
+  'nextStep',
+  'tracker',
   'setupWhere',
-  'setup',
-  'moreWhere',
-  'moreInside',
-  'fast',
-  'custom',
+  'setupInside',
+  'shifts',
+  'closing',
 ];
-
 
 /** The stored string as a state; anything else reads as never seen. */
 export function parseTour(v: string | null | undefined): TourStored {
@@ -110,10 +128,12 @@ export function isNewVisitor(p: { savedPlayerId: string | null | undefined; last
   return !p.savedPlayerId && !p.lastRoute;
 }
 
-/** The steps for what is loaded: a save file with no player ID has no My runs or Setup pill, so it ends at Follow
- *  (after Simulate this plan, which is on the same answer: five steps). */
+/** The steps for what is loaded: a save file with no player ID has no My runs tab or My runs page, so it leaves out the My
+ *  runs tab and ends at Follow (after Simulate this plan, which is on the same answer: fourteen steps). */
 export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
-  return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.slice(0, TOUR_STEPS.indexOf('follow') + 1) : [...TOUR_STEPS];
+  return !p.hasAccount && p.hasSaveFile
+    ? TOUR_STEPS.slice(0, TOUR_STEPS.indexOf('follow') + 1).filter(id => id !== 'tabMyruns')
+    : [...TOUR_STEPS];
 }
 
 type TourStorage = Pick<Storage, 'getItem' | 'setItem'>;

@@ -12,22 +12,37 @@ import { FIRST_TOUR_ALT } from './firstTourWords';
 const asset = (n: string) => new URL(`../assets/tour/${n}`, import.meta.url);
 
 describe('tour slides', () => {
-  it('eight slides in order (Jordan, 9 Nov 2026: Simulate this plan after the answer, and Setup as two: where it is, then inside); slide 6 is the Build-up tracker picture', () => {
-    // Thirteen since spec-tourfix (Jordan, 16 Nov 2026: "My runs isn't shown how to get to my runs": a slide for the My runs tab before the tracker); twelve since spec-tourmore (Jordan, 9 Nov 2026: "add the more section and the custom and fast runs"): More (where,
-    // then inside), Fast and Custom after Setup, as they sit inside the answer screen's More.
-    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['load', 'goal', 'answer', 'simulate', 'follow', 'myrunsWhere', 'myruns', 'setupWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']);
-    expect(TOUR_IMAGES.moreWhere).toEqual({ desk: '9-more-where-desk.webp', phone: '9-more-where-phone.webp' });
-    expect(TOUR_IMAGES.moreInside).toEqual({ desk: '10-more-inside-desk.webp', phone: '10-more-inside-phone.webp' });
-    expect(TOUR_IMAGES.fast).toEqual({ desk: '11-fast-desk.webp', phone: '11-fast-phone.webp' });
-    expect(TOUR_IMAGES.custom).toEqual({ desk: '12-custom-desk.webp', phone: '12-custom-phone.webp' });
-    expect(TOUR_IMAGES.simulate).toEqual({ desk: '4-simulate-desk.webp', phone: '4-simulate-phone.webp' });
-    expect(TOUR_IMAGES.myrunsWhere).toEqual({ desk: '6-myruns-where-desk.webp', phone: '6-myruns-where-phone.webp' });
-    expect(TOUR_IMAGES.myruns).toEqual({ desk: '6-tracker-desk.webp', phone: '6-tracker-phone.webp' });
-    expect(TOUR_IMAGES.setupWhere).toEqual({ desk: '7-setup-where-desk.webp', phone: '7-setup-where-phone.webp' });
-    expect(TOUR_IMAGES.setup).toEqual({ desk: '8-setup-desk.webp', phone: '8-setup-phone.webp' });
+  it('twenty-three slides in order (tour v3, spec-tour-v3, Jordan, 16 Nov 2026: one thing a slide, big things first; the tab row is four slides, the goal switch two); each has its own picture pair', () => {
+    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
+    const files: Record<string, string> = {
+      tabManual: '1-tab-manual',
+      tabAuto: '2-tab-auto',
+      tabChain: '3-tab-chain',
+      tabMyruns: '4-tab-myruns',
+      load: '5-load',
+      goalTarget: '6-goal-target',
+      goalDate: '7-goal-date',
+      result: '8-result',
+      filters: '9-filters',
+      setupAwake: '10-setup-awake',
+      setupTimeOff: '11-setup-time-off',
+      prefer: '12-prefer',
+      gear: '13-gear',
+      simulate: '14-simulate',
+      follow: '15-follow',
+      myrunsPage: '16-myruns-page',
+      followedRoute: '17-followed-route',
+      nextStep: '18-next-step',
+      tracker: '19-tracker',
+      setupWhere: '20-setup-where',
+      setupInside: '21-setup-inside',
+      shifts: '22-shifts',
+      closing: '23-closing',
+    };
+    for (const [id, f] of Object.entries(files)) expect(TOUR_IMAGES[id as keyof typeof TOUR_IMAGES]).toEqual({ desk: `${f}-desk.webp`, phone: `${f}-phone.webp` });
   });
 
-  it('every slide has a desk and a phone WebP, each under 25 KB and a few hundred KB in all, with alt text', () => {
+  it('every slide has a desk and a phone WebP, each under 25 KB and under 450 KB in all (both sets), with alt text', () => {
     let total = 0;
     for (const s of TOUR_SLIDES) {
       expect(FIRST_TOUR_ALT[s.id].length).toBeGreaterThan(20);
@@ -41,13 +56,14 @@ describe('tour slides', () => {
         total += bytes;
       }
     }
-    expect(total).toBeLessThan(300_000);
+    // Both sets together; a visitor loads one (about half), one slide at a time. 450 KB since tour v3's 23 slides (it was 300 KB for 13).
+    expect(total).toBeLessThan(450_000);
   });
 
-  it('a save file with no player ID: five slides, Simulate this plan included, ending at Follow this route', () => {
-    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['load', 'goal', 'answer', 'simulate', 'follow']);
-    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(13);
-    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(13);
+  it('a save file with no player ID: fourteen slides (no My runs tab), Simulate this plan included, ending at Follow this route', () => {
+    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow']);
+    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(23);
+    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(23);
   });
 
   it('imported, so vite hashes them (not public/): the module imports each file', () => {

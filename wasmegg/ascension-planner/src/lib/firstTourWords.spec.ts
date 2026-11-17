@@ -8,57 +8,36 @@ import {
 } from './firstTourWords';
 
 describe('first tour words', () => {
-  it('each card, word for word', () => {
-    expect(FIRST_TOUR_STEPS.load).toEqual({
-      title: 'Load your save',
-      // v2 (spec-firsttour2, DRAFT for Words): the slideshow's pictures are a sample account's, so no "the tour goes on".
-      body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
-    });
-    expect(FIRST_TOUR_STEPS.goal.body).toBe(
-      'You start on Chain Finder, on By a date with Egg Day picked. Target TE has a box for the TE you want, such as 490, and finds the quickest way there.'
-    );
-    // v2: the picture is a sample account's answer, so not "This is your answer".
-    expect(FIRST_TOUR_STEPS.answer.body).toBe(
-      "Your answer is worked out ahead of time: the finish date, each stop's TE and a short first step. The filters above narrow it, and every number of ascensions is below."
-    );
-    expect(FIRST_TOUR_STEPS.follow.body).toBe(
-      'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.'
-    );
-    expect(FIRST_TOUR_STEPS.myruns.body).toBe(
-      'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.'
-    );
-    // DRAFT (spec-simpler2, 9 Nov 2026), for Words: Simulate this plan after the answer, and Setup as two slides.
-    expect(FIRST_TOUR_STEPS.simulate).toEqual({
-      title: 'Simulate this plan',
-      body: 'Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension\'s dates and buys.',
-    });
-    expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
-      title: 'Where Setup is',
-      body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time, or drag it out of the way.',
-    });
-    expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
-    expect(FIRST_TOUR_STEPS.setup.body).toBe(
-      'Inside it: your awake hours, so prestiges wait for you. The filters button just above the answer opens it too.'
-    );
-    // The four slides on More and the Fast and Custom searches (spec-tourmore), word for word.
-    expect(FIRST_TOUR_STEPS.moreWhere.body).toBe(
-      'More is the fold at the bottom of Chain Finder and My runs. To have it open every time, tick Show everything in Setup › More options.'
-    );
-    expect(FIRST_TOUR_STEPS.moreInside.body).toBe(
-      'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.'
-    );
-    expect(FIRST_TOUR_STEPS.fast.body).toBe(
-      'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.'
-    );
-    expect(FIRST_TOUR_STEPS.custom.body).toBe(
-      'Custom tries every route in the boxes you set, so it proves the best one inside them. Big boxes can take hours.'
-    );
-    // Jordan, 12 Nov 2026 (pm): Chain Finder's goal switch, no "Single run", the table is on the page, not in More.
-    expect(FIRST_TOUR_STEPS.goal.body).toContain('Target TE');
+  it('each card, word for word (tour v3: Words, 16 Nov 2026, the full text after Jordan\'s review; gear, followedRoute and shifts are UI drafts to what the picture shows)', () => {
+    const B = (id: keyof typeof FIRST_TOUR_STEPS) => FIRST_TOUR_STEPS[id].body;
+    expect(B('tabManual')).toBe('Manual Planner is where you build a plan by hand, one step at a time.');
+    expect(B('tabAuto')).toBe('Auto Planner plays a plan out shift by shift, from your save and your settings.');
+    expect(B('tabChain')).toBe('Chain Finder looks for the best route across many ascensions.');
+    expect(B('tabMyruns')).toBe('My runs is where you follow the route you keep.');
+    expect(B('load')).toBe('Enter your player ID, or load a save file, so the planner works from your real account.');
+    expect(B('goalTarget')).toBe('Target TE finds the fastest way to a TE you choose.');
+    expect(B('goalDate')).toBe('By a date finds the most TE you can reach by a date, such as Egg Day.');
+    expect(B('result')).toBe('This is the result: when you would finish, and the TE you would reach. It is worked out from your save.');
+    expect(B('filters')).toBe('The filters button opens Setup, where you set what the answer is worked out for.');
+    expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
+    expect(B('setupTimeOff')).toBe('No prestige days and Time off mark days when the route will not prestige. The route plans around them.');
+    expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
+    expect(B('gear')).toBe('What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.');
+    expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
+    expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.');
+    expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next.');
+    expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');
+    expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.');
+    expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when, so you can tick each one off as you go.');
+    expect(B('setupWhere')).toBe('Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.');
+    expect(B('setupInside')).toBe('Setup holds your awake hours, time off and Save online. The planner works out every answer from them.');
+    expect(B('shifts')).toBe('The shifts are listed on My runs, each with when it happens and how far away it is.');
+    expect(B('closing')).toBe('That is the important part. For everything else, open More and take the Full tour.');
+    // The tabs, the goal sides and what the planner does before the player has a save never say "press": the tabs show only after a load.
+    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate'] as const) expect(B(id), id).not.toMatch(/\bpress\b/i);
     expect(JSON.stringify(FIRST_TOUR_STEPS)).not.toMatch(/Single run/);
-    expect(FIRST_TOUR_STEPS.moreInside.body).not.toMatch(/filters|every number/i);
-    // No minutes anywhere: the time varies by device.
-    expect(FIRST_TOUR_STEPS.fast.body).not.toMatch(/\d/);
+    // The slides dropped from v2 are in the Full tour, not here.
+    for (const gone of ['goal', 'answer', 'date', 'firstStep', 'myruns', 'myrunsWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']) expect(Object.keys(FIRST_TOUR_STEPS)).not.toContain(gone);
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {

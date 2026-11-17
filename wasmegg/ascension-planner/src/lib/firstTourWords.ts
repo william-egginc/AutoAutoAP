@@ -8,62 +8,32 @@ import type { TourStepId } from './firstTour';
 /** Each slide's title (read first on each slide) and caption, which says everything without the picture. load and answer
  *  reworded for the slideshow (v2): the pictures show a sample account, not the visitor's. */
 export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string }> = {
-  load: {
-    title: 'Load your save',
-    body: 'Type your player ID and press Load Player Data, or load a save file. Everything else works from your save.',
-  },
-  goal: {
-    title: 'Pick a goal',
-    body: 'You start on Chain Finder, on By a date with Egg Day picked. Target TE has a box for the TE you want, such as 490, and finds the quickest way there.',
-  },
-  answer: {
-    title: 'The instant answer',
-    body: "Your answer is worked out ahead of time: the finish date, each stop's TE and a short first step. The filters above narrow it, and every number of ascensions is below.",
-  },
-  // The button beside Follow this route on the answer (spec-simpler2).
-  simulate: {
-    title: 'Simulate this plan',
-    body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
-  },
-  follow: {
-    title: 'Follow this route',
-    body: 'Press Follow this route to keep it. My runs then shows where you are on it and what to do next.',
-  },
-  // How to get to My runs, before the tracker (the menu does not list it; the tab is the only way).
-  myrunsWhere: {
-    title: 'Where My runs is',
-    body: 'My runs is the tab along the top, beside Chain Finder. Press it any time to see the route you follow.',
-  },
-  myruns: {
-    title: 'My runs and the tracker',
-    body: 'My runs shows where you are now and what to do next. The Build-up tracker lists what to buy and when, so you can tick it off as you go.',
-  },
-  // Setup as two slides, where it is, then what is inside (spec-simpler2).
-  setupWhere: {
-    title: 'Where Setup is',
-    body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time, or drag it out of the way.',
-  },
-  setup: {
-    title: 'Inside Setup',
-    body: 'Inside it: your awake hours, so prestiges wait for you. The filters button just above the answer opens it too.',
-  },
-  // More, then the Fast and Custom searches inside it (spec-tourmore).
-  moreWhere: {
-    title: 'More',
-    body: 'More is the fold at the bottom of Chain Finder and My runs. To have it open every time, tick Show everything in Setup › More options.',
-  },
-  moreInside: {
-    title: 'Inside More',
-    body: 'More holds the Search card, which checks the answer on your save with a Fast, Exact or Custom search.',
-  },
-  fast: {
-    title: 'A Fast search',
-    body: 'Fast checks routes near the instant answer on your save. Its time is shown on the button, and you can stop it and keep the best so far.',
-  },
-  custom: {
-    title: 'A Custom search',
-    body: 'Custom tries every route in the boxes you set, so it proves the best one inside them. Big boxes can take hours.',
-  },
+  // Tour v3 (Words, 16 Nov 2026, notes/words-tour-v3-and-c3-2026-11-16.md, the full text after Jordan's review). Each says what its
+  // thing is FOR. The tabs show only after a save loads, so their slides never say "press". Titles are DRAFT; gear, followedRoute
+  // and shifts are DRAFT too (written to what the picture shows: see the note to Words).
+  tabManual: { title: 'Manual Planner', body: 'Manual Planner is where you build a plan by hand, one step at a time.' },
+  tabAuto: { title: 'Auto Planner', body: 'Auto Planner plays a plan out shift by shift, from your save and your settings.' },
+  tabChain: { title: 'Chain Finder', body: 'Chain Finder looks for the best route across many ascensions.' },
+  tabMyruns: { title: 'My runs', body: 'My runs is where you follow the route you keep.' },
+  load: { title: 'Load your save', body: 'Enter your player ID, or load a save file, so the planner works from your real account.' },
+  goalTarget: { title: 'Target TE', body: 'Target TE finds the fastest way to a TE you choose.' },
+  goalDate: { title: 'By a date', body: 'By a date finds the most TE you can reach by a date, such as Egg Day.' },
+  result: { title: 'The result', body: 'This is the result: when you would finish, and the TE you would reach. It is worked out from your save.' },
+  filters: { title: 'The filters button', body: 'The filters button opens Setup, where you set what the answer is worked out for.' },
+  setupAwake: { title: 'Awake hours', body: 'Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.' },
+  setupTimeOff: { title: 'No prestige days and Time off', body: 'No prestige days and Time off mark days when the route will not prestige. The route plans around them.' },
+  prefer: { title: 'Prefer fewer ascensions', body: 'Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.' },
+  gear: { title: 'Maxed gear', body: 'What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.' },
+  simulate: { title: 'Simulate this plan', body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys." },
+  follow: { title: 'Follow this route', body: 'Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.' },
+  myrunsPage: { title: 'My runs', body: 'My runs is where the route you follow lives, and where the planner tells you what to do next.' },
+  followedRoute: { title: 'The route you follow', body: 'This is the route you follow: the TE you reach at the end of each ascension.' },
+  nextStep: { title: 'Next step', body: 'Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.' },
+  tracker: { title: 'The Build-up tracker', body: 'The Build-up tracker lists what to buy and when, so you can tick each one off as you go.' },
+  setupWhere: { title: 'Where Setup is', body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.' },
+  setupInside: { title: 'Inside Setup', body: 'Setup holds your awake hours, time off and Save online. The planner works out every answer from them.' },
+  shifts: { title: 'The shifts', body: 'The shifts are listed on My runs, each with when it happens and how far away it is.' },
+  closing: { title: 'That is the tour', body: 'That is the important part. For everything else, open More and take the Full tour.' },
 };
 
 /** The last card's closing line. */
@@ -99,17 +69,27 @@ export const FIRST_TOUR_WELCOME = {
 
 /** Each picture's alt text: what is highlighted, on the sample account; no numbers from the sample (v2). */
 export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
-  load: 'The player ID box, the Load Player Data button and the save-file button, highlighted.',
-  goal: "Chain Finder's goal switch, highlighted: Target TE | By a date.",
-  answer: 'A sample instant answer, highlighted: the finish date, the TE stops and the short first step.',
-  simulate: 'The Simulate this plan button beside Follow this route on the instant answer, highlighted.',
-  follow: 'The Follow this route button under the instant answer, highlighted.',
-  myrunsWhere: 'The My runs tab along the top of the page, beside Chain Finder, highlighted.',
-  myruns: "A sample account's Build-up tracker on My runs, highlighted: check-ins done and the next one, with today's buys below.",
-  setupWhere: 'The round gear Setup button at the bottom of the screen, highlighted.',
-  setup: 'The Setup panel open, highlighted: the sample account, its save time and the awake hours.',
-  moreWhere: 'The closed More fold at the bottom of Fastest to 490 TE, highlighted.',
-  moreInside: "More open, with the Search card highlighted.",
-  fast: 'The Fast choice in the Search card inside More, highlighted, with its time shown.',
-  custom: 'The Custom choice in the Search card inside More, highlighted.',
+  tabManual: 'The Manual Planner tab along the top of the page, enlarged, with an arrow pointing at it.',
+  tabAuto: 'The Auto Planner tab along the top of the page, enlarged, with an arrow pointing at it.',
+  tabChain: 'The Chain Finder tab along the top of the page, enlarged, with an arrow pointing at it.',
+  tabMyruns: 'The My runs tab along the top of the page, enlarged, with an arrow pointing at it.',
+  load: 'The player ID box with its Load Player Data button, and the save-file button, each with an arrow pointing at it.',
+  goalTarget: "The Target TE side of Chain Finder's goal switch, enlarged, with an arrow pointing at it.",
+  goalDate: "The By a date side of Chain Finder's goal switch, enlarged, with an arrow pointing at it.",
+  result: "A sample instant answer's finish date, enlarged, with an arrow pointing at it.",
+  filters: 'The button that opens more filters in Setup, enlarged, with an arrow pointing at it.',
+  setupAwake: 'The awake hours choice at the top of the Setup panel (Any hour or My awake hours), enlarged, with an arrow pointing at it.',
+  setupTimeOff: 'The No prestige days and Time off boxes in the Setup panel, with an arrow pointing at them.',
+  prefer: 'The Prefer fewer ascensions row under the filters button, with its choices, with an arrow pointing at it.',
+  gear: 'The What if you had maxed gear? line in More, with an arrow pointing at it.',
+  simulate: 'The Simulate this plan button beside Follow this route on the instant answer, enlarged, with an arrow pointing at it.',
+  follow: 'The Follow this route button under the instant answer, enlarged, with an arrow pointing at it.',
+  myrunsPage: 'The Right now heading at the top of the My runs page, enlarged, with an arrow pointing at it.',
+  followedRoute: 'The line on My runs that shows the route you follow, with an arrow pointing at it.',
+  nextStep: 'The Next step box on My runs, with its heading and what to do next, and an arrow pointing at it.',
+  tracker: "A sample account's Build-up tracker heading on My runs, with an arrow pointing at it: check-ins done and the next one.",
+  setupWhere: 'The round gear Setup button at the bottom of the screen, enlarged, with an arrow pointing at it.',
+  setupInside: 'The Setup panel open, showing its top part, with an arrow pointing at it.',
+  shifts: 'The list of upcoming shifts and prestiges on My runs, with an arrow pointing at it.',
+  closing: 'The Full tour link inside the open More fold, enlarged, with an arrow pointing at it.',
 };
