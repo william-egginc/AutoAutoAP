@@ -106,7 +106,8 @@ describe('rememberShown', () => {
 
 describe("a snapshot never keeps a search priced on another save (17 Nov 2026)", () => {
   const T = 1_800_000_000;
-  const search = (backupAt: number | null) => ({ level: 'Fast', chain: [200], end: 1, endTE: 200, at: 1, planStart: 1, backupAt });
+  // Done a minute after the snapshot's save (a search done before its save is never that save's, lib/searchFits.ts doneBeforeSave).
+  const search = (backupAt: number | null) => ({ level: 'Fast', chain: [200], end: 1, endTE: 200, at: (T + 60) * 1000, planStart: 1, backupAt });
   const snap = (backupTime: number, s: unknown) => ({ at: Date.now(), meta: { account: 'a', goal: 'target 490', backupTime }, search: s });
   it('writeSnapshot drops a search from 30 minutes earlier, keeps the rest; keeps this save\'s and an unstamped one', () => {
     const st = mem();

@@ -24,7 +24,7 @@
  * instant card's pointer, InstantRoute.vue `searchFound`), and the instant answer's snapshot, which keeps the last
  * one as `search` (search/instantSnapshot.ts; written by InstantRoute and by My runs). Pure.
  */
-import { searchFitsSave, SNAP_SAME_SAVE_SECONDS } from './searchFits';
+import { doneBeforeSave, searchFitsSave, SNAP_SAME_SAVE_SECONDS } from './searchFits';
 import { MAKES_DATE_WORDS } from './searchPlanWords';
 import type { LegSummary } from '@/search/types';
 import { finishesBefore, lateMarker, type DeadlineKind } from './eggDayRule';
@@ -137,7 +137,13 @@ export function fromOtherSave(s: SnapSearch | null | undefined, saveSeconds: num
   return Math.abs(a - saveSeconds) > KEPT_SAME_SAVE_SECONDS;
 }
 
-export { SNAP_SAME_SAVE_SECONDS, searchFitsSave };
+export { SNAP_SAME_SAVE_SECONDS, doneBeforeSave, searchFitsSave };
+
+/** Not the loaded save's result: priced on another (`fromOtherSave`) or done before the save existed (`doneBeforeSave`,
+ *  the old beta's re-stamped results with no `backupAt`). Only the first knows WHICH save (`backupAt`). */
+export function notThisSave(s: SnapSearch | null | undefined, saveSeconds: number | null | undefined): boolean {
+  return fromOtherSave(s, saveSeconds) || doneBeforeSave(s, saveSeconds);
+}
 
 /** The result a snapshot holds, read, or null when none or when it was priced on another save than the snapshot's own
  *  (`meta.backupTime`): never that save's result, so never its plan. */
@@ -366,7 +372,10 @@ export function readKeptSearches(st: KeptStorage | null = keptStorage()): KeptSe
   try {
     const v = JSON.parse(st.getItem(KEPT_SEARCH_KEY) ?? '[]') as KeptSearch[];
     return Array.isArray(v)
-      ? v.filter(e => e && typeof e.account === 'string' && typeof e.goal === 'string' && Number.isFinite(e.backupTime) && !!readSearch(e.search))
+      ? v.filter(
+          // An entry done before its own save is a re-stamped one (the old beta, 17 Nov 2026): never that save's.
+          e => e && typeof e.account === 'string' && typeof e.goal === 'string' && Number.isFinite(e.backupTime) && !!readSearch(e.search) && !doneBeforeSave(e.search, e.backupTime)
+        )
       : [];
   } catch {
     return [];
@@ -375,7 +384,7 @@ export function readKeptSearches(st: KeptStorage | null = keptStorage()): KeptSe
 
 /** Keep one (a newer result for the same account, goal and save replaces the older; an older one is ignored). */
 export function recordKeptSearch(e: KeptSearch, st: KeptStorage | null = keptStorage()): boolean {
-  if (!st || !e.account || !readSearch(e.search)) return false;
+  if (!st || !e.account || !readSearch(e.search) || doneBeforeSave(e.search, e.backupTime)) return false;
   try {
     const list = readKeptSearches(st);
     const old = list.find(x => sameKept(x, e));

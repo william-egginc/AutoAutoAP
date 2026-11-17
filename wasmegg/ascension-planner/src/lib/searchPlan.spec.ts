@@ -317,9 +317,37 @@ describe('results kept beyond the snapshot (aap-search-plans)', () => {
     expect(readKeptSearches(st)[0].back).toBeUndefined();
     forgetKeptSearch(k, st);
     expect(readKeptSearches(st)).toEqual([]);
-    for (let i = 0; i < MAX_KEPT_SEARCHES + 3; i++) recordKeptSearch({ ...k, backupTime: NOW + i * 3600, search: fast({ at: i }) }, st);
+    // Each done a minute after its save (one done BEFORE its save is never kept: below).
+    for (let i = 0; i < MAX_KEPT_SEARCHES + 3; i++) recordKeptSearch({ ...k, backupTime: NOW + i * 3600, search: fast({ at: (NOW + i * 3600 + 60) * 1000 }) }, st);
     expect(readKeptSearches(st)).toHaveLength(MAX_KEPT_SEARCHES);
     expect(st.getItem(KEPT_SEARCH_KEY)).not.toMatch(/EI\d{16}/);
+  });
+
+  it("a result done BEFORE its save is never that save's (Jordan's screenshot, 17 Nov 2026: the old beta re-stamped a Nov 15 Custom result under the Nov 17 save, no backupAt)", async () => {
+    const { recordKeptSearch, readKeptSearches, findKeptSearch, doneBeforeSave, searchFitsSave, notThisSave, snapSearchOf, KEPT_SEARCH_KEY } = await import('./searchPlan');
+    const D = 86400;
+    const older = NOW - 2 * D;
+    const custom = fast({ level: 'Custom', at: (older + 1200) * 1000 });
+    // The helper: done more than 10 min before the save; unknown either side is not.
+    expect(doneBeforeSave(custom, NOW)).toBe(true);
+    expect(doneBeforeSave(custom, older)).toBe(false);
+    expect(doneBeforeSave(fast({ at: (NOW - 300) * 1000 }), NOW)).toBe(false);
+    expect(doneBeforeSave({ at: 0 }, NOW)).toBe(false);
+    expect(doneBeforeSave(custom, 0)).toBe(false);
+    expect(notThisSave(custom, NOW)).toBe(true);
+    expect(notThisSave(custom, older)).toBe(false);
+    expect(searchFitsSave(custom, NOW)).toBe(false);
+    expect(snapSearchOf({ search: custom, meta: { backupTime: NOW } })).toBeNull();
+    expect(snapSearchOf({ search: custom, meta: { backupTime: older } })).toEqual(custom);
+    // Recorded now: refused under the newer save, kept under its own.
+    const st = mem();
+    expect(recordKeptSearch({ ...k, backupTime: NOW, search: custom }, st)).toBe(false);
+    expect(recordKeptSearch({ ...k, backupTime: older, search: custom }, st)).toBe(true);
+    // Already in storage from the old beta (both copies): only the genuine one is read.
+    st.setItem(KEPT_SEARCH_KEY, JSON.stringify([{ ...k, backupTime: older, search: custom }, { ...k, backupTime: NOW, search: custom }]));
+    expect(readKeptSearches(st).map(e => e.backupTime)).toEqual([older]);
+    expect(findKeptSearch(readKeptSearches(st), { ...k, backupTime: NOW })).toBeNull();
+    expect(findKeptSearch(readKeptSearches(st), { ...k, backupTime: older })?.search.level).toBe('Custom');
   });
 });
 

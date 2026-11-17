@@ -66,7 +66,11 @@ function save() {
  * kept with the snapshot (`where` 'snap'), beyond it in aap-search-plans ('kept'), only there with no snapshot
  * ('kept-only'), or kept for an OLDER save ('stale'). Then the route followed, as given.
  */
-async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' | 'kept-only' | 'stale' | 'kept-only-store' = 'snap', staleHours = 5) {
+async function eggDay(
+  followed: Record<string, unknown>,
+  where: 'snap' | 'kept' | 'kept-only' | 'stale' | 'kept-only-store' | 'restamped' | 'restamped-only' = 'snap',
+  staleHours = 5
+) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
   const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
@@ -121,7 +125,21 @@ async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' 
       answerStart: now - H,
       ...(where === 'snap' ? { search: found } : {}),
     } as never);
-  if (where !== 'snap' && where !== 'kept-only-store')
+  if (where === 'restamped' || where === 'restamped-only') {
+    // Jordan's screenshot (17 Nov 2026), made-up data: a Custom run done two days before the loaded save (on that older
+    // save, 20 min after it), kept by the old beta with no backupAt, then re-stamped under the loaded save. 'restamped' also
+    // keeps the genuine copy under the older save; 'restamped-only' has only the re-stamped one.
+    const older = now - SAVE_AGO - 2 * D;
+    const custom: SnapSearch = { ...found, level: 'Custom', at: (older + 20 * 60) * 1000 };
+    const base = {
+      account: accountOf(useInitialStateStore().rawBackup),
+      goal: instantGoal(eggDayAt, store.finalTE),
+      setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
+      search: custom,
+    };
+    if (where === 'restamped') recordKeptSearch({ ...base, backupTime: older });
+    recordKeptSearch({ ...base, backupTime: now - SAVE_AGO });
+  } else if (where !== 'snap' && where !== 'kept-only-store')
     recordKeptSearch({
       account: accountOf(useInitialStateStore().rawBackup),
       goal: instantGoal(eggDayAt, store.finalTE),
@@ -265,6 +283,33 @@ describe("Right now: a followed route keeps its route's timeline", () => {
       expect(html).toContain('data-testid="calendar-button"');
       scope.stop();
     }
+  });
+
+  it("(g) Jordan's case: a Custom result done 2 days BEFORE the loaded save, re-stamped under it with no backupAt (old beta): never this save's", async () => {
+    const { page, scope, found } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'custom' }, 'restamped');
+    // The genuine copy under the older save prices it, said to be that save's.
+    expect(page.follow.value).toMatchObject({ price: 'exact', source: 'older-save' });
+    expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
+    expect(page.cardPlan.value?.plan.meta?.backupTime).toBeLessThan(page.saveSeconds.value - D);
+    const { text } = await render(page);
+    expect(text).toMatch(/worked out on your save from .+\. It was not checked against your newest save\./);
+    expect(text).not.toMatch(/Calculated from your/);
+    expect(text).toMatch(/Priced on your save of .+, may have drifted/);
+    scope.stop();
+  });
+
+  it("(h) the same with only the re-stamped copy: the route stays followed and is worked out on this save; nothing is priced as this save's", async () => {
+    const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'custom' }, 'restamped-only');
+    expect(page.follow.value).not.toBeNull();
+    expect(page.follow.value).not.toMatchObject({ source: 'this-save', price: 'exact' });
+    const { text } = await render(page);
+    // Still followed; its times are worked out on this save, as for any route not priced here yet (c).
+    expect(page.follow.value).toMatchObject({ chain: [201, 239], price: 'none' });
+    expect(text).toContain('Following 201 → 239');
+    expect(text).toContain('Working out its times');
+    expect(text).not.toMatch(/Calculated from your/);
+    expect(text).not.toMatch(/from your Custom run, on your account/);
+    scope.stop();
   });
 
   it('(f) the only priced result is the store\'s, priced on a save 5 h older (17 Nov 2026): priced on an older save, not "from your Fast run" on this one', async () => {

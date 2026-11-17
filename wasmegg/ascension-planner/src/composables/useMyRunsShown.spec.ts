@@ -118,8 +118,9 @@ describe('what the account has', () => {
     recordKeptSearch({
       account: accountOf({ eiUserId: ID }),
       goal: 'target 490',
-      backupTime: 1_800_000_000,
-      search: { level: 'Fast', chain: [222, 490], end: 1_800_100_000, endTE: 490, legs: [], at: Date.now(), planStart: 1_800_000_000 },
+      // A save an hour ago (a result done before its save is never kept, lib/searchFits.ts doneBeforeSave).
+      backupTime: Math.floor(Date.now() / 1000) - 3600,
+      search: { level: 'Fast', chain: [222, 490], end: 1_800_100_000, endTE: 490, legs: [], at: Date.now(), planStart: Math.floor(Date.now() / 1000) - 3600 },
     });
     noteMyRuns();
     await vi.waitFor(() => expect(content.value).toBe('some'));

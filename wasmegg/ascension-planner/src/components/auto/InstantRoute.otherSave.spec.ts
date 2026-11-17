@@ -29,7 +29,7 @@ const input = (backupAt: number): LiveSearchInput => ({
   date: {
     running: false,
     owner: '',
-    result: { deadline: DEADLINE, te: 191, simple: true, level: 'quick', at: 5, planStart: LOADED, backupAt, routes: [{ chain: [197, 313], reachAt: DEADLINE - 86400, legs: [] }] },
+    result: { deadline: DEADLINE, te: 191, simple: true, level: 'quick', at: (LOADED + 60) * 1000, planStart: LOADED, backupAt, routes: [{ chain: [197, 313], reachAt: DEADLINE - 86400, legs: [] }] },
   },
 });
 const meta = { account: 'acct', goal: `date ${DEADLINE}`, backupTime: LOADED, setup: { availability: null, timeOff: [] }, teByEgg: [1, 2, 3, 4, 5] };
