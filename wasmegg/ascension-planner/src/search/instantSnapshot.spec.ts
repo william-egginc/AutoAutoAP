@@ -111,20 +111,20 @@ describe("a snapshot never keeps a search priced on another save (17 Nov 2026)",
   it('writeSnapshot drops a search from 30 minutes earlier, keeps the rest; keeps this save\'s and an unstamped one', () => {
     const st = mem();
     expect(writeSnapshot('k', snap(T, search(T - 1800)), st)).toBe(true);
-    const got = readSnapshot<{ search?: unknown; meta?: unknown }>('k', Date.now(), st)!;
+    const got = readSnapshot<{ at: number; search?: unknown; meta?: unknown }>('k', Date.now(), st)!;
     expect(got.search).toBeUndefined();
     expect(got.meta).toBeDefined();
     writeSnapshot('k', snap(T, search(T - 30)), st);
-    expect(readSnapshot<{ search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
     writeSnapshot('k', snap(T, search(null)), st);
-    expect(readSnapshot<{ search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
   });
   it('patchSnapshot drops a patched-in search from another save', () => {
     const st = mem();
-    writeSnapshot('k', { at: Date.now(), meta: { account: 'a', goal: 'target 490', backupTime: T } }, st);
+    writeSnapshot('k', snap(T, undefined), st);
     expect(patchSnapshot('k', { search: search(T - 1800) }, st)).toBe(true);
-    expect(readSnapshot<{ search?: unknown }>('k', Date.now(), st)?.search).toBeUndefined();
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeUndefined();
     patchSnapshot('k', { search: search(T) }, st);
-    expect(readSnapshot<{ search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
   });
 });
