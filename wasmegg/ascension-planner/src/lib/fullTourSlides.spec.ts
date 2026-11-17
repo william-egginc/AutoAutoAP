@@ -35,9 +35,10 @@ describe('the full tour slides', () => {
     expect(sharesPicture(by('m3fast'), by('m4exact'))).toBe(true);
     expect(sharesPicture(by('m4exact'), by('m5custom'))).toBe(true);
   });
-  it('the optional tabs are shown on (their real state): the tab slides have pictures of their own, shared with each other', () => {
+  it('the optional tabs are shown on (their real state): the tab slides have pictures of their own, each a picture of its page (17 Nov 2026)', () => {
     const by = (id: string) => FULL_TOUR_SLIDES.find(s => s.id === id)!;
-    expect(sharesPicture(by('tabManual'), by('tabLeaderboard'))).toBe(true);
+    expect(sharesPicture(by('tabManual'), by('tabLeaderboard'))).toBe(false);
+    expect(new Set(['tabManual', 'tabAuto', 'tabChain', 'tabLeaderboard', 'tabScience'].map(id => by(id).desk.src)).size).toBe(5);
     expect(by('tabManual').desk.src).not.toBe(TOUR_SLIDES.find(s => s.id === 'tabManual')!.desk.src);
   });
   it('fetched only when the tour opens: the modal imports the slides dynamically, nothing else imports them', () => {

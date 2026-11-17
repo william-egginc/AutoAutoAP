@@ -150,8 +150,8 @@ describe('TourDialog: the live overlay (spec-tour-v4, Jordan, 16 Nov 2026)', () 
     expect(html.match(/<picture/g)?.length).toBe(1);
   });
   it('the slides that share a page picture render the very same <img> source, so the browser keeps it while the overlay slides', async () => {
-    const a = TOUR_SLIDES.findIndex(s => s.id === 'tabAuto');
-    const b = TOUR_SLIDES.findIndex(s => s.id === 'tabChain');
+    const a = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
+    const b = TOUR_SLIDES.findIndex(s => s.id === 'goalDate');
     const src = (h: string) => /<img[^>]*src="([^"]+)"/.exec(h)![1];
     expect(src(await renderHtml(TourDialog, slide(a)))).toBe(src(await renderHtml(TourDialog, slide(b))));
   });

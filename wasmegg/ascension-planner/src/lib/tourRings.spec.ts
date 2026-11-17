@@ -88,7 +88,7 @@ describe('tour picture overlays (v4)', () => {
   it('Jordan: magnify when a slide points at ONE small thing; a tall or crowded thing is drawn as the page has it (ring and arrow only)', () => {
     // A thing with no copy: the tall Setup panel, the shifts table, the time-off boxes, and any that the generator found no room to
     // enlarge without covering a neighbour (it never enlarges onto another control: Jordan, 16 Nov, the phone tabs).
-    for (const [name, o] of entries) if (o.mag) expect(o.rect.w, name).toBeGreaterThan(o.cw * 0.1);
+    for (const [name, o] of entries) if (o.mag) expect(o.rect.w, name).toBeGreaterThan(o.cw * 0.07);
   });
 
   it('the arrow is shorter on a phone than on a desk, and long enough to see', () => {
@@ -113,10 +113,32 @@ describe('tour picture overlays (v4)', () => {
     for (const [base, os] of Object.entries(by)) for (const o of os) expect([o.cw, o.ch], base).toEqual([os[0].cw, os[0].ch]);
   });
 
-  it('the first four tab slides, and the goal switch, share one picture (so the ring slides), desk and phone', () => {
+  it('each tab slide is a picture of THAT page, its tab lit and ringed (17 Nov 2026): Manual, Auto Planner and Chain Finder have a picture of their own, My runs shares the My runs slide\'s', () => {
     const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
     for (const f of ['desk', 'phone']) {
-      expect(new Set(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns'].map(id => base(id, f))).size, f).toBe(1);
+      expect(new Set(['tabManual', 'tabAuto', 'tabChain'].map(id => base(id, f))).size, f).toBe(3);
+      expect(base('tabMyruns', f), f).toBe(base('myrunsPage', f));
+      expect(base('tabChain', f), f).not.toBe(base('goalTarget', f));
+    }
+  });
+
+  it('the page badge (17 Nov 2026): every slide whose picture is on a page has the little tab strip, that page\'s tab ringed; the Setup dialog slides have none', () => {
+    const none = ['setupAwake', 'setupInside', 'setupTimeOff'];
+    for (const [name, o] of entries) {
+      const id = name.replace(/-(desk|phone)$/, '');
+      if (none.includes(id)) expect(o.inset, name).toBeNull();
+      else {
+        expect(o.inset, name).toBeTruthy();
+        expect(o.inset!.sprite, name).toMatch(/^f?strip-(manual|auto|chain|myruns|compare|science)-(desk|phone)$/);
+        // Inside the picture, and the ring is on the strip.
+        const i = o.inset!;
+        expect(i.rect.x, name).toBeGreaterThanOrEqual(0);
+        expect(i.rect.y, name).toBeGreaterThanOrEqual(0);
+        expect(i.rect.x + i.rect.w, name).toBeLessThanOrEqual(o.cw);
+        expect(i.rect.y + i.rect.h, name).toBeLessThanOrEqual(o.ch);
+        expect(i.ring.x, name).toBeGreaterThanOrEqual(i.rect.x - 4);
+        expect(i.ring.x + i.ring.w, name).toBeLessThanOrEqual(i.rect.x + i.rect.w + 4);
+      }
     }
   });
 

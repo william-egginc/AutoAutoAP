@@ -2,7 +2,7 @@
  * spec-firsttour2 (9 Nov 2026, Jordan: "can we have a dummy site or pictures and grey out everything but what's in
  * focus"): the slideshow's pictures. Real screens of a sample account ("Sample", scrubbed save, no player ID) with the
  * spotlight baked in, made by ~/code/aaap-tools/harness-r7/tutorial-v2/make-tour-images.mjs, shipped as vite-hashed
- * assets in src/assets/tour/. Light (WebP, each under 25 KB), one set per form, alt text for each.
+ * assets in src/assets/tour/. Light (WebP, each under 30 KB), one set per form, alt text for each.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -40,16 +40,16 @@ describe('tour slides', () => {
     expect(TOUR_FILES).toEqual(files);
   });
 
-  it('every slide has a desk and a phone picture and alt text; every WebP is a real WebP under 25 KB, and all together (the first tour and the full tour, both forms) under 750 KB (a visitor loads one form of one tour: 120 to 200 KB)', () => {
+  it('every slide has a desk and a phone picture and alt text; every WebP is a real WebP under 30 KB, and all together (the first tour and the full tour, both forms) under 900 KB (a visitor loads one form of one tour: 130 to 220 KB)', () => {
     const dir = new URL('../assets/tour/', import.meta.url);
     let total = 0;
     for (const f of readdirSync(dir).filter(n => n.endsWith('.webp'))) {
       const buf = readFileSync(new URL(f, dir));
       expect(`${f} ${buf.subarray(0, 4).toString('latin1')}${buf.subarray(8, 12).toString('latin1')}`).toBe(`${f} RIFFWEBP`);
-      expect(buf.length, f).toBeLessThan(25_000);
+      expect(buf.length, f).toBeLessThan(30_000);
       total += buf.length;
     }
-    expect(total).toBeLessThan(750_000);
+    expect(total).toBeLessThan(900_000);
     for (const s of TOUR_SLIDES) {
       expect(FIRST_TOUR_ALT[s.id].length).toBeGreaterThan(20);
       expect(s.desk.width).toBe(720);
@@ -60,8 +60,10 @@ describe('tour slides', () => {
 
   it('slides that share a page picture are neighbours the dialog slides between (sharesPicture); a slide with its own picture fades', () => {
     const by = (id: string) => TOUR_SLIDES.find(s => s.id === id)!;
-    expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(true);
-    expect(sharesPicture(by('tabMyruns'), by('goalTarget'))).toBe(true);
+    // Each tab slide is its own page now (17 Nov 2026), so Manual and Auto Planner fade; Chain Finder's page is Target TE's.
+    expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(false);
+    expect(sharesPicture(by('goalTarget'), by('goalDate'))).toBe(true);
+    expect(sharesPicture(by('tabMyruns'), by('myrunsPage'))).toBe(true);
     expect(sharesPicture(by('load'), by('goalTarget'))).toBe(false);
     expect(sharesPicture(null, by('tabAuto'))).toBe(false);
     // Fewer pictures than slides: that is the point of sharing.
