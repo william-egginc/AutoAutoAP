@@ -75,11 +75,12 @@ describe('(b) from sm to 1279 px the pill is the round gear, My runs included', 
     const c = classOf(pillTag(await render()));
     expect(c).toEqual(expect.arrayContaining(['max-[1279px]:w-12', 'max-[1279px]:h-12', 'max-[1279px]:p-0', 'max-[1279px]:rounded-full']));
   });
-  it('My runs (its summary): the same round gear from sm to 1279 px, its summary line hidden there', async () => {
+  it('My runs (its summary): the round gear from sm to 1583 px (17 Nov 2026: the full pill covers the egg cards until the 1152 px column leaves it a margin), its summary line hidden there', async () => {
     const html = await render({ screen: 'fastest', summary: 'Awake 8:00 AM to 11:00 PM' });
-    expect(classOf(pillTag(html))).toEqual(expect.arrayContaining(['sm:max-[1279px]:w-12', 'sm:max-[1279px]:h-12', 'sm:max-[1279px]:rounded-full']));
+    expect(classOf(pillTag(html))).toEqual(expect.arrayContaining(['sm:max-[1583px]:w-12', 'sm:max-[1583px]:h-12', 'sm:max-[1583px]:rounded-full']));
+    expect(classOf(pillTag(html)).join(' ')).not.toContain('1279px');
     expect(html).toMatch(/data-testid="setup-dock-summary"[^>]*>/);
-    expect(html.match(/<span[^>]*class="[^"]*sm:max-\[1279px\]:hidden[^"]*"[^>]*data-testid="setup-dock-summary"/) ?? html.match(/<span[^>]*data-testid="setup-dock-summary"[^>]*class="[^"]*sm:max-\[1279px\]:hidden/)).toBeTruthy();
+    expect(html.match(/<span[^>]*class="[^"]*sm:max-\[1583px\]:hidden[^"]*"[^>]*data-testid="setup-dock-summary"/) ?? html.match(/<span[^>]*data-testid="setup-dock-summary"[^>]*class="[^"]*sm:max-\[1583px\]:hidden/)).toBeTruthy();
   });
   it('a running search keeps the pill (its workers stay adjustable)', async () => {
     const c = classOf(pillTag(await render({ screen: 'fastest' }, { searching: true })));
@@ -89,8 +90,15 @@ describe('(b) from sm to 1279 px the pill is the round gear, My runs included', 
     const app = readFileSync(new URL('../../App.vue', import.meta.url), 'utf8');
     expect(app).toMatch(/setupDockShown \? 'sm:max-\[1279px\]:pr-\[4\.5rem\]' : ''/);
   });
-  it('the gear drags itself up to 1279 px, not only on a phone', () => {
+  it('the gear drags itself up to 1279 px (1583 on My runs), not only on a phone', () => {
     const src = readFileSync(new URL('./SetupDock.vue', import.meta.url), 'utf8');
-    expect(src).toContain('viewport.value.w < 1280');
+    expect(src).toContain('(props.summary ? viewport.value.w >= 640 && viewport.value.w < ROUND_UNDER_MY_RUNS : viewport.value.w < ROUND_UNDER)');
+    expect(src).toContain('const ROUND_UNDER = 1280;');
+    expect(src).toContain('const ROUND_UNDER_MY_RUNS = 1584;');
+  });
+  it('the right margin rule stays at 1279: from 1280 px the 1152 px column leaves a 64 px margin, which holds the 48 px gear 16 px from the edge', () => {
+    const app = readFileSync(new URL('../../App.vue', import.meta.url), 'utf8');
+    expect(app).toContain('From sm to 1279 px');
+    expect(app).not.toContain('1583');
   });
 });

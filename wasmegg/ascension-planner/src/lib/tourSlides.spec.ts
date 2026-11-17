@@ -62,7 +62,9 @@ describe('tour slides', () => {
     const by = (id: string) => TOUR_SLIDES.find(s => s.id === id)!;
     // Each tab slide is its own page now (17 Nov 2026), so Manual and Auto Planner fade; Chain Finder's page is Target TE's.
     expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(false);
-    expect(sharesPicture(by('goalTarget'), by('goalDate'))).toBe(true);
+    // A sub-tab slide shows that sub-tab SELECTED (17 Nov 2026, Jordan): By a date is its own picture, Target TE's is the filters slide's.
+    expect(sharesPicture(by('goalTarget'), by('goalDate'))).toBe(false);
+    expect(sharesPicture(by('goalTarget'), by('filters'))).toBe(true);
     expect(sharesPicture(by('tabMyruns'), by('myrunsPage'))).toBe(true);
     expect(sharesPicture(by('load'), by('goalTarget'))).toBe(false);
     expect(sharesPicture(null, by('tabAuto'))).toBe(false);

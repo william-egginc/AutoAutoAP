@@ -123,6 +123,16 @@ describe('tour picture overlays (v4)', () => {
     }
   });
 
+  it('a slide about a sub-tab shows it SELECTED (17 Nov 2026): By a date has a picture of its own, not Target TE\'s; so has the full tour\'s Insights view', () => {
+    const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
+    for (const f of ['desk', 'phone']) {
+      expect(base('goalDate', f), f).toBeTruthy();
+      expect(base('goalDate', f), f).not.toBe(base('goalTarget', f));
+      expect(base('filters', f), f).toBe(base('goalTarget', f));
+      expect(base('full-tabInsights', f), f).not.toBe(base('full-tabLeaderboard', f));
+    }
+  });
+
   it('the page badge (17 Nov 2026): every slide whose picture is on a page has the little tab strip, that page\'s tab ringed; the Setup dialog slides have none', () => {
     const none = ['setupAwake', 'setupInside', 'setupTimeOff'];
     for (const [name, o] of entries) {

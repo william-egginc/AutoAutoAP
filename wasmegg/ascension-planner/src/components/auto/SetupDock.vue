@@ -23,7 +23,7 @@
       :class="[
         stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl',
         round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:gap-0 max-sm:rounded-full' : '',
-        searching ? '' : summary ? 'sm:max-[1279px]:w-12 sm:max-[1279px]:h-12 sm:max-[1279px]:p-0 sm:max-[1279px]:gap-0 sm:max-[1279px]:rounded-full' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:gap-0 max-[1279px]:rounded-full',
+        searching ? '' : summary ? 'sm:max-[1583px]:w-12 sm:max-[1583px]:h-12 sm:max-[1583px]:p-0 sm:max-[1583px]:gap-0 sm:max-[1583px]:rounded-full' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:gap-0 max-[1279px]:rounded-full',
       ]"
       data-testid="setup-dock-pill"
     >
@@ -31,7 +31,7 @@
       <!-- Below sm, as the round gear (Jordan, 12 Nov 2026 pm), there is no handle: the gear itself drags (onGearDown). -->
       <span
         class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white hover:text-white"
-        :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1279px]:hidden' : 'max-[1279px]:hidden']"
+        :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1583px]:hidden' : 'max-[1279px]:hidden']"
         title="Drag to move · double-click to put back"
         aria-hidden="true"
         @pointerdown="startDrag"
@@ -45,7 +45,7 @@
         :class="[
           summary ? 'basis-0 grow xl:basis-auto xl:grow-0' : '',
           round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:justify-center max-sm:touch-none max-sm:select-none' : '',
-          searching ? '' : summary ? 'sm:max-[1279px]:w-12 sm:max-[1279px]:h-12 sm:max-[1279px]:p-0 sm:max-[1279px]:justify-center sm:max-[1279px]:touch-none sm:max-[1279px]:select-none' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:justify-center max-[1279px]:touch-none max-[1279px]:select-none',
+          searching ? '' : summary ? 'sm:max-[1583px]:w-12 sm:max-[1583px]:h-12 sm:max-[1583px]:p-0 sm:max-[1583px]:justify-center sm:max-[1583px]:touch-none sm:max-[1583px]:select-none' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:justify-center max-[1279px]:touch-none max-[1279px]:select-none',
         ]"
         :aria-expanded="ui.setupOpen"
         aria-label="Setup"
@@ -54,7 +54,7 @@
         @pointerdown="onGearDown"
         @click="onGearClick"
       >
-        <svg class="w-4 h-4 shrink-0" :class="[round ? 'max-sm:w-6 max-sm:h-6' : '', searching ? '' : summary ? 'sm:max-[1279px]:w-6 sm:max-[1279px]:h-6' : 'max-[1279px]:w-6 max-[1279px]:h-6']" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg class="w-4 h-4 shrink-0" :class="[round ? 'max-sm:w-6 max-sm:h-6' : '', searching ? '' : summary ? 'sm:max-[1583px]:w-6 sm:max-[1583px]:h-6' : 'max-[1279px]:w-6 max-[1279px]:h-6']" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -62,10 +62,10 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span class="flex flex-col items-start leading-tight" :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1279px]:hidden' : 'max-[1279px]:hidden']">
+        <span class="flex flex-col items-start leading-tight" :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1583px]:hidden' : 'max-[1279px]:hidden']">
           <span class="text-body font-bold">Setup</span>
           <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
-          <span v-if="summary" class="text-small font-normal text-white text-left xl:max-w-[13rem] sm:max-[1279px]:hidden" data-testid="setup-dock-summary">{{ summary }}</span>
+          <span v-if="summary" class="text-small font-normal text-white text-left xl:max-w-[13rem] sm:max-[1583px]:hidden" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
           v-if="errors"
@@ -290,9 +290,13 @@ function endDrag(): void {
  *  press that doesn't is a tap, which opens Setup (onGearClick). The click a drag ends with is swallowed. */
 let gearFrom: { px: number; py: number; x: number; y: number; id: number } | null = null;
 let dragged = false;
+/** Where the round gear gives way to the full pill: 1280 px, and on My runs 1584 (the 1152 px column plus a margin that holds the pill). */
+const ROUND_UNDER = 1280;
+const ROUND_UNDER_MY_RUNS = 1584;
 function roundNow(): boolean {
-  // Phones (the old round gear) and, from 17 Nov 2026, any width below 1280 where the pill is the round gear (not while a search runs).
-  return (round.value && viewport.value.w < 640) || (!searching.value && (props.summary ? viewport.value.w >= 640 : true) && viewport.value.w < 1280);
+  // Phones (the old round gear) and, from 17 Nov 2026, any width below 1280 where the pill is the round gear (not while a search runs);
+  // on My runs (the summary) from sm to 1583 px: its full pill covers the egg cards until the 1152 px column leaves it a margin.
+  return (round.value && viewport.value.w < 640) || (!searching.value && (props.summary ? viewport.value.w >= 640 && viewport.value.w < ROUND_UNDER_MY_RUNS : viewport.value.w < ROUND_UNDER));
 }
 function onGearDown(e: PointerEvent): void {
   dragged = false;
