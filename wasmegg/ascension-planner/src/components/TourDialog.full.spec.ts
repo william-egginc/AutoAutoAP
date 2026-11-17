@@ -53,3 +53,20 @@ describe('the first tour\'s last card: More: Full tour', () => {
     expect(dialog).toMatch(/data-testid="tour-full"[\s\S]{0,80}@click="emit\('full'\)"/);
   });
 });
+
+describe('opening the full tour puts focus on slide 1\'s heading (17 Nov 2026, QA in Safari: it stayed on BODY until Next)', () => {
+  const modal = readFileSync(new URL('./TourModal.vue', import.meta.url), 'utf8');
+  const at = modal.indexOf('tour.state.wantFocus, tour.state.index');
+  const watcher = modal.slice(at, modal.indexOf('// After it closes', at));
+  it('the full slides come in by a dynamic import, so the heading is not there yet: the focus step waits for them', () => {
+    expect(watcher).toContain("tour.state.mode === 'full'");
+    expect(watcher).toContain('await loadFullSlides()');
+    expect(watcher.indexOf('await loadFullSlides()')).toBeLessThan(watcher.indexOf('focusTitle()'));
+  });
+  it('and waits for the heading to render after that', () => {
+    expect(watcher.indexOf('await loadFullSlides()')).toBeLessThan(watcher.lastIndexOf('await nextTick()'));
+  });
+  it('the heading is there for the dialog to focus (tabindex -1, a ref)', () => {
+    expect(dialog).toMatch(/ref="titleEl"[^>]*tabindex="-1"|tabindex="-1"[^>]*ref="titleEl"/);
+  });
+});

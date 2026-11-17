@@ -134,6 +134,8 @@ watch(
   () => [shown.value, tour.state.wantFocus, tour.state.index] as const,
   async ([s, want]) => {
     if (!s || !want) return;
+    // The full tour's slides come in by a dynamic import: with no heading rendered yet, focus would fall to the body (QA, Safari, 17 Nov 2026).
+    if (tour.state.mode === 'full') await loadFullSlides();
     await nextTick();
     if (want === 'take') dialogEl.value?.focusTake();
     else dialogEl.value?.focusTitle();
