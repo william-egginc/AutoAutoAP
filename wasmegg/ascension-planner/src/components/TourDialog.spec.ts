@@ -125,3 +125,15 @@ describe('TourModal: a real modal on the page', () => {
     expect(modal).toContain('[data-testid="no-account-save-file"] button');
   });
 });
+
+describe('TourDialog: phones (orchestrator, 16 Nov 2026: 23 dots pushed Back/Next off an iPhone screen)', () => {
+  it('the dots hide below 640 px (the step label already says "Step N of 23") and Back/Next never shrink', async () => {
+    const html = await renderHtml(TourDialog, slide(1));
+    const dots = html.match(/<span class="([^"]*)" aria-hidden="true"[^>]*>(?:\s|<!--[^>]*-->)*<span[^>]*rounded-full/);
+    expect(dots, 'the dots row').not.toBeNull();
+    expect(dots![1].split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'sm:flex']));
+    const nav = html.match(/<span class="([^"]*)"[^>]*>\s*<button[^>]*data-testid="tour-back"/);
+    expect(nav, 'the Back/Next group').not.toBeNull();
+    expect(nav![1].split(/\s+/)).toEqual(expect.arrayContaining(['ml-auto', 'shrink-0']));
+  });
+});

@@ -114,7 +114,7 @@
           </button>
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
-          <span class="flex items-center gap-1.5" aria-hidden="true">
+          <span class="hidden items-center gap-1.5 sm:flex" aria-hidden="true">
             <span
               v-for="k in total"
               :key="k"
@@ -122,7 +122,7 @@
               :class="k - 1 === index ? 'w-5 bg-indigo-600' : 'w-2 bg-slate-300'"
             ></span>
           </span>
-          <span class="flex gap-2">
+          <span class="ml-auto flex shrink-0 gap-2">
             <button
               v-if="index > 0"
               type="button"
