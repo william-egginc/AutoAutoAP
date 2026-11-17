@@ -7,7 +7,6 @@
  */
 import { reactive } from 'vue';
 import { finishesBefore } from './eggDayRule';
-import { isCurrentSave } from './currentAnswer';
 
 export interface FollowMiss {
   /** When the followed route lands, unix seconds. */
@@ -32,6 +31,15 @@ export function followMissOf(o: {
   return { finish, deadline, lateSeconds: finish - deadline };
 }
 
+// ----------------------------------------------------------------------------- the two verdicts are OFF until they are verified live
+/**
+ * THE FLAG (orchestrator, 17 Nov 2026, after QA's 3d78e4e5f retest): the "no route can make the date" and "best below the TE you follow"
+ * flags stay OFF. Traced live: on a later save, opening By a date copies the OLD save's kept Fast result into the NEW save's snapshot
+ * (search.backupAt stays the old save's), and the card then builds the followed plan with the snapshot's save time, so the followed route
+ * reads as priced on the new save and neither rule has anything to read. Turn this on only once that is fixed and both are seen live.
+ */
+export const FOLLOW_VERDICTS_ON = false;
+
 // ----------------------------------------------------------------------------- worked out on the loaded save
 /**
  * When a goal was worked out ON THE LOADED SAVE, ms (0: not): the newest of a plan priced on it and an answer kept for it. (planGoals'
@@ -44,8 +52,12 @@ export function workedOutHereAt(o: {
   candidates: readonly { goalKey?: string; ownKey: boolean; plan: { calculatedAt: number; meta?: { backupTime?: number | null } | null } }[];
   answers: readonly { goalKey: string; calculatedAt: number; saveSeconds: number | null; ownKey?: boolean }[];
 }): number {
-  const plans = o.candidates.filter(c => c.goalKey === o.goalKey && isCurrentSave(c.plan.meta?.backupTime ?? null, o.loadedSave, c.ownKey)).map(c => c.plan.calculatedAt);
-  const said = o.answers.filter(a => a.goalKey === o.goalKey && isCurrentSave(a.saveSeconds, o.loadedSave, a.ownKey)).map(a => a.calculatedAt);
+  // THE loaded save, within a minute: not currentAnswer's isCurrentSave, which takes a save up to 2 h older as current (fix 21) and a
+  // snapshot key's `ownKey`, which a newer save shares with the older one. QA's live run (17 Nov 2026): a save 30 min later counted, so
+  // the old answer read as "worked out here" and the cannot line showed over a save with a 198 TE route.
+  const same = (t: number | null | undefined): boolean => typeof t === 'number' && Math.abs(t - o.loadedSave) <= 60;
+  const plans = o.candidates.filter(c => c.goalKey === o.goalKey && same(c.plan.meta?.backupTime)).map(c => c.plan.calculatedAt);
+  const said = o.answers.filter(a => a.goalKey === o.goalKey && same(a.saveSeconds)).map(a => a.calculatedAt);
   return Math.max(0, ...plans, ...said);
 }
 

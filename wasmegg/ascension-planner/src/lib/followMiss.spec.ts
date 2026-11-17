@@ -4,7 +4,7 @@
  * goal's date. Pure rule; the card shows it (RightNowCard.followMisses.spec.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { followBelowOf, followCannotOf, followMissOf, workedOutHereAt } from './followMiss';
+import { FOLLOW_VERDICTS_ON, followBelowOf, followCannotOf, followMissOf, workedOutHereAt } from './followMiss';
 import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE } from './followMissWords';
 
 const DEADLINE = Date.UTC(2027, 6, 14, 16) / 1000;
@@ -144,5 +144,18 @@ describe('workedOutHereAt: an older save\'s plan must not look worked out on the
   });
   it('another goal\'s plans do not count', () => {
     expect(workedOutHereAt({ goalKey: 'date-2', loadedSave: SAVE, candidates: [cand(SAVE, 7000)], answers: [] })).toBe(0);
+  });
+});
+
+describe('QA\'s 3d78e4e5f findings (17 Nov 2026)', () => {
+  const SAVE = 1_800_000_000;
+  it('an answer kept from an OLDER save does not count as worked out here, whatever its snapshot key says (the false "no route can make it")', () => {
+    expect(workedOutHereAt({ goalKey: 'g', loadedSave: SAVE, candidates: [], answers: [{ goalKey: 'g', calculatedAt: 9000, saveSeconds: SAVE - 1800, ownKey: true }] })).toBe(0);
+    // (a save up to 2 h older counts as current for ranking, lib/currentAnswer.ts CURRENT_SAVE_SECONDS; here it must not)
+    expect(workedOutHereAt({ goalKey: 'g', loadedSave: SAVE, candidates: [{ goalKey: 'g', ownKey: true, plan: { calculatedAt: 8000, meta: { backupTime: SAVE - 3000 } } }], answers: [] })).toBe(0);
+    expect(workedOutHereAt({ goalKey: 'g', loadedSave: SAVE, candidates: [], answers: [{ goalKey: 'g', calculatedAt: 9000, saveSeconds: SAVE, ownKey: true }] })).toBe(9000);
+  });
+  it('the two verdicts are OFF until verified live (the card\'s other lines and the old-plan label are not behind it)', () => {
+    expect(FOLLOW_VERDICTS_ON).toBe(false);
   });
 });

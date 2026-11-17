@@ -179,7 +179,7 @@ import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
-import { followBelowOf, followCannotOf, workedOutHereAt } from '@/lib/followMiss';
+import { FOLLOW_VERDICTS_ON, followBelowOf, followCannotOf, workedOutHereAt } from '@/lib/followMiss';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -1092,6 +1092,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   );
   /** No route makes the followed date on THIS save (lib/followMiss.ts followCannotOf). */
   function cannotMakeDate(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string): boolean {
+    if (!FOLLOW_VERDICTS_ON) return false;
     const pg = planGoals.value.find(p => p.goal.key === key);
     return followCannotOf({
       goal: g.goal,
@@ -1105,6 +1106,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   }
   /** This save's best plan for the followed date is below the TE followed (lib/followMiss.ts followBelowOf). */
   function belowTEOf(key: string, g: { goal: 'fastest' | 'date'; deadline: number | null }, source: string, followedTE: number): { belowTE?: { bestTE: number; followedTE: number } } {
+    if (!FOLLOW_VERDICTS_ON) return {};
     const pick = planGoals.value.find(p => p.goal.key === key)?.pick;
     const here = pick && pick.state !== 'older-save' ? { endTE: pick.candidate.plan.endTE } : null;
     const b = followBelowOf({ goal: g.goal, deadline: g.deadline, pricedOnOlderSave: source === 'older-save', followedTE, bestHere: here });
