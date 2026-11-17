@@ -1,7 +1,7 @@
 /**
  * Setup's More options summary line (auto/YourSetup.vue, docked; UX fluff review 2, part B, 5 Nov 2026). More options
- * starts closed, so its one line has to say what is inside that matters: the plan start, the first ascension and the
- * workers always, and every other value there that is not its default ("a hidden one is how people run with a
+ * starts closed, so its one line has to say what is inside that matters: the workers always (the plan start and the first
+ * ascension left it for the Setup panel itself, 17 Nov 2026), and every other value there that is not its default ("a hidden one is how people run with a
  * schedule they forgot they set", YourSetup.vue). The words are DRAFT for Words.
  *
  * Pure: the component hands in the values. Imported only by the component (not a result code hash input).
@@ -9,10 +9,6 @@
 import { scopeLine } from './panelFold';
 
 export interface SetupMoreValues {
-  /** The plan start as Setup shows it ("Nov 3, 12:19 pm", or "now (not set)"). */
-  planStart: string;
-  /** The first ascension's label without "(default)" ("Soonest"). */
-  firstAscension: string;
   workers: number;
   threads: number;
   /** Keep my computer awake while a search runs (default on). */
@@ -52,11 +48,9 @@ export function setupMoreChanged(v: SetupMoreValues): string[] {
   return out;
 }
 
-/** "Plan start Nov 3, 12:19 pm · First ascension Soonest · 2 of 4 workers", then each changed value. */
+/** "2 of 4 workers", then each changed value. */
 export function setupMoreSummary(v: SetupMoreValues): string {
   return scopeLine([
-    `Plan start ${v.planStart}`,
-    `First ascension ${v.firstAscension}`,
     `${v.workers} of ${v.threads} workers`,
     ...setupMoreChanged(v),
   ]);

@@ -10,8 +10,8 @@
 
   Docked, slimmed (UX fluff review 2, part B, 5 Nov 2026; Jordan approved the mock with More options closed): the
   save line, Awake hours, No prestige days, Time off and Sharing stay in view; the rest is under More options, whose
-  line names the plan start, the first ascension, the workers and every value inside that isn't its default, by the
-  same rule.
+  line names the workers and every value inside that isn't its default, by the same rule (the start time and the first
+  ascension moved out into view, 17 Nov 2026).
 
   The settings that change which route is fastest (plan start, hours, time off) lock while a search
   runs: every route already priced was priced under the old ones. The machine settings don't, since
@@ -549,9 +549,47 @@
         </div>
       </div>
 
+<!-- When the plan starts (17 Nov 2026, Jordan: out of More options, into the Setup panel itself): the start time and the first
+     ascension, in view. Its figures are in the header line and More options' line no longer names them. -->
+      <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
+        <h3 class="text-slate-600 label">When the plan starts</h3>
+        <SchedulingInputs />
+        <!-- An unset start means "now", which moves on every reload, and plan start is part of the
+             run fingerprint: a checkpoint saved before a refresh stops matching. -->
+        <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
+          No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
+          before a long run.
+        </p>
+        <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
+             ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
+        <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
+          <h3 class="text-slate-600 label">First ascension</h3>
+          <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
+          <label
+            v-for="c in FIRST_ASCENSION_CHOICES"
+            :key="c.value"
+            class="flex min-h-[44px] items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer"
+            :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
+          >
+            <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
+            <span class="text-body text-slate-600">
+              <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-600">{{ c.blurb }}</span></template>
+            </span>
+          </label>
+          <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-600 max-w-prose">
+            Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+            Choosing here changes it there too.
+          </p>
+          <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
+            The plan starts more than an hour from now, so there's no current ascension to continue then: the first
+            ascension starts fresh, as in the {{ NAMES.classic }}.
+          </p>
+        </div>
+      </fieldset>
+
+
       <!-- More options (UX fluff review 2, 5 Nov 2026; closed by default, lib/panelFold.ts 'setupMore', this browser's
-           toggle remembered): what most players leave at its default. Its line names the plan start, the first
-           ascension and the workers, and every value inside that isn't its default (lib/setupMore.ts), so a changed
+           toggle remembered): what most players leave at its default. Its line names the workers, and every value inside that isn't its default (lib/setupMore.ts), so a changed
            one is never hidden. A real button over a region hidden until found: find in page opens it, as does a
            link into Setup that lands inside it (reveal, below). -->
       <button
@@ -579,43 +617,6 @@
                opened tall ("Memory · detail kept" in This computer) doesn't leave a blank beside it, as a grid row
                did (26 Oct 2026). One column on a phone, in the same order. The full-width cards follow in a grid. -->
           <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
-            <!-- When the plan starts -->
-            <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-              <h3 class="text-slate-600 label">When the plan starts</h3>
-              <SchedulingInputs />
-              <!-- An unset start means "now", which moves on every reload, and plan start is part of the
-                   run fingerprint: a checkpoint saved before a refresh stops matching. -->
-              <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
-                No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
-                before a long run.
-              </p>
-              <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
-                   ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
-              <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
-                <h3 class="text-slate-600 label">First ascension</h3>
-                <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
-                <label
-                  v-for="c in FIRST_ASCENSION_CHOICES"
-                  :key="c.value"
-                  class="flex min-h-[44px] items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer"
-                  :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
-                >
-                  <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
-                  <span class="text-body text-slate-600">
-                    <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-600">{{ c.blurb }}</span></template>
-                  </span>
-                </label>
-                <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-600 max-w-prose">
-                  Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
-                  Choosing here changes it there too.
-                </p>
-                <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
-                  The plan starts more than an hour from now, so there's no current ascension to continue then: the first
-                  ascension starts fresh, as in the {{ NAMES.classic }}.
-                </p>
-              </div>
-            </fieldset>
-
             <!-- Your save file: Load a save file with its warning, and what the plan starts from. -->
             <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
               <h3 class="text-slate-600 label">Your save file</h3>
@@ -1029,15 +1030,12 @@ const firstLabel = computed(
   () => FIRST_ASCENSION_CHOICES.find(c => c.value === store.firstAscension)?.label.replace(' (default)', '') ?? ''
 );
 /** Classic offers continue only for a plan starting within an hour of now; the search follows it. */
-/** The More options line (lib/setupMore.ts): the plan start, first ascension and workers, and whatever else in there
- *  isn't its default. */
+/** The More options line (lib/setupMore.ts): the workers, and whatever else in there isn't its default. */
 const { prefs: tabPrefs } = useTabPrefs(() => !!store.submitUrl);
 /** 18 March 2027, 13:15 here, as DateStyleToggle.vue shows it. */
 const DATE_SAMPLE = new Date(2027, 2, 18, 13, 15).getTime() / 1000;
 const moreSummary = computed(() =>
   setupMoreSummary({
-    planStart: startLabel.value,
-    firstAscension: firstLabel.value,
     workers: store.workerBudget,
     threads: store.machineThreads,
     keepAwake: store.keepAwake,
@@ -1083,11 +1081,9 @@ const saveAgeLabel = computed(() => {
   return `Save from ${dateAt(at, nowSec, zone.value)}, ${ageAgo(Math.max(0, nowSec - at))}.`;
 });
 
-/** Problems with the save, under its line. Not the save-age note while More options is open: Start time, in it,
- *  already says exactly that. With More options closed, all of them, since Start time is hidden then. */
-const saveCardIssues = computed(() =>
-  moreOpen.value ? store.setupIssues.filter(i => i.kind !== 'save-past-silos') : store.setupIssues
-);
+/** Problems with the save, under its line. Not the save-age note: Start time, which is always in view now (it left More options,
+ *  17 Nov 2026), already says exactly that. */
+const saveCardIssues = computed(() => store.setupIssues.filter(i => i.kind !== 'save-past-silos'));
 
 /** Soul eggs run to 1e21 and beyond: the same short-scale suffixes the rest of the app uses. */
 function formatSoulEggs(n: number): string {

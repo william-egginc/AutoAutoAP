@@ -76,17 +76,18 @@ describe('Setup: what stays in view, what goes under More options', () => {
       'data-testid="study-setup"',
       'data-testid="share-instant"',
       'data-testid="share-baseline"',
+      // 17 Nov 2026 (Jordan): the start time and the first ascension are in view, not under More options.
+      'When the plan starts</h3>',
+      'First ascension</h3>',
     ])
       expect(shown, m).toContain(m);
   });
 
-  it('under More options: plan start, first ascension, Load a save file with its warning and the save facts, This computer, the artifacts, dates, the tabs and Prestige by', async () => {
+  it('under More options: Load a save file with its warning and the save facts, This computer, the artifacts, dates, the tabs and Prestige by', async () => {
     withCollector();
     useInitialStateStore().playerId = 'EI1234567890123456';
     const { shown, more } = split(await docked());
     for (const m of [
-      'When the plan starts</h3>',
-      'First ascension</h3>',
       'data-testid="save-file-load"',
       "This file is your game save; don&#39;t share it publicly.",
       'Soul eggs</dt>',
@@ -122,13 +123,13 @@ describe('Setup: what stays in view, what goes under More options', () => {
     expect(tagWith(html, 'id="setup-more-body"')).not.toMatch(HIDDEN);
   });
 
-  it('the summary line names the plan start, the first ascension and the workers', async () => {
+  it('the summary line names the workers only: the plan start and the first ascension moved out of More options', async () => {
     const store = useChainSearchStore();
     const html = await docked();
     const at = html.indexOf('data-testid="setup-more-hint"');
     const line = textOf(html.slice(html.lastIndexOf('<', at), html.indexOf('</span>', at)));
-    expect(line).toContain('Plan start now (not set)');
-    expect(line).toContain('First ascension Soonest');
+    expect(line).not.toContain('Plan start');
+    expect(line).not.toContain('First ascension');
     expect(line).toContain(`${store.workerBudget} of ${store.machineThreads} workers`);
     expect(line).not.toContain('Keep awake');
   });
@@ -211,8 +212,8 @@ describe('Sharing: the consent text folded in place, word for word', () => {
 });
 
 describe('a save problem is never folded away', () => {
-  it('with More options closed, the save line shows every save issue, the past-silos one too (its Start time twin is folded)', () => {
-    expect(src).toMatch(/const saveCardIssues = computed\(\(\) =>\s*moreOpen\.value \? store\.setupIssues\.filter\(i => i\.kind !== 'save-past-silos'\) : store\.setupIssues\s*\);/);
+  it('the save line shows every save issue but the past-silos one: its Start time twin is in view now (it left More options, 17 Nov 2026), so it need not say it twice', () => {
+    expect(src).toMatch(/const saveCardIssues = computed\(\(\) => store\.setupIssues\.filter\(i => i\.kind !== 'save-past-silos'\)\);/);
   });
 });
 

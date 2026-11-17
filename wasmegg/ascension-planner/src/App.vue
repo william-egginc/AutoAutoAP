@@ -809,7 +809,16 @@
           data-testid="tour-replay"
           @click="askTourReplay()"
         >
-          {{ FIRST_TOUR_REPLAY }}
+          {{ FOOTER_QUICK_TOUR }}
+        </button
+        >{{ ' ' }}<span aria-hidden="true">·</span>{{ ' ' }}<!-- The longer tour too, from any page (17 Nov 2026; More and About keep theirs). --><button
+          type="button"
+          class="inline-flex min-h-[44px] items-center px-3 underline decoration-dotted underline-offset-2 hover:text-slate-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded"
+          :disabled="myRunsRunning"
+          data-testid="tour-full-footer"
+          @click="askFullTour()"
+        >
+          {{ FOOTER_FULL_TOUR }}
         </button>
       </footer>
 
@@ -835,8 +844,8 @@ import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { isNewVisitor } from '@/lib/firstTour';
 import TourModal from '@/components/TourModal.vue';
-import { askTourReplay } from '@/composables/useFirstTour';
-import { FIRST_TOUR_REPLAY } from '@/lib/firstTourWords';
+import { askFullTour, askTourReplay } from '@/composables/useFirstTour';
+import { FOOTER_FULL_TOUR, FOOTER_QUICK_TOUR } from '@/lib/firstTourWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, watchEffect, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   firstLoadRoute,

@@ -27,10 +27,11 @@ describe('Your setup: the cards flow in columns, not grid rows', () => {
     expect(columns).not.toMatch(/\bgrid-cols-1 md:grid-cols-2\b/);
   });
 
-  it('the three cards under More options, in order, each kept whole and spaced', () => {
-    const marks = ['When the plan starts</h3>', 'Your save file</h3>', 'data-testid="setup-this-computer"'].map(m => columns.indexOf(m));
+  it('the two cards under More options, in order, each kept whole and spaced (When the plan starts moved out, 17 Nov 2026)', () => {
+    const marks = ['Your save file</h3>', 'data-testid="setup-this-computer"'].map(m => columns.indexOf(m));
     expect(marks.every((v, i) => v > 0 && (i === 0 || v > marks[i - 1]))).toBe(true);
-    expect(columns.match(/class="mb-4 break-inside-avoid rounded-xl/g)).toHaveLength(3);
+    expect(columns).not.toContain('When the plan starts</h3>');
+    expect(columns.match(/class="mb-4 break-inside-avoid rounded-xl/g)).toHaveLength(2);
     // The Memory fold is inside This computer, so it grows that card's column only.
     expect(columns.indexOf('Memory · detail kept for')).toBeGreaterThan(columns.indexOf('data-testid="setup-this-computer"'));
   });
@@ -42,6 +43,9 @@ describe('Your setup: the cards flow in columns, not grid rows', () => {
     );
     expect(marks.every((v, i) => v > 0 && (i === 0 || v > marks[i - 1]))).toBe(true);
     expect(above).not.toContain('break-inside-avoid');
+    // The start time and the first ascension, after Sharing and before More options.
+    expect(above.indexOf('When the plan starts</h3>')).toBeGreaterThan(above.indexOf('<CalendarFeedSetup'));
+    expect(above).toContain('aria-label="First ascension"');
   });
 
   it('the full-width cards stay in the grid after the columns', () => {

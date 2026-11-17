@@ -80,7 +80,7 @@ describe('replay: "Quick tour" and "Full tour" in the footer, "Show the tour aga
     expect(tag).toContain(':disabled="myRunsRunning"');
     expect(tag).toContain('min-h-[44px]');
     expect(tag).toContain('{{ FOOTER_FULL_TOUR }}');
-    expect(template).toContain("import { askFullTour, askTourReplay }") ;
+    expect(script).toContain("import { askFullTour, askTourReplay } from '@/composables/useFirstTour';");
   });
 
   it('Setup, under How the site shows things: closes Setup, then the tour starts (it waits while Setup is open)', () => {

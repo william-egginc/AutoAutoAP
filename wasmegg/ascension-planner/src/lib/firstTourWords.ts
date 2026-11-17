@@ -45,6 +45,9 @@ export const FIRST_TOUR_SKIP = 'Skip tour';
 export const FIRST_TOUR_REMIND = 'Remind me later';
 /** The footer's and Setup's link. */
 export const FIRST_TOUR_REPLAY = 'Show the tour again';
+/** The page footer's two tour links (17 Nov 2026, Jordan: either tour from any page; More › Full tour and About keep theirs). */
+export const FOOTER_QUICK_TOUR = 'Quick tour';
+export const FOOTER_FULL_TOUR = 'Full tour';
 
 /** The slide's step line: "Step 2 of 6". */
 export function firstTourLabel(n: number, of: number): string {
