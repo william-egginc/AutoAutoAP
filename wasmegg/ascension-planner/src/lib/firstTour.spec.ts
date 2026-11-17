@@ -90,10 +90,10 @@ describe('aap.tour values', () => {
     expect(isNewVisitor({ savedPlayerId: null, lastRoute: '#/auto/fastest' })).toBe(false);
   });
 
-  it('a save file with no player ID ends the tour at Follow this route (ten slides, no My runs tab), after Simulate this plan', () => {
-    expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow', 'tracker', 'setupWhere', 'setup', 'moreWhere']);
-    expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow', 'tracker', 'setupWhere', 'setup', 'moreWhere']);
-    expect(stepsFor({ hasAccount: false, hasSaveFile: true })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow']);
+  it('a save file with no player ID ends the tour at Follow this route (fourteen slides, no My runs tab), after Simulate this plan', () => {
+    expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
+    expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
+    expect(stepsFor({ hasAccount: false, hasSaveFile: true })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow']);
   });
 });
 
@@ -202,7 +202,7 @@ describe('never sent, never synced, never in the result hash', () => {
 
 describe('words (lib/firstTourWords.ts; v2 additions DRAFT, for Words)', () => {
   it('has a title and body for every step, the welcome box, alt text, and the controls', () => {
-    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow', 'tracker', 'setupWhere', 'setup', 'moreWhere'] as const) {
+    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing'] as const) {
       expect(WORDS.FIRST_TOUR_STEPS[id].title.length).toBeGreaterThan(3);
       expect(WORDS.FIRST_TOUR_STEPS[id].body.length).toBeGreaterThan(20);
       expect(WORDS.FIRST_TOUR_ALT[id].length).toBeGreaterThan(20);

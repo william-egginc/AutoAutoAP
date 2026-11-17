@@ -8,35 +8,36 @@ import {
 } from './firstTourWords';
 
 describe('first tour words', () => {
-  it('each card, word for word (tour v3: Words, 16 Nov 2026, notes/words-tour-v3-and-c3-2026-11-16.md)', () => {
+  it('each card, word for word (tour v3: Words, 16 Nov 2026, the full text after Jordan\'s review; gear, followedRoute and shifts are UI drafts to what the picture shows)', () => {
     const B = (id: keyof typeof FIRST_TOUR_STEPS) => FIRST_TOUR_STEPS[id].body;
     expect(B('tabManual')).toBe('Manual Planner is where you build a plan by hand, one step at a time.');
-    expect(B('tabAuto')).toBe('Auto Planner works out one ascension for you, from your save and your settings.');
+    expect(B('tabAuto')).toBe('Auto Planner plays a plan out shift by shift, from your save and your settings.');
     expect(B('tabChain')).toBe('Chain Finder looks for the best route across many ascensions.');
     expect(B('tabMyruns')).toBe('My runs is where you follow the route you keep.');
     expect(B('load')).toBe('Enter your player ID, or load a save file, so the planner works from your real account.');
     expect(B('goalTarget')).toBe('Target TE finds the fastest way to a TE you choose.');
     expect(B('goalDate')).toBe('By a date finds the most TE you can reach by a date, such as Egg Day.');
-    expect(B('date')).toBe('This is the date you would finish, worked out from your save.');
-    expect(B('firstStep')).toBe('The First step line tells you what to do first, and when.');
-    expect(FIRST_TOUR_STEPS.simulate).toEqual({
-      title: 'Simulate this plan',
-      body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
-    });
-    expect(B('follow')).toBe('Press Follow this route to keep it.');
-    expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when. Tick each one off as you go.');
-    expect(FIRST_TOUR_STEPS.setupWhere).toEqual({
-      title: 'Where Setup is',
-      body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time, or drag it out of the way.',
-    });
-    expect(FIRST_TOUR_STEPS.setup.title).toBe('Inside Setup');
-    expect(B('setup')).toBe('Inside it: your awake hours, so prestiges wait for you. The filters button just above the answer opens it too.');
-    expect(B('moreWhere')).toBe('More is the fold with the Fast, Exact and Custom searches inside.');
-    // The tabs' slides say what each tab is; the tabs show only after a save loads, so none of them says "press".
-    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep'] as const) expect(B(id)).not.toMatch(/\bpress\b/i);
+    expect(B('result')).toBe('This is the result: when you would finish, and the TE you would reach. It is worked out from your save.');
+    expect(B('filters')).toBe('The filters button opens Setup, where you set what the answer is worked out for.');
+    expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
+    expect(B('setupTimeOff')).toBe('Time off marks days you will not prestige. The route plans around them.');
+    expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it finishes only a little later, so you do less.');
+    expect(B('gear')).toBe('What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.');
+    expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
+    expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.');
+    expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next.');
+    expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');
+    expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It changes as you check in.');
+    expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when, so you can tick each one off as you go.');
+    expect(B('setupWhere')).toBe('Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.');
+    expect(B('setupInside')).toBe('Setup holds your awake hours, time off and Save online. The planner works out every answer from them.');
+    expect(B('shifts')).toBe('The shifts are listed on My runs, each with when it happens and how far away it is.');
+    expect(B('closing')).toBe('That is the important part. For everything else, open More and take the Full tour.');
+    // The tabs, the goal sides and what the planner does before the player has a save never say "press": the tabs show only after a load.
+    for (const id of ['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate'] as const) expect(B(id), id).not.toMatch(/\bpress\b/i);
     expect(JSON.stringify(FIRST_TOUR_STEPS)).not.toMatch(/Single run/);
-    // The slides Jordan dropped (More's inside, the Fast and Custom searches) are in the Full tour, not here.
-    for (const gone of ['goal', 'answer', 'myruns', 'myrunsWhere', 'moreInside', 'fast', 'custom']) expect(Object.keys(FIRST_TOUR_STEPS)).not.toContain(gone);
+    // The slides dropped from v2 are in the Full tour, not here.
+    for (const gone of ['goal', 'answer', 'date', 'firstStep', 'myruns', 'myrunsWhere', 'setup', 'moreWhere', 'moreInside', 'fast', 'custom']) expect(Object.keys(FIRST_TOUR_STEPS)).not.toContain(gone);
     expect(FIRST_TOUR_CLOSING).toBe("That's the tour. You can show it again from the foot of the page or from Setup.");
   });
   it('v1\'s "My runs appears up here" line went with v1\'s card (v2 points at nothing on the page)', async () => {

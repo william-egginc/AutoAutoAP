@@ -85,7 +85,10 @@ describe('tour picture rings and arrows (v3)', () => {
   });
 
   it('Jordan: magnify when a slide points at ONE thing; several things, normal size and an arrow to each', () => {
+    // The player ID box and the save-file button are two things. The Setup panel's top, the shifts table and the time-off boxes are one
+    // tall thing each (clipped to what fits, on a phone), so they are not copied.
     const several = ['load'];
+    const tall = ['setupInside', 'shifts', 'setupTimeOff'];
     for (const [name, e] of entries) {
       const id = name.replace(/-(desk|phone)$/, '');
       if (several.includes(id)) {
@@ -93,7 +96,7 @@ describe('tour picture rings and arrows (v3)', () => {
         for (const t of e.targets) expect(t.magnified, name).toBe(false);
       } else {
         expect(e.targets.length, name).toBe(1);
-        expect(e.targets[0].magnified, name).toBe(true);
+        if (!tall.includes(id)) expect(e.targets[0].magnified, name).toBe(true);
       }
     }
   });
@@ -114,12 +117,25 @@ describe('tour picture rings and arrows (v3)', () => {
       expect(sel('tabAuto', f)).toContain('top-tab-auto');
       expect(sel('tabChain', f)).toContain('top-tab-chain');
       expect(sel('tabMyruns', f)).toContain('top-tab-myruns');
-      expect(sel('simulate', f)).toContain('box-simulate');
-      expect(sel('follow', f)).toContain('follow-route');
-      expect(sel('firstStep', f)).toContain('box-first-step');
       expect(sel('goalTarget', f)).toContain('data-goal="fastest"');
       expect(sel('goalDate', f)).toContain('data-goal="by-date"');
+      expect(sel('result', f)).toContain('instant-box');
+      expect(sel('filters', f)).toContain('filters-button');
+      expect(sel('simulate', f)).toContain('box-simulate');
+      expect(sel('follow', f)).toContain('follow-route');
+      expect(sel('gear', f)).toContain('instant-maxed-what-if-summary');
+      expect(sel('closing', f)).toContain('more-full-tour');
+      expect(sel('followedRoute', f)).toContain('now-chain');
       expect(sel('tracker', f)).toContain('buildup-tracker');
+      expect(sel('setupWhere', f)).toContain('setup-dock-pill');
+      expect(sel('setupTimeOff', f)).toContain('timeoff-grid');
+      expect(sel('shifts', f)).toContain('now-events');
     }
+  });
+
+  it('no arrow lies on another control and no enlarged copy covers one (the generator measures it; here: the arrow tip is not inside any other target\'s ring)', () => {
+    for (const [name, e] of entries)
+      for (const [i, t] of e.targets.entries())
+        for (const [j, o] of e.targets.entries()) if (i !== j) expect(dist(t.arrow.tip, o.ring), `${name}: arrow ${i} tip on ring ${j}`).toBeGreaterThan(6);
   });
 });

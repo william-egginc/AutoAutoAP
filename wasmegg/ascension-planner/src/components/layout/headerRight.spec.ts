@@ -26,7 +26,7 @@ describe('H4: the button is named for what it opens', () => {
     expect(FILTERS).toBe('Click to open more filters in Setup');
   });
   it('the tour points at the button without quoting its label', () => {
-    expect(read('lib/firstTourWords.ts')).toContain('The filters button just above the answer opens it too.');
+    expect(read('lib/firstTourWords.ts')).toContain('The filters button opens Setup, where you set what the answer is worked out for.');
     expect(read('lib/firstTourWords.ts')).not.toContain('The Filters button');
   });
 });

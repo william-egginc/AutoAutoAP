@@ -8,40 +8,32 @@ import type { TourStepId } from './firstTour';
 /** Each slide's title (read first on each slide) and caption, which says everything without the picture. load and answer
  *  reworded for the slideshow (v2): the pictures show a sample account, not the visitor's. */
 export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string }> = {
-  // Tour v3 (Words, 16 Nov 2026, notes/words-tour-v3-and-c3-2026-11-16.md): the tabs show only after a save loads, so their
-  // slides say what each is and never "press". Titles are DRAFT.
+  // Tour v3 (Words, 16 Nov 2026, notes/words-tour-v3-and-c3-2026-11-16.md, the full text after Jordan's review). Each says what its
+  // thing is FOR. The tabs show only after a save loads, so their slides never say "press". Titles are DRAFT; gear, followedRoute
+  // and shifts are DRAFT too (written to what the picture shows: see the note to Words).
   tabManual: { title: 'Manual Planner', body: 'Manual Planner is where you build a plan by hand, one step at a time.' },
-  tabAuto: { title: 'Auto Planner', body: 'Auto Planner works out one ascension for you, from your save and your settings.' },
+  tabAuto: { title: 'Auto Planner', body: 'Auto Planner plays a plan out shift by shift, from your save and your settings.' },
   tabChain: { title: 'Chain Finder', body: 'Chain Finder looks for the best route across many ascensions.' },
   tabMyruns: { title: 'My runs', body: 'My runs is where you follow the route you keep.' },
-  load: {
-    title: 'Load your save',
-    body: 'Enter your player ID, or load a save file, so the planner works from your real account.',
-  },
+  load: { title: 'Load your save', body: 'Enter your player ID, or load a save file, so the planner works from your real account.' },
   goalTarget: { title: 'Target TE', body: 'Target TE finds the fastest way to a TE you choose.' },
   goalDate: { title: 'By a date', body: 'By a date finds the most TE you can reach by a date, such as Egg Day.' },
-  date: { title: 'The finish date', body: 'This is the date you would finish, worked out from your save.' },
-  firstStep: { title: 'First step', body: 'The First step line tells you what to do first, and when.' },
-  // The button beside Follow this route on the answer (spec-simpler2).
-  simulate: {
-    title: 'Simulate this plan',
-    body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift: when each TE comes, with every ascension's dates and buys.",
-  },
-  follow: { title: 'Follow this route', body: 'Press Follow this route to keep it.' },
-  tracker: {
-    title: 'The Build-up tracker',
-    body: 'The Build-up tracker lists what to buy and when. Tick each one off as you go.',
-  },
-  // Setup as two slides, where it is, then what is inside (spec-simpler2).
-  setupWhere: {
-    title: 'Where Setup is',
-    body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time, or drag it out of the way.',
-  },
-  setup: {
-    title: 'Inside Setup',
-    body: 'Inside it: your awake hours, so prestiges wait for you. The filters button just above the answer opens it too.',
-  },
-  moreWhere: { title: 'More', body: 'More is the fold with the Fast, Exact and Custom searches inside.' },
+  result: { title: 'The result', body: 'This is the result: when you would finish, and the TE you would reach. It is worked out from your save.' },
+  filters: { title: 'The filters button', body: 'The filters button opens Setup, where you set what the answer is worked out for.' },
+  setupAwake: { title: 'Awake hours', body: 'Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.' },
+  setupTimeOff: { title: 'Time off', body: 'Time off marks days you will not prestige. The route plans around them.' },
+  prefer: { title: 'Prefer fewer ascensions', body: 'Prefer fewer ascensions picks a route with fewer ascensions when it finishes only a little later, so you do less.' },
+  gear: { title: 'Maxed gear', body: 'What if you had maxed gear? finds your route again as if all your gear were maxed, to show what is possible.' },
+  simulate: { title: 'Simulate this plan', body: "Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys." },
+  follow: { title: 'Follow this route', body: 'Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.' },
+  myrunsPage: { title: 'My runs', body: 'My runs is where the route you follow lives, and where the planner tells you what to do next.' },
+  followedRoute: { title: 'The route you follow', body: 'This is the route you follow: the TE you reach at the end of each ascension.' },
+  nextStep: { title: 'Next step', body: 'Next step says what to do now, and when, such as buying or prestiging. It changes as you check in.' },
+  tracker: { title: 'The Build-up tracker', body: 'The Build-up tracker lists what to buy and when, so you can tick each one off as you go.' },
+  setupWhere: { title: 'Where Setup is', body: 'Setup is the round gear button at the bottom of the screen (a Setup button at the right on a computer). Press it any time.' },
+  setupInside: { title: 'Inside Setup', body: 'Setup holds your awake hours, time off and Save online. The planner works out every answer from them.' },
+  shifts: { title: 'The shifts', body: 'The shifts are listed on My runs, each with when it happens and how far away it is.' },
+  closing: { title: 'That is the tour', body: 'That is the important part. For everything else, open More and take the Full tour.' },
 };
 
 /** The last card's closing line. */
@@ -84,12 +76,20 @@ export const FIRST_TOUR_ALT: Record<TourStepId, string> = {
   load: 'The player ID box with its Load Player Data button, and the save-file button, each with an arrow pointing at it.',
   goalTarget: "The Target TE side of Chain Finder's goal switch, enlarged, with an arrow pointing at it.",
   goalDate: "The By a date side of Chain Finder's goal switch, enlarged, with an arrow pointing at it.",
-  date: "A sample instant answer's finish date, enlarged, with an arrow pointing at it.",
-  firstStep: "A sample instant answer's First step line, enlarged, with an arrow pointing at it.",
+  result: "A sample instant answer's finish date, enlarged, with an arrow pointing at it.",
+  filters: 'The button that opens more filters in Setup, enlarged, with an arrow pointing at it.',
+  setupAwake: 'The awake hours choice at the top of the Setup panel (Any hour or My awake hours), enlarged, with an arrow pointing at it.',
+  setupTimeOff: 'The No prestige days and Time off boxes in the Setup panel, with an arrow pointing at them.',
+  prefer: 'The Prefer fewer ascensions row under the filters button, with its choices, with an arrow pointing at it.',
+  gear: 'The What if you had maxed gear? line in More, with an arrow pointing at it.',
   simulate: 'The Simulate this plan button beside Follow this route on the instant answer, enlarged, with an arrow pointing at it.',
   follow: 'The Follow this route button under the instant answer, enlarged, with an arrow pointing at it.',
-  tracker: "A sample account's Build-up tracker heading on My runs, enlarged, with an arrow pointing at it: check-ins done and the next one.",
+  myrunsPage: 'The Right now heading at the top of the My runs page, enlarged, with an arrow pointing at it.',
+  followedRoute: 'The line on My runs that shows the route you follow, with an arrow pointing at it.',
+  nextStep: 'The Next step box on My runs, with its heading and what to do next, and an arrow pointing at it.',
+  tracker: "A sample account's Build-up tracker heading on My runs, with an arrow pointing at it: check-ins done and the next one.",
   setupWhere: 'The round gear Setup button at the bottom of the screen, enlarged, with an arrow pointing at it.',
-  setup: "The Setup panel open, with its awake hours (Any hour or My awake hours), enlarged, with an arrow pointing at it.",
-  moreWhere: 'The closed More fold at the bottom of Chain Finder, enlarged, with an arrow pointing at it.',
+  setupInside: 'The Setup panel open, showing its top part, with an arrow pointing at it.',
+  shifts: 'The list of upcoming shifts and prestiges on My runs, with an arrow pointing at it.',
+  closing: 'The Full tour link inside the open More fold, enlarged, with an arrow pointing at it.',
 };

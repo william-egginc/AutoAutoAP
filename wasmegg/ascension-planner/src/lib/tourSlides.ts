@@ -22,22 +22,38 @@ import goalTargetDesk from '@/assets/tour/6-goal-target-desk.webp';
 import goalTargetPhone from '@/assets/tour/6-goal-target-phone.webp';
 import goalDateDesk from '@/assets/tour/7-goal-date-desk.webp';
 import goalDatePhone from '@/assets/tour/7-goal-date-phone.webp';
-import dateDesk from '@/assets/tour/8-date-desk.webp';
-import datePhone from '@/assets/tour/8-date-phone.webp';
-import firstStepDesk from '@/assets/tour/9-first-step-desk.webp';
-import firstStepPhone from '@/assets/tour/9-first-step-phone.webp';
-import simulateDesk from '@/assets/tour/10-simulate-desk.webp';
-import simulatePhone from '@/assets/tour/10-simulate-phone.webp';
-import followDesk from '@/assets/tour/11-follow-desk.webp';
-import followPhone from '@/assets/tour/11-follow-phone.webp';
-import trackerDesk from '@/assets/tour/12-tracker-desk.webp';
-import trackerPhone from '@/assets/tour/12-tracker-phone.webp';
-import setupWhereDesk from '@/assets/tour/13-setup-where-desk.webp';
-import setupWherePhone from '@/assets/tour/13-setup-where-phone.webp';
-import setupDesk from '@/assets/tour/14-setup-desk.webp';
-import setupPhone from '@/assets/tour/14-setup-phone.webp';
-import moreWhereDesk from '@/assets/tour/15-more-where-desk.webp';
-import moreWherePhone from '@/assets/tour/15-more-where-phone.webp';
+import resultDesk from '@/assets/tour/8-result-desk.webp';
+import resultPhone from '@/assets/tour/8-result-phone.webp';
+import filtersDesk from '@/assets/tour/9-filters-desk.webp';
+import filtersPhone from '@/assets/tour/9-filters-phone.webp';
+import setupAwakeDesk from '@/assets/tour/10-setup-awake-desk.webp';
+import setupAwakePhone from '@/assets/tour/10-setup-awake-phone.webp';
+import setupTimeOffDesk from '@/assets/tour/11-setup-time-off-desk.webp';
+import setupTimeOffPhone from '@/assets/tour/11-setup-time-off-phone.webp';
+import preferDesk from '@/assets/tour/12-prefer-desk.webp';
+import preferPhone from '@/assets/tour/12-prefer-phone.webp';
+import gearDesk from '@/assets/tour/13-gear-desk.webp';
+import gearPhone from '@/assets/tour/13-gear-phone.webp';
+import simulateDesk from '@/assets/tour/14-simulate-desk.webp';
+import simulatePhone from '@/assets/tour/14-simulate-phone.webp';
+import followDesk from '@/assets/tour/15-follow-desk.webp';
+import followPhone from '@/assets/tour/15-follow-phone.webp';
+import myrunsPageDesk from '@/assets/tour/16-myruns-page-desk.webp';
+import myrunsPagePhone from '@/assets/tour/16-myruns-page-phone.webp';
+import followedRouteDesk from '@/assets/tour/17-followed-route-desk.webp';
+import followedRoutePhone from '@/assets/tour/17-followed-route-phone.webp';
+import nextStepDesk from '@/assets/tour/18-next-step-desk.webp';
+import nextStepPhone from '@/assets/tour/18-next-step-phone.webp';
+import trackerDesk from '@/assets/tour/19-tracker-desk.webp';
+import trackerPhone from '@/assets/tour/19-tracker-phone.webp';
+import setupWhereDesk from '@/assets/tour/20-setup-where-desk.webp';
+import setupWherePhone from '@/assets/tour/20-setup-where-phone.webp';
+import setupInsideDesk from '@/assets/tour/21-setup-inside-desk.webp';
+import setupInsidePhone from '@/assets/tour/21-setup-inside-phone.webp';
+import shiftsDesk from '@/assets/tour/22-shifts-desk.webp';
+import shiftsPhone from '@/assets/tour/22-shifts-phone.webp';
+import closingDesk from '@/assets/tour/23-closing-desk.webp';
+import closingPhone from '@/assets/tour/23-closing-phone.webp';
 
 /** The files behind each slide (src/assets/tour/), numbered in tour order (tour v3, spec-tour-v3, 16 Nov 2026). */
 export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = {
@@ -48,14 +64,22 @@ export const TOUR_IMAGES: Record<TourStepId, { desk: string; phone: string }> = 
   load: { desk: '5-load-desk.webp', phone: '5-load-phone.webp' },
   goalTarget: { desk: '6-goal-target-desk.webp', phone: '6-goal-target-phone.webp' },
   goalDate: { desk: '7-goal-date-desk.webp', phone: '7-goal-date-phone.webp' },
-  date: { desk: '8-date-desk.webp', phone: '8-date-phone.webp' },
-  firstStep: { desk: '9-first-step-desk.webp', phone: '9-first-step-phone.webp' },
-  simulate: { desk: '10-simulate-desk.webp', phone: '10-simulate-phone.webp' },
-  follow: { desk: '11-follow-desk.webp', phone: '11-follow-phone.webp' },
-  tracker: { desk: '12-tracker-desk.webp', phone: '12-tracker-phone.webp' },
-  setupWhere: { desk: '13-setup-where-desk.webp', phone: '13-setup-where-phone.webp' },
-  setup: { desk: '14-setup-desk.webp', phone: '14-setup-phone.webp' },
-  moreWhere: { desk: '15-more-where-desk.webp', phone: '15-more-where-phone.webp' },
+  result: { desk: '8-result-desk.webp', phone: '8-result-phone.webp' },
+  filters: { desk: '9-filters-desk.webp', phone: '9-filters-phone.webp' },
+  setupAwake: { desk: '10-setup-awake-desk.webp', phone: '10-setup-awake-phone.webp' },
+  setupTimeOff: { desk: '11-setup-time-off-desk.webp', phone: '11-setup-time-off-phone.webp' },
+  prefer: { desk: '12-prefer-desk.webp', phone: '12-prefer-phone.webp' },
+  gear: { desk: '13-gear-desk.webp', phone: '13-gear-phone.webp' },
+  simulate: { desk: '14-simulate-desk.webp', phone: '14-simulate-phone.webp' },
+  follow: { desk: '15-follow-desk.webp', phone: '15-follow-phone.webp' },
+  myrunsPage: { desk: '16-myruns-page-desk.webp', phone: '16-myruns-page-phone.webp' },
+  followedRoute: { desk: '17-followed-route-desk.webp', phone: '17-followed-route-phone.webp' },
+  nextStep: { desk: '18-next-step-desk.webp', phone: '18-next-step-phone.webp' },
+  tracker: { desk: '19-tracker-desk.webp', phone: '19-tracker-phone.webp' },
+  setupWhere: { desk: '20-setup-where-desk.webp', phone: '20-setup-where-phone.webp' },
+  setupInside: { desk: '21-setup-inside-desk.webp', phone: '21-setup-inside-phone.webp' },
+  shifts: { desk: '22-shifts-desk.webp', phone: '22-shifts-phone.webp' },
+  closing: { desk: '23-closing-desk.webp', phone: '23-closing-phone.webp' },
 };
 
 export interface TourPicture {
@@ -81,15 +105,24 @@ export const TOUR_SLIDES: TourSlide[] = [
   { id: 'load', desk: desk(loadDesk), phone: phone(loadPhone) },
   { id: 'goalTarget', desk: desk(goalTargetDesk), phone: phone(goalTargetPhone) },
   { id: 'goalDate', desk: desk(goalDateDesk), phone: phone(goalDatePhone) },
-  { id: 'date', desk: desk(dateDesk), phone: phone(datePhone) },
-  { id: 'firstStep', desk: desk(firstStepDesk), phone: phone(firstStepPhone) },
+  { id: 'result', desk: desk(resultDesk), phone: phone(resultPhone) },
+  { id: 'filters', desk: desk(filtersDesk), phone: phone(filtersPhone) },
+  { id: 'setupAwake', desk: desk(setupAwakeDesk), phone: phone(setupAwakePhone) },
+  { id: 'setupTimeOff', desk: desk(setupTimeOffDesk), phone: phone(setupTimeOffPhone) },
+  { id: 'prefer', desk: desk(preferDesk), phone: phone(preferPhone) },
+  { id: 'gear', desk: desk(gearDesk), phone: phone(gearPhone) },
   { id: 'simulate', desk: desk(simulateDesk), phone: phone(simulatePhone) },
   { id: 'follow', desk: desk(followDesk), phone: phone(followPhone) },
+  { id: 'myrunsPage', desk: desk(myrunsPageDesk), phone: phone(myrunsPagePhone) },
+  { id: 'followedRoute', desk: desk(followedRouteDesk), phone: phone(followedRoutePhone) },
+  { id: 'nextStep', desk: desk(nextStepDesk), phone: phone(nextStepPhone) },
   { id: 'tracker', desk: desk(trackerDesk), phone: phone(trackerPhone) },
   { id: 'setupWhere', desk: desk(setupWhereDesk), phone: phone(setupWherePhone) },
-  { id: 'setup', desk: desk(setupDesk), phone: phone(setupPhone) },
-  { id: 'moreWhere', desk: desk(moreWhereDesk), phone: phone(moreWherePhone) },
+  { id: 'setupInside', desk: desk(setupInsideDesk), phone: phone(setupInsidePhone) },
+  { id: 'shifts', desk: desk(shiftsDesk), phone: phone(shiftsPhone) },
+  { id: 'closing', desk: desk(closingDesk), phone: phone(closingPhone) },
 ];
+
 /** The slides for what is loaded: a save file with no player ID has no My runs tab and ends at Follow this route (lib/firstTour.ts stepsFor). */
 export function slidesFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourSlide[] {
   const ids = stepsFor(p);

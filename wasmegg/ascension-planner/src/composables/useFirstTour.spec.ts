@@ -60,7 +60,7 @@ describe('the welcome box', () => {
     expect(t.state.phase).toBe('slides');
     expect(t.step.value).toBe('tabManual');
     expect(t.state.wantFocus).toBe('title');
-    expect(t.state.announce).toBe(`Tour, step 1 of 15: ${FIRST_TOUR_STEPS.tabManual.title}`);
+    expect(t.state.announce).toBe(`Tour, step 1 of 23: ${FIRST_TOUR_STEPS.tabManual.title}`);
   });
 
   it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
@@ -105,7 +105,7 @@ describe('the slideshow', () => {
     t.begin({ ...ENV, hasAccount: true });
     t.take();
     const seen: string[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 23; i++) {
       seen.push(t.step.value);
       t.focused();
       if (!t.isLast.value) {
@@ -113,10 +113,10 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'date', 'firstStep', 'simulate', 'follow', 'tracker', 'setupWhere', 'setup', 'moreWhere']);
+    expect(seen).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'gear', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'setupWhere', 'setupInside', 'shifts', 'closing']);
     t.focused();
     t.back();
-    expect(t.step.value).toBe('setup');
+    expect(t.step.value).toBe('shifts');
     expect(t.state.wantFocus).toBe('title');
     t.next();
     t.done();
@@ -145,11 +145,11 @@ describe('the slideshow', () => {
     expect(w.state.phase).toBe('closed');
   });
 
-  it('a save file with no player ID: ten slides (Simulate this plan included), Follow this route is the last (Done)', () => {
+  it('a save file with no player ID: fourteen slides (Simulate this plan included), Follow this route is the last (Done)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasSaveFile: true });
-    expect(t.total.value).toBe(10);
-    for (let i = 0; i < 9; i++) t.next();
+    expect(t.total.value).toBe(14);
+    for (let i = 0; i < 13; i++) t.next();
     expect(t.step.value).toBe('follow');
     t.back();
     expect(t.step.value).toBe('simulate');
