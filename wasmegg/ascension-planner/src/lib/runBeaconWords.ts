@@ -10,7 +10,11 @@ export const BEACON_MIN_HOURS = 2;
 
 /** Setup's plain line (no tick: there is no switch; Jordan, 16 Nov 2026). Words' text, consent text: Jordan's OK before merge. */
 export const BEACON_SETUP_LINE =
-  "A search expected to take 2 hours or more tells the planner's server when it starts and when it stops: a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you or your account. This is always on while the maintainer is updating the site, so an update doesn't lose your search.";
+  "A search expected to take 2 hours or more tells the planner's server when it starts and when it stops: a random code for that search, its kind, its estimated time, the page version, when it started and why it ended. Nothing about you or your account. If an update is being prepared, the maintainer is told to wait for your search. This is always on while the maintainer is updating the site.";
+
+/** The banner while a long search is being chosen, before it starts (closable; Jordan, 16 Nov 2026: the message goes to the updater, not a report to the maintainer). */
+export const LONG_RUN_START_WORDS =
+  "This is a long search (2 hours or more). If you start it, the planner will tell the site's updater, so if an update is being prepared, the maintainer waits for your search.";
 
 /**
  * The banner (closable), shown only when the maintainer plans a forced update of the site and only on a page whose long
