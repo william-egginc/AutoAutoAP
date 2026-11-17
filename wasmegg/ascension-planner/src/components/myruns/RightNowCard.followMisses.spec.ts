@@ -195,3 +195,62 @@ describe('"Look for a better route" found nothing faster (spec-myruns-nobetter, 
     expect(src.slice(at, at + 300)).toContain('askLook');
   });
 });
+
+describe('no route makes the date, and the old plan under a newer save (17 Nov 2026)', () => {
+  const cannot = () => render(JUL11, { follow: followCard(JUL11, { cannotDate: true, source: 'older-save', pricedSave: NOW - 30 * H } as Partial<FollowCard>) });
+  it("says it plainly (Words' line) and offers Choose a later date, not a search of the same date", async () => {
+    const html = await cannot();
+    const t = textOf(html);
+    expect(html).toContain('data-testid="now-follow-cannot"');
+    expect(t).toContain('No route can make Egg Day now. On your newest save, none gets you above your current TE by then. Choose a later date.');
+    expect(html).toContain('data-testid="now-follow-cannot-later"');
+    expect(t).toContain('Choose a later date');
+    expect(t).toContain('Opens By a date, where you pick the date to search for.');
+    expect(t).not.toContain('See By a date for this date');
+    expect(html).not.toContain('data-testid="now-follow-misses-search"');
+  });
+  it('the button opens By a date (it does not run a search)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
+    expect(src).toMatch(/data-testid="now-follow-cannot-later"[\s\S]{0,200}@click="emit\('open', \{ auto: 'by-date' \}\)"/);
+  });
+  it('not shown without the flag, and when both could show, this stronger one wins and the miss box is not also up', async () => {
+    expect(await render(JUL11)).not.toContain('now-follow-cannot');
+    const both = await render(JUL17, { follow: followCard(JUL17, { cannotDate: true } as Partial<FollowCard>) });
+    expect(both).toContain('now-follow-cannot');
+    expect(both).not.toContain('data-testid="now-follow-misses-box"');
+  });
+  it("the header says whose save the old route was worked out on, not the loaded save's (Words' followOldPlanLabel)", async () => {
+    const t = textOf(await cannot());
+    expect(t).toMatch(/This is the route you follow, worked out on your save from .*It was not checked against your newest save\./);
+    expect(t).not.toContain('Calculated from your');
+  });
+  it('a route priced on this save keeps the usual header', async () => {
+    expect(textOf(await render(JUL11))).toContain('Calculated from your');
+  });
+});
+
+describe('the best on the newest save is below the TE you follow (17 Nov 2026)', () => {
+  const below = () => render(JUL11, { follow: followCard(JUL11, { belowTE: { bestTE: 198, followedTE: 199 }, source: 'older-save', pricedSave: NOW - 30 * H } as Partial<FollowCard>) });
+  it("says it with both numbers (Words' line) and offers See the best route now, which opens By a date for the date (no search)", async () => {
+    const html = await below();
+    const t = textOf(html);
+    expect(html).toContain('data-testid="now-follow-below"');
+    expect(t).toContain('On your newest save, the best by Egg Day is 198 TE, below the 199 TE you follow.');
+    expect(html).toContain('data-testid="now-follow-below-see"');
+    expect(t).toContain('See the best route now');
+    expect(t).toContain('Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.');
+    expect(html).not.toContain('data-testid="now-follow-misses-search"');
+    const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
+    expect(src).toMatch(/data-testid="now-follow-below-see"[\s\S]{0,200}@click="emit\('open', goalOpen\)"/);
+  });
+  it('not without the flag; the cannot line outranks it; it replaces the miss box', async () => {
+    expect(await render(JUL11)).not.toContain('now-follow-below');
+    const both = await render(JUL17, { follow: followCard(JUL17, { belowTE: { bestTE: 198, followedTE: 199 } } as Partial<FollowCard>) });
+    expect(both).toContain('now-follow-below');
+    expect(both).not.toContain('data-testid="now-follow-misses-box"');
+    const cannot = await render(JUL11, { follow: followCard(JUL11, { cannotDate: true, belowTE: { bestTE: 198, followedTE: 199 } } as Partial<FollowCard>) });
+    expect(cannot).toContain('now-follow-cannot');
+    expect(cannot).not.toContain('now-follow-below');
+  });
+});
+

@@ -6,9 +6,14 @@
  * Bounded: at most `MAX_SNAPSHOTS` answers (the oldest dropped), each at most `MAX_BYTES`, none older
  * than `MAX_AGE_MS` (a new table is deployed now and then; a day-old answer is recomputed). Storage is
  * localStorage, in try/catch everywhere: it is a convenience, never a reason for the page to fail.
+ *
+ * A snapshot never keeps a `search` priced on another save than its own `meta.backupTime` (17 Nov 2026, second path:
+ * the newer save's snapshot carried the older save's result and My runs read "Calculated from your <newer> save" over
+ * its plan): `writeSnapshot` and `patchSnapshot` drop that field (`searchFitsSave`, 60 s), the rest is kept.
  */
 import type { Availability } from './availabilitySchedule';
 import type { TimeOffDates } from './timeOff';
+import { searchFitsSave } from '@/lib/searchFits';
 
 export const SNAP_PREFIX = 'aap-instant-snap:';
 const INDEX_KEY = 'aap-instant-snap-index';
@@ -102,6 +107,16 @@ export function readSnapshot<T extends { at: number }>(
   }
 }
 
+/** `value` without its `search` when that was priced on another save than its `meta.backupTime` (searchFitsSave). */
+function withoutOtherSaveSearch<T extends Record<string, unknown>>(value: T): T {
+  const search = value.search as { backupAt?: number | null } | null | undefined;
+  if (!search || typeof search !== 'object') return value;
+  const at = (value.meta as { backupTime?: number | null } | undefined)?.backupTime;
+  if (searchFitsSave(search, at)) return value;
+  const { search: _drop, ...rest } = value;
+  return rest as T;
+}
+
 /** Keep `value` under `key`, dropping the oldest beyond MAX_SNAPSHOTS. False when it was not kept. */
 export function writeSnapshot(
   key: string | null,
@@ -110,7 +125,7 @@ export function writeSnapshot(
 ): boolean {
   if (!key || !st) return false;
   try {
-    const text = JSON.stringify(value);
+    const text = JSON.stringify(withoutOtherSaveSearch(value as Record<string, unknown>));
     if (text.length > MAX_BYTES) return false;
     const index = readIndex(st).filter(e => e.key !== key);
     const meta = (value as { meta?: SnapMeta }).meta;
@@ -197,7 +212,7 @@ export function patchSnapshot(
   try {
     const v = JSON.parse(st.getItem(SNAP_PREFIX + key) ?? 'null') as Record<string, unknown> | null;
     if (!v || typeof v.at !== 'number') return false;
-    const text = JSON.stringify({ ...v, ...patch });
+    const text = JSON.stringify(withoutOtherSaveSearch({ ...v, ...patch }));
     if (text.length > MAX_BYTES) return false;
     st.setItem(SNAP_PREFIX + key, text);
     return true;

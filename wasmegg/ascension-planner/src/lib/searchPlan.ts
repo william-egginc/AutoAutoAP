@@ -8,6 +8,15 @@
  *                            answer is not (Jordan's answer 1).
  *   Fastest                  the result finishes sooner than the instant answer, or at the same minute.
  *
+ * A result priced on ANOTHER save of the account (the player loaded a newer save at the same TE; every check-in) is not
+ * this save's (17 Nov 2026): `backupAt` says which save it was priced on, `fromOtherSave` compares it with the loaded one.
+ * The instant card still points to it (saying it is from that save), but it never drives Right now, is never recorded as
+ * this save's plan and never patches this save's snapshot: `keptEntryOf` keeps it under its own save time. Unknown on
+ * either side (a result saved before 7 Oct 2026) counts as this save.
+ *
+ * A snapshot's own `search` counts only when it was priced on the snapshot's save (`snapSearchOf`, `searchFitsSave`, 60 s):
+ * the newer save's snapshot once carried the older save's result and read "Calculated from your <newer> save" over it.
+ *
  * Otherwise the instant answer keeps driving and the card says why in one line (`keepWords`). "Go back to the instant
  * answer" is one press away either way (useNowPage.ts).
  *
@@ -15,6 +24,7 @@
  * instant card's pointer, InstantRoute.vue `searchFound`), and the instant answer's snapshot, which keeps the last
  * one as `search` (search/instantSnapshot.ts; written by InstantRoute and by My runs). Pure.
  */
+import { searchFitsSave, SNAP_SAME_SAVE_SECONDS } from './searchFits';
 import { MAKES_DATE_WORDS } from './searchPlanWords';
 import type { LegSummary } from '@/search/types';
 import { finishesBefore, lateMarker, type DeadlineKind } from './eggDayRule';
@@ -35,6 +45,8 @@ export interface SnapSearch extends FoundResult {
   planStart: number;
   /** Read back from the Leaderboard: the run was sent from another browser (lib/boardRunPlan.ts). */
   otherBrowser?: boolean;
+  /** The save it was priced on, unix seconds (null/absent: not known, so taken as the loaded save). 17 Nov 2026. */
+  backupAt?: number | null;
 }
 
 /** What `liveSearchResult` reads of the chain-search store (InstantRoute and useNowPage hand it over). */
@@ -58,6 +70,8 @@ export interface LiveSearchInput {
     effort: string | null | undefined;
     at: number;
     owner: string;
+    /** The save it was priced on, unix seconds (store `chainRunSaveAt`; 0/absent: unknown). */
+    saveAt?: number;
   };
   date: {
     running: boolean;
@@ -68,6 +82,8 @@ export interface LiveSearchInput {
       level?: string | null;
       at?: number;
       planStart: number;
+      /** The save it was priced on, unix seconds (absent on a result saved before 7 Oct 2026). */
+      backupAt?: number | null;
       routes: readonly { chain: readonly number[]; reachAt: number; legs?: readonly LegSummary[] | null }[];
     } | null;
     owner: string;
@@ -90,6 +106,7 @@ export function liveSearchResult(i: LiveSearchInput): SnapSearch | null {
       legs: [...(best.legs ?? [])],
       at: r.at ?? 0,
       planStart: r.planStart,
+      backupAt: r.backupAt && r.backupAt > 0 ? r.backupAt : null,
     };
   }
   const f = i.fastest;
@@ -105,7 +122,35 @@ export function liveSearchResult(i: LiveSearchInput): SnapSearch | null {
     legs: [...(f.bestLegs ?? [])],
     at: f.at,
     planStart: f.planStart,
+    backupAt: f.saveAt && f.saveAt > 0 ? f.saveAt : null,
   };
+}
+
+/** Two save times this close are the same save (lib/currentAnswer.ts SAME_SAVE_SECONDS). */
+export const KEPT_SAME_SAVE_SECONDS = 10 * 60;
+
+/** The result was priced on another save than the loaded one (17 Nov 2026): both times known and further apart than a
+ *  same-save tolerance. Unknown on either side: taken as this save (what it was before the stamp). */
+export function fromOtherSave(s: SnapSearch | null | undefined, saveSeconds: number | null | undefined): boolean {
+  const a = s?.backupAt;
+  if (!a || !(a > 0) || !saveSeconds || !(saveSeconds > 0)) return false;
+  return Math.abs(a - saveSeconds) > KEPT_SAME_SAVE_SECONDS;
+}
+
+export { SNAP_SAME_SAVE_SECONDS, searchFitsSave };
+
+/** The result a snapshot holds, read, or null when none or when it was priced on another save than the snapshot's own
+ *  (`meta.backupTime`): never that save's result, so never its plan. */
+export function snapSearchOf(snap: { search?: unknown; meta?: { backupTime?: number | null } | null } | null | undefined): SnapSearch | null {
+  const s = readSearch(snap?.search);
+  return s && searchFitsSave(s, snap?.meta?.backupTime) ? s : null;
+}
+
+/** The kept record for a result: under the loaded save (`meta`, with its setup and TE by egg) or, from another save,
+ *  under the result's own `backupAt` with neither (they describe the loaded save, not that one). */
+export function keptEntryOf(meta: Pick<KeptSearch, 'account' | 'goal' | 'backupTime' | 'setup' | 'teByEgg'>, s: SnapSearch): KeptSearch {
+  if (fromOtherSave(s, meta.backupTime)) return { account: meta.account, goal: meta.goal, backupTime: s.backupAt as number, search: s };
+  return { account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: s };
 }
 
 /** The newer of two results (by when found); either may be null. */
@@ -264,7 +309,7 @@ export function drivingPlan(
   o: { live?: SnapSearch | null; back?: number | null; meta?: SnapMeta | null } = {}
 ): Driving {
   const instant = planFromSnapshot(snap, goal, deadline);
-  const found = newerSearch(readSearch(snap?.search), o.live ?? null);
+  const found = newerSearch(snapSearchOf(snap), o.live ?? null);
   if (!found) return { plan: instant, instant, search: null, takeover: null, wentBack: false };
   const search = planFromSearch(found, goal, deadline, { meta: snap?.meta ?? instant?.meta ?? o.meta ?? null, whatIf: snap?.whatIf ?? null });
   const takeover = searchTakeover(instant, search);
@@ -285,9 +330,6 @@ export function drivingPlan(
  */
 export const KEPT_SEARCH_KEY = 'aap-search-plans';
 export const MAX_KEPT_SEARCHES = 30;
-/** Two save times this close are the same save (lib/currentAnswer.ts SAME_SAVE_SECONDS). */
-const KEPT_SAME_SAVE_SECONDS = 10 * 60;
-
 export interface KeptSearch {
   /** search/runSaves.ts `accountOf`: a hash. */
   account: string;

@@ -249,6 +249,51 @@ describe('liveSearchResult: the store result for this goal and save (the instant
   });
 });
 
+describe('liveSearchResult stamps the save it was priced on (17 Nov 2026)', () => {
+  const fastest: LiveSearchInput['fastest'] = {
+    running: false, bestDays: 475, bestChain: [197, 490], bestLegs: [], planStart: NOW, custom: false, effort: 'quick', at: 5, owner: '', saveAt: NOW - 1800,
+  };
+  const base: LiveSearchInput = {
+    goal: 'fastest', deadline: null, target: 490, currentTE: 186.4, ownerOk: () => true, fastest,
+    date: {
+      running: false, owner: '',
+      result: { deadline: DEADLINE, te: 186, simple: true, level: 'quick', at: 7, planStart: NOW, backupAt: NOW - 1800, routes: [{ chain: [197, 312], reachAt: DEADLINE - D }] },
+    },
+  };
+  it('both goals carry backupAt (unknown: null)', () => {
+    expect(liveSearchResult(base)?.backupAt).toBe(NOW - 1800);
+    expect(liveSearchResult({ ...base, goal: 'date', deadline: DEADLINE })?.backupAt).toBe(NOW - 1800);
+    expect(liveSearchResult({ ...base, fastest: { ...fastest, saveAt: 0 } })?.backupAt).toBeNull();
+    const d = { ...base.date.result!, backupAt: null };
+    expect(liveSearchResult({ ...base, goal: 'date', deadline: DEADLINE, date: { ...base.date, result: d } })?.backupAt).toBeNull();
+  });
+  it('fromOtherSave: same save within 10 minutes, 30 minutes newer, unknown either side', async () => {
+    const { fromOtherSave } = await import('./searchPlan');
+    const s = liveSearchResult(base)!;
+    expect(fromOtherSave(s, NOW - 1800 + 300)).toBe(false);
+    expect(fromOtherSave(s, NOW)).toBe(true);
+    expect(fromOtherSave(s, null)).toBe(false);
+    expect(fromOtherSave({ ...s, backupAt: null }, NOW)).toBe(false);
+    expect(fromOtherSave({ ...s, backupAt: undefined }, NOW)).toBe(false);
+    expect(fromOtherSave(null, NOW)).toBe(false);
+  });
+  it('readSearch keeps backupAt', () => {
+    expect(readSearch(liveSearchResult(base))?.backupAt).toBe(NOW - 1800);
+  });
+  it('keptEntryOf: another save is kept under its own backupAt with no setup or teByEgg', async () => {
+    const { keptEntryOf } = await import('./searchPlan');
+    const s = liveSearchResult(base)!;
+    const meta = { account: 'acct', goal: 'target 490', backupTime: NOW, setup: { availability: null, timeOff: [] }, teByEgg: [1, 2, 3, 4, 5] };
+    const other = keptEntryOf(meta, s);
+    expect(other.backupTime).toBe(NOW - 1800);
+    expect(other.setup).toBeUndefined();
+    expect(other.teByEgg).toBeUndefined();
+    const same = keptEntryOf({ ...meta, backupTime: NOW - 1700 }, s);
+    expect(same.backupTime).toBe(NOW - 1700);
+    expect(same.teByEgg).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
 describe('results kept beyond the snapshot (aap-search-plans)', () => {
   const mem = () => {
     const m = new Map<string, string>();
@@ -275,5 +320,37 @@ describe('results kept beyond the snapshot (aap-search-plans)', () => {
     for (let i = 0; i < MAX_KEPT_SEARCHES + 3; i++) recordKeptSearch({ ...k, backupTime: NOW + i * 3600, search: fast({ at: i }) }, st);
     expect(readKeptSearches(st)).toHaveLength(MAX_KEPT_SEARCHES);
     expect(st.getItem(KEPT_SEARCH_KEY)).not.toMatch(/EI\d{16}/);
+  });
+});
+
+describe("a snapshot's search from another save is nobody's (17 Nov 2026, second path)", () => {
+  const OLD_SAVE = NOW - 1800;
+  it('searchFitsSave: identical, 59 s, 30 minutes, unknown either side', async () => {
+    const { searchFitsSave } = await import('./searchPlan');
+    expect(searchFitsSave({ backupAt: NOW }, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: NOW - 59 }, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: NOW - 61 }, NOW)).toBe(false);
+    expect(searchFitsSave({ backupAt: OLD_SAVE }, NOW)).toBe(false);
+    expect(searchFitsSave({ backupAt: null }, NOW)).toBe(true);
+    expect(searchFitsSave({}, NOW)).toBe(true);
+    expect(searchFitsSave({ backupAt: OLD_SAVE }, null)).toBe(true);
+    expect(searchFitsSave(null, NOW)).toBe(true);
+  });
+  it('snapSearchOf: this save is read, another save and a bad value are null', async () => {
+    const { snapSearchOf } = await import('./searchPlan');
+    expect(snapSearchOf({ search: fast({ backupAt: NOW - 30 }), meta: { backupTime: NOW } })?.level).toBe('Fast');
+    expect(snapSearchOf({ search: fast({ backupAt: OLD_SAVE }), meta: { backupTime: NOW } })).toBeNull();
+    expect(snapSearchOf({ search: fast(), meta: { backupTime: NOW } })?.level).toBe('Fast');
+    expect(snapSearchOf({ search: 'x' })).toBeNull();
+    expect(snapSearchOf(null)).toBeNull();
+  });
+  it('drivingPlan: a snapshot of this save holding a result priced 30 minutes earlier: no takeover, the instant plan', () => {
+    const d = drivingPlan(snap({ meta: { account: 'a', goal: 'date', backupTime: NOW, teByEgg: [] } as never, search: fast({ backupAt: OLD_SAVE }) }), 'date', DEADLINE);
+    expect(d.takeover).toBeNull();
+    expect(d.search).toBeNull();
+    expect(d.plan?.from).toBeUndefined();
+    expect(d.plan?.endTE).toBe(313);
+    const same = drivingPlan(snap({ meta: { account: 'a', goal: 'date', backupTime: NOW, teByEgg: [] } as never, search: fast({ backupAt: NOW }) }), 'date', DEADLINE);
+    expect(same.takeover).toBe('makes-date');
   });
 });

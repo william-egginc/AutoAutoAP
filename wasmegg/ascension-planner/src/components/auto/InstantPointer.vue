@@ -5,7 +5,7 @@
 -->
 <template>
   <p class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-body text-slate-700" data-testid="instant-pointer">
-    {{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.{{ ' ' }}<button
+    {{ parts[0] }}<b>{{ pointer.value }}</b>{{ parts[1] }}{{ ' ' }}<button
       type="button"
       class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900"
       data-testid="instant-pointer-link"
@@ -17,8 +17,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { POINTER_LINK, type Pointer } from '@/lib/searchPointer';
 
-defineProps<{ pointer: Pointer }>();
+const props = defineProps<{ pointer: Pointer }>();
+/** The sentence either side of the bold value (`Pointer.text` holds the whole of it). */
+const parts = computed(() => {
+  const at = props.pointer.text.indexOf(props.pointer.value);
+  return [props.pointer.text.slice(0, at), props.pointer.text.slice(at + props.pointer.value.length)];
+});
 const emit = defineEmits<{ see: [] }>();
 </script>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_AGE_MS,
   MAX_SNAPSHOTS,
+  patchSnapshot,
   readSnapshot,
   recallShown,
   rememberShown,
@@ -100,5 +101,30 @@ describe('rememberShown', () => {
     expect(recallShown(null)).toBeNull();
     rememberShown('k2', { at: 2 });
     expect(recallShown('k1')).toBeNull();
+  });
+});
+
+describe("a snapshot never keeps a search priced on another save (17 Nov 2026)", () => {
+  const T = 1_800_000_000;
+  const search = (backupAt: number | null) => ({ level: 'Fast', chain: [200], end: 1, endTE: 200, at: 1, planStart: 1, backupAt });
+  const snap = (backupTime: number, s: unknown) => ({ at: Date.now(), meta: { account: 'a', goal: 'target 490', backupTime }, search: s });
+  it('writeSnapshot drops a search from 30 minutes earlier, keeps the rest; keeps this save\'s and an unstamped one', () => {
+    const st = mem();
+    expect(writeSnapshot('k', snap(T, search(T - 1800)), st)).toBe(true);
+    const got = readSnapshot<{ at: number; search?: unknown; meta?: unknown }>('k', Date.now(), st)!;
+    expect(got.search).toBeUndefined();
+    expect(got.meta).toBeDefined();
+    writeSnapshot('k', snap(T, search(T - 30)), st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+    writeSnapshot('k', snap(T, search(null)), st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+  });
+  it('patchSnapshot drops a patched-in search from another save', () => {
+    const st = mem();
+    writeSnapshot('k', snap(T, undefined), st);
+    expect(patchSnapshot('k', { search: search(T - 1800) }, st)).toBe(true);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeUndefined();
+    patchSnapshot('k', { search: search(T) }, st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
   });
 });

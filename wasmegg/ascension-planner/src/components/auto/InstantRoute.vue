@@ -1149,7 +1149,7 @@ import { hoursWords } from '@/lib/pricedWith';
 import { useUIStore } from '@/stores/ui';
 import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
-import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
+import { fromOtherSave, keptEntryOf, liveSearchResult, newerSearch, readSearch, recordKeptSearch, searchFitsSave, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 import { instantLiveText } from '@/lib/liveStatus';
 import { useShareTarget } from '@/composables/useShareTarget';
@@ -3104,7 +3104,8 @@ function currentSnapshot(): InstantSnapshot | null {
       prestige: prestige.value,
       meta: snapMeta(),
       whatIf: whatIfResult.value,
-      search: newerSearch(keptSearch.value, searchFound.value),
+      // `keptSearch` holds only this save's (`applySnapshot`), and writeSnapshot drops one priced on another save (17 Nov 2026).
+      search: newerSearch(keptSearch.value, thisSaveFound.value),
       tables: runTables,
       pricing: answerPricing,
       rc: resultCode(),
@@ -3221,7 +3222,13 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   prestige.value = s.prestige && typeof s.prestige.route === 'string' ? s.prestige : null;
   if (prestige.value) cachePrestige(s.result, prestige.value);
   whatIfResult.value = s.whatIf ?? null;
-  keptSearch.value = readSearch(s.search);
+  // Another save's snapshot put back as the stale answer (or a result priced on another save) is not this save's result
+  // (17 Nov 2026): it would be written into this save's own snapshot.
+  const kept = readSearch(s.search);
+  keptSearch.value =
+    kept && searchFitsSave({ backupAt: s.meta?.backupTime }, initialState.lastBackupTime) && searchFitsSave(kept, initialState.lastBackupTime) && searchFitsSave(kept, s.meta?.backupTime)
+      ? kept
+      : null;
   answerPricing = stale ? null : readPricing(s.pricing);
   // A saved answer put back feeds My runs too (it is for this key: this save and setup); a stale one never.
   if (!stale) keepPricing();
@@ -3382,24 +3389,39 @@ const searchFound = computed<SearchFound | null>(() =>
       effort: store.runSettingsUsed?.effort,
       at: store.chainResultAt,
       owner: store.chainResultOwner,
+      saveAt: store.chainRunSaveAt,
     },
     date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner },
   })
 );
+/** The result was priced on another save of this account than the one loaded (a newer save at the same TE, 17 Nov 2026). */
+const searchFromOtherSave = computed(() => fromOtherSave(searchFound.value, initialState.lastBackupTime));
+/** The result when it is this save's (the snapshot keeps only that). */
+const thisSaveFound = computed<SearchFound | null>(() => (searchFromOtherSave.value ? null : searchFound.value));
 // Kept with the snapshot as it lands, so My runs' Right now finds it (the snapshot is saved before a search ends),
-// and kept beyond the snapshot's day for this save (lib/searchPlan.ts `recordKeptSearch`).
+// and kept beyond the snapshot's day for this save (lib/searchPlan.ts `recordKeptSearch`). A result priced on ANOTHER
+// save (17 Nov 2026) is kept under that save's own time (`keptEntryOf`) and never patches this save's snapshot: the
+// pointer still shows it, saying whose it is.
 watch(searchFound, f => {
   if (!f) return;
   const meta = snapMeta();
-  if (meta && recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f }))
+  if (meta && recordKeptSearch(keptEntryOf(meta, f)))
     noteMyRuns();
+  if (fromOtherSave(f, meta?.backupTime ?? initialState.lastBackupTime)) return;
   if (status.value !== 'done' || !snapKey) return;
   if (keptSearch.value && keptSearch.value.at >= f.at) return;
   keptSearch.value = f;
   patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });
 });
-/** "Fast found 312 TE on your account." (lib/searchPointer.ts), or null. */
-const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));
+/** "Fast found 312 TE on your account." (lib/searchPointer.ts), or null; another save's says whose it is. */
+const pointer = computed(() =>
+  pointerOf(
+    props.deadline ? 'date' : 'fastest',
+    searchFound.value,
+    show,
+    searchFromOtherSave.value ? searchFound.value?.backupAt : null
+  )
+);
 /** Where "Share this result" goes: the search panel's element (`shareTo`), looked up after mount and again each time
  *  the line is about to show; null (the line under the answer) when the panel isn't on the page. The same condition
  *  as the line's own `v-if` in the template. */

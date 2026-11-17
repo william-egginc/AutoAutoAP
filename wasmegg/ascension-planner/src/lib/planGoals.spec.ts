@@ -134,6 +134,33 @@ describe('plansByGoal', () => {
     const old = plan('fastest', T0 + 60 * MIN, [490], { meta: { account: 'acct', goal: 'target 490', backupTime: SAVE - 3 * 86400 } });
     expect(plansByGoal(goals, [other(old, 'fastest-490', MINE), own(race, 'fastest-490')], [], SAVE)[0].pick?.candidate.plan).toBe(race);
   });
+
+  it("the loaded save's own plan beats an older save's higher-TE plan inside the 2 h window (Jordan, 17 Nov 2026; QA's two-save run)", () => {
+    // QA's run: the Sample save, then the habs-cut save 30 min later; By a date. The older save's plan reaches 199 TE, the loaded
+    // save's own plan 198 TE. Both saves count as "current" (CURRENT_SAVE_SECONDS, 2 h), and both snapshots sit under one key
+    // (ownKey true for both), so before this the 199 led and My runs' table showed the older save's numbers.
+    const older = SAVE - 30 * 60;
+    const key = `date-${MAR3}`;
+    const meta = (backupTime: number) => ({ account: 'acct', goal: `date ${MAR3}`, backupTime });
+    const old199 = plan('date', T0, [190, 199], { deadline: MAR3, end: MAR3 - 20 * 3600, spareHours: 20, meta: meta(older) });
+    const new198 = plan('date', T0 + 40 * MIN, [190, 198], { deadline: MAR3, end: MAR3 - 6 * 3600, spareHours: 6, meta: meta(SAVE) });
+    for (const list of [
+      [own(old199, key), own(new198, key)],
+      [own(new198, key), own(old199, key)],
+      [other(old199, key, MINE), other(new198, key, MINE)],
+    ]) {
+      const pick = plansByGoal(goals, list, [], SAVE).find(p => p.goal.key === key)!.pick!;
+      expect(pick.candidate.plan).toBe(new198);
+      expect(pick.candidate.plan.endTE).toBe(198);
+      expect(pick.candidate.plan.spareHours).toBe(6);
+      expect(pick.candidate.plan.meta?.backupTime).toBe(SAVE);
+    }
+    // Instant (not checked) on the loaded save still beats the older save's checked plan.
+    const inst198 = { ...new198, exact: false };
+    expect(plansByGoal(goals, [own(old199, key), own(inst198, key)], [], SAVE).find(p => p.goal.key === key)!.pick!.candidate.plan).toBe(inst198);
+    // With nothing of the loaded save, the older save's plan is still the pick.
+    expect(plansByGoal(goals, [own(old199, key)], [], SAVE).find(p => p.goal.key === key)!.pick!.candidate.plan).toBe(old199);
+  });
 });
 
 describe('the default goal: the one checked LAST', () => {

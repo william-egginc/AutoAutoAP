@@ -10,6 +10,7 @@
  *   0b. An OLDER save's Fast, Exact or Custom result for the goal that is this route (an older snapshot's `search`, or
  *      one kept in aap-search-plans: `olderResults`), the newest first: its timeline, said to be priced on that save
  *      ("priced on your save of …, may have drifted"). An older save's INSTANT plan is never matched.
+ *   (17 Nov 2026: a snapshot's `search` priced on another save than the snapshot's own is read as nobody's: `snapSearchOf`.)
  *   1. Check exactly's prices kept in the instant answer snapshots (`exact`, every route a check priced: each count's
  *      row, the lead, the hours runner-ups, By a date's lower last stops, and a followed route "Price it" asked for):
  *      the loaded save's own key first, then the account's older snapshots of the same goal, ranked by the current
@@ -26,7 +27,7 @@ import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
 import { pickGoalPlan, type CardCandidate, type SetupCheck } from './currentAnswer';
 import { followedFromNow, sameChain } from './follow';
 import { planFromExactChain, planFromInstantChain, type NowPlan, type SnapLike } from './nowPlan';
-import { planFromSearch, readSearch, type SnapSearch } from './searchPlan';
+import { planFromSearch, snapSearchOf, type SnapSearch } from './searchPlan';
 import type { SnapMeta } from '@/search/instantSnapshot';
 
 /** A kept snapshot to look in. */
@@ -138,7 +139,7 @@ export function followPrice(o: {
     if (!plan && s.ownKey) {
       // This save's own: the instant answer's route, and its newest result for the goal when it is this route.
       const common = { meta: s.snap.meta ?? null, whatIf: s.snap.whatIf ?? null };
-      const inSnap = readSearch(s.snap.search);
+      const inSnap = snapSearchOf(s.snap);
       const found = [...(inSnap && sameChain(inSnap.chain, priced) ? [inSnap] : []), ...results.map(r => r.found)].sort((a, b) => b.at - a.at)[0];
       const search = found ? planFromSearch(found, goal.goal, goal.deadline, common) : null;
       const instant = planFromInstantChain(s.snap, priced, goal.goal, goal.deadline);
@@ -146,7 +147,7 @@ export function followPrice(o: {
     }
     if (!plan && !s.ownKey) {
       // An older save's (or another setup's) result for the goal, as that snapshot priced the route: never its instant plan.
-      const inSnap = readSearch(s.snap.search);
+      const inSnap = snapSearchOf(s.snap);
       if (inSnap && sameChain(inSnap.chain, priced))
         plan = planFromSearch(inSnap, goal.goal, goal.deadline, { meta: s.snap.meta ?? null, whatIf: s.snap.whatIf ?? null });
     }

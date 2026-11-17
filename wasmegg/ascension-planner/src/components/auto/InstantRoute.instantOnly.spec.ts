@@ -99,11 +99,11 @@ describe('the one line', () => {
 
 describe('the pointer', () => {
   it('By a date and Fastest: the result’s own level and number, then See it ↓', () => {
-    expect(script).toContain("const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));");
+    expect(script).toContain("pointerOf(\n    props.deadline ? 'date' : 'fastest',\n    searchFound.value,\n    show,");
     // InstantPointer.vue at the top of both sections (the answer's and the file-not-loaded one), on `pointer` alone.
     expect(template.match(/<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>/g)).toHaveLength(2);
     const box = fs.readFileSync(path.join(__dirname, 'InstantPointer.vue'), 'utf8');
-    expect(box).toContain("{{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.{{ ' ' }}<button");
+    expect(box).toContain("{{ parts[0] }}<b>{{ pointer.value }}</b>{{ parts[1] }}{{ ' ' }}<button");
     expect(box).toContain('{{ POINTER_LINK }}');
     expect(box).toContain(`@click="emit('see')"`);
   });
@@ -116,9 +116,9 @@ describe('the pointer', () => {
     expect(found).toContain('date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner }');
     // Kept with the snapshot for My runs' Right now.
     expect(script).toContain('patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });');
-    expect(script).toContain('search: newerSearch(keptSearch.value, searchFound.value),');
+    expect(script).toContain('search: newerSearch(keptSearch.value, thisSaveFound.value),');
     // And beyond the snapshot's day, for this save (lib/searchPlan.ts recordKeptSearch).
-    expect(script).toContain('if (meta && recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime');
+    expect(script).toContain('if (meta && recordKeptSearch(keptEntryOf(meta, f)))\n    noteMyRuns();');
   });
   it('See it ↓ shows the part of the panel that holds it, then scrolls to its result card', () => {
     const see = fn('function seeResult(');

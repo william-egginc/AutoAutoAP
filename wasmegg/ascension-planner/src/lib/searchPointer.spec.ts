@@ -31,6 +31,13 @@ describe('pointerOf', () => {
     expect(pointerOf('date', { level: 'Exact', chain: [312], end: 1, endTE: 312 }, show)?.text).toMatch(/^Exact found/);
     expect(pointerOf('date', { level: 'Custom', chain: [312], end: 1, endTE: 312 }, show)?.text).toMatch(/^Custom found/);
   });
+  it('another save (17 Nov 2026): says so, keeps the value, and names the level to run again', () => {
+    const f = { level: 'Exact' as const, chain: [247, 490], end: 1833095400, endTE: 490 };
+    const p = pointerOf('fastest', f, show, 1000);
+    expect(p?.text).toBe('Exact found Feb 8, 2028 at 9:10 am on your save from 1000. Run Exact again to check it on this save.');
+    expect(p?.value).toBe('Feb 8, 2028 at 9:10 am');
+    expect(pointerOf('fastest', f, show, null)?.text).toBe('Exact found Feb 8, 2028 at 9:10 am on your account.');
+  });
   it('nothing without a result', () => {
     expect(pointerOf('date', null, show)).toBeNull();
     expect(pointerOf('date', { level: 'Fast', chain: [], end: 1, endTE: 1 }, show)).toBeNull();

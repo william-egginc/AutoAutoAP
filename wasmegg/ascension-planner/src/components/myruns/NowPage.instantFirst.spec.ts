@@ -16,6 +16,7 @@ import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { instantSnapKey, readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -147,6 +148,110 @@ describe('useNowPage: the instant answer drives until a better search result exi
     expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
     expect(page.cardPlan.value?.driving?.takeover).toBe('sooner');
     expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search?.level).toBe('Exact');
+    scope.stop();
+  });
+});
+
+describe("useNowPage: a store result priced on another save never drives this save's plan (17 Nov 2026)", () => {
+  async function fastestFrom(priceSaveOffset: number) {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const loadedSave = useInitialStateStore().lastBackupTime as number;
+    const first = Math.floor(store.currentTE) + 5;
+    const key = instantSnapKey(instantKeyFromStores(null, target));
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: { chain: [first, target], end: now + 100 * H, legs: [{ to: first, endTE: first, start: now - H, end: now + 10 * H }, { to: target, endTE: target, start: now + 10 * H, end: now + 100 * H }] },
+        byAscensions: [],
+      },
+      exact: {},
+      answerStart: now - H,
+    } as never);
+    store.bestChain = [first, target];
+    store.bestDays = (98 * H) / D;
+    store.bestLegs = [leg(now - H, now + 9 * H, first), leg(now + 9 * H, now + 98 * H, target)];
+    store.planStartUsed = now - H;
+    store.chainResultAt = Date.now() - 5000;
+    store.runKindUsed = 'smart';
+    store.runSettingsUsed = { effort: 'normal' } as never;
+    store.chainRunSaveAt = loadedSave + priceSaveOffset;
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`fastest-${target}`);
+    return { page, scope, key, loadedSave };
+  }
+  it('Fastest, run priced on a save 30 minutes older: the instant answer keeps driving, nothing patched, kept under its own save', async () => {
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    const { page, scope, key, loadedSave } = await fastestFrom(-1800);
+    expect(page.cardPlan.value?.plan.from).toBeUndefined();
+    expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search).toBeUndefined();
+    const kept = readKeptSearches();
+    expect(kept).toHaveLength(1);
+    expect(kept[0].backupTime).toBe(loadedSave - 1800);
+    expect(kept[0].teByEgg).toBeUndefined();
+    expect(kept[0].setup).toBeUndefined();
+    scope.stop();
+  });
+  it('Fastest, run priced on this save (within ten minutes): drives and is kept under this save, as before', async () => {
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    const { page, scope, key, loadedSave } = await fastestFrom(-120);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search?.level).toBe('Exact');
+    expect(readKeptSearches()[0].backupTime).toBe(loadedSave);
+    scope.stop();
+  });
+});
+
+describe("useNowPage: this save's snapshot carrying another save's result does not take over (17 Nov 2026, second path)", () => {
+  async function withSnapSearch(backupAtOffset: number) {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const loadedSave = useInitialStateStore().lastBackupTime as number;
+    const first = Math.floor(store.currentTE) + 5;
+    const key = instantSnapKey(instantKeyFromStores(null, target));
+    // Written straight to storage: writeSnapshot itself drops the other save's result (the write end of the fix).
+    const snapshot = {
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: { chain: [first, target], end: now + 100 * H, legs: [{ to: first, endTE: first, start: now - H, end: now + 10 * H }, { to: target, endTE: target, start: now + 10 * H, end: now + 100 * H }] },
+        byAscensions: [],
+      },
+      exact: {},
+      answerStart: now - H,
+      meta: { account: 'acct', goal: `target ${target}`, backupTime: loadedSave, teByEgg: [] },
+      search: {
+        level: 'Exact', chain: [first, target], end: now + 90 * H, endTE: target, at: Date.now() - 5000, planStart: now - H,
+        legs: [leg(now - H, now + 9 * H, first), leg(now + 9 * H, now + 90 * H, target)], backupAt: loadedSave + backupAtOffset,
+      },
+    };
+    localStorage.setItem('aap-instant-snap:' + key, JSON.stringify(snapshot));
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`fastest-${target}`);
+    return { page, scope };
+  }
+  it('a result priced 30 minutes before this save: the instant plan drives, no takeover', async () => {
+    const { page, scope } = await withSnapSearch(-1800);
+    expect(page.cardPlan.value?.plan.from).toBeUndefined();
+    expect(page.cardPlan.value?.driving?.search ?? null).toBeNull();
+    scope.stop();
+  });
+  it('a result priced on this save (a minute apart): drives as before', async () => {
+    const { page, scope } = await withSnapSearch(-30);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
     scope.stop();
   });
 });

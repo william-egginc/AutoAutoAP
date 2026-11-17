@@ -66,7 +66,7 @@ function save() {
  * kept with the snapshot (`where` 'snap'), beyond it in aap-search-plans ('kept'), only there with no snapshot
  * ('kept-only'), or kept for an OLDER save ('stale'). Then the route followed, as given.
  */
-async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' | 'kept-only' | 'stale' = 'snap', staleHours = 5) {
+async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' | 'kept-only' | 'stale' | 'kept-only-store' = 'snap', staleHours = 5) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
   const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
@@ -85,7 +85,21 @@ async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' 
     at: Date.now() - 10_000,
     planStart: now - H,
   };
-  if (where !== 'kept-only')
+  if (where === 'kept-only-store') {
+    // Only the chain-search store holds it, priced on a save 5 h before the loaded one.
+    store.deadlineResult = {
+      deadline: eggDayAt,
+      te: Math.floor(store.currentTE),
+      simple: true,
+      level: 'quick',
+      at: found.at,
+      planStart: found.planStart,
+      backupAt: useInitialStateStore().lastBackupTime - 5 * H,
+      routes: [{ chain: found.chain, reachAt: found.end, legs: found.legs }],
+    } as never;
+    store.deadlineRunning = false;
+  }
+  if (where !== 'kept-only' && where !== 'kept-only-store')
     writeSnapshot(key, {
       rc: resultCode(),
       at: Date.now() - 60_000,
@@ -107,7 +121,7 @@ async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' 
       answerStart: now - H,
       ...(where === 'snap' ? { search: found } : {}),
     } as never);
-  if (where !== 'snap')
+  if (where !== 'snap' && where !== 'kept-only-store')
     recordKeptSearch({
       account: accountOf(useInitialStateStore().rawBackup),
       goal: instantGoal(eggDayAt, store.finalTE),
@@ -251,5 +265,13 @@ describe("Right now: a followed route keeps its route's timeline", () => {
       expect(html).toContain('data-testid="calendar-button"');
       scope.stop();
     }
+  });
+
+  it('(f) the only priced result is the store\'s, priced on a save 5 h older (17 Nov 2026): priced on an older save, not "from your Fast run" on this one', async () => {
+    const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, 'kept-only-store' as never);
+    expect(page.follow.value).toMatchObject({ price: 'exact', source: 'older-save' });
+    const { text } = await render(page);
+    expect(text).toMatch(/Priced on your save of .+, may have drifted/);
+    scope.stop();
   });
 });

@@ -28,3 +28,36 @@ export function followNoBetterLine(m: FollowMiss, at: (unix: number) => string, 
   const after = eggDay ? 'Egg Day starts' : 'your date';
   return `Checked ${when}: your route is still the fastest. It finishes ${at(m.finish)}, ${gap} after ${after}.`;
 }
+
+/**
+ * NO ROUTE MAKES THE DATE (Words, 17 Nov 2026, for UI): on the newest save no route gets above the player's TE by the
+ * date, a stronger case than a late finish. `date`: the date as the player reads it ("Jul 14, 2027"). Under 170 characters.
+ * "No route can make Jul 14, 2027 now. On your newest save, none gets you above your current TE by then. Choose a later date."
+ */
+export function followCannotLine(date: string, eggDay: boolean): string {
+  const what = eggDay ? 'Egg Day' : date;
+  return `No route can make ${what} now. On your newest save, none gets you above your current TE by then. Choose a later date.`;
+}
+/** The next step, option 1 (the default; searching the same date again cannot help): open By a date to choose another. */
+export const FOLLOW_CANNOT_LATER = 'Choose a later date';
+export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By a date, where you pick the date to search for.';
+/** The card shows the OLD followed route under a newer save. `when`: the save the route was worked out on, as the player
+ *  reads it ("Nov 14, 2026 at 9:00 AM"). */
+export function followOldPlanLabel(when: string): string {
+  return `This is the route you follow, worked out on your save from ${when}. It was not checked against your newest save.`;
+}
+
+/**
+ * THE BEST FOR THE DATE IS NOW BELOW THE FOLLOWED TE (Words, 17 Nov 2026, for UI's "below" rule): a By a date route is
+ * followed (say to 199 TE) and on the newest save the best for that date is lower (198 TE). `date`: the date as the player
+ * reads it ("Nov 9"); `eggDay`: the goal is Egg Day. Under 170 characters each.
+ * "On your newest save, the best by Nov 9 is 198 TE, below the 199 TE you follow."
+ */
+export function FOLLOW_BELOW_LINE(date: string, bestTE: number, followedTE: number, eggDay: boolean): string {
+  const by = eggDay ? 'Egg Day' : date;
+  return `On your newest save, the best by ${by} is ${Math.floor(bestTE)} TE, below the ${Math.floor(followedTE)} TE you follow.`;
+}
+/** The button: opens By a date for that date, where the best row has Follow and Fast can check for better. */
+export const FOLLOW_BELOW_BUTTON = 'See the best route now';
+/** Under the button. */
+export const FOLLOW_BELOW_NOTE = 'Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.';
