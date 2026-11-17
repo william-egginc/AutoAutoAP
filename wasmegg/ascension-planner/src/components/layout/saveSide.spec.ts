@@ -73,3 +73,15 @@ describe('where it sits', () => {
     for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(tplOf(read(f))).toContain('<SaveSide />');
   });
 });
+
+describe('the save strip and the silo line never say the save age twice (17 Nov 2026, QA)', () => {
+  const side = fs.readFileSync(new URL('./SaveSide.vue', import.meta.url), 'utf8');
+  const auto = fs.readFileSync(new URL('../auto/AutoSaveStrip.vue', import.meta.url), 'utf8');
+  it('Fastest, By a date (SaveSide) and Single run (AutoSaveStrip): a silo line that is only the age is left out, the strip has it', () => {
+    expect(side).toContain('<SiloLine v-if="withSilo" class="basis-full" :class="silo?.low ? \'\' : \'hidden md:block\'" :silo="silo?.age ? null : silo" />');
+    expect(auto).toContain('<SiloLine class="mt-1" :silo="silo?.age ? null : silo" />');
+  });
+  it('and the strip\'s Details does not get the age line as a silo note', () => {
+    expect(side).toContain(':silo-detail="silo && !silo.low && !silo.age ? silo.text : \'\'"');
+  });
+});

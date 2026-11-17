@@ -357,6 +357,45 @@
         </fieldset>
       </div>
 
+      <!-- When the plan starts (17 Nov 2026, Jordan: out of More options, into the Setup panel itself; QA the same day: up under Time
+           off, in the first screenful): the start time and the first ascension, in view. Its figures are in the header line and
+           More options' line no longer names them. -->
+      <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
+        <h3 class="text-slate-600 label">When the plan starts</h3>
+        <SchedulingInputs />
+        <!-- An unset start means "now", which moves on every reload, and plan start is part of the
+             run fingerprint: a checkpoint saved before a refresh stops matching. -->
+        <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
+          No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
+          before a long run.
+        </p>
+        <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
+             ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
+        <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
+          <h3 class="text-slate-600 label">First ascension</h3>
+          <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
+          <label
+            v-for="c in FIRST_ASCENSION_CHOICES"
+            :key="c.value"
+            class="flex min-h-[44px] items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer"
+            :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
+          >
+            <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
+            <span class="text-body text-slate-600">
+              <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-600">{{ c.blurb }}</span></template>
+            </span>
+          </label>
+          <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-600 max-w-prose">
+            Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+            Choosing here changes it there too.
+          </p>
+          <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
+            The plan starts more than an hour from now, so there's no current ascension to continue then: the first
+            ascension starts fresh, as in the {{ NAMES.classic }}.
+          </p>
+        </div>
+      </fieldset>
+
       <!-- SHARING AND PRIVACY (the simpler page, Jordan 9 Nov 2026, Q3): Help improve the planner and Sharing, with What
            is saved online and the Save online switch, under one closed fold whose line names every setting that sends and
            its state (sharingSummaryWords), so nothing that sends is hidden without being named. The words inside are
@@ -548,45 +587,6 @@
           <CalendarFeedSetup :key="calendarAccount" class="mt-3" />
         </div>
       </div>
-
-<!-- When the plan starts (17 Nov 2026, Jordan: out of More options, into the Setup panel itself): the start time and the first
-     ascension, in view. Its figures are in the header line and More options' line no longer names them. -->
-      <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-        <h3 class="text-slate-600 label">When the plan starts</h3>
-        <SchedulingInputs />
-        <!-- An unset start means "now", which moves on every reload, and plan start is part of the
-             run fingerprint: a checkpoint saved before a refresh stops matching. -->
-        <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
-          No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
-          before a long run.
-        </p>
-        <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
-             ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
-        <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
-          <h3 class="text-slate-600 label">First ascension</h3>
-          <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
-          <label
-            v-for="c in FIRST_ASCENSION_CHOICES"
-            :key="c.value"
-            class="flex min-h-[44px] items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer"
-            :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
-          >
-            <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
-            <span class="text-body text-slate-600">
-              <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-600">{{ c.blurb }}</span></template>
-            </span>
-          </label>
-          <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-600 max-w-prose">
-            Set from A1's dropdown in the {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
-            Choosing here changes it there too.
-          </p>
-          <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
-            The plan starts more than an hour from now, so there's no current ascension to continue then: the first
-            ascension starts fresh, as in the {{ NAMES.classic }}.
-          </p>
-        </div>
-      </fieldset>
-
 
       <!-- More options (UX fluff review 2, 5 Nov 2026; closed by default, lib/panelFold.ts 'setupMore', this browser's
            toggle remembered): what most players leave at its default. Its line names the workers, and every value inside that isn't its default (lib/setupMore.ts), so a changed

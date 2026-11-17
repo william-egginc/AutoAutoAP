@@ -37,6 +37,9 @@ export interface SiloLineState {
   text: string;
   low: boolean;
   past: boolean;
+  /** The line is only the save's age ("Save from 10:53 AM, 2h ago", a save that is not fresh): where the save strip already says it
+   *  (Fastest, By a date, Single run) the line is left out. */
+  age?: boolean;
 }
 
 /**
@@ -94,7 +97,7 @@ export function siloLineState(s: SaveState | null, nowSeconds: number, zone: str
     const at = nowSeconds - s.saveAgeSeconds;
     const same = calendarOf(at * 1000, zone)?.ymd === calendarOf(nowSeconds * 1000, zone)?.ymd;
     const time = same ? formatClock(at * 1000, zone) : dateAt(at, nowSeconds, zone);
-    return { text: saveAgeLine(time, ageWords(s.saveAgeSeconds)), low: false, past: false };
+    return { text: saveAgeLine(time, ageWords(s.saveAgeSeconds)), low: false, past: false, age: true };
   }
   if (!when) return null;
   // Fresh and low (or run out): Words' short warning, with no "if you've opened the game since" hedge (a fresh save has had no time to go stale).

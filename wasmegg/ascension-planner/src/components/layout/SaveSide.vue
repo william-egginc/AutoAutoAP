@@ -19,10 +19,11 @@
       slim
       small
       :load-words="LOAD_LATEST_SAVE"
-      :silo-detail="silo && !silo.low ? silo.text : ''"
+      :silo-detail="silo && !silo.low && !silo.age ? silo.text : ''"
       @fresh="load"
     />
-    <SiloLine v-if="withSilo" class="basis-full" :class="silo?.low ? '' : 'hidden md:block'" :silo="silo" />
+    <!-- A silo line that is only the save's age is left out: the strip above says it (17 Nov 2026). -->
+    <SiloLine v-if="withSilo" class="basis-full" :class="silo?.low ? '' : 'hidden md:block'" :silo="silo?.age ? null : silo" />
   </div>
 </template>
 

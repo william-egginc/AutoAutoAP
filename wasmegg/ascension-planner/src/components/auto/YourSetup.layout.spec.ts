@@ -43,8 +43,12 @@ describe('Your setup: the cards flow in columns, not grid rows', () => {
     );
     expect(marks.every((v, i) => v > 0 && (i === 0 || v > marks[i - 1]))).toBe(true);
     expect(above).not.toContain('break-inside-avoid');
-    // The start time and the first ascension, after Sharing and before More options.
-    expect(above.indexOf('When the plan starts</h3>')).toBeGreaterThan(above.indexOf('<CalendarFeedSetup'));
+    // The start time and the first ascension (17 Nov 2026, QA at 1280x900: it was below the first screenful): right after Awake hours,
+    // No prestige days and Time off, above Sharing and the study box.
+    const plan = above.indexOf('When the plan starts</h3>');
+    expect(plan).toBeGreaterThan(above.indexOf('<TimeOffEditor />'));
+    expect(plan).toBeLessThan(above.indexOf('<!-- SHARING AND PRIVACY'));
+    expect(plan).toBeLessThan(above.indexOf('data-testid="share-instant"'));
     expect(above).toContain('aria-label="First ascension"');
   });
 

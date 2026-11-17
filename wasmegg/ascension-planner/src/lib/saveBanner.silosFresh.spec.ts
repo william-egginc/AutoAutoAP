@@ -41,6 +41,12 @@ describe('the silo warning needs a fresh save', () => {
     expect(l?.text).not.toMatch(/low|opened the game|run out/i);
   });
 
+  it('the age line says so (age: true), so a page that already has the save strip can leave it out (17 Nov 2026, QA: said twice)', () => {
+    expect(line(2 * H, 2 * H + 0.75 * S)?.age).toBe(true);
+    expect(line(20 * 60, 20 * 60 + 8 * H)?.age).toBeFalsy();
+    expect(line(2 * H, 2 * H)?.age).toBeFalsy();
+  });
+
   it('a stale save with silos long gone: its age only too', () => {
     const l = line(5 * H, 5 * H + S + 3 * H);
     expect(l?.low).toBe(false);

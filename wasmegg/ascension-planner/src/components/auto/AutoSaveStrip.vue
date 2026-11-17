@@ -17,8 +17,8 @@
     :load-words="LOAD_LATEST_SAVE"
     @fresh="load"
   />
-  <!-- The silo line (layout/SiloLine.vue), under the strip. -->
-  <SiloLine class="mt-1" :silo="silo" />
+  <!-- The silo line (layout/SiloLine.vue), under the strip; not when it is only the save's age, which the strip says (17 Nov 2026). -->
+  <SiloLine class="mt-1" :silo="silo?.age ? null : silo" />
 </template>
 
 <script setup lang="ts">
