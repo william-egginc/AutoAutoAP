@@ -48,7 +48,7 @@ describe('H1 phone: one merged line', () => {
   it('a low or past silo line stays visible on a phone (a warning is not folded away), and is not repeated in Details', async () => {
     const s = tplOf(read('components/layout/SaveSide.vue'));
     expect(s).toMatch(/silo\?\.low\s*\?\s*''/);
-    expect(s).toMatch(/silo && !silo\.low \? silo\.text : ''/);
+    expect(s).toMatch(/silo && !silo\.low (?:&& !silo\.age )?\? silo\.text : ''/);
   });
   it('a green strip with a silo detail still offers Details', async () => {
     const green = { ...(STATE as object), tone: 'green', old: false, outOfDate: false } as never;
