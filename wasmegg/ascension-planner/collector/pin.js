@@ -186,6 +186,8 @@ export async function handlePin(request, env, now = Date.now()) {
     await env.WATCH.batch([
       env.WATCH.prepare('INSERT INTO pin (key, proof, rec_proof, epoch, created) VALUES (?, ?, ?, 1, ?)').bind(sk, await proofOf(env, sk, body.pk), await recProofOf(env, sk, code), now),
       env.WATCH.prepare('DELETE FROM cal_feeds WHERE key = ?').bind(sk),
+      // The saved (encrypted) copy of those links goes with them (sync.js kind `callink`).
+      env.WATCH.prepare("DELETE FROM synced WHERE key = ? AND kind = 'callink'").bind(sk),
     ]);
     return reply({ ok: true, ...(await sessionFor(env, sk, 1, now)), recovery: code, revokedLinks: revoked?.n ?? 0 });
   }
