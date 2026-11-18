@@ -379,3 +379,79 @@ describe('a slow check never overwrites what happened meanwhile', () => {
     expect(b.linkFromSave.value).toBe(false);
   });
 });
+
+describe('the saved link removed in another browser (QA 18 Nov: Reset or switch off in A, then reload B)', () => {
+  const setup = async () => {
+    const col = collector();
+    const a = createCalendarFeed({ storage: memStore().st, env: env(), fetch: col.f });
+    a.turnOn();
+    await settle();
+    await a.getLink();
+    await waitFor(a, 'loaded');
+    const { m, st } = memStore();
+    const b = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    b.turnOn();
+    await waitFor(b, 'loaded');
+    return { col, a, b, m, st };
+  };
+  it('after A resets, B reloads with no marker: "Get link", not "can\'t be shown again"', async () => {
+    const { col, a, st } = await setup();
+    await a.askReset();
+    await a.confirmReset();
+    expect(col.record()).toBeNull();
+    const b2 = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    await settle();
+    expect(b2.savedState.value).toBe('none');
+    expect(b2.linked.value).toBe(false);
+    expect(b2.canReset.value).toBe(false);
+    expect(st.getItem('aap.calFeed.acct1.linked')).toBeNull();
+  });
+  it('the same when A turned the switch off', async () => {
+    const { col, a, st } = await setup();
+    await a.turnOff();
+    const b2 = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    await settle();
+    expect(b2.linked.value).toBe(false);
+  });
+  it('a live check in B (page open) sees it too when the switch is turned on again', async () => {
+    const { col, a, b } = await setup();
+    await a.turnOff();
+    await b.turnOff();
+    b.turnOn();
+    await settle();
+    expect(b.linked.value).toBe(false);
+    expect(col.record()).toBeNull();
+  });
+  it('an older link made here before the save existed keeps its marker (no copy was ever seen here)', async () => {
+    const col = collector();
+    const { st } = memStore();
+    st.setItem('aap.calFeed.acct1', '1');
+    st.setItem('aap.calFeed.acct1.linked', '1');
+    const c = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    await settle();
+    expect(c.linked.value).toBe(true);
+    expect(c.savedState.value).toBe('none');
+  });
+  it('offline, a 5xx or an old collector\'s 400 on the check never clears the marker', async () => {
+    for (const mode of ['offline'] as const) {
+      const { col, st } = await setup();
+      const bad = collector({ getCallink: mode });
+      void col;
+      const c = createCalendarFeed({ storage: st, env: env(), fetch: bad.f });
+      await settle();
+      expect(c.linked.value).toBe(true);
+    }
+  });
+  it('a link made in this browser whose save failed keeps its marker on the next load', async () => {
+    const col = collector({ putCallink: 500 });
+    const { st } = memStore();
+    const a = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    a.turnOn();
+    await settle();
+    await a.getLink();
+    await settle();
+    const a2 = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    await settle();
+    expect(a2.linked.value).toBe(true);
+  });
+});
