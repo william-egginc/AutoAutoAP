@@ -435,8 +435,10 @@ describe('About and privacy page', () => {
     expect(text).toContain('With Put my plan in my calendar on, the planned times of your plan are also saved online whenever the plan changes (see Your calendar link ).');
     expect(text).toContain('If you turn on Put my plan in my calendar, the planner makes a private link.');
     expect(text).toContain('It shows no player ID, name or save.');
-    expect(text).toContain('anyone who has the link, so treat it like a password. The link is shown only to you.');
-    expect(text).toContain('We keep just a scrambled fingerprint of it, so not even the maintainer can see or rebuild your link.');
+    // 18 Nov 2026 (Jordan: "Yes that's ok", via the orchestrator): the link is also saved, scrambled, so any browser can show it.
+    expect(text).toContain('anyone who has the link, so treat it like a password. We also keep a scrambled copy of it (see Where the link is saved).');
+    expect(text).toContain('Where the link is saved: Your calendar link is saved with your account, scrambled on your device first. The server keeps only the scrambled copy, so any of your browsers can show the same link. Anyone who has your player ID could unscramble it, but they could already see your plan. Reset link deletes the saved copy, and so does Delete everything saved online.');
+    expect(text).not.toContain('not even the maintainer can see or rebuild your link');
     expect(text).toContain('Google or Apple keeps a copy of the events on its own servers, under its own privacy policy, and keeps the link in your account.');
     expect(text).toContain('the planned times and short titles, under a scrambled key, never your player ID.');
     expect(text).toContain('the maintainer could read them there, but they carry no ID or name.');
