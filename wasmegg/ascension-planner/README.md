@@ -538,8 +538,8 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
   button. Unticking the agreement stops sends at once.
 - Your sharing choices and your Setup (Awake hours, Time off, No prestige days, the target TE and the time zone) are
   saved online on the planner's server (`GET`/`PUT /prefs`), under a code made from your player ID (SHA-256, the same
-  code as the followed route), never the ID itself, and a name only if you chose to be credited by name. There is no
-  switch for it, and anyone who knows the player ID can read and change them. This computer's settings, the first
+  code as the followed route), never the ID itself, and a name only if you chose to be credited by name. The Save online
+  switch in Setup turns it off, and anyone who knows the player ID can read and change them while it is on. This computer's settings, the first
   ascension, the Stepping away? choices and Prefer fewer stay in the browser.
 - A send never holds your player ID, and ID-shaped text is stripped from names, notes, `searched` and the CSV.
 - Downloads are made in the browser and send nothing. A downloaded save (Download this save) has every player
