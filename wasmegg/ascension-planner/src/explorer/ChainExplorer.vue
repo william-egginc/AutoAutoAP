@@ -190,7 +190,7 @@
           </summary>
           <div class="mt-2 space-y-2">
             <p class="leading-relaxed">
-              <b class="text-slate-700">Accounts are a guess.</b> Submissions carry no player id by design, so an
+              <b class="text-slate-700">Accounts are a guess.</b> Runs you send carry no player ID by design, so an
               "account" here is one timezone plus one set of virtue artifacts. People who retype their nickname every
               run still group correctly; two people in the same timezone with identical artifact sets would be merged
               into one.
