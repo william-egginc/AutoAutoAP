@@ -42,7 +42,7 @@
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
         second or two, ascending on the hour. <b>A Fast, Exact or Custom search</b> then prices routes through the full
         simulator on your save. Run Fast for the most accurate answer: its times are the simulator's own numbers for
-        your save. The instant answer is usually close, but on maxed gear for an account with weaker gear it can be
+        your save. The instant answer is usually close. For weaker gear it moves the maxed answer to your gear (form G); a first look on sim5 found it within 0.9% of an exact build on 3 gear sets. Before form G, on maxed gear for an account with weaker gear it could be
         days too hopeful (sections 3 and 6).
       </p>
       <p>
@@ -172,7 +172,7 @@
           above it. A full set is about 90 hours of one processor core.
         </p>
         <p>
-          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator (sim5). Some
+          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator (the answer says so when it isn't). Some
           accounts and gear sets also have one of their own. It uses the best one it has and says which. There are three
           kinds of answer:
         </p>
@@ -193,9 +193,18 @@
           </li>
         </ul>
         <p>
-          Files built with an older simulator are not used: the 22 old gear tables from sim3 and sim4 are skipped, with
-          a yellow note. The page can also show a range between stronger and weaker gear, but only from files built with
-          the current simulator.
+          Your own, gear and nearby tables built with an older simulator are skipped (the 22 old gear tables from sim3 and
+          sim4 are, with a yellow note). The maxed answer is still used if it is older, with a yellow note. The page can also
+          show a range between stronger and weaker gear, but only from files built with the current simulator.
+        </p>
+        <p>
+          <b>Maxed means everything.</b> The maxed answer assumes epic research and all 14 colleggtibles, Copper too (cheaper
+          habs: 5% a tier, 20% at the top). Copper alone moved no route we priced, and most players have it. The older gear tables
+          were built without it, so a table for gear exactly like yours is rare until gear tables are rebuilt on sim5.
+        </p>
+        <p>
+          <b>Permit.</b> The instant answers are built with a Pro permit. An account on a Standard permit (2 silos, half
+          the offline earnings, 2 artifact slots) gets a Pro-priced instant answer. Fast, Exact and Custom read your permit.
         </p>
         <p>
           The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
@@ -203,13 +212,15 @@
           load your save; see About and privacy.)
         </p>
         <p>
-          <b>Where the delivery-rate shortcut stops working.</b> From about TE 340 every build reaches full research, so
-          only your delivery rate matters, and scaling the waits by it is exact. Below 340 your earnings set changes how
-          much research a build gets through, which a delivery rate can't capture. The page warns you there. Measured on
-          a test account with slightly weaker gear, priced on maxed gear: ascensions were off by a median 0.48% from TE
-          200-299 (worst 10.8%) and 0.97% from 120-199 (1 in 10 over 6%). One answer from before a 10 Oct fix, when that
-          account fell back to maxed gear, claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the
-          searches price every route with the full simulator.
+          <b>Where the delivery-rate shortcut stops working.</b> At equal Clothed TE, which earnings artifacts you
+          wear barely matters (90 in 100 builds within 0.06%, 17 Nov); delivery and stones are what count. So form G reads
+          the maxed answer at your Clothed TE and scales the waits by your delivery rate. A first look on sim5 (17 Nov,
+          one starting TE, one week of hours, 2 to 2.5-year routes): against an exact build for 3 real gear sets the finish
+          was 0.05%, 0.07% and 0.87% apart (12 hours late, 13 hours late and 6 days early). It is a small sample. The
+          code's own check per ascension, on nine older gear tables, had 90 in 100 within about 0.5% to 2.8%. An older
+          check on the old simulator (Oct): one answer from before a 10 Oct fix, when that account fell back to maxed gear,
+          claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the searches price every route with the
+          full simulator.
         </p>
         <p>
           <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
@@ -286,7 +297,11 @@
           </li>
           <li><b>A fourth sale week</b> in one build. Neither the searches nor the instant answer try it.</li>
           <li>
-            <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
+            <b>Monday's 2x edges.</b> The game pays time away at the 2x active when you check in, for the whole stretch.
+            The planner splits a wait at the edge of the 2x (Mon 9:00 AM to Tue 9:00 AM Pacific), so times near it can be off by hours.
+          </li>
+          <li>
+            <b>Accounts without maxed epic research or all 14 colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
             <b>This simulator, bit for bit.</b> The last check was on 17 Nov 2026, on this simulator (sim5): 62 of 62 starts
@@ -376,6 +391,12 @@
             most once an hour per save.
           </li>
           <li>
+            <b>Calendar link</b> (optional, Setup): a private link for Google or Apple Calendar. The server keeps a fingerprint
+            of the link, never the link itself, plus your scrambled account code, when it was made and last fetched, a rough fetch
+            count, and your plan's events (time, kind, title and notes; no ID, no name). It keeps at most 3 links per account and
+            deletes one after 90 days unfetched, or with Delete everything. Your calendar app keeps its own copy.
+          </li>
+          <li>
             <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
             the link after the #, which browsers never send to a server, so the collector stores data it can't read.
             Its messages are deleted 7 days after the last update.
@@ -401,11 +422,10 @@
       <div class="hw-body">
         <ul class="hw-list">
           <li>
-            <b>On maxed gear, for an account with weaker gear</b> (used when no instant answer was built for gear like
-            yours), the instant answer can be far too hopeful. On 18 of 84 Leaderboard runs sent 14-21 Oct, a run's own route
+            <b>Before form G, on maxed gear for an account with weaker gear</b> (21 Oct), the instant answer could be far too hopeful. On 18 of 84 Leaderboard runs sent 14-21 Oct, a run's own route
             priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and on Highest TE by a date runs the
             instant answer claimed 3 to 19 TE more than the run's search reached. The lower the account's delivery
-            rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Run a Fast search for your own times.
+            rate against maxed gear, the bigger the gap. That comparison used the simulator from before 21 Oct, and form G has not been measured the same way yet. Run a Fast search for your own times.
           </li>
           <li>
             <b>Near-ties.</b> The best TE matched every time we checked, but which route gets there can differ: on one

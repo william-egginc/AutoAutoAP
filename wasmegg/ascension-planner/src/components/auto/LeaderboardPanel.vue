@@ -591,7 +591,7 @@
             From {{ NAMES.chainFinder }}'s <span class="font-bold">{{ NAMES.byDate }}</span> search<template v-if="tab === 'eggday'">
               with the Egg Day preset</template
             ><template v-else>, one table per date</template>, using each player's best answer.
-            <template v-if="tab === 'eggday'">Game events aren't simulated, including Egg Day's own.</template>
+            <template v-if="tab === 'eggday'">The weekly research sale and Monday's 2x are in the simulator. Egg Day has no effect on the Path, and other events aren't simulated.</template>
             <template v-else>Egg Day {{ eggDayYear }} has its own tab.</template>
           </p>
         </BoardFold>
