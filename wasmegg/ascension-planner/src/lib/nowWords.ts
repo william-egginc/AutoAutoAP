@@ -178,11 +178,13 @@ export function followingLine(chain: readonly number[], goalName: string): strin
  * The words before Right now's chain of stops (13 Nov 2026): "Following" only when the route is really followed. Before
  * a Follow press the chain is the instant answer's, and "Following 223 → 248 → 283 → 300" read as if it had been kept.
  *   followed:  "Following 223 → …"          not followed: "The instant answer's route: 223 → …"
- *   not on virtue: "If you start then: Following …" / "If you start then, the instant answer's route: …"
+ *   not on virtue: "If you start Nov 17 at 4:44 PM: Following …" / "If you start Nov 17 at 4:44 PM, the instant answer's route: …"
+ *   (`startWhen`, the plan's start as When to start says it: 17 Nov 2026, "then" pointed at that box BELOW); "then" without it.
  */
-export function chainLead(o: { followed: boolean; notOnVirtue?: boolean }): string {
-  if (o.followed) return o.notOnVirtue ? 'If you start then: Following' : 'Following';
-  return o.notOnVirtue ? "If you start then, the instant answer's route:" : "The instant answer's route:";
+export function chainLead(o: { followed: boolean; notOnVirtue?: boolean; startWhen?: string | null }): string {
+  const when = o.startWhen || 'then';
+  if (o.followed) return o.notOnVirtue ? `If you start ${when}: Following` : 'Following';
+  return o.notOnVirtue ? `If you start ${when}, the instant answer's route:` : "The instant answer's route:";
 }
 
 /** Each stop of the route against the clock: 'passed' before the ascension the save is in (`ascNow`, 1-based;

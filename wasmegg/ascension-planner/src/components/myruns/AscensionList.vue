@@ -13,7 +13,8 @@
     <ol class="space-y-1.5 list-none pl-0">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
         <span class="font-bold text-slate-800">A{{ l.asc }}</span>
-        <template v-if="l.now"
+        <template v-if="l.now && l.fresh">{{ ' ' }}· {{ STEP_FRESH_NOW }}</template>
+        <template v-else-if="l.now"
           >{{ ' ' }}· now, in the ascension you are in<span
             v-if="here"
             class="ml-1 rounded bg-emerald-100 px-1.5 text-small font-bold text-emerald-900"
@@ -92,6 +93,7 @@
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import { STEP_FRESH_NOW } from '@/lib/instantWords';
 import { showDateTime } from '@/lib/displayTime';
 import { formatMoment } from '@/lib/clock';
 import { c3Wait } from '@/lib/c3WaitWords';
@@ -116,7 +118,8 @@ const props = defineProps<{
 }>();
 /** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
 const r1Of = (l: AscensionStep) => {
-  if (l.now || !props.hours) return null;
+  // A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).
+  if ((l.now && !l.fresh) || !props.hours) return null;
   return l.simulated
     ? r1OfShifts({ start: l.prestigeAt, shifts: l.shifts, hours: props.hours, held: props.heldShifts })
     : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });

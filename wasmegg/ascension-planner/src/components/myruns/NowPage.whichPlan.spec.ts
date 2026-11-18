@@ -367,7 +367,7 @@ describe('source: everything on the card follows the selected goal', () => {
     expect(src).toContain('mergeSimultaneousShifts(');
     expect(src).toContain('planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null)');
     expect(src).toContain('const shownEvents = computed(() => tableEvents(events.value));');
-    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value)');
+    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value)');
     // The pick is module state for this visit, scoped to the account and the save (no localStorage).
     expect(src).toContain('const choiceScope = computed(() => `${account.value ?? \'\'}|${saveSeconds.value}`);');
     expect(src).not.toMatch(/localStorage\.setItem/);

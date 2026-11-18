@@ -42,6 +42,9 @@ export function noPrestigeDayCount(dates: readonly { from: string; to: string }[
 
 /** The full sentence's label behind the card's "?" (Jordan, 16 Nov 2026: the card line now says when to prestige, so the "?" explains how to get there; was "First step:"). */
 export const FIRST_STEP_LABEL = 'To get there:';
+/** When each step happens and My runs' Full timeline, a FRESH first ascension (lib/instantSteps.ts StepLine `fresh`): the
+ *  player prestiges now to start it, so not "now, in the ascension you are in" (17 Nov 2026, Words). */
+export const STEP_FRESH_NOW = 'prestige now, to start a fresh ascension';
 /** The awake-hours clause at the end of First step (was HOURS_NOTE's paragraph under the box; the math review's
  *  second check, 24 Oct 2026: one route moved 6.3 days between at once and on the hour). DRAFT. */
 export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a few minutes late can cost days.';

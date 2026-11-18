@@ -170,4 +170,11 @@ describe('chainLead (13 Nov 2026): "Following" only when the route is followed',
     expect(chainLead({ followed: true, notOnVirtue: true })).toBe('If you start then: Following');
     expect(chainLead({ followed: false, notOnVirtue: true })).toBe("If you start then, the instant answer's route:");
   });
+  it('not on virtue with the start known: the date itself, not "then" (17 Nov 2026: "then" pointed at a box below)', async () => {
+    const { chainLead } = await import('./nowWords');
+    expect(chainLead({ followed: true, notOnVirtue: true, startWhen: 'Nov 17 at 4:44 PM' })).toBe('If you start Nov 17 at 4:44 PM: Following');
+    expect(chainLead({ followed: false, notOnVirtue: true, startWhen: 'Nov 17 at 4:44 PM' })).toBe("If you start Nov 17 at 4:44 PM, the instant answer's route:");
+    // On virtue the start is never said there.
+    expect(chainLead({ followed: true, startWhen: 'Nov 17 at 4:44 PM' })).toBe('Following');
+  });
 });

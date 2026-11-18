@@ -67,6 +67,24 @@ describe('instantSteps: one line per ascension', () => {
   });
 });
 
+describe('a FRESH first ascension is not "the ascension you are in" (17 Nov 2026: 93 TE, no virtue farm)', () => {
+  // The route's first leg starts fresh ('2-sale', '3-sale-tier13': search/routeFinder.ts firstLegOptions): the player prestiges
+  // NOW to start it. Only a continued one ('continue', 'buildup', or no label) is the ascension the farm is in.
+  it('the line knows: fresh for N-sale labels, not for continue / build-up / none; `now` is unchanged', () => {
+    const at = (label?: string) => instantSteps([leg(93, 110, T0, T0 + 2 * H, label ? { label } : {}), leg(110, 133, T0 + 3 * H, T0 + 9 * H)], null, null);
+    for (const l of ['2-sale', '3-sale-tier13']) expect(at(l).map(x => [x.now, x.fresh])).toEqual([[true, true], [false, false]]);
+    for (const l of ['continue', 'buildup', undefined]) expect(at(l).map(x => [x.now, x.fresh])).toEqual([[true, false], [false, false]]);
+  });
+  it('InstantSteps.vue: a fresh A1 says prestige now; a continued one keeps "in the ascension you are in"', async () => {
+    const legsOf = (label: string) => [leg(93, 110, T0, T0 + 2 * H, { label }), leg(110, 133, T0 + 3 * H, T0 + 9 * H)];
+    const fresh = textOf(await renderHtml(InstantSteps, { legs: legsOf('2-sale'), zone: TZ, hours: null, noPrestige: [] }));
+    expect(fresh).toContain('A1 · prestige now, to start a fresh ascension');
+    expect(fresh).not.toContain('in the ascension you are in');
+    const cont = textOf(await renderHtml(InstantSteps, { legs: legsOf('continue'), zone: TZ, hours: null, noPrestige: [] }));
+    expect(cont).toContain('A1 · now, in the ascension you are in');
+  });
+});
+
 describe('InstantSteps.vue', () => {
   const legs = [leg(100, 110, T0, T0 + 2 * H), leg(110, 120, T0 + 3 * D, T0 + 3 * D + 2 * H)];
   const props = { legs, zone: TZ, hours: null, noPrestige: [{ from: T0, to: T0 + 3 * D }] };

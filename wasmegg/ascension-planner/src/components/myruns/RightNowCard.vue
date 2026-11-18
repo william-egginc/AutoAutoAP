@@ -104,7 +104,7 @@
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
     <p v-if="shownChain.length" class="text-body text-slate-700 break-words" data-testid="now-chain">
-      {{ chainLead({ followed: !!follow || !!card?.followed, notOnVirtue }) }}<template v-for="(s, i) in stops" :key="i"
+      {{ chainLead({ followed: !!follow || !!card?.followed, notOnVirtue, startWhen: card?.plan.planStart ? dateAt(card.plan.planStart, now, zone) : null }) }}<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
           :class="

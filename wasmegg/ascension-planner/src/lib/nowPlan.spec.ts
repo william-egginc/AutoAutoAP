@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PREFER_KEY, PREFER_OFF } from '@/search/preferFewer';
 import type { LegSummary } from '@/search/types';
@@ -129,6 +131,27 @@ describe('planEvents and the table', () => {
     expect(ascensionAt(p, T0 + H)).toBe(1);
     expect(ascensionAt(p, T0 + 12 * H)).toBe(2);
     expect(ascensionAt(p, T0 + 99 * H)).toBe(2);
+  });
+
+  it('a FRESH first ascension has not started until a save shows the prestige (17 Nov 2026: 93 TE, no virtue farm)', () => {
+    // An instant answer's plan starts when it was priced, so the clock is past `planStart` almost at once; with a fresh first leg
+    // ('2-sale') the player still has to prestige into A1. The loaded save says whether that happened: from before the first
+    // leg's prestige, nothing has started; from after it, A1 runs.
+    const p = planFromSnapshot(snap, 'fastest')!;
+    const fresh = { ...p, legs: p.legs!.map((l, i) => (i === 0 ? { ...l, key: '2-sale' as never } : l)) };
+    expect(ascensionAt(fresh, T0 + H, T0 - 1800)).toBe(0);
+    expect(ascensionAt(fresh, T0 + 12 * H, T0 - 1800)).toBe(0);
+    expect(ascensionAt(fresh, T0 + 12 * H, T0 + H)).toBe(2);
+    expect(ascensionAt(fresh, T0 + H, T0 + 1)).toBe(1);
+    // The table's legs: the label says it.
+    const table = { ...p, legs: null, tableLegs: [{ to: 190, endTE: 190, start: T0, end: T0 + 10 * H, label: '3-sale-tier13' }, { to: 200, endTE: 200, start: T0 + 11 * H, end: T0 + 30 * H }] };
+    expect(ascensionAt(table, T0 + H, T0 - 1800)).toBe(0);
+    // A continued first ascension, or no save time: as before.
+    expect(ascensionAt(p, T0 + H, T0 - 1800)).toBe(1);
+    expect(ascensionAt(fresh, T0 + H)).toBe(1);
+    // My runs' ascension count passes the loaded save's time.
+    const src = readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
+    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value)');
   });
 });
 
