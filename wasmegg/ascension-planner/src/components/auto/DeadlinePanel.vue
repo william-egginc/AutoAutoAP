@@ -121,7 +121,7 @@
            zone. DRAFT (Words). -->
       <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from the route’s start.</template>
       <template v-else>Pick a date and time.</template>
-      Egg Day's own bonuses aren't in the plan.
+      Egg Day's own bonuses aren't in the route.
     </p>
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
