@@ -240,7 +240,8 @@ async function handleRevoke(request, env) {
   if (isKey(body.k) && body.all === true && Object.keys(body).every(f => f === 'k' || f === 'all')) {
     const { res: down, key } = await keyOf(env, body.k);
     if (down) return down;
-    const r = await env.WATCH.prepare('DELETE FROM cal_feeds WHERE key = ?').bind(key).run();
+    // The stored (encrypted) link goes with the links, in one step.
+    const [r] = await env.WATCH.batch([env.WATCH.prepare('DELETE FROM cal_feeds WHERE key = ?').bind(key), env.WATCH.prepare("DELETE FROM synced WHERE key = ? AND kind = 'callink'").bind(key)]);
     return reply({ ok: true, revoked: r.meta?.changes ?? 0 });
   }
   return bad(['send { token } or { k, all: true }']);
@@ -283,5 +284,7 @@ export async function pruneCal(env, now) {
   if (!env.WATCH) return 0;
   const cutoff = now - CAL_EXPIRE_DAYS * DAY_MS;
   const r = await env.WATCH.prepare('DELETE FROM cal_feeds WHERE (CASE WHEN last_fetch > 0 THEN last_fetch ELSE created END) < ?').bind(cutoff).run();
+  // A stored link whose account has no link left (revoked by its token, or expired) is stale: removed.
+  await env.WATCH.prepare("DELETE FROM synced WHERE kind = 'callink' AND key NOT IN (SELECT key FROM cal_feeds)").run();
   return r.meta?.changes ?? 0;
 }

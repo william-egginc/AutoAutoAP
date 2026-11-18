@@ -23,6 +23,7 @@
  * `unchanged` and writes nothing. No history: one row per record.
  *
  * A fourth kind, `cal` (slot '0', 24 KB): the events list the client builds for the calendar feed (cal.js validates and prints it).
+ * A fifth kind, `callink` (slot '0', 512 bytes): the calendar link, encrypted in the browser ({ v: 1, iv, ct }); the collector never holds it in the clear.
  *
  * LIMITS. override 512 bytes, ticks 16 KB (at most 300 ticked and 300 unticked line keys of 120 characters), plan 96 KB gzip (a real kept plan: 57 KB of JSON, 8 KB gzipped; the app caps the JSON at 400,000 characters, about 60 KB gzipped at that ratio).
  * Per key: one override and at most 3 ascensions of ticks and plans (a 4th evicts the lowest). 60 writes an hour a key (`follow_rate`
@@ -44,6 +45,8 @@ export const SYNC_MAX_OVERRIDE_BYTES = 512;
 export const SYNC_MAX_TICKS_BYTES = 16 * 1024;
 export const SYNC_MAX_PLAN_BYTES = 96 * 1024;
 export const SYNC_MAX_CAL_BYTES = 24 * 1024;
+/** The calendar link kept encrypted (kind `callink`, slot '0'): { v: 1, iv, ct }, about 150 bytes. */
+export const SYNC_MAX_CALLINK_BYTES = 512;
 export const SYNC_MAX_SLOTS = 3;
 export const SYNC_WRITES_PER_HOUR = 60;
 export const SYNC_PUTS_PER_DAY = 6000;
@@ -52,7 +55,7 @@ export const SYNC_MAX_KEYS = 3000;
 export const SYNC_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
 const AT_AHEAD_MS = 600_000;
 const EGGS = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'];
-const KINDS = ['override', 'ticks', 'plan', 'cal'];
+const KINDS = ['override', 'ticks', 'plan', 'cal', 'callink'];
 const SLOT_RE = /^\d{9,11}$/;
 const TICK_KEY_MAX = 120;
 const TICK_COUNT_MAX = 300;
@@ -106,6 +109,19 @@ function readTicks(v) {
     out.unticked = u.value;
   }
   return { value: out };
+}
+
+/** The calendar link, encrypted in the browser (AES-GCM, a key the collector never sees): { v: 1, iv, ct }, both base64. */
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+function readCalLink(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { problems: ['the link record must be an object'] };
+  if (Object.keys(v).some(f => f !== 'v' && f !== 'iv' && f !== 'ct')) return { problems: ['send only v, iv and ct'] };
+  if (v.v !== 1) return { problems: ['v must be 1'] };
+  const size = x => (typeof x === 'string' && B64.test(x) && x.length % 4 === 0 ? Buffer.byteLength(x, 'base64') : -1);
+  if (size(v.iv) !== 12) return { problems: ['iv must be 12 bytes of base64'] };
+  const n = size(v.ct);
+  if (n < 17 || n > 300) return { problems: ['ct must be base64 of 17 to 300 bytes'] };
+  return { value: { v: 1, iv: v.iv, ct: v.ct } };
 }
 
 const metaOf = r => ({ kind: r.kind, slot: r.slot, at: r.at, bytes: r.bytes, updatedAt: r.updated });
@@ -164,13 +180,13 @@ export async function handleSync(request, env, now = Date.now()) {
   const atText = url.searchParams.get('at') ?? '';
   const problems = [];
   if (!KINDS.includes(kind)) problems.push(`kind must be one of ${KINDS.join(', ')}`);
-  else if (kind === 'override' || kind === 'cal' ? slot !== '0' : !SLOT_RE.test(slot)) problems.push(kind === 'override' || kind === 'cal' ? `slot must be '0' for the ${kind === 'cal' ? 'calendar record' : 'override'}` : 'slot must be the ascension start in unix seconds');
+  else if (kind === 'override' || kind === 'cal' || kind === 'callink' ? slot !== '0' : !SLOT_RE.test(slot)) problems.push(kind === 'override' || kind === 'cal' || kind === 'callink' ? `slot must be '0' for the ${kind === 'cal' ? 'calendar record' : kind === 'callink' ? 'calendar link record' : 'override'}` : 'slot must be the ascension start in unix seconds');
   const at = /^\d{1,16}$/.test(atText) ? Number(atText) : NaN;
   if (!whole(at, UNIX_FROM * 1000, UNIX_TO * 1000)) problems.push('at must be milliseconds since 1970 between 2020 and 2100');
   else if (at > now + AT_AHEAD_MS) problems.push("at is more than 10 minutes ahead of the collector clock: check this device's clock");
   if (problems.length) return bad(problems);
 
-  const cap = kind === 'override' ? SYNC_MAX_OVERRIDE_BYTES : kind === 'ticks' ? SYNC_MAX_TICKS_BYTES : kind === 'cal' ? SYNC_MAX_CAL_BYTES : SYNC_MAX_PLAN_BYTES;
+  const cap = kind === 'override' ? SYNC_MAX_OVERRIDE_BYTES : kind === 'ticks' ? SYNC_MAX_TICKS_BYTES : kind === 'cal' ? SYNC_MAX_CAL_BYTES : kind === 'callink' ? SYNC_MAX_CALLINK_BYTES : SYNC_MAX_PLAN_BYTES;
   const declared = request.headers.get('content-length');
   if (declared === null) return reply({ error: 'content-length is required' }, 411);
   if (Number(declared) > cap) return reply({ error: 'too big' }, 413);
@@ -192,7 +208,7 @@ export async function handleSync(request, env, now = Date.now()) {
     } catch {
       return reply({ error: 'body must be JSON' }, 400);
     }
-    const checked = kind === 'override' ? readOverride(parsed) : kind === 'cal' ? readCal(parsed) : readTicks(parsed);
+    const checked = kind === 'override' ? readOverride(parsed) : kind === 'cal' ? readCal(parsed) : kind === 'callink' ? readCalLink(parsed) : readTicks(parsed);
     if (checked.problems) return bad(checked.problems);
     enc = 'json';
     data = JSON.stringify(checked.value);
