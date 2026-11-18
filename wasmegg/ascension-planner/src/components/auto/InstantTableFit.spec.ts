@@ -68,8 +68,8 @@ describe('the counts lists fit the card', () => {
       it('instant numbers only; the buttons in the open row, not beside the route', () => {
         expect(card()).not.toContain('Exact, your account');
         const head = card().slice(card().indexOf('data-testid="counts-row-head"'), card().indexOf('data-testid="counts-row-panel"'));
-        expect(head).not.toContain('Simulate this plan');
-        expect(card().slice(card().indexOf('data-testid="counts-row-panel"'))).toContain('Simulate this plan');
+        expect(head).not.toContain('Simulate this route');
+        expect(card().slice(card().indexOf('data-testid="counts-row-panel"'))).toContain('Simulate this route');
       });
 
       it('no at-once line and no exact column (23 Oct 2026)', () => {

@@ -1,7 +1,7 @@
 /**
  * ALL PLANNED SHIFTS, PLAINER (ux34-a item 2, 28 Oct 2026): the tile reads "41 shifts, will cost about 2.3s soul eggs
  * (at today's prices), about 18 of them build-up shifts (estimated)". The build-up part only when estimated build-up
- * shifts are included; singular and plural; "no shifts planned" with none. One source with Right now's line "You'll
+ * shifts are included; singular and plural; "no shifts on the route" with none. One source with Right now's line "You'll
  * have about 10.4s soul eggs left when this plan is done (about 2.3s goes on 41 shifts …)" (lib/soulEggs.ts): the
  * same count and the same cost, written the same way.
  */
@@ -41,8 +41,8 @@ describe('plannedShiftsWords (lib/soulEggs.ts)', () => {
       /\(at today's prices\), the shifts listed, without each new ascension's first hours$/
     );
   });
-  it('no shifts planned', () => {
-    expect(plannedShiftsWords(planned(0))).toEqual({ value: 'no shifts planned', note: '' });
+  it('no shifts on the route', () => {
+    expect(plannedShiftsWords(planned(0))).toEqual({ value: 'no shifts on the route', note: '' });
   });
 });
 
@@ -68,7 +68,7 @@ describe('YourEggs renders it', () => {
     const p = planned(41, 18);
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: p }));
     expect(t).toContain(
-      `All planned shifts 41 shifts will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), about 18 of them while buying research in later ascensions (estimated)`
+      `All shifts on the route 41 shifts will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices), about 18 of them while buying research in later ascensions (estimated)`
     );
   });
 });

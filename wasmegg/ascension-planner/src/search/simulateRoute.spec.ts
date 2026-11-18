@@ -21,7 +21,7 @@ beforeAll(async () => {
 // Thursday 1 Oct 2026, 11:04 am MDT.
 const START = Date.parse('2026-10-01T17:04:00Z') / 1000;
 
-describe('Simulate this plan (simulateRoute)', () => {
+describe('Simulate this route (simulateRoute)', () => {
   it('applies the route to Classic from its start, asks for the plan to be built, and opens Classic', () => {
     setActivePinia(createPinia());
     const planner = mods.planner.useAutoPlannerStore();

@@ -108,7 +108,7 @@
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
             its boxes. The answer card shows your TE on each egg when the route ends, the date and time each egg's next TE
             would come at your final delivery rate, and when your next TE would come if you keep laying.
-            <b>Simulate this plan</b> opens the route in the {{ NAMES.classic }} (Joo's original planner) and simulates every
+            <b>Simulate this route</b> opens the route in the {{ NAMES.classic }} (Joo's original planner) and simulates every
             shift on your save.
           </li>
         </ul>
@@ -142,7 +142,7 @@
           <b>On the hour or at once.</b> A search starts each new ascension the moment the last one reaches its TE. The
           instant answer starts it at the next whole hour, because that's where it was simulated (inside the weekly sale
           it can start at once, when that ends sooner). Most of the time that's a fraction of an hour, but a start just
-          before or after the sale's end can move a single route by days. So ascend at the times the plan shows.
+          before or after the sale's end can move a single route by days. So ascend at the times the route shows.
         </p>
         <p>
           <b>Awake hours.</b> With awake hours picked in Setup, each prestige and egg shift waits for your

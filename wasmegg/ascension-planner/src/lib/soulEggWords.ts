@@ -13,7 +13,7 @@ const s = (n: number) => (n === 1 ? '' : 's');
 
 /** The one line on the page. `alone`: the save's shifts since its last Path reset aren't known, so only this plan counts. */
 export function soulEggLine(percent: string, alone: boolean): string {
-  return alone ? `This plan alone would leave ${percent} of your soul eggs.` : `This plan would leave ${percent} of your soul eggs.`;
+  return alone ? `This route alone would leave ${percent} of your soul eggs.` : `This route would leave ${percent} of your soul eggs.`;
 }
 
 /** The "?" tip's name for screen readers. */
@@ -23,6 +23,6 @@ export const SOUL_EGG_TIP_LABEL = 'Where this comes from';
 export function soulEggFold(o: { plan: number; done: number | null; percent: string; quarterShifts: number }): string {
   const tail = `Past about ${o.quarterShifts} shifts since a Path reset, less than a quarter is left.`;
   if (o.done == null)
-    return `This plan has ${o.plan} shift${s(o.plan)}, counted from 0 shifts: your save's shifts since your last Path reset aren't known here. ${tail}`;
-  return `About ${o.done + o.plan} shifts since your last Path reset (${o.done} in your save, ${o.plan} in the plan) would leave ${o.percent} of the soul eggs you have now. ${tail}`;
+    return `This route has ${o.plan} shift${s(o.plan)}, counted from 0 shifts: your save's shifts since your last Path reset aren't known here. ${tail}`;
+  return `About ${o.done + o.plan} shifts since your last Path reset (${o.done} in your save, ${o.plan} in the route) would leave ${o.percent} of the soul eggs you have now. ${tail}`;
 }

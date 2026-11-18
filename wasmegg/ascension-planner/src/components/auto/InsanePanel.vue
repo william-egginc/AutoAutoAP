@@ -2214,7 +2214,7 @@ const goal = computed<'fastest' | 'deadline'>({
 });
 
 /** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
-/** Simulate this plan: the card's best, or a route from More routes (TopRoutes.vue). */
+/** Simulate this route: the card's best, or a route from More routes (TopRoutes.vue). */
 function buildPlan(chain: readonly number[] = store.bestChain): void {
   store.applyChain([...chain]);
   store.generateWhenPlannerOpens = true;

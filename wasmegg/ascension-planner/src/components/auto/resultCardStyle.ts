@@ -10,7 +10,7 @@
 /** Every button's type: sentence case at the body size, bold. No caps, no tracking (Jordan, 26 Oct 2026). */
 export const BUTTON_TEXT = 'text-body font-bold';
 /** 44 px to tap below sm (phones), unchanged from sm up (23 Oct 2026). */
-/** The card's main action: Simulate this plan (Fastest and By a date). */
+/** The card's main action: Simulate this route (Fastest and By a date). */
 export const PRIMARY_BUTTON = `inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-emerald-700 text-white ${BUTTON_TEXT} hover:bg-emerald-800 disabled:opacity-40`;
 /** The rest of the row: Share, CSV, Save. */
 export const SECONDARY_BUTTON = `inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3 py-2 rounded-lg border border-emerald-300 bg-white ${BUTTON_TEXT} text-emerald-800 hover:border-emerald-500 disabled:opacity-40`;

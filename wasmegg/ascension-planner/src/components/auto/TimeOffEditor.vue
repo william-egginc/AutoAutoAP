@@ -117,14 +117,14 @@ const WORDS = {
     add: 'Add time off',
     short: "On the home farm: that's a prestige, and you rebuild when back. Egg Day is the usual one.",
     explain:
-      "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Nothing is earned on the virtue farm while you are away. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
+      "Days you will be off the virtue farm, on the home farm, in the route's timezone. Nothing is earned on the virtue farm while you are away. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
   },
   noPrestige: {
     title: 'No prestige days',
     add: 'Add days',
     short: 'Stay on virtue, but no prestige on these days.',
     explain:
-      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, {silos}. Egg shifts still happen on these days.",
+      "Days you stay on the virtue farm but won't prestige, in the route's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, {silos}. Egg shifts still happen on these days.",
   },
 } as const;
 const words = computed(() => {

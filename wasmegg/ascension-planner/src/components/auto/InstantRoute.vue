@@ -433,7 +433,7 @@
                 :plan-start="answerStart"
                 :deadline="deadline"
               />
-              <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+              <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
                 <button
                   :aria-describedby="describedby"
                   type="button"
@@ -441,7 +441,7 @@
                   data-testid="box-simulate"
                   @click="openPlan(dateBoxOf(result.byDate).chain)"
                 >
-                  Simulate this plan
+                  Simulate this route
                 </button>
               </Tip>
             </div>
@@ -554,7 +554,7 @@
                         :plan-start="answerStart"
                         :deadline="deadline"
                       />
-                      <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                      <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
                         <button
                           :aria-describedby="describedby"
                           type="button"
@@ -562,7 +562,7 @@
                           :aria-label="`Simulate ${r.chain.join(' ')}`"
                           @click="openPlan(r.chain)"
                         >
-                          Simulate this plan
+                          Simulate this route
                         </button>
                       </Tip>
                     </div>
@@ -653,7 +653,7 @@
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
               :plan-start="answerStart"
             />
-            <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+            <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
               <button
                 :aria-describedby="describedby"
                 type="button"
@@ -661,7 +661,7 @@
                 data-testid="box-simulate"
                 @click="openPlan(boxLead.chain)"
               >
-                Simulate this plan
+                Simulate this route
               </button>
             </Tip>
           </div>
@@ -769,7 +769,7 @@
                       :end-te="r.chain[r.chain.length - 1]"
                       :plan-start="answerStart"
                     />
-                    <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+                    <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
                       <button
                         :aria-describedby="describedby"
                         type="button"
@@ -778,7 +778,7 @@
                         :aria-label="`Simulate ${r.chain.join(' ')}`"
                         @click="openPlan(r.chain)"
                       >
-                        Simulate this plan
+                        Simulate this route
                       </button>
                     </Tip>
                   </div>
@@ -2450,10 +2450,10 @@ const dateRows = computed(() =>
 
 const key = (chain: readonly number[]) => chain.join(',');
 
-/** The plan start the answer was worked out from, for "Simulate this plan" and the saved answer's note. */
+/** The plan start the answer was worked out from, for "Simulate this route" and the saved answer's note. */
 const answerStart = ref(0);
 /**
- * "Simulate this plan" (a row's, or the answer's): this route in Classic, simulated on the player's save from the
+ * "Simulate this route" (a row's, or the answer's): this route in Classic, simulated on the player's save from the
  * start the answer was worked out from and with its time off; Classic scrolls to the plan and says where it came
  * from (search/simulateRoute.ts).
  */
@@ -2741,7 +2741,7 @@ function countLit(r: Route): boolean {
   return props.deadline ? dateRowLit(r) : r === boxLead.value;
 }
 /** With a More (the simpler default page, 9 Nov 2026) no row starts open: the box's own row repeated the box's Follow
- *  this route and Simulate this plan right under them. It is still lit, and opens on a tap as any row. */
+ *  this route and Simulate this route right under them. It is still lit, and opens on a tap as any row. */
 function countStartsOpen(r: Route): boolean {
   return props.moreTo ? false : countLit(r);
 }
@@ -2938,7 +2938,7 @@ function cacheKey(): string | null {
  * the nearest-tables line) and put back as it was on the next visit with the same key
  * (search/instantSnapshot.ts). It restores the same fields the computation sets, so everything that
  * reads them works unchanged: the searches' seeds (`instantRoutes`, `suggestedRoute`,
- * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit) and Simulate this plan.
+ * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit) and Simulate this route.
  *
  * `exact`, `dateExact` and `dateExactByK` were Check exactly's (gone since 23 Oct 2026): written empty, so My runs
  * reads every new snapshot as the instant answer's; an older snapshot's are never shown here.

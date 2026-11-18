@@ -245,7 +245,7 @@
         </div>
       </div>
 
-      <!-- A route the instant answer's "Simulate this plan" sent here: said where it came from, and the
+      <!-- A route the instant answer's "Simulate this route" sent here: said where it came from, and the
            page scrolls here once it is simulated (search/simulateRoute.ts). -->
       <div
         v-if="fromInstant"
@@ -320,7 +320,7 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-body text-sky-900"
       >
         <span class="font-bold">Includes your time away from virtue (time off).</span>
-        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this plan
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this route
         on the search again to put it back.
       </div>
       <div
@@ -619,7 +619,7 @@ watch(
   { immediate: true }
 );
 /**
- * "Simulate this plan" from the instant answer (search/simulateRoute.ts): the banner above the plan
+ * "Simulate this route" from the instant answer (search/simulateRoute.ts): the banner above the plan
  * while the Target TE is still that route, and one scroll to it once a generation started after the
  * click has finished (not to whatever plan was on the page before).
  */

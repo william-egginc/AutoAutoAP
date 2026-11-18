@@ -19,7 +19,7 @@ export const GOAL_SWITCH = {
 /** The old name of Joo's simulator screen, kept only so a spec can pin that it no longer shows. */
 export const SINGLE_RUN_RETIRED = 'Single run';
 
-/** What "Simulate this plan" opens, in a sentence ("opens the route in the Auto Planner"). */
+/** What "Simulate this route" opens, in a sentence ("opens the route in the Auto Planner"). */
 export const AUTO_PLANNER_IN_SENTENCE = 'the Auto Planner';
 
 /**

@@ -78,7 +78,7 @@
     <div
       v-if="goals && goals.length"
       role="radiogroup"
-      aria-label="Which plan"
+      aria-label="Which goal"
       class="flex flex-wrap gap-2"
       data-testid="now-goal-switch"
       @keydown="onSwitchKey"
@@ -332,7 +332,7 @@
     </p>
 
     <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-setup-changed">
-      Setup has changed since this plan was made.
+      Setup has changed since this route was made.
       <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your Setup ›</button>
     </p>
     <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-older-save">
@@ -461,7 +461,7 @@
           <b>{{ nextText }}</b>
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
-        <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-else class="text-body text-slate-700">Nothing left in this route: work out a new one.</p>
         <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
         <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
         <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
@@ -1022,12 +1022,12 @@ const radios = ref<(HTMLButtonElement | null)[]>([]);
 /** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
  *  line no longer starts with it.) */
 function optionSub(g: GoalOption): string {
-  // A followed route: what is true of it, never "no saved plan yet" (25 Oct 2026).
+  // A followed route: what is true of it, never "no saved route yet" (25 Oct 2026).
   if (g.follow) return followOptionWords(g.follow, t => dayWords(t, props.zone), lateMarker(g.kind === 'eggday' ? 'eggday' : 'date'));
   if (g.state === 'late') return 'no route in time';
   if (g.answer) return answerOptionWords(g.answer, t => dayWords(t, props.zone));
-  if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
-  return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved plan';
+  if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved route with its times yet' : 'no saved route yet';
+  return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved route';
 }
 /** Arrow keys, Home and End move the pick and the focus (a radiogroup). */
 function onSwitchKey(ev: KeyboardEvent): void {
@@ -1163,7 +1163,7 @@ const screenName = computed(() => (askFor.value.goal === 'date' ? NAMES.byDate :
 /** The instant answer's plan (not a search's, not an older snapshot's Check exactly): times rounded, no calendar. */
 const rounded = computed(() => !!props.card && !props.card.plan.exact);
 const NO_LEGS_INSTANT = 'The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.';
-const NO_LEGS_KEPT = "This plan was kept without each ascension's shifts (it was too big to keep whole): open its screen for them.";
+const NO_LEGS_KEPT = "This route was kept without each ascension's shifts (it was too big to keep whole): open its screen for them.";
 /** "(instant answer)", "(Fast run)", "(Check exactly)" for an older snapshot's. */
 const howText = computed(() => {
   const p = props.card?.plan;

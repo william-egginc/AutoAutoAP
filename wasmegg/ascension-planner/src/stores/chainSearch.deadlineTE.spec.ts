@@ -174,7 +174,7 @@ describe('a run starts from the TE it is priced from', () => {
     const store = useChainSearchStore();
     loadSave(196, SAVE_AT);
     plannerAt(196);
-    planEndingAt(255); // "Simulate this plan", or a plan built by hand
+    planEndingAt(255); // "Simulate this route", or a plan built by hand
     expect(useActionsStore().effectiveSnapshot.teEarned).toEqual(earned(255));
     expect(store.plannerTE).toBe(196);
     expect(store.saveNotReady).toBe('');

@@ -1,6 +1,6 @@
 /**
  * By a date's build-up note goes to Single run's banner (site-wide fluff review 2, 5 Nov 2026, beyond-fluff item 1).
- * byDateSimulate() returned the build-up note, but DeadlinePanel only drew it under the card's Simulate this plan and
+ * byDateSimulate() returned the build-up note, but DeadlinePanel only drew it under the card's Simulate this route and
  * never handed it to simulateRoute, so Single run opened the route (finishing Jul 15 after a Jul 14 date; the search
  * had Jul 13) without a word. The note now goes with the route to Single run's "Simulated … from …" banner
  * (ui.planFromInstant `note`, the instant card's path from spec-slimcard), from all three of By a date's Simulate this
@@ -28,7 +28,7 @@ describe('By a date: the build-up note on Single run’s banner', () => {
       open.indexOf('simulateRoute(')
     );
   });
-  it('the answer’s, the best so far’s and More routes’ Simulate this plan all go through it', () => {
+  it('the answer’s, the best so far’s and More routes’ Simulate this route all go through it', () => {
     for (const name of ['simulateResult', 'simulateLive', 'simulateDateRoute']) {
       const body = fn(name);
       expect(body, name).toContain('openInSingleRun(');

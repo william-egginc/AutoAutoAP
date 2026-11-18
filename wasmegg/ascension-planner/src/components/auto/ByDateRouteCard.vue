@@ -1,7 +1,7 @@
 <!--
   By a date's best route, in the same green card as Fastest's (RouteResultCard.vue, the user's egg-beta
   review 11 Oct): "Highest by Jul 14, 2027 at 10:00 AM", the route, "247 TE / reached ..., 27.3 h to
-  spare" on the right, the notes, the button row (Simulate this plan, Share, CSV, Save answer), and
+  spare" on the right, the notes, the button row (Simulate this route, Share, CSV, Save answer), and
   the leg table under the card laid out as Fastest's,
   and the same card for the best so far while the run is going (`running`), so the route the run
   would give you now reads as clearly as the answer it ends with.
@@ -122,12 +122,12 @@
           />
         </div>
       </div>
-      <!-- The same row as Fastest's card, in the same order: Follow this route, the main action (Simulate this plan, as
+      <!-- The same row as Fastest's card, in the same order: Follow this route, the main action (Simulate this route, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
       <template v-if="simulate || canShare || canCsv || canSave || (follow && !running)" #actions>
         <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online; the finished answer's
-             only. First, then Simulate this plan: one order wherever the pair is shown (Allan, 9 Nov 2026). -->
+             only. First, then Simulate this route: one order wherever the pair is shown (Allan, 9 Nov 2026). -->
         <FollowButton
           v-if="follow && !running"
           primary
@@ -140,7 +140,7 @@
           :plan-start="follow.planStart"
           :deadline="follow.deadline ?? null"
         />
-        <Tip v-if="simulate" :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+        <Tip v-if="simulate" :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
           <button
             :aria-describedby="describedby"
             type="button"
@@ -148,7 +148,7 @@
             data-testid="by-date-simulate"
             @click="emit('simulate')"
           >
-            Simulate this plan
+            Simulate this route
           </button>
         </Tip>
         <template v-if="!running">
@@ -255,7 +255,7 @@ const props = defineProps<{
   zone: string;
   /** The run is still going: this is its best so far. */
   running?: boolean;
-  /** Show Simulate this plan (emits `simulate`). */
+  /** Show Simulate this route (emits `simulate`). */
   simulate?: boolean;
   /** The rest of the row, as on Fastest's card: Share (scrolls to Share this result), CSV ↓ (emits
    *  `csv`; named for what the file holds, csvButton.ts), Save answer (emits `save`). Finished answers only. */

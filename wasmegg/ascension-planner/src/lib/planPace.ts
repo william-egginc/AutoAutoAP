@@ -395,11 +395,11 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
     case 'cant':
       switch (s.why) {
         case 'older-save':
-          return out('Your loaded save is older than this plan', 'warn', 'Load your latest save to compare.');
+          return out('Your loaded save is older than this route', 'warn', 'Load your latest save to compare.');
         case 'not-started':
           return out(`Starts ${dateAt(s.start, nowSeconds, zone)}: nothing to compare yet`, 'plain', '');
         case 'below-start':
-          return out('', 'warn', 'Your TE is below where this plan starts.');
+          return out('', 'warn', 'Your TE is below where this route starts.');
         case 'other-egg':
           return out(
             OTHER_EGG_WORDS,

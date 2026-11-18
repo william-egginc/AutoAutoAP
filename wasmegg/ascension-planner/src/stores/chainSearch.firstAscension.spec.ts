@@ -144,7 +144,7 @@ describe("Your setup's First ascension and Classic's A1 dropdown", () => {
     expect(store.classicFirstPick()).toEqual({ 0: 'continue' });
   });
 
-  it("a route sent with its run's own setting (By a date's Simulate this plan) keeps that setting's pick", () => {
+  it("a route sent with its run's own setting (By a date's Simulate this route) keeps that setting's pick", () => {
     const store = useChainSearchStore();
     const planner = useAutoPlannerStore();
     // Priced under Prestige now, Your setup on Continue since: the run's build, not Continue.

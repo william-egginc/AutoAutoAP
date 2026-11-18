@@ -84,9 +84,9 @@ describe('the Single run name', () => {
       expect(named.test(fine), fine).toBe(false);
   });
 
-  it("Simulate this plan's line says what it does, in the Auto Planner (Joo's original planner)", () => {
+  it("Simulate this route's line says what it does, in the Auto Planner (Joo's original planner)", () => {
     expect(simulateNote()).toBe(
-      "Simulate this plan opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
+      "Simulate this route opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
     );
     expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in the Auto Planner/);
     for (const f of ['InstantRoute.vue']) {

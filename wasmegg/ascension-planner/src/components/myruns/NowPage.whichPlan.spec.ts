@@ -133,7 +133,7 @@ describe('the switch', () => {
   it('a radiogroup of the goals: the selected one checked and in the tab order, 44 px targets, wrapping', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Which plan"');
+    expect(html).toContain('aria-label="Which goal"');
     expect(html.match(/role="radio"/g)).toHaveLength(2);
     const radio = (key: string) => html.match(new RegExp(`<button[^>]*data-testid="now-goal-${key}"[^>]*>`))![0];
     expect(radio('eggday-2027')).toContain('aria-checked="true"');
@@ -149,15 +149,15 @@ describe('the switch', () => {
     expect(html.indexOf('now-goal-switch')).toBeLessThan(html.indexOf('data-testid="now-next"'));
   });
 
-  it('an empty goal: "no saved plan for this goal yet · Work it out ›", opening that goal’s screen', async () => {
+  it('an empty goal: "no saved route for this goal yet · Work it out ›", opening that goal’s screen', async () => {
     const none = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null, goals: options({ egg: 'none' }) }));
     const t = textOf(none);
-    expect(t).toContain('Egg Day 2027: no saved plan for this goal yet · Work it out ›');
-    expect(t).toContain('Egg Day 2027 no saved plan yet'); // the option's own line
+    expect(t).toContain('Egg Day 2027: no saved route for this goal yet · Work it out ›');
+    expect(t).toContain('Egg Day 2027 no saved route yet'); // the option's own line
     expect(t).not.toContain('Following');
     expect(none).not.toContain('data-testid="now-events"');
     const only = textOf(await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null, goals: options({ egg: 'answer-only' }) })));
-    expect(only).toContain('Egg Day 2027: no saved plan with its times for this goal yet · Work it out ›');
+    expect(only).toContain('Egg Day 2027: no saved route with its times for this goal yet · Work it out ›');
     expect(read('RightNowCard.vue')).toContain(`data-testid="now-work-it-out" @click="emit('open', selectedOption.open)"`);
   });
 

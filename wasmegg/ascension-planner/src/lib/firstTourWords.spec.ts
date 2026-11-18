@@ -11,7 +11,7 @@ describe('first tour words', () => {
   it('each card, word for word (tour v3: Words, 16 Nov 2026, the full text after Jordan\'s review; gear, followedRoute and shifts are UI drafts to what the picture shows)', () => {
     const B = (id: keyof typeof FIRST_TOUR_STEPS) => FIRST_TOUR_STEPS[id].body;
     expect(B('tabManual')).toBe('Manual Planner is where you build a plan by hand, one step at a time.');
-    expect(B('tabAuto')).toBe('Auto Planner plays a plan out shift by shift, from your save and your settings.');
+    expect(B('tabAuto')).toBe('Auto Planner plays a route out shift by shift, from your save and your settings.');
     expect(B('tabChain')).toBe('Chain Finder looks for the best route across many ascensions. Click Next to learn more about Chain Finder.');
     expect(B('tabMyruns')).toBe('My runs is where you follow the route you keep.');
     expect(B('load')).toBe('Enter your player ID, or load a save file, so the planner works from your real account.');
@@ -22,7 +22,7 @@ describe('first tour words', () => {
     expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
     expect(B('setupTimeOff')).toBe('No prestige days are days you play but do not prestige. Time off is days away on the home farm. The route plans around both.');
     expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
-    expect(B('simulate')).toBe("Simulate this plan opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
+    expect(B('simulate')).toBe("Simulate this route opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
     expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.');
     expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next. Click Next to learn more about My runs.');
     expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');

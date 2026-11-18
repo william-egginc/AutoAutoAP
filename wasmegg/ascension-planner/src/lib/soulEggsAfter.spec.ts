@@ -3,7 +3,7 @@
  * runs should say the same for the followed route). One plain line on Right now (under Next shifts) and on the saved
  * answer tile when it is that same route. Worded plainer (28 Oct 2026, pieha) "You'll have about 10.4s soul eggs left
  * when this plan is done (about 2.3s goes on 41 shifts · about 24 of the 41 are build-up shifts, estimated)". The
- * shifts are priced as All planned shifts prices them (lib/shiftCost.ts `plannedShiftsCost` at today's soul eggs, from
+ * shifts are priced as All shifts on the route prices them (lib/shiftCost.ts `plannedShiftsCost` at today's soul eggs, from
  * the save's shifts since its last Path reset), the numbers written as Single run writes them (`formatNumber(x, 1)`).
  * Amber under a quarter left (lib/soulEggs.ts SE_WARN_BELOW, the warning's own threshold); nothing without the save's
  * soul eggs or a planned count.
@@ -25,7 +25,7 @@ describe('soulEggsAfterLine (lib/soulEggs.ts)', () => {
     const spent = plannedShiftsCost(SE, 20, 48);
     const line = soulEggsAfterLine({ soulEggs: SE, done: 20, planned: { count: 48 } })!;
     expect(line.text).toBe(
-      `You'll have about ${formatNumber(SE - spent, 1)} soul eggs left at the end of this plan. Shifts on the way cost about ${formatNumber(spent, 1)} (about 48 shifts).`
+      `You'll have about ${formatNumber(SE - spent, 1)} soul eggs left at the end of this route. Shifts on the way cost about ${formatNumber(spent, 1)} (about 48 shifts).`
     );
     expect(line.amber).toBe(false);
   });
@@ -33,18 +33,18 @@ describe('soulEggsAfterLine (lib/soulEggs.ts)', () => {
   it('says how many of the shifts are the estimated build-up shifts', () => {
     const line = soulEggsAfterLine({ soulEggs: SE, done: 0, planned: { count: 48, opening: 24 } })!;
     expect(line.text).toMatch(
-      /^You'll have about \d+\.\ds soul eggs left at the end of this plan\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 48 shifts, 24 of them while buying research in later ascensions; estimated\)\.$/
+      /^You'll have about \d+\.\ds soul eggs left at the end of this route\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 48 shifts, 24 of them while buying research in later ascensions; estimated\)\.$/
     );
   });
 
   it("formats like Single run's Spent / Remaining: 's' for sextillions, one decimal", () => {
     const line = soulEggsAfterLine({ soulEggs: 12.7e21, done: 0, planned: { count: 1 } })!;
-    expect(line.text).toMatch(/^You'll have about 12\.\ds soul eggs left at the end of this plan\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 1 shift\)\.$/);
+    expect(line.text).toMatch(/^You'll have about 12\.\ds soul eggs left at the end of this route\. Shifts on the way cost about \d+\.\d[a-zA-Z]+ \(about 1 shift\)\.$/);
   });
 
-  it('no shifts planned', () => {
+  it('no shifts on the route', () => {
     expect(soulEggsAfterLine({ soulEggs: 12.7e21, done: 0, planned: { count: 0 } })!.text).toBe(
-      "You'll have about 12.7s soul eggs left at the end of this plan. No shifts are planned."
+      "You'll have about 12.7s soul eggs left at the end of this route. The route has no shifts."
     );
   });
 

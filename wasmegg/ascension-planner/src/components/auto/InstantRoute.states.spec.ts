@@ -999,7 +999,7 @@ describe('Prestige by: hidden whenever no-prestige days are set', () => {
 
 /**
  * EVERY NUMBER OF ASCENSIONS, ROWS THAT OPEN ON TAP (spec-slimcard; UX fluff review 5 Nov 2026, item 11; Joo's table).
- * It was a table with Simulate this plan and Follow this route on every row: 12 buttons for 6 counts, about 600 px of
+ * It was a table with Simulate this route and Follow this route on every row: 12 buttons for 6 counts, about 600 px of
  * a phone card. Now one 44 px line per count (chevron, ascensions, highest TE, spare with a tight tag, route), its head a
  * real button (aria-expanded, aria-controls, Enter and Space as any button, a visible focus ring); opened, it shows
  * "Reached …" and ONE Simulate / Follow pair. The box's row starts open (lib/countRows.ts); several may be open.
@@ -1022,7 +1022,7 @@ describe('Every number of ascensions: rows open on tap, one pair in the open row
   const rowsOf = (html: string) => [...html.matchAll(/<li[^>]*data-testid="counts-row"[\s\S]*?<\/li>/g)].map(m => m[0]);
   const headOf = (row: string) => row.match(/<button[^>]*data-testid="counts-row-head"[^>]*>/)![0];
   const panelOf = (row: string) => row.slice(row.indexOf('data-testid="counts-row-panel"'));
-  const simulates = (s: string) => s.match(/>\s*Simulate this plan\s*<\/button>/g)?.length ?? 0;
+  const simulates = (s: string) => s.match(/>\s*Simulate this route\s*<\/button>/g)?.length ?? 0;
   const follows = (s: string) => s.match(/data-part="FollowButton"/g)?.length ?? 0;
 
   describe('By a date', () => {

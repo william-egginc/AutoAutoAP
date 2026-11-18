@@ -51,7 +51,7 @@ export interface GoalPlans {
   goal: PlanGoal;
   /** The goal's plan (lib/currentAnswer.ts), null when none is kept. */
   pick: CardPick | null;
-  /** No plan, but an answer without its times is kept ("no saved plan with its times for this goal yet"). */
+  /** No plan, but an answer without its times is kept ("no saved route with its times for this goal yet"). */
   answerOnly: boolean;
   /** When the goal was last checked, ms: the newest of its plans and answers of the loaded save; 0 when never. */
   lastAt: number;
@@ -232,10 +232,10 @@ export interface GoalOption {
   open: MyRunsOpen;
   /** The player follows a route of their own for this goal (lib/follow.ts). */
   following?: boolean;
-  /** With a followed route: how far its times are (the pill says it, never "no saved plan yet"). */
+  /** With a followed route: how far its times are (the pill says it, never "no saved route yet"). */
   follow?: GoalFollow;
   /** Nothing followed and no plan with its times, but the saved answer tile has an answer for the goal (26 Oct 2026,
-   *  QA: the pill said "no saved plan yet" over a tile showing one): when it lands and what found it. */
+   *  QA: the pill said "no saved route yet" over a tile showing one): when it lands and what found it. */
   answer?: GoalAnswerLine;
 }
 
@@ -257,7 +257,7 @@ export function answerOptionWords(a: GoalAnswerLine, dayWords: (unix: number) =>
 }
 
 /**
- * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan: the Fastest to 490 TE pill said "no saved plan yet" while the line under
+ * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan: the Fastest to 490 TE pill said "no saved route yet" while the line under
  * it said "Following 226 → 277 → 317 → 490 … not priced on this save yet"): with a followed route the pill says what is
  * true of that route, in the follow line's words.
  *   'timeline': priced from a kept result or the instant answer's own route; 'estimate': estimated from the instant
@@ -332,9 +332,9 @@ export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOptio
   }));
 }
 
-/** An empty option's words: "no saved plan for this goal yet", "no saved plan with its times for this goal yet",
- *  "no saved plan in time for this goal" (state 'late': RightNowCard says which, lib/eggDayRule.ts). */
+/** An empty option's words: "no saved route for this goal yet", "no saved route with its times for this goal yet",
+ *  "no saved route in time for this goal" (state 'late': RightNowCard says which, lib/eggDayRule.ts). */
 export function emptyGoalWords(state: GoalOption['state']): string {
-  if (state === 'late') return 'no saved plan in time for this goal';
-  return state === 'answer-only' ? 'no saved plan with its times for this goal yet' : 'no saved plan for this goal yet';
+  if (state === 'late') return 'no saved route in time for this goal';
+  return state === 'answer-only' ? 'no saved route with its times for this goal yet' : 'no saved route for this goal yet';
 }

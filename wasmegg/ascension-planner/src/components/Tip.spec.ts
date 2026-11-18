@@ -177,7 +177,7 @@ describe('Tip.vue markup', () => {
       createSSRApp({
         render: () =>
           h(Tip, props as never, {
-            default: ({ describedby }: { describedby: string }) => h('button', { 'aria-describedby': describedby, id: 'the-button' }, 'Simulate this plan'),
+            default: ({ describedby }: { describedby: string }) => h('button', { 'aria-describedby': describedby, id: 'the-button' }, 'Simulate this route'),
           }),
       }),
       ctx
@@ -185,7 +185,7 @@ describe('Tip.vue markup', () => {
     return { html, body: String(ctx.teleports?.body ?? '') };
   }
   it('the button points at the tip (aria-describedby); the tip has that id, role="tooltip", hidden until shown', async () => {
-    const { html, body } = await render({ text: TIP_SIMULATE, name: 'Simulate this plan' });
+    const { html, body } = await render({ text: TIP_SIMULATE, name: 'Simulate this route' });
     const id = html.match(/aria-describedby="([^"]+)"/)?.[1];
     expect(id).toBeTruthy();
     expect(body).toContain(`id="${id}"`);
@@ -194,10 +194,10 @@ describe('Tip.vue markup', () => {
     expect(body).toMatch(/role="tooltip"[^>]*\shidden|\shidden[^>]*role="tooltip"/);
   });
   it('the "i" beside it: a real button with a name, a 44 px target on a phone, pointing at the same tip', async () => {
-    const { html } = await render({ text: TIP_SIMULATE, name: 'Simulate this plan' });
+    const { html } = await render({ text: TIP_SIMULATE, name: 'Simulate this route' });
     const info = html.slice(html.indexOf('<button', html.indexOf('the-button')), html.indexOf('>', html.indexOf('data-testid="tip-info"')) + 1);
     expect(info).toContain('type="button"');
-    expect(info).toContain(`aria-label="${tipInfoLabel('Simulate this plan')}"`);
+    expect(info).toContain(`aria-label="${tipInfoLabel('Simulate this route')}"`);
     expect(info).toMatch(/min-h-\[44px\]/);
     expect(info).toMatch(/min-w-\[44px\]/);
     expect(info).toContain('aria-expanded="false"');
@@ -225,11 +225,11 @@ describe('the buttons carry the tip, not a native title', () => {
     expect(String(ctx.teleports?.body)).toContain(`id="${id}"`);
     expect(String(ctx.teleports?.body)).toContain(TIP_FOLLOW);
   });
-  it('Simulate this plan, everywhere it is a button: inside a Tip with TIP_SIMULATE, no SIMULATE_TITLE', () => {
+  it('Simulate this route, everywhere it is a button: inside a Tip with TIP_SIMULATE, no SIMULATE_TITLE', () => {
     for (const f of ['auto/InstantRoute.vue', 'auto/RouteResultCard.vue', 'auto/ByDateRouteCard.vue', 'auto/TopRoutes.vue']) {
       const t = template(read(f));
       expect(t, f).not.toContain('SIMULATE_TITLE');
-      const n = t.split(/>\s*Simulate this plan\s*</).length - 1;
+      const n = t.split(/>\s*Simulate this route\s*</).length - 1;
       expect(n, f).toBeGreaterThan(0);
       expect(t.split(':text="TIP_SIMULATE"').length - 1, f).toBe(n);
     }

@@ -59,9 +59,9 @@
           You reach a Truth Egg target by ascending to a stop, prestiging, ascending to a higher one, and so on. That
           list of stops is a route:
           <code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
-          the rest. The plans players have sent in run two to three years, and two routes to the same target can finish
+          the rest. The routes players have sent in run two to three years, and two routes to the same target can finish
           <span class="font-bold text-slate-800">weeks apart</span>: in players' every-TE runs, moving one stop by a
-          single TE, with the rest left where they are, changed the finish by typically about 2.5% of the plan. Finding
+          single TE, with the rest left where they are, changed the finish by typically about 2.5% of the route. Finding
           the route that lands first is what this search is for.
         </p>
 
@@ -125,14 +125,14 @@
           <p class="font-bold text-slate-800 mb-2">What the first 109 runs from players showed (29 Sept)</p>
           <ul class="space-y-2 list-disc list-outside pl-4">
             <li>
-              <span class="font-bold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
+              <span class="font-bold text-slate-700">Trying only some TEs misses the best route.</span> Every 5th TE
               ends up 2 to 12 days slower, on average, than every TE; every 2nd TE, 0.4 to 6 days. That is why this
               search sweeps every TE around each stop in its later stages.
             </li>
             <li>
               <span class="font-bold text-slate-700">More ascensions help, then level off.</span> A 3rd brought the
               finish forward 34 to 245 days on the accounts that tried 2 and 3; past 5, the search matters about as much
-              as the count. The plan that finishes first has 5 to 7 ascensions on 9 of the 13 accounts.
+              as the count. The route that finishes first has 5 to 7 ascensions on 9 of the 13 accounts.
             </li>
             <li>
               <span class="font-bold text-slate-700">Some of it is predictable.</span> With up to 4 ascensions, the
@@ -141,7 +141,7 @@
               to be searched.
             </li>
             <li>
-              <span class="font-bold text-slate-700">The best plan can move from one day to the next,</span> so a
+              <span class="font-bold text-slate-700">The best route can move from one day to the next,</span> so a
               fresh search before each ascension is worth it.
             </li>
           </ul>
@@ -164,7 +164,7 @@
             <li>
               Skipping routes that start slowly. A route that reaches its first stops later can get there with a
               stronger farm and still finish first, so a slow start is no reason to drop it. When we tried, it could not
-              safely rule out a single plan.
+              safely rule out a single route.
             </li>
             <li>
               Assuming it only dips once. It dips, rises and dips again, as the second figure below shows, so "keep
@@ -265,7 +265,7 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">Where it goes wrong: the route you start from</p>
           <p class="mb-3">
-            The search only looks 8 TE either side of each stop, so it can't reach a better plan further away, and it
+            The search only looks 8 TE either side of each stop, so it can't reach a better route further away, and it
             can't tell when it's stuck near the wrong one. The figure below shows what that costs. Each column is a
             different <span class="font-bold text-slate-700">first stop</span>, and its height is the best route
             reachable from there. These are routes to 320, with the same

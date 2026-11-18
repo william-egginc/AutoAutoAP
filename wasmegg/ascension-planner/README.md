@@ -179,7 +179,7 @@ tidier phone layouts; a line when starting fresh would end the ascension over an
 The Auto Planner (formerly Single run, Your plan and Classic) is Joo's Auto Ascension Planner screen: the simulator
 (`src/auto`, `src/engine`), the shifts, the generator, the cards, the plan library, export and import are
 his. Our branch adds the shared **Setup** dock; a plan start never before the save; **Finish without
-buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this plan** from
+buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this route** from
 the searches; and the opening switch (`lowTeOpening.ts`). Since 21 Oct 2026 the branch carries Joo's planner
 up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with I1 capped at 4 hours, and
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,

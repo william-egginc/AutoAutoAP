@@ -3,7 +3,7 @@
   ByDateRouteCard.vue on Highest TE by a date), closed by default in a native details, "More routes":
 
     the best 5 routes the search priced, each with its rank, stops, finish (By a date: the TE it reaches), how far
-      behind the best, its number of ascensions, and the card's own Simulate this plan and Follow this route;
+      behind the best, its number of ascensions, and the card's own Simulate this route and Follow this route;
     the best for each number of ascensions as a dot chart (one row per count, a dot on a shared scale: Fastest the
       finish, sooner to the left; By a date the TE, higher to the right), each row a button that shows that route's
       line and its two buttons under the chart.
@@ -62,17 +62,17 @@
                 :plan-start="follow!.planStart"
                 :deadline="deadline ?? null"
               />
-              <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+              <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
                 <button
                   :aria-describedby="describedby"
                   type="button"
                   :class="SECONDARY_BUTTON"
                   :disabled="busy"
-                  :aria-label="`Simulate this plan: ${r.chain.join(' ')}`"
+                  :aria-label="`Simulate this route: ${r.chain.join(' ')}`"
                   data-testid="top-route-simulate"
                   @click="emit('simulate', [...r.chain])"
                 >
-                  Simulate this plan
+                  Simulate this route
                 </button>
               </Tip>
             </div>
@@ -125,7 +125,7 @@
             {{ whenLine(chosen) }}<template v-if="!chosen.best"> · {{ behindLabel(goal, chosen) }}</template>
           </p>
           <p v-if="!chosen.hasLegs" class="text-small text-slate-600">
-            Its time for each ascension wasn't kept; Simulate this plan works it out again.
+            Its time for each ascension wasn't kept; Simulate this route works it out again.
           </p>
           <div class="flex flex-wrap gap-2">
             <FollowButton
@@ -140,17 +140,17 @@
               :plan-start="follow!.planStart"
               :deadline="deadline ?? null"
             />
-            <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }">
+            <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }">
               <button
                 :aria-describedby="describedby"
                 type="button"
                 :class="SECONDARY_BUTTON"
                 :disabled="busy"
-                :aria-label="`Simulate this plan: ${chosen.chain.join(' ')}`"
+                :aria-label="`Simulate this route: ${chosen.chain.join(' ')}`"
                 data-testid="top-route-simulate"
                 @click="emit('simulate', [...chosen.chain])"
               >
-                Simulate this plan
+                Simulate this route
               </button>
             </Tip>
           </div>

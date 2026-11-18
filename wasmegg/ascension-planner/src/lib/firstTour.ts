@@ -28,7 +28,7 @@ export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { k
 /** The steps, in order. Tour v3 (spec-tour-v3, Jordan, 16 Nov 2026: "use arrows to show important things, one thing at a
  *  time, start from the big things and work your way down"), as he reviewed it (~1:30 PM): twenty-three, then twenty-two (Jordan, 16 Nov, ~10:55 PM: the maxed-gear what-if is in the Full tour only). The tab row is four
  *  slides, one a tab, and the goal switch two (Target TE, By a date); then the result, the filters button, what is inside
- *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this plan and Follow this
+ *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this route and Follow this
  *  route; then My runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
  *  the shifts, and a closing card that points at the Full tour (lib/fullTour.ts), which holds what More holds. */
 export type TourStepId =

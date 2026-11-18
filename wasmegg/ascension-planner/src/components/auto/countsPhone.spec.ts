@@ -1,6 +1,6 @@
 /**
  * Every number of ascensions on a phone. Red team R7 M3 (1 Nov 2026): six stacked cards with no column names, two
- * full-width buttons per row named only "Simulate this plan" / "Follow this route", and a sideways scroll at 300 px.
+ * full-width buttons per row named only "Simulate this route" / "Follow this route", and a sideways scroll at 300 px.
  * Since spec-slimcard (UX fluff review 5 Nov 2026, item 11) the rows open on tap like Joo's: one 44 px line per count
  * under one row of column names, the route wrapping onto a second line inside the row on a phone (its own column from
  * md up), and one Simulate / Follow pair in each open row. The column names are for the eye (aria-hidden); each row's
@@ -87,7 +87,7 @@ describe('Every number of ascensions on a phone (R7 M3, spec-slimcard)', () => {
 
   it('each button is named with its route', () => {
     for (const list of lists) {
-      expect(list).toMatch(/<button[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"[^>]*>\s*Simulate this plan\s*<\/button>/);
+      expect(list).toMatch(/<button[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"[^>]*>\s*Simulate this route\s*<\/button>/);
       expect(list).toMatch(/<FollowButton[^>]*:route-label="r\.chain\.join\(' '\)"/);
     }
   });

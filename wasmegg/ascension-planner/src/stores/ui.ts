@@ -90,7 +90,7 @@ export const useUIStore = defineStore('ui', () => {
   );
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */
   const openPlannerRequested = ref(0);
-  /** A route the instant answer's "Simulate this plan" sent to Classic (search/simulateRoute.ts): Classic
+  /** A route the instant answer's "Simulate this route" sent to Classic (search/simulateRoute.ts): Classic
    *  scrolls to its plan once simulated and says where it came from, with a way back. */
   /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
   /** `note`: what the banner adds about the route (the instant card's build-up note, search/simulateRoute.ts

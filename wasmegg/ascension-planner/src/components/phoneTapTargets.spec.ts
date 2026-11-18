@@ -21,8 +21,8 @@ function tagWith(src: string, marker: string): string {
 }
 describe('the instant card on a phone', () => {
   const src = read('auto/InstantRoute.vue');
-  it('Simulate this plan (both boxes and the counts rows) is 44 px tall', () => {
-    const tags = [...src.matchAll(/<button[^>]*>\s*Simulate this plan\s*<\/button>/g)].map(m => m[0]);
+  it('Simulate this route (both boxes and the counts rows) is 44 px tall', () => {
+    const tags = [...src.matchAll(/<button[^>]*>\s*Simulate this route\s*<\/button>/g)].map(m => m[0]);
     expect(tags).toHaveLength(4);
     // The shared SECONDARY_BUTTON since type batch 2 (26 Oct 2026); it carries the 44 px classes.
     expect(SECONDARY_BUTTON).toContain('inline-flex items-center justify-center min-h-[44px] sm:min-h-0');
@@ -92,7 +92,7 @@ describe('the instant card on a phone', () => {
 });
 
 describe('the Stronger check and the run controls on a phone', () => {
-  it("the result cards' buttons (Build or Simulate this plan, Share, CSV, Save)", () => {
+  it("the result cards' buttons (Build or Simulate this route, Share, CSV, Save)", () => {
     for (const c of [PRIMARY_BUTTON, SECONDARY_BUTTON]) expect(c).toContain('inline-flex items-center justify-center min-h-[44px] sm:min-h-0');
   });
   it('the acknowledge link, the send tick under Run, and the auto-send-every select', () => {

@@ -82,11 +82,11 @@ export function soulEggsAfterLine(p: {
   // (each fresh ascension's, estimated). They cost soul eggs like any other, so they are said as part of the count
   // (Jordan, 12 and 13 Nov 2026: "Why are we talking about build-up shifts?" while on Humility in A1).
   const later = opening > 0 ? `, ${opening} of them while buying research in later ascensions; estimated` : '';
-  const left_ = `You'll have about ${formatNumber(left, 1)} soul eggs left at the end of this plan.`;
+  const left_ = `You'll have about ${formatNumber(left, 1)} soul eggs left at the end of this route.`;
   return {
     text:
       count === 0
-        ? `${left_} No shifts are planned.`
+        ? `${left_} The route has no shifts.`
         : `${left_} Shifts on the way cost about ${formatNumber(spent, 1)} (about ${count} shift${s(count)}${later}).`,
     amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW,
   };
@@ -100,7 +100,7 @@ export function soulEggsAfterLine(p: {
  */
 export function plannedShiftsWords(p: { count: number; cost: number; opening?: number; partial?: boolean }): { value: string; note: string } {
   const count = Math.max(0, Math.floor(p.count));
-  if (count === 0) return { value: 'no shifts planned', note: '' };
+  if (count === 0) return { value: 'no shifts on the route', note: '' };
   const opening = Math.max(0, Math.floor(p.opening ?? 0));
   const tail =
     opening > 0

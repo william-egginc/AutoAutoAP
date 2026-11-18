@@ -1,6 +1,6 @@
 /**
  * The floating Setup pill never leaves a control unreachable on a phone (Jordan, 12 Nov 2026, iPhone at 390 px: the
- * pill covered "Simulate this plan" and the edge of "Follow this route instead"). A fixed pill always sits over
+ * pill covered "Simulate this route" and the edge of "Follow this route instead"). A fixed pill always sits over
  * whatever scrolls under it; what must hold is that every control can be scrolled clear of it, so:
  *  - the room under the page is at least the pill's MEASURED height + its 1rem from the bottom + 1.5rem, never only
  *    the fixed 6rem sized for a one-row pill (My runs' summary wraps to three or four lines with several stretches of

@@ -90,7 +90,7 @@ describe('aap.tour values', () => {
     expect(isNewVisitor({ savedPlayerId: null, lastRoute: '#/auto/fastest' })).toBe(false);
   });
 
-  it('a save file with no player ID ends the tour at Follow this route (thirteen slides, no My runs tab), after Simulate this plan', () => {
+  it('a save file with no player ID ends the tour at Follow this route (seven slides, no My runs slide)', () => {
     expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     expect(stepsFor({ hasAccount: false, hasSaveFile: true })).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'setupWhere', 'closing']);

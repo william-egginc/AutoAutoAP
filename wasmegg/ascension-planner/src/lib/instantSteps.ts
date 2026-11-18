@@ -4,7 +4,7 @@
  * ascension from the route's legs (search/routeFinder.ts `RouteLeg`): when its prestige happens, when its stop is
  * reached, and whether the prestige WAITED, for the hours or for a no-prestige day. The instant answer's legs keep
  * no egg shift times (the table has none; tableV2 holds the opening's shifts inside the hours without recording
- * when), so the shifts are not listed here: Simulate this plan gives every one. Pure.
+ * when), so the shifts are not listed here: Simulate this route gives every one. Pure.
  * My runs' Full timeline (26 Oct 2026) adds each ascension's shifts where its legs carry them (`ascensionSteps`).
  */
 import { nextAvailable } from '@/search/availability';

@@ -230,8 +230,8 @@ const tiles = computed(() => [
   { id: 'shifts', label: 'Shifts done', value: String(props.shiftsDone), note: '' },
   { id: 'next-cost', label: 'Next shift cost', value: props.nextShiftCost != null ? se(props.nextShiftCost) : '—', note: '' },
   props.plannedShifts
-    ? { id: 'planned', label: 'All planned shifts', ...plannedShiftsWords(props.plannedShifts) }
-    : { id: 'planned', label: 'All planned shifts', value: "Can't tell", note: 'no saved plan with its timeline' },
+    ? { id: 'planned', label: 'All shifts on the route', ...plannedShiftsWords(props.plannedShifts) }
+    : { id: 'planned', label: 'All shifts on the route', value: "Can't tell", note: 'no saved route with its timeline' },
   silosTile.value,
   { id: 'habs', label: 'Habs', value: props.facts ? `${Math.round(props.facts.habFull * 100)}% full` : '—', note: '' },
   {

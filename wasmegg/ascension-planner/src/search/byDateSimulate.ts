@@ -1,5 +1,5 @@
 /**
- * What By a date's "Simulate this plan" (ByDateRouteCard.vue) hands Single run (Classic): the route, from the plan
+ * What By a date's "Simulate this route" (ByDateRouteCard.vue) hands Single run (Classic): the route, from the plan
  * start its run priced it from, with its legs (time off, and the build its first ascension took) and
  * the run's own first-ascension setting (search/simulateRoute.ts, stores/chainSearch.ts `applyChain`),
  * as the instant answer's rows do.

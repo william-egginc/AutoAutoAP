@@ -105,8 +105,8 @@ describe('the answer card (InstantRoute.vue) with a More', () => {
 });
 
 /** One order wherever the pair sits side by side (Allan, 9 Nov 2026: on the answer Follow was first, in Every number
- *  of ascensions Simulate was): Follow this route first, Simulate this plan second. Source order is DOM order. */
-describe('Follow this route first, Simulate this plan second, everywhere the pair is shown', () => {
+ *  of ascensions Simulate was): Follow this route first, Simulate this route second. Source order is DOM order. */
+describe('Follow this route first, Simulate this route second, everywhere the pair is shown', () => {
   const simulateAt = (s: string, from = 0) => {
     const m = /<Tip[^>]*:text="TIP_SIMULATE"/.exec(s.slice(from));
     return m ? from + m.index : -1;

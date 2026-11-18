@@ -295,7 +295,7 @@ export function buildSteps(i: StepsInput): DashSteps {
       id: 'save',
       kinds: ['save'],
       text: `Your save is ${plural(Math.floor(age / DAY), 'day')} old`,
-      reason: 'Every plan on this page starts from it. Load a fresh one so your next step starts from where you are.',
+      reason: 'Every route on this page starts from it. Load a fresh one so your next step starts from where you are.',
       button: 'Load a fresh one',
       action: { to: 'fresh' },
     });

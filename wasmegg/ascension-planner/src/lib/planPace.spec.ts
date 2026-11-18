@@ -278,7 +278,7 @@ describe('the words for every other case', () => {
     expect(paceWords({ kind: 'same-save' }, T0, ZONE).badge).toBe('Made from your latest save');
     const older = planPace(shiftLine, at(PLAN_SAVE - 2 * H, 185));
     expect(older).toEqual({ kind: 'cant', why: 'older-save' });
-    expect(paceWords(older, T0, ZONE).badge).toBe('Your loaded save is older than this plan');
+    expect(paceWords(older, T0, ZONE).badge).toBe('Your loaded save is older than this route');
   });
 
   it('before the plan starts: nothing to compare yet', () => {
@@ -294,7 +294,7 @@ describe('the words for every other case', () => {
     expect(paceWords(s, T0, ZONE)).toMatchObject({
       badge: '',
       text: '',
-      detail: 'Your TE is below where this plan starts.',
+      detail: 'Your TE is below where this route starts.',
     });
   });
 

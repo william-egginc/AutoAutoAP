@@ -45,7 +45,7 @@ describe('applyChain with a start and legs of its own', () => {
     });
   });
 
-  it("By a date's Simulate this plan: the banner names the search, the start and setting go to applyChain", async () => {
+  it("By a date's Simulate this route: the banner names the search, the start and setting go to applyChain", async () => {
     const { store, planner } = stores();
     const { simulateRoute } = await import('@/search/simulateRoute');
     const { useUIStore } = await import('./ui');
