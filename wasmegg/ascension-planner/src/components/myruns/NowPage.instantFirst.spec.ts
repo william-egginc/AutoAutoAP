@@ -451,7 +451,7 @@ describe('the card', () => {
     expect(t).toContain('Add to calendar');
     expect(t).toContain('＋ Add');
     expect(t).toMatch(/goal: 312 TE .*\dh( \d+m)? spare/);
-    expect(t).not.toContain("on the instant answer's plan");
+    expect(t).not.toContain("on the instant answer's route");
     expect(t).not.toContain('Run Fast again');
   });
 

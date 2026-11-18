@@ -21,6 +21,6 @@ describe('howFar: a goal row whose route lands after the date', () => {
     expect(t).not.toMatch(/spare/);
   });
   it('a positive spare is as before', () => {
-    expect(howFar(goal(65), NOW, 'America/Denver', true, 'date')).toContain('2d 17h spare before this date, on the instant answer\'s plan');
+    expect(howFar(goal(65), NOW, 'America/Denver', true, 'date')).toContain('2d 17h spare before this date, on the instant answer\'s route');
   });
 });
