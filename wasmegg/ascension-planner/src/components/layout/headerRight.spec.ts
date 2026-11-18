@@ -23,7 +23,7 @@ const STATE = {
 
 describe('H4: the button is named for what it opens', () => {
   it('an instruction (round 2, 14 Nov 2026), confirmed by Words', () => {
-    expect(FILTERS).toBe('Click to open more filters in Setup');
+    expect(FILTERS).toBe('Click to open Setup: awake hours, time off and more filters');
   });
   it('the tour points at the button without quoting its label', () => {
     expect(read('lib/firstTourWords.ts')).toContain('The filters button opens Setup, where you set what the answer is worked out for.');

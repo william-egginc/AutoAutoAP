@@ -4,7 +4,7 @@
  *     floating above it;
  *  2. "Help improve the planner" stays at the top of every tab, as ONE line ("Help improve the planner? Yes / No /
  *     Later") that opens the full form; the orange "Tick at least one" shows only after a press on Yes;
- *  3. the Setup button says what to do: "Click to open more filters in Setup" (DRAFT, Words' final text).
+ *  3. the Setup button says what to do: "Click to open Setup: awake hours, time off and more filters" (DRAFT, Words' final text).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -96,8 +96,8 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
 });
 
 describe('3. the button says what to do', () => {
-  it('Click to open more filters in Setup: Jordan\'s wording, Words\' default (alternative for Jordan: "Press to open more filters in Setup")', () => {
-    expect(FILTERS).toBe('Click to open more filters in Setup');
+  it('Click to open Setup: awake hours, time off and more filters: Jordan\'s wording, Words\' default (alternative: "Press to open Setup: awake hours, time off and more filters")', () => {
+    expect(FILTERS).toBe('Click to open Setup: awake hours, time off and more filters');
     expect(read('lib/firstTourWords.ts')).toContain('The filters button opens Setup, where you set what the answer is worked out for.');
   });
 });
