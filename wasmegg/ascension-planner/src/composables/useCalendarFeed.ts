@@ -149,6 +149,7 @@ export function createCalendarFeed(o: {
       if (r.ok) {
         savedState.value = 'loaded';
         linkFromSave.value = true;
+        write(key('.saved'), '1');
       }
       else blackBox.note(`calendar link not saved: ${r.why}`);
     } catch {
@@ -168,6 +169,10 @@ export function createCalendarFeed(o: {
       const r = await getCalLink(t.url, t.k, f);
       if (id !== checkId) return;
       if (!r.ok) {
+        // A definite "no saved copy" (404) after this browser has seen one: another browser reset or switched off, so the link is gone
+        // and the marker goes too (the card then says Get link). A marker with no saved copy ever seen here is an older link made before
+        // the save existed, which may still be live: kept. Offline, a 5xx or an old collector's 400 never clear anything.
+        if (r.why === 'absent' && read(key('.saved')) === '1') forget();
         savedState.value = 'none';
         return;
       }
@@ -177,11 +182,13 @@ export function createCalendarFeed(o: {
         savedState.value = 'unreadable';
         linked.value = true;
         write(key('.linked'), '1');
+        write(key('.saved'), '1');
         return;
       }
       link.value = url;
       linked.value = true;
       write(key('.linked'), '1');
+      write(key('.saved'), '1');
       linkFromSave.value = true;
       savedState.value = 'loaded';
     } catch {
@@ -208,6 +215,7 @@ export function createCalendarFeed(o: {
     link.value = null;
     copied.value = false;
     write(key('.linked'), null);
+    write(key('.saved'), null);
     keep(null);
   }
   async function turnOff(): Promise<void> {
