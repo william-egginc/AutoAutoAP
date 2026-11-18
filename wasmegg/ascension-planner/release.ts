@@ -38,7 +38,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-11-17T22:00:13Z', note: 'My runs is one timeline now: each ascension’s row in You are here opens to its shifts and dates (blocks start closed; press to open), and the Full timeline box is gone' },
   { at: '2026-11-17T22:00:12Z', note: 'Release 9: Quick and Full tours, My runs follows the plan on your newest save, Put my plan in my calendar is on, and instant answers on the newest simulator (sim5) where rebuilt', level: 'big' },
   { at: '2026-11-17T22:00:11Z', note: 'Target TE(s) checks your numbers. Ascensions from/to keep your edits. A link shows each ascension’s dates. Setup names hours and time off. A fresh first ascension no longer reads as under way.' },
-  { at: '2026-11-17T22:00:10Z', note: 'Quick tour (22 slides) and Full tour (42 slides), in More and in the page footer. The Full tour can carry on from where the Quick tour ends. Show the tour again is in Setup' },
+  { at: '2026-11-17T22:00:10Z', note: 'A Quick tour (8 slides) and a Full tour (42, or fewer when it carries on from the Quick tour), in More and in the page footer. Show the tour again is in Setup' },
   { at: '2026-11-17T22:00:09Z', note: 'My runs follows the plan on your newest save and says “worked out on your save from…” for an older one. A box shows when the best for your date is below the TE you follow' },
   { at: '2026-11-17T22:00:08Z', note: 'Setup shows When the route starts in view, and on a smaller screen Setup is a round gear button at the bottom' },
   { at: '2026-11-17T22:00:07Z', note: 'The save line says how old your save is. The silo warning shows only when your save is fresh and your silos are low; otherwise you just see the save’s age' },
