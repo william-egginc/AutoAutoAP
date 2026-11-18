@@ -28,3 +28,26 @@ describe('every row tight says it once (M3)', () => {
     expect(src).toMatch(/v-if="rowTight\(r\) && !allRowsTight"/);
   });
 });
+
+describe('Chain Finder has one "?" look (QA ed206e60b, 18 Nov 2026)', () => {
+  const goal = read('layout/GoalHelp.vue');
+  const card = read('auto/CardHelp.vue');
+  const help = read('auto/HelpTip.vue');
+  const circle = /h-3\.5 w-3\.5[^"]*border border-slate-400|border border-slate-400[^"]*h-3\.5 w-3\.5/;
+  it("About this page's circle is the 14 px card-help circle, its button still 44 px", () => {
+    expect(goal).toMatch(circle);
+    expect(goal).not.toContain('h-6 w-6');
+    expect(goal).toContain('min-h-[44px] min-w-[44px]');
+  });
+  it('the card help and the plain help tip draw the same circle border', () => {
+    expect(card).toMatch(circle);
+    expect(help).toMatch(circle);
+  });
+});
+
+describe('Your routes at a glance fold is a 44 px target on a phone', () => {
+  it('its summary is at least 44 px high up to sm', () => {
+    const src = read('myruns/RouteScatter.vue');
+    expect(src).toMatch(/<summary class="[^"]*min-h-\[44px\][^"]*sm:min-h-0/);
+  });
+});

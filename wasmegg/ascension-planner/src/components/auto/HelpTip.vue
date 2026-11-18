@@ -19,7 +19,7 @@
     <button
       ref="trigger"
       type="button"
-      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-600 text-small font-bold leading-none flex items-center justify-center hover:border-slate-500 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden h-3.5 w-3.5 rounded-full border border-slate-400 text-slate-600 text-small font-bold leading-none flex items-center justify-center hover:border-slate-600 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
       :aria-describedby="open ? id : undefined"
       aria-label="What does this mean?"
       @mouseenter="show"

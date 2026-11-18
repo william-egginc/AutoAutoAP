@@ -20,7 +20,7 @@
     data-testid="my-runs-scatter"
     @toggle="open = ($event.target as HTMLDetailsElement).open"
   >
-    <summary class="cursor-pointer text-body font-bold text-slate-600">
+    <summary class="flex min-h-[44px] items-center sm:min-h-0 cursor-pointer text-body font-bold text-slate-600">
       Your routes at a glance<span class="ml-2 font-bold normal-case tracking-normal text-slate-600">{{
         countWords
       }}</span>

@@ -75,7 +75,7 @@ describe('the instant card on a phone', () => {
   });
   it('the instant card\'s "?" (CardHelp, the card clean-up 12 Nov 2026): HelpTip\'s 14 px look and 44 px area; Work it out again 44 px', () => {
     const t = tagWith(read('auto/CardHelp.vue'), 'data-testid="card-help"');
-    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain('h-3.5 w-3.5');
     expect(t).toContain("relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
     expect(t).toContain(':aria-describedby="id"');
     expect(t).toContain(':aria-controls="id"');
@@ -85,7 +85,7 @@ describe('the instant card on a phone', () => {
   });
   it('the "?" info icons (HelpTip): 14 px as before, with a 44 px invisible area round them on a phone (26 Oct)', () => {
     const t = tagWith(read('auto/HelpTip.vue'), 'aria-label="What does this mean?"');
-    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain('h-3.5 w-3.5');
     expect(t).toContain("relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
     expect(14 + 2 * 15).toBe(44);
   });
