@@ -26,7 +26,7 @@ describe('H4: the button is named for what it opens', () => {
     expect(FILTERS).toBe('Click to open Setup: awake hours, time off and more filters');
   });
   it('the tour points at the button without quoting its label', () => {
-    expect(read('lib/firstTourWords.ts')).toContain('The filters button opens Setup, where you set what the answer is worked out for.');
+    expect(read('lib/firstTourWords.ts')).toContain('The Setup button opens Setup, where you set what the answer is worked out for.');
     expect(read('lib/firstTourWords.ts')).not.toContain('The Filters button');
   });
 });

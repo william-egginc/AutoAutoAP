@@ -98,6 +98,6 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
 describe('3. the button says what to do', () => {
   it('Click to open Setup: awake hours, time off and more filters: Jordan\'s wording, Words\' default (alternative: "Press to open Setup: awake hours, time off and more filters")', () => {
     expect(FILTERS).toBe('Click to open Setup: awake hours, time off and more filters');
-    expect(read('lib/firstTourWords.ts')).toContain('The filters button opens Setup, where you set what the answer is worked out for.');
+    expect(read('lib/firstTourWords.ts')).toContain('The Setup button opens Setup, where you set what the answer is worked out for.');
   });
 });
