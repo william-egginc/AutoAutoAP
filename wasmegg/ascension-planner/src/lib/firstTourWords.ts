@@ -12,7 +12,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   // thing is FOR. The tabs show only after a save loads, so their slides never say "press". Titles are DRAFT; gear, followedRoute
   // and shifts are DRAFT too (written to what the picture shows: see the note to Words).
   tabManual: { title: 'Manual Planner', body: 'Manual Planner is where you build a plan by hand, one step at a time.' },
-  tabAuto: { title: 'Auto Planner', body: 'Auto Planner plays a route out shift by shift, from your save and your settings.' },
+  tabAuto: { title: 'Auto Planner', body: 'Auto Planner works out your best route from your save: the fastest to 490 TE, or the most TE by a date. It plays the route out shift by shift.' },
   tabChain: { title: 'Chain Finder', body: 'Chain Finder looks for the best route across many ascensions. Click Next to learn more about Chain Finder.' },
   tabMyruns: { title: 'My runs', body: 'My runs is where you follow the route you keep.' },
   load: { title: 'Load your save', body: 'Enter your player ID, or load a save file, so the planner works from your real account.' },
@@ -24,12 +24,12 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   setupTimeOff: { title: 'No prestige days and Time off', body: 'No prestige days are days you play but do not prestige. Time off is days away on the home farm. The route plans around both.' },
   prefer: { title: 'Prefer fewer ascensions', body: 'Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.' },
   simulate: { title: 'Simulate this route', body: "Simulate this route opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys." },
-  follow: { title: 'Follow this route', body: 'Follow this route saves it to My runs, so the planner tracks your check-ins and tells you the next step.' },
+  follow: { title: 'Follow this route', body: 'Follow this route saves it to My runs, so the planner can track your check-ins and tell you the next step.' },
   myrunsPage: { title: 'My runs', body: 'My runs is where the route you follow lives, and where the planner tells you what to do next. Click Next to learn more about My runs.' },
   followedRoute: { title: 'The route you follow', body: 'This is the route you follow: the TE you reach at the end of each ascension.' },
   nextStep: { title: 'Next step', body: 'Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.' },
   tracker: { title: 'The Build-up tracker', body: 'The Build-up tracker lists what to buy and when, so you can tick each one off as you go.' },
-  setupWhere: { title: 'Where Setup is', body: 'Setup is the round gear button at the bottom of the screen. On a wide screen it is a Setup button at the right. Press it any time.' },
+  setupWhere: { title: 'Where Setup is', body: 'Setup is where you set your awake hours and time off. It is the round gear button at the bottom of the screen, or a Setup button at the right on a wide screen.' },
   setupInside: { title: 'Inside Setup', body: 'Setup holds your awake hours, time off and Save online. The planner works out every answer from them.' },
   shifts: { title: 'The shifts', body: 'The shifts are listed on My runs, each with when it happens and how far away it is.' },
   closing: { title: 'That is the tour', body: 'That is the important part. For everything else, open More and take the Full tour.' },
