@@ -85,13 +85,13 @@
             by a day or two if an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so
             use a Fast search for the final word. With awake hours on it can be days out: in 4 checks on one account (24
             Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
-            them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear's rate, each ascension is
-            about 1-2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear (form G), a 17 Nov first look on sim5 had a whole route
+            finishing 0.05% to 0.9% from an exact build for 3 real gear sets. Ascension by ascension, 17 of 19 were within 3%, the worst 5.1%. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
-            within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 so
-            far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with
-            weaker gear, it can be far off: a 21 Oct comparison of 84 Leaderboard runs found it far too hopeful on 18 of them
+            within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 built;
+            those from older simulators are skipped now) it reproduces their submitted runs to a median of 0.15% or better. Before form G, on maxed gear for an account with
+            weaker gear, it could be far off: a 21 Oct comparison of 84 Leaderboard runs found it far too hopeful on 18 of them
             (Science › How it works, section 6).
           </p>
           <p v-else-if="f.id === 'wider'">
@@ -164,7 +164,7 @@
           <p v-else-if="f.id === 'gear'">
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
             set matters only while research is still being bought: nothing from about TE 340 up, most around TE 190-216,
-            where tier 13 opens. The site uses an instant answer built for your own gear when there is a current one.
+            where the planner starts trying tier 13. The site uses an instant answer built for your own gear when there is a current one.
             Otherwise it moves the maxed answer to your gear (the adjusted answer), and tells you which.
           </p>
           <p v-else-if="f.id === 'sale'">
@@ -210,7 +210,7 @@
           epic everything, rare everything, legendary set on T3 stones). No account has worn one of these sets exactly yet.
         </p>
         <p>
-          <b>A run from an account missing epic research or colleggtibles;</b> every instant answer assumes both maxed.
+          <b>A run from an account missing epic research or colleggtibles;</b> every instant answer assumes both maxed (all 14 colleggtibles, Copper too).
         </p>
         <p>
           <b>One more run from accounts whose instant answers were built from older runs,</b> on today's planner, to

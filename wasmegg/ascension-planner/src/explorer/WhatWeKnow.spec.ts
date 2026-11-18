@@ -1,6 +1,6 @@
 /** The first finding's body: with hours off an ascension within about an hour, a whole route within a day or two
  *  near a sale-timed cliff, and a Fast search for the final word (analyst wording, 9 Oct); with hours on, what was
- *  checked and "prestige at the time shown" in the Prestige by line's words; the form G's 1-2% (math review's second
+ *  checked and "prestige at the time shown" in the Prestige by line's words; the form G's first look (math review's second
  *  check, 24 Oct 2026, finding 10). */
 import { describe, expect, it } from 'vitest';
 import WhatWeKnow from './WhatWeKnow.vue';
@@ -16,12 +16,12 @@ describe('What we know: the instant answer against the full simulator', () => {
     expect(text).not.toContain('up to about a day out');
   });
 
-  it('with hours on: what was checked, then the Prestige by line\'s own words; the form G: 1–2% per ascension', async () => {
+  it('with hours on: what was checked, then the Prestige by line\'s own words; the form G: 0.05% to 0.9% on a first look', async () => {
     const text = textOf(await renderHtml(WhatWeKnow, {}));
     expect(text).toContain(
       "With awake hours on it can be days out: in 4 checks on one account (24 Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of them. " +
         HOURS_NOTE +
-        " When the answer is the fully maxed one adjusted to your gear's rate, each ascension is about 1-2% off."
+        ' When the answer is the fully maxed one adjusted to your gear (form G), a 17 Nov first look on sim5 had a whole route finishing 0.05% to 0.9% from an exact build for 3 real gear sets. Ascension by ascension, 17 of 19 were within 3%, the worst 5.1%.'
     );
     expect(text).toContain(
       'With awake hours off, the instant answer lands within about an hour of the full simulator on each ascension.'

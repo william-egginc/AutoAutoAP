@@ -417,8 +417,8 @@ function ownership(need: DataNeed): { owned: boolean; ownedLabel: string; covera
   }
   if (need.id === 'new-gear' && props.gearCoverage) {
     const text: Record<GearCoverage, string> = {
-      own: 'Your account already has an instant answer built from its own runs. The page uses it only if it was built with the current simulator.',
-      gear: 'Your gear already has an instant answer of its own. The page uses it only if it was built with the current simulator.',
+      own: 'Your account already has an instant answer built from its own runs. The page uses it only if it was built with the current simulator; otherwise it moves the maxed answer to your gear.',
+      gear: 'Your gear already has an instant answer of its own. The page uses it only if it was built with the current simulator; otherwise it moves the maxed answer to your gear.',
       none: "Your gear doesn't have an instant answer of its own yet: one finished run from you would let us build it.",
     };
     return { owned: props.gearCoverage === 'none', ownedLabel: 'Your gear', coverageText: text[props.gearCoverage] };

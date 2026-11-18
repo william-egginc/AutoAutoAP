@@ -55,7 +55,7 @@
         </div>
 
         <p v-if="summary" class="text-body text-slate-600 max-w-3xl px-1">
-          Every account's earnings set adds between +{{ summary.setMin.toFixed(1) }} and +{{
+          Every account's gear, colleggtibles and lab upgrade add between +{{ summary.setMin.toFixed(1) }} and +{{
             summary.setMax.toFixed(1)
           }}
           TE, so all {{ summary.accounts }} sit on one narrow diagonal: an account with more TE also has more Clothed
@@ -287,7 +287,7 @@ function tip(p: GearPoint): string {
     p.delivery === null ? 'no delivery set recorded' : `${(p.delivery * 100).toFixed(1)}% of the best set`;
   return [
     `<b>${esc(p.label)}</b>`,
-    `${esc(p.te)} TE · Clothed TE ${esc(p.cte.toFixed(1))} (the set adds +${esc(p.setWorth.toFixed(1))})`,
+    `${esc(p.te)} TE · Clothed TE ${esc(p.cte.toFixed(1))} (gear adds +${esc(p.setWorth.toFixed(1))})`,
     `delivery ${esc(delivery)}`,
     `<span style="color:#94a3b8">Clothed TE ${esc(p.cteNote)}${p.sentAt ? ` · run sent ${esc(p.sentAt.slice(0, 10))}` : ''}</span>`,
   ].join('<br/>');

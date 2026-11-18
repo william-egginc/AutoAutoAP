@@ -42,7 +42,7 @@
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
         second or two, ascending on the hour. <b>A Fast, Exact or Custom search</b> then prices routes through the full
         simulator on your save. Run Fast for the most accurate answer: its times are the simulator's own numbers for
-        your save. The instant answer is usually close, but on maxed gear for an account with weaker gear it can be
+        your save. The instant answer is usually close. For weaker gear it moves the maxed answer to your gear (form G); a first look on sim5 found it within 0.9% of an exact build on 3 gear sets. Before form G, on maxed gear for an account with weaker gear it could be
         days too hopeful (sections 3 and 6).
       </p>
       <p>
@@ -172,8 +172,9 @@
           above it. A full set is about 90 hours of one processor core.
         </p>
         <p>
-          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator. A few
-          accounts also have one of their own. There are two kinds of answer:
+          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator (the answer says so when it isn't). Some
+          accounts and gear sets also have one of their own. It uses the best one it has and says which. There are three
+          kinds of answer:
         </p>
         <ul class="hw-list">
           <li>
@@ -182,15 +183,28 @@
             checks this every time and says which one it used.
           </li>
           <li>
-            <b>The maxed answer moved to your gear</b> (the adjusted answer), for everyone else. Your weaker earnings
+            <b>A table for your gear set,</b> built for the same gear (for example "wood_420"). When two tables sit either side of
+            your gear, the page can use the nearer one, even one built from another account's runs.
+          </li>
+          <li>
+            <b>The maxed answer moved to your gear</b> (the adjusted answer, "form G"), for everyone else. Your weaker earnings
             set, colleggtibles and lab upgrade count as a lower TE, and the waits run at your own delivery rate. Your
             first ascension is worked out from your own save.
           </li>
         </ul>
         <p>
-          Files built with an older simulator are not used. The page can also use a file built for a gear set exactly
-          like yours, and show a range between stronger and weaker gear, but only from files built with the current
-          simulator.
+          Your own, gear and nearby tables built with an older simulator are skipped (the 22 old gear tables from sim3 and
+          sim4 are, with a yellow note). The maxed answer is still used if it is older, with a yellow note. The page can also
+          show a range between stronger and weaker gear, but only from files built with the current simulator.
+        </p>
+        <p>
+          <b>Maxed means everything.</b> The maxed answer assumes epic research and all 14 colleggtibles, Copper too (cheaper
+          habs: 5% a tier, 20% at the top). Copper alone moved no route we priced, and most players have it. The older gear tables
+          were built without it, so a table for gear exactly like yours is rare until gear tables are rebuilt on sim5.
+        </p>
+        <p>
+          <b>Permit.</b> The instant answers are built with a Pro permit. An account on a Standard permit (2 silos, half
+          the offline earnings, 2 artifact slots) gets a Pro-priced instant answer. Fast, Exact and Custom read your permit.
         </p>
         <p>
           The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
@@ -198,13 +212,15 @@
           load your save; see About and privacy.)
         </p>
         <p>
-          <b>Where the delivery-rate shortcut stops working.</b> From about TE 340 every build reaches full research, so
-          only your delivery rate matters, and scaling the waits by it is exact. Below 340 your earnings set changes how
-          much research a build gets through, which a delivery rate can't capture. The page warns you there. Measured on
-          a test account with slightly weaker gear, priced on maxed gear: ascensions were off by a median 0.48% from TE
-          200-299 (worst 10.8%) and 0.97% from 120-199 (1 in 10 over 6%). One answer from before a 10 Oct fix, when that
-          account fell back to maxed gear, claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the
-          searches price every route with the full simulator.
+          <b>Where the delivery-rate shortcut stops working.</b> At equal Clothed TE, which earnings artifacts you
+          wear barely matters: in a 17 Nov test, 90 in 100 starting points delivered within 0.06% of the same eggs, and none picked a different build. Delivery and stones are what count. So form G reads
+          the maxed answer at your Clothed TE and scales the waits by your delivery rate. A first look on sim5 (17 Nov,
+          one starting TE, one week of hours, 2 to 2.5-year routes): against an exact build for 3 real gear sets the finish
+          was 0.05%, 0.07% and 0.87% apart (12 hours late, 13 hours late and 6 days early). It is a small sample. In
+          October the code's own check, per ascension on nine older gear tables, had 90 in 100 within about 0.5% to 2.8%. An older
+          check on the old simulator (Oct): one answer from before a 10 Oct fix, when that account fell back to maxed gear,
+          claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the searches price every route with the
+          full simulator.
         </p>
         <p>
           <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
@@ -244,9 +260,9 @@
       <div class="hw-body">
         <p>
           Each line says what was compared, the result, and how it was measured. A percentage is of the ascension's own
-          length (a 0.1% error on a 30-day ascension is about 43 minutes). Every check here was made between 1 and 13
-          Oct 2026, on the simulator the site ran before 21 Oct. The site has run Joo's newer simulator since 21 Oct
-          (section 6), and none of these checks has been repeated on it yet.
+          length (a 0.1% error on a 30-day ascension is about 43 minutes). Most checks here were made between 1 and 13
+          Oct 2026, on an older simulator (sim3). From Release 9 the site runs sim5 (section 6). Only the first check below
+          has been repeated on sim5; the rest have not been repeated on it yet.
         </p>
         <div class="space-y-2">
           <div v-for="c in CHECKS" :key="c.what" class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
@@ -281,12 +297,16 @@
           </li>
           <li><b>A fourth sale week</b> in one build. Neither the searches nor the instant answer try it.</li>
           <li>
-            <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
+            <b>Monday's 2x edges.</b> The game pays time away at the 2x active when you check in, for the whole stretch.
+            The planner splits a wait at the edge of the 2x (Mon 9:00 AM to Tue 9:00 AM Pacific), so times near it can be off by hours.
           </li>
           <li>
-            <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 PM, on that
-            day's code: 13 instant answers, 15 starts each, rebuilt from scratch, and all 195 came out identical. The simulator changed on 21 Oct 2026, so the
-            check has not been repeated on it yet.
+            <b>Accounts without maxed epic research or all 14 colleggtibles,</b> on the maxed instant answer: it assumes both.
+          </li>
+          <li>
+            <b>This simulator, bit for bit.</b> The last check was on 17 Nov 2026, on this simulator (sim5): 62 of 62 starts
+            rebuilt on a second computer came out identical, and 15 of 15 whole starting TEs rebuilt from scratch matched byte for byte.
+            The 13 Oct 2026 check on sim3 (13 instant answers, 15 starts each, all 195 identical) was not repeated beyond this.
           </li>
         </ul>
       </div>
@@ -371,6 +391,15 @@
             most once an hour per save.
           </li>
           <li>
+            <b>Calendar link</b> (optional, Setup): a private link for Google or Apple Calendar. The collector keeps a fingerprint
+            of the link (never the link itself), your account's scrambled key, when the link was made and last fetched, and a rough
+            fetch count. It also keeps the planned events your planner saved online for it: each has a time, a kind (shift, buy,
+            prestige, route or note) and the short title and notes text the planner wrote. It refuses any text that contains a
+            player ID, and no name is sent. At most 3 links per account; a link nobody fetches for 90 days is deleted, and Delete
+            everything saved online removes the links and the events. Your calendar app keeps its own copy of what it fetched,
+            and the collector can't delete that.
+          </li>
+          <li>
             <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
             the link after the #, which browsers never send to a server, so the collector stores data it can't read.
             Its messages are deleted 7 days after the last update.
@@ -379,7 +408,8 @@
         <p>
           <b>How the Leaderboard judges.</b> Plans are compared by the date they finish, not their length, since a length
           counts from the plan's own start. What-ifs are kept but don't race. A newer save's price of the same plan
-          replaces the old one, better or worse, so re-running can't fish for a lucky number. {{ NAMES.insights }} reads
+          replaces the old one, better or worse, so re-running can't fish for a lucky number. For now the ranks count runs from sim3 and sim5 together; from 7 days
+          after Release 9 only sim5 runs count. {{ NAMES.insights }} reads
           only the public rows; it can't see accounts, so it guesses them from timezone and artifacts.
         </p>
       </div>
@@ -395,11 +425,10 @@
       <div class="hw-body">
         <ul class="hw-list">
           <li>
-            <b>On maxed gear, for an account with weaker gear</b> (used when no instant answer was built for gear like
-            yours), the instant answer can be far too hopeful. On 18 of 84 Leaderboard runs sent 14-21 Oct, a run's own route
+            <b>Before form G, on maxed gear for an account with weaker gear</b> (21 Oct), the instant answer could be far too hopeful. On 18 of 84 Leaderboard runs sent 14-21 Oct, a run's own route
             priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and on Highest TE by a date runs the
             instant answer claimed 3 to 19 TE more than the run's search reached. The lower the account's delivery
-            rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Run a Fast search for your own times.
+            rate against maxed gear, the bigger the gap. That comparison used the simulator from before 21 Oct, and form G has not been measured the same way yet. Run a Fast search for your own times.
           </li>
           <li>
             <b>Near-ties.</b> The best TE matched every time we checked, but which route gets there can differ: on one
@@ -411,8 +440,8 @@
             inside its boxes.
           </li>
           <li>
-            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › More options › Experimental (on the beta
-            site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2:00 PM to keep 248 TE", then
+            <b>"Prestige by…" (experimental, needs more data).</b> It is off by default; turn it on in Setup › More options › Experimental (it starts on
+            on the beta site). A line under the instant answer like "Prestige by Fri Nov 27, 2:00 PM to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
             route finder. In five test cases from one account, with awake hours off and an older model where the farm stopped
@@ -428,9 +457,9 @@
             route sits on the edge of a box, and it has more spare than one TE costs: let it finish, or widen the boxes.
           </li>
           <li>
-            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in this
-            site since 21 Oct 2026. Every instant answer (one per gear set) was simulated with the older one, so each
-            says so until it is simulated again, about 55 to 70 hours on a 16-core PC for all of them.
+            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in sim5, which
+            the site runs from Release 9. The instant answers are rebuilt on it. Where one still comes from an older
+            simulator, the page says so in a yellow note.
           </li>
         </ul>
         <p>
@@ -473,12 +502,18 @@ import PrivacyTip from '@/components/PrivacyTip.vue';
 import { SCIENCE_CREDIT_NAME, SCIENCE_NOTHING_UNLESS } from '@/lib/privacyWords';
 
 /** The date every number here was last checked. */
-const UPDATED = 'Oct 21, 2026';
+const UPDATED = 'Nov 17, 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [
   {
-    what: 'The same start gives the same answer on any machine',
+    what: 'The same start gives the same answer on any machine, on sim5',
+    result:
+      'Identical to the bit. 62 of 62 starts rebuilt on a second computer matched, and 15 of 15 whole starting TEs rebuilt from scratch were byte for byte the same.',
+    how: 'rebuilding individual starts from scratch and comparing every number (15-17 Nov 2026, simulator sim5).',
+  },
+  {
+    what: 'The same start gives the same answer on any machine, on sim3',
     result:
       "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 starts (13 instant answers, 15 starts each) matched on that day's code.",
     how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',
