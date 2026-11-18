@@ -31,7 +31,7 @@
 
       <!-- No link yet. -->
       <button
-        v-if="!feed.linked.value"
+        v-if="!feed.linked.value && savedState !== 'checking'"
         type="button"
         class="inline-flex min-h-[44px] items-center rounded-lg bg-indigo-600 px-4 text-body font-bold text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
         :disabled="feed.busy.value"
@@ -41,7 +41,10 @@
         {{ CAL_GET }}
       </button>
 
-      <!-- The link, once. -->
+      <!-- The saved link is being fetched (callink): a quiet line, no Get link yet. -->
+      <p v-if="savedState === 'checking'" class="text-body text-slate-600 max-w-prose" data-testid="calendar-feed-checking">{{ CAL_CHECKING }}</p>
+
+      <!-- The link: once, when it was just made here; the saved one, read back (callink), without the once-only warning. -->
       <div v-if="feed.link.value" class="space-y-2" data-testid="calendar-feed-link-box">
         <input
           type="text"
@@ -52,7 +55,8 @@
           data-testid="calendar-feed-link"
           @focus="($event.target as HTMLInputElement).select()"
         />
-        <p class="text-body text-amber-800 max-w-prose" data-testid="calendar-feed-once">{{ CAL_SHOWN_ONCE }}</p>
+        <p v-if="fromSave" class="text-body text-slate-600 max-w-prose" data-testid="calendar-feed-saved">{{ CAL_SAVED }}</p>
+        <p v-else class="text-body text-amber-800 max-w-prose" data-testid="calendar-feed-once">{{ CAL_SHOWN_ONCE }}</p>
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
@@ -80,7 +84,45 @@
           </a>
         </div>
       </div>
-      <p v-else-if="feed.linked.value && feed.phase.value !== 'confirm'" class="text-body text-slate-600 max-w-prose" data-testid="calendar-feed-linked">
+      <!-- A saved copy this browser can't read (callink): say so, and offer a new link, asking first (it stops every link already added). -->
+      <div v-else-if="savedState === 'unreadable'" class="space-y-2" data-testid="calendar-feed-unreadable">
+        <p class="text-body text-slate-600 max-w-prose">{{ CAL_UNREADABLE }}</p>
+        <button
+          v-if="!askingReplace"
+          ref="replaceBtn"
+          type="button"
+          class="inline-flex min-h-[44px] items-center rounded-lg bg-indigo-600 px-4 text-body font-bold text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          :disabled="feed.busy.value"
+          data-testid="calendar-feed-replace"
+          @click="askingReplace = true"
+        >
+          {{ CAL_REPLACE }}
+        </button>
+        <div v-else class="rounded-lg border border-rose-200 bg-rose-50 p-3 space-y-2" role="alertdialog" aria-labelledby="calendar-feed-replace-text" data-testid="calendar-feed-replace-confirm">
+          <p id="calendar-feed-replace-text" class="text-body text-slate-700 max-w-prose">{{ CAL_REPLACE_ASK }}</p>
+          <div class="flex flex-wrap gap-3">
+            <button
+              type="button"
+              class="inline-flex min-h-[44px] items-center rounded-lg bg-rose-700 px-4 text-body font-bold text-white hover:bg-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              :disabled="feed.busy.value"
+              data-testid="calendar-feed-replace-yes"
+              @click="doReplace()"
+            >
+              {{ CAL_REPLACE_YES }}
+            </button>
+            <button
+              ref="replaceKeepBtn"
+              type="button"
+              class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              data-testid="calendar-feed-replace-no"
+              @click="askingReplace = false"
+            >
+              {{ CAL_RESET_NO }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <p v-else-if="feed.linked.value && savedState !== 'checking' && feed.phase.value !== 'confirm'" class="text-body text-slate-600 max-w-prose" data-testid="calendar-feed-linked">
         {{ CAL_LINKED }}
       </p>
 
@@ -130,11 +172,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, type Ref } from 'vue';
 import { useCalendarFeed, type CalendarFeed } from '@/composables/useCalendarFeed';
 import { googleCalendarUrl, webcalUrl } from '@/lib/calendarCloud';
 import {
   CAL_APPLE,
+  CAL_CHECKING,
+  CAL_REPLACE,
+  CAL_REPLACE_ASK,
+  CAL_REPLACE_YES,
+  CAL_SAVED,
+  CAL_UNREADABLE,
   CAL_COPIED,
   CAL_COPY,
   CAL_ERRORS,
@@ -157,8 +205,33 @@ import {
 
 const props = defineProps<{ /** Specs: a feed made with a fake collector. */ feed?: CalendarFeed }>();
 const feed = props.feed ?? useCalendarFeed();
-/** What the live region says: Copied, else the shown-once line while the link is on screen (review W6). */
-const liveText = computed(() => (feed.copied.value ? CAL_COPIED : feed.link.value ? CAL_SHOWN_ONCE : ''));
+/** The saved link's surface (callink, 17 Nov 2026), from the composable when it has it: where the link stands in this browser, whether the
+ *  link on screen was read back from the saved copy, and a new link (it revokes every link: the card asks first). A feed without it is
+ *  today's card. */
+const saved = feed as CalendarFeed & {
+  savedState?: Ref<'none' | 'checking' | 'loaded' | 'unreadable'>;
+  linkFromSave?: Ref<boolean>;
+  replaceLink?: () => Promise<unknown>;
+};
+const savedState = computed(() => saved.savedState?.value ?? 'none');
+const fromSave = computed(() => !!saved.linkFromSave?.value);
+/** What the live region says: Copied, else the saved line or the shown-once line while the link is on screen (review W6). */
+const liveText = computed(() => (feed.copied.value ? CAL_COPIED : feed.link.value ? (fromSave.value ? CAL_SAVED : CAL_SHOWN_ONCE) : ''));
+const askingReplace = ref(false);
+const replaceBtn = ref<HTMLElement | null>(null);
+const replaceKeepBtn = ref<HTMLElement | null>(null);
+// The new-link confirm takes focus on its safe button and, dismissed, hands it back to the first button when it would be lost to the page.
+watch(askingReplace, (now, was) => {
+  if (now) void nextTick(() => replaceKeepBtn.value?.focus());
+  else if (was)
+    void nextTick(() => {
+      if (typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) replaceBtn.value?.focus();
+    });
+});
+async function doReplace(): Promise<void> {
+  askingReplace.value = false;
+  await saved.replaceLink?.();
+}
 const resetBtn = ref<HTMLElement | null>(null);
 const keepBtn = ref<HTMLElement | null>(null);
 // The Reset confirm takes focus (on the safe button) and, dismissed, gives it back to Reset link when it would be lost to the page.
