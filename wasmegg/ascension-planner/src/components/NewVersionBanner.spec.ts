@@ -83,7 +83,7 @@ describe('NewVersionBanner', () => {
   it('every button is 44 px tall on a phone', () => {
     const src = fs.readFileSync(path.resolve(__dirname, 'NewVersionBanner.vue'), 'utf8');
     const buttons = [...src.matchAll(/<button[^>]*>/g)].map(m => m[0]);
-    expect(buttons).toHaveLength(6);
+    expect(buttons).toHaveLength(8);
     for (const b of buttons) expect(b).toContain(':class="TAP"');
     expect(src).toContain("const TAP = 'inline-flex items-center justify-center min-h-[44px] sm:min-h-0'");
   });

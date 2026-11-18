@@ -99,6 +99,59 @@
     </div>
   </div>
 
+  <!-- The reload ask as a full-screen box (R8.1, 18 Nov 2026), only when this tab's own build is known and older than
+       release.ts `reloadIfBuiltBefore` (ReleaseInfo.fullScreen): a tab that old will trip over what changed, and the
+       floating banner was easy to scroll past. Same words, notes and buttons as the floating one; the Reload button takes
+       focus. The card scrolls inside itself when the notes are long, so it reads on a 360 px phone. The fallback
+       essential (no marker, unknown build time) keeps the floating banner below. -->
+  <div
+    v-else-if="shows === 'essential' && release.fullScreen"
+    class="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 p-4"
+    data-testid="update-essential-backdrop"
+  >
+    <div
+      class="w-full max-w-[34rem] max-h-[90vh] overflow-y-auto rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-4 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="update-essential-text"
+      aria-describedby="update-essential-body"
+      data-testid="update-banner-essential"
+    >
+      <div id="update-essential-body" class="min-w-0 text-body [overflow-wrap:anywhere]">
+        <p id="update-essential-text" class="font-bold">
+          Please reload: this tab is missing a fix from a newer version.{{ advice }}
+        </p>
+        <ul v-if="hasNotes" class="mt-2 list-disc pl-4 space-y-0.5" data-testid="update-notes">
+          <li v-for="n in shown" :key="n.key" data-testid="update-note">
+            <span class="tabular-nums text-amber-800">{{ n.date }}</span
+            >{{ ' '
+            }}{{ n.note }}
+          </li>
+          <li v-if="more > 0" class="list-none -ml-4 tabular-nums">+{{ more }} more</li>
+        </ul>
+      </div>
+      <div class="mt-3 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          :class="TAP"
+          class="px-3 py-1.5 rounded-lg text-amber-800 text-body font-bold hover:bg-amber-100"
+          @click="later"
+        >
+          Later
+        </button>
+        <button
+          ref="reloadBtn"
+          type="button"
+          :class="TAP"
+          class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-body font-bold hover:bg-amber-500"
+          @click="reload"
+        >
+          Reload
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div
     v-else-if="shows === 'essential'"
     class="fixed top-3 left-1/2 -translate-x-1/2 z-[1100] w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ring-4 ring-black/5"
@@ -142,8 +195,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
-import { bannerFor, newNotesKey, useNewVersion, type BannerDismissals } from '@/composables/useNewVersion';
+import { computed, reactive, ref, watch } from 'vue';
+import { bannerFor, newNotesKey, snoozeEssential, useNewVersion, type BannerDismissals } from '@/composables/useNewVersion';
 import { localZone, noteDate } from '@/lib/updateNotes';
 
 const props = defineProps<{
@@ -187,7 +240,10 @@ function reload(): void {
 }
 
 function later(): void {
-  dismissed.essential = true;
-  setTimeout(() => (dismissed.essential = false), 10 * 60 * 1000);
+  snoozeEssential(dismissed);
 }
+
+/** The full-screen box's Reload button: focused when the box appears (and again when Later's ten minutes are up). */
+const reloadBtn = ref<HTMLButtonElement | null>(null);
+watch(reloadBtn, el => el?.focus(), { flush: 'post' });
 </script>

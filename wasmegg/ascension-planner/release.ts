@@ -63,7 +63,8 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-11-10T04:25:00.000Z',
+  // R8.1 (18 Nov 2026): just after live R8's build time (2026-11-10T06:15:18.633Z), so open R8 tabs are asked to move to R8.1; the maintainer OK'd it. Was 2026-11-10T04:25:00.000Z (R8).
+  reloadIfBuiltBefore: '2026-11-10T06:15:19.000Z',
   note: history[0].note,
   history,
 };

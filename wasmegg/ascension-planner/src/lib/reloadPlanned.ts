@@ -87,3 +87,19 @@ export function dismissReloadPlanned(at: string): void {
 export function resetReloadPlannedDismissal(): void {
   dismissed.value = null;
 }
+
+// The all-pages notice's Close memory (components/PlannedUpdateNotice.vue): per planned time, for this page, apart from
+// the long-run banner's above.
+const noticeDismissed = ref<string | null>(null);
+/** The planned time whose notice was closed, or null. */
+export function plannedNoticeDismissed(): string | null {
+  return noticeDismissed.value;
+}
+/** Close the notice for the update planned at `at`. */
+export function dismissPlannedNotice(at: string): void {
+  noticeDismissed.value = at;
+}
+/** For specs. */
+export function resetPlannedNoticeDismissal(): void {
+  noticeDismissed.value = null;
+}

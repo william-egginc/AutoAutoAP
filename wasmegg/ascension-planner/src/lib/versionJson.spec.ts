@@ -91,3 +91,12 @@ describe('reloadPlanned (the planned-update notice, lib/reloadPlanned.ts)', () =
     ).toThrow(/AAP_RELOAD_PLANNED_NOTE/);
   });
 });
+
+describe('release.ts reloadIfBuiltBefore (R8.1, 18 Nov 2026)', () => {
+  it('is just after live R8’s build time, so open R8 tabs are asked to move to R8.1', async () => {
+    const { default: rel } = await import('../../release');
+    expect(typeof rel.reloadIfBuiltBefore).toBe('string');
+    expect(Date.parse(rel.reloadIfBuiltBefore)).toBeGreaterThan(Date.parse('2026-11-10T06:15:18.633Z'));
+    expect(rel.reloadIfBuiltBefore).toBe('2026-11-10T06:15:19.000Z');
+  });
+});
