@@ -128,7 +128,10 @@ describe('tour picture overlays (v4)', () => {
     for (const f of ['desk', 'phone']) {
       expect(base('goalDate', f), f).toBeTruthy();
       expect(base('goalDate', f), f).not.toBe(base('goalTarget', f));
-      expect(base('filters', f), f).toBe(base('goalTarget', f));
+      // Desk: the filters slide shares Target TE's picture. Phone (17 Nov 2026, Words' long Setup button text wraps to two lines at
+      // 390 px): the switch and the button no longer fit one 440 px crop, so the filters slide has its own picture, 9-filters-base-phone.
+      if (f === 'desk') expect(base('filters', f), f).toBe(base('goalTarget', f));
+      else expect(base('filters', f), f).toBe('9-filters-base-phone');
       expect(base('full-tabInsights', f), f).not.toBe(base('full-tabLeaderboard', f));
     }
   });
