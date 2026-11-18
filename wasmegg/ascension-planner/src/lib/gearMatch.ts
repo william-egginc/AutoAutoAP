@@ -45,17 +45,17 @@ export function whichSet(
   return 'mix';
 }
 
-/** The Equipped row's name in Gear: "Equipped now = your earnings set", "… = a mix". */
+/** The Equipped row's name in Gear: "Equipped now: your earnings set", "… = a mix". */
 export function equippedName(m: SetMatch): string {
   switch (m) {
     case 'earnings':
-      return 'Equipped now = your earnings set';
+      return 'Equipped now: your earnings set';
     case 'production':
-      return 'Equipped now = your delivery set';
+      return 'Equipped now: your delivery set';
     case 'both':
-      return 'Equipped now = your earnings and delivery set';
+      return 'Equipped now: your earnings and delivery set';
     case 'mix':
-      return 'Equipped now = a mix';
+      return 'Equipped now: a mix of both';
     default:
       return 'Equipped now';
   }

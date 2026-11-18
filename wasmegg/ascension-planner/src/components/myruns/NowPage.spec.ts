@@ -364,7 +364,7 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('Equipped now');
     expect(t).toContain('Earnings set');
     expect(t).toContain('+6 Clothed TE vs equipped');
-    expect(t).toContain('Production set');
+    expect(t).toContain('Delivery set');
     // By a date: the time to the same TE, not "+4 TE"; one line, after "Missing for a perfect set".
     expect(t).toContain("With a perfect set you'd reach 248 TE about 4.0 days sooner (an estimate from the instant answer).");
     expect(t).not.toContain('+4 TE');

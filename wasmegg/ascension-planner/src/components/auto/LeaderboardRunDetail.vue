@@ -210,7 +210,7 @@
          bug. -->
     <div v-if="row.delivery?.length || row.earnings?.length">
       <h4 class="label text-slate-600 mb-1.5">
-        {{ setTab === 'earnings' ? 'Earnings set' : 'Production set' }}
+        {{ setTab === 'earnings' ? 'Earnings set' : 'Delivery set' }}
       </h4>
       <div class="flex gap-1 mb-1.5">
         <button

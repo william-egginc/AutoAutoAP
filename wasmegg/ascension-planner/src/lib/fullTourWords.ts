@@ -30,7 +30,7 @@ const OWN: Record<OwnId, { title: string; body: string }> = {
   m11steppingAway: { title: "Stepping away", body: "Stepping away? has helpers for a long search: carry on after a crash, watch it from your phone, and send progress." },
   m12howItWorks: { title: "How it works", body: "How it works opens Science, which shows how the answer is worked out and how it was checked." },
   r1changeRoute: { title: "Change route", body: "Change route is where you stop following, go back to an earlier version, or follow another route by typing or picking one." },
-  r2gearSets: { title: "Gear sets", body: "Gear sets for the route shows what you wear now, the earnings set, the production set, and what you are missing for a perfect set." },
+  r2gearSets: { title: "Gear sets", body: "Gear sets for the route shows what you wear now, the earnings set, the delivery set, and what you are missing for a perfect set." },
   r3tryNext: { title: "Try next", body: "Try next has the next searches to run: Egg Day, Fast; Exact on my 490 route; and Custom (around 5 ascensions). The numbers come from your route." },
   r4share: { title: "Share my instant answer", body: "Share my instant answer with my runs sends its route and date beside each run you send, so the Leaderboard shows what the search gained. Never your ID or save." },
   r5yourRuns: { title: "Your runs", body: "Your runs lists your searches: the latest Fastest, the latest By a date, or all of them. Each is compared with the instant answer for your save that day." },

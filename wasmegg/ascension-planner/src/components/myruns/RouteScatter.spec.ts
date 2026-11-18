@@ -211,7 +211,7 @@ describe('Missing for a perfect set', () => {
     expect(t).toContain('Artifacts to upgrade Slot 2: T4 Epic Demeters necklace vs T4 Legendary');
     expect(t).toContain('Missing stones Slot 2, Demeters necklace: 1 stone missing (has 2, a T4 Legendary holds 3)');
     expect(t).toContain('Stones below tier 4 Slot 1, Tungsten ankh: 2 × T3 Lunar stone vs T4');
-    expect(t).toContain('Equipped now is your earnings set: the same gaps.');
+    expect(t).toContain('Equipped now is your earnings set, so the same gaps.');
   });
 
   it('no virtue gear in the save: one plain line', async () => {
@@ -232,7 +232,7 @@ describe('Missing for a perfect set', () => {
         match: 'both',
       })
     );
-    expect(t.indexOf('Production set')).toBeLessThan(t.indexOf('Missing for a perfect set'));
+    expect(t.indexOf('Delivery set')).toBeLessThan(t.indexOf('Missing for a perfect set'));
     expect(read('GearBlock.vue')).toMatch(
       /<PerfectSetGaps :equipped="equipped" :earnings="earnings" :production="production"/
     );

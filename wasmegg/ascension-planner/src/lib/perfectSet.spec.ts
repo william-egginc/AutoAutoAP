@@ -59,7 +59,7 @@ describe('perfectSetGaps', () => {
       ['production', 0],
       ['equipped', 0],
     ]);
-    expect(g.sets[2].sameAs).toBe('Equipped now is your earnings set: the same gaps.');
+    expect(g.sets[2].sameAs).toBe('Equipped now is your earnings set, so the same gaps.');
   });
 
   it('mixed: per slot, what you have vs maxed, grouped, with the count on top', () => {
@@ -107,7 +107,7 @@ describe('perfectSetGaps', () => {
       /^1 of 12 artifacts is not T4 Legendary; 0 stones are below tier 4; 1 stone slot is empty\.$/
     );
     const same = perfectSetGaps({ equipped: MAXED, earnings: MAXED, production: MAXED, match: 'both' })!;
-    expect(same.sets.find(s => s.id === 'production')!.sameAs).toBe('The same as your earnings set: the same gaps.');
+    expect(same.sets.find(s => s.id === 'production')!.sameAs).toBe('Same as your earnings set, so the same gaps.');
     expect(same.perfect).toBe(true);
   });
 
