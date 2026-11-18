@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { STEP_FRESH_NOW } from '@/lib/instantWords';
+import { STEP_FRESH_NO_SHIFTS, STEP_FRESH_NOW } from '@/lib/instantWords';
 import { showDateTime } from '@/lib/displayTime';
 import { formatMoment } from '@/lib/clock';
 import { c3Wait } from '@/lib/c3WaitWords';
@@ -139,6 +139,8 @@ const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working;
 function noShifts(l: AscensionStep): string {
   if (shiftsWorking(l)) return 'Working out your shifts';
   if (l.simulated) return 'No shifts left in it: worked out on your save.';
+  // A fresh first ascension (off virtue) is not one you are in yet: its shifts come after the prestige (QA, 18 Nov 2026).
+  if (l.now && l.fresh) return STEP_FRESH_NO_SHIFTS;
   return l.now ? "The instant answer doesn't keep the shifts of the ascension you are in." : 'No shifts kept for it.';
 }
 </script>

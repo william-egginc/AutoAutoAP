@@ -8,6 +8,10 @@ import { describe, expect, it } from 'vitest';
 import { planEggGoalLines, ascEndLines } from './eggGoalTimes';
 import { EGG_LINE } from './yourEggsWords';
 import { ascGoalLine } from './timelineWords';
+import { whenWords } from './nowWords';
+import { renderHtml, textOf } from '@/test/renderComponent';
+import EventsTable from '@/components/myruns/EventsTable.vue';
+import type { PlanEvent } from './nowPlan';
 import { dateAt } from './eventWhen';
 import type { NowPlan } from './nowPlan';
 
@@ -79,15 +83,32 @@ describe('planEggGoalLines with upTo', () => {
   });
 });
 
-describe('ascEndLines: where each earlier ascension ends', () => {
-  it('one line per ascension before the last: its stop TE and when it ends, in the lib/timelineWords.ts words', () => {
-    const lines = ascEndLines({ plan: plan(), ...o });
-    expect(Object.keys(lines)).toEqual(['1']);
-    expect(lines[1]).toBe(ascGoalLine(1, 180, dateAt(Math.round((T0 - 2 * D) / 3600) * 3600, NOW, ZONE, true)));
+describe('ascEndLines: where each earlier ascension ends, the way its row in You are here says it', () => {
+  const ev = (o: Partial<PlanEvent>): PlanEvent => ({ kind: 'prestige', at: T0 - 2 * D, asc: 1, te: 180, past: false, next: false, ...o }) as PlanEvent;
+  const args = { goal: 'fastest' as const, now: NOW, zone: ZONE, rounded: true };
+  it('one line per ascension before the last, from its prestige row: the stop TE and the row\'s own time words, in lib/timelineWords.ts', () => {
+    const lines = ascEndLines({ ...args, events: [ev({}), ev({ asc: 2, te: 210, at: T0 + 9 * D }), { kind: 'goal', at: T0 + 20 * D, asc: 3, te: 490 } as PlanEvent] });
+    expect(Object.keys(lines)).toEqual(['1', '2']);
+    expect(lines[1]).toBe(ascGoalLine(1, 180, whenWords({ at: T0 - 2 * D, kind: 'prestige' }, 'fastest', NOW, ZONE, true)));
   });
-  it('a one-ascension plan has none', () => {
-    const p = plan();
-    const one = { ...p, chain: [210], tableLegs: [p.tableLegs![1]] } as unknown as NowPlan;
-    expect(ascEndLines({ plan: one, ...o })).toEqual({});
+  it('QA 18 Nov 2026: the prestige time, not the time the stop was reached (A1 10:17 PM row, 10:00 PM line): a later prestigeAt wins, as in the row', () => {
+    const reached = T0 - 2 * D;
+    const starts = reached + 43 * 60; // the next ascension starts on the hour after the stop
+    const lines = ascEndLines({ ...args, events: [ev({ at: reached, prestigeAt: starts })] });
+    expect(lines[1]).toContain(whenWords({ at: starts, kind: 'prestige' }, 'fastest', NOW, ZONE, true));
+    // And a prestige that waits for the hours is said at the held time.
+    const held = ascEndLines({ ...args, events: [ev({ at: reached, wait: 'hours', prestigeAt: reached + 6 * 3600 })] });
+    expect(held[1]).toContain(whenWords({ at: reached + 6 * 3600, kind: 'prestige' }, 'fastest', NOW, ZONE, true));
+  });
+  it('the same words as the row in the You are here table', async () => {
+    const e = ev({ at: T0 - 2 * D, prestigeAt: T0 - 2 * D + 43 * 60, next: true });
+    const html = await renderHtml(EventsTable, { events: [e], goal: 'fastest', goalName: 'Fastest to 490 TE', now: NOW, zone: ZONE, saveWhen: 'x', calculatedWhen: 'y', rounded: true });
+    const line = ascEndLines({ ...args, events: [e] })[1];
+    const when = /TE, (.*)\.$/.exec(line)![1];
+    expect(textOf(html)).toContain(when);
+  });
+  it('a one-ascension plan, or no prestige rows, has none', () => {
+    expect(ascEndLines({ ...args, events: [{ kind: 'goal', at: T0, asc: 1, te: 490 } as PlanEvent] })).toEqual({});
+    expect(ascEndLines({ ...args, events: [] })).toEqual({});
   });
 });

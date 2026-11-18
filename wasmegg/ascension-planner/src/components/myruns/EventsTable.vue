@@ -139,7 +139,7 @@ import CalendarButton from './CalendarButton.vue';
 import CalendarCloudNod from './CalendarCloudNod.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import { dateAt } from '@/lib/eventWhen';
-import { eventTitle, howFar, notDoneTitle, whenWords } from '@/lib/nowWords';
+import { eventTitle, howFar, notDoneTitle, shownEvent, whenWords } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
@@ -179,14 +179,8 @@ const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
 /** A prestige that waits (for the hours or past the no-prestige days, lib/instantSteps.ts `markPrestigeWaits`): when it
  *  happens, `prestigeAt`, already worked out; null for every other row. */
 const heldAt = (e: PlanEvent): number | null => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past ? e.prestigeAt : null);
-/** The row as it happens: a waiting prestige at its held time (When, How far, the calendar). */
-const shown = (e: PlanEvent): PlanEvent => {
-  const h = heldAt(e);
-  if (h != null) return { ...e, at: h };
-  // No wait, but the next ascension starts later than the stop (the instant answer ascends on the hour): the row is the prestige, so the
-  // time is that start, as Next step and Next shifts say it (QA, 15 Nov 2026). Nothing is said about waiting.
-  return e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.past && !e.notDone ? { ...e, at: e.prestigeAt } : e;
-};
+/** The row as it happens (lib/nowWords.ts `shownEvent`: a waiting prestige at its held time, else the next ascension's start). */
+const shown = shownEvent;
 const when = (e: PlanEvent) => whenWords(shown(e), props.goal, props.now, props.zone, roundedFor(e));
 const far = (e: PlanEvent) => howFar(shown(e), props.now, props.zone, roundedFor(e), props.goal);
 /** When a waiting prestige happens, in the row's own words (rounded like the row). */

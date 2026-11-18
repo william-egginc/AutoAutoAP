@@ -171,3 +171,7 @@ export function splitStepLead(line: string): { lead: string; rest: string } {
   const i = line.indexOf(': ');
   return i < 0 ? { lead: '', rest: line } : { lead: line.slice(0, i + 1), rest: line.slice(i + 2) };
 }
+
+/** An ascension row with no shifts, when it is a FRESH first ascension (off virtue, "prestige now, to start a fresh ascension"): there is no
+ *  ascension you are in, so not "the ascension you are in" (QA 18 Nov 2026). DRAFT (UI; Words to review). */
+export const STEP_FRESH_NO_SHIFTS = "Its shifts come after you prestige. The instant answer doesn't keep them.";
