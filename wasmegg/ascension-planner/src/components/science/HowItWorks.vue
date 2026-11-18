@@ -183,7 +183,7 @@
             checks this every time and says which one it used.
           </li>
           <li>
-            <b>A table for your gear set,</b> built for the same gear (for example "wood_420"). When two tables sit either side of
+            <b>An instant answer for your gear set,</b> built for the same gear (for example "wood_420"). When two of these sit either side of
             your gear, the page can use the nearer one, even one built from another account's runs.
           </li>
           <li>

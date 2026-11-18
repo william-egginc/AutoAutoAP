@@ -3,7 +3,7 @@
  * visible slot, not in More. layout/FiltersButton.vue, the bar's small-button style (Change player's), 44 px at every
  * width, a real button with a name, aria-expanded and aria-haspopup="dialog". It opens the floating Setup
  * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795, made precise the same
- * day): right ABOVE the instant answer card, on By a date below the date picker and its "N days from your plan start"
+ * day): right ABOVE the instant answer card, on By a date below the date picker and its "N days from the route’s start"
  * line, on Fastest in the same spot; not inside the card, not after the Auto Planner tabs, not beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
  * Side (Jordan, 12 Nov 2026 pm: centred or on the left, not right-aligned): LEFT at every width (the floating Setup
  * pill, fixed bottom-right, sat over a right-aligned button at 390 px).
@@ -57,10 +57,10 @@ describe('the button', () => {
 });
 
 describe('where it sits', () => {
-  it('By a date: right above the instant answer card, below the date picker and its "days from your plan start" line', () => {
+  it('By a date: right above the instant answer card, below the date picker and its "days from the route’s start" line', () => {
     const t = tplOf(read('components/auto/DeadlinePanel.vue'));
     const f = t.indexOf('<FiltersButton');
-    expect(f).toBeGreaterThan(t.indexOf('from your plan start.'));
+    expect(f).toBeGreaterThan(t.indexOf('from the route’s start.'));
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
     expect(t.slice(f, t.indexOf('data-testid="section-instant"'))).not.toMatch(/<(p|section|InstantRoute)\b/);
     expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div class="flex justify-start">');

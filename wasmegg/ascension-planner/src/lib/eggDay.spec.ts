@@ -38,6 +38,6 @@ describe('sameClock: the planner\'s time line only when it says something new (U
     // The picker's own line gives the time in your zone; under it only the days from the plan start.
     const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/DeadlinePanel.vue'), 'utf8');
     expect(src).not.toContain('sameClock(deadline, plannerZone, zone)');
-    expect(src).toContain("{{ plural(Math.round(daysAway), 'day') }} from your plan start.");
+    expect(src).toContain("{{ plural(Math.round(daysAway), 'day') }} from the route’s start.");
   });
 });

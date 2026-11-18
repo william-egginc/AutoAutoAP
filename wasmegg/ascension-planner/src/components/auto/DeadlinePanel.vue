@@ -119,7 +119,7 @@
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
       <!-- One short line (UX fluff review 2, 5 Nov 2026, item D0b): the picker above already gives the time in your own
            zone. DRAFT (Words). -->
-      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from your plan start.</template>
+      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from the route’s start.</template>
       <template v-else>Pick a date and time.</template>
       Egg Day's own bonuses aren't in the plan.
     </p>
