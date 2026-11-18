@@ -33,7 +33,13 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-11-14T22:00:00Z', note: 'Put my plan in my calendar (Setup, off to start): a private link for Google or Apple Calendar with your shifts, buys and ascensions. It may be a day behind. Reset link makes a new one' },
+  { at: '2026-11-17T22:00:06Z', note: 'Release 9: Quick and Full tours, My runs follows the plan on your newest save, Put my plan in my calendar is on, and instant answers on the newest simulator (sim5) where rebuilt', level: 'big' },
+  { at: '2026-11-17T22:00:05Z', note: 'Quick tour (22 slides) and Full tour (42 slides), in More and in the page footer. The Full tour can carry on from where the Quick tour ends. Show the tour again is in Setup' },
+  { at: '2026-11-17T22:00:04Z', note: 'My runs follows the plan on your newest save and says “worked out on your save from…” for an older one. A box shows when the best for your date is below the TE you follow' },
+  { at: '2026-11-17T22:00:03Z', note: 'Setup shows When the plan starts in view, and on a small screen Setup is a round gear button at the bottom' },
+  { at: '2026-11-17T22:00:02Z', note: 'The save line says how old your save is. The silo warning shows only when your save is fresh and your silos are low; otherwise you just see the save’s age' },
+  { at: '2026-11-17T22:00:01Z', note: 'Put my plan in my calendar is on in Setup: a private link for Google or Apple Calendar with your shifts, buys and ascensions, and a cloud calendar that updates itself. It may be a day behind' },
+  { at: '2026-11-17T22:00:00Z', note: 'Instant answers use the newest simulator (sim5) where rebuilt, with a yellow note where one still comes from an older simulator. Answers can differ by about a week on a 490 route' },
   { at: '2026-11-13T22:00:03Z', note: 'Build-up tracker stages: Buying to Tier 13, Focus on ROI and Delivery research, each with its colour, a key and the day on a later band; Compact splits a day by stage; Tier 13 shows where it unlocks' },
   { at: '2026-11-13T22:00:02Z', note: 'A By a date answer with under about 2 days to spare is a close call and says it may miss; a lower TE Custom found is named as confirmed. No answer for an old date shows under a new date' },
   { at: '2026-11-13T22:00:01Z', note: 'Target TE sits in one card like By a date; My runs’ rate says which set it is for (“with your earnings set”); Your eggs show when each reaches its goal' },
@@ -60,17 +66,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-11-04T18:00:02Z', note: 'One save-age box (green, yellow or red) says when to sync; Downloaded saves no longer contain your player ID or device IDs; after an update, answers are worked out again with the new version' },
   { at: '2026-11-04T18:00:01Z', note: 'Download for Excel (.xlsx) beside the CSV; saving the same answer twice no longer duplicates it; the update list shows only what is new to you; phone layout and banner tidy-ups' },
   { at: '2026-11-04T18:00:00Z', note: "My runs shows a You are here row and tag; the Auto Planner remembers its screen; Fastest's Save run says Saved ✓; Next step says Prestige at N TE for a producing save; waiting labels have moving dots" },
-  { at: '2026-10-29T23:00:07Z', note: 'Release 6: new instant answers, My runs shows your next step and shifts, your Setup and followed route are saved online, and one Run button', level: 'big' },
-  { at: '2026-10-29T23:00:06Z', note: 'New instant answers (some numbers will move), and new gear tables make them more exact for more gear sets; the Silos tile estimates time left' },
-  { at: '2026-10-29T23:00:05Z', note: 'My runs shows your Next step and Next shifts from your live save, a timeline with a build-up line for each ascension, and a check for a newer save; Your routes at a glance is a heat map' },
-  { at: '2026-10-29T23:00:04Z', note: 'Your Setup and sharing choices and the route you follow are saved online, so other devices show them; Earlier versions keeps the last 5, and Restore brings one back' },
-  { at: '2026-10-29T23:00:03Z', note: 'One Run button (Run Fast, Run Exact or Run Custom) with a tick to send the result to the Leaderboard; Prefer fewer is on by default, and your old pick is reset' },
-  { at: '2026-10-29T23:00:02Z', note: "Opening a Manual plan no longer changes the Auto Planner's answers; the eggs' to goal times are fixed; Not sent yet is orange only when something is unsent; Same TE picks the fewest ascensions" },
-  { at: '2026-10-29T23:00:01Z', note: 'The phone watch keeps reporting and warns you when its updates fail; Stepping away starts closed and opens on long runs; the CSV buttons say what they hold, plus a download for the full CSV you sent' },
-  { at: '2026-10-29T23:00:00Z', note: 'No prestige days now sit beside Awake hours and Time off in Setup; Custom help is now short bullets; the Help box has Yes to all; this list of updates shows the newest first, with dates' },
-  { at: '2026-10-23T00:30:00Z', note: 'Joo’s latest planner with an artifact and stone editor; one Search panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
-  { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4:00 PM Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
-  { at: '2026-10-20T00:37:44Z', note: 'prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster Highest TE by a date searches, a My runs route chart', level: 'big' },
 ];
 
 export default {
