@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 // The line reads endEggsOf's `next` and nothing else (the laid egg, shift-aware: search/endEggs.ts).
@@ -23,7 +24,7 @@ const tile = (goal: 'fastest' | 'date', answer: TileAnswer | null): Tile => ({ g
 describe('try next', () => {
   it('nothing run yet: Egg Day Fast, Exact on the race, Exhaustive', () => {
     const p = tryNextPills({ tile: tile('fastest', null), target: 490 }, tile('date', null));
-    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on my 490 route', 'Custom']);
+    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on Fastest to 490', 'Custom']);
     expect(p[0].open).toEqual({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true }, level: 'quick' });
     expect(p[1].open).toEqual({ auto: 'fastest', depth: 'smart', tab: 'nearby', target: 490, level: 'normal' });
     expect(p[2].open).toMatchObject({ depth: 'full', tab: 'exhaustive' });
@@ -35,6 +36,19 @@ describe('try next', () => {
     expect(p.map(x => x.id)).toEqual(['eggday-fast', 'exact-race', 'exhaustive']);
     expect(p.map(x => x.label).join(' ')).not.toContain('Check exactly');
     expect(p[2].label).toBe('Custom (around 4 ascensions)');
+  });
+
+  it('Exact on the race names its goal, and is not offered while the route followed is for another goal (17 Nov 2026)', () => {
+    const f = { tile: tile('fastest', null), target: 490 };
+    const ids = (followed: Parameters<typeof tryNextPills>[2]) => tryNextPills(f, tile('date', null), followed).map(x => x.id);
+    // No route followed, or the race's own: offered.
+    expect(ids(null)).toContain('exact-race');
+    expect(ids({ goal: 'fastest', target: 490 })).toContain('exact-race');
+    // A date goal (Egg Day 2027 to 176) or another target: it would open the 490 race, which is not the route she follows.
+    expect(ids({ goal: 'date', target: 176 })).not.toContain('exact-race');
+    expect(ids({ goal: 'fastest', target: 300 })).not.toContain('exact-race');
+    // The others stay.
+    expect(ids({ goal: 'date', target: 176 })).toEqual(['eggday-fast', 'exhaustive']);
   });
 
   it('drops what is done', () => {
@@ -70,5 +84,12 @@ describe('try next', () => {
     expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 10:00 AM.');
     next.value = { egg: 'integrity', at: DEADLINE - 600 };
     expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 9:50 AM.');
+  });
+});
+
+describe('My runs hands Try next the followed route\'s goal', () => {
+  it('MyRunsView passes cardPlan.goal when the card is followed', () => {
+    const src = readFileSync(new URL('../components/MyRunsView.vue', import.meta.url), 'utf8');
+    expect(src).toContain('c?.followed ? { goal: c.goal.goal, target: c.goal.target } : null');
   });
 });

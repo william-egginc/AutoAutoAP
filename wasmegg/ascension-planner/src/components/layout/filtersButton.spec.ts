@@ -20,6 +20,14 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', '..', 
 const tplOf = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
 
 describe('the button', () => {
+  it('its long text (Words, 17 Nov 2026) wraps inside the button at 390 px instead of running off the screen (it was cut off at "time off and mo")', () => {
+    const tpl = tplOf(read('components/layout/FiltersButton.vue'));
+    const tag = tpl.slice(tpl.indexOf('<button'), tpl.indexOf('>', tpl.indexOf('data-testid="filters-button"')));
+    expect(tag).toContain('max-w-full');
+    expect(tag).toContain('text-left');
+    expect(tag).not.toMatch(/whitespace-nowrap|\bflex-none\b/);
+    expect(tag).toContain('min-h-[44px]');
+  });
   it('Jordan\'s word, in a *Words.ts file', () => {
     expect(FILTERS).toBe('Click to open Setup: awake hours, time off and more filters');
   });

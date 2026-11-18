@@ -4,7 +4,7 @@
  * saved-answer tiles already say:
  *
  *   Egg Day, Fast                  Egg Day has no search behind it yet
- *   Exact on my 490 route          the race has no Exact-or-stronger search yet
+ *   Exact on Fastest to N          the race has no Exact-or-stronger search yet
  *   Exhaustive (around N asc)      the race has no Exhaustive yet; N = the answer's ascensions (the range itself
  *                                  is set on the screen: there is no preset for it yet)
  *   Check exactly                  a tile shows the instant answer only (it runs on its screen)
@@ -17,6 +17,7 @@ import { dateAt } from './eventWhen';
 import { virtueEggName } from './virtueEggs';
 import type { MyRunsOpen } from './myRunsDashboard';
 import type { Tile } from './savedTiles';
+import { exactRacePill } from './tryNextWords';
 import { deadlineKind, finishesBefore, lateMarker } from './eggDayRule';
 
 export const MAX_PILLS = 4;
@@ -29,7 +30,14 @@ export interface Pill {
 
 const STRONG = new Set(['normal', 'thorough', 'exhaustive']);
 
-export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Tile): Pill[] {
+/** The goal of the route followed on My runs' card (cardPlan.goal when it is followed): null when none is followed. */
+export type FollowedGoal = { goal: 'fastest' | 'date'; target: number } | null;
+
+/**
+ * `followed`: Exact on the race opens the Fastest-to-N screen, so it is left out while the route followed is for another goal (a date,
+ * or another target): it would read as being about that route (17 Nov 2026, a tester following Egg Day 2027 to 176 saw "Exact on my 490 route").
+ */
+export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Tile, followed: FollowedGoal = null): Pill[] {
   const pills: Pill[] = [];
   const f = fastest.tile.answer;
   const e = eggDay.answer;
@@ -39,10 +47,11 @@ export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Ti
       label: 'Egg Day, Fast',
       open: { auto: 'by-date', tab: 'nearby', byDate: { eggDay: true }, level: 'quick' },
     });
-  if (!f || f.how !== 'search' || !STRONG.has(f.level ?? ''))
+  const followsOther = !!followed && !(followed.goal === 'fastest' && followed.target === fastest.target);
+  if ((!f || f.how !== 'search' || !STRONG.has(f.level ?? '')) && !followsOther)
     pills.push({
       id: 'exact-race',
-      label: `Exact on my ${fastest.target} route`,
+      label: exactRacePill(fastest.target),
       open: { auto: 'fastest', depth: 'smart', tab: 'nearby', target: fastest.target, level: 'normal' },
     });
   if (!f || f.level !== 'exhaustive')

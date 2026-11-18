@@ -601,7 +601,10 @@ const trackerReplan = computed(() =>
 /* The save on the server versus the one loaded here: asked by the save line at the top since the simpler page
    (layout/SaveLine.vue, 9 Nov 2026), which shows this page's save age now. */
 /** Try next's runs, all of them: Right now has no Run Fast button of its own since 25 Oct 2026 (one path per card). */
-const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
+const pills = computed(() => {
+  const c = page.cardPlan.value;
+  return tryNextPills(page.fastestTile.value, page.eggDayTile.value, c?.followed ? { goal: c.goal.goal, target: c.goal.target } : null);
+});
 /** "One more TE by Egg Day … would come …, after Egg Day starts, so it isn’t counted.": saved legs only, the laid
  *  egg's next TE (lib/tryNext.ts `oneMoreLine`, from endEggsOf's `next`). */
 const oneMore = computed(() => {

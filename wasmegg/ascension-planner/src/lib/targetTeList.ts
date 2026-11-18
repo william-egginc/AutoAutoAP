@@ -1,6 +1,6 @@
 /**
  * The Auto Planner's "Target TE(s)" field (components/auto/AutomaticPlanner.vue), checked as you type (17 Nov 2026, Jordan and a tester):
- * every number is at most MAX_TARGET_TE; the first is at least the TE the player already has; each after it is strictly higher than the one before (lib/follow.ts parseTypedRoute: "each above the last"). The generator (auto/useAscensionGenerator.ts getTargets) takes any positive numbers, so this is the form's rule only.
+ * every number is at most MAX_TARGET_TE; the first is above the TE the player already has (ValidationDialog.vue treats a target equal to it as invalid too); each after it is strictly higher than the one before (lib/follow.ts parseTypedRoute: "each above the last"). The generator (auto/useAscensionGenerator.ts getTargets) takes any positive numbers, so this is the form's rule only.
  * The first fault is returned (the box shows one plain line under it) and Generate Plan stays off until there is none. Pure; the
  * sentences are Words' (lib/targetTeWords.ts).
  */
@@ -24,7 +24,7 @@ export function targetTeFault(text: string, currentTe: number): TargetTeFault | 
   for (let i = 0; i < nums.length; i++) {
     const n = nums[i];
     if (n > MAX_TARGET_TE) return { kind: 'tooHigh', value: n };
-    if (i === 0 && n < currentTe) return { kind: 'belowCurrent', value: n, current: currentTe };
+    if (i === 0 && n <= currentTe) return { kind: 'belowCurrent', value: n, current: currentTe };
     if (i > 0 && n <= nums[i - 1]) return { kind: 'descending', value: n, previous: nums[i - 1] };
   }
   return null;

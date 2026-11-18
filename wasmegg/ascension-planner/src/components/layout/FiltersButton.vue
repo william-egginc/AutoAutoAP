@@ -9,7 +9,7 @@
 <template>
   <button
     type="button"
-    class="flex-none inline-flex min-h-[44px] items-center gap-1.5 px-3 rounded-lg border border-slate-300 bg-white text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+    class="max-w-full inline-flex min-h-[44px] items-center gap-1.5 px-3 py-1.5 text-left rounded-lg border border-slate-300 bg-white text-body font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
     aria-haspopup="dialog"
     :aria-expanded="ui.setupOpen"
     data-testid="filters-button"

@@ -2,14 +2,15 @@
   "When each step happens" (Jordan, 24 Oct 2026), folded under the instant answer's green box: per ascension, when the
   prestige happens and when its stop is reached, with "waits past your no-prestige days" or "waits for your hours" on
   a prestige that waited (lib/instantSteps.ts). Times are the instant answer's own, to the hour; the egg shifts are not
-  in them (Simulate this plan lists each one). Closed by default: native <details>, no state to keep.
+  in them (Simulate this plan lists each one). Closed by default: native <details>, no state to keep. Since 17 Nov 2026 the summary is a
+  bordered link named for what is inside (lib/instantStepsWords.ts), as a tester did not find that the dates were already there.
 -->
 <template>
   <details v-if="lines.length" class="text-body text-slate-700" data-testid="instant-steps">
     <summary
-      class="cursor-pointer inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-emerald-800 underline decoration-dotted underline-offset-2 marker:text-emerald-600"
+      class="cursor-pointer inline-flex items-center min-h-[44px] sm:min-h-0 rounded-lg border border-emerald-300 bg-white px-3 font-bold text-emerald-800 underline decoration-2 underline-offset-2 hover:bg-emerald-50 list-none [&::-webkit-details-marker]:hidden"
     >
-      When each step happens
+      {{ STEPS_LINK }}
     </summary>
     <ol class="mt-1 space-y-1 list-none pl-0" data-testid="instant-steps-list">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="instant-step">
@@ -35,7 +36,7 @@
       </li>
     </ol>
     <p class="mt-1 text-small text-slate-600" data-testid="instant-steps-note">
-      Times as the instant answer works them out, to the hour. Each egg shift is in Simulate this plan.
+      {{ STEPS_NOTE }}
     </p>
   </details>
 </template>
@@ -44,6 +45,7 @@
 import { computed } from 'vue';
 import { cardTime } from './instantCardTime';
 import { instantSteps, type StepLeg } from '@/lib/instantSteps';
+import { STEPS_LINK, STEPS_NOTE } from '@/lib/instantStepsWords';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffWindow } from '@/search/types';
 import { r1OfTableAscension } from '@/lib/sleepBeforeR1View';

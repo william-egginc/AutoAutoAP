@@ -348,7 +348,7 @@ describe('your eggs and Try next', () => {
     const pills = tryNextPills({ tile: { goal: 'fastest', answer: null, olderSave: false, sure: null }, target: 490 }, tile());
     const t = textOf(await renderHtml(TryNext, { pills, line: 'One more TE by Egg Day 2027 (249) would need about 1.6 more days.' }));
     expect(t).toContain('Egg Day, Fast ›');
-    expect(t).toContain('Exact on my 490 route ›');
+    expect(t).toContain('Exact on Fastest to 490 ›');
     expect(t).toContain('One more TE by Egg Day 2027 (249)');
   });
 

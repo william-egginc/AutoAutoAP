@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { MAX_TARGET_TE, targetTeFault } from './targetTeList';
 
 describe('targetTeFault', () => {
-  it('allows a list that is at most 490, not under the TE you have, and not going down', () => {
+  it('allows a list that is at most 490, with the first above the TE you have and each after it higher', () => {
     expect(targetTeFault('300 400 490', 250)).toBeNull();
-    expect(targetTeFault('250', 250)).toBeNull();
+    expect(targetTeFault('251', 250)).toBeNull();
     expect(targetTeFault('300 301', 0)).toBeNull();
     expect(MAX_TARGET_TE).toBe(490);
   });
@@ -18,7 +18,8 @@ describe('targetTeFault', () => {
     expect(targetTeFault('491', 100)).toEqual({ kind: 'tooHigh', value: 491 });
     expect(targetTeFault('300 500', 100)).toEqual({ kind: 'tooHigh', value: 500 });
   });
-  it('the first under your TE is a fault', () => {
+  it('the first at or under your TE is a fault (ValidationDialog: equal is invalid)', () => {
+    expect(targetTeFault('250', 250)).toEqual({ kind: 'belowCurrent', value: 250, current: 250 });
     expect(targetTeFault('249 300', 250)).toEqual({ kind: 'belowCurrent', value: 249, current: 250 });
   });
   it('a number equal to or under the one before is a fault (each above the last, as lib/follow.ts)', () => {

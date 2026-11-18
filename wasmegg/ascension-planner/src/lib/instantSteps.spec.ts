@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { instantSteps, type StepLeg } from './instantSteps';
+import { STEPS_LINK, STEPS_NOTE } from './instantStepsWords';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import InstantSteps from '@/components/auto/InstantSteps.vue';
 import type { Availability } from '@/search/availability';
@@ -76,7 +77,11 @@ describe('InstantSteps.vue', () => {
     expect(html).toContain('data-testid="instant-steps"');
     expect(html).not.toMatch(/<details[^>]*\bopen\b/);
     const t = textOf(html);
-    expect(t).toContain('When each step happens');
+    expect(t).toContain(STEPS_LINK);
+    expect(t).not.toContain('When each step happens');
+    expect(t).toContain(STEPS_NOTE);
+    // A visible bordered link, not a caption (17 Nov 2026).
+    expect(html).toMatch(/<summary[^>]*class="[^"]*\bborder\b[^"]*\bborder-emerald-300\b/);
     expect(t).toContain('waits past your no-prestige days');
     expect(t).toMatch(/\b(am|pm|AM|PM)\b/);
     expect(t).not.toMatch(/\b(table|chain|checkpoint)s?\b/i);
