@@ -36,7 +36,8 @@ describe('the calendar card announces the link and Copied', () => {
     expect(html).toMatch(/<p class="sr-only" role="status" aria-live="polite" data-testid="calendar-feed-live"><\/p>/);
   });
   it('says Words\' "Copied" and the shown-once line there', () => {
-    expect(cal).toContain("const liveText = computed(() => (feed.copied.value ? CAL_COPIED : feed.link.value ? CAL_SHOWN_ONCE : ''));");
+    // The saved link (callink, 17 Nov 2026) says its own line instead of the shown-once one.
+    expect(cal).toContain("const liveText = computed(() => (feed.copied.value ? CAL_COPIED : feed.link.value ? (fromSave.value ? CAL_SAVED : CAL_SHOWN_ONCE) : ''));");
     expect(cal).toContain('{{ liveText }}');
   });
 });

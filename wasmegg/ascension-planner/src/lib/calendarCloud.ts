@@ -6,7 +6,8 @@
  * lib/calendarFeedEvents.ts; a body with a player ID in it is never sent (putSynced checks). Never throws.
  * Not a result code hash input.
  */
-import { putSynced, type PutSyncedResult, type SyncFetch } from './syncedRecords';
+import { getSynced, putSynced, type PutSyncedResult, type SyncFetch } from './syncedRecords';
+import type { LinkRecord } from './calLinkCrypt';
 import { calendarFeedOn } from './calendarFlag';
 import type { CalEventList } from './calendarFeedEvents';
 
@@ -99,4 +100,18 @@ export const googleCalendarUrl = (url: string): string => `https://calendar.goog
 export function putCalendar(syncUrl: string, k: string, at: number, list: CalEventList, f: SyncFetch | null = defaultFetch(), now: () => number = Date.now): Promise<PutSyncedResult> {
   if (!CALENDAR_FEED.enabled) return Promise.resolve({ ok: false, why: 'off' });
   return putSynced(syncUrl, k, 'cal', '0', at, list, f, now);
+}
+
+/** PUT /sync kind=callink slot 0: the encrypted link record (lib/calLinkCrypt.ts), stamped `at` (ms). One resend, stamped after a newer one, on a 409. */
+export async function putCalLink(syncUrl: string, k: string, record: LinkRecord, f: SyncFetch | null = defaultFetch(), now: () => number = Date.now): Promise<PutSyncedResult> {
+  if (!CALENDAR_FEED.enabled) return { ok: false, why: 'off' };
+  let r = await putSynced(syncUrl, k, 'callink', '0', now(), record, f, now);
+  if (!r.ok && r.why === 'newer') r = await putSynced(syncUrl, k, 'callink', '0', Math.max(now(), r.latest.at + 1), record, f, now);
+  return r;
+}
+
+/** GET /sync/get kind=callink slot 0: the saved record as stored, 'absent' when there is none. */
+export function getCalLink(syncUrl: string, k: string, f: SyncFetch | null = defaultFetch()) {
+  if (!CALENDAR_FEED.enabled) return Promise.resolve({ ok: false, why: 'off' } as const);
+  return getSynced(syncUrl, k, 'callink', '0', f);
 }

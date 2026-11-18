@@ -16,7 +16,8 @@
  */
 import { computed, ref } from 'vue';
 import { buildCalendarEvents, sameCalendar, type CalEventList, type CalendarInput } from '@/lib/calendarFeedEvents';
-import { CALENDAR_FEED, mintCalendarLink, putCalendar, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
+import { CALENDAR_FEED, getCalLink, mintCalendarLink, putCalendar, putCalLink, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
+import { decryptLink, deriveLinkKey, encryptLink, readLinkRecord } from '@/lib/calLinkCrypt';
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
 import * as blackBox from '@/search/blackBox';
 
@@ -32,11 +33,17 @@ export interface CalendarFeedEnv {
   account: string;
   /** Where the synced records go: the collector's /sync address and the account's key; null: not available. */
   target: () => { url: string; k: string } | null;
+  /** The player ID, for the key that seals the saved link (lib/calLinkCrypt.ts). Never sent, never logged. Without it the link is not saved. */
+  playerId?: () => string;
+  /** Specs: PBKDF2 rounds (the real count by default). */
+  linkRounds?: number;
 }
 export type CalendarFeedInput = Omit<CalendarInput, 'previous'>;
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type Last = Pick<CalEventList, 'events' | 'src' | 'asOf'>;
 export type CalPhase = 'idle' | 'confirm' | 'reset-done';
+/** The saved copy of the link: none; being read here; read back and opened; or there but not readable here. */
+export type CalSavedState = 'none' | 'checking' | 'loaded' | 'unreadable';
 
 function browserZone(): string {
   try {
@@ -74,6 +81,9 @@ export function createCalendarFeed(o: {
   const linked = ref(read(key('.linked')) === '1');
   /** The link, shown once. Memory only. */
   const link = ref<string | null>(null);
+  /** The link kept encrypted on the collector (kind `callink`) so every browser shows it again. `linkFromSave`: the link is kept online (read back, or saved just now), so the card drops its "shown only once" warning. */
+  const savedState = ref<CalSavedState>('none');
+  const linkFromSave = ref(false);
   const busy = ref(false);
   /** `upload`: the plan could not be sent to the calendar (the link buttons use CalFail's `error` instead). */
   const error = ref<'' | CalFail | 'upload'>('');
@@ -107,11 +117,79 @@ export function createCalendarFeed(o: {
     write(key('.last'), next ? JSON.stringify(next) : null);
   }
 
+  // ---------------------------------------------------------------------------------------- the saved (encrypted) link
+  let linkKey: Promise<CryptoKey> | null = null;
+  let linkKeyFor = '';
+  /** The key for the player ID on screen, worked out once; null without an ID. */
+  function keyNow(): Promise<CryptoKey> | null {
+    const id = (o.env.playerId?.() ?? '').trim();
+    if (!id) return null;
+    if (!linkKey || linkKeyFor !== id) {
+      linkKeyFor = id;
+      linkKey = deriveLinkKey(id, o.env.linkRounds);
+    }
+    return linkKey;
+  }
+  const resetSaved = (): void => {
+    savedState.value = 'none';
+    linkFromSave.value = false;
+  };
+  /** Keep the new link: sealed here, PUT as the collector's `callink` record. A failure leaves "shown once" as before. */
+  async function saveLink(url: string): Promise<void> {
+    const t = o.env.target();
+    const kp = keyNow();
+    if (!t || !kp) return;
+    try {
+      const rec = await encryptLink(await kp, url);
+      const r = await putCalLink(t.url, t.k, rec, f);
+      if (r.ok) {
+        savedState.value = 'loaded';
+        linkFromSave.value = true;
+      }
+      else blackBox.note(`calendar link not saved: ${r.why}`);
+    } catch {
+      blackBox.note('calendar link not saved: crypto');
+    }
+  }
+  /** Read the saved link back (another browser, or a reload): 'none' when absent or the collector didn't answer, 'unreadable' when a record is there but won't open. */
+  let checking = false;
+  async function checkSaved(): Promise<void> {
+    const t = o.env.target();
+    const kp = keyNow();
+    if (!CALENDAR_FEED.enabled || !enabled.value || checking || !t || !kp) return;
+    checking = true;
+    savedState.value = 'checking';
+    try {
+      const r = await getCalLink(t.url, t.k, f);
+      if (!r.ok) {
+        savedState.value = 'none';
+        return;
+      }
+      const url = readLinkRecord(r.value) ? await decryptLink(await kp, r.value) : null;
+      if (!url) {
+        savedState.value = 'unreadable';
+        linked.value = true;
+        write(key('.linked'), '1');
+        return;
+      }
+      link.value = url;
+      linked.value = true;
+      write(key('.linked'), '1');
+      linkFromSave.value = true;
+      savedState.value = 'loaded';
+    } catch {
+      savedState.value = 'none';
+    } finally {
+      checking = false;
+    }
+  }
+
   function turnOn(): void {
     if (!CALENDAR_FEED.enabled) return;
     enabled.value = true;
     write(key(), '1');
     error.value = '';
+    void checkSaved();
   }
   async function revokeAll(): Promise<boolean> {
     const t = o.env.target();
@@ -120,6 +198,7 @@ export function createCalendarFeed(o: {
     return r.ok;
   }
   function forget(): void {
+    resetSaved();
     linked.value = false;
     link.value = null;
     copied.value = false;
@@ -154,9 +233,12 @@ export function createCalendarFeed(o: {
         return;
       }
       link.value = r.url;
+      linkFromSave.value = false;
+      savedState.value = 'none';
       linked.value = true;
       write(key('.linked'), '1');
       phase.value = 'idle';
+      void saveLink(r.url);
       // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
       keep(null);
       planSent.value = false;
@@ -201,6 +283,22 @@ export function createCalendarFeed(o: {
     } finally {
       busy.value = false;
     }
+  }
+  /** From 'unreadable' (the card asks first): every link stops, the saved copy goes, a new link is made and saved. */
+  async function replaceLink(): Promise<void> {
+    if (!CALENDAR_FEED.enabled) return;
+    error.value = '';
+    busy.value = true;
+    try {
+      if (!(await revokeAll())) {
+        error.value = o.env.target() ? 'offline' : 'off';
+        return;
+      }
+      forget();
+    } finally {
+      busy.value = false;
+    }
+    await getLink();
   }
 
   // ------------------------------------------------------------------------------------------ the plan going up
@@ -267,7 +365,10 @@ export function createCalendarFeed(o: {
   /** Linked, My runs open, no plan sent yet and no upload error: "Working out your plan for the calendar" (the tracker takes 60-100 s under load). */
   const working = computed(() => enabled.value && linked.value && onMyRuns.value && !planSent.value && !error.value);
 
-  return { enabled, linked, link, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, pushNow, pushed, pushCoolingDown, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  // A page load with the switch already on: read the saved link back (this browser may not have it in memory, another may have made it).
+  if (enabled.value) void checkSaved();
+
+  return { enabled, linked, link, savedState, linkFromSave, replaceLink, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, pushNow, pushed, pushCoolingDown, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 
@@ -298,7 +399,7 @@ function localStore(): StorageLike | null {
 export function calendarFeedFor(account: string): CalendarFeed {
   let c = feeds.get(account);
   if (!c) {
-    c = createCalendarFeed({ storage: localStore(), env: { account, target: () => syncTarget() } });
+    c = createCalendarFeed({ storage: localStore(), env: { account, target: () => syncTarget(), playerId: () => ((useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId ?? '').trim() } });
     feeds.set(account, c);
   }
   return c;
