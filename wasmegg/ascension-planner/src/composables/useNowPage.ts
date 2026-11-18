@@ -1986,7 +1986,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return mergeSimultaneousShifts(markPrestigeWaits(list, lines), zone.value);
   });
   const shownEvents = computed(() => tableEvents(events.value));
-  const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));
+  // The loaded save's time: a fresh first ascension counts only once a save is from after its prestige (lib/nowPlan.ts ascensionAt).
+  const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value) : 0));
   const track = computed(() => {
     if (!cardPlan.value) return null;
     // Whole TE only, and the egg the farm is on (lib/planPace.ts `progressOf`), as on My runs' saved plans.

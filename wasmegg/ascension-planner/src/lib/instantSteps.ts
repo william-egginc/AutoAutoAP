@@ -14,6 +14,7 @@ import type { TimeOffWindow } from '@/search/types';
 import { buildUpLine, type BuildUpLeg } from './buildUpLine';
 import { estimatedOpening } from './openingShifts';
 import { virtueEggName } from './virtueEggs';
+import { firstStepKind } from './instantWords';
 
 export interface StepLeg {
   from: number;
@@ -47,6 +48,9 @@ export interface StepLine {
   stopTE: number;
   /** The first ascension is the one the farm is in now: no prestige to time. */
   now: boolean;
+  /** The first ascension starts FRESH (its leg's label '2-sale', '3-sale-tier13': lib/instantWords.ts firstStepKind): the
+   *  player prestiges now to start it, so it is not "the ascension you are in" (17 Nov 2026: 93 TE, no virtue farm). */
+  fresh: boolean;
   /** The prestige into it, unix seconds. */
   prestigeAt: number;
   /** When the prestige could have happened without the waiting (the last stop reached); null when it didn't wait. */
@@ -114,6 +118,7 @@ export function instantSteps(
     const ready = prev ? prev.end : l.heldOpening === 'morning' && l.wanted ? l.wanted : null;
     const wait = ready !== null ? waitOf(ready, l.start, hours, windows) : null;
     const now = !prev && ready === null;
+    const fresh = !prev && firstStepKind(l.label) === 'fresh';
     const prestigeIn = now ? undefined : inside(l.start);
     // Running into a time off that starts after its own start (and before its stop, or with the stop inside it).
     const cut = l.timeOffKnown ? undefined : away.find(w => w.from > l.start && w.from < l.end);
@@ -128,6 +133,7 @@ export function instantSteps(
       fromTE: l.from,
       stopTE: l.endTE,
       now,
+      fresh,
       prestigeAt: l.start,
       readyAt: wait ? ready : null,
       wait,

@@ -15,7 +15,8 @@
     <ol class="mt-1 space-y-1 list-none pl-0" data-testid="instant-steps-list">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="instant-step">
         <span class="font-bold text-slate-800">A{{ l.asc }}</span>
-        <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
+        <template v-if="l.now && l.fresh">{{ ' ' }}· {{ STEP_FRESH_NOW }}</template>
+        <template v-else-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
         <template v-else>
           {{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ show(l.prestigeAt) }}</span>
           <template v-if="l.wait === 'days'">
@@ -46,6 +47,7 @@ import { computed } from 'vue';
 import { cardTime } from './instantCardTime';
 import { instantSteps, type StepLeg } from '@/lib/instantSteps';
 import { STEPS_LINK, STEPS_NOTE } from '@/lib/instantStepsWords';
+import { STEP_FRESH_NOW } from '@/lib/instantWords';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffWindow } from '@/search/types';
 import { r1OfTableAscension } from '@/lib/sleepBeforeR1View';
@@ -63,8 +65,9 @@ const props = defineProps<{
 
 const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props.noPrestige ?? null));
 /** The warning for an ascension the table starts (never the one the farm is in): R1 bounded by the opening's span. */
-const r1Of = (l: { now: boolean; prestigeAt: number; fromTE: number }) =>
-  l.now ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
+// A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).
+const r1Of = (l: { now: boolean; fresh?: boolean; prestigeAt: number; fromTE: number }) =>
+  l.now && !l.fresh ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
 /** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
 const show = (t: number) => cardTime(t, props.zone);
 </script>

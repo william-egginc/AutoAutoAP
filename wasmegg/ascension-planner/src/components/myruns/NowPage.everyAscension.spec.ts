@@ -140,6 +140,17 @@ describe('every ascension and its shifts (AscensionList.vue, lib/instantSteps.ts
     expect(html.match(/data-testid="now-ascension-shift"/g)).toHaveLength(12);
   });
 
+  it('a FRESH first ascension says prestige now, not "the ascension you are in", and no "you are here" (17 Nov 2026)', async () => {
+    const p = plan();
+    const legs = stepLegsOf(p).map((l, i) => ({ ...l, shifts: p.tableLegs![i].shifts, ...(i === 0 ? { label: '2-sale' } : {}) }));
+    const lines = ascensionSteps(legs, HOURS, null);
+    expect(lines[0]).toMatchObject({ now: true, fresh: true });
+    const t = textOf(await renderHtml(AscensionList, { lines, zone: ZONE, here: true }));
+    expect(t).toContain('A1 · prestige now, to start a fresh ascension');
+    expect(t).not.toContain('in the ascension you are in');
+    expect(t).not.toContain('you are here');
+  });
+
   it('Right now\'s Full timeline shows the list for a plan with no exact legs, and the table every prestige with its wait', async () => {
     const p = plan();
     const events = markPrestigeWaits(planEvents(p, T0 + H), instantSteps(stepLegsOf(p), HOURS, null));

@@ -22,6 +22,7 @@ import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './
 import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import { estimatedOpening } from './openingShifts';
 import { sameResultCode } from './resultCode';
+import { firstStepKind } from './instantWords';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -553,7 +554,7 @@ export function stepLegsOf(plan: NowPlan): StepLeg[] {
       const start = l.startTime ?? l.endTime - l.durationSeconds;
       const prev = plan.legs![i - 1];
       return Number.isFinite(start) && Number.isFinite(l.endTime)
-        ? [{ from: prev ? prev.endTE : 0, to: plan.chain[i], endTE: l.endTE, start, end: l.endTime }]
+        ? [{ from: prev ? prev.endTE : 0, to: plan.chain[i], endTE: l.endTE, start, end: l.endTime, ...(l.key ? { label: l.key } : {}) }]
         : [];
     });
   return (plan.tableLegs ?? []).slice(0, n).map(l => ({
@@ -562,6 +563,7 @@ export function stepLegsOf(plan: NowPlan): StepLeg[] {
     endTE: l.endTE ?? l.to,
     start: l.start,
     end: l.end,
+    ...(l.label ? { label: l.label } : {}),
     ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
     ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
     ...(l.timeOff ? { timeOffKnown: true } : {}),
@@ -591,12 +593,22 @@ export function markPrestigeWaits(events: readonly PlanEvent[], lines: readonly 
 }
 
 /** The plan's ascension the clock is in (1-based), 0 before the plan starts, the last one after it ends. */
-export function ascensionAt(plan: NowPlan, nowSeconds: number): number {
+export function ascensionAt(plan: NowPlan, nowSeconds: number, saveSeconds?: number | null): number {
   const ends = plan.legs
     ? plan.legs.slice(0, plan.chain.length).map(l => l.endTime)
     : (plan.tableLegs ?? []).slice(0, plan.chain.length).map(l => l.end);
   if (!ends.length) return 0;
   if (plan.planStart && nowSeconds < plan.planStart) return 0;
+  // A FRESH first ascension has not started until the player prestiges into it (17 Nov 2026: 93 TE, no virtue farm, "ascension
+  // 1 of 4" beside "Not on virtue yet"): an instant answer's planStart is when it was priced, past almost at once. With the
+  // loaded save's time (`saveSeconds`): a save from before the first leg's prestige has not made it yet.
+  if (saveSeconds != null && saveSeconds > 0) {
+    const first = plan.legs?.[0];
+    const t = plan.tableLegs?.[0];
+    const fresh = firstStepKind(first ? first.key : t?.label) === 'fresh';
+    const start = first ? (first.startTime ?? first.endTime - first.durationSeconds) : t?.start;
+    if (fresh && typeof start === 'number' && Number.isFinite(start) && saveSeconds < start) return 0;
+  }
   const i = ends.findIndex(e => nowSeconds < e);
   return i < 0 ? ends.length : i + 1;
 }
