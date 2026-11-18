@@ -488,6 +488,8 @@
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
+            <!-- Every row tight: the tag says nothing, so one line says it (UX sweep R9, M3; lib/countRowsWords.ts DRAFT). -->
+            <p v-if="allRowsTight" class="px-1 pb-1 text-small text-amber-800" data-testid="counts-all-tight">{{ COUNTS_ALL_TIGHT }}</p>
             <div
               class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label whitespace-nowrap text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
@@ -526,7 +528,7 @@
                   {{ ' ' }}
                   <span class="font-bold tabular-nums" :class="rowTight(r) ? 'text-amber-700' : 'text-emerald-800'" :title="days(deadline - r.end)"
                     ><span>{{ tableGap(deadline - r.end) }}</span><span class="sr-only">{{ ' ' }}spare</span
-                    ><template v-if="rowTight(r)"
+                    ><template v-if="rowTight(r) && !allRowsTight"
                       >{{ ' ' }}<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label" data-testid="counts-tight">tight</span></template
                     ></span
                   >
@@ -701,6 +703,8 @@
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
+            <!-- Every row tight: the tag says nothing, so one line says it (UX sweep R9, M3; lib/countRowsWords.ts DRAFT). -->
+            <p v-if="allRowsTight" class="px-1 pb-1 text-small text-amber-800" data-testid="counts-all-tight">{{ COUNTS_ALL_TIGHT }}</p>
             <div
               class="grid items-end gap-x-2 px-1 pb-1 whitespace-nowrap label text-slate-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
               aria-hidden="true"
@@ -935,6 +939,7 @@ import { cardTime } from './instantCardTime';
 import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
+import { COUNTS_ALL_TIGHT } from '@/lib/countRowsWords';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
 import { computed, inject, nextTick, onUnmounted, reactive, ref, shallowRef, useId, watch } from 'vue';
 import { SECTION_HIDE } from './sectionHide';
@@ -2749,6 +2754,7 @@ function toggleCount(r: Route): void {
 /** The rows' ids (a head's aria-controls names its panel), unique on the page. */
 const countIds = `counts-${useId()}`;
 /** A row's tight tag: under a day to spare, or inside the gear caveat's window (lib/spareLine.ts, as the box's). */
+const allRowsTight = computed(() => dateRows.value.length > 1 && dateRows.value.every(rowTight));
 function rowTight(r: Route): boolean {
   return !!props.deadline && isTightSpare(props.deadline - r.end, shiftedTable.value);
 }

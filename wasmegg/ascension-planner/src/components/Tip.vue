@@ -53,7 +53,7 @@
       data-testid="tip-info"
       @click.stop="tip.onInfoClick"
     >
-      <span aria-hidden="true" class="tip-i inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-small font-bold leading-none"></span>
+      <span aria-hidden="true" class="tip-i inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-slate-400 text-small font-bold leading-none"></span>
     </button>
     <Teleport v-if="text" to="body">
       <span
@@ -156,9 +156,9 @@ defineExpose({ id, text: props.text });
   -webkit-user-select: none;
   user-select: none;
 }
-/* The "i" is drawn, not text: the button's name is its aria-label, and the row's text stays the buttons' words. */
+/* The "?" is drawn (one help icon, UX sweep R9; was an "i"), not text: the button's name is its aria-label, and the row's text stays the buttons' words. */
 .tip-i::before {
-  content: 'i';
+  content: '?';
 }
 /* The "i" on a phone and on any screen without hover; a desktop has hover and keyboard focus. */
 .tip-info {

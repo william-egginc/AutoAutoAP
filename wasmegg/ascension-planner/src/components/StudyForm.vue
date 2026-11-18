@@ -38,7 +38,7 @@
     <button
       v-if="compact"
       type="button"
-      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-indigo-200 bg-indigo-50/60 text-body font-bold text-indigo-800 hover:bg-indigo-50"
+      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-slate-300 bg-white text-body font-bold text-slate-700 hover:bg-slate-50"
       :aria-expanded="choicesOpen"
       aria-controls="study-choices"
       data-testid="study-choices-toggle"
