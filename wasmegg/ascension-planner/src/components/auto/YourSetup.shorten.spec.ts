@@ -91,7 +91,7 @@ describe('S25, S27, S28: This computer (inside More options)', () => {
   it('the worker note is one line', () => {
     const slider = read('./WorkerSlider.vue');
     expect(slider).not.toContain('12 workers were as fast as 19');
-    expect(flat(slider)).toContain('More finish sooner, up to a point. You can change it mid-run.');
+    expect(flat(slider)).toContain('More workers finish sooner, up to a point. You can change it mid-run.');
   });
   it('background speed: the select and the browser line only', () => {
     const bg = read('./BackgroundSpeed.vue');

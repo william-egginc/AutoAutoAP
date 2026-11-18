@@ -13,7 +13,7 @@
     </summary>
     <div class="mt-2 space-y-2">
       <p class="text-slate-600 leading-relaxed">
-        Type its id (the first 8 characters are enough; it is in the run’s CSV link on the {{ NAMES.compare }}) and this
+        Type its ID (the first 8 characters are enough; it is in the run’s CSV link on the {{ NAMES.compare }}) and this
         says why it isn’t counted as yours.
       </p>
       <input

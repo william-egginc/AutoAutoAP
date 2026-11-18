@@ -22,7 +22,7 @@
   >
     <summary class="flex min-h-[44px] cursor-pointer flex-wrap items-center gap-x-2 px-4 py-2 text-body sm:min-h-0">
       <span class="font-bold text-slate-700">More routes ›</span>
-      <span class="text-slate-600">Best 5 routes · best per ascension count</span>
+      <span class="text-slate-600">Best 5 routes · best for each number of ascensions</span>
     </summary>
 
     <div v-if="isOpen" class="space-y-5 border-t border-slate-100 px-4 pb-4 pt-3" data-testid="top-routes-body">
@@ -81,7 +81,7 @@
       </section>
 
       <section v-if="perCount.length" aria-labelledby="top-routes-chart-h" class="space-y-2" data-testid="top-routes-chart">
-        <h4 id="top-routes-chart-h" class="label text-slate-600">Best per number of ascensions</h4>
+        <h4 id="top-routes-chart-h" class="label text-slate-600">Best for each number of ascensions</h4>
         <p class="text-small text-slate-600">
           {{
             goal === 'date'

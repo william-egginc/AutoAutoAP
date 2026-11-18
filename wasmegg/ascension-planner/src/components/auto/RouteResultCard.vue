@@ -179,7 +179,7 @@ const downloads = computed<DownloadItem[]>(() => [
         {
           key: 'diagnostics',
           text: 'Download diagnostics (no save data, no player ID)',
-          title: 'A small JSON file of what this run was given: backup age, TE, research and loadout. Attach it when you report a result that looks wrong',
+          title: 'A small JSON file of what this run was given: save age, TE, research and loadout. Attach it when you report a result that looks wrong',
           testid: 'fastest-diagnostics',
         },
       ]

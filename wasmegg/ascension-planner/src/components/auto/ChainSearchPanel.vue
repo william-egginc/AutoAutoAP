@@ -293,7 +293,7 @@
           <div class="text-small font-bold text-slate-600">
             Routes to price (max)
             <HelpTip
-              >An upper bound. Coordinate descent stops as soon as no stop moves, so a run routinely finishes well short
+              >An upper bound. The search stops as soon as no stop moves, so a run routinely finishes well short
               of this.</HelpTip
             >
           </div>
@@ -507,7 +507,7 @@
             <span class="font-bold">That's a single ascension.</span>
             {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
             look for. To plan that one ascension, go to the {{ NAMES.classic }}, type
-            {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, pick
+            {{ store.finalTE }} in Target TE(s) and press Generate Plan. To search for a faster route instead, pick
             Type a route… under Start from a different route and give it some stops (like <span class="tabular-nums">200 250 300 {{ store.finalTE }}</span
             >).
           </div>

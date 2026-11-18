@@ -27,7 +27,7 @@ describe('TopRoutes', () => {
     let reads = 0;
     const html = await renderHtml(TopRoutes, props({ open: false, routes: () => (reads++, FASTEST) }));
     expect(html).toMatch(/<details(?![^>]*\sopen)[^>]*data-testid="top-routes"/);
-    expect(textOf(html)).toBe('More routes › Best 5 routes · best per ascension count');
+    expect(textOf(html)).toBe('More routes › Best 5 routes · best for each number of ascensions');
     expect(html).not.toContain('top-routes-body');
     expect(reads).toBe(0);
   });

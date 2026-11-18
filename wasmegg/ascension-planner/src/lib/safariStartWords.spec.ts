@@ -5,7 +5,7 @@ import { safariStartWords } from './safariStartWords';
 describe('safariStartWords', () => {
   it('says how many workers, how many were chosen, why, that results do not change, and how to override', () => {
     expect(safariStartWords({ workers: 5, chosen: 7 })).toBe(
-      'Safari starts runs with 5 workers, not the 7 you chose, because it has stopped runs that used more. Results are the same, only the time changes. Pick a number here to use it for this visit.'
+      'Safari starts runs with 5 workers, not the 7 you chose, because it has stopped runs that used more. Results are the same; only the time changes. Pick a number here to use it for this visit.'
     );
   });
   it('one worker is singular', () => {

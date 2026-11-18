@@ -121,7 +121,7 @@
       class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600"
       data-testid="instant-at-target"
     >
-      Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
+      Your save is already at {{ Math.floor(store.currentTE) }} TE, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
     <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-loading">
@@ -791,7 +791,7 @@
             {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
           </button>
           <p v-else-if="moreDontHelp" class="mt-1 text-small text-slate-600" data-testid="instant-more-dont-help">
-            More ascensions don't help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
+            More ascensions don't help past ~{{ USEFUL_STOP_NOTE }} TE: a build there already lays at its full rate, so an
             extra stop only adds a prestige.
           </p>
           </PanelFold>

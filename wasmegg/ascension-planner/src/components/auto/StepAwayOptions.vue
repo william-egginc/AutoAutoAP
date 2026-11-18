@@ -93,7 +93,7 @@
             <div v-if="watchTab" class="pl-6 space-y-1.5">
               <p v-if="watcherOk" class="font-bold text-emerald-700" role="status">
                 ✓ Watcher tab open and watching
-                <span class="font-normal">(checked in {{ agoShort(watcherAge!) }} ago)</span>
+                <span class="font-normal">(last checked {{ agoShort(watcherAge!) }} ago)</span>
               </p>
               <div
                 v-else-if="popupBlocked"

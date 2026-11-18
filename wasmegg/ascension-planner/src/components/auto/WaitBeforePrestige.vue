@@ -46,7 +46,7 @@
       <p class="pt-1 text-small text-slate-600">
         While you wait, the farm keeps laying the egg it ended on, and those eggs carry into your next ascension. Stops
         stay whole TE: prestiging before one always costs more than it saves. A wait an hour or two off can lose far more
-        than it gains, so a wait is suggested only when it gains more than half an hour and being 2 h off costs less
+        than it gains, so a wait is suggested only when it gains more than half an hour and being 2 hours off costs less
         than three times the gain; otherwise prestige as soon as you reach the stop.
       </p>
     </div>

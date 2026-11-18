@@ -22,7 +22,7 @@ beforeEach(() => {
   setActivePinia(pinia);
 });
 
-/** A staged (no `space`) unfinished run, last written `ageMs` ago, with `n` plans priced. */
+/** A staged (no `space`) unfinished run, last written `ageMs` ago, with `n` routes priced. */
 function run(ageMs: number, n: number, bestChain: number[]): SearchCheckpoint {
   return {
     version: 1,
@@ -61,22 +61,22 @@ describe('UnfinishedRuns', () => {
     const html = await render(mixed());
     const t = textOf(html);
     expect(t).toContain('Earlier unfinished runs');
-    expect(t).toContain('11 plans priced, best 1 2 · 2 h ago');
+    expect(t).toContain('11 routes priced, best 1 2 · 2 h ago');
     expect(t).toContain('Carry on');
     expect(html).toContain('data-testid="unfinished-old"');
     expect(html).toContain('data-testid="unfinished-old-show"');
     expect(t).toContain('2 older runs, the newest 5 days ago');
-    expect(t).not.toContain('22 plans priced');
-    expect(t).not.toContain('33 plans priced');
+    expect(t).not.toContain('22 routes priced');
+    expect(t).not.toContain('33 routes priced');
   });
 
   it('Show lists the old runs too, and the one line goes', async () => {
     const html = await render(mixed(), true);
     const t = textOf(html);
     expect(html).not.toContain('unfinished-old"');
-    expect(t).toContain('11 plans priced');
-    expect(t).toContain('22 plans priced, best 3 4 · 5 days ago');
-    expect(t).toContain('33 plans priced, best 5 6 · 6 days ago');
+    expect(t).toContain('11 routes priced');
+    expect(t).toContain('22 routes priced, best 3 4 · 5 days ago');
+    expect(t).toContain('33 routes priced, best 5 6 · 6 days ago');
     expect(t.match(/Carry on/g)).toHaveLength(3);
   });
 
@@ -88,7 +88,7 @@ describe('UnfinishedRuns', () => {
 
   it('a run from this page\'s last visit (5 h) stays open; one from 7 h ago folds', async () => {
     const open = textOf(await render([run(5 * HOUR, 8, [1])]));
-    expect(open).toContain('8 plans priced');
+    expect(open).toContain('8 routes priced');
     expect(open).toContain('Carry on');
     expect(open).not.toContain('unfinished run,');
     const folded = textOf(await render([run(7 * HOUR, 8, [1])]));
@@ -102,7 +102,7 @@ describe('UnfinishedRuns', () => {
     expect(t).toContain('Earlier unfinished runs');
     expect(t).toContain('2 unfinished runs, the newest 5 days ago');
     expect(t).not.toContain('Carry on');
-    expect(t).not.toContain('plans priced');
+    expect(t).not.toContain('routes priced');
   });
 
   it('nothing at all with no runs', async () => {

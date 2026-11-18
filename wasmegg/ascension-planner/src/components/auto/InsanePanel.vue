@@ -272,7 +272,7 @@
       >
         <p>
           <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
-          <template v-else>A run on this machine stopped without finishing.</template>
+          <template v-else>A run here stopped without finishing.</template>
           <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
             <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> routes are
             already priced and will be replayed instead of simulated again.
@@ -338,7 +338,7 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-slate-600 label">Your TE now</span>
                 <HelpTip
-                  >Read from your backup, not editable here. It is the floor for every stop in the ranges.</HelpTip
+                  >Read from your save, not editable here. It is the floor for every stop in the ranges.</HelpTip
                 >
               </span>
               <input
@@ -615,9 +615,9 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-small font-bold text-slate-600">Est. time</span>
+                <span class="text-small font-bold text-slate-600">Estimated time</span>
                 <HelpTip
-                  >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
+                  >Routes × assumed cost ÷ workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
                   prefix sharing means most routes cost far less than a full simulation. As a guide from players' runs:
                   about 1 minute per 70 routes on an 8-core computer, per 120 on 16. A hidden tab runs several times
