@@ -57,6 +57,17 @@ export function roundToHourIn(at: number, zone: string): number {
   return into >= 1800 ? whole - into + 3600 : whole - into;
 }
 
+/**
+ * The row as it happens (My runs' You are here table, and the ascension picker's "A2 ends" line, one definition: QA 18 Nov 2026): a waiting
+ * prestige (for the hours or past a no-prestige day, lib/instantSteps.ts `markPrestigeWaits`) at its held time; a prestige whose next
+ * ascension starts later than the stop (the instant answer ascends on the hour) at that start; every other row as it is.
+ */
+export function shownEvent(e: PlanEvent): PlanEvent {
+  const held = e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past ? e.prestigeAt : null;
+  if (held != null) return { ...e, at: held };
+  return e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.past && !e.notDone ? { ...e, at: e.prestigeAt } : e;
+}
+
 /** The events table's When: "Thu, Oct 15 at 4:00 pm", rounded "Fri, Oct 23 at around 3:00 pm". */
 export function whenWords(
   e: Pick<PlanEvent, 'at' | 'kind'>,

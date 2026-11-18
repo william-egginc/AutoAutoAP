@@ -2159,7 +2159,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const ascEnds = computed<Record<number, string>>(() => {
     const p = cardPlan.value?.plan;
     if (!p || ascTotal.value < 2) return {};
-    return ascEndLines({ plan: p, now: now.value, zone: zone.value, saveEgg: currentEgg.value });
+    // From the same rows You are here shows (QA 18 Nov 2026), so the line and the row say the same time.
+    return ascEndLines({ events: events.value, goal: p.goal, now: now.value, zone: zone.value, rounded: !p.exact });
   });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);

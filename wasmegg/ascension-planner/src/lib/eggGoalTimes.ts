@@ -24,11 +24,11 @@
  * TE SHARE: an Exact plan's final leg's `endEggs` (search/endEggs.ts `endEggsOf`); a table plan has none, so its
  * lines carry no TE.
  */
-import type { NowPlan } from './nowPlan';
+import type { NowPlan, PlanEvent } from './nowPlan';
 import type { EggViewLine } from './nextTeEgg';
 import { continuesFarm } from './nextAction';
 import { dateAt } from './eventWhen';
-import { roundToHourIn } from './nowWords';
+import { roundToHourIn, shownEvent, whenWords } from './nowWords';
 import { endEggsOf } from '@/search/endEggs';
 import { VIRTUE_EGGS } from '@/types';
 import { ascGoalLine } from './timelineWords';
@@ -163,18 +163,16 @@ export function planEggGoalLines(o: {
 }
 
 /**
- * Where each ascension before the last ends (Your eggs' ascension picker, 17 Nov 2026), by 1-based ascension: its stop's TE and when
- * (the browser's format with the weekday, to the hour when the plan isn't exact), in lib/timelineWords.ts `ascGoalLine`.
+ * Where each ascension before the last ends (Your eggs' ascension picker, 17 Nov 2026), by 1-based ascension: its stop's TE and when, from
+ * its prestige row in You are here and in that row's own words and time (lib/nowWords.ts `shownEvent`, `whenWords`: the prestige, not the
+ * moment the stop was reached; to the hour with "around" when the plan isn't exact), in lib/timelineWords.ts `ascGoalLine`. QA, 18 Nov 2026.
  */
-export function ascEndLines(o: { plan: NowPlan; now: number; zone: string; saveEgg: string | null }): Record<number, string> {
-  const legs = goalLegsOf(o.plan, { saveEgg: o.saveEgg });
+export function ascEndLines(o: { events: readonly PlanEvent[]; goal: 'fastest' | 'date'; now: number; zone: string; rounded: boolean }): Record<number, string> {
   const out: Record<number, string> = {};
-  for (let i = 0; i < legs.length - 1; i++) {
-    const te = o.plan.chain[i];
-    const end = legs[i].end;
-    if (!Number.isFinite(end) || typeof te !== 'number') continue;
-    const when = dateAt(o.plan.exact ? end : roundToHourIn(end, o.zone), o.now, o.zone, true);
-    if (when) out[i + 1] = ascGoalLine(i + 1, te, when);
+  for (const e of o.events) {
+    if (e.kind !== 'prestige' || typeof e.te !== 'number' || out[e.asc] !== undefined) continue;
+    const when = whenWords(shownEvent(e), o.goal, o.now, o.zone, o.rounded && !e.exact);
+    if (when) out[e.asc] = ascGoalLine(e.asc, e.te, when);
   }
   return out;
 }
