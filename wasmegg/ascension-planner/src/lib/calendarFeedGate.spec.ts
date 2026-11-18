@@ -16,10 +16,10 @@ import PrivacyTip from '@/components/PrivacyTip.vue';
 const about = readFileSync(new URL('../../public/about.html', import.meta.url), 'utf8');
 
 describe('the one flag', () => {
-  it('off in the repo; VITE_CALENDAR_FEED forces it either way', () => {
-    expect(CALENDAR_FEED_DEFAULT).toBe(false);
-    expect(calendarFeedOn(undefined)).toBe(false);
-    expect(calendarFeedOn('')).toBe(false);
+  it('ON in the repo since R9 (the live collector has /cal since 15 Nov 2026); VITE_CALENDAR_FEED forces it either way', () => {
+    expect(CALENDAR_FEED_DEFAULT).toBe(true);
+    expect(calendarFeedOn(undefined)).toBe(true);
+    expect(calendarFeedOn('')).toBe(true);
     expect(calendarFeedOn('1')).toBe(true);
     expect(calendarFeedOn('0')).toBe(false);
   });

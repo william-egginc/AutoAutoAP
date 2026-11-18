@@ -74,7 +74,9 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-11-10T04:25:00.000Z',
+  // R9 PLACEHOLDER (17 Nov 2026): the start of the R9 build day (midnight MST); the orchestrator sets the exact time, with the
+  // maintainer's OK, and deletes this comment. live-r9.sh refuses while this comment is here. Was 2026-11-10T04:25:00.000Z (R8).
+  reloadIfBuiltBefore: '2026-11-17T07:00:00.000Z',
   note: history[0].note,
   history,
 };
