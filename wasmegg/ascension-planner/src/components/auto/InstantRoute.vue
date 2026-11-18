@@ -272,7 +272,7 @@
           <span class="flex items-center gap-2" data-testid="instant-asc-range">
             Ascensions from
             <input
-              :value="filters.minAscensions ?? ''"
+              :value="ascShown('min')"
               type="number"
               inputmode="numeric"
               min="1"
@@ -281,11 +281,12 @@
               aria-label="Fewest ascensions (blank for any)"
               class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-body py-0.5 px-2"
               data-testid="instant-min-ascensions"
+              @input="ascDraft.min = ($event.target as HTMLInputElement).value"
               @change="setAscBound('min', $event)"
             />
             to
             <input
-              :value="filters.maxAscensions ?? ''"
+              :value="ascShown('max')"
               type="number"
               inputmode="numeric"
               min="1"
@@ -294,6 +295,7 @@
               aria-label="Most ascensions (blank for any)"
               class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-body py-0.5 px-2"
               data-testid="instant-max-ascensions"
+              @input="ascDraft.max = ($event.target as HTMLInputElement).value"
               @change="setAscBound('max', $event)"
             />
           </span>
@@ -934,7 +936,7 @@ import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
-import { computed, inject, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
+import { computed, inject, nextTick, onUnmounted, reactive, ref, shallowRef, useId, watch } from 'vue';
 import { SECTION_HIDE } from './sectionHide';
 import { isNearTarget, useChainSearchStore } from '@/stores/chainSearch';
 import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
@@ -1740,9 +1742,16 @@ const noPrestigeOn = computed(() => usableTimeOff(store.noPrestige).length > 0);
 /** "Works inside my hours" (only with "Let me pick my hours") and the ascensions "From … to …". */
 const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
+/** What is being typed in the range boxes, until it is committed on change (17 Nov 2026): while an answer is worked out the card
+ *  re-renders every few hundred ms, and a box bound only to the saved filter was put back to it before the change event. */
+const ascDraft = reactive<{ min: string | null; max: string | null }>({ min: null, max: null });
+function ascShown(end: 'min' | 'max'): string | number {
+  return ascDraft[end] ?? (end === 'min' ? filters.value.minAscensions : filters.value.maxAscensions) ?? '';
+}
 /** One end of the ascensions range as typed (blank: no bound); the other end moves along when passed. */
 function setAscBound(end: 'min' | 'max', e: Event): void {
   const el = e.target as HTMLInputElement;
+  ascDraft[end] = null;
   const b = setBound(filterBounds(filters.value), end, boundInput(el.value, MAX_ASCENSIONS));
   filters.value = { ...filters.value, minAscensions: b.min, maxAscensions: b.max };
   // What was typed may have been clamped (or the value kept): the box shows what is in effect.

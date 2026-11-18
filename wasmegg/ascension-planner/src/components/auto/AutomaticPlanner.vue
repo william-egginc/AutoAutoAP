@@ -75,6 +75,9 @@
                     <img :src="iconURL('egginc-extras/silo.png', 64)" class="w-5 h-5 object-contain" alt="silo" />
                   </button>
                 </div>
+                <p v-if="targetFaultText" class="text-small font-bold text-rose-700 px-1 mt-2" role="alert" data-testid="target-te-fault">
+                  {{ targetFaultText }}
+                </p>
                 <p class="text-small font-bold text-slate-600 px-1 mt-2">
                   Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
@@ -113,7 +116,7 @@
 
         <button
           class="btn-premium btn-primary w-full py-4 mt-8 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
-          :disabled="isGenerating"
+          :disabled="isGenerating || !!targetFault"
           @click="runGenerate()"
         >
           <span v-if="isGenerating">{{ generateProgress || 'Generating Plan...' }}</span>
@@ -398,6 +401,8 @@ import { routeText } from '@/search/simulateRoute';
 import { showDateTime } from '@/lib/displayTime';
 import { boxStartWords } from '@/lib/boxStartWords';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
+import { targetTeFault } from '@/lib/targetTeList';
+import { TARGET_TE_ORDER, TARGET_TE_TOO_HIGH, targetTeTooLow } from '@/lib/targetTeWords';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { planStartOwner } from '@/composables/useBackupPlanStart';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
@@ -429,6 +434,15 @@ const { clothedTE: earningsClothedTe } = useEarningsClothedTE();
 const showLowClothedTEWarning = computed(() => earningsClothedTe.value !== null && earningsClothedTe.value < 200);
 
 const targetInput = ref<HTMLInputElement | null>(null);
+// Each Target TE is at most 490, the first at least the TE the player has, each at least the one before (lib/targetTeList.ts).
+const targetFault = computed(() => targetTeFault(targetTE.value, truthEggsStore.totalTE));
+const targetFaultText = computed(() => {
+  const f = targetFault.value;
+  if (!f || f.kind === 'empty') return '';
+  if (f.kind === 'tooHigh') return TARGET_TE_TOO_HIGH;
+  if (f.kind === 'belowCurrent') return targetTeTooLow(f.current);
+  return TARGET_TE_ORDER;
+});
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
 // Restore the rest of the cached form (target TE and its time-off cuts) from a previous visit, so a
@@ -524,6 +538,7 @@ const finishGenerate = (clearLoadoutOverrides: boolean) => {
 };
 
 const runGenerate = () => {
+  if (targetFault.value) return;
   if (Object.keys(autoPlannerStore.loadoutOverrides).length > 0) {
     isKeepOverridesPromptOpen.value = true;
     return;

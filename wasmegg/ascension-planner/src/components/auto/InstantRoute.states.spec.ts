@@ -204,6 +204,8 @@ function ctxOf(s: State): Record<string, unknown> {
     filters: { inHours: s.hours, maxAscensions: s.hours ? 5 : null, minAscensions: null },
     rangeText: s.hours ? 'at most 5' : '',
     setAscBound: () => {},
+    ascDraft: { min: null, max: null },
+    ascShown: () => '',
     widenTo: () => {},
     followGoal: 'date',
     boxGain: '',
@@ -302,6 +304,9 @@ function ctxOf(s: State): Record<string, unknown> {
 
 async function draw(s: State, over: Record<string, unknown> = {}, real: Record<string, Vue.Component> = {}): Promise<string> {
   const ctx = { ...ctxOf(s), ...over };
+  // The range boxes read their draft, else the filter (InstantRoute.vue `ascShown`).
+  const f = ctx.filters as { minAscensions: number | null; maxAscensions: number | null };
+  ctx.ascShown = (end: string) => (end === 'min' ? f.minAscensions : f.maxAscensions) ?? '';
   // First step and the night-buy note, as the page works them out.
   // First step keeps its awake-hours clause; the night-buy note goes behind the quick-estimate "?" (Jordan, 12 Nov 2026).
   if (!('stepCaveat' in over)) ctx.stepCaveat = { step: String(ctx.firstStep ?? ''), note: ctx.nightBuyNote ? INSTANT_NIGHT_BUY_NOTE : null };

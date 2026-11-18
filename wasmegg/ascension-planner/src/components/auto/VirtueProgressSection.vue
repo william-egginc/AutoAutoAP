@@ -58,7 +58,7 @@
             <span class="text-title tabular-nums font-bold text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
             <span class="text-slate-600 label">Claimed</span>
           </div>
-          <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-700' : 'text-slate-300'">
+          <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-700' : 'text-slate-600'">
             +{{ backupProgress.tePending[egg] }} Pending
           </div>
         </div>
