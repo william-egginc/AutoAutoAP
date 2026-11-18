@@ -74,7 +74,7 @@ describe('tour slides', () => {
     expect(new Set(TOUR_SLIDES.map(s => s.desk.src)).size).toBeLessThan(TOUR_SLIDES.length - 5);
   });
 
-  it('a save file with no player ID: thirteen slides (no My runs tab), Simulate this plan included, ending at Follow this route', () => {
+  it('a save file with no player ID: thirteen slides (no My runs tab), Simulate this route included, ending at Follow this route', () => {
     expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow']);
     expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(22);
     expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(22);

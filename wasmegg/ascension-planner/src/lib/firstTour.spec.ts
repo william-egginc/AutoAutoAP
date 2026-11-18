@@ -90,7 +90,7 @@ describe('aap.tour values', () => {
     expect(isNewVisitor({ savedPlayerId: null, lastRoute: '#/auto/fastest' })).toBe(false);
   });
 
-  it('a save file with no player ID ends the tour at Follow this route (thirteen slides, no My runs tab), after Simulate this plan', () => {
+  it('a save file with no player ID ends the tour at Follow this route (thirteen slides, no My runs tab), after Simulate this route', () => {
     expect(stepsFor({ hasAccount: false, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
     expect(stepsFor({ hasAccount: true, hasSaveFile: false })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
     expect(stepsFor({ hasAccount: false, hasSaveFile: true })).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow']);

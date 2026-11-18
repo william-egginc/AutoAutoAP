@@ -1,8 +1,8 @@
 /**
  * EVERY ASCENSION ON RIGHT NOW (26 Oct 2026, Jordan: the Full timeline said "the instant answer only keeps when each
- * ascension ends", the table had two rows and All planned shifts said "Can't tell"). A plan with the table's times
+ * ascension ends", the table had two rows and All shifts on the route said "Can't tell"). A plan with the table's times
  * now lists every ascension's prestige in the table (one that waits says so), every ascension with its shifts in the
- * Full timeline ("from the instant answer, to the hour"), and All planned shifts counts the shifts listed.
+ * Full timeline ("from the instant answer, to the hour"), and All shifts on the route counts the shifts listed.
  */
 import { describe, expect, it } from 'vitest';
 // The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
@@ -72,7 +72,7 @@ describe('the estimate carries each ascension\'s shifts (lib/followEstimate.ts p
 });
 
 describe('the plan\'s events and counts (lib/nowPlan.ts)', () => {
-  it('planEvents lists the table\'s shifts; All planned shifts counts those after the save, and can\'t tell without any', () => {
+  it('planEvents lists the table\'s shifts; All shifts on the route counts those after the save, and can\'t tell without any', () => {
     const ev = planEvents(plan(), T0 + H);
     expect(ev.filter(e => e.kind === 'shift')).toHaveLength(12);
     expect(ev.filter(e => e.kind === 'shift').map(e => e.asc)).toEqual([2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]);
@@ -251,12 +251,12 @@ describe('the ascension you are in, simulated (lib/followSim.ts)', () => {
     expect(t).toContain('worked out on your save, to the minute');
     const bare = ascensionSteps(stepLegsOf(plan()), null, null);
     expect(textOf(await renderHtml(AscensionList, { lines: bare, zone: ZONE, working: true }))).toContain('Working out your shifts...');
-    // All planned shifts counts the simulated ones too.
+    // All shifts on the route counts the simulated ones too.
     expect(shiftsAfter(p, T0)).toBe(13);
   });
 });
 
-describe('All planned shifts (YourEggs.vue)', () => {
+describe('All shifts on the route (YourEggs.vue)', () => {
   const base = {
     eggs: [],
     facts: null,

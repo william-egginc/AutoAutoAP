@@ -46,7 +46,7 @@ describe('InstantRunWarning', () => {
       expect(button, press).toBeGreaterThan(0);
       const warning = template.indexOf(`warnHere(confirming, '${at}')`);
       expect(warning, at).toBeGreaterThan(button);
-      // Nothing but the button's own row (its sibling "Simulate this plan") in between: no other
+      // Nothing but the button's own row (its sibling "Simulate this route") in between: no other
       // block of the card, and no other asking button.
       const between = template.slice(button, warning);
       expect(between.match(/<\/button>/g)?.length ?? 0, at).toBeLessThanOrEqual(2);

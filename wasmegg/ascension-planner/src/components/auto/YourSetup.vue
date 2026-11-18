@@ -350,7 +350,7 @@
         <fieldset id="your-setup-time-off" :disabled="locked" class="scroll-mt-4 rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
-            The {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
+            The {{ NAMES.classic }} only plans around time off in a route sent from a search (Simulate this route on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>

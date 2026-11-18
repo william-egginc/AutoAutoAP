@@ -2,7 +2,7 @@
   "When each step happens" (Jordan, 24 Oct 2026), folded under the instant answer's green box: per ascension, when the
   prestige happens and when its stop is reached, with "waits past your no-prestige days" or "waits for your hours" on
   a prestige that waited (lib/instantSteps.ts). Times are the instant answer's own, to the hour; the egg shifts are not
-  in them (Simulate this plan lists each one). Closed by default: native <details>, no state to keep. Since 17 Nov 2026 the summary is a
+  in them (Simulate this route lists each one). Closed by default: native <details>, no state to keep. Since 17 Nov 2026 the summary is a
   bordered link named for what is inside (lib/instantStepsWords.ts), as a tester did not find that the dates were already there.
 -->
 <template>

@@ -36,7 +36,7 @@ describe('WaitBeforePrestige', () => {
 
 describe('where it is shown (23 Oct 2026)', () => {
   // It was shown under the instant answer once Check exactly was done; with no Check exactly the instant card has only
-  // Simulate this plan and Follow this route. It is on the search result cards instead, priced on request only.
+  // Simulate this route and Follow this route. It is on the search result cards instead, priced on request only.
   it('not on the instant card; on the Fastest and By a date result cards once the run has stopped', () => {
     expect(read('./InstantRoute.vue')).not.toContain('<WaitBeforePrestige');
     const fast = read('./ChainSearchPanel.vue');

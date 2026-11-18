@@ -2,7 +2,7 @@
  * Right now: a route followed from THIS save's instant answer keeps the instant timeline for ANY goal (regression,
  * 24 Oct 2026): on egg-beta a By a date goal (By Feb 10, 2027) followed 197 → 218 → 239 from the instant answer said
  * "From the instant answer · not priced on this save yet" and "No timeline for your route on this save yet", its pill
- * "no saved plan yet": the answer became the follow before its snapshot was kept (InstantRoute.vue `keptAnswer`, now
+ * "no saved route yet": the answer became the follow before its snapshot was kept (InstantRoute.vue `keptAnswer`, now
  * the follow waits for it), and without the snapshot Right now has no times. With it, Egg Day, another date and a
  * custom race target (Fastest to 312 TE) each show "from the instant answer", rounded times, no calendar buttons; the goal
  * keys (date-<unix>, fastest-<te>) and the snapshot's key already agree. Through useNowPage with the synthetic save
@@ -164,7 +164,7 @@ async function expectInstantTimeline(goal: Goal, name: string) {
     expect(text).not.toContain(NOT_PRICED);
     expect(text).not.toContain(NO_TIMELINE);
     expect(html).not.toContain('data-testid="calendar-button"');
-    // The goal's pill: its name, the plan calculated (not "no saved plan yet").
+    // The goal's pill: its name, the plan calculated (not "no saved route yet").
     const pill = page.goalChoices.value.find(g => g.key === goal.goalKey);
     expect(pill).toMatchObject({ label: name, state: 'plan' });
   } finally {
@@ -186,7 +186,7 @@ describe("Right now: a route followed from this save's instant answer keeps the 
     await expectInstantTimeline({ kind: 'race', target: 312, goalKey: 'fastest-312' }, 'Fastest to 312 TE');
   });
 
-  it('the symptom without the snapshot (the follow made before it was kept): its instant answer worked out here, never "no saved plan yet"', async () => {
+  it('the symptom without the snapshot (the follow made before it was kept): its instant answer worked out here, never "no saved route yet"', async () => {
     const goal: Goal = { kind: 'date', deadline: FEB10, goalKey: `date-${FEB10}` };
     const { page, scope } = await setUp(goal, fromInstant(), false);
     try {
@@ -199,7 +199,7 @@ describe("Right now: a route followed from this save's instant answer keeps the 
       expect(text).not.toContain(NOT_PRICED);
       expect(text).not.toContain('Open Highest TE by a date once');
       expect(text).toContain('By Feb 10, 2027 following · working out its times');
-      expect(text).not.toContain('By Feb 10, 2027 no saved plan yet');
+      expect(text).not.toContain('By Feb 10, 2027 no saved route yet');
     } finally {
       scope.stop();
     }

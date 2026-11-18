@@ -40,8 +40,8 @@ describe('the line and its "?" (soulEggWarningParts; was one long line, soulEggW
   it('shown at 168 shifts, hidden at 167 (the 25% boundary)', () => {
     expect(soulEggWarningParts({ planShifts: 167, done: 0 })).toBe(null);
     expect(soulEggWarningParts({ planShifts: 168, done: 0 })).toEqual({
-      line: 'This plan would leave about 24% of your soul eggs.',
-      fold: 'About 168 shifts since your last Path reset (0 in your save, 168 in the plan) would leave about 24% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.',
+      line: 'This route would leave about 24% of your soul eggs.',
+      fold: 'About 168 shifts since your last Path reset (0 in your save, 168 in the route) would leave about 24% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.',
     });
   });
 
@@ -49,20 +49,20 @@ describe('the line and its "?" (soulEggWarningParts; was one long line, soulEggW
     expect(soulEggWarningParts({ planShifts: 100, done: 0 })).toBe(null);
     // 5.9% of the reset's soul eggs left at 200, out of the 83.7% left after the first 100: about 7% of today's.
     expect(soulEggWarningParts({ planShifts: 100, done: 100 })?.fold).toBe(
-      'About 200 shifts since your last Path reset (100 in your save, 100 in the plan) would leave about 7% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.'
+      'About 200 shifts since your last Path reset (100 in your save, 100 in the route) would leave about 7% of the soul eggs you have now. Past about 168 shifts since a Path reset, less than a quarter is left.'
     );
   });
 
   it("the save's count unknown: the plan's shifts only, and it says so", () => {
     expect(soulEggWarningParts({ planShifts: 167, done: null })).toBe(null);
     expect(soulEggWarningParts({ planShifts: 200, done: null })).toEqual({
-      line: 'This plan alone would leave about 5% of your soul eggs.',
-      fold: "This plan has 200 shifts, counted from 0 shifts: your save's shifts since your last Path reset aren't known here. Past about 168 shifts since a Path reset, less than a quarter is left.",
+      line: 'This route alone would leave about 5% of your soul eggs.',
+      fold: "This route has 200 shifts, counted from 0 shifts: your save's shifts since your last Path reset aren't known here. Past about 168 shifts since a Path reset, less than a quarter is left.",
     });
   });
 
   it('under 1% reads "under 1%"; the save\'s own soul eggs are used', () => {
-    expect(soulEggWarningParts({ planShifts: 240, done: 0, soulEggs: 1e20 })?.line).toBe('This plan would leave under 1% of your soul eggs.');
+    expect(soulEggWarningParts({ planShifts: 240, done: 0, soulEggs: 1e20 })?.line).toBe('This route would leave under 1% of your soul eggs.');
   });
 
   it('nothing when the plan keeps no shifts', () => {

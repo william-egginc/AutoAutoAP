@@ -226,7 +226,7 @@ describe('the cuts (UX fluff review 2, part B, approved 5 Nov 2026)', () => {
     expect(t).not.toContain('keeps runs with time off apart from the rest');
     // Single run's own time off note stays (conditional and true).
     expect(textOf(await renderHtml(YourSetup, { screen: 'classic', docked: true }, {}, [pinia]))).toContain(
-      'only plans around time off in a plan sent from a search'
+      'only plans around time off in a route sent from a search'
     );
   });
 });

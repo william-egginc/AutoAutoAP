@@ -148,7 +148,7 @@
                     Fewest ascensions
                   </label>
                   <HelpTip
-                    >Counted including your final target, so a plan reaching 490 through five stops is 5. Each ascension
+                    >Counted including your final target, so a route reaching 490 through five stops is 5. Each ascension
                     is a full rebuild.</HelpTip
                   >
                 </span>
@@ -700,7 +700,7 @@
                     <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
                       Waiting for you
                       <HelpTip
-                        >Two costs, both charged to the plan and both already inside the days column. <b>P</b> is the
+                        >Two costs, both charged to the route and both already inside the days column. <b>P</b> is the
                         prestige at the end of this ascension waiting for you to be available. <b>S</b> is the shifts
                         inside it being held for the same reason. Between them they are the whole difference your
                         schedule makes, which is why turning it on changes which route wins.</HelpTip

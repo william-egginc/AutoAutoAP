@@ -2951,7 +2951,7 @@ const liveBest = computed(() => {
   return p?.top[0] ?? p?.best ?? null;
 });
 
-/** Simulate this plan on the answer, or on the best so far (search/byDateSimulate.ts): the run's own
+/** Simulate this route on the answer, or on the best so far (search/byDateSimulate.ts): the run's own
  *  plan start and first-ascension setting, into Your plan as the instant answer's rows go. */
 const resultSim = computed(() => {
   const r = result.value as SavedDeadlineResult | null;
@@ -3004,7 +3004,7 @@ function dateTopFollowable(r: { chain: readonly number[] }): boolean {
   const res = result.value;
   return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);
 }
-/** Simulate this plan on one of them: the same path as the card's (search/byDateSimulate.ts, the run's plan start). */
+/** Simulate this route on one of them: the same path as the card's (search/byDateSimulate.ts, the run's plan start). */
 function simulateDateRoute(chain: number[]): void {
   const r = result.value as SavedDeadlineResult | null;
   const route = dateRoutesByKey.value.get(chain.join(','));

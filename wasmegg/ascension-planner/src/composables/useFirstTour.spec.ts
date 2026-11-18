@@ -145,7 +145,7 @@ describe('the slideshow', () => {
     expect(w.state.phase).toBe('closed');
   });
 
-  it('a save file with no player ID: thirteen slides (Simulate this plan included), Follow this route is the last (Done)', () => {
+  it('a save file with no player ID: thirteen slides (Simulate this route included), Follow this route is the last (Done)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasSaveFile: true });
     expect(t.total.value).toBe(13);

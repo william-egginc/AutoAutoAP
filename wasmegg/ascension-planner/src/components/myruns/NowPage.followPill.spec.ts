@@ -1,5 +1,5 @@
 /**
- * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan): on My runs › Right now the Fastest to 490 TE pill said "no saved plan
+ * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan): on My runs › Right now the Fastest to 490 TE pill said "no saved route
  * yet" while the line under it said "Following 226 → 277 → 317 → 490 … not priced on this save yet". The pill of a
  * followed goal now says what is true of its route in the follow line's words, and every followed goal's route is
  * estimated on load (the picked one first, the others in the background), as Egg Day's was only once picked. Through
@@ -269,12 +269,12 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
   it("Jordan's state: Fastest to 490 TE followed, no kept result, Egg Day's instant answer of this save: the pill and the line agree, working, then estimated", async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
     expect(page.selectedGoal.value).toBe('fastest-490');
-    // Before: "no saved plan yet" on the pill, "not priced on this save yet" on the line.
+    // Before: "no saved route yet" on the pill, "not priced on this save yet" on the line.
     expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'working' });
     let r = await render(page);
     expect(r.text).toContain('Fastest to 490 TE following · working out its times');
     expect(r.text).toContain('Working out its times');
-    expect(r.text).not.toContain('no saved plan yet');
+    expect(r.text).not.toContain('no saved route yet');
     expect(r.text).not.toContain('not priced on this save yet');
 
     await vi.waitFor(() => expect(calls).toHaveLength(1));
@@ -290,7 +290,7 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
     expect(r.text).toContain('from the instant answer');
     expect(r.text).not.toContain('rounded to the hour');
     expect(r.text).not.toContain("Estimated from the instant answer's data");
-    expect(r.text).not.toContain('no saved plan yet');
+    expect(r.text).not.toContain('no saved route yet');
     expect(r.html).toContain('data-follow="estimate"');
     scope.stop();
   });
@@ -660,7 +660,7 @@ describe("Jordan's continued ascension on Curiosity (26 Oct 2026: \"Building up 
 });
 
 describe('an unfollowed goal with a saved answer: the pill agrees with the tile (26 Oct 2026, QA)', () => {
-  it("Fastest to 490 TE, nothing followed, its last checked answer kept: \"not followed · instant answer lands about …\", not \"no saved plan yet\"", async () => {
+  it("Fastest to 490 TE, nothing followed, its last checked answer kept: \"not followed · instant answer lands about …\", not \"no saved route yet\"", async () => {
     const { instantKeyFromStores } = await import('@/composables/useNowPage');
     // Egg Day followed; Fastest to 490 TE not: only its last checked answer is kept (no snapshot with its times).
     const fresh = await setup(
@@ -679,11 +679,11 @@ describe('an unfollowed goal with a saved answer: the pill agrees with the tile 
       await renderHtml(RightNowCard, { ...(await renderProps(fresh.page)), goals: fresh.page.goalChoices.value }, {}, [getActivePinia()!])
     );
     expect(t).toMatch(/Fastest to 490 TE not followed · (instant answer lands about|lands) [A-Z][a-z]{2} \d{1,2}, \d{4}/);
-    expect(t).not.toContain('Fastest to 490 TE no saved plan yet');
+    expect(t).not.toContain('Fastest to 490 TE no saved route yet');
     fresh.scope.stop();
   });
 
-  it('the words, and "no saved plan yet" only without an answer', async () => {
+  it('the words, and "no saved route yet" only without an answer', async () => {
     const { answerOptionWords } = await import('@/lib/planGoals');
     const day = (t: number) => `day ${t}`;
     expect(answerOptionWords({ end: 5, how: 'instant' }, day)).toBe('not followed · instant answer lands about day 5');
@@ -692,7 +692,7 @@ describe('an unfollowed goal with a saved answer: the pill agrees with the tile 
     const opt = { key: 'fastest-490', kind: 'race', label: 'Fastest to 490 TE', name: 'Fastest to 490 TE', deadline: null, calculatedAt: null, open: { auto: 'fastest', depth: 'smart', target: 490 } } as const;
     const base = { card: null, onVirtue: true, currentEgg: 'curiosity', teSoFar: 195, ascNow: 0, track: null, events: [], shownEvents: [], gear: null, now: 1_800_000_000, zone: ZONE, saveSeconds: 1_800_000_000, eggDayYear: 2027, selectedGoal: 'fastest-490' };
     const none = textOf(await renderHtml(RightNowCard, { ...base, goals: [{ ...opt, state: 'none' }] }));
-    expect(none).toContain('Fastest to 490 TE no saved plan yet');
+    expect(none).toContain('Fastest to 490 TE no saved route yet');
     const withAnswer = textOf(await renderHtml(RightNowCard, { ...base, goals: [{ ...opt, state: 'none', answer: { end: 1_800_500_000, how: 'instant' } }] }));
     expect(withAnswer).toMatch(/Fastest to 490 TE not followed · instant answer lands about /);
   });
@@ -735,7 +735,7 @@ describe('the crash lesson: the pricing setup key without collectInputs (26 Oct 
 
 describe('the pill words (lib/planGoals.ts)', () => {
   const day = (t: number) => `day ${t}`;
-  it('every state of a followed route, never "no saved plan yet"', () => {
+  it('every state of a followed route, never "no saved route yet"', () => {
     expect(followOptionWords({ times: 'working', end: null }, day, 'after your date')).toBe('following · working out its times');
     expect(followOptionWords({ times: 'waiting', end: null }, day, 'after your date')).toBe('following · its times once the search running now ends');
     expect(followOptionWords({ times: 'none', end: null }, day, 'after your date')).toBe('following · not priced on this save yet');

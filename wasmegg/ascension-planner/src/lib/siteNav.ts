@@ -113,10 +113,10 @@ export const NAMES = {
 } as const;
 
 /**
- * What "Simulate this plan" (and Fastest's "Build this plan") does, said on the button's own line (Jordan,
+ * What "Simulate this route" (and Fastest's "Build this plan") does, said on the button's own line (Jordan,
  * 16 Oct 2026): it opens the route in the Auto Planner, Joo's original planner, and simulates every shift.
  */
-export function simulateNote(button = 'Simulate this plan'): string {
+export function simulateNote(button = 'Simulate this route'): string {
   return `${button} opens this route in the Auto Planner (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
 }
 /** The button's own tip: lib/tipWords.ts TIP_SIMULATE (was SIMULATE_TITLE here, the button's title, to 9 Nov 2026). */

@@ -114,14 +114,14 @@ describe('plansByGoal', () => {
     expect(withDate.map(p => p.goal.key)).toEqual(['fastest-490', 'eggday-2027', `date-${MAR3}`]);
   });
 
-  it('an instant answer only (no timeline): listed as "no saved plan with its times"', () => {
+  it('an instant answer only (no timeline): listed as "no saved route with its times"', () => {
     const answers: GoalAnswer[] = [{ goalKey: 'eggday-2027', calculatedAt: T0 + 90 * MIN, saveSeconds: SAVE, ownKey: true }];
     const list = plansByGoal(goals, [own(race, 'fastest-490')], answers, SAVE);
     const egg = list.find(p => p.goal.key === 'eggday-2027')!;
     expect(egg.pick).toBeNull();
     expect(egg.answerOnly).toBe(true);
-    expect(emptyGoalWords('answer-only')).toBe('no saved plan with its times for this goal yet');
-    expect(emptyGoalWords('none')).toBe('no saved plan for this goal yet');
+    expect(emptyGoalWords('answer-only')).toBe('no saved route with its times for this goal yet');
+    expect(emptyGoalWords('none')).toBe('no saved route for this goal yet');
   });
 
   it("within a goal, currentAnswer's rule: the current setup leads a sooner plan priced with other hours (secondary)", () => {

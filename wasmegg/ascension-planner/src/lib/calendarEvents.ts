@@ -151,8 +151,8 @@ export function planCalEvent(
     at: e.at,
     title: `${title} (Egg, Inc.)`,
     description:
-      `${title}, as your virtue plan has it.${ctx.following ? `\n${ctx.following}.\n` : ' '}` +
-      `From your save of ${ctx.saveWhen}; plan calculated ${ctx.calculatedWhen}. ` +
-      'If the plan changes, add it again after a new check. Made on your device by the ascension planner; nothing was sent.',
+      `${title}, as your virtue route has it.${ctx.following ? `\n${ctx.following}.\n` : ' '}` +
+      `From your save of ${ctx.saveWhen}; route calculated ${ctx.calculatedWhen}. ` +
+      'If the route changes, add it again after a new check. Made on your device by the ascension planner; nothing was sent.',
   };
 }

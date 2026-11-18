@@ -171,7 +171,7 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Setup has changed since this plan was made. Get the instant answer for your Setup ›');
+    expect(changed).toContain('Setup has changed since this route was made. Get the instant answer for your Setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
@@ -300,7 +300,7 @@ describe('your eggs and Try next', () => {
     // Another egg without an after-shift time (none passed here, lib/nextTeEgg.ts) keeps its line.
     expect(t).toContain('60% to the next TE · after a shift');
     expect(t).toContain('Shifts done 214');
-    expect(t).toContain("All planned shifts Can't tell");
+    expect(t).toContain("All shifts on the route Can't tell");
     // Estimated to now (lib/farmNow.ts): 3 h since the save, 17h 20m held.
     // Not "estimated from your save of …" again on the tile (UX fluff review 2, item R17).
     expect(t).toContain('Silos about 14h 20m left of 17h 20m');
@@ -342,7 +342,7 @@ describe('your eggs and Try next', () => {
         saveSeconds: NOW,
       })
     );
-    expect(t).toMatch(/All planned shifts 19 shifts will cost about 61\.0\S* soul eggs \(at today's prices\)/);
+    expect(t).toMatch(/All shifts on the route 19 shifts will cost about 61\.0\S* soul eggs \(at today's prices\)/);
   });
 
   it('Try next opens screens set up, at most four', async () => {

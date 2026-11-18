@@ -1,4 +1,4 @@
-/** What By a date's Simulate this plan hands Single run (search/byDateSimulate.ts). */
+/** What By a date's Simulate this route hands Single run (search/byDateSimulate.ts). */
 import { describe, expect, it } from 'vitest';
 import { BUILDUP_NOTE, byDateSimulate } from './byDateSimulate';
 import type { DeadlineRoute } from './deadline';

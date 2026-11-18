@@ -12,7 +12,7 @@ export const TIP_FOLLOW = 'Set as active for My runs';
 /** The same button once pressed ("Following ✓"). Was: "Right now (My runs) follows this route for <goal>". */
 export const TIP_FOLLOWING = 'Active for My runs';
 
-/** "Simulate this plan" (the answer, its table rows, the result cards, More routes). Was lib/siteNav.ts
+/** "Simulate this route" (the answer, its table rows, the result cards, More routes). Was lib/siteNav.ts
  *  SIMULATE_TITLE: "Opens this route in Single run (Joo's original planner) and simulates every shift on your save";
  *  Allan: cut "and simulates every shift on your save". */
 export const TIP_SIMULATE = 'Opens this route in the Auto Planner';

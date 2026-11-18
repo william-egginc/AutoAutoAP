@@ -12,7 +12,7 @@
  * This one keeps only the game's backup, keyed by the backup itself, so the many answers and runs
  * priced from one save share one copy whatever their settings, and it stays while any saved entry
  * names it. It is the FULL backup the planner loads (`initPlanFuture`), not the trimmed copy the
- * workers get (workerBackup.ts): Your plan, Simulate this plan and a new search all need all of it.
+ * workers get (workerBackup.ts): Your plan, Simulate this route and a new search all need all of it.
  *
  * SIZE. A real save is about 1.4 MB of JSON (most of it the artifact database and the contract
  * archive) and about 150 KB gzipped, which is how it is stored. At most MAX_KEPT_SAVES saves and

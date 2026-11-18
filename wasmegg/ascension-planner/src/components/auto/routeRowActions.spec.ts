@@ -1,5 +1,5 @@
 /**
- * A count row's Simulate this plan and Follow this route (spec-slimcard; UX fluff review 5 Nov 2026, item 11). Until
+ * A count row's Simulate this route and Follow this route (spec-slimcard; UX fluff review 5 Nov 2026, item 11). Until
  * then every row of the instant answer's "Every number of ascensions" had both buttons in its route cell (one shared
  * block, resultCardStyle.ts ROUTE_ACTIONS, Jordan 29 Oct 2026): 12 buttons for 6 counts. Now the rows open on tap like
  * Joo's and ONE pair sits in each open row's panel (InstantRoute.states.spec.ts draws it). This guards the source: in
@@ -41,12 +41,12 @@ describe('the count rows: one pair, in the open row', () => {
     it(`${name}: Simulate and Follow only inside the panel, drawn only while the row is open`, () => {
       const r = rows[i];
       const head = r.slice(0, r.indexOf('data-testid="counts-row-panel"'));
-      expect(head).not.toContain('Simulate this plan');
+      expect(head).not.toContain('Simulate this route');
       expect(head).not.toContain('<FollowButton');
       const panel = r.slice(r.indexOf('data-testid="counts-row-panel"'));
       const shown = panel.slice(panel.indexOf('v-if="countOpen(r)"'));
       expect(panel.indexOf('v-if="countOpen(r)"')).toBeGreaterThan(-1);
-      expect(shown.match(/>\s*Simulate this plan\s*<\/button>/g)).toHaveLength(1);
+      expect(shown.match(/>\s*Simulate this route\s*<\/button>/g)).toHaveLength(1);
       expect(shown.match(/<FollowButton\b/g)).toHaveLength(1);
       // The 44 px buttons (SECONDARY_BUTTON, FollowButton's primary), each named with its route.
       expect(shown).toMatch(/<button[^>]*:class="SECONDARY_BUTTON"[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"/);
@@ -57,7 +57,7 @@ describe('the count rows: one pair, in the open row', () => {
     const cells = vueFiles(components).flatMap(f =>
       [...templateOf(f).matchAll(/<td\b[\s\S]*?<\/td>/g)]
         .map(m => m[0])
-        .filter(c => c.includes('Simulate this plan') && c.includes('<FollowButton'))
+        .filter(c => c.includes('Simulate this route') && c.includes('<FollowButton'))
         .map(() => path.relative(components, f))
     );
     expect(cells).toEqual([]);

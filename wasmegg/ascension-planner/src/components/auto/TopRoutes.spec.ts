@@ -37,14 +37,14 @@ describe('TopRoutes', () => {
     const t = textOf(html);
     expect(count(html, 'data-testid="top-route-row"')).toBe(5);
     expect(t).toContain('Best 5 routes');
-    expect(t).toMatch(/1\. Best 4 ascensions 150 250 350 490 Finishes Jul 17, 2027, 6:00 AM Follow this route Simulate this plan 2\./);
+    expect(t).toMatch(/1\. Best 4 ascensions 150 250 350 490 Finishes Jul 17, 2027, 6:00 AM Follow this route Simulate this route 2\./);
     expect(t).toMatch(/2\. 5 ascensions \+1h 30m 100 200 300 400 490 Finishes/);
     expect(t).toContain('5. 4 ascensions +8h 170 270 370 490');
     expect(count(html, 'data-best="true"')).toBe(2); // the best row and its bar
     // Each row and the chart's chosen route: 6 Simulate, 6 Follow.
     expect(count(html, 'data-testid="top-route-simulate"')).toBe(6);
     expect(count(html, 'data-testid="follow-route"')).toBe(6);
-    expect(html).toContain('aria-label="Simulate this plan: 150 250 350 490"');
+    expect(html).toContain('aria-label="Simulate this route: 150 250 350 490"');
     expect(html).toContain('aria-label="Rank 1"');
   });
 
@@ -55,7 +55,7 @@ describe('TopRoutes', () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="4 ascensions: finishes [^"]*, best"[^>]*data-count="4" data-best="true"/);
     expect(html).toContain('aria-label="2 ascensions: finishes Jul 18, 2027, 12:00 PM, +30h"');
     const chosen = textOf(html.slice(html.indexOf('data-testid="top-routes-chosen"')));
-    expect(chosen).toMatch(/> 4 ascensions \(the best\): 150 250 350 490 Finishes .* Follow this route Simulate this plan/);
+    expect(chosen).toMatch(/> 4 ascensions \(the best\): 150 250 350 490 Finishes .* Follow this route Simulate this route/);
     // The sooner, the further left: the best at 4%, the slowest at 96%.
     expect(html).toContain('left:4%');
     expect(html).toContain('left:96%');
@@ -71,7 +71,7 @@ describe('TopRoutes', () => {
 
   it('a route without its timings says Simulate works them out again', async () => {
     const html = await renderHtml(TopRoutes, props({ routes: () => [r([150, 490], 10, false), r([100, 200, 490], 12)] }));
-    expect(textOf(html)).toContain("Its time for each ascension wasn't kept; Simulate this plan works it out again.");
+    expect(textOf(html)).toContain("Its time for each ascension wasn't kept; Simulate this route works it out again.");
   });
 
   it('no Follow without the result to follow; one route; none', async () => {

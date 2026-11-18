@@ -1,5 +1,5 @@
 /**
- * PLANNED SHIFT COUNT IS TOO LOW (27 Oct 2026, Jordan: "All planned shifts 24" while Single run said +48 for the same
+ * PLANNED SHIFT COUNT IS TOO LOW (27 Oct 2026, Jordan: "All shifts on the route 24" while Single run said +48 for the same
  * plan). The instant answer's shifts start at H1, so each fresh ascension's opening (K1, I1, C2, K2, R1, C3) was left
  * out. Until the table carries them, each fresh ascension from the table adds the simulator's standard opening
  * (lib/openingShifts.ts), said as "about N of them build-up shifts (estimated)" (ux34-a; was "includes about N …").
@@ -122,7 +122,7 @@ describe('plannedShiftsAfter (lib/nowPlan.ts)', () => {
 });
 
 describe('where the count is shown', () => {
-  it("All planned shifts (YourEggs.vue) says about N of them are build-up shifts (estimated)", async () => {
+  it("All shifts on the route (YourEggs.vue) says about N of them are build-up shifts (estimated)", async () => {
     const base = { eggs: [], facts: null, shiftsDone: 100, nextShiftCost: null, clothedEquipped: null, clothedEarnings: null, now: T0, saveSeconds: T0 };
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 40, cost: 1e18, opening: 24 } }));
     expect(t).toContain('40 shifts');

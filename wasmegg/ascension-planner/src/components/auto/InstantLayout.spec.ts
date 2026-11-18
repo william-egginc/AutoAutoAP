@@ -1,5 +1,5 @@
 /** The instant card's layout (wireframes/price-route-v2, Jordan 23 Oct 2026; was the table inside the green card above
- *  Check exactly, 12 Oct): the green box with Simulate this plan and Follow this route, then the one line, then every
+ *  Check exactly, 12 Oct): the green box with Simulate this route and Follow this route, then the one line, then every
  *  number of ascensions, then the pointer to a search's result. No Check exactly, no check history. */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -25,9 +25,9 @@ describe('InstantRoute layout', () => {
       expect(actions).toBeGreaterThan(box);
       expect(counts).toBeGreaterThan(actions);
       expect(table).toBeGreaterThan(counts);
-      // Both buttons on the box (Jordan's answer 2: keep Simulate this plan and Follow this route).
+      // Both buttons on the box (Jordan's answer 2: keep Simulate this route and Follow this route).
       const buttons = t.slice(actions, counts);
-      expect(buttons).toContain('Simulate this plan');
+      expect(buttons).toContain('Simulate this route');
       expect(buttons).toContain('<FollowButton');
       expect(buttons).toContain('from="answer"');
       expect(t).not.toContain('data-testid="instant-one-line"');

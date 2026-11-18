@@ -223,7 +223,7 @@ const spec = computed(() => {
         yTicks: [0, 100, 200, 300, 400],
         xTicks: [760, 764, 768, 772, 775].map(v => ({ at: v, label: String(v) })),
         yLabel: 'ROUTES',
-        xLabel: 'plan duration, days',
+        xLabel: 'route duration, days',
         area: false,
       };
     case 'seed':

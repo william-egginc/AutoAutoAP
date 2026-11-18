@@ -67,7 +67,7 @@ describe("Fastest's card (RouteResultCard.vue)", () => {
   it('no Simulate note under the buttons; its words are the button\'s tip (C6; a Tip in place of the title, Allan 9 Nov 2026)', async () => {
     const html = await renderHtml(RouteResultCard, base);
     expect(html).not.toContain('build-plan-note');
-    expect(html).toMatch(/<button[^>]*aria-describedby="tip-[^"]+"[^>]*>\s*Simulate this plan/);
+    expect(html).toMatch(/<button[^>]*aria-describedby="tip-[^"]+"[^>]*>\s*Simulate this route/);
     expect(read('RouteResultCard.vue')).toContain(':text="TIP_SIMULATE"');
   });
   it('CSV, Excel and Diagnostics under one Download ▾ (C5, C8)', async () => {

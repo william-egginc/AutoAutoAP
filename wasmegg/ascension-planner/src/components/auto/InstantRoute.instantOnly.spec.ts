@@ -130,11 +130,11 @@ describe('the pointer', () => {
 });
 
 describe('the box keeps both buttons, and the panel opens on Fast', () => {
-  it('Simulate this plan and Follow this route on both boxes', () => {
+  it('Simulate this route and Follow this route on both boxes', () => {
     const actions = [...template.matchAll(/data-testid="box-actions"[\s\S]*?<\/div>/g)].map(m => m[0]);
     expect(actions).toHaveLength(2);
     for (const a of actions) {
-      expect(a).toContain('Simulate this plan');
+      expect(a).toContain('Simulate this route');
       expect(a).toContain('<FollowButton');
     }
   });

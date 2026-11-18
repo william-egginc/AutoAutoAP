@@ -16,7 +16,7 @@ const AT = Date.UTC(2026, 9, 15, 23, 0) / 1000;
 const ev: CalEvent = {
   at: AT,
   title: 'Shift to Humility',
-  description: 'Egg, Inc.: shift to Humility; from your save of Oct 15 at 2:36 pm.\nIf the plan changes, add it again after a new check.',
+  description: 'Egg, Inc.: shift to Humility; from your save of Oct 15 at 2:36 pm.\nIf the route changes, add it again after a new check.',
 };
 
 describe('calendar events', () => {
@@ -105,7 +105,7 @@ describe('a plan event in a calendar', () => {
     // The .ics: unfolded, escaped (newlines as \n, the semicolon as \;), the arrows kept whole.
     const ics = icsText([e], AT * 1000).replace(/\r\n /g, '');
     expect(ics).toContain(
-      'DESCRIPTION:Prestige at 222 TE\\, as your virtue plan has it.\\nFollowing 197 → 222 → 247 → 285 → 313 (Egg Day 2027).\\nFrom your save of Oct 15 at 2:36 pm\\; plan calculated'
+      'DESCRIPTION:Prestige at 222 TE\\, as your virtue route has it.\\nFollowing 197 → 222 → 247 → 285 → 313 (Egg Day 2027).\\nFrom your save of Oct 15 at 2:36 pm\\; route calculated'
     );
     const details = new URL(googleCalendarUrl(e)).searchParams.get('details')!;
     expect(details).toContain('\nFollowing 197 → 222 → 247 → 285 → 313 (Egg Day 2027).\n');

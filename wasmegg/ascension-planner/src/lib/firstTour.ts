@@ -28,7 +28,7 @@ export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { k
 /** The steps, in order. Tour v3 (spec-tour-v3, Jordan, 16 Nov 2026: "use arrows to show important things, one thing at a
  *  time, start from the big things and work your way down"), as he reviewed it (~1:30 PM): twenty-three, then twenty-two (Jordan, 16 Nov, ~10:55 PM: the maxed-gear what-if is in the Full tour only). The tab row is four
  *  slides, one a tab, and the goal switch two (Target TE, By a date); then the result, the filters button, what is inside
- *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this plan and Follow this
+ *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this route and Follow this
  *  route; then My runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
  *  the shifts, and a closing card that points at the Full tour (lib/fullTour.ts), which holds what More holds. */
 export type TourStepId =
@@ -127,7 +127,7 @@ export function isNewVisitor(p: { savedPlayerId: string | null | undefined; last
 }
 
 /** The steps for what is loaded: a save file with no player ID has no My runs tab or My runs page, so it leaves out the My
- *  runs tab and ends at Follow (after Simulate this plan, which is on the same answer: fourteen steps). */
+ *  runs tab and ends at Follow (after Simulate this route, which is on the same answer: fourteen steps). */
 export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
   return !p.hasAccount && p.hasSaveFile
     ? TOUR_STEPS.slice(0, TOUR_STEPS.indexOf('follow') + 1).filter(id => id !== 'tabMyruns')

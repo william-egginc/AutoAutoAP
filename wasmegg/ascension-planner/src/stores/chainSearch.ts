@@ -663,7 +663,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
     if (forThis && mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
     if (forThis && mode === 'continue' && applied!.key !== 'continue') return {};
-    // A route sent with its run's own setting (By a date's Simulate this plan): that setting, whatever
+    // A route sent with its run's own setting (By a date's Simulate this route): that setting, whatever
     // Your setup says now, so the plan starts as the run priced it.
     const own =
       applied?.own && applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
@@ -7306,7 +7306,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : 'failed';
       if (options.recheck && !stopRequested.value && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the Leaderboard';
+        stage.value = 're-checking your earlier routes for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }
@@ -7445,7 +7445,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineRun: DeadlineSendBase | null = null;
   /** The running date search's deadline (unix seconds), for its live best so far card; 0 when none ran. */
   const deadlineRunDeadline = ref(0);
-  /** The running date search's plan start and first-ascension setting, for Simulate this plan on its
+  /** The running date search's plan start and first-ascension setting, for Simulate this route on its
    *  best so far; null when none ran. */
   const deadlineRunPlan = ref<{ planStart: number; firstAscension: FirstAscension } | null>(null);
   /** What a progress send's CSV so far needs from the date search going now: its routes found so far
@@ -7697,7 +7697,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * Make an older save the planner's active save, the way carrying on a run does
    * (`prepareToCarryOn`): the planner is rebuilt on it, RunSaveNotice says so with "Load my latest
-   * save", and Your plan, Simulate this plan, Check exactly and every new search use it. Anything sent
+   * save", and Your plan, Simulate this route, Check exactly and every new search use it. Anything sent
    * from it carries that save's own moment and TE (`accountFields` reads the loaded save), so the
    * board's backup-age and what-if rules see it as it is.
    */
@@ -9825,7 +9825,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           : 'done';
       if (options.recheck && !outcome.stoppedEarly && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the Leaderboard';
+        stage.value = 're-checking your earlier routes for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }
@@ -9939,7 +9939,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planner.targetTE = key.split(',').join(' ');
       planner.timeOffCuts = null;
       olderSaveNote.value = { targets: planner.targetTE, text: '' };
-      applyNote.value = `This route was priced on your older save (TE ${resultsFromOlderSave.value?.te}), and your latest save is loaded now, so the plan is built on the latest save from its own start: its dates can differ from the search's${legs.some(l => l.timeOff) ? ", and your time off isn't worked in" : ''}. Re-check on the latest save, or run again, for dates that match.`;
+      applyNote.value = `This route was priced on your older save (TE ${resultsFromOlderSave.value?.te}), and your latest save is loaded now, so the route is built on the latest save from its own start: its dates can differ from the search's${legs.some(l => l.timeOff) ? ", and your time off isn't worked in" : ''}. Re-check on the latest save, or run again, for dates that match.`;
       olderSaveNote.value.text = applyNote.value;
     } else if (legs.some(l => l.timeOff)) {
       const targets = legs.map(l => l.endTE);
@@ -9958,20 +9958,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       };
       const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const stops = Object.keys(ends).map(i => `A${+i + 1} ends ${showDateTime(ends[+i], tz)} at ${legs[+i].endTE} TE`);
-      applyNote.value = `The plan includes your time off: ${stops.join('; ')}, and the ascension after each starts when the time off is over.`;
+      applyNote.value = `The route includes your time off: ${stops.join('; ')}, and the ascension after each starts when the time off is over.`;
     } else {
       planner.targetTE = key.split(',').join(' ');
       planner.timeOffCuts = null;
       if (usableTimeOff(timeOff.value).length && !legs.length) {
         applyNote.value =
-          "This route's ascension detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
+          "This route's ascension detail isn't kept (only the fastest routes keep it), so the route can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
       }
     }
     // NO PRESTIGE ON THESE DAYS (search/noPrestige.ts): the search held these prestiges; the plan builder does not
     // hold them yet, so say so rather than show dates that run ahead of the search's.
     const heldForDays = olderResults ? 0 : legs.filter(l => (l.noPrestigeWaitSeconds ?? 0) > 0).length;
     if (heldForDays) {
-      applyNote.value = `${applyNote.value ? `${applyNote.value} ` : ''}The search held ${heldForDays === 1 ? 'a prestige' : `${heldForDays} prestiges`} for your no-prestige days; this plan prestiges as soon as each stop is reached, so its dates can run ahead of the search's.`;
+      applyNote.value = `${applyNote.value ? `${applyNote.value} ` : ''}The search held ${heldForDays === 1 ? 'a prestige' : `${heldForDays} prestiges`} for your no-prestige days; this route prestiges as soon as each stop is reached, so its dates can run ahead of the search's.`;
     }
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.

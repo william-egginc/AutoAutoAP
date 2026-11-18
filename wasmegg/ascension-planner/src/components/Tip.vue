@@ -1,6 +1,6 @@
 <!--
   A TIP ON AN IMPORTANT BUTTON (Allan, 9 Nov 2026, relayed by Jordan: the native `title` tips were slow to appear and
-  easy to miss). Follow this route, Simulate this plan, the run button and the Search card's choices. The words are in
+  easy to miss). Follow this route, Simulate this route, the run button and the Search card's choices. The words are in
   lib/tipWords.ts (DRAFT).
 
   Shown AT ONCE on hover and on keyboard focus, gone with Esc (composables/useTip.ts). On a touch screen: a tap on the
@@ -16,7 +16,7 @@
 
   `info-always`: the "i" on the desktop too, for a trigger that is not a button (My runs' source pill).
 
-  Usage: <Tip :text="TIP_SIMULATE" name="Simulate this plan" v-slot="{ describedby }"><button :aria-describedby=...>
+  Usage: <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }"><button :aria-describedby=...>
 -->
 <template>
   <span
@@ -81,7 +81,7 @@ const props = withDefaults(
   defineProps<{
     /** What the button does (lib/tipWords.ts). Empty: no tip, the button alone. */
     text: string;
-    /** The button's own words, for the "i"'s name ("About Simulate this plan"). */
+    /** The button's own words, for the "i"'s name ("About Simulate this route"). */
     name: string;
     /** Draw the "i" beside the button on a phone / a screen with no hover. Off where it would not fit (the Search
      *  card's three choices): the long press still shows the tip there. */
