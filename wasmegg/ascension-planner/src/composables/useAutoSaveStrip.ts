@@ -55,5 +55,5 @@ export function useAutoSaveStrip(o: { now: Ref<number> }) {
   function load(): void {
     ui.backupRetryRequested++;
   }
-  return { state, server, shown, loading, load, silo };
+  return { state, server, shown, loading, load, silo, zone };
 }

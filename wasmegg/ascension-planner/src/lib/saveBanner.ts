@@ -82,6 +82,20 @@ function bannerStateOf(i: SaveStateInput): SaveBannerState | null {
   };
 }
 
+function ageLineOf(s: SaveState, nowSeconds: number, zone: string): string {
+  const at = nowSeconds - s.saveAgeSeconds;
+  const same = calendarOf(at * 1000, zone)?.ymd === calendarOf(nowSeconds * 1000, zone)?.ymd;
+  const time = same ? formatClock(at * 1000, zone) : dateAt(at, nowSeconds, zone);
+  return saveAgeLine(time, ageWords(s.saveAgeSeconds));
+}
+
+/** The save's age line for My runs' player line (17 Nov 2026, Jordan's rule: state the age unless the save is fresh AND its silos
+ *  are low): any save over FRESH_SAVE_SECONDS old with the clock not behind it, whatever the silos; else null. Pure. */
+export function saveAgeOnlyLine(s: SaveState | null, nowSeconds: number, zone: string): string | null {
+  if (!s || s.clockBehindSeconds || !(s.saveAgeSeconds >= FRESH_SAVE_SECONDS)) return null;
+  return ageLineOf(s, nowSeconds, zone);
+}
+
 /** The silo line for a save state (above); null without a virtue farm (no silo estimate). Pure. */
 export function siloLineState(s: SaveState | null, nowSeconds: number, zone: string): SiloLineState | null {
   if (!s || s.siloUsedSeconds == null || !(s.siloSeconds > 0) || !Number.isFinite(s.siloSeconds)) return null;
@@ -94,10 +108,7 @@ export function siloLineState(s: SaveState | null, nowSeconds: number, zone: str
   const when = dateAt(runOut, nowSeconds, zone);
   if ((low || past) && !fresh) {
     if (s.clockBehindSeconds) return when ? { text: siloLine({ when, low: false }), low: false, past: false } : null;
-    const at = nowSeconds - s.saveAgeSeconds;
-    const same = calendarOf(at * 1000, zone)?.ymd === calendarOf(nowSeconds * 1000, zone)?.ymd;
-    const time = same ? formatClock(at * 1000, zone) : dateAt(at, nowSeconds, zone);
-    return { text: saveAgeLine(time, ageWords(s.saveAgeSeconds)), low: false, past: false, age: true };
+    return { text: ageLineOf(s, nowSeconds, zone), low: false, past: false, age: true };
   }
   if (!when) return null;
   // Fresh and low (or run out): Words' short warning, with no "if you've opened the game since" hedge (a fresh save has had no time to go stale).

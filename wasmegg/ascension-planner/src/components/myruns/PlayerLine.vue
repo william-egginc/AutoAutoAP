@@ -21,6 +21,8 @@
     <span v-if="te" class="invisible absolute left-0 top-0 h-0 w-0 overflow-hidden pointer-events-none" aria-hidden="true"
       ><span ref="probe" class="inline-block whitespace-nowrap text-body tabular-nums"><PartsOf :parts="partsOf(false)" /></span
     ></span>
+    <!-- A save over an hour old says so, whatever its silos (17 Nov 2026, Jordan: the age unless the save is fresh AND silos are low). -->
+    <p v-if="saveAge && !silo?.age" class="min-w-0 break-words text-small tabular-nums text-slate-600" data-testid="save-age-line">{{ saveAge }}</p>
     <SiloLine :silo="silo" />
   </div>
 </template>
@@ -40,6 +42,8 @@ const props = defineProps<{
   /** Your eggs' Clothed TE (the gear's clothedEarnings). */
   clothed: number | null;
   silo: SiloLineState | null;
+  /** The save's age line (lib/saveBanner.ts `saveAgeOnlyLine`): a save over an hour old; null otherwise. */
+  saveAge?: string | null;
 }>();
 
 /** The TE values are all here: otherwise no TE line. */

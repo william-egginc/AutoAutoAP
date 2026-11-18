@@ -121,6 +121,7 @@
             :pending="playerTe?.pending ?? null"
             :clothed="page.gear.value?.clothedEarnings ?? null"
             :silo="saveStrip.silo.value"
+            :save-age="saveAgeOnlyLine(saveStrip.state.value, saveClock, saveStrip.zone.value)"
           />
         </template>
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
@@ -418,6 +419,7 @@ import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 import SaveSide from '@/components/layout/SaveSide.vue';
 import SaveHeadHelp from '@/components/myruns/SaveHeadHelp.vue';
 import PlayerLine from './myruns/PlayerLine.vue';
+import { saveAgeOnlyLine } from '@/lib/saveBanner';
 import { playerTeOf } from '@/lib/playerTe';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useMinuteClock } from '@/composables/useMinuteClock';

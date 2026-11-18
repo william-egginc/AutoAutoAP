@@ -13,7 +13,7 @@
     aria-labelledby="tour-title"
     aria-describedby="tour-body"
     class="w-full rounded-2xl bg-white shadow-2xl"
-    :class="phase === 'welcome' ? 'max-w-[30rem] px-5 pt-5 pb-2 sm:px-7 sm:pt-7' : 'max-w-[47.5rem] px-2 pt-2 pb-1 sm:px-5 sm:pt-4'"
+    :class="phase === 'welcome' ? 'max-w-[30rem] px-5 pt-5 pb-2 sm:px-7 sm:pt-7' : 'flex max-h-[calc(100dvh-1rem)] max-w-[47.5rem] flex-col px-2 pt-2 pb-1 sm:max-h-[calc(100dvh-3rem)] sm:px-5 sm:pt-4'"
     data-testid="tour-dialog"
   >
     <template v-if="phase === 'welcome'">
@@ -66,7 +66,14 @@
            overlay (ring, arrow, copy, tab ring: TourOverlay.vue) slides to the new target; only when the picture itself changes
            does the new one fade in over the one before (lib/tourFade.ts; both off under prefers-reduced-motion), the one before
            kept under it for FADE_MS as a copy (empty alt, hidden from a screen reader). -->
-      <div class="relative">
+      <!-- A short window (17 Nov 2026, 1280x573): the box is never taller than the window. The picture and the words scroll
+           inside it; the step's Back / Next and the Skip row stay pinned under them. -->
+      <div ref="scrollEl" class="min-h-0 flex-1 overflow-y-auto" data-testid="tour-scroll">
+      <div
+        class="tour-pic relative mx-auto"
+        :style="{ '--r-d': slide.desk.width / slide.desk.height, '--r-p': slide.phone.width / slide.phone.height }"
+        data-testid="tour-pic"
+      >
         <picture
           v-if="prev"
           aria-hidden="true"
@@ -123,6 +130,9 @@
             {{ FULL_TOUR_FROM_FIRST }} ›
           </button>
         </div>
+      </div>
+      </div>
+      <div class="shrink-0 px-1.5 sm:px-0.5" data-testid="tour-footer">
         <div class="mt-2 flex min-w-0 items-center justify-between gap-2">
           <!-- Up to 24 slides a dot each; the full tour's 42 would push Back and Next out of the box at about 1000 px, so past that one
                thin bar fills as the tour goes (the step line above says where, in words). -->
@@ -245,6 +255,9 @@ onBeforeUnmount(() => {
 });
 
 const titleEl = ref<HTMLElement | null>(null);
+const scrollEl = ref<HTMLElement | null>(null);
+// A new slide starts at its top (the box scrolls only in a window too short even for the shrunk picture).
+watch(() => props.index, () => { if (scrollEl.value) scrollEl.value.scrollTop = 0; });
 const takeEl = ref<HTMLElement | null>(null);
 defineExpose({
   focusTake: () => takeEl.value?.focus(),
@@ -253,6 +266,16 @@ defineExpose({
 </script>
 
 <style scoped>
+/* The picture is never taller than what is left of the window after the words and the buttons (about 21rem), but never under
+   16rem wide: its shape is kept, so the ring and arrow (percentages of it) stay on their target. */
+.tour-pic {
+  max-width: max(16rem, calc((100dvh - 21rem) * var(--r-p)));
+}
+@media (min-width: 640px) {
+  .tour-pic {
+    max-width: max(16rem, calc((100dvh - 21rem) * var(--r-d)));
+  }
+}
 .tour-fade-in {
   display: block;
   animation: tour-fade-in 200ms ease-out both;
