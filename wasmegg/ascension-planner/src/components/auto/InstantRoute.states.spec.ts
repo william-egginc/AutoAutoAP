@@ -190,6 +190,8 @@ function ctxOf(s: State): Record<string, unknown> {
     countOpen: () => false,
     toggleCount: () => {},
     rowTight: () => false,
+    allRowsTight: false,
+    COUNTS_ALL_TIGHT: 'Every row is close to the date.',
     dateRowLit: () => false,
     dateRows: result?.byDate ? [fewer, dateRoute] : [],
     days: (sec: number) => `${(sec / 86400).toFixed(2)} days`,
@@ -1069,6 +1071,13 @@ describe('Every number of ascensions: rows open on tap, one pair in the open row
       expect(textOf(head)).toMatch(/3 ascensions, 308 TE, .+ spare tight route 205 → 248 → 308/);
       const calm = rowsOf(await draw(at('date', true), { ...open, rowTight: () => false }));
       expect(calm.join('')).not.toContain('data-testid="counts-tight"');
+    });
+
+    it('every row tight (UX sweep R9, M3): one line above the rows, no tag on each', async () => {
+      const html = await draw(at('date', true), { ...open, rowTight: () => true, allRowsTight: true });
+      expect(html).toContain('data-testid="counts-all-tight"');
+      expect(rowsOf(html).join('')).not.toContain('data-testid="counts-tight"');
+      expect(await draw(at('date', true), { ...open, rowTight: () => true, allRowsTight: false })).not.toContain('data-testid="counts-all-tight"');
     });
 
     it('a 44 px head at every width, a visible focus ring, the chevron hidden from screen readers', async () => {
