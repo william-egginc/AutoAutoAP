@@ -24,7 +24,7 @@ describe('first tour words', () => {
     expect(B('prefer')).toBe('Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.');
     expect(B('simulate')).toBe("Simulate this route opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys.");
     expect(B('follow')).toBe('Follow this route saves it to My runs, so the planner can track your check-ins and tell you the next step.');
-    expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next. Click Next to learn more about My runs.');
+    expect(B('myrunsPage')).toBe('My runs is where the route you follow lives, and where the planner tells you what to do next.');
     expect(B('followedRoute')).toBe('This is the route you follow: the TE you reach at the end of each ascension.');
     expect(B('nextStep')).toBe('Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.');
     expect(B('tracker')).toBe('The Build-up tracker lists what to buy and when, so you can tick each one off as you go.');
@@ -67,6 +67,8 @@ describe('first tour words', () => {
     }
   });
   it("Jordan, 16 Nov 2026: the Chain Finder and My runs slides end 'Click Next to learn more about ...' (their pictures show the whole page, dimmed, with the tab ringed)", () => {
-    for (const id of ['tabChain', 'myrunsPage'] as const) expect(FIRST_TOUR_STEPS[id].body).toMatch(/ Click Next to learn more about (Chain Finder|My runs)\.$/);
+    expect(FIRST_TOUR_STEPS.tabChain.body).toMatch(/ Click Next to learn more about Chain Finder\.$/);
+    // 18 Nov 2026 (Jordan): the Quick tour's My runs card drops the line (its next slide is Setup); the Full tour keeps it.
+    expect(FIRST_TOUR_STEPS.myrunsPage.body).not.toMatch(/Click Next/);
   });
 });

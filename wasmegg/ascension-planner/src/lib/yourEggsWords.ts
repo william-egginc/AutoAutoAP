@@ -110,7 +110,7 @@ export type EggGoalBound = 'at' | 'by' | 'byAbout';
  *  "… by …" / "… by about …". "on" is the end of its last stint, "by" a late bound, "by about" approximate. */
 export function goalEggWords(te: number | null, when: string, bound: EggGoalBound, asc?: number): string {
   // An earlier ascension is not the goal (UX sweep R9, 18 Nov 2026, DRAFT for Words): "reaches 40 TE for A2 on …".
-  const lead = asc != null ? (te != null ? `reaches ${te} TE for A${asc}` : `reaches its goal for A${asc}`) : te != null ? `reaches ${te} TE` : 'reaches its goal';
+  const lead = asc != null ? (te != null ? `reaches ${te} TE for A${asc}` : `finishes for A${asc}`) : te != null ? `reaches ${te} TE` : 'reaches its goal';
   return bound === 'at' ? `${lead} on ${when}` : bound === 'by' ? `${lead} by ${when}` : `${lead} by about ${when}`;
 }
 /** Reviewed 13 Nov 2026: no later stint on the plan; the egg is at its goal (the game expert's "done on this plan", with why). */

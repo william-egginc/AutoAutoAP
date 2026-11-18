@@ -33,6 +33,9 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-17T22:00:15Z', note: 'Your calendar link is saved with your account, scrambled on your device first, so all your browsers show the same link. Reset link and Delete everything saved online remove it' },
+  { at: '2026-11-17T22:00:14Z', note: 'Your eggs’ “to goal” view has a picker (A1 · A2 · A3 · goal) to see each egg’s times for any ascension. Where the instant answer keeps no shifts, a note says to run a search from Try next' },
+  { at: '2026-11-17T22:00:13Z', note: 'My runs is one timeline now: each ascension’s row in You are here opens to its shifts and dates (blocks start closed; press to open), and the Full timeline box is gone' },
   { at: '2026-11-17T22:00:12Z', note: 'Release 9: Quick and Full tours, My runs follows the plan on your newest save, Put my plan in my calendar is on, and instant answers on the newest simulator (sim5) where rebuilt', level: 'big' },
   { at: '2026-11-17T22:00:11Z', note: 'Target TE(s) checks your numbers. Ascensions from/to keep your edits. A link shows each ascension’s dates. Setup names hours and time off. A fresh first ascension no longer reads as under way.' },
   { at: '2026-11-17T22:00:10Z', note: 'Quick tour (22 slides) and Full tour (42 slides), in More and in the page footer. The Full tour can carry on from where the Quick tour ends. Show the tour again is in Setup' },

@@ -9,6 +9,9 @@ import { FIRST_TOUR_STEPS } from './firstTourWords';
 import { FULL_TOUR_ABOUT, FULL_TOUR_ALT, FULL_TOUR_CLOSING, FULL_TOUR_FROM_FIRST, FULL_TOUR_ITEM, FULL_TOUR_STEPS_WORDS } from './fullTourWords';
 
 describe('full tour words', () => {
+  it("the My runs slide keeps Jordan's 'Click Next to learn more about My runs.' here, though the Quick tour card drops it (18 Nov 2026)", () => {
+    expect(FULL_TOUR_STEPS_WORDS.myrunsPage.body).toBe(`${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My runs.`);
+  });
   it('a title, body and alt for every step, and none for a step that is not there', () => {
     expect(Object.keys(FULL_TOUR_STEPS_WORDS).sort()).toEqual([...FULL_TOUR_STEPS].sort());
     expect(Object.keys(FULL_TOUR_ALT).sort()).toEqual([...FULL_TOUR_STEPS].sort());

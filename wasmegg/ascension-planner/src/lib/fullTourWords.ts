@@ -64,6 +64,9 @@ export const FULL_TOUR_STEPS_WORDS = Object.fromEntries([
   ...SHARED.map(id => [id, FIRST_TOUR_STEPS[id]] as const),
   ...(Object.keys(OWN) as OwnId[]).map(id => [id, OWN[id]] as const),
 ]) as Record<FullTourStepId, { title: string; body: string }>;
+// The Quick tour's My runs card stands alone (its next slide is Setup); in the Full tour the next slide is more about My runs, so only
+// here it ends with Jordan's own "Click Next to learn more about My runs." (18 Nov 2026).
+FULL_TOUR_STEPS_WORDS.myrunsPage = { ...FIRST_TOUR_STEPS.myrunsPage, body: `${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My runs.` };
 
 /** Each picture's alt text: what is highlighted, on the sample account. */
 export const FULL_TOUR_ALT = Object.fromEntries([

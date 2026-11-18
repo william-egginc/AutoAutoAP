@@ -25,7 +25,7 @@ export const FIRST_TOUR_STEPS: Record<TourStepId, { title: string; body: string 
   prefer: { title: 'Prefer fewer ascensions', body: 'Prefer fewer ascensions picks a route with fewer ascensions when it costs you only a little: finishing a bit later, or reaching a bit less TE.' },
   simulate: { title: 'Simulate this route', body: "Simulate this route opens the route in the Auto Planner, which plays it out shift by shift, with every ascension's dates and buys." },
   follow: { title: 'Follow this route', body: 'Follow this route saves it to My runs, so the planner can track your check-ins and tell you the next step.' },
-  myrunsPage: { title: 'My runs', body: 'My runs is where the route you follow lives, and where the planner tells you what to do next. Click Next to learn more about My runs.' },
+  myrunsPage: { title: 'My runs', body: 'My runs is where the route you follow lives, and where the planner tells you what to do next.' },
   followedRoute: { title: 'The route you follow', body: 'This is the route you follow: the TE you reach at the end of each ascension.' },
   nextStep: { title: 'Next step', body: 'Next step says what to do now, and when, such as buying or prestiging. It updates when you load a newer save.' },
   tracker: { title: 'The Build-up tracker', body: 'The Build-up tracker lists what to buy and when, so you can tick each one off as you go.' },
