@@ -3,13 +3,15 @@
   reach only a page running a long search (ReloadPlannedBanner.vue, under Run / Stop); every other open page learned of the
   reload when it happened. This shows it on the planner page for everyone, except where that banner already shows (a long
   search is running: it says more, and asks the player to message the maintainer). Close hides it for that planned time
-  only, for this page. Gone once the time has passed. The owner's note shows as text only, never as HTML. Words:
-  lib/runBeaconWords.ts `plannedUpdateWords`.
+  only, for this page. Gone once the time has passed. Starts below a floating update banner (NewVersionBanner.vue) rather
+  than under it (QA at 390 px, 18 Nov 2026; lib/updateOverlay.ts floatingBannerBottom). The owner's note shows as text
+  only, never as HTML. Words: lib/runBeaconWords.ts `plannedUpdateWords`.
 -->
 <template>
   <div
     v-if="shown"
     class="mb-4 flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 pl-3 min-w-0"
+    :style="floatingBannerBottom > 0 ? { marginTop: `${floatingBannerBottom}px` } : undefined"
     role="status"
     data-testid="planned-update-notice"
   >
@@ -45,6 +47,7 @@ import {
 import { LONG_RUN_BANNER_CLOSE, plannedUpdateWords } from '@/lib/runBeaconWords';
 import { liveVersionJson } from '@/composables/useNewVersion';
 import { useMinuteClock } from '@/composables/useMinuteClock';
+import { floatingBannerBottom } from '@/lib/updateOverlay';
 
 /** Unix seconds, once a minute while visible: the notice goes once the planned time has passed. */
 const nowSec = useMinuteClock();
