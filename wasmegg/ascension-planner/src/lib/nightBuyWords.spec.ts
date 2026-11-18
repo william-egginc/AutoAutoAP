@@ -6,7 +6,7 @@ import { isWordingOnly } from './resultCodeHash';
 describe('night buy words', () => {
   it('the three lines', () => {
     expect(NIGHT_BUY_NOTE).toBe(
-      "This plan's egg shifts don't wait for your awake hours, so it may buy research at night and the finish is a best case: it can be hours later."
+      "This route's egg shifts don't wait for your awake hours, so it may buy research at night and the finish is a best case: it can be hours later."
     );
     expect(NIGHT_BUY_NOTE_SHORT).toBe("Shifts don't wait for your hours, so buys may fall at night and the finish is a best case.");
     expect(NIGHT_BUY_TIP).toBe(

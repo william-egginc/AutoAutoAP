@@ -32,7 +32,7 @@
           >
           <template v-if="l.onNoPrestigeDay"
             >{{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-no-prestige-day"
-              >on a no-prestige day: it waits past your no-prestige days (Fast prices it)</span
+              >on a no-prestige day: it waits past your no-prestige days. Fast prices it.</span
             ></template
           >
           <template v-if="l.wait === 'days'">

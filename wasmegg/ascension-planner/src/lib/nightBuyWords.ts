@@ -11,7 +11,7 @@
 
 /** The one-line note (My runs, the Build-up tracker): the run's egg shifts do not wait for the hours, so its buys do not either. */
 export const NIGHT_BUY_NOTE =
-  "This plan's egg shifts don't wait for your awake hours, so it may buy research at night and the finish is a best case: it can be hours later.";
+  "This route's egg shifts don't wait for your awake hours, so it may buy research at night and the finish is a best case: it can be hours later.";
 /** A shorter form, for a tight place (an Auto Planner result card). */
 export const NIGHT_BUY_NOTE_SHORT = "Shifts don't wait for your hours, so buys may fall at night and the finish is a best case.";
 /** One sentence for the "?" tip, with the two notes above. */

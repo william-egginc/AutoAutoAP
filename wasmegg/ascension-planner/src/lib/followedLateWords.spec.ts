@@ -14,11 +14,11 @@ const f = (o: Partial<GoalFollow> = {}): GoalFollow => ({ times: 'estimate', end
 describe('followedLateLine', () => {
   it('a followed route that lands after the date, the plan shown earlier: its own line', () => {
     expect(followedLateLine(f(), JUL11, day, 'after Egg Day starts')).toBe(
-      `Your followed route lands about ${day(JUL17)}, after Egg Day starts`
+      `The route you follow lands about ${day(JUL17)}, after Egg Day starts`
     );
   });
   it('a finish kept from a check says "lands", not "about"', () => {
-    expect(followedLateLine(f({ times: 'finish' }), JUL11, day, 'after your date')).toBe(`Your followed route lands ${day(JUL17)}, after your date`);
+    expect(followedLateLine(f({ times: 'finish' }), JUL11, day, 'after your date')).toBe(`The route you follow lands ${day(JUL17)}, after your date`);
   });
   it('not late, or no time: nothing', () => {
     expect(followedLateLine(f({ late: false }), JUL11, day, 'x')).toBe('');

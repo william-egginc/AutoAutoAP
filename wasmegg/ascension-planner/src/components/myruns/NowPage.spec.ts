@@ -170,7 +170,7 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Setup changed since this plan. Get the instant answer for your Setup ›');
+    expect(changed).toContain('Setup has changed since this plan was made. Get the instant answer for your Setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })

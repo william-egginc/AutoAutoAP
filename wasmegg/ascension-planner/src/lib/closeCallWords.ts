@@ -25,7 +25,7 @@ export function closeCallLine(o: { te: number; found?: { level: string; endTE: n
   const f = o.found;
   if (f && f.level === 'Custom' && Math.floor(f.endTE) >= o.te) return null;
   if (f && f.level === 'Custom' && Math.floor(f.endTE) < o.te)
-    return `Custom found ${Math.floor(f.endTE)} TE for this date, which is confirmed. The ${o.te} TE above may miss.`;
+    return `Custom confirmed ${Math.floor(f.endTE)} TE for this date. The ${o.te} TE above may miss.`;
   return `${o.te} TE is a close call: the quick estimate can be a few days late, so this may miss the date. Fast checks it on your save; Custom confirms it.`;
 }
 

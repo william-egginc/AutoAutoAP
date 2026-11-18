@@ -332,7 +332,7 @@
     </p>
 
     <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-setup-changed">
-      Setup changed since this plan.
+      Setup has changed since this plan was made.
       <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your Setup ›</button>
     </p>
     <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-older-save">

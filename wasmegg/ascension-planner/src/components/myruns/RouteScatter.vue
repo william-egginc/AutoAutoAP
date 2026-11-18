@@ -426,8 +426,8 @@ function clearSel(): void {
 }
 const hint = computed(() =>
   narrow.value
-    ? 'Tap a cell to see how many routes it holds and the best of them.'
-    : 'Point at, click or tab to a cell to see how many routes it holds and the best of them.'
+    ? 'Press a cell to see how many routes it holds and the best of them.'
+    : 'Point at, press or tab to a cell to see how many routes it holds and the best of them.'
 );
 const selLine = computed(() => {
   const s = sel.value;
