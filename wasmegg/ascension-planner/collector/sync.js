@@ -117,7 +117,7 @@ function readCalLink(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return { problems: ['the link record must be an object'] };
   if (Object.keys(v).some(f => f !== 'v' && f !== 'iv' && f !== 'ct')) return { problems: ['send only v, iv and ct'] };
   if (v.v !== 1) return { problems: ['v must be 1'] };
-  const size = x => (typeof x === 'string' && B64.test(x) && x.length % 4 === 0 ? Buffer.byteLength(x, 'base64') : -1);
+  const size = x => (typeof x === 'string' && B64.test(x) && x.length % 4 === 0 ? atob(x).length : -1); // atob: the Worker has no Node globals
   if (size(v.iv) !== 12) return { problems: ['iv must be 12 bytes of base64'] };
   const n = size(v.ct);
   if (n < 17 || n > 300) return { problems: ['ct must be base64 of 17 to 300 bytes'] };

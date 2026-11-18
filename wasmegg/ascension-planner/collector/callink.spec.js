@@ -124,3 +124,45 @@ describe('the callink record and the links', () => {
     expect(all).not.toContain(K);
   });
 });
+
+// The Workers runtime has no Node `Buffer` (no nodejs_compat): the first TEST deploy answered 500 "Buffer is not defined" (18 Nov 2026).
+describe('no Node Buffer in the Worker', () => {
+  it('stores and serves a record when Buffer.byteLength, which the Worker lacks, throws', async () => {
+    const rec = REC();
+    // A plain stand-in for the Request: Node's own Request needs Buffer to read a body; the Worker's code must not. (Node's Response needs
+    // Buffer too, so the whole global cannot be removed here; the check below bans the call that failed and the next spec bans the word.)
+    const req = (value, k = K) => {
+      const bytes = new TextEncoder().encode(JSON.stringify(value));
+      return { url: `https://c.example/sync?k=${k}&kind=callink&slot=0&at=${T0}`, method: 'PUT', headers: new Headers({ 'content-length': String(bytes.length) }), arrayBuffer: async () => bytes.buffer };
+    };
+    const good = req(rec);
+    const short = req({ ...rec, ct: 'AAAA' }, K2);
+    const saved = Buffer.byteLength;
+    let a;
+    let b;
+    let err;
+    // only the call the Worker made (base64 sizes): Node's own Response uses byteLength too
+    Buffer.byteLength = (x, enc) => {
+      if (enc === 'base64') throw new ReferenceError('Buffer is not defined');
+      return saved(x, enc);
+    };
+    try {
+      a = await handleSync(good, env, T0);
+      b = await handleSync(short, env, T0);
+    } catch (e) {
+      err = e;
+    } finally {
+      Buffer.byteLength = saved;
+    }
+    expect(err?.stack).toBeUndefined();
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(400);
+    expect(await (await get()).json()).toEqual(rec);
+  });
+  it('no Worker file (collector/*.js that is not a spec) uses Buffer', async () => {
+    const { readdirSync, readFileSync } = await import('node:fs');
+    const dir = new URL('.', import.meta.url);
+    const bad = readdirSync(dir).filter(f => f.endsWith('.js') && !f.endsWith('.spec.js') && /\bBuffer\b/.test(readFileSync(new URL(f, dir), 'utf8')));
+    expect(bad).toEqual([]);
+  });
+});
