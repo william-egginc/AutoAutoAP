@@ -391,10 +391,13 @@
             most once an hour per save.
           </li>
           <li>
-            <b>Calendar link</b> (optional, Setup): a private link for Google or Apple Calendar. The server keeps a fingerprint
-            of the link, never the link itself, plus your scrambled account code, when it was made and last fetched, a rough fetch
-            count, and your plan's events (time, kind, title and notes; no ID, no name). It keeps at most 3 links per account and
-            deletes one after 90 days unfetched, or with Delete everything. Your calendar app keeps its own copy.
+            <b>Calendar link</b> (optional, Setup): a private link for Google or Apple Calendar. The collector keeps a fingerprint
+            of the link (never the link itself), your account's scrambled key, when the link was made and last fetched, and a rough
+            fetch count. It also keeps the planned events your planner saved online for it: each has a time, a kind (shift, buy,
+            prestige, route or note) and the short title and notes text the planner wrote. It refuses any text that contains a
+            player ID, and no name is sent. At most 3 links per account; a link nobody fetches for 90 days is deleted, and Delete
+            everything saved online removes the links and the events. Your calendar app keeps its own copy of what it fetched,
+            and the collector can't delete that.
           </li>
           <li>
             <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
