@@ -45,10 +45,10 @@ describe('TourDialog in full mode', () => {
 });
 
 describe('the first tour\'s last card: More: Full tour', () => {
-  const last = { phase: 'slides', mode: 'first', remind: false, index: 11, total: 12, slide: TOUR_SLIDES[11] };
+  const last = { phase: 'slides', mode: 'first', remind: false, index: 7, total: 8, slide: TOUR_SLIDES[7] };
   it('a button there, not on the cards before it', async () => {
     expect(textOf(await renderHtml(TourDialog, last))).toContain(FULL_TOUR_FROM_FIRST);
-    expect(textOf(await renderHtml(TourDialog, { ...last, index: 10, slide: TOUR_SLIDES[10] }))).not.toContain(FULL_TOUR_FROM_FIRST);
+    expect(textOf(await renderHtml(TourDialog, { ...last, index: 6, slide: TOUR_SLIDES[6] }))).not.toContain(FULL_TOUR_FROM_FIRST);
     expect(dialog).toContain('data-testid="tour-full"');
     expect(dialog).toMatch(/data-testid="tour-full"[\s\S]{0,80}@click="emit\('full'\)"/);
   });

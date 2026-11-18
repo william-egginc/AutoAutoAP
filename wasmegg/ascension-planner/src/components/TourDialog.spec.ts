@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import TourDialog from './TourDialog.vue';
-import { TOUR_SLIDES } from '@/lib/tourSlides';
+import { TOUR_FILES, TOUR_SLIDES, buildSlide } from '@/lib/tourSlides';
 import {
   FIRST_TOUR_ALT,
   FIRST_TOUR_DONE,
@@ -19,8 +19,8 @@ import {
   FIRST_TOUR_WELCOME,
 } from '@/lib/firstTourWords';
 
-const welcome = { phase: 'welcome', remind: true, index: 0, total: 22 } as const;
-const slide = (index: number, extra: Record<string, unknown> = {}) => ({ phase: 'slides', remind: true, index, total: 22, slide: TOUR_SLIDES[index], ...extra });
+const welcome = { phase: 'welcome', remind: true, index: 0, total: 8 } as const;
+const slide = (index: number, extra: Record<string, unknown> = {}) => ({ phase: 'slides', remind: true, index, total: 8, slide: TOUR_SLIDES[index], ...extra });
 const modal = readFileSync(new URL('./TourModal.vue', import.meta.url), 'utf8');
 const dialog = readFileSync(new URL('./TourDialog.vue', import.meta.url), 'utf8');
 
@@ -54,8 +54,8 @@ describe('TourDialog: the welcome box', () => {
 
 describe('TourDialog: the slideshow', () => {
   it('each slide: one <picture>, the phone set below 640 px, lazy, sized, with its alt text; the caption says it all', async () => {
-    expect(TOUR_SLIDES).toHaveLength(22);
-    for (let i = 0; i < 22; i++) {
+    expect(TOUR_SLIDES).toHaveLength(8);
+    for (let i = 0; i < 8; i++) {
       const html = await renderHtml(TourDialog, slide(i));
       const s = TOUR_SLIDES[i];
       expect(html.match(/<picture/g)?.length).toBe(1);
@@ -65,7 +65,7 @@ describe('TourDialog: the slideshow', () => {
       expect(html).toMatch(/<img[^>]*decoding="async"/);
       expect(html).toMatch(/<img[^>]*width="720"[^>]*height="406"/);
       expect(html).toContain(`alt="${FIRST_TOUR_ALT[s.id].replace(/'/g, '&#39;')}"`);
-      expect(textOf(html)).toContain(`Step ${i + 1} of 22 ${FIRST_TOUR_STEPS[s.id].title}`);
+      expect(textOf(html)).toContain(`Step ${i + 1} of 8 ${FIRST_TOUR_STEPS[s.id].title}`);
       expect(textOf(html)).toContain(FIRST_TOUR_SKIP);
     }
   });
@@ -73,14 +73,14 @@ describe('TourDialog: the slideshow', () => {
   it('Next until the last, Done there; Back from slide 2; replay shows the box unticked', async () => {
     expect(textOf(await renderHtml(TourDialog, slide(0)))).not.toMatch(/\bBack\b/);
     expect(textOf(await renderHtml(TourDialog, slide(1)))).toMatch(/\bBack\b/);
-    expect(textOf(await renderHtml(TourDialog, slide(20)))).toContain(FIRST_TOUR_NEXT);
-    expect(textOf(await renderHtml(TourDialog, slide(21)))).toContain(FIRST_TOUR_DONE);
+    expect(textOf(await renderHtml(TourDialog, slide(6)))).toContain(FIRST_TOUR_NEXT);
+    expect(textOf(await renderHtml(TourDialog, slide(7)))).toContain(FIRST_TOUR_DONE);
     expect(await renderHtml(TourDialog, slide(2, { remind: false }))).not.toMatch(/<input[^>]*type="checkbox"[^>]*checked/);
   });
 
-  it('a save file with no player ID: Step 13 of 13 (Follow this route) is the last, its button Done', async () => {
-    const t = textOf(await renderHtml(TourDialog, slide(12, { total: 13, slide: TOUR_SLIDES.find(x => x.id === 'follow') })));
-    expect(t).toContain('Step 13 of 13');
+  it('a save file with no player ID: Step 7 of 7 is the last (the closing card), its button Done', async () => {
+    const t = textOf(await renderHtml(TourDialog, slide(6, { total: 7, slide: TOUR_SLIDES.find(x => x.id === 'closing') })));
+    expect(t).toContain('Step 7 of 7');
     expect(t).toContain(FIRST_TOUR_DONE);
     expect(t).not.toContain(FIRST_TOUR_NEXT);
   });
@@ -127,7 +127,7 @@ describe('TourModal: a real modal on the page', () => {
 });
 
 describe('TourDialog: phones (orchestrator, 16 Nov 2026: 23 dots pushed Back/Next off an iPhone screen)', () => {
-  it('the dots hide below 640 px (the step label already says "Step N of 22") and Back/Next never shrink', async () => {
+  it('the dots hide below 640 px (the step label already says "Step N of 8") and Back/Next never shrink', async () => {
     const html = await renderHtml(TourDialog, slide(1));
     const dots = html.match(/<span class="([^"]*)" aria-hidden="true"[^>]*>(?:\s|<!--[^>]*-->)*<span[^>]*rounded-full/);
     expect(dots, 'the dots row').not.toBeNull();
@@ -151,9 +151,9 @@ describe('TourDialog: the live overlay (spec-tour-v4, Jordan, 16 Nov 2026)', () 
   });
   it('the slides that share a page picture render the very same <img> source, so the browser keeps it while the overlay slides', async () => {
     const a = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
-    const b = TOUR_SLIDES.findIndex(s => s.id === 'filters');
-    const src = (h: string) => /<img[^>]*src="([^"]+)"/.exec(h)![1];
-    expect(src(await renderHtml(TourDialog, slide(a)))).toBe(src(await renderHtml(TourDialog, slide(b))));
+        const src = (h: string) => /<img[^>]*src="([^"]+)"/.exec(h)![1];
+    // The filters slide is in the full tour now; it shares Target TE's picture on a desk.
+    expect(src(await renderHtml(TourDialog, slide(a)))).toBe(src(await renderHtml(TourDialog, slide(a, { slide: buildSlide('filters', TOUR_FILES.filters) }))));
   });
   it('a baked slide (Load your save: two things) has no overlay', async () => {
     const i = TOUR_SLIDES.findIndex(s => s.id === 'load');

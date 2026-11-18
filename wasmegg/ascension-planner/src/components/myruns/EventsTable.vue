@@ -198,13 +198,8 @@ const detailRowAt = computed(() => {
   });
   return m;
 });
-const currentAsc = computed(() => {
-  if (!props.here) return null;
-  const e = props.events.find(x => !x.past && (x.kind === 'prestige' || x.kind === 'goal'));
-  return e ? e.asc : null;
-});
 const chosen = reactive(new Map<number, boolean>());
-const isOpen = (asc: number): boolean => chosen.get(asc) ?? asc === currentAsc.value;
+const isOpen = (asc: number): boolean => chosen.get(asc) ?? false;
 const toggle = (asc: number) => chosen.set(asc, !isOpen(asc));
 
 const device = thisDevice();

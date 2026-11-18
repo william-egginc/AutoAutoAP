@@ -8,7 +8,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FULL_TOUR_STEPS } from './fullTour';
 import { FULL_TOUR_SLIDES } from './fullTourSlides';
-import { TOUR_SLIDES, sharesPicture } from './tourSlides';
+import { TOUR_FILES, TOUR_SLIDES, buildSlide, sharesPicture } from './tourSlides';
 
 const src = (f: string) => readFileSync(path.resolve(__dirname, '..', f), 'utf8');
 
@@ -24,7 +24,7 @@ describe('the full tour slides', () => {
   it("the slides it shares with the first tour use the first tour's pictures and overlays (no second copy)", () => {
     for (const id of ['load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside'] as const) {
       const full = FULL_TOUR_SLIDES.find(s => s.id === id)!;
-      const first = TOUR_SLIDES.find(s => s.id === id)!;
+      const first = buildSlide(id, TOUR_FILES[id]);
       expect(full.desk.src, id).toBe(first.desk.src);
       expect(full.phone.src, id).toBe(first.phone.src);
     }
@@ -39,7 +39,7 @@ describe('the full tour slides', () => {
     const by = (id: string) => FULL_TOUR_SLIDES.find(s => s.id === id)!;
     expect(sharesPicture(by('tabManual'), by('tabLeaderboard'))).toBe(false);
     expect(new Set(['tabManual', 'tabAuto', 'tabChain', 'tabLeaderboard', 'tabScience'].map(id => by(id).desk.src)).size).toBe(5);
-    expect(by('tabManual').desk.src).not.toBe(TOUR_SLIDES.find(s => s.id === 'tabManual')!.desk.src);
+    expect(by('tabManual').desk.src).not.toBe(buildSlide('tabManual', TOUR_FILES.tabManual).desk.src);
   });
   it('fetched only when the tour opens: the modal imports the slides dynamically, nothing else imports them', () => {
     expect(src('components/TourModal.vue')).toContain("await import('@/lib/fullTourSlides')");

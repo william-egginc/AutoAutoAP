@@ -54,30 +54,10 @@ export type TourStepId =
   | 'setupInside'
   | 'shifts'
   | 'closing';
-export const TOUR_STEPS: readonly TourStepId[] = [
-  'tabManual',
-  'tabAuto',
-  'tabChain',
-  'tabMyruns',
-  'load',
-  'goalTarget',
-  'goalDate',
-  'result',
-  'filters',
-  'setupAwake',
-  'setupTimeOff',
-  'prefer',
-  'simulate',
-  'follow',
-  'myrunsPage',
-  'followedRoute',
-  'nextStep',
-  'tracker',
-  'shifts',
-  'setupWhere',
-  'setupInside',
-  'closing',
-];
+/** The quick tour: eight slides (Jordan, 18 Nov 2026, after the UX sweep: "cut to about 8, ending with More in the Full tour"). Every
+ *  other step id below stays a word and a picture the full tour uses (lib/fullTour.ts); opened from this tour's last card the full
+ *  tour leaves out the ones seen here (`fullStepsFor`). */
+export const TOUR_STEPS: readonly TourStepId[] = ['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing'];
 
 /** The stored string as a state; anything else reads as never seen. */
 export function parseTour(v: string | null | undefined): TourStored {
@@ -126,12 +106,9 @@ export function isNewVisitor(p: { savedPlayerId: string | null | undefined; last
   return !p.savedPlayerId && !p.lastRoute;
 }
 
-/** The steps for what is loaded: a save file with no player ID has no My runs tab or My runs page, so it leaves out the My
- *  runs tab and ends at Follow (after Simulate this plan, which is on the same answer: fourteen steps). */
+/** The steps for what is loaded: a save file with no player ID has no My runs page, so it leaves that slide out (seven steps). */
 export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
-  return !p.hasAccount && p.hasSaveFile
-    ? TOUR_STEPS.slice(0, TOUR_STEPS.indexOf('follow') + 1).filter(id => id !== 'tabMyruns')
-    : [...TOUR_STEPS];
+  return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.filter(id => id !== 'myrunsPage') : [...TOUR_STEPS];
 }
 
 type TourStorage = Pick<Storage, 'getItem' | 'setItem'>;

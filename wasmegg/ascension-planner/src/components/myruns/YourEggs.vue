@@ -56,7 +56,7 @@
         v-for="k in ascCount"
         :key="k"
         type="button"
-        class="min-h-[44px] px-3 text-body disabled:text-slate-400 disabled:cursor-not-allowed"
+        class="min-h-[44px] min-w-[44px] px-3 text-body disabled:text-slate-400 disabled:cursor-not-allowed"
         :class="(pickedAsc ?? ascCount) === k ? 'bg-indigo-600 text-white font-bold' : 'bg-white text-slate-700 hover:bg-slate-50'"
         :aria-pressed="(pickedAsc ?? ascCount) === k ? 'true' : 'false'"
         :disabled="k < ascCount && !ascKnown(k)"

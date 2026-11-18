@@ -76,23 +76,20 @@
             {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
           </li>
         </ul>
-        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-600" data-testid="now-ascension-no-shifts"
+        <p v-else-if="!l.stay && !(quiet && working && l.asc === 1)" class="ml-4 text-body text-slate-600" data-testid="now-ascension-no-shifts"
           >{{ noShifts(l) }}<AnimatedDots v-if="shiftsWorking(l)"
         /></p>
         <!-- The ascension you are in with no shifts left: what to do until its prestige (lib/instantSteps.ts withStayLine). -->
         <p v-if="l.stay" class="mt-0.5 ml-4 text-body text-slate-700" data-testid="now-ascension-stay">{{ stayWords(l.stay, exact) }}</p>
       </li>
     </ol>
-    <p class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">
-      Times from the instant answer are to the hour. Its shifts start at each ascension's swap to Humility (H1): the
-      first hours' shifts of a fresh ascension are not in it yet. For every shift on your account, use a run from Try
-      next below.
-    </p>
+    <p v-if="note" class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">{{ ASC_TIMES_NOTE }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { ASC_TIMES_NOTE } from '@/lib/timelineWords';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { STEP_FRESH_NO_SHIFTS, STEP_FRESH_NOW } from '@/lib/instantWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -105,10 +102,14 @@ import { r1OfShifts, r1OfTableAscension } from '@/lib/sleepBeforeR1View';
 import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
 import type { Availability } from '@/search/availabilitySchedule';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   lines: AscensionStep[];
   /** Only this ascension (1-based): the detail under its row in You are here (17 Nov 2026). Absent: every ascension. */
   only?: number;
+  /** The instant-answer note under the list (default on); off inside one ascension's detail, where the page says it once. */
+  note?: boolean;
+  /** Right now already says the shifts are being worked out: not said again under A1. */
+  quiet?: boolean;
   zone: string;
   /** The current ascension's simulation is being worked out (lib/followSim.ts). */
   working?: boolean;
@@ -118,7 +119,7 @@ const props = defineProps<{
   hours?: Availability | null;
   /** The player's shifts wait for their hours (deferShifts): the softer "R1 waits until …" line. */
   heldShifts?: boolean;
-}>();
+}>(), { note: true });
 const shownLines = computed(() => (props.only === undefined ? props.lines : props.lines.filter(l => l.asc === props.only)));
 /** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
 const r1Of = (l: AscensionStep) => {
@@ -135,7 +136,7 @@ const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone),
 const dayOnly = (t: number) => formatMoment(t * 1000, { zone: props.zone, dateOnly: true, year: 'never' });
 const exact = (t: number) => showDateTime(t, props.zone);
 /** The first ascension's shifts still being worked out: its line gets the moving dots (spec-dots, 1 Nov 2026). */
-const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working;
+const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working && !props.quiet;
 function noShifts(l: AscensionStep): string {
   if (shiftsWorking(l)) return 'Working out your shifts';
   if (l.simulated) return 'No shifts left in it: worked out on your save.';

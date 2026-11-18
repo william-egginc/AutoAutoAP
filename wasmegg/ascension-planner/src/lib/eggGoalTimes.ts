@@ -157,7 +157,7 @@ export function planEggGoalLines(o: {
     const rounded = t.bound === 'byAbout' || !o.plan.exact;
     const when = dateAt(rounded ? roundToHourIn(t.at, o.zone) : t.at, o.now, o.zone, true);
     if (!when) continue;
-    out[t.egg] = { kind: KIND[t.bound], text: goalEggWords(te(t.egg), when, t.bound) };
+    out[t.egg] = { kind: KIND[t.bound], text: goalEggWords(te(t.egg), when, t.bound, k < all.length ? k : undefined) };
   }
   return out;
 }

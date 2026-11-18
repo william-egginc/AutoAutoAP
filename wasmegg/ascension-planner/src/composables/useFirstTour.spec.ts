@@ -58,9 +58,9 @@ describe('the welcome box', () => {
     t.begin(ENV);
     t.take();
     expect(t.state.phase).toBe('slides');
-    expect(t.step.value).toBe('tabManual');
+    expect(t.step.value).toBe('tabAuto');
     expect(t.state.wantFocus).toBe('title');
-    expect(t.state.announce).toBe(`Tour, step 1 of 22: ${FIRST_TOUR_STEPS.tabManual.title}`);
+    expect(t.state.announce).toBe(`Tour, step 1 of 8: ${FIRST_TOUR_STEPS.tabAuto.title}`);
   });
 
   it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
@@ -105,7 +105,7 @@ describe('the slideshow', () => {
     t.begin({ ...ENV, hasAccount: true });
     t.take();
     const seen: string[] = [];
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 8; i++) {
       seen.push(t.step.value);
       t.focused();
       if (!t.isLast.value) {
@@ -113,10 +113,10 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
+    expect(seen).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     t.focused();
     t.back();
-    expect(t.step.value).toBe('setupInside');
+    expect(t.step.value).toBe('setupWhere');
     expect(t.state.wantFocus).toBe('title');
     t.next();
     t.done();
@@ -131,9 +131,9 @@ describe('the slideshow', () => {
     expect(t.key('ArrowRight', NO_WAIT)).toBe(false);
     t.take();
     expect(t.key('ArrowRight', NO_WAIT)).toBe(true);
-    expect(t.step.value).toBe('tabAuto');
+    expect(t.step.value).toBe('load');
     expect(t.key('ArrowLeft', NO_WAIT)).toBe(true);
-    expect(t.step.value).toBe('tabManual');
+    expect(t.step.value).toBe('tabAuto');
     expect(t.key('Escape', { updateBox: true })).toBe(false);
     expect(t.state.phase).toBe('slides');
     expect(t.key('Escape', NO_WAIT)).toBe(true);
@@ -145,16 +145,16 @@ describe('the slideshow', () => {
     expect(w.state.phase).toBe('closed');
   });
 
-  it('a save file with no player ID: thirteen slides (Simulate this plan included), Follow this route is the last (Done)', () => {
+  it('a save file with no player ID: seven slides (no My runs slide), the closing card is the last (Done)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasSaveFile: true });
-    expect(t.total.value).toBe(13);
-    for (let i = 0; i < 12; i++) t.next();
-    expect(t.step.value).toBe('follow');
+    expect(t.total.value).toBe(7);
+    for (let i = 0; i < 6; i++) t.next();
+    expect(t.step.value).toBe('closing');
     t.back();
-    expect(t.step.value).toBe('simulate');
+    expect(t.step.value).toBe('setupWhere');
     t.next();
-    expect(t.step.value).toBe('follow');
+    expect(t.step.value).toBe('closing');
     expect(t.isLast.value).toBe(true);
     t.done();
     expect(m.get('aap.tour')).toBe('done');
@@ -203,7 +203,7 @@ describe('replay (footer and Setup)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasAccount: true });
     expect(t.state.phase).toBe('slides');
-    expect(t.step.value).toBe('tabManual');
+    expect(t.step.value).toBe('tabAuto');
     expect(t.state.remind).toBe(false);
     expect(t.state.wantFocus).toBe('title');
     expect(m.get('aap.tour')).toBe('done');

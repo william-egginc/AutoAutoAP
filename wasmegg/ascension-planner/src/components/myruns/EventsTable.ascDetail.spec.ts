@@ -58,17 +58,13 @@ describe('each ascension row opens', () => {
     expect(html).not.toContain('data-testid="now-event-detail"');
   });
 
-  it('the ascension the farm is in opens by default (You are here), the others stay closed', async () => {
+  it('every ascension starts closed, the one the farm is in too (Jordan, 18 Nov 2026), so the rows are not repeated by an open block', async () => {
     const html = await renderHtml(EventsTable, { ...base, events: events(), here }, { detail });
-    expect(html.match(/data-testid="slot-detail"/g)).toHaveLength(1);
-    expect(textOf(html)).toContain('DETAIL OF A1');
-    expect(textOf(html)).not.toContain('DETAIL OF A2');
-    // Its row says it is open, and the panel is the one the button controls, a full-width row right under it.
-    const open = html.match(/<button[^>]*aria-expanded="true"[^>]*>/g) ?? [];
-    expect(open).toHaveLength(1);
-    const id = /aria-controls="([^"]+)"/.exec(open[0] ?? "")?.[1] ?? "";
-    expect(html).toContain(`id="${id}"`);
-    expect(textOf(html)).toContain(ascDetailLabel(1, true));
+    expect(html).not.toContain('data-testid="slot-detail"');
+    expect(html).not.toContain('data-testid="now-event-detail"');
+    expect(html.match(/<button[^>]*aria-expanded="true"/g) ?? []).toHaveLength(0);
+    expect(textOf(html)).toContain(ascDetailLabel(1, false));
+    expect(textOf(html)).not.toContain(ascDetailLabel(1, true));
   });
 
   it('without a detail slot there is no button (a plan that has nothing to open)', async () => {

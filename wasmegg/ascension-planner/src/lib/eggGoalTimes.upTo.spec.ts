@@ -112,3 +112,20 @@ describe('ascEndLines: where each earlier ascension ends, the way its row in You
     expect(ascEndLines({ ...args, events: [] })).toEqual({});
   });
 });
+
+describe('an earlier ascension is not "the goal" (UX sweep R9, M1)', () => {
+  const lines = (upTo?: number) => planEggGoalLines({ plan: plan(), now: NOW, zone: ZONE, hours: false, saveEgg: null, upTo })!;
+  it('the whole plan keeps the goal words', () => {
+    const t = Object.values(lines()).map(l => l.text).join(' ');
+    expect(t).toMatch(/reaches|done/);
+    expect(t).not.toMatch(/for A\d/);
+  });
+  it('A1 of two names the ascension, never "its goal"', () => {
+    const rows = Object.values(lines(1)).filter(l => l.kind !== EGG_LINE.goalEggDone);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.text).toContain('for A1');
+      expect(r.text).not.toMatch(/its goal/);
+    }
+  });
+});

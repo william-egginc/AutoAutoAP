@@ -9,6 +9,10 @@ export function ascDetailLabel(asc: number, open: boolean): string {
   return `${open ? 'Hide' : 'Show'} A${asc}'s shifts and dates`;
 }
 
+/** Said once under You are here (UX sweep R9, 18 Nov 2026), not under every opened ascension. DRAFT (Words to review). */
+export const ASC_TIMES_NOTE =
+  "Times from the instant answer are to the hour. Its shifts start at each ascension's swap to Humility (H1): the first hours' shifts of a fresh ascension are not in it yet. For every shift on your account, use a run from Try next below.";
+
 /** The closed fold that holds every ascension where there is no You are here list to open (not on virtue yet, or no events). */
 export const ALL_ASC_LABEL = "Every ascension's shifts and dates";
 

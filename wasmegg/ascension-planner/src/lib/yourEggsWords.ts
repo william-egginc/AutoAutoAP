@@ -108,8 +108,9 @@ export type EggGoalBound = 'at' | 'by' | 'byAbout';
  *  read as a total, so it says what happens: "reaches 42 TE on Sat, Mar 4 at 9:00 AM" / "reaches 42 TE by Sat, Mar 4 at
  *  9:00 AM" / "reaches 42 TE by about Sat, Mar 4 at 9:00 AM"; without the TE (a table replay): "reaches its goal on …" /
  *  "… by …" / "… by about …". "on" is the end of its last stint, "by" a late bound, "by about" approximate. */
-export function goalEggWords(te: number | null, when: string, bound: EggGoalBound): string {
-  const lead = te != null ? `reaches ${te} TE` : 'reaches its goal';
+export function goalEggWords(te: number | null, when: string, bound: EggGoalBound, asc?: number): string {
+  // An earlier ascension is not the goal (UX sweep R9, 18 Nov 2026, DRAFT for Words): "reaches 40 TE for A2 on …".
+  const lead = asc != null ? (te != null ? `reaches ${te} TE for A${asc}` : `finishes for A${asc}`) : te != null ? `reaches ${te} TE` : 'reaches its goal';
   return bound === 'at' ? `${lead} on ${when}` : bound === 'by' ? `${lead} by ${when}` : `${lead} by about ${when}`;
 }
 /** Reviewed 13 Nov 2026: no later stint on the plan; the egg is at its goal (the game expert's "done on this plan", with why). */

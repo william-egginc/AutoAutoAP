@@ -607,7 +607,7 @@
       >
         <!-- One timeline (Jordan, 17 Nov 2026): each ascension's row opens to its shifts and dates, what the old separate fold held. No exact legs: the instant answer's list (lib/instantSteps.ts `ascensionSteps`), else the route's own legs. -->
         <template #detail="{ asc }">
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :only="asc" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :only="asc" :note="false" quiet :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
@@ -640,6 +640,8 @@
           />
         </div>
       </details>
+      <!-- Said once for the opened ascensions above (UX sweep R9), not in each. -->
+      <p v-if="shownEvents.length && !notOnVirtue && !card.plan.legs && ascensions && ascensions.length" class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">{{ ASC_TIMES_NOTE }}</p>
       <!-- A followed route that is late (see the helper's words) while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
       <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
     </template>
@@ -660,7 +662,7 @@ import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
-import { ALL_ASC_LABEL } from '@/lib/timelineWords';
+import { ALL_ASC_LABEL, ASC_TIMES_NOTE } from '@/lib/timelineWords';
 import A1Choice from './A1Choice.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';

@@ -124,7 +124,7 @@ describe('opened from the end of the first tour: only what the first tour did no
     const mine = fullStepsFor(ENV, stepsFor(ENV));
     expect(t.state.mode).toBe('full');
     expect(t.total.value).toBe(mine.length);
-    expect(t.step.value).toBe('tabLeaderboard');
+    expect(t.step.value).toBe('tabManual');
     expect(mine.some(id => seen.has(id))).toBe(false);
     expect(mine.length).toBeLessThan(FULL_TOUR_STEPS.length);
     // Order kept: the full list with the covered ones taken out.

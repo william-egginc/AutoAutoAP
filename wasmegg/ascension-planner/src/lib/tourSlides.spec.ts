@@ -6,13 +6,13 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { TOUR_FILES, TOUR_SLIDES, sharesPicture, slidesFor } from './tourSlides';
+import { TOUR_FILES, TOUR_SLIDES, buildSlide, sharesPicture, slidesFor } from './tourSlides';
 import { FIRST_TOUR_ALT } from './firstTourWords';
 
 
 describe('tour slides', () => {
-  it('twenty-two slides in order (tour v3, spec-tour-v3, Jordan, 16 Nov 2026: one thing a slide, big things first; the tab row is four slides, the goal switch two); each has its own picture pair', () => {
-    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'tabMyruns', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'shifts', 'setupWhere', 'setupInside', 'closing']);
+  it('eight slides in the quick tour (Jordan, 18 Nov 2026: cut to about 8, ending with More in the Full tour); every step keeps its own picture pair, for the full tour', () => {
+    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     const files: Record<string, string> = {
       tabManual: '1-tab-manual',
       tabAuto: '2-tab-auto',
@@ -59,7 +59,8 @@ describe('tour slides', () => {
   });
 
   it('slides that share a page picture are neighbours the dialog slides between (sharesPicture); a slide with its own picture fades', () => {
-    const by = (id: string) => TOUR_SLIDES.find(s => s.id === id)!;
+    // The quick tour is eight slides now; the pictures of the others are still the full tour's.
+    const by = (id: keyof typeof TOUR_FILES) => buildSlide(id, TOUR_FILES[id]);
     // Each tab slide is its own page now (17 Nov 2026), so Manual and Auto Planner fade; Chain Finder's page is Target TE's.
     expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(false);
     // A sub-tab slide shows that sub-tab SELECTED (17 Nov 2026, Jordan): By a date is its own picture, Target TE's is the filters slide's.
@@ -71,13 +72,13 @@ describe('tour slides', () => {
     expect(sharesPicture(by('load'), by('goalTarget'))).toBe(false);
     expect(sharesPicture(null, by('tabAuto'))).toBe(false);
     // Fewer pictures than slides: that is the point of sharing.
-    expect(new Set(TOUR_SLIDES.map(s => s.desk.src)).size).toBeLessThan(TOUR_SLIDES.length - 5);
+    expect(new Set((Object.keys(TOUR_FILES) as (keyof typeof TOUR_FILES)[]).map(id => by(id).desk.src)).size).toBeLessThan(Object.keys(TOUR_FILES).length - 5);
   });
 
-  it('a save file with no player ID: thirteen slides (no My runs tab), Simulate this plan included, ending at Follow this route', () => {
-    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabManual', 'tabAuto', 'tabChain', 'load', 'goalTarget', 'goalDate', 'result', 'filters', 'setupAwake', 'setupTimeOff', 'prefer', 'simulate', 'follow']);
-    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(22);
-    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(22);
+  it('a save file with no player ID: seven slides (no My runs slide), ending at the closing card', () => {
+    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'setupWhere', 'closing']);
+    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(8);
+    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(8);
   });
 
   it('imported, so vite hashes them (not public/): the module globs src/assets/tour/ and resolves each picture to a URL', () => {
