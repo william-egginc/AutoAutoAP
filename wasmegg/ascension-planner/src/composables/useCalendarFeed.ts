@@ -81,7 +81,7 @@ export function createCalendarFeed(o: {
   const linked = ref(read(key('.linked')) === '1');
   /** The link, shown once. Memory only. */
   const link = ref<string | null>(null);
-  /** The link kept encrypted on the collector (kind `callink`) so every browser shows it again. `linkFromSave`: this link was read back, not just made. */
+  /** The link kept encrypted on the collector (kind `callink`) so every browser shows it again. `linkFromSave`: the link is kept online (read back, or saved just now), so the card drops its "shown only once" warning. */
   const savedState = ref<CalSavedState>('none');
   const linkFromSave = ref(false);
   const busy = ref(false);
@@ -142,7 +142,10 @@ export function createCalendarFeed(o: {
     try {
       const rec = await encryptLink(await kp, url);
       const r = await putCalLink(t.url, t.k, rec, f);
-      if (r.ok) savedState.value = 'loaded';
+      if (r.ok) {
+        savedState.value = 'loaded';
+        linkFromSave.value = true;
+      }
       else blackBox.note(`calendar link not saved: ${r.why}`);
     } catch {
       blackBox.note('calendar link not saved: crypto');

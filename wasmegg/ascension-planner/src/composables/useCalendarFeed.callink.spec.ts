@@ -86,7 +86,8 @@ describe('saving a new link', () => {
     expect(Object.keys(JSON.parse(puts[0].body!)).sort()).toEqual(['ct', 'iv', 'v']);
     expect(c.link.value).toBe(URL1);
     expect(c.savedState.value).toBe('loaded');
-    expect(c.linkFromSave.value).toBe(false);
+    // linkFromSave: the link is kept online (read back, or just saved), so the card drops its "shown only once" warning
+    expect(c.linkFromSave.value).toBe(true);
   });
   it('a failed save leaves today\'s behaviour: the link is shown once, savedState stays none', async () => {
     const { st } = memStore();
@@ -99,6 +100,7 @@ describe('saving a new link', () => {
     expect(c.link.value).toBe(URL1);
     expect(c.linked.value).toBe(true);
     expect(c.savedState.value).toBe('none');
+    expect(c.linkFromSave.value).toBe(false);
   });
   it('the key is worked out once per browser, not per call', async () => {
     const { st } = memStore();
@@ -294,7 +296,7 @@ describe('reset, turning off and replacing', () => {
     const order = col.calls.map(x => (x.url.endsWith('/cal/revoke') ? 'revoke' : x.url.endsWith('/cal/new') ? 'new' : x.method === 'PUT' && x.url.includes('kind=callink') ? 'save' : ''));
     expect(order.filter(Boolean)).toEqual(['revoke', 'new', 'save']);
     expect(b.link.value).toBe(URL2);
-    expect(b.linkFromSave.value).toBe(false);
+    expect(b.linkFromSave.value).toBe(true);
     expect(b.savedState.value).toBe('loaded');
     // and now the new link opens in a browser of the ID that made it (ID2)
     const again = createCalendarFeed({ storage: memStore().st, env: env(ID2), fetch: col.f });
