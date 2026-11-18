@@ -43,7 +43,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-11-17T22:00:03Z', note: 'A fresh Safari start now uses fewer workers so the tab stays up, and Setup says how many started' },
   { at: '2026-11-17T22:00:02Z', note: 'A warning when your silo buys wait for your awake hours (1 silo overnight), and Monday’s 2x line says to check in during it. A close By a date answer offers Check this date with Fast' },
   { at: '2026-11-17T22:00:01Z', note: 'The Privacy text says your code is a hash of your ID, stored under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes' },
-  { at: '2026-11-17T22:00:00Z', note: 'Searches expected to take 2 hours or more now always tell the planner’s server when they start and stop, so an update can wait for them. Only a random code and the search’s size and times; see About' },
+  { at: '2026-11-17T22:00:00Z', note: 'Searches expected to take 2 hours or more now always tell the planner’s server when they start and stop, so an update can wait. Only a random code and the search’s size and times; see About' },
   { at: '2026-11-10T06:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans that use your real TE, and one Save online switch that now also keeps your starting TE and tracker ticks and plan', level: 'big' },
   { at: '2026-11-04T18:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
 ];
