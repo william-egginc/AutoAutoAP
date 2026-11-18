@@ -402,6 +402,20 @@ describe('quiet failures', () => {
     expect(prefs.saves.setup).toEqual({ state: 'saved' });
   });
 
+  it('PIN account, old client: 401 on the read and on the write is quiet; the change stays here, no loop, nothing deleted', async () => {
+    answer = () => ({ status: 401, body: { error: 'pin required', pin: true } });
+    const { prefs, search } = await loadAccount();
+    expect(prefs.cloudStatus).toBe('unreachable');
+    search.finalTE = 350;
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(1);
+    expect(prefs.saves.setup.state).toBe('failed');
+    expect(search.finalTE).toBe(350);
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 5);
+    expect(puts()).toHaveLength(1);
+    expect(calls.filter(c => c.method === 'DELETE')).toEqual([]);
+  });
+
   it('offline: quiet, nothing thrown, nothing logged; the change is kept here as not yet saved', async () => {
     answer = () => 'offline';
     const { prefs, search } = await loadAccount();

@@ -3,7 +3,7 @@
  * branch spec-sync (read only): records kept per key `k`, last write wins by the client's `at` (an older `at` is 409
  * with the stored record as `latest`, its value for override and ticks), the same content is `unchanged`, an `at`
  * over 10 minutes ahead of its clock is 400. `mode` makes every call answer one way: 'old' (404: a collector with no
- * /sync or /forget), 'limit' (429 with retryAfter), 'off' (503), 'offline' (fetch throws). /forget deletes the key's
+ * /sync or /forget), 'limit' (429 with retryAfter), 'off' (503), 'pin' (401 pin required), 'offline' (fetch throws). /forget deletes the key's
  * records and counts them, plus the follows, prefs and answers the spec says the key had. Every call and body is kept
  * (`calls`) so a spec can check that none holds a player ID. Specs only.
  */
@@ -30,7 +30,7 @@ export function fakeSyncCollector(base = 'https://collector.example') {
   const records = new Map<string, Map<string, FakeRecord>>();
   const other = new Map<string, { follows: number; prefs: number; answers: number }>();
   const calls: FakeCall[] = [];
-  const state = { skewMs: 0, mode: 'ok' as 'ok' | 'old' | 'limit' | 'off' | 'offline', retryAfter: 120, forgetMode: 'ok' as 'ok' | 'old' | '405' | 'limit' | 'offline' };
+  const state = { skewMs: 0, mode: 'ok' as 'ok' | 'old' | 'limit' | 'off' | 'offline' | 'pin', retryAfter: 120, forgetMode: 'ok' as 'ok' | 'old' | '405' | 'limit' | 'offline' | 'pin' };
   const of = (k: string) => {
     if (!records.has(k)) records.set(k, new Map());
     return records.get(k)!;
@@ -56,6 +56,8 @@ export function fakeSyncCollector(base = 'https://collector.example') {
     if (mode === '405') return reply(405, { error: 'method not allowed' });
     if (mode === 'limit') return reply(429, { error: 'slow down', retryAfter: state.retryAfter }, { 'retry-after': String(state.retryAfter) });
     if (mode === 'off') return reply(503, { error: 'not set up' });
+    // A PIN account against a client with no session header (collector/pin.js): 401 on everything.
+    if (mode === 'pin') return reply(401, { error: 'pin required', pin: true });
     if (ID.test(url) || (body && ID.test(body))) return reply(400, { error: 'rejected', problems: ['send the key, never the player id'] });
     const k = u.searchParams.get('k') ?? '';
     if (isForget) {

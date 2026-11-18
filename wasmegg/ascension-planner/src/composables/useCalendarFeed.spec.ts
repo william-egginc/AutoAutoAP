@@ -166,6 +166,27 @@ describe('Get link: shown once, never kept', () => {
     expect(c.link.value).toBeNull();
     expect(c.linked.value).toBe(false);
   });
+  it('PIN account, old client (401 pin required): no link, nothing sent, nothing thrown; a failed send shows the upload error', async () => {
+    const { st, m } = memStore();
+    const col = collector({ mint: 401 });
+    const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
+    c.turnOn();
+    c.note(input(2));
+    await c.getLink();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.link.value).toBeNull();
+    expect(c.linked.value).toBe(false);
+    expect(col.puts()).toHaveLength(0);
+    expect(m.has('aap.calFeed.acct1.last')).toBe(false);
+    const col2 = collector({ putStatus: [200, 401] });
+    const d = createCalendarFeed({ storage: memStore().st, env: ENV, fetch: col2.f });
+    d.turnOn();
+    await d.getLink();
+    d.note(input(2));
+    await d.pushNow();
+    expect(d.error.value).toBe('upload');
+    expect(d.pushed.value).toBe('');
+  });
   it('Copy puts the link on the clipboard, and says Copied', async () => {
     const { st } = memStore();
     const written: string[] = [];

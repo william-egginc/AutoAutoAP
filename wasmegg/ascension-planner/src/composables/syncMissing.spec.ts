@@ -206,3 +206,37 @@ describe('Delete everything while the collector has no /sync', () => {
     expect(d.available.value).toBe(true);
   });
 });
+
+describe('a PIN account seen by a client that sends no session (401 pin required)', () => {
+  it('quiet: the starting TE and ticks typed meanwhile stay here, nothing is overwritten or deleted, and it does not loop', async () => {
+    c.state.mode = 'pin';
+    await load();
+    typeTE(TE197);
+    tick(['l1', 'l2']);
+    await vi.advanceTimersByTimeAsync(TICKS_DEBOUNCE_MS * 6);
+    expect(readLocalOverride(ID).teEarned).toEqual(TE197);
+    expect([...readTicks(ACCT, S)]).toEqual(['l1', 'l2']);
+    expect(cloudOverrideOffer()).toBeNull();
+    expect(c.calls.filter(x => x.method === 'DELETE')).toEqual([]);
+    const settled = syncCalls().length;
+    await vi.advanceTimersByTimeAsync(SYNC_MISSING_RECHECK_MS * 20);
+    // Bounded: no retry storm. (The count is pinned so a loop shows up as a failure.)
+    expect(syncCalls().length).toBeLessThanOrEqual(settled + 20);
+    expect(c.record(KEY, 'override')).toBeNull();
+  });
+
+  it('Delete everything on a PIN account is not reported as done and nothing local is cleared', async () => {
+    c.state.mode = 'ok';
+    await load();
+    typeTE(TE197);
+    c.state.mode = 'pin';
+    c.state.forgetMode = 'pin';
+    const d = useForgetEverything();
+    d.ask();
+    await d.confirm();
+    expect(d.phase.value).toBe('failed');
+    expect(d.result.value).toMatchObject({ ok: false, why: 'error' });
+    expect(readLocalOverride(ID).teEarned).toEqual(TE197);
+    expect(c.calls.filter(x => x.method === 'DELETE' && !x.url.includes('/forget'))).toEqual([]);
+  });
+});

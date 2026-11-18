@@ -103,7 +103,7 @@ const offer = (at: number, extra: Partial<AnswerOffer> = {}): AnswerOffer => ({
 });
 
 /** A stand-in collector: the contract's endpoints, in memory. */
-function collector(opts: { missing?: boolean } = {}) {
+function collector(opts: { missing?: boolean; pin?: boolean } = {}) {
   const store = new Map<string, { at: number; bytes: Uint8Array; updatedAt: number }>();
   const calls: { method: string; url: string; body?: Uint8Array }[] = [];
   let inflight = 0;
@@ -127,6 +127,8 @@ function collector(opts: { missing?: boolean } = {}) {
     const method = init?.method ?? 'GET';
     calls.push({ method, url, ...(init?.body ? { body: init.body } : {}) });
     if (opts.missing) return res(404, { error: 'not found' });
+    // A PIN account against a client with no session header (collector/pin.js).
+    if (opts.pin) return res(401, { error: 'pin required', pin: true });
     const u = new globalThis.URL(url);
     const e = u.searchParams.get('e') ?? '';
     if (method === 'GET' && u.pathname.endsWith('/answers')) {
@@ -269,6 +271,20 @@ describe('the client against a stand-in collector', () => {
     w.offer(offer(1000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
     expect(c.calls.length).toBe(n);
+  });
+
+  it('PIN account, old client (401 pin required): quiet, nothing thrown, the list and bodies read as empty, one write per offer and never a loop', async () => {
+    const c = collector({ pin: true });
+    const w = client(c);
+    expect(await w.entries()).toEqual([]);
+    expect(await w.newestFor({ goal: 'target 490' })).toBeNull();
+    w.offer(offer(1000));
+    await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
+    await waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
+    await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS * 20);
+    expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1);
+    expect(c.calls.filter(x => x.method === 'DELETE')).toEqual([]);
+    expect(c.store.size).toBe(0);
   });
 
   it('size cap: oversize never sent; at most ANSWERS_MAX_ENTRIES listed (the oldest dropped)', async () => {

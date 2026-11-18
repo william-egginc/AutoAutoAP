@@ -90,8 +90,8 @@ describe('loading an account', () => {
     expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [200, 490], at: AT + 60_000 });
   });
 
-  it('a failure (offline, 429, 500) is quiet: nothing changes, Setup says it couldn\'t reach it', async () => {
-    for (const a of ['offline', { status: 429, body: { error: 'x', retryAfter: 60 } }, { status: 500, body: {} }] as const) {
+  it('a failure (offline, 429, 500, 401 pin required) is quiet: nothing changes, Setup says it couldn\'t reach it', async () => {
+    for (const a of ['offline', { status: 429, body: { error: 'x', retryAfter: 60 } }, { status: 500, body: {} }, { status: 401, body: { error: 'pin required', pin: true } }] as const) {
       setActivePinia(createPinia());
       calls = [];
       answer = () => a;
@@ -289,6 +289,26 @@ describe("a Follow press that didn't get online (23 Oct 2026)", () => {
     await reload();
     await new Promise(r => setTimeout(r, 20));
     expect(puts()).toEqual([]);
+  });
+
+  it('PIN account, old client: a 401 on every call keeps the follow here as pending, one PUT per load, never a loop, nothing deleted', async () => {
+    const PIN = { status: 401, body: { error: 'pin required', pin: true } };
+    let follows = await loadAccount();
+    answer = (_u, m) => (m === 'PUT' ? PIN : { status: 200, body: { goals: {} } });
+    await follows.follow('fastest-490', [222, 490], 'answer');
+    expect(puts().length).toBe(1);
+    expect((await kept()).sync).toBe('pending');
+    answer = () => PIN;
+    follows = await reload();
+    expect(follows.cloudStatus).toBe('unreachable');
+    expect(follows.followedGoals()).toEqual(['fastest-490']);
+    await follows.loadCloud(true);
+    await new Promise(r => setTimeout(r, 20));
+    // The read failed, so nothing is written over what might be online (readFailed), and nothing is deleted.
+    expect(puts().length).toBe(0);
+    expect(calls.filter(c => c.method === 'DELETE')).toEqual([]);
+    expect((await kept()).chain).toEqual([222, 490]);
+    expect((await kept()).sync).toBe('pending');
   });
 
   it('a retry that fails again (429, 500) waits for the next load: one PUT per load, never a loop', async () => {
