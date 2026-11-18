@@ -4,8 +4,8 @@
  */
 
 /** The visible link (bordered), replacing "When each step happens". */
-export const STEPS_LINK = 'See each ascension’s dates ›';
+export const STEPS_LINK = "See each ascension's dates ›";
 
 /** The note inside it: the dates are the whole route's, worked out ahead of time; Simulate this plan adds the egg shifts. */
 export const STEPS_NOTE =
-  'Dates for the whole route, worked out ahead of time and rounded to the hour. Simulate this plan adds each egg shift.';
+  "These are the whole route's dates, already worked out, to the hour. Simulate this plan adds each egg shift.";

@@ -31,7 +31,7 @@ const OWN: Record<OwnId, { title: string; body: string }> = {
   m12howItWorks: { title: "How it works", body: "How it works opens Science, which shows how the answer is worked out and how it was checked." },
   r1changeRoute: { title: "Change route", body: "Change route is where you stop following, go back to an earlier version, or follow another route by typing or picking one." },
   r2gearSets: { title: "Gear sets", body: "The Gear sets for the route fold shows what you wear now, the earnings set, the delivery set, and what you are missing for a perfect set." },
-  r3tryNext: { title: "Try next", body: "The Try next buttons are the next searches to run: Egg Day, Fast; Exact on Fastest to 490 TE; and Custom (around 5 ascensions). The numbers come from your route." },
+  r3tryNext: { title: "Try next", body: "The Try next buttons are the next searches to run: Egg Day, Fast; Exact on Fastest to 490; and Custom (around 5 ascensions). The numbers come from your route." },
   r4share: { title: "Share my instant answer", body: "The Share my instant answer with my runs tick sends its route and date with each run, so the Leaderboard shows what the search gained. Never your player ID or your save." },
   r5yourRuns: { title: "Your runs", body: "Your runs lists your searches: the latest Fastest, the latest By a date, or all of them. Each is compared with the instant answer for your save that day." },
   r6boardRuns: { title: "Leaderboard runs", body: "The “Your runs on the Leaderboard” fold lists the runs you sent. The “A run of yours isn’t here?” fold says why a run is missing, from its id." },

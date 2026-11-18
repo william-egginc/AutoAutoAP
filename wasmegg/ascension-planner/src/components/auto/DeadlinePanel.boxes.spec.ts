@@ -136,7 +136,7 @@ describe('results gated by result.simple', () => {
   });
 });
 
-describe('widen and run from Nearby routes', () => {
+describe('widen and run from the Fast or Exact result', () => {
   const fn = panel.slice(panel.indexOf('async function widenAndRun'), panel.indexOf('const atCeiling'));
   it("opens Nearby routes' boxes in Exhaustive and runs Exhaustive", () => {
     expect(fn).toContain('if (result.value?.simple) openInAdvanced();');

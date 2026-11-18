@@ -1748,7 +1748,7 @@ function openInAdvanced(): void {
   mode.value = 'space';
   showExhaustive();
 }
-/** Scroll to the Exhaustive box (its boxes were just filled in, from Nearby routes or Check exactly). */
+/** Scroll to the Exhaustive box (its boxes were just filled in, from a Fast or Exact result). */
 function showExhaustive(): void {
   // Its tab first: a hidden tab has no place on the page to scroll to. The search is inside More (9 Nov 2026): open it.
   revealMore('by-date');
