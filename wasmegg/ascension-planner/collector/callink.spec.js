@@ -166,3 +166,24 @@ describe('no Node Buffer in the Worker', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('with ACCOUNT_KEY_SALT set (the TEST and live collectors have one)', () => {
+  it('revoke all deletes the record, and the record is stored under the salted key', async () => {
+    env.ACCOUNT_KEY_SALT = 'test-salt-not-a-real-secret';
+    expect((await put(REC())).status).toBe(200);
+    expect((await post('/cal/new', { k: K })).status).toBe(200);
+    expect((await get()).status).toBe(200);
+    expect(callinkRows()).toHaveLength(1);
+    expect(callinkRows()[0].key).not.toBe(K);
+    expect((await post('/cal/revoke', { k: K, all: true })).status).toBe(200);
+    expect(callinkRows()).toHaveLength(0);
+    expect((await get()).status).toBe(404);
+  });
+  it('an older at with DIFFERENT bytes is 409; the same bytes at an older at is "unchanged" 200 (nothing changes)', async () => {
+    expect((await put(REC(), { at: T0 })).status).toBe(200);
+    expect((await put(REC({ ct: b64(101) }), { at: T0 - 5000 })).status).toBe(409);
+    const same = await put(REC(), { at: T0 - 5000 });
+    expect(same.status).toBe(200);
+    expect((await same.json()).unchanged).toBe(true);
+  });
+});
