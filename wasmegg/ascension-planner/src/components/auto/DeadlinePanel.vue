@@ -365,7 +365,7 @@
            the only way `mode` becomes 'auto' now. -->
         <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
         <template v-if="mode === 'space'">
-          <!-- The chain rows (RoutesToTry.vue, shared with the Full sweep). Suggest a space's two sliders sit
+          <!-- The chain rows (RoutesToTry.vue, shared with the Full sweep). Suggest boxes's two sliders sit
              small and under the box they fill (the user, 4 Oct), per chain; moving one re-fills the boxes
              Suggest filled, not ones typed by hand. -->
           <RoutesToTry
@@ -382,7 +382,7 @@
             :max-asc="8"
             :min-rows="1"
             placeholder="138-142:1; 160-200:10; 200-240:10"
-            slider-lead="Suggest a space tries"
+            slider-lead="Suggested boxes try"
             linkable
             footer-class="items-end gap-4"
             @asc="setRowAsc"
@@ -407,7 +407,7 @@
                 wider ones.</span
               >
               <p v-if="chains[k].restored && row.asc >= 2" class="text-small text-slate-600">
-                Restored from the unfinished run (the sliders apply when you press Suggest a space).
+                Restored from the unfinished run (the sliders apply when you press Suggest boxes).
               </p>
               <span v-if="coarseRows[k]" class="block text-small text-amber-700" data-test="coarse-note">{{
                 COARSE_SUGGESTION_NOTE
@@ -644,7 +644,7 @@
             {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
               v-if="mode === 'space' && rememberedPerSet"
             >
-              (what this machine's last run over a space this shape needed)</template
+              (what your last run here over boxes this shape needed)</template
             >: the last stop is narrowed down, not tried at every TE. During a run the time left is the ascensions left at the
             rate of the last 12 minutes. The estimate uses
             <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last Highest TE by a date search</template
@@ -1364,7 +1364,7 @@ const lastTooHigh = computed(() => stopBoxTop(lastBox.value) > 490);
  * NEARBY ROUTES (was Simple, batch 3): no chain editor; the boxes are picked here, one
  * chain per number of ascensions the instant answer has a route for (search/simpleByDate.ts), each
  * early stop its TE either side at step 1, sized to take about 10-30 minutes on a typical 8-core
- * machine. Without an instant answer, the routes Suggest a space would centre on, for 1-5 ascensions.
+ * machine. Without an instant answer, the routes Suggest boxes would centre on, for 1-5 ascensions.
  */
 /**
  * Two searches on the page, each in its own box with its own run controls and results, like Fastest's
@@ -1673,7 +1673,7 @@ function shapesOf(row: { asc: number; text: string } | undefined, range: [number
 function problemOf(row: { asc: number; text: string } | undefined, range: [number, number] | null): string {
   if (!row || row.asc <= 1) return '';
   const b = bandsOf(row);
-  if (!b.length) return 'Nothing readable yet: press Suggest a space or type ranges.';
+  if (!b.length) return 'Nothing readable yet: press Suggest boxes or type ranges.';
   if (b.length !== row.asc - 1) return `These ranges make ${b.length + 1} ascensions, not ${row.asc}.`;
   return range && !shapesOf(row, range) ? 'No route in these ranges goes up to the last stop.' : '';
 }
@@ -1807,11 +1807,11 @@ function rowSummary(k: number): string {
 }
 
 /** The instant answer's route for each number of ascensions (InstantRoute's `routes` event), for this
- *  save and plan start: what Suggest a space centres on first. */
+ *  save and plan start: what Suggest boxes centres on first. */
 const instantByCount = ref<Record<number, number[]>>({});
 /**
  * The instant answer arrived (or its exact check refined it): fill every chain box that is empty or
- * was filled by Suggest a space around it, at that chain's own sliders (a Science request's included).
+ * was filled by Suggest boxes around it, at that chain's own sliders (a Science request's included).
  * A box typed by hand, set by a link or request, or restored from an unfinished run is left alone;
  * nothing changes while a run is going or being restored.
  */
@@ -1867,7 +1867,7 @@ function centreRow(k: number): void {
  * for that many ascensions, else your last deadline answer, else your own route (the chain in the
  * planner), else evenly spaced. Also sets the last-stop range around it when that is empty.
  */
-/** What Suggest a space would put in chain `k`'s box right now, without changing anything. */
+/** What Suggest boxes would put in chain `k`'s box right now, without changing anything. */
 function suggestion(k: number): { text: string; from: string; lastGuess: number; coarse: boolean } | null {
   const row = chains.value[k];
   if (!row) return null;
@@ -1898,7 +1898,7 @@ function suggestion(k: number): { text: string; from: string; lastGuess: number;
   return sug ? { text: sug.text, from, lastGuess, coarse: sug.coarse } : null;
 }
 
-/** Per chain: its box is Suggest a space's, coarsened to stay under MAX_SUGGESTED_SETS (the note says so). */
+/** Per chain: its box is Suggest boxes's, coarsened to stay under MAX_SUGGESTED_SETS (the note says so). */
 const coarseRows = computed(() =>
   chains.value.map((row, k) => {
     if (!row.auto || row.asc < 2 || !row.text) return false;
@@ -1921,7 +1921,7 @@ function suggestRow(k: number): void {
   row.centredOn = undefined;
 }
 
-/** Suggest a space's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
+/** Suggest boxes's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
  *  move them together). A chain without its own setting uses the last one set (`widthIx`/`stepIx`). */
 const { widthIx, stepIx, linkSliders } = kept;
 /** Each chain's sliders and what moving one does (composables/useRowSliders.ts, batch 1's rules). */
@@ -1958,7 +1958,7 @@ const dateBestCount = computed(() => stronger.instant.date?.chain.length ?? null
 /**
  * With no instant answer (below TE 120), the best count of a By a date answer the boxes can centre on
  * (autoWiden.ts `canCentreOn`: this date, priced near this TE), e.g. the quick scan's. The default box
- * follows it, so Suggest a space centres on that answer's own route ("answer") rather than spacing a
+ * follows it, so Suggest boxes centres on that answer's own route ("answer") rather than spacing a
  * count it never tried evenly: the quick scan answers 1 to 5 ascensions, and a 6-ascension box spaced
  * evenly was the 57,650,850-set box of the 18 Oct beta test.
  */
@@ -1975,7 +1975,7 @@ const followCount = computed(() => dateBestCount.value ?? answerBestCount.value)
 /**
  * The one default box follows that count (lib/limitsFollow.ts `boxCountFromBest`, 1..8): it was a fixed
  * 4, so a player whose best By a date route had 6 ascensions proved the best of 4s. Only the default:
- * one box, filled by Suggest a space or empty, not restored or from a request, and only while nothing
+ * one box, filled by Suggest boxes or empty, not restored or from a request, and only while nothing
  * runs or is being carried on (a run keeps its own boxes).
  */
 function followDateBest(): void {
@@ -2007,7 +2007,7 @@ const boxFromInstant = computed(
 
 const rowProblems = computed(() => chains.value.map((_, k) => rowProblem(k)));
 const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
-/** A box typed in (or a band checker's "did you mean" taken): the player's own now, so Suggest a space
+/** A box typed in (or a band checker's "did you mean" taken): the player's own now, so Suggest boxes
  *  and the sliders leave it alone, and a Science card's centring no longer applies. */
 function typedRow(k: number, text: string): void {
   const row = chains.value[k];
@@ -2058,7 +2058,7 @@ function addChain(): void {
  * A link can set the search up: `?insane=1&goal=deadline&eggday=1&asc=1,2,3` opens this panel on
  * Egg Day with one chain per ascension count, each suggested from the opener's own save (like
  * Suggest; no account is in the link). `chain2=150-160:2` (the chain with that many ascensions) and
- * `last=220-300` set a box exactly instead. `pm5=3&step5=1` set Suggest a space's two sliders for the chain with that many
+ * `last=220-300` set a box exactly instead. `pm5=3&step5=1` set Suggest boxes's two sliders for the chain with that many
  * ascensions (`pm`/`step` alone: every chain), so the suggestion is wide or narrow as asked.
  * The request's own format and bounds are in search/byDateRequest.ts.
  *

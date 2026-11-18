@@ -1218,11 +1218,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const secondsPerChain = ref(0);
   /** How many workers were running when `secondsPerChain` was measured (search/speed.ts). */
   const rateWorkers = ref(0);
-  /** Where `secondsPerChain` came from: a live run's own first chunk, or a "Benchmark my PC" probe
+  /** Where `secondsPerChain` came from: a live run's own first chunk, or a "Benchmark my computer" probe
    *  run before anything started. Both write the identical quantity; this is only so the UI can say
    *  which one it is showing. */
   const rateSource = ref<'benchmark' | 'live' | null>(null);
-  /** A "Benchmark my PC" probe in flight. Mutually exclusive with `isRunning`: only one pool runs at
+  /** A "Benchmark my computer" probe in flight. Mutually exclusive with `isRunning`: only one pool runs at
    *  a time. */
   const benchmarking = ref(false);
   const benchmarkError = ref<string | null>(null);
@@ -1358,7 +1358,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   );
   /** The instant answer's route for each number of ascensions, fastest first (precompute: set by
    *  InstantRoute.vue on Fastest route; by the exact check's order once it is in). Smart search starts
-   *  from the fastest of them inside the Limits box, and the Full sweep's Suggest a space centres on
+   *  from the fastest of them inside the Limits box, and the Full sweep's Suggest boxes centres on
    *  them. */
   const instantRoutes = ref<number[][] | null>(null);
 

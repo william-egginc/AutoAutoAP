@@ -83,7 +83,7 @@
               class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
-              {{ measuredCost ? 'Re-benchmark' : 'Benchmark my PC' }}
+              {{ measuredCost ? 'Re-benchmark' : 'Benchmark my computer' }}
             </button>
           </div>
         </div>
@@ -157,7 +157,7 @@
         >
           The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{
             plural(bands.length + 1, 'ascension')
-          }}). To start, set it back to {{ bands.length + 1 }} under The space to search.
+          }}). To start, set it back to {{ bands.length + 1 }} under The boxes to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
@@ -319,7 +319,7 @@
         <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
              leave it out (`hideRoutes`). -->
         <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
-          <h3 class="text-slate-600 label">The space to search</h3>
+          <h3 class="text-slate-600 label">The boxes to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -408,7 +408,7 @@
                   class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
                   @click="applySuggestion"
                 >
-                  Suggest a space<template v-if="suggestion">{{ ' ' }}({{ chainsTimeLabel(suggestion.chains) }})</template>
+                  Suggest boxes<template v-if="suggestion">{{ ' ' }}({{ chainsTimeLabel(suggestion.chains) }})</template>
                 </button>
                 <!-- What Suggest would fill in is in its tip, the time on the button (UX fluff review 2, 5 Nov 2026, item
                      C-pre3: a line under every box). DRAFT (Words). -->
@@ -435,7 +435,7 @@
                   <template v-else>
                     measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ plural(suggestion.accounts, 'account') }}
                   </template>{{ '. ' }}</template
-                  >Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
+                  >Fills the boxes to the size set beside it. When the whole reachable range fits (at two
                   ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
                   no measurement is involved. Above that, it uses where near-best routes have actually landed across
                   this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
@@ -464,7 +464,7 @@
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
                    186, 191... and never 227, so a faster Smart search result between grid points is no surprise. -->
               <p v-if="!plannedGridComplete && gridExample" class="text-body text-slate-600">
-                <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
+                <span class="font-bold text-slate-800">These boxes try {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a route between grid points can be faster.
               </p>
@@ -475,7 +475,7 @@
                 :disabled="store.isRunning"
                 @use="t => (bandsText = t)"
               />
-              <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
+              <!-- The box only chooses what Suggest boxes fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
               <p
@@ -483,14 +483,14 @@
                 class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body font-bold text-rose-800"
               >
                 Your ranges make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
-                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
-                a space to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
+                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest boxes fills in: press Suggest
+                boxes to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
                 {{ bands.length + 1 }}.
               </p>
             </label>
 
             <!--
-              More chains for the same click: each its own space and ascension count, run one after
+              More chains for the same click: each its own boxes and ascension count, run one after
               another. Short ones (1 or 2 ascensions) cost little alone; queued behind the main run
               they need no second visit.
             -->
@@ -636,10 +636,10 @@
                 <HelpTip
                   >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
-                  press "Benchmark my PC" below, which prices that first chunk right away instead of waiting for a real
+                  press "Benchmark my computer" below, which prices that first chunk right away instead of waiting for a real
                   run. The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
                   {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.<template v-if="!measuredCost"
-                    >{{ ' ' }}Press Benchmark my PC for a number from your own computer.</template
+                    >{{ ' ' }}Press Benchmark my computer for a number from your own computer.</template
                   ></HelpTip
                 >
               </div>
@@ -664,7 +664,7 @@
               @click="benchmark"
             >
               <template v-if="store.benchmarking">Benchmarking<AnimatedDots /></template
-              ><template v-else>{{ store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}</template>
+              ><template v-else>{{ store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my computer' }}</template>
             </button>
             <span v-if="store.benchmarking" class="text-body text-slate-600">
               Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
@@ -857,7 +857,7 @@
               class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
               <p class="text-small font-bold text-rose-800">
-                No route in this space finishes
+                No route in these boxes finishes
               </p>
               <p class="text-body text-rose-900/90 max-w-prose">
                 Every route was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
@@ -866,7 +866,7 @@
               <p class="text-body text-rose-900/90 max-w-prose">
                 The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
                 and vehicles the plan is waiting on, so the very first ascension stalls and every ascension after it inherits the
-                stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
+                stall. Different boxes won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
                 necklace and their stones) will. If you think the planner has this wrong, download the diagnostics below
                 and send them in.
               </p>
@@ -965,7 +965,7 @@
               </p>
               <ResultHealth class="mt-2" :issues="store.resultContradictions" />
               <p v-if="store.stoppedEarly" class="text-body text-emerald-900/70 pt-1 max-w-prose">
-                You stopped it early, so this is the best of what was priced, not the optimum of the space.
+                You stopped it early, so this is the best of what was priced, not the best in the boxes.
               </p>
               <p v-if="store.timeOff.length && !store.isRunning" class="text-body text-emerald-900/80 max-w-prose">
                 Your time off goes into the plan too: the ascension it interrupts ends when the time off starts
@@ -1042,7 +1042,7 @@
                    code does is under "Show exactly what is sent" (item C10/S2, word for word). -->
               <template #intro>
                 <p class="text-body text-indigo-900/80 max-w-prose">
-                  Sends the space it covered, its best route and the runners-up, so readers can tell a real find from a
+                  Sends the boxes it covered, its best route and the runners-up, so readers can tell a real find from a
                   flat neighbourhood.
                 </p>
               </template>
@@ -1056,7 +1056,7 @@
                   />
                   <span>
                     <span class="font-bold">Add the time to the name.</span> Optional. The Leaderboard already keeps each
-                    space you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
+                    set of boxes you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
                     tell apart at a glance when several are on the Leaderboard.
                   </span>
                 </label>
@@ -1115,7 +1115,7 @@ import { ref as keptRef } from 'vue';
  * fills them in when it opens the screen, until its sweep starts.
  */
 const kept = {
-  // Empty until the player's TE is known: the default is Suggest a space for THIS player (it used to
+  // Empty until the player's TE is known: the default is Suggest boxes for THIS player (it used to
   // be a fixed 185-360 that suited one account and was nonsense for a 130 or a 250).
   bandsText: keptRef(''),
   /** The text the panel filled in by itself (the default space). A box that still holds it is the
@@ -1126,7 +1126,7 @@ const kept = {
   /** The Ascensions box was changed by hand: the default space stops following the instant answer's
    *  count (lib/limitsFollow.ts's rule for the Limits box, here for chain 1's one count). */
   ascTouched: keptRef(false),
-  /** Chain 1's two Suggest a space sliders; null until moved (then the space is sized to the default chain budget). */
+  /** Chain 1's two Suggest boxes sliders; null until moved (then the space is sized to the default chain budget). */
   suggestWidthIx: keptRef<number | null>(null),
   suggestStepIx: keptRef<number | null>(null),
   /** The bands text the panel last wrote into Chain 1's box (default, Suggest, or a slider). A box that
@@ -1293,7 +1293,7 @@ watch(
   { immediate: true }
 );
 // The tag holds only while the space is still the one the link asked for. Edit the bands (or press
-// Suggest a space) and it is somebody's own run, which must not count toward that preset's coverage;
+// Suggest boxes) and it is somebody's own run, which must not count toward that preset's coverage;
 // put them back and it is the preset again.
 watch([bandsText, minGap], ([text, gap]) => {
   if (!sweepRequest) return;
@@ -1323,7 +1323,7 @@ const suggestBudget = SUGGESTION_CHAIN_BUDGET;
 const chainsTimeLabel = (chains: number) =>
   formatHours(sweepSeconds(chains, store.workerBudget, workerSeconds.value) / 3600);
 /**
- * Precompute: Suggest a space for `n` ascensions. A complete sweep still wins (it proves the optimum)
+ * Precompute: Suggest boxes for `n` ascensions. A complete sweep still wins (it proves the optimum)
  * unless the sliders were moved; otherwise the space is centred on the instant answer's route for that
  * count (`store.instantRoutes`) and sized by `deadlineSuggest.ts spaceBySliders`: to `maxChains` while
  * the sliders are unmoved (`routeSpace`), to the sliders once they are. With no instant route, unmoved
@@ -1412,7 +1412,7 @@ function applySuggestion(): void {
 
 /**
  * A suggested space only covers its own ascension count, and the best count is often one off. So
- * Suggest a space also queues the count one lower and one higher as added chains (the three run
+ * Suggest boxes also queues the count one lower and one higher as added chains (the three run
  * one after another from one click), each at half the size so three chains cost about twice one,
  * not three times. They are the player's to remove, and any they typed themselves stay.
  */
@@ -1434,7 +1434,7 @@ function queueNeighbours(asc: number): void {
 }
 
 /**
- * The default space, for a player who has not typed one: Suggest a space for their TE, with the
+ * The default space, for a player who has not typed one: Suggest boxes for their TE, with the
  * counts either side queued. Tries the usual six ascensions and works down to the nearest count
  * the suggester can speak to. Leaves alone a box the player has touched.
  */
@@ -1562,7 +1562,7 @@ const resultClaim = computed(() => {
   const sp = store.searchSpace;
   if (!sp) return 'best found';
   const complete = gridIsComplete(sp.bands, sp.range?.step);
-  if (complete) return 'the best of every route in this space';
+  if (complete) return 'the best of every route in these boxes';
   return `best on this grid (${gridStepLabel(sp.bands, sp.range?.step)})`;
 });
 const resultExplain = computed(() => {
@@ -1705,7 +1705,7 @@ function extraProblem(k: number): string {
   const row = extraChains.value[k];
   if (!row || row.asc <= 1) return '';
   const b = extraBands(k);
-  if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
+  if (!b.length) return 'Nothing readable yet: press Suggest boxes or type bands.';
   if (b.length !== row.asc - 1) return `These ranges make ${b.length + 1} ascensions, not ${row.asc}.`;
   return extraCount(k) ? '' : 'No route in these ranges goes up to the target.';
 }
@@ -1787,7 +1787,7 @@ function addChain(): void {
 }
 /**
  * "A longer route might win" (LongerRouteHint.vue): add a chain with `n` ascensions, its box filled in
- * by Suggest a space (centred on the instant answer's route for that count when there is one). Adds
+ * by Suggest boxes (centred on the instant answer's route for that count when there is one). Adds
  * nothing when a row for that count is already queued with the suggested box; the player presses Find.
  */
 function addChainOfCount(n: number): string {
@@ -1797,7 +1797,7 @@ function addChainOfCount(n: number): string {
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Run Custom to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The boxes to search. Press Run Custom to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {

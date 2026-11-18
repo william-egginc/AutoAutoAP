@@ -1,0 +1,14 @@
+/**
+ * The Try next pills' goal-naming labels (Words, 17 Nov 2026). The Exact pill belongs to the Fastest-to-N tile, not to the
+ * route you follow, so it says so. The component adds the trailing "›". A *Words.ts file: wording only.
+ */
+
+/** "Exact on Fastest to 490 TE" */
+export function exactRacePill(target: number): string {
+  return `Exact on Fastest to ${target} TE`;
+}
+
+/** "Custom on Fastest to 490 TE (around 5 ascensions)": optional; the plain "Custom (around 5 ascensions)" is fine beside the Exact pill. */
+export function customRacePill(target: number, ascensions: number | null): string {
+  return ascensions ? `Custom on Fastest to ${target} TE (around ${ascensions} ascensions)` : `Custom on Fastest to ${target} TE`;
+}

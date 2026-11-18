@@ -120,7 +120,7 @@ const props = withDefaults(
     /** "Feb 15, 2029, 9:22 PM", in the plan's timezone. */
     endLabel: string;
     running: boolean;
-    /** What the finished answer is: "the best of every route in this space", and so on. */
+    /** What the finished answer is: "the best of every route in these boxes", and so on. */
     claim?: string;
     busy?: boolean;
     canFill?: boolean;

@@ -35,7 +35,7 @@ describe('C-pre3 to C-pre9 (InsanePanel.vue)', () => {
   const src = read('InsanePanel.vue');
   it('the Suggest size is on its button; the long line is behind it', () => {
     expect(src).not.toMatch(/<span v-if="suggestion" class="text-small text-slate-500">\s*Suggest would fill in/);
-    expect(src).toMatch(/Suggest a space<template v-if="suggestion">\{\{ ' ' \}\}\(\{\{ chainsTimeLabel\(suggestion\.chains\) \}\}\)<\/template>/);
+    expect(src).toMatch(/Suggest boxes<template v-if="suggestion">\{\{ ' ' \}\}\(\{\{ chainsTimeLabel\(suggestion\.chains\) \}\}\)<\/template>/);
   });
   it('no amber "The winner will be the best…" box', () => {
     expect(src).not.toContain('The winner will be the best');

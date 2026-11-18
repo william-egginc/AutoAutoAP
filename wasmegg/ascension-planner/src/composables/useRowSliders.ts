@@ -1,12 +1,12 @@
 /**
- * Suggest a space's two sliders, per chain row (RoutesToTry.vue / SpaceSliders.vue): where each row's
+ * Suggest boxes's two sliders, per chain row (RoutesToTry.vue / SpaceSliders.vue): where each row's
  * sliders sit and what moving one does. The drawing is one component; the rules differ for a real
  * reason, so there are two sets here:
  *
  *  - By a date (`useDateRowSliders`): every chain has fixed default positions (±10, every 2 TE), a
  *    Science card may give a row its own ± (`pm`), and chains are independent unless "move every
  *    chain's sliders together" is ticked (batch 1's rules, search/deadlineSuggest.ts `moveSlider`).
- *    A moved row whose box Suggest a space filled is filled again.
+ *    A moved row whose box Suggest boxes filled is filled again.
  *  - The Full sweep (`sweepSliderView`, `pinSliders`): unmoved sliders mean "size the space to the
  *    chain budget" and show where that suggestion landed; moving either pins both. There is no link
  *    option there.
@@ -39,7 +39,7 @@ export interface RowSliderView {
 export interface DateRowSliders<R> {
   rowWidthIx: (row: R) => number;
   rowStepIx: (row: R) => number;
-  /** The ± a row's Suggest a space uses. */
+  /** The ± a row's Suggest boxes uses. */
   widthOf: (row: R) => number;
   /** The step between the TEs it tries after the first stop. */
   stepOf: (row: R) => number;
@@ -56,9 +56,9 @@ export function useDateRowSliders<R extends SliderRow & { auto?: boolean; text?:
   widthIx: Ref<number>;
   stepIx: Ref<number>;
   linked: Ref<boolean>;
-  /** Fill row `k`'s box again (Suggest a space), for a row whose box Suggest filled. */
+  /** Fill row `k`'s box again (Suggest boxes), for a row whose box Suggest filled. */
   refill: (k: number) => void;
-  /** What Suggest a space would put in row `k`'s box now (null: nothing). */
+  /** What Suggest boxes would put in row `k`'s box now (null: nothing). */
   suggestedText?: (k: number) => string | null;
 }): DateRowSliders<R> {
   const rowWidthIx = (row: R) => row.widthIx ?? opts.widthIx.value;

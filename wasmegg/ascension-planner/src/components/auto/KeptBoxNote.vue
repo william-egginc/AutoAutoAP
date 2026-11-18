@@ -1,7 +1,7 @@
 <!--
   Under a chain's Suggest-a-space sliders: the sliders moved, but the box holds bands the player typed,
   and typed bands are never overwritten. Says so, with one button that does overwrite them with the
-  slider-sized suggestion (the same as Suggest a space at those settings).
+  slider-sized suggestion (the same as Suggest boxes at those settings).
 -->
 <template>
   <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-small text-slate-600" data-test="kept-box-note">

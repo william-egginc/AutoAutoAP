@@ -22,7 +22,7 @@ describe("Custom's Share this result (InsanePanel.vue)", () => {
   it('one sentence before the consent (C9/S1)', () => {
     expect(intro).not.toContain('A Custom result is the most useful thing');
     expect(intro).not.toContain('The Leaderboard uses the random code');
-    expect(intro).toContain('Sends the space it covered, its best route and the runners-up');
+    expect(intro).toContain('Sends the boxes it covered, its best route and the runners-up');
   });
   it('what the random code does is behind "Show exactly what is sent", word for word (C10/S2)', () => {
     const note = panel.slice(panel.indexOf('<template #payload-note>'));

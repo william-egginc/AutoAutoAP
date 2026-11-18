@@ -1,5 +1,5 @@
 <template>
-  <!-- Suggest a space's two sliders (search/deadlineSuggest.ts SPACE_WIDTHS and SPACE_STEPS): one
+  <!-- Suggest boxes's two sliders (search/deadlineSuggest.ts SPACE_WIDTHS and SPACE_STEPS): one
        implementation for every chain row on the Full sweep and By a date (RoutesToTry.vue). The parent
        owns the positions; the first stop is always tried at every TE. Anything after the sliders (By a
        date's "move every chain's sliders together") goes in the default slot, on the same line. -->
@@ -53,7 +53,7 @@ defineProps<{
   halfWidth: number;
   step: number;
   disabled?: boolean;
-  /** Words before the sliders (By a date: "Suggest a space tries"). */
+  /** Words before the sliders (By a date: "Suggested boxes try"). */
   lead?: string;
   /** The ± came from a Science card's request (±1, ±2), not the slider. */
   fromCard?: boolean;

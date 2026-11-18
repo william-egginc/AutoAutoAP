@@ -2521,7 +2521,7 @@ function behindExact(r: Route): string {
 /**
  * Fastest route only: hand the searches this answer (chainSearch.ts `suggestedCount`/`suggestedRoute`
  * for their "the instant answer suggests N ascensions" notes, and `instantRoutes`, fastest first, for
- * Smart search's starting chain and the Full sweep's Suggest a space).
+ * Smart search's starting chain and the Full sweep's Suggest boxes).
  */
 watch(result, () => {
   if (props.deadline || !result.value) return;

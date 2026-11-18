@@ -24,7 +24,7 @@
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
         from the speeds other players' runs recorded<template v-if="workers && threads"
           >, on the {{ workers }} workers Setup gives searches on {{ thisDevice() }}</template
-        >; the Benchmark my PC button under Custom measures your own computer.
+        >; the Benchmark my computer button under Custom measures your own computer.
       </p>
     </div>
 
