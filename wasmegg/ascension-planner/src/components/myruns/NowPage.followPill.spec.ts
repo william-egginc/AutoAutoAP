@@ -434,8 +434,9 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     // Next shifts: the simulated one, then the prestige (the route's table legs list no shifts here).
     expect(page.nextShiftLines.value.map(l => l.kind)).toEqual(['shift', 'prestige', 'prestige', 'prestige', 'goal']);
     const withList = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!]);
-    expect(withList).toContain('data-testid="now-next-shifts"');
-    expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d\d [AP]M Prestige at 226 TE · about [A-Z][a-z]{2} \d{1,2}, \d{4} at /);
+    // The card has its timeline table under it here, which lists the same shifts: no Next shifts list over it (Jordan, 17 Nov 2026).
+    expect(withList).toContain('data-testid="now-events"');
+    expect(withList).not.toContain('data-testid="now-next-shifts"');
     scope.stop();
   });
 });
@@ -524,7 +525,9 @@ describe('time off cutting the ascension you are in (26 Oct 2026, regression of 
       await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!])
     );
     expect(t).not.toContain("The instant answer doesn't keep the shifts of the ascension you are in");
-    expect(t).toContain('Time off: to your home farm at 225 TE');
+    // The timeline table under the card says it ('Time off starts: …'); the Next shifts list is left out over it (17 Nov 2026).
+    expect(t).toContain('Time off starts: to your home farm at 225 TE');
+    expect(t).not.toContain('Time off: to your home farm at 225 TE');
     expect(t).toMatch(/Your time off starts [A-Z][a-z]{2} \d{1,2}, \d{4}.*?: this ascension ends there at 225 TE/);
     scope.stop();
   });

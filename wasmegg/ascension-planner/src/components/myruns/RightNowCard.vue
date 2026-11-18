@@ -467,8 +467,9 @@
         <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
         <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
-        <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
-        <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
+        <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, not interactive. Left out where the timeline table is shown
+             under this card, which lists the same shifts (Jordan, 17 Nov 2026). -->
+        <div v-if="nextShiftLines && nextShiftLines.length && !timelineBelow" class="mt-1.5" data-testid="now-next-shifts">
           <p class="label text-indigo-700">Next shifts</p>
           <ul class="list-none pl-0 text-small text-slate-700">
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
@@ -1124,6 +1125,8 @@ const nextFlag = computed(() => {
   return '';
 });
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
+/** The events table (EventsTable) is drawn under this card: it lists the shifts the Next shifts list would repeat. */
+const timelineBelow = computed(() => props.shownEvents.length > 0 && !notOnVirtue.value);
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
   nextEvent.value
