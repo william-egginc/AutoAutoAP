@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 // The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
-import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
+import { renderHtml, textWithDots as textOf, openAscensions } from '@/test/renderComponent';
 import AscensionList from './AscensionList.vue';
 import EventsTable from './EventsTable.vue';
 import RightNowCard from './RightNowCard.vue';
@@ -25,6 +25,9 @@ import { planFromEstimate } from '@/lib/followEstimate';
 import { withCurrentSim } from '@/lib/followSim';
 import type { Availability } from '@/search/availability';
 import type { Route } from '@/search/routeFinder';
+
+// The ascension blocks start closed (Jordan, 18 Nov 2026); these specs read what an opened block holds.
+openAscensions(true);
 
 const ZONE = 'America/Los_Angeles';
 const H = 3600;

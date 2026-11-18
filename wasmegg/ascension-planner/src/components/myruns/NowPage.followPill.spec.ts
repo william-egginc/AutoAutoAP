@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
 // The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
-import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
+import { renderHtml, textWithDots as textOf, openAscensions } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantSnapKey, writeSnapshot, type SnapWhatIf } from '@/search/instantSnapshot';
@@ -36,6 +36,9 @@ import { buildChainsCsv } from '@/search/csv';
 import { readSimRecords } from '@/lib/followSim';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
+
+// The ascension blocks start closed (Jordan, 18 Nov 2026); these specs read what an opened block holds.
+openAscensions(true);
 
 const ZONE = 'America/Los_Angeles';
 const H = 3600;

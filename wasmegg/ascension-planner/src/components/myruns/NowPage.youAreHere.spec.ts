@@ -8,12 +8,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+import { renderHtml, textOf, openAscensions } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { mergeSimultaneousShifts, planEvents, tableEvents, type NowPlan, type SaveDone } from '@/lib/nowPlan';
 import { howFar, nextStepText } from '@/lib/nowWords';
 import type { CardPlan } from '@/composables/useNowPage';
+
+// The ascension blocks start closed (Jordan, 18 Nov 2026); these specs read what an opened block holds.
+openAscensions(true);
 
 const ZONE = 'America/Denver';
 const H = 3600;

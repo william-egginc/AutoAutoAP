@@ -5,7 +5,7 @@
  * current ascension simulated on the save takes its variant and peak (LegSummary.key, maxELR). None for continue.
  */
 import { describe, expect, it } from 'vitest';
-import { renderHtml, textOf } from '@/test/renderComponent';
+import { renderHtml, textOf, openAscensions } from '@/test/renderComponent';
 import AscensionList from './AscensionList.vue';
 import RightNowCard from './RightNowCard.vue';
 import { stepLegsOf, withTableShifts, type NowPlan } from '@/lib/nowPlan';
@@ -14,6 +14,9 @@ import { planFromEstimate } from '@/lib/followEstimate';
 import { simLegOf, withCurrentSim, type SimLeg } from '@/lib/followSim';
 import type { Route } from '@/search/routeFinder';
 import type { LegSummary } from '@/search/types';
+
+// The ascension blocks start closed (Jordan, 18 Nov 2026); these specs read what an opened block holds.
+openAscensions(true);
 
 const ZONE = 'America/Los_Angeles';
 const H = 3600;

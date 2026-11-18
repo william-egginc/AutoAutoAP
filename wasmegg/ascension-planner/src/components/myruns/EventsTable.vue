@@ -134,7 +134,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, useSlots } from 'vue';
+import { computed, inject, reactive, useSlots } from 'vue';
+import { ASC_START_OPEN } from '@/lib/ascOpenKey';
 import CalendarButton from './CalendarButton.vue';
 import CalendarCloudNod from './CalendarCloudNod.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
@@ -199,7 +200,8 @@ const detailRowAt = computed(() => {
   return m;
 });
 const chosen = reactive(new Map<number, boolean>());
-const isOpen = (asc: number): boolean => chosen.get(asc) ?? false;
+const startOpen = inject(ASC_START_OPEN, false);
+const isOpen = (asc: number): boolean => chosen.get(asc) ?? startOpen;
 const toggle = (asc: number) => chosen.set(asc, !isOpen(asc));
 
 const device = thisDevice();
