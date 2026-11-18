@@ -86,7 +86,7 @@
             use a Fast search for the final word. With awake hours on it can be days out: in 4 checks on one account (24
             Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
             them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear (form G), a 17 Nov first look on sim5 had a whole route
-            finishing 0.05% to 0.9% from an exact build for 3 real gear sets (per ascension, 90 in 100 within about 3%). On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            finishing 0.05% to 0.9% from an exact build for 3 real gear sets. Ascension by ascension, 17 of 19 were within 3%, the worst 5.1%. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 built;

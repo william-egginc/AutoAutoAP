@@ -21,7 +21,7 @@ describe('What we know: the instant answer against the full simulator', () => {
     expect(text).toContain(
       "With awake hours on it can be days out: in 4 checks on one account (24 Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of them. " +
         HOURS_NOTE +
-        ' When the answer is the fully maxed one adjusted to your gear (form G), a 17 Nov first look on sim5 had a whole route finishing 0.05% to 0.9% from an exact build for 3 real gear sets (per ascension, 90 in 100 within about 3%).'
+        ' When the answer is the fully maxed one adjusted to your gear (form G), a 17 Nov first look on sim5 had a whole route finishing 0.05% to 0.9% from an exact build for 3 real gear sets. Ascension by ascension, 17 of 19 were within 3%, the worst 5.1%.'
     );
     expect(text).toContain(
       'With awake hours off, the instant answer lands within about an hour of the full simulator on each ascension.'

@@ -213,11 +213,11 @@
         </p>
         <p>
           <b>Where the delivery-rate shortcut stops working.</b> At equal Clothed TE, which earnings artifacts you
-          wear barely matters (90 in 100 builds within 0.06%, 17 Nov); delivery and stones are what count. So form G reads
+          wear barely matters: in a 17 Nov test, 90 in 100 starting points delivered within 0.06% of the same eggs, and none picked a different build. Delivery and stones are what count. So form G reads
           the maxed answer at your Clothed TE and scales the waits by your delivery rate. A first look on sim5 (17 Nov,
           one starting TE, one week of hours, 2 to 2.5-year routes): against an exact build for 3 real gear sets the finish
-          was 0.05%, 0.07% and 0.87% apart (12 hours late, 13 hours late and 6 days early). It is a small sample. The
-          code's own check per ascension, on nine older gear tables, had 90 in 100 within about 0.5% to 2.8%. An older
+          was 0.05%, 0.07% and 0.87% apart (12 hours late, 13 hours late and 6 days early). It is a small sample. In
+          October the code's own check, per ascension on nine older gear tables, had 90 in 100 within about 0.5% to 2.8%. An older
           check on the old simulator (Oct): one answer from before a 10 Oct fix, when that account fell back to maxed gear,
           claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the searches price every route with the
           full simulator.
