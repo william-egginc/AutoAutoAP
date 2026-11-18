@@ -2,7 +2,7 @@
  * The one save-age banner (spec-saveage, 29 Oct 2026; components/myruns/SaveAgeStrip.vue): how old the loaded save
  * is and how much of the virtue farm's silo time is used, in one tone, on every surface (My runs, the Auto Planner
  * screens, Setup). Before, two banners said it two ways: a strip on the save's age (6 h amber, 24 h red) and a red
- * line on the farm's last step against the plan start ("Your save is 40h old, longer than your silos hold").
+ * line on the farm's last step against the route start ("Your save is 40h old, longer than your silos hold").
  *
  * Jordan's thresholds (29 Oct 2026). S is the virtue farm's silo time: 3 h to 30 h with the silos bought (one silo
  * at full Silo Capacity is 3 h, ten are 30 h); once it runs out the farm earns nothing until the game syncs. Silos
@@ -178,7 +178,7 @@ export function saveState(i: SaveStateInput): SaveState | null {
   }
   if (farmAt != null)
     details.push(
-      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.'
+      'Catch-up: from the farm\'s last run to the route start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.'
     );
 
   return {

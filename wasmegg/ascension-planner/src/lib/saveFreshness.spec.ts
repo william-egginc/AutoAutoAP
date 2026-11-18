@@ -220,7 +220,7 @@ describe('the words (DRAFT: Words reviews)', () => {
       'Save: from Oct 15 at 3:36 PM (2h ago).',
       'Virtue farm last ran: Oct 15 at 4:36 AM (13h ago).',
       'Silos: 8, holding 24h; 11h left.',
-      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.',
+      'Catch-up: from the farm\'s last run to the route start, the planner runs your farm at its current rate and counts all of that time. Anything you did in the game since is not in it.',
     ]);
     expect(at(13 * H, { silo: null, siloCount: null }).details[2]).toBe('Silos: not in the save, so the smallest is assumed (3h); ran out 10h ago.');
     const none = saveState({ backupSeconds: NOW - 2 * H, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE })!;
