@@ -19,6 +19,7 @@
  * evicts the least recently written, so the answer is never refused for room), 30 writes an hour per key (`follow_rate`
  * under 'answers|<key>'), MAX_TOTAL entries in all, and the FOLLOW_LIMIT edge binding per address.
  */
+import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_PUTS_PER_DAY, DAY_MS, dayWait, spend, waitSeconds } from './budget.js';
 import { AT_AHEAD_MS, FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
@@ -58,6 +59,10 @@ export async function handleAnswers(request, env, now = Date.now()) {
   } catch (e) {
     if (e instanceof AccountKeyError) return accountKeyDown(reply);
     throw e;
+  }
+  {
+    const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+    if (pinRes) return pinRes;
   }
   const e = url.searchParams.get('e');
 

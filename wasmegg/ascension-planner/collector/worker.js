@@ -75,6 +75,7 @@ import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
 import { rekeyLegacy } from './acct.js';
 import { handleCal, isCalRequest, pruneCal } from './cal.js';
+import { handlePin, isPinRequest, pinResetsDue } from './pin.js';
 import { handleForget, handleSync, isForgetRequest, isSyncRequest } from './sync.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
@@ -932,7 +933,7 @@ function pickSubmission(s) {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
+  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token,x-aaap-session',
 };
 
 /**
@@ -3260,6 +3261,8 @@ const worker = {
     if (isSyncRequest(url)) return handleSync(request, env);
     // Calendar feeds (cal.js): a secret link per device, the .ics a calendar app fetches; D1 only.
     if (isCalRequest(url)) return handleCal(request, env);
+    // Optional PIN for the account's cloud data (pin.js); 404 unless PIN_ENABLED="1".
+    if (isPinRequest(url)) return handlePin(request, env);
     // "Delete everything saved online for this account" (sync.js handleForget): follows, prefs, answers and synced records of one key.
     if (isForgetRequest(url)) return handleForget(request, env);
     // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
@@ -4283,6 +4286,7 @@ const worker = {
     if (prune) ctx.waitUntil(pruneRuns(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(rekeyLegacy(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneCal(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(pinResetsDue(env, at).catch(() => undefined));
     if (prune) ctx.waitUntil(pruneAnswers(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();

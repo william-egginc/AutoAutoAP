@@ -20,6 +20,7 @@
  */
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { DAY_MS, spend, waitSeconds } from './budget.js';
+import { pinGuard } from './pin.js';
 import { PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const CAL_LINKS_PER_ACCOUNT = 3;
@@ -176,9 +177,11 @@ async function readBody(request) {
   }
 }
 
-async function keyOf(env, rawK) {
+async function keyOf(env, rawK, request, now = Date.now()) {
   try {
-    return { key: await accountKey(env, rawK) };
+    const key = await accountKey(env, rawK);
+    const res = await pinGuard(env, request, key, now);
+    return res ? { res } : { key };
   } catch (e) {
     if (e instanceof AccountKeyError) return { res: accountKeyDown(reply) };
     throw e;
@@ -206,7 +209,7 @@ async function handleNew(request, env, now, url) {
   if (res) return res;
   if (!isKey(body.k)) return bad(['k must be 64 lowercase hex characters']);
   if (Object.keys(body).some(f => f !== 'k')) return bad(['only k is accepted']);
-  const { res: down, key } = await keyOf(env, body.k);
+  const { res: down, key } = await keyOf(env, body.k, request, now);
   if (down) return down;
 
   const live = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM cal_feeds WHERE key = ?').bind(key).first();
@@ -238,7 +241,7 @@ async function handleRevoke(request, env) {
     return reply({ ok: true, revoked: r.meta?.changes ?? 0 });
   }
   if (isKey(body.k) && body.all === true && Object.keys(body).every(f => f === 'k' || f === 'all')) {
-    const { res: down, key } = await keyOf(env, body.k);
+    const { res: down, key } = await keyOf(env, body.k, request);
     if (down) return down;
     // The stored (encrypted) link goes with the links, in one step.
     const [r] = await env.WATCH.batch([env.WATCH.prepare('DELETE FROM cal_feeds WHERE key = ?').bind(key), env.WATCH.prepare("DELETE FROM synced WHERE key = ? AND kind = 'callink'").bind(key)]);

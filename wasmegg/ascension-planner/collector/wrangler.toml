@@ -101,6 +101,10 @@ RANK_NEEDS_EVIDENCE = "1"
 # and README "Old builds". An ISO time; delete the line to turn it off, raise it to refuse more.
 MIN_BUILD_STAMP = "2026-10-23T00:13:48.000Z"
 
+# PIN_ENABLED: "1" turns on the optional account PIN (pin.js; /pin/* routes). "0" keeps it off. Never turn it off again while PIN rows exist:
+# those accounts then answer 503 (never open). Off until QA on the test collector and the orchestrator's go.
+PIN_ENABLED = "0"
+
 # RANK_SIMS: a row from a simulator not listed here is kept but unranked (flag other-simulator, the flagged board).
 # R8 (8 Nov 2026) ran sim3; R9 ships sim5 (2026-11-14-sim5). Both are listed for the changeover, because R8 tabs
 # keep sending sim3 until they reload. PLANNED END: R9 live date + 7 days, then set this to "2026-11-14-sim5" alone

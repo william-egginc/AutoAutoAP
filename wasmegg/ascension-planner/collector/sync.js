@@ -36,6 +36,7 @@
  *                             budget rows stay (forgetting is not a way to reset a limit). It does NOT reach results shared with the
  *                             leaderboard, the private instant records or CSVs (kept under the owner code, not this key).
  */
+import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { dayWait } from './budget.js';
 import { readCal } from './cal.js';
@@ -140,6 +141,10 @@ export async function handleSync(request, env, now = Date.now()) {
   } catch (e) {
     if (e instanceof AccountKeyError) return accountKeyDown(reply);
     throw e;
+  }
+  {
+    const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+    if (pinRes) return pinRes;
   }
 
   if (request.method === 'GET') {
@@ -284,6 +289,10 @@ export async function handleForget(request, env, now = Date.now()) {
     if (e instanceof AccountKeyError) return accountKeyDown(reply);
     throw e;
   }
+  {
+    const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+    if (pinRes) return pinRes;
+  }
   if (url.searchParams.get('all') !== '1') return bad(['add all=1 to delete everything saved online for this account']);
   const slow = await overLimit(env, request, 'forget');
   if (slow) return slow;
@@ -306,5 +315,8 @@ export async function handleForget(request, env, now = Date.now()) {
     const r = await env.WATCH.prepare(`DELETE FROM ${table} WHERE key = ?`).bind(k).run();
     deleted[name] = r.meta?.changes ?? 0;
   }
+  // A PIN account's forget also removes the PIN itself (the request had a good session to get here); reported only when there was one.
+  const gone = await env.WATCH.prepare('DELETE FROM pin WHERE key = ?').bind(k).run().catch(() => null);
+  if (gone?.meta?.changes) deleted.pin = gone.meta.changes;
   return reply({ ok: true, deleted });
 }

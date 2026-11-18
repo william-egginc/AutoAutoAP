@@ -20,6 +20,7 @@
  * field (`readValue`): a field that is out of bounds refuses the write with its name; an unknown field is dropped.
  */
 
+import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
@@ -182,6 +183,10 @@ export async function handleFollow(request, env, now = Date.now()) {
       if (e instanceof AccountKeyError) return accountKeyDown(reply);
       throw e;
     }
+    {
+      const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+      if (pinRes) return pinRes;
+    }
     const slow = await overLimit(env, request, 'get');
     if (slow) return slow;
     if (url.pathname === '/follow/history') {
@@ -242,6 +247,10 @@ export async function handleFollow(request, env, now = Date.now()) {
   } catch (e) {
     if (e instanceof AccountKeyError) return accountKeyDown(reply);
     throw e;
+  }
+  {
+    const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+    if (pinRes) return pinRes;
   }
   // MIN_BUILD_STAMP (oldbuild.js): the value's build stamp is optional here, so only a stamp that is old is refused.
   if (oldBuild(env, checked.value.build, false)) return reply(OLD_BUILD_BODY, 426);

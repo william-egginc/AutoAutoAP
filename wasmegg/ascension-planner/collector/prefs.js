@@ -17,6 +17,7 @@
  * Last write wins by the CLIENT's `at`: the server stores every write and keeps `updatedAt`; the app compares.
  * D1 (the WATCH binding), not KV: KV's 1,000 writes a day belong to the board.
  */
+import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
@@ -162,6 +163,10 @@ export async function handlePrefs(request, env, now = Date.now()) {
       if (e instanceof AccountKeyError) return accountKeyDown(reply);
       throw e;
     }
+    {
+      const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+      if (pinRes) return pinRes;
+    }
     const slow = await overLimit(env, request, 'prefs-get');
     if (slow) return slow;
     if (url.pathname === '/prefs/history') {
@@ -221,6 +226,10 @@ export async function handlePrefs(request, env, now = Date.now()) {
   } catch (e) {
     if (e instanceof AccountKeyError) return accountKeyDown(reply);
     throw e;
+  }
+  {
+    const pinRes = await pinGuard(env, request, k, typeof now === 'number' ? now : Date.now());
+    if (pinRes) return pinRes;
   }
   const valueText = checked.text;
   if (checked.value.at > now + AT_AHEAD_MS) return reply({ error: 'rejected', problems: ['at is more than 10 minutes ahead of the collector clock: check this device\'s clock'] }, 400);

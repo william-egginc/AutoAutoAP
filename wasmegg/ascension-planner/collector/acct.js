@@ -26,7 +26,7 @@ const TABLES = ['follows', 'prefs', 'answers', 'synced', 'cal_feeds'];
 
 export class AccountKeyError extends Error {}
 
-async function hmacHex(secret, text) {
+export async function hmacHex(secret, text) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
   return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
