@@ -16,7 +16,7 @@ export const ALL_ASC_LABEL = "Every ascension's shifts and dates";
  * THE ASCENSION PICKER IN YOUR EGGS' "TO GOAL" (Jordan, 17 Nov 2026; components/myruns/YourEggs.vue). DRAFT (UI; Words to review).
  */
 /** The group's name for a screen reader. */
-export const ASC_PICK_GROUP = 'Show each egg for which ascension';
+export const ASC_PICK_GROUP = "Choose which ascension's eggs to show";
 /** One button: "A1", the last one "A3 · goal" (`total` ascensions). */
 export function ascPickLabel(asc: number, total: number): string {
   return asc === total ? `A${asc} · goal` : `A${asc}`;
@@ -26,4 +26,4 @@ export function ascGoalLine(asc: number, te: number, when: string): string {
   return `A${asc} ends at ${te} TE, ${when}.`;
 }
 /** Under the picker (or alone) when some ascension has no per-egg times: the instant answer keeps no shifts for it. */
-export const ASC_PICK_NOTE = "Some ascensions can't be shown here: the instant answer doesn't keep their shifts. A run from Try next works them out.";
+export const ASC_PICK_NOTE = "Some ascensions can't be shown here, because the instant answer doesn't keep their shifts. A search from Try next works them out.";

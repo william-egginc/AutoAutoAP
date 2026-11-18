@@ -120,7 +120,7 @@ that choice.
   and offers **Re-plan from this save** when the save is over an hour behind the plan or has bought things off plan.
   The ascension you are in is simulated on your loaded save in the background ("Working out your shifts…"), so
   its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends
-  that ascension where the time off starts. Then the **Full timeline** (every ascension, each egg's first and last
+  that ascension where the time off starts. Then each ascension's row in **You are here** opens to its shifts and dates (each egg's first and last
   shift), where each fresh ascension has a build-up line such as "You do the build-up for 2 sales, then start
   producing at 3.574q/hr". My runs works out the instant answer for a followed route itself, so no other tab
   is needed after a Setup change or in a fresh browser; the instant answer does not price Time off, and its rows
