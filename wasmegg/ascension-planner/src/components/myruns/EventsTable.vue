@@ -73,11 +73,30 @@
             <div v-if="addable(e)" class="mt-1 sm:hidden">
               <CalendarButton :events="[calOf(e)]" label="Add" />
             </div>
+            <!-- One timeline (Jordan, 17 Nov 2026): the ascension's shifts and dates open under its own row. -->
+            <button
+              v-if="detailRowAt.get(e.asc) === i"
+              type="button"
+              class="mt-1 inline-flex min-h-[44px] items-center gap-1 rounded-md px-1 text-left font-bold text-indigo-700 underline decoration-2 underline-offset-2 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-500"
+              :aria-expanded="isOpen(e.asc) ? 'true' : 'false'"
+              :aria-controls="`now-event-detail-${e.asc}`"
+              data-testid="now-event-open"
+              :data-asc="e.asc"
+              @click="toggle(e.asc)"
+            >
+              <span aria-hidden="true">{{ isOpen(e.asc) ? '▾' : '▸' }}</span>{{ ascDetailLabel(e.asc, isOpen(e.asc)) }}
+            </button>
           </td>
           <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">{{ when(e) }}</td>
           <td class="py-2 pr-2 font-bold hidden sm:table-cell">{{ far(e) }}</td>
           <td class="py-2 hidden sm:table-cell text-right">
             <CalendarButton v-if="addable(e)" :events="[calOf(e)]" label="Add" align-right />
+          </td>
+        </tr>
+        <tr v-if="detailRowAt.get(e.asc) === i && isOpen(e.asc)" :id="`now-event-detail-${e.asc}`" class="align-top" data-testid="now-event-detail">
+          <td></td>
+          <td colspan="4" class="pb-3 pr-1">
+            <slot name="detail" :asc="e.asc" />
           </td>
         </tr>
         </template>
@@ -115,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive, useSlots } from 'vue';
 import CalendarButton from './CalendarButton.vue';
 import CalendarCloudNod from './CalendarCloudNod.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
@@ -126,6 +145,7 @@ import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
 import { timeOffDays } from '@/lib/instantSteps';
 import { thisDevice } from '@/search/device';
+import { ascDetailLabel } from '@/lib/timelineWords';
 
 const props = defineProps<{
   events: PlanEvent[];
@@ -171,6 +191,27 @@ const when = (e: PlanEvent) => whenWords(shown(e), props.goal, props.now, props.
 const far = (e: PlanEvent) => howFar(shown(e), props.now, props.zone, roundedFor(e), props.goal);
 /** When a waiting prestige happens, in the row's own words (rounded like the row). */
 const whenAt = (e: PlanEvent, at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, roundedFor(e));
+
+/** One timeline (Jordan, 17 Nov 2026): each ascension's row opens to its shifts and dates (the parent's `detail` slot). The row that holds
+ *  the button is the ascension's first prestige or goal row; the ascension the farm is in (the first prestige not passed) starts open
+ *  when the save is on a known egg (`here`); the player's own opens and closes are kept while the page is up. */
+const slots = useSlots();
+const detailRowAt = computed(() => {
+  const m = new Map<number, number>();
+  if (!slots.detail) return m;
+  props.events.forEach((e, i) => {
+    if ((e.kind === 'prestige' || e.kind === 'goal') && !m.has(e.asc)) m.set(e.asc, i);
+  });
+  return m;
+});
+const currentAsc = computed(() => {
+  if (!props.here) return null;
+  const e = props.events.find(x => !x.past && (x.kind === 'prestige' || x.kind === 'goal'));
+  return e ? e.asc : null;
+});
+const chosen = reactive(new Map<number, boolean>());
+const isOpen = (asc: number): boolean => chosen.get(asc) ?? asc === currentAsc.value;
+const toggle = (asc: number) => chosen.set(asc, !isOpen(asc));
 
 const device = thisDevice();
 const title = (e: PlanEvent) =>

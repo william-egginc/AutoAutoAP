@@ -176,7 +176,8 @@ describe('not on virtue yet', () => {
     // No goal in brackets with the goal switch on screen (UX fluff review 2, 5 Nov 2026, item R3).
     expect(t).toContain("If you start Oct 30 at 6:00 PM, the instant answer's route: 198 → 490");
     expect(html).toContain('data-testid="now-goal-switch"');
-    expect(t).toContain('Full timeline');
+    // Not on virtue: no You are here list to open, so the ascensions are one closed fold (17 Nov 2026).
+    expect(t).toContain("Every ascension's shifts and dates");
   });
 
   it('nothing saved: no start time is priced yet, and the same button', async () => {

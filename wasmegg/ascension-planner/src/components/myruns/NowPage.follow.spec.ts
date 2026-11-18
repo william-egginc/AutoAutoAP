@@ -141,7 +141,7 @@ describe('Right now with a followed route', () => {
     expect(t).not.toContain('may have drifted');
     // Its events and timeline are there (they follow the plan, which is the followed route's).
     const html = await renderHtml(RightNowCard, props(followedCard, thisSave));
-    expect(html).toContain('data-testid="now-timeline"');
+    expect(html).toContain('data-testid="now-event-open"');
     // One path per card (25 Oct 2026): the card's Run Fast button went (Try next has the runs).
     expect(html).not.toContain('data-testid="now-recalc"');
     expect(html).toContain('data-testid="now-follow-back"');
@@ -168,7 +168,7 @@ describe('Right now with a followed route', () => {
     expect(t).not.toMatch(/Run Fast|Simulate it/);
     expect(t).toContain('No timeline for your route on this save yet: a run from Try next, below, works out its times on your account.');
     expect(html).not.toContain('data-testid="now-events"');
-    expect(html).not.toContain('data-testid="now-timeline"');
+    expect(html).not.toContain('data-testid="now-event-open"');
     expect(html).not.toContain('Add to calendar');
   });
 

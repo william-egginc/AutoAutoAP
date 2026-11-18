@@ -50,7 +50,6 @@
         data-region="right-now"
         change-route-to="more-myruns-route"
         detail-to="more-myruns-detail"
-        timeline-to="myruns-timeline"
         :card="page.cardPlan.value"
         :soul-eggs-after="page.soulEggsAfter.value"
         :on-virtue="page.onVirtue.value"
@@ -164,8 +163,8 @@
       </RightNowCard>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
-      <!-- Your eggs and the Full timeline above More (Jordan, 9 Nov 2026); the timeline comes from Right now
-           (RightNowCard `timelineTo`), closed by default and remembered. -->
+      <!-- Your eggs above More (Jordan, 9 Nov 2026). The Full timeline is gone (17 Nov 2026): each ascension's row in Right now's
+           You are here list opens to its shifts and dates. -->
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
@@ -182,7 +181,6 @@
         :save-seconds="page.saveSeconds.value"
         :zone="page.zone.value"
       />
-      <div id="myruns-timeline" data-testid="myruns-timeline"></div>
     </template>
 
     <MoreFold ref="more" section="moreMyRuns" :line="MORE_LINE_MYRUNS">

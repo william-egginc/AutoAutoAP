@@ -14,8 +14,8 @@ const tpl = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexO
 const view = tpl(read('MyRunsView.vue'));
 
 describe('My runs: the regions in their fixed order', () => {
-  it('title, Right now (with the tracker), the soul-egg line, Your eggs, the Full timeline, More (Jordan, 9 Nov 2026: eggs and timeline above More)', () => {
-    const at = ['data-region="title"', '<RightNowCard', '<BuildUpTracker', '<SoulEggWarning', '<YourEggs', 'id="myruns-timeline"', '<MoreFold'].map(m => view.indexOf(m));
+  it('title, Right now (with the tracker), the soul-egg line, Your eggs, More (Jordan, 9 Nov 2026: eggs above More; the Full timeline is merged into You are here, 17 Nov 2026)', () => {
+    const at = ['data-region="title"', '<RightNowCard', '<BuildUpTracker', '<SoulEggWarning', '<YourEggs', '<MoreFold'].map(m => view.indexOf(m));
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -39,11 +39,11 @@ describe('My runs: the regions in their fixed order', () => {
     for (const part of ['<FollowHistory', 'data-testid="now-follow-back"', 'data-testid="now-follow-typed"']) expect(tp, part).toContain(part);
     expect(tp).toContain('{{ STOP_FOLLOWING }}');
     expect(view).toContain('change-route-to="more-myruns-route"');
-    // The gear too (into More); the Full timeline goes above More, its own fold (timelineTo).
+    // The gear too (into More).
     expect(view).toContain('detail-to="more-myruns-detail"');
-    expect(view).toContain('timeline-to="myruns-timeline"');
+    expect(view).not.toContain('timeline-to');
     expect(card.match(/<Teleport :to="detailEl \?\? 'body'" :disabled="!detailEl">/g)).toHaveLength(1);
-    expect(card).toContain(`<Teleport :to="timelineEl ?? 'body'" :disabled="!timelineEl">`);
+    expect(card).not.toContain('timelineEl');
   });
   it('the links into Your runs open More first (See the routes ›, Dig deeper, Next steps\' unsent)', () => {
     const src = read('MyRunsView.vue');
@@ -52,9 +52,9 @@ describe('My runs: the regions in their fixed order', () => {
     const act = src.slice(src.indexOf('function act('), src.indexOf('\n}', src.indexOf('function act(')));
     expect(act).toContain('more.value?.show();');
   });
-  it('the Full timeline is a fold of its own, closed by default, its state remembered (lib/panelFold.ts myRunsTimeline)', () => {
+  it('the Full timeline is not a fold of its own any more (17 Nov 2026): each ascension row of You are here opens to it', () => {
     const card = tpl(read('myruns/RightNowCard.vue'));
-    expect(card).toMatch(/<PanelFold\s[^>]*section="myRunsTimeline"[^>]*testid="now-timeline"/);
-    expect(card).not.toContain('<details class="mt-2" data-testid="now-timeline">');
+    expect(card).not.toContain('now-timeline');
+    expect(card).toContain('#detail="{ asc }"');
   });
 });

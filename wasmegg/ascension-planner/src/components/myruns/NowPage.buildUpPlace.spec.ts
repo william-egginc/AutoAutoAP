@@ -27,12 +27,10 @@ describe('the Build-up tracker under Next step and Next shifts', () => {
     expect(tracker).toBeLessThan(tpl.indexOf('data-testid="my-runs-summary"'));
   });
 
-  it('RightNowCard renders the slot right after the Next step block (Next shifts), before the gear and the Full timeline', () => {
+  it('RightNowCard renders the slot right after the Next step block (Next shifts), before the gear', () => {
     const c = read('RightNowCard.vue');
     const slot = c.indexOf('<slot name="buildUp"');
     expect(slot).toBeGreaterThan(c.lastIndexOf('data-testid="now-next-shifts"'));
     expect(slot).toBeLessThan(c.indexOf('<GearBlock'));
-    // The Full timeline is a PanelFold (testid now-timeline) since 9 Nov 2026, moved above My runs' More.
-    expect(slot).toBeLessThan(c.indexOf('testid="now-timeline"'));
   });
 });

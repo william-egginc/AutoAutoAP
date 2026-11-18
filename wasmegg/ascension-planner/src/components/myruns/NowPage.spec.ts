@@ -129,7 +129,8 @@ describe('the Right now card', () => {
     expect(t).toContain('Add all 3 upcoming to calendar');
     // One clause since 5 Nov 2026, the alert and the save behind its "?" (UX fluff review 2, item R15).
     expect(t).toContain('If the plan changes, add them again.');
-    expect(t).toContain('Full timeline');
+    // One timeline (17 Nov 2026): the Full timeline is merged into You are here; each ascension's row opens.
+    expect(t).toMatch(/(Show|Hide) A\d's shifts and dates/);
   });
 
   it('behind plan: "Run Fast ›" (was Check again); no timeline: "Can\'t tell"', async () => {

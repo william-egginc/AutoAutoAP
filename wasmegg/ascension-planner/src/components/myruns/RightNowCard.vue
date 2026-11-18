@@ -37,7 +37,7 @@
   calendar). Only a route that is neither says "not priced on this save yet".
   EVERY ASCENSION (26 Oct 2026): the table lists each ascension's prestige (one that waits for the hours or past a
   no-prestige day says so); the ascension you are in is simulated on the save in the background ("Working out your
-  shifts…", lib/followSim.ts) and its exact shifts replace the table's; and the Full timeline of a plan with no exact legs lists A1..An with each one's shifts from
+  shifts…", lib/followSim.ts) and its exact shifts replace the table's; and each ascension's row in You are here (the Full timeline, merged into it 17 Nov 2026) of a plan with no exact legs lists A1..An with each one's shifts from
   the instant answer (AscensionList.vue).
   A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): that route is then priced on the instant
   answer's data (the same pricing the instant answer uses, in a route worker) and its steps shown "estimated from the
@@ -604,22 +604,29 @@
         :following="following"
         :rounded="rounded"
         :here="hereRow"
-      />
-      <!-- A followed route that is late (see the helper's words) while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
-      <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
-      <!-- The Full timeline (Jordan, 9 Nov 2026): above My runs' More with `timelineTo` (a looked-up element, never
-           deferred; on this card without one), closed by default, the player's own open or close remembered
-           (lib/panelFold.ts myRunsTimeline). -->
-      <Teleport :to="timelineEl ?? 'body'" :disabled="!timelineEl">
-      <PanelFold
-        section="myRunsTimeline"
-        title="Full timeline (every ascension, each egg's first and last shift)"
-        testid="now-timeline"
-        class="mt-2"
-        summary-class="text-body text-indigo-700"
       >
-        <div class="mt-2">
-          <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
+        <!-- One timeline (Jordan, 17 Nov 2026): each ascension's row opens to its shifts and dates, what the old separate fold held. No exact legs: the instant answer's list (lib/instantSteps.ts `ascensionSteps`), else the route's own legs. -->
+        <template #detail="{ asc }">
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :only="asc" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
+          <RouteTimeline
+            v-else
+            :chain="card.plan.chain"
+            :legs="card.plan.legs"
+            :only="asc - 1"
+            open
+            :zone="zone"
+            :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
+            :here-at="hereRow ? now : undefined"
+            :hours="r1Hours"
+            :held-shifts="r1Held"
+          />
+        </template>
+      </EventsTable>
+      <!-- No You are here list to open (not on virtue yet, or no events): the route's ascensions in one closed fold, as the old Full
+           timeline had them, so nothing is lost where the rows are not. -->
+      <details v-else class="mt-3 text-body" data-testid="now-asc-all">
+        <summary class="min-h-[44px] cursor-pointer py-2 font-bold text-indigo-700">{{ ALL_ASC_LABEL }}</summary>
+        <div class="mt-1">
           <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
           <RouteTimeline
             v-else
@@ -632,8 +639,9 @@
             :held-shifts="r1Held"
           />
         </div>
-      </PanelFold>
-      </Teleport>
+      </details>
+      <!-- A followed route that is late (see the helper's words) while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
+      <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
     </template>
   </section>
 </template>
@@ -650,9 +658,9 @@ import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 import type { StaleReason } from '@/lib/followStale';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
-import PanelFold from '../auto/PanelFold.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
+import { ALL_ASC_LABEL } from '@/lib/timelineWords';
 import A1Choice from './A1Choice.vue';
 import HelpTip from '@/components/auto/HelpTip.vue';
 import Tip from '@/components/Tip.vue';
@@ -708,8 +716,6 @@ const props = defineProps<{
   changeRouteTo?: string;
   /** The same for the gear (into More). */
   detailTo?: string;
-  /** The same for the Full timeline (above More). */
-  timelineTo?: string;
   card: CardPlan | null;
   onVirtue: boolean | null;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
@@ -774,7 +780,7 @@ const props = defineProps<{
   r1Held?: boolean;
   /** The loaded save is out of date (lib/saveBanner.ts `outOfDate`, past a day): the header's save line turns amber. */
   saveOld?: boolean;
-  /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
+  /** Every ascension and its shifts (useNowPage `ascensions`), for each ascension's detail when the plan has no exact legs. */
   ascensions?: AscensionStep[];
   /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
    *  `simWorking`); null or absent: not. */
@@ -801,7 +807,6 @@ const props = defineProps<{
 /** Where Change route goes (`changeRouteTo`): looked up after mount and each time the card draws again. */
 const changeRouteEl = useTeleportTarget(() => (props.changeRouteTo ? `#${props.changeRouteTo}` : undefined), () => true);
 const detailEl = useTeleportTarget(() => (props.detailTo ? `#${props.detailTo}` : undefined), () => true);
-const timelineEl = useTeleportTarget(() => (props.timelineTo ? `#${props.timelineTo}` : undefined), () => true);
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
   select: [key: GoalKey];

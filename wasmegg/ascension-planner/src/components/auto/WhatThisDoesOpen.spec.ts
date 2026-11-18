@@ -63,7 +63,6 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       moreByDate: 'folded',
       moreMyRuns: 'folded',
       setupSharing: 'folded',
-      myRunsTimeline: 'folded', // My runs' Full timeline (9 Nov 2026)
     });
   });
 

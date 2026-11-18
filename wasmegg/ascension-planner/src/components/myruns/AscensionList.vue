@@ -11,7 +11,7 @@
 <template>
   <div class="text-body text-slate-700" data-testid="now-ascensions">
     <ol class="space-y-1.5 list-none pl-0">
-      <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
+      <li v-for="l in shownLines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
         <span class="font-bold text-slate-800">A{{ l.asc }}</span>
         <template v-if="l.now && l.fresh">{{ ' ' }}· {{ STEP_FRESH_NOW }}</template>
         <template v-else-if="l.now"
@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { STEP_FRESH_NOW } from '@/lib/instantWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -106,6 +107,8 @@ import type { Availability } from '@/search/availabilitySchedule';
 
 const props = defineProps<{
   lines: AscensionStep[];
+  /** Only this ascension (1-based): the detail under its row in You are here (17 Nov 2026). Absent: every ascension. */
+  only?: number;
   zone: string;
   /** The current ascension's simulation is being worked out (lib/followSim.ts). */
   working?: boolean;
@@ -116,6 +119,7 @@ const props = defineProps<{
   /** The player's shifts wait for their hours (deferShifts): the softer "R1 waits until …" line. */
   heldShifts?: boolean;
 }>();
+const shownLines = computed(() => (props.only === undefined ? props.lines : props.lines.filter(l => l.asc === props.only)));
 /** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
 const r1Of = (l: AscensionStep) => {
   // A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).

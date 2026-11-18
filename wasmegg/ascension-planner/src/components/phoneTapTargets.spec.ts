@@ -155,8 +155,8 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     expect(tagWith(now, 'data-testid="now-behind-run-fast"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-work-out-plan"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-follow-typed-summary"')).toContain(SUMMARY);
-    // The Full timeline is a PanelFold since 9 Nov 2026: its summary is PanelFold's (44 px on a phone).
-    expect(now).toMatch(/<PanelFold\s[^>]*testid="now-timeline"/);
+    // One timeline (17 Nov 2026): each ascension's row in You are here opens with a 44 px button (EventsTable.vue).
+    expect(tagWith(read('myruns/EventsTable.vue'), 'data-testid="now-event-open"')).toContain('min-h-[44px]');
     expect(read('auto/PanelFold.vue')).toContain('min-h-[44px] sm:min-h-0');
     // "A run of yours isn't here?" (ux review 26 Oct, row 12: was 264×15).
     expect(tagWith(read('auto/MyRunsMissing.vue'), 'data-testid="my-runs-missing-summary"')).toContain(SUMMARY);

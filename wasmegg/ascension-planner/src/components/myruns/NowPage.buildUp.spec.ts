@@ -170,8 +170,9 @@ describe('AscensionList.vue and Right now\'s Full timeline', () => {
       teSoFar: 200,
       ascNow: 1,
       track: null,
-      events: [],
-      shownEvents: [],
+      // One timeline (17 Nov 2026): the ascensions' lines sit under their rows in You are here (A2's, the next prestige, starts open).
+      events: [{ kind: 'prestige', at: T0 + 2 * H, asc: 2, te: 222, past: false, next: true }],
+      shownEvents: [{ kind: 'prestige', at: T0 + 2 * H, asc: 2, te: 222, past: false, next: true }],
       gear: null,
       now: T0 + H,
       zone: ZONE,
