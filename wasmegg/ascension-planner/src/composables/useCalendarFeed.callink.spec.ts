@@ -3,7 +3,7 @@
  * `callink`, lib/calLinkCrypt.ts). A stand-in collector that keeps the record, two browsers (two storages), placeholder URLs.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCalendarFeed, type CalendarFeedEnv } from './useCalendarFeed';
+import { createCalendarFeed as create, type CalendarFeedEnv } from './useCalendarFeed';
 import type { SyncFetch } from '@/lib/syncedRecords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
 import * as blackBox from '@/search/blackBox';
@@ -22,7 +22,7 @@ function memStore() {
 }
 interface Call { url: string; method?: string; body?: string }
 /** One account's collector: mints links in turn, keeps the callink record, revoke-all removes links and the record. */
-function collector(o: { putCallink?: number; getCallink?: 'offline' | 'garbage' } = {}) {
+function collector(o: { putCallink?: number; getCallink?: 'offline' | 'garbage'; gate?: Promise<void> } = {}) {
   const calls: Call[] = [];
   let record: unknown = null;
   let minted = 0;
@@ -41,6 +41,12 @@ function collector(o: { putCallink?: number; getCallink?: 'offline' | 'garbage' 
         record = JSON.parse(init.body as string);
         return res(200, { ok: true, updatedAt: 1 });
       }
+      if (o.gate) {
+        // A slow read: the answer is what the collector held when the request arrived, delivered late.
+        const snapshot = record;
+        await o.gate;
+        return snapshot ? res(200, snapshot) : res(404, { error: 'absent' });
+      }
       if (o.getCallink === 'offline') throw new TypeError('offline');
       if (o.getCallink === 'garbage') return res(200, { v: 1, iv: 'AAAA', ct: 'BBBB' });
       return record ? res(200, record) : res(404, { error: 'absent' });
@@ -51,20 +57,32 @@ function collector(o: { putCallink?: number; getCallink?: 'offline' | 'garbage' 
   return { f, calls, record: () => record, setRecord: (r: unknown) => void (record = r), callinkCalls: () => calls.filter(c => c.url.includes('kind=callink')) };
 }
 const env = (id: string | null = ID): CalendarFeedEnv => ({ account: 'acct1', target: () => ({ url: SYNC, k: K }), ...(id === null ? {} : { playerId: () => id, linkRounds: ROUNDS }) });
+type Feed = ReturnType<typeof create>;
+const feeds: Feed[] = [];
+/** Every feed the specs make, so `settle` can wait for their checks (real time: the crypto and the stand-in collector are real async work). */
+const createCalendarFeed = (o: Parameters<typeof create>[0]): Feed => {
+  const c = create(o);
+  feeds.push(c);
+  return c;
+};
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+const until = async (ok: () => boolean, ms = 15_000) => {
+  for (const t0 = Date.now(); !ok() && Date.now() - t0 < ms; ) await sleep(5);
+};
+/** Nothing is still being read back (a check starts synchronously when it starts, so this cannot pass early). */
 const settle = async () => {
-  for (let i = 0; i < 40; i++) await vi.advanceTimersByTimeAsync(0);
+  await sleep(20);
+  await until(() => feeds.every(c => c.savedState.value !== 'checking'));
+  await sleep(20);
 };
-const waitFor = async (c: ReturnType<typeof createCalendarFeed>, s: string) => {
-  for (let i = 0; i < 200 && c.savedState.value !== s; i++) await vi.advanceTimersByTimeAsync(5);
-};
+const waitFor = async (c: Feed, s: string) => until(() => c.savedState.value === s);
 
 beforeEach(() => {
   CALENDAR_FEED.enabled = true;
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  feeds.length = 0;
 });
 afterEach(() => {
   CALENDAR_FEED.enabled = false;
-  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -210,7 +228,7 @@ describe('another browser', () => {
     const b = createCalendarFeed({ storage: memStore().st, env: env(), fetch: col.f });
     b.turnOn();
     await settle();
-    await vi.advanceTimersByTimeAsync(60_000);
+    await sleep(150);
     expect(b.savedState.value).toBe('none');
     expect(b.error.value).toBe('');
     expect(col.callinkCalls()).toHaveLength(1);
@@ -314,5 +332,50 @@ describe('reset, turning off and replacing', () => {
     await b.replaceLink();
     expect(col.calls.some(x => x.url.endsWith('/cal/new'))).toBe(false);
     expect(b.error.value).not.toBe('');
+  });
+});
+
+describe('a slow check never overwrites what happened meanwhile', () => {
+  it('a link made while the check is out stays: the late "no saved copy" answer does not downgrade it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const col = collector({ gate });
+    const { st } = memStore();
+    st.setItem('aap.calFeed.acct1', '1');
+    const a = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    expect(a.savedState.value).toBe('checking');
+    await a.getLink();
+    await until(() => col.record() !== null);
+    await until(() => a.savedState.value === 'loaded');
+    release();
+    await sleep(60);
+    expect(a.savedState.value).toBe('loaded');
+    expect(a.link.value).toBe(URL1);
+    expect(a.linkFromSave.value).toBe(true);
+    expect(a.linked.value).toBe(true);
+  });
+  it('a reset made while the check is out stays reset: a late answer that held a record does not bring the link back', async () => {
+    const seed = collector();
+    const first = createCalendarFeed({ storage: memStore().st, env: env(), fetch: seed.f });
+    first.turnOn();
+    await settle();
+    await first.getLink();
+    await waitFor(first, 'loaded');
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const slow = collector({ gate });
+    slow.setRecord(seed.record());
+    const { st } = memStore();
+    st.setItem('aap.calFeed.acct1', '1');
+    const b = createCalendarFeed({ storage: st, env: env(), fetch: slow.f });
+    expect(b.savedState.value).toBe('checking');
+    b.askReset();
+    await b.confirmReset();
+    release();
+    await sleep(80);
+    expect(b.savedState.value).toBe('none');
+    expect(b.link.value).toBeNull();
+    expect(b.linked.value).toBe(false);
+    expect(b.linkFromSave.value).toBe(false);
   });
 });

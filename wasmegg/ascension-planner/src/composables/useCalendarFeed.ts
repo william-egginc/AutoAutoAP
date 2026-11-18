@@ -131,6 +131,7 @@ export function createCalendarFeed(o: {
     return linkKey;
   }
   const resetSaved = (): void => {
+    checkId++;
     savedState.value = 'none';
     linkFromSave.value = false;
   };
@@ -139,9 +140,12 @@ export function createCalendarFeed(o: {
     const t = o.env.target();
     const kp = keyNow();
     if (!t || !kp) return;
+    const id = checkId;
     try {
       const rec = await encryptLink(await kp, url);
       const r = await putCalLink(t.url, t.k, rec, f);
+      // A reset made while this was going up (checkId moved on) has already cleared the states: not set again.
+      if (r.ok && id !== checkId) return;
       if (r.ok) {
         savedState.value = 'loaded';
         linkFromSave.value = true;
@@ -151,21 +155,24 @@ export function createCalendarFeed(o: {
       blackBox.note('calendar link not saved: crypto');
     }
   }
-  /** Read the saved link back (another browser, or a reload): 'none' when absent or the collector didn't answer, 'unreadable' when a record is there but won't open. */
-  let checking = false;
+  /** Read the saved link back (another browser, or a reload): 'none' when absent or the collector didn't answer, 'unreadable' when a record is there but won't open.
+   *  A check is only the latest question: a link made, a reset or a newer check while it is out (`checkId` moved on) means its answer is stale and is dropped. */
+  let checkId = 0;
   async function checkSaved(): Promise<void> {
     const t = o.env.target();
     const kp = keyNow();
-    if (!CALENDAR_FEED.enabled || !enabled.value || checking || !t || !kp) return;
-    checking = true;
+    if (!CALENDAR_FEED.enabled || !enabled.value || !t || !kp) return;
+    const id = ++checkId;
     savedState.value = 'checking';
     try {
       const r = await getCalLink(t.url, t.k, f);
+      if (id !== checkId) return;
       if (!r.ok) {
         savedState.value = 'none';
         return;
       }
       const url = readLinkRecord(r.value) ? await decryptLink(await kp, r.value) : null;
+      if (id !== checkId) return;
       if (!url) {
         savedState.value = 'unreadable';
         linked.value = true;
@@ -178,9 +185,7 @@ export function createCalendarFeed(o: {
       linkFromSave.value = true;
       savedState.value = 'loaded';
     } catch {
-      savedState.value = 'none';
-    } finally {
-      checking = false;
+      if (id === checkId) savedState.value = 'none';
     }
   }
 
@@ -232,6 +237,7 @@ export function createCalendarFeed(o: {
         error.value = r.why;
         return;
       }
+      checkId++;
       link.value = r.url;
       linkFromSave.value = false;
       savedState.value = 'none';
