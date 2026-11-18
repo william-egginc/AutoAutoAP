@@ -43,6 +43,30 @@
         </button>
       </div>
     </div>
+    <!-- Which ascension "to goal" shows (Jordan, 17 Nov 2026): A1 · A2 · … the last the goal and the default; one with no per-egg times is
+         disabled and the note says why; with none of the earlier ones known only the note shows. Not remembered. -->
+    <div
+      v-if="showAscPicker"
+      class="mt-2 inline-flex flex-wrap rounded-lg border border-slate-300 overflow-hidden"
+      role="group"
+      :aria-label="ASC_PICK_GROUP"
+      data-testid="now-eggs-asc"
+    >
+      <button
+        v-for="k in ascCount"
+        :key="k"
+        type="button"
+        class="min-h-[44px] px-3 text-body disabled:text-slate-400 disabled:cursor-not-allowed"
+        :class="(pickedAsc ?? ascCount) === k ? 'bg-indigo-600 text-white font-bold' : 'bg-white text-slate-700 hover:bg-slate-50'"
+        :aria-pressed="(pickedAsc ?? ascCount) === k ? 'true' : 'false'"
+        :disabled="k < ascCount && !ascKnown(k)"
+        :data-asc="k"
+        @click="ascPick = k >= ascCount ? null : k"
+      >
+        {{ ascPickLabel(k, ascCount) }}
+      </button>
+    </div>
+    <p v-if="showAscNote" class="mt-1.5 text-small text-slate-600 break-words max-w-prose" data-testid="now-eggs-asc-note">{{ ASC_PICK_NOTE }}</p>
     <!-- The plan's goal, the same for every egg: once for the block (spec-uxpass item 5, 8 Nov 2026). -->
     <p v-if="goalOnce" class="mt-1.5 text-body tabular-nums text-slate-600 break-words" data-testid="now-eggs-goal-once" :data-line="EGG_LINE.goalPlan">{{ goalOnce }}</p>
     <div class="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2.5">
@@ -90,6 +114,7 @@ import HelpTip from '@/components/auto/HelpTip.vue';
 import { eggViewLines, readEggsView, writeEggsView, type EggsView, type EggViewLine } from '@/lib/nextTeEgg';
 import { EGG_LINE, type EggLineKind } from '@/lib/yourEggsWords';
 import { plannedShiftsWords } from '@/lib/soulEggs';
+import { ASC_PICK_GROUP, ASC_PICK_NOTE, ascPickLabel } from '@/lib/timelineWords';
 
 const props = defineProps<{
   eggs: EggLine[];
@@ -119,6 +144,13 @@ const props = defineProps<{
   goalTimes?: Record<string, EggViewLine> | null;
   /** The view to start on (specs); absent: the one remembered in this browser. */
   view?: EggsView;
+  /** The ascension picker (17 Nov 2026): how many ascensions the plan has (under 2 or absent: no picker), each earlier one's per-egg
+   *  lines by 1-based ascension (null: not known), and where each ends (lib/eggGoalTimes.ts `ascEndLines`). */
+  ascTotal?: number;
+  goalTimesByAsc?: Record<number, Record<string, EggViewLine> | null>;
+  ascEnds?: Record<number, string>;
+  /** The ascension to start on (specs); absent: the last, the goal. */
+  ascView?: number;
 }>();
 
 const VIEWS: { value: EggsView; label: string }[] = [
@@ -129,9 +161,23 @@ const view = ref<EggsView>(props.view ?? readEggsView());
 const hasGoal = computed(() => !!props.goalLines && Object.keys(props.goalLines).length > 0);
 /** The view shown: "next TE" when there is no plan (no switch), whatever was remembered. */
 const shownView = computed<EggsView>(() => (hasGoal.value ? view.value : 'next'));
-/** The plan's goal line, the same for every egg, said once above the eggs; '' outside "to goal". */
+/** The ascension picker (Jordan, 17 Nov 2026), "to goal" only: the last ascension is the goal and the default; an earlier one is
+ *  pickable when the plan has per-egg lines for it. The pick is not remembered (a new plan starts on its goal). */
+const ascCount = computed(() => (shownView.value === 'goal' && hasGoal.value ? (props.ascTotal ?? 0) : 0));
+const ascKnown = (k: number) => !!props.goalTimesByAsc?.[k];
+const earlierAsc = computed(() => Array.from({ length: Math.max(0, ascCount.value - 1) }, (_, i) => i + 1));
+const showAscPicker = computed(() => ascCount.value > 1 && earlierAsc.value.some(ascKnown));
+const showAscNote = computed(() => ascCount.value > 1 && earlierAsc.value.some(k => !ascKnown(k)));
+const ascPick = ref<number | null>(props.ascView ?? null);
+/** The earlier ascension shown, or null for the goal (also when the pick has no lines any more). */
+const pickedAsc = computed(() => {
+  const k = ascPick.value;
+  return k != null && k < ascCount.value && ascKnown(k) ? k : null;
+});
+/** The plan's goal line, the same for every egg, said once above the eggs; '' outside "to goal". For an earlier ascension: where it ends. */
 const goalOnce = computed(() => {
   if (shownView.value !== 'goal' || !props.eggs.length) return '';
+  if (pickedAsc.value != null) return props.ascEnds?.[pickedAsc.value] ?? '';
   return props.goalLines?.[props.eggs[0].egg] ?? '';
 });
 function pick(v: EggsView): void {
@@ -161,7 +207,7 @@ function linesOf(e: EggLine): EggViewLine[] {
     saveSeconds: props.saveSeconds,
     afterShift: props.afterShift?.lines ?? null,
     clockLines: props.clockLines ?? null,
-    goalTimes: props.goalTimes ?? null,
+    goalTimes: pickedAsc.value != null ? (props.goalTimesByAsc?.[pickedAsc.value] ?? null) : (props.goalTimes ?? null),
   });
 }
 

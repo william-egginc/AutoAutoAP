@@ -31,6 +31,7 @@ import { dateAt } from './eventWhen';
 import { roundToHourIn } from './nowWords';
 import { endEggsOf } from '@/search/endEggs';
 import { VIRTUE_EGGS } from '@/types';
+import { ascGoalLine } from './timelineWords';
 import { EGG_LINE, GOAL_EGG_DONE_WORDS, goalEggWords, type EggGoalBound } from './yourEggsWords';
 
 /** One ascension as this file reads it. */
@@ -137,10 +138,15 @@ export function planEggGoalLines(o: {
   hours: boolean;
   /** The save's egg (the first ascension carrying on the save's farm opens on it). */
   saveEgg: string | null;
+  /** Read the plan only as far as this ascension (1-based; Your eggs' ascension picker, 17 Nov 2026): the eggs' last stints among the
+   *  ascensions up to it, and their TE share at its end. Absent or out of range: the whole plan. */
+  upTo?: number;
 }): Record<string, EggViewLine> | null {
-  const times = eggGoalTimes({ legs: goalLegsOf(o.plan, { saveEgg: o.saveEgg }), now: o.now, hours: o.hours });
+  const all = goalLegsOf(o.plan, { saveEgg: o.saveEgg });
+  const k = o.upTo && o.upTo >= 1 && o.upTo < all.length ? Math.floor(o.upTo) : all.length;
+  const times = eggGoalTimes({ legs: all.slice(0, k), now: o.now, hours: o.hours });
   if (!times) return null;
-  const ends = o.plan.legs ? endEggsOf({ chain: o.plan.chain, legs: o.plan.legs }) : null;
+  const ends = o.plan.legs ? endEggsOf({ chain: o.plan.chain.slice(0, k), legs: o.plan.legs.slice(0, k) }) : null;
   const te = (egg: string) => ends?.rows.find(r => r.egg === egg)?.te ?? null;
   const out: Record<string, EggViewLine> = {};
   for (const t of Object.values(times)) {
@@ -152,6 +158,23 @@ export function planEggGoalLines(o: {
     const when = dateAt(rounded ? roundToHourIn(t.at, o.zone) : t.at, o.now, o.zone, true);
     if (!when) continue;
     out[t.egg] = { kind: KIND[t.bound], text: goalEggWords(te(t.egg), when, t.bound) };
+  }
+  return out;
+}
+
+/**
+ * Where each ascension before the last ends (Your eggs' ascension picker, 17 Nov 2026), by 1-based ascension: its stop's TE and when
+ * (the browser's format with the weekday, to the hour when the plan isn't exact), in lib/timelineWords.ts `ascGoalLine`.
+ */
+export function ascEndLines(o: { plan: NowPlan; now: number; zone: string; saveEgg: string | null }): Record<number, string> {
+  const legs = goalLegsOf(o.plan, { saveEgg: o.saveEgg });
+  const out: Record<number, string> = {};
+  for (let i = 0; i < legs.length - 1; i++) {
+    const te = o.plan.chain[i];
+    const end = legs[i].end;
+    if (!Number.isFinite(end) || typeof te !== 'number') continue;
+    const when = dateAt(o.plan.exact ? end : roundToHourIn(end, o.zone), o.now, o.zone, true);
+    if (when) out[i + 1] = ascGoalLine(i + 1, te, when);
   }
   return out;
 }

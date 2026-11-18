@@ -106,7 +106,7 @@ import {
 import { pricedWithDays } from '@/lib/pricedWithWords';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates, type EggViewLine } from '@/lib/nextTeEgg';
-import { planEggGoalLines } from '@/lib/eggGoalTimes';
+import { ascEndLines, planEggGoalLines } from '@/lib/eggGoalTimes';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -2141,6 +2141,26 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!p) return null;
     return planEggGoalLines({ plan: p, now: now.value, zone: zone.value, hours: !!stepHours.value, saveEgg: currentEgg.value });
   });
+  /** Your eggs' ascension picker (Jordan, 17 Nov 2026): how many ascensions the plan on Right now has (0: no plan; the picker needs 2 or
+   *  more), each earlier one's per-egg "to goal" lines (null: the plan has no shifts for it, lib/eggGoalTimes.ts `upTo`), and where each
+   *  earlier one ends. The last ascension is the plan's goal: `goalTimes` above. */
+  const ascTotal = computed(() => {
+    if (!hasSave.value || !onVirtue.value) return 0;
+    return cardPlan.value?.plan?.chain.length ?? 0;
+  });
+  const goalTimesByAsc = computed<Record<number, Record<string, EggViewLine> | null>>(() => {
+    const p = cardPlan.value?.plan;
+    const out: Record<number, Record<string, EggViewLine> | null> = {};
+    if (!p || ascTotal.value < 2) return out;
+    for (let k = 1; k < ascTotal.value; k++)
+      out[k] = planEggGoalLines({ plan: p, now: now.value, zone: zone.value, hours: !!stepHours.value, saveEgg: currentEgg.value, upTo: k });
+    return out;
+  });
+  const ascEnds = computed<Record<number, string>>(() => {
+    const p = cardPlan.value?.plan;
+    if (!p || ascTotal.value < 2) return {};
+    return ascEndLines({ plan: p, now: now.value, zone: zone.value, saveEgg: currentEgg.value });
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -2329,6 +2349,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     goalLines,
     clockLines,
     goalTimes,
+    ascTotal,
+    goalTimesByAsc,
+    ascEnds,
     phase,
     startInfo,
     eggs,
