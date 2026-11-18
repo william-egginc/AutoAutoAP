@@ -15,6 +15,7 @@
  * (localStorage SAVE_ONLINE_KEY, '1' / '0'; absent or unreadable: the default). Words: lib/syncWords.ts SAVE_ONLINE_*.
  */
 import { ref, type Ref } from 'vue';
+import { pinSessions } from './pinSession';
 
 /** Save online starts ON (Jordan, 7 Nov 2026). One line to change. */
 export const SAVE_ONLINE_DEFAULT = true;
@@ -114,8 +115,8 @@ export function cloudSubmitUrl(submitUrl: string | null | undefined): string {
  */
 export function onlineFetch<F>(): F | null {
   if (typeof fetch !== 'function') return null;
-  return ((url: string, init?: object) =>
-    saveOnlineOn() ? fetch(url, init as RequestInit) : Promise.reject(new TypeError('Save online is off'))) as unknown as F;
+  return pinSessions().wrap(((url: string, init?: object) =>
+    saveOnlineOn() ? fetch(url, init as RequestInit) : Promise.reject(new TypeError('Save online is off'))) as unknown as F);
 }
 
 /** Specs: read the switch from storage again (a new page load). */

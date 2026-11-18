@@ -27,6 +27,7 @@ import { eggDaySeconds } from './eggDay';
 import { encodeWeekMask } from './weekWindow';
 import { screenGoalKey, type Followed, type FollowFrom, type FollowMap } from './follow';
 import type { GoalKey } from './planGoals';
+import { pinSessions } from './pinSession';
 
 /** The contract's prefix (three a's: follow-contract.md, collector/README.md). The first build hashed 'aap-follow-v1:';
  *  nothing was stored under that key outside the test collector (the live collector had no /follow), so no migration. */
@@ -272,7 +273,7 @@ export type CloudFail = 'limit' | 'big' | 'rejected' | 'off' | 'offline' | 'erro
 const failOf = (status: number): CloudFail =>
   status === 429 ? 'limit' : status === 413 ? 'big' : status === 400 ? 'rejected' : status === 503 ? 'off' : 'error';
 
-const defaultFetch = (): FetchLike | null => (typeof fetch === 'function' ? (fetch as unknown as FetchLike) : null);
+const defaultFetch = (): FetchLike | null => (typeof fetch === 'function' ? pinSessions().wrap((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as FetchLike : null);
 
 /** GET /follow?k=: every saved goal's latest value, by this app's goal key. */
 export async function getFollows(

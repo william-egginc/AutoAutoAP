@@ -10,6 +10,7 @@ import { getSynced, putSynced, type PutSyncedResult, type SyncFetch } from './sy
 import type { LinkRecord } from './calLinkCrypt';
 import { calendarFeedOn } from './calendarFlag';
 import type { CalEventList } from './calendarFeedEvents';
+import { pinSessions } from './pinSession';
 
 /**
  * THE CALENDAR FEED'S BUILD FLAG (14 Nov 2026): off in the repo, because beta's collector address is the LIVE collector, which has
@@ -24,7 +25,7 @@ export const CALENDAR_FEED = { enabled: calendarFeedOn(import.meta.env.VITE_CALE
 const KEY = /^[0-9a-f]{64}$/;
 const TIMEOUT_MS = 10_000;
 const defaultFetch = (): SyncFetch | null =>
-  typeof fetch === 'function' ? (((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
+  typeof fetch === 'function' ? pinSessions().wrap(((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
 
 /** The collector's /cal from its /sync address ('' without one). */
 export function calBaseOf(syncUrl: string | null | undefined): string {

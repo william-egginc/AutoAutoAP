@@ -14,10 +14,11 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
 import { cloudSubmitUrl, saveOnlineOn } from '@/lib/saveOnline';
 import { AnswersClient, answersUrlOf, type AnswerOffer, type AnswersFetch, type CloudAnswer } from '@/lib/answersCloud';
+import { pinSessions } from '@/lib/pinSession';
 
 /** The browser's fetch, called as itself (never as a method of another object: "Illegal invocation"). */
-const browserFetch = (): AnswersFetch | null =>
-  typeof fetch === 'function' ? (((u, i) => fetch(u, i as RequestInit)) as AnswersFetch) : null;
+export const browserFetch = (): AnswersFetch | null =>
+  typeof fetch === 'function' ? pinSessions().wrap(((u, i) => fetch(u, i as RequestInit)) as AnswersFetch) : null;
 let fetchFor: () => AnswersFetch | null = browserFetch;
 /** Specs: a stand-in collector (null: the real fetch). */
 export function setAnswersFetch(f: AnswersFetch | null): void {

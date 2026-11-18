@@ -22,6 +22,7 @@
 import { followKey, followUrlOf, hasPlayerId, isAheadRefusal, putOnceMore, readLatest, type CloudFail, type PutResult } from './followCloud';
 import type { TimeOffDates } from '@/search/timeOff';
 import { validBlocked } from '@/search/availabilitySchedule';
+import { pinSessions } from './pinSession';
 
 export { hasPlayerId };
 /** The same key as the followed routes (one code per account). */
@@ -447,7 +448,7 @@ const failOf = (status: number): PrefsFail =>
   status === 404 ? 'missing' : status === 429 ? 'limit' : status === 413 ? 'big' : status === 400 ? 'rejected' : status === 503 ? 'off' : 'error';
 
 const isKey = (k: string) => /^[0-9a-f]{64}$/.test(k);
-const defaultFetch = (): PrefsFetch | null => (typeof fetch === 'function' ? (fetch as unknown as PrefsFetch) : null);
+const defaultFetch = (): PrefsFetch | null => (typeof fetch === 'function' ? pinSessions().wrap((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as PrefsFetch : null);
 
 /** `f` with a timeout (an abort when the browser has AbortController; a hung call counts as offline either way). */
 async function timed<T>(run: (signal?: AbortSignal) => Promise<T>): Promise<T> {

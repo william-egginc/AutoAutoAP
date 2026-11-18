@@ -24,6 +24,7 @@
  * Not a result code hash input (lib/resultCodeHash.ts): nothing hashed imports it.
  */
 import { followUrlOf, hasPlayerId, isAheadRefusal } from './followCloud';
+import { pinSessions } from './pinSession';
 
 /**
  * THE SYNC SWITCH (one line, like lib/prefsCloud.ts SYNC_PROGRESS_SENDS): off, nothing of the synced records is read
@@ -163,7 +164,7 @@ export type SyncFailure = { ok: false; why: SyncFail; retryAfter?: number };
 const isKey = (k: string) => /^[0-9a-f]{64}$/.test(k);
 const KINDS: readonly SyncKind[] = ['override', 'ticks', 'plan', 'cal', 'callink'];
 const defaultFetch = (): SyncFetch | null =>
-  typeof fetch === 'function' ? (((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
+  typeof fetch === 'function' ? pinSessions().wrap(((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch) : null;
 
 const failOf = (status: number): SyncFail =>
   status === 404 ? 'missing' : status === 429 ? 'limit' : status === 413 ? 'big' : status === 400 ? 'rejected' : status === 503 ? 'off' : 'error';
