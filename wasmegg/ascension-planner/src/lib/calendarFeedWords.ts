@@ -15,8 +15,8 @@ export const CAL_APPLE = 'Add to Apple Calendar';
 export const CAL_GOOGLE = 'Add to Google Calendar';
 export const CAL_RESET = 'Reset link';
 
-export const CAL_SHOWN_ONCE = "Copy it now. It is shown only once. Anyone with this link can see your plan, so don't post it.";
-export const CAL_LINKED = 'You have a link. It was shown only once, when you made it. Press Reset link to make a new one.';
+export const CAL_SHOWN_ONCE = "Here is your link. Anyone with it can see your planned shifts and times, so don't post it.";
+export const CAL_LINKED = "You have a link, but it can't be shown again. Press Reset link to make a new one.";
 export const CAL_RESET_ASK = 'Every link you made stops working at once. Your calendar will need a new one. Reset?';
 export const CAL_RESET_YES = 'Reset';
 export const CAL_RESET_NO = 'Keep it';
@@ -54,12 +54,12 @@ export const CAL_NOD_HINT = 'It also updates by itself whenever you open My runs
  * kept, encrypted in the browser, so another browser can show it again; `unreadable` is a saved copy this browser can't read.
  */
 /** Above the link read back from the saved copy, in place of CAL_SHOWN_ONCE. */
-export const CAL_SAVED = "This is your saved link. Anyone with this link can see your plan, so don't post it.";
+export const CAL_SAVED = "Your saved link. Anyone with it can see your planned shifts and times, so don't post it.";
 /** While the saved copy is being fetched. */
 export const CAL_CHECKING = 'Checking for your saved link.';
 /** A saved copy exists but can't be read here. */
 export const CAL_UNREADABLE = "Couldn't read your saved link here. Get a new link to see one again.";
 export const CAL_REPLACE = 'Get a new link';
 /** The confirm before a new link: every link already added to a calendar app stops (all three slots are freed at once). */
-export const CAL_REPLACE_ASK = 'This stops the links you already added to a calendar app. You will add the new one. Go on?';
-export const CAL_REPLACE_YES = 'Get a new link';
+export const CAL_REPLACE_ASK = "This stops every link already added to a calendar app. You will need to add the new one. Go on?";
+export const CAL_REPLACE_YES = 'Yes, get a new link';
