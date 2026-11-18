@@ -76,7 +76,7 @@
         v-if="teOverride"
         class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-body font-bold text-amber-800"
       >
-        The plan starts from exactly the claimed TE entered below. Pending (unclaimed) TE, partial progress toward
+        The route starts from exactly the claimed TE entered below. Pending (unclaimed) TE, partial progress toward
         your next TE, and eggs shipped since your last sync are not counted.
       </p>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -283,7 +283,7 @@ const pendingTotal = computed(() =>
 );
 
 // Eggs shipped on the current egg since the backup's last sync — the same catch-up the generator
-// adds to every variant's starting eggs up to the plan start. Ticks every second.
+// adds to every variant's starting eggs up to the route start. Ticks every second.
 const nowMs = ref(Date.now());
 const clock = setInterval(() => (nowMs.value = Date.now()), 1000);
 onBeforeUnmount(() => clearInterval(clock));

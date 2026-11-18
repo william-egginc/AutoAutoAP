@@ -853,7 +853,7 @@
           <p v-if="moreTo && deadline" class="mt-1 leading-relaxed" data-testid="by-date-how-text">
             Fast and Exact pick the early stops for you: the instant answer's route for each number of ascensions and a few
             TE either side of each stop. In Custom you set the early stops and it tries every route in them. Either way the
-            last stop is found to the exact TE. Like any run, it uses the plan start, awake hours, time off and computer
+            last stop is found to the exact TE. Like any run, it uses the route start, awake hours, time off and computer
             settings in Setup.
           </p>
           <p class="mt-1 leading-relaxed">
@@ -2154,7 +2154,7 @@ async function run(force = false, goAhead = false): Promise<void> {
   whatIfResult.value = null;
   keptSearch.value = null;
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
-  // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
+  // skip the work. (The route start is not in this key, as it is a new minute on every visit: the note says which
   // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
   snapKey = instantSnapKey(cacheKey());
   savedAt.value = null;
@@ -2450,7 +2450,7 @@ const dateRows = computed(() =>
 
 const key = (chain: readonly number[]) => chain.join(',');
 
-/** The plan start the answer was worked out from, for "Simulate this route" and the saved answer's note. */
+/** The route start the answer was worked out from, for "Simulate this route" and the saved answer's note. */
 const answerStart = ref(0);
 /**
  * "Simulate this route" (a row's, or the answer's): this route in Classic, simulated on the player's save from the
@@ -2903,7 +2903,7 @@ onUnmounted(() => {
  * 2026: the same hash as before, so answers saved in players' browsers keep matching). Valid only for the same thing
  * asked of the same account: the player, the mode (target, or the date), the TE and every egg's count (a new save
  * moves them), the inventory and epic research, and the setup (playing hours, time off, dates to hit, the continue
- * rule, the filters) and the save's own time (6 Nov 2026: research bought moves no TE or egg). Not the plan start: the saved answer's note says which start its dates are for.
+ * rule, the filters) and the save's own time (6 Nov 2026: research bought moves no TE or egg). Not the route start: the saved answer's note says which start its dates are for.
  */
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
@@ -3262,7 +3262,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   if (props.deadline && !stale) emitRoutes(s.result);
 }
 
-// Again whenever what it depends on changes (a new save, a new plan start, another target).
+// Again whenever what it depends on changes (a new save, a new route start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
 /** A run is due once the inputs settle (`timer`): the answer on screen is for the inputs before. */
 const runDue = ref(false);

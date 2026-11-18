@@ -430,7 +430,7 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
       'Saved from t1792000000: same save, setup and filters, so nothing was worked out again. Work it out again'
     );
     expect(textOf(await draw(box, { answerStart: 1_792_003_600 }))).toContain(
-      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600).'
+      'Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a route start of t1792003600).'
     );
   });
   it('the saved answer: ONE line in the heading row, "Saved answer, <when>", its sentence behind the "?", Work it out again beside it (Jordan, 12 Nov 2026)', async () => {
@@ -446,7 +446,7 @@ describe("the card's words from lib/instantCardWords.ts (12 Nov 2026), read the 
     // The label's time without this year's year (showNear, QA t241 at 390: it kept Work it out again on the line);
     // the sentence behind the "?" keeps the full date.
     expect(textOf(line)).toBe(
-      'Saved answer, n1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of t1792003600). Work it out again'
+      'Saved answer, n1792000000 Saved from t1792000000: same save, setup and filters, so nothing was worked out again (its dates are for a route start of t1792003600). Work it out again'
     );
     // Today's sentence inside the "?" (CardHelp), word for word.
     const help = line.slice(line.indexOf('data-part="CardHelp"'));

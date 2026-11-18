@@ -39,7 +39,7 @@
       </p>
       <p v-show="howOpen" :id="howId" class="mt-1">
         Kept per player, for Fast, Exact and Custom. A saved run carries on with the save
-        it started with while that save is kept here, and puts its target, schedule, time off and plan start back;
+        it started with while that save is kept here, and puts its target, schedule, time off and route start back;
         without that save, your TE has to be the same. Each run also keeps the save it was priced from, so you can go
         back to it after the game has moved on.
       </p>
@@ -172,7 +172,7 @@ const pace = usePlanPace({
 
 /** "vs your instant baseline: 1.2 days sooner (Fast)" (My runs, wireframe B1): the instant answer for the run's
  *  target and save, logged here (lib/instantBaseline.ts); null without one or without the run's start. */
-/** A saved run's finish: its plan start (from its fingerprint) plus its best days; null when either is unknown. */
+/** A saved run's finish: its route start (from its fingerprint) plus its best days; null when either is unknown. */
 function runFinish(run: RunSummary): number | null {
   const start = fingerprintPlanStart(run.fingerprint);
   return start && run.bestDays > 0 ? Math.round(start + run.bestDays * 86400) : null;
@@ -223,7 +223,7 @@ async function resume(id: string): Promise<void> {
       return;
     }
     const restored = store.planStartRestoreNote(store.openedRun?.fingerprint);
-    if (restored) note.value = `Plan start set back to ${restored}, the time this run was priced from.`;
+    if (restored) note.value = `Route start set back to ${restored}, the time this run was priced from.`;
     await store.resumeOpenedRun(props.playerId);
   } finally {
     resuming.value = '';

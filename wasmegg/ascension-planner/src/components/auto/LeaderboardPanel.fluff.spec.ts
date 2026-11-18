@@ -32,7 +32,7 @@ describe('Leaderboard intros (L5, L10, L15, L17, L20)', () => {
     expect(fold).toContain('Anonymous runs are not ranked here, so add a name to join.');
   });
   it('All runs: one line, the rest behind "How this list works"', () => {
-    expect(words).toContain('Every run sent. Compare finish dates, not plan length.');
+    expect(words).toContain('Every run sent. Compare finish dates, not route length.');
     expect(template).toMatch(/<BoardFold[^>]*title="How this list works"[^>]*testid="all-how"/);
     const fold = template.slice(template.indexOf('testid="all-how"'));
     expect(fold.replace(/\s+/g, ' ')).toContain('Look-alike runs (same route and save) are tagged with how they differ.');

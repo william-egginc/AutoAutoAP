@@ -291,7 +291,7 @@
             >), so you don't have to set them up again.
           </template>
           <template v-if="store.planStartRestoreNote(store.crashedRun.fingerprint)">
-            Carrying on puts the plan start back to
+            Carrying on puts the route start back to
             <span class="font-bold">{{ store.planStartRestoreNote(store.crashedRun.fingerprint) }}</span
             >, the time it was priced from.
           </template>
@@ -1844,7 +1844,7 @@ const queueAt = computed({
 const pricedSoFar = computed(() => store.chainsDone + (store.isRunning ? store.batchDone : 0));
 
 /**
- * The finish INSTANT, not the duration. Durations from different plan starts are not comparable --
+ * The finish INSTANT, not the duration. Durations from different route starts are not comparable --
  * two runs started an hour apart produce day counts that cannot be ranked against each other -- and
  * the date is what a player actually plans around. The main panel has shown this all along; the
  * exhaustive panel printed days only, which is exactly the comparison people were getting wrong.
@@ -2249,7 +2249,7 @@ const lastRunLabel = computed(() => {
 });
 /** "Follow this route" on the result card (RouteResultCard.vue): the finished result for this race, its level as the
  *  source (Custom for this screen's own run). */
-/** The same for a row of the boxes' results (once the queue is done): the goal, source and plan start. */
+/** The same for a row of the boxes' results (once the queue is done): the goal, source and route start. */
 const rowFollow = computed<Pick<ResultFollow, 'goalKey' | 'source' | 'planStart'> | null>(() =>
   store.isRunning || queueAt.value >= 0
     ? null

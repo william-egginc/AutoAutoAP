@@ -34,7 +34,7 @@ describe('leaderboard rows (source)', () => {
   it('the name and route cells open the row, in the race table, the plans table and the nested plan list; the arrow button stays', () => {
     const panel = read('LeaderboardPanel.vue');
     expect(panel.match(/onRowClick\(\$event/g)!.length).toBeGreaterThanOrEqual(4);
-    expect(panel).toContain(':aria-label="`Show all of ${e.label}\'s plans`"');
+    expect(panel).toContain(':aria-label="`Show all of ${e.label}\'s routes`"');
     const list = read('LeaderboardPlanList.vue');
     expect(list).toContain('onRowClick($event');
     expect(list).toContain(':aria-expanded="!!open[keyOf(p, i)]"');

@@ -664,7 +664,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (forThis && mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
     if (forThis && mode === 'continue' && applied!.key !== 'continue') return {};
     // A route sent with its run's own setting (By a date's Simulate this route): that setting, whatever
-    // Your setup says now, so the plan starts as the run priced it.
+    // Your setup says now, so the route starts as the run priced it.
     const own =
       applied?.own && applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
     if (own && applied!.mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
@@ -1986,7 +1986,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The same integrity check, run AHEAD of any Start: on one background worker, as soon as a save
    * is loaded, so a stalled account says so the moment the panel opens instead of after the player
    * presses Start and waits for a pool to spin up. Keyed on what changes the answer (account, TE,
-   * plan start), so it runs once per loaded account, not on every render. Start still re-checks.
+   * route start), so it runs once per loaded account, not on every render. Start still re-checks.
    */
   const integrityChecking = ref(false);
   let integrityKey = '';
@@ -2027,7 +2027,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`): a few
    * seconds of simulation, so on one background worker, as the integrity check runs. Kept for the
-   * same account, TE, plan start and setting, so the instant answer asks once. Empty when the setting
+   * same account, TE, route start and setting, so the instant answer asks once. Empty when the setting
    * never builds up (Finish without buying, Prestige now) or without a farm in the save.
    *
    * BUILD-UP MISSING (6 Nov 2026, Jordan's phone): a failure was [] here, silent and kept, and the instant answer then
@@ -2411,8 +2411,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return true;
   }
 
-  /** Plan start, taken from the Auto Planner tab's own scheduling inputs so the two agree. A plan's
-   *  duration depends on (chain, plan start) jointly — comparing chains scored from different
+  /** Route start, taken from the Auto Planner tab's own scheduling inputs so the two agree. A plan's
+   *  duration depends on (chain, route start) jointly — comparing chains scored from different
    *  starts is meaningless, which is why the whole run pins one. */
   const planStart = computed(() => {
     if (planStartPin.value) return planStartPin.value;
@@ -2420,7 +2420,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /**
-   * Where the plan start comes from, for the start's provenance (search/startProvenance.ts): 'handoff' when it
+   * Where the route start comes from, for the start's provenance (search/startProvenance.ts): 'handoff' when it
    * is a search's own start handed back (the pin of a run carried on or an older save, or the boxes as
    * `applyChain` wrote them), 'override' when the player set the start boxes (Joo's start-time override),
    * else 'now'.
@@ -2455,7 +2455,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /** Where this start comes from, read now: the stores' set-up, the save's TE and time, the planner's eggs,
-   *  the plan start's source (`Submission.start`, `InstantRecord.start`). The tab's age is added at send. */
+   *  the route start's source (`Submission.start`, `InstantRecord.start`). The tab's age is added at send. */
   function startProvenanceNow(): StartProvenance {
     const init = useInitialStateStore();
     return startProvenanceOf({
@@ -2488,7 +2488,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /**
-   * The plan start a resumed run was priced against, held to the SECOND.
+   * The route start a resumed run was priced against, held to the SECOND.
    *
    * The Auto Planner's start boxes only hold minutes, and a run timed "from now" was fingerprinted
    * with seconds, so writing its start back into those boxes could never reproduce the fingerprint.
@@ -2524,7 +2524,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /**
    * The first-ascension setting a run from `start` prices under (search/firstAscension.ts): the
-   * setting, except that a plan starting more than an hour from now has no ascension of the save's to
+   * setting, except that a route starting more than an hour from now has no ascension of the save's to
    * continue and starts fresh, as Classic offers continue only then. Not for a pinned start: that is
    * a run being carried on, which keeps the setting it was priced under (its stored inputs carry it).
    */
@@ -2536,7 +2536,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  (scripts/siteRun.ts), where the same command has to give the same answer whenever it runs. */
   const continueStartRule = ref(true);
 
-  /** Put a run's own plan start back, in the store and in the Auto Planner's boxes. */
+  /** Put a run's own route start back, in the store and in the Auto Planner's boxes. */
   function pinPlanStart(ts: number): void {
     if (!ts || ts === planStart.value) return;
     const planner = useAutoPlannerStore();
@@ -2553,10 +2553,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /** The run inputs that decide whether a checkpoint can resume -- the fingerprint without its
-   *  plan start, which resuming restores. The panels re-check for a resumable run when it moves. */
+   *  route start, which resuming restores. The panels re-check for a resumable run when it moves. */
   const resumeInputsKey = computed(() => withPlanStart(fingerprint(''), 0));
 
-  /** "Plan start goes back to 2026-09-28 22:14" when resuming `fp` would move it, else null. */
+  /** "Route start goes back to 2026-09-28 22:14" when resuming `fp` would move it, else null. */
   function planStartRestoreNote(fp: string | undefined): string | null {
     const ts = fingerprintPlanStart(fp);
     if (!ts || ts === planStart.value) return null;
@@ -2566,7 +2566,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * True when the Auto Planner has no start date/time and the plan is therefore timed from NOW.
    *
-   * Quietly consequential, and it bit a real user twice in one evening. Plan start is part of the
+   * Quietly consequential, and it bit a real user twice in one evening. Route start is part of the
    * run fingerprint, so an unset one moves every time the page reloads: a 778-chain checkpoint
    * became unreachable after a rebuild (start slid from 10:39 to 17:44), and the same chain then
    * reported 737.269 d instead of 737.564 d — not an improvement, just a stopwatch started seven
@@ -2574,7 +2574,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * finish dates.
    */
   /**
-   * The plan start the CURRENT results were computed against, pinned when the run began.
+   * The route start the CURRENT results were computed against, pinned when the run began.
    *
    * Needed because `planStart` falls back to "now" when the Auto Planner has no start set, and the
    * Auto Planner then restores a CACHED start on mount — so the two can silently disagree. Observed:
@@ -2585,10 +2585,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const planStartUsed = ref(0);
 
   /**
-   * The plan start the results being described were priced from, for the shortlist, the submission,
+   * The route start the results being described were priced from, for the shortlist, the submission,
    * the sent-already key and the CSV: the run's own (`planStartUsed`), or -- for a CSV of a stored
    * checkpoint's entries, with nothing priced in this tab -- the start in that checkpoint's
-   * fingerprint. These all fell back to the Plan start box before, so an opened run with no start
+   * fingerprint. These all fell back to the Route start box before, so an opened run with no start
    * in its fingerprint, or a CSV of the stored checkpoint, was dated from whatever the box said at
    * click time. The box only when no run has any start at all.
    */
@@ -2830,7 +2830,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Recorded here as well as when a run starts. `resumeBlocker` compares the saved run's
     // fingerprint against the CURRENT inputs, and it needs a player id to compute one -- without
     // this it had none until a search had already run, so the guard silently passed and a run whose
-    // plan start had since moved looked perfectly resumable. Measured: changing the start date
+    // route start had since moved looked perfectly resumable. Measured: changing the start date
     // after opening a saved run left `canResumeOpenedRun` true.
     currentPlayerId = playerId;
     const summary = savedRuns.value.find(r => r.id === id);
@@ -2981,7 +2981,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * With its save kept, the workers get that stored payload itself, so the carried-on half is priced
    * on precisely the farm the first half was. The planner is switched to that save as well, so
    * everything that describes the run -- the CSV header, the submission, Apply -- describes the same
-   * save; target, shift handling and plan start are put back from it too.
+   * save; target, shift handling and route start are put back from it too.
    *
    * Without one (a run from before saves were kept, or a body that did not survive), it falls back
    * to the old rule: carry on onto the CURRENT save only if it still matches, under the run's clock.
@@ -3149,7 +3149,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Settings are put back on resume; only a different player or TE stops a run with no save.
       const locked = lockedChanges(run.fingerprint, fingerprint(currentPlayerId));
       if (!locked.length) return null;
-      // The plan start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
+      // The route start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
       // It used to be the commonest one -- with no start set, the plan is timed from the moment the
       // page loaded, so every reload "changed" it and no interrupted run could ever be picked up.
       return `${locked.join('; ')}, and its save isn't stored, so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
@@ -3416,7 +3416,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       const hash = await hashID(playerId);
       partitionHash = hash;
-      // Matched on everything EXCEPT the plan start, which resuming restores. An exact match here
+      // Matched on everything EXCEPT the route start, which resuming restores. An exact match here
       // meant a run timed "from now" was unreachable after any reload -- a crash included.
       const saves = await listRunSaves(hash);
       const aside = await listInterrupted(hash);
@@ -4143,7 +4143,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * can agree with the real one right up until the day it does not.
    */
   /**
-   * The save's last sync against the plan start (lib/saveAge.ts): the farm is caught up to the start at
+   * The save's last sync against the route start (lib/saveAge.ts): the farm is caught up to the start at
    * its current rate, all the time since the sync (not capped at its silos since 10 Nov 2026, as Joo's engine). A warning
    * only for a start before the sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
    */
@@ -4337,7 +4337,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The account as it was when the run (or its carry-on) started: the save, inventory and research
    * the run priced. A run carried on over days keeps its own save while the tab may load a newer
    * one (the watcher's reopen, Load latest save), and the submission read the newer one -- so the
-   * board saw a plan starting 18 h "before the save it was made from" and filed it as a what-if
+   * board saw a route starting 18 h "before the save it was made from" and filed it as a what-if
    * (Halceyx, 6 Oct). Same live-vs-run bug as runSettingsUsed; same fix.
    */
   type AccountSnapshot = ReturnType<typeof accountFields>;
@@ -4492,7 +4492,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * A deadline route as a submission (schema 8): its chain ends at the highest last stop found
    * reachable by the date, so `finalTE` is that stop and the board ranks on it. Priced from the
-   * run's own plan start and TE; the account half is the loaded save's, as for any send.
+   * run's own route start and TE; the account half is the loaded save's, as for any send.
    */
   function buildDeadlineSubmission(
     route: DeadlineRoute,
@@ -4570,7 +4570,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   // same row a Fast result or a By a date answer makes, with `level: 'light'`, priced under what Light
   // priced under: taken when Light makes its pool (`beginLight`), as `deadlineRun` is for By a date.
 
-  /** What Light priced under: the plan start, the TE, the settings and the account, when it made its pool. */
+  /** What Light priced under: the route start, the TE, the settings and the account, when it made its pool. */
   let lightRun: { planStart: number; te: number; settings: RunSettings; account: AccountSnapshot } | null = null;
   function beginLight(planStart: number, te: number): void {
     try {
@@ -4582,7 +4582,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Light's result as a submission: Fastest's shape (schema 7, `effort: 'light'`) or By a date's
    *  (schema 8, `effort: 'deadline'`), with `level: 'light'`, `atOnce` and `lightFrom`. Null before Light
-   *  priced anything here, or for a result from another plan start. */
+   *  priced anything here, or for a result from another route start. */
   function buildLightSubmission(r: LightResult, nickname?: string, note?: string): Submission | null {
     const run = lightRun;
     const b = r.best;
@@ -4705,7 +4705,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       finalTE.value,
       bestChain.value.join(' '),
       Math.round(bestDays.value * 1e4),
-      // The plan start the submission itself carries (see buildRunSubmission).
+      // The route start the submission itself carries (see buildRunSubmission).
       resultsPlanStart(),
       currentTE.value,
       // 'fresh' was this key's tag for Fastest (the boolean off) before 9 Oct, so Fastest keeps it and
@@ -7058,7 +7058,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // back up.
     //
     // Guarded by the FINGERPRINT, which is the whole reason it is safe. A cached duration only means
-    // anything against the plan start, TE, schedule and shift handling it was measured under, and
+    // anything against the route start, TE, schedule and shift handling it was measured under, and
     // every one of those is editable between saving a run and reopening it. Same fingerprint, the
     // numbers describe the same problem and replaying them is free; different, and they are dropped
     // rather than quietly mixed into a ranking with chains priced under another clock.
@@ -7185,7 +7185,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (blocking.length || moved) {
       error.value = blocking.length
         ? blocking[0].message
-        : 'Your plan start or settings changed while the run was starting. Check them, then press Run.';
+        : 'Your route start or settings changed while the run was starting. Check them, then press Run.';
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
@@ -7340,7 +7340,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * thing as "what the live rate would read after one chunk" rather than a differently-biased guess.
    */
   /**
-   * Put the plan start back on the latest save after a run carried on with an older one: the pin
+   * Put the route start back on the latest save after a run carried on with an older one: the pin
    * held the run's own start, and a new plan from it would begin before the save it uses existed.
    */
   function resetPlanStartTo(ts: number | null | undefined): void {
@@ -7445,7 +7445,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineRun: DeadlineSendBase | null = null;
   /** The running date search's deadline (unix seconds), for its live best so far card; 0 when none ran. */
   const deadlineRunDeadline = ref(0);
-  /** The running date search's plan start and first-ascension setting, for Simulate this route on its
+  /** The running date search's route start and first-ascension setting, for Simulate this route on its
    *  best so far; null when none ran. */
   const deadlineRunPlan = ref<{ planStart: number; firstAscension: FirstAscension } | null>(null);
   /** What a progress send's CSV so far needs from the date search going now: its routes found so far
@@ -7756,7 +7756,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /**
    * "Use the save from <date> (TE N)" on a saved entry: its kept save as the active save, with the
-   * settings and plan start it was priced under put back.
+   * settings and route start it was priced under put back.
    */
   async function useEntrySave(
     playerId: string,
@@ -7949,7 +7949,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return;
     }
     if (!(spec.deadline > inputs.planStart)) {
-      error.value = 'The date is before the plan starts.';
+      error.value = 'The date is before the route starts.';
       return;
     }
     const key = runSaveKey(inputs);
@@ -9522,7 +9522,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTypicalShares = typicalShares.value[effort.value];
     runKindLevel = effort.value;
     // A fresh run's export must not carry the previous run's rows: the settings that give every
-    // duration its meaning (plan start, excluded hours, final target) may all have changed.
+    // duration its meaning (route start, excluded hours, final target) may all have changed.
     liveCache = [];
     coarseCache = [];
     resetChartData();
@@ -9893,7 +9893,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /**
    * `opts`, for a route that did not come from this store's last run (the instant answer's "Open this
-   * plan"): `start`, the plan start it was priced from (instead of `planStartUsed`, the last run's),
+   * plan"): `start`, the route start it was priced from (instead of `planStartUsed`, the last run's),
    * and `legs`, its simulated ascensions (for time off), since it is in none of this run's caches.
    * `firstAscension`: the setting the route was priced under (a saved By a date answer's own), which
    * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now. `firstKey`: the build
@@ -10191,7 +10191,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   );
   const chainLiveKey = ref('');
   const dateLiveKey = ref('');
-  // At the start and again at the end: anything a run moves itself (a pinned plan start, the save's
+  // At the start and again at the end: anything a run moves itself (a pinned route start, the save's
   // TE) doesn't count as the player changing the settings.
   watch(isRunning, () => (chainLiveKey.value = settingsKey.value));
   watch(deadlineRunning, () => (dateLiveKey.value = settingsKey.value));

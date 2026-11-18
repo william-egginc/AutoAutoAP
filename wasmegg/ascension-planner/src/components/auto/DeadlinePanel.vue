@@ -960,7 +960,7 @@
            for each stop count and the share box. -->
       <template #keep>
         <!-- Saved answers (SavedAnswers.vue). The CSV and the one Save (with its name) are on the card. The footer that
-             said the plan start, the save and the hours again is gone (UX fluff review 2, item D12): the card's meta
+             said the route start, the save and the hours again is gone (UX fluff review 2, item D12): the card's meta
              line says them once. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
           <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
@@ -1724,7 +1724,7 @@ const aroundPlan = computed(() =>
 /** Why Nearby routes' Find is greyed out, or ''. */
 const aroundIssue = computed(() => {
   if (!deadline.value) return '';
-  if (deadline.value <= store.planStart) return 'The date is before the plan starts.';
+  if (deadline.value <= store.planStart) return 'The date is before the route starts.';
   if (!simpleBoxes.value.chains.length || !rangeOf(simpleBoxes.value.lastBox))
     return 'Nothing to check yet: the save has to load first.';
   if (!aroundPlan.value.sets) return 'No route in these boxes goes up from your TE to the last stop.';
@@ -1807,7 +1807,7 @@ function rowSummary(k: number): string {
 }
 
 /** The instant answer's route for each number of ascensions (InstantRoute's `routes` event), for this
- *  save and plan start: what Suggest boxes centres on first. */
+ *  save and route start: what Suggest boxes centres on first. */
 const instantByCount = ref<Record<number, number[]>>({});
 /**
  * The instant answer arrived (or its exact check refined it): fill every chain box that is empty or
@@ -2309,7 +2309,7 @@ const runEstimate = ref(0);
 
 const startIssue = computed(() => {
   if (!deadline.value) return '';
-  if (deadline.value <= store.planStart) return 'The date is before the plan starts.';
+  if (deadline.value <= store.planStart) return 'The date is before the route starts.';
   if (simple.value && !activeChains.value.length) return 'Nothing to check yet: the save has to load first.';
   if (mode.value === 'space') {
     if (!simple.value && lastTooHigh.value) return LAST_TOO_HIGH;
@@ -2931,7 +2931,7 @@ const dateBetterCandidate = computed(() => {
 const dateFollowGoal = computed(() => (result.value ? screenGoalKey(result.value.deadline, store.finalTE) : null));
 /** "Follow this route" on the result card (ByDateRouteCard.vue): the finished result for this date, its level as the
  *  source; only a route that makes the date (lib/follow.ts `followableAnswer`, as Saved answers). */
-/** The same for a row of "Best for each stop count": the goal, source and plan start of the finished result. */
+/** The same for a row of "Best for each stop count": the goal, source and route start of the finished result. */
 const dateRowFollow = computed<Pick<ResultFollow, 'goalKey' | 'source' | 'planStart'> | null>(() => {
   const r = result.value;
   const g = dateFollowGoal.value;
@@ -2952,7 +2952,7 @@ const liveBest = computed(() => {
 });
 
 /** Simulate this route on the answer, or on the best so far (search/byDateSimulate.ts): the run's own
- *  plan start and first-ascension setting, into Your plan as the instant answer's rows go. */
+ *  route start and first-ascension setting, into Your plan as the instant answer's rows go. */
 const resultSim = computed(() => {
   const r = result.value as SavedDeadlineResult | null;
   return r && best.value
@@ -3004,7 +3004,7 @@ function dateTopFollowable(r: { chain: readonly number[] }): boolean {
   const res = result.value;
   return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);
 }
-/** Simulate this route on one of them: the same path as the card's (search/byDateSimulate.ts, the run's plan start). */
+/** Simulate this route on one of them: the same path as the card's (search/byDateSimulate.ts, the run's route start). */
 function simulateDateRoute(chain: number[]): void {
   const r = result.value as SavedDeadlineResult | null;
   const route = dateRoutesByKey.value.get(chain.join(','));

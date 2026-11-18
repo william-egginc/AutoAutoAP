@@ -406,8 +406,8 @@
           </li>
         </ul>
         <p>
-          <b>How the Leaderboard judges.</b> Plans are compared by the date they finish, not their length, since a length
-          counts from the plan's own start. What-ifs are kept but don't race. A newer save's price of the same plan
+          <b>How the Leaderboard judges.</b> Routes are compared by the date they finish, not their length, since a length
+          counts from the route's own start. What-ifs are kept but don't race. A newer save's price of the same route
           replaces the old one, better or worse, so re-running can't fish for a lucky number. For now the ranks count runs from sim3 and sim5 together; from 7 days
           after Release 9 only sim5 runs count. {{ NAMES.insights }} reads
           only the public rows; it can't see accounts, so it guesses them from timezone and artifacts.

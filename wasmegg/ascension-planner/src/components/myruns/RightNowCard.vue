@@ -354,7 +354,7 @@
             No virtue farm in this save, so nothing to do on a farm yet.
           </p>
           <p v-else class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
-            No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
+            No virtue farm in this save<template v-if="card?.plan.planStart">: the route starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
           </p>
           <!-- The state, as a badge on the egg's own line (lib/nowPhase.ts), its rate smaller underneath. -->
           <span v-if="notOnVirtue || phaseText" class="inline-flex flex-col items-start">
@@ -377,7 +377,7 @@
         </div>
         <p class="text-body text-slate-600">
           <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
-          <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
+          <template v-else-if="card && card.plan.planStart && ascNow === 0">route starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
           {{ Math.floor(teSoFar) }} TE so far
         </p>
       </div>

@@ -141,7 +141,7 @@ describe('useBackupPlanStart', () => {
 
 /**
  * The start belongs to one account (red team 21 Oct 2026, data-inputs #10): a save stamped in 2100 left
- * "Plan starts Dec 31, 2099" on every later save, and account A's start carried over to account B.
+ * "Route starts Dec 31, 2099" on every later save, and account A's start carried over to account B.
  * Joo's override rework (fcc9e764) stopped a reload bringing back a start nobody chose, but not these:
  * within a visit, and for an override, the start was still one for every account.
  */

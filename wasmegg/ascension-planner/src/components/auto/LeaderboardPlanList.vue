@@ -152,13 +152,13 @@
               <td :colspan="columns" class="p-0">
                 <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
                   <div v-if="p.earlier.length" class="text-small text-slate-600">
-                    <span class="font-bold">Earlier runs of this plan:</span>
+                    <span class="font-bold">Earlier runs of this route:</span>
                     <span v-for="(e, k) in p.earlier" :key="k">
                       {{ k ? ', ' : ' ' }}{{ plannedDay(e) }} (finish {{ finishDateText(e.finish, viewZone) }})
                     </span>
                   </div>
                   <div v-if="resends?.get(p)?.length" class="text-small text-slate-600">
-                    <span class="font-bold">Also sent as the same plan, counted once:</span>
+                    <span class="font-bold">Also sent as the same route, counted once:</span>
                     <span v-for="(e, k) in resends?.get(p) ?? []" :key="k">
                       {{ k ? ', ' : ' ' }}{{ resendText(e) }}
                     </span>
@@ -319,7 +319,7 @@ function originTitle(tag: string): string {
         "Sent under this player's name since the Leaderboard began stamping runs, but without the owner code their runs " +
         'carry. Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried". Anyone can send ' +
         "a run like this, though, so it never sets this line's best finish or its place in the race, and it is never " +
-        'used to judge their plans.'
+        'used to judge their routes.'
       );
     case 'before codes':
       return (
@@ -328,11 +328,11 @@ function originTitle(tag: string): string {
       );
     case 'no name':
       return (
-        "Sent without a name, from this player's timezone and artifacts. It is a newer run of a plan they sent before " +
-        'owner codes, so it counts as a re-run of that plan.'
+        "Sent without a name, from this player's timezone and artifacts. It is a newer run of a route they sent before " +
+        'owner codes, so it counts as a re-run of that route.'
       );
     default:
-      return "This player sent from more than one browser, and each keeps its own private code. Each browser's plans are judged by that browser's runs only.";
+      return "This player sent from more than one browser, and each keeps its own private code. Each browser's routes are judged by that browser's runs only.";
   }
 }
 
@@ -357,9 +357,9 @@ function resendText(e: Plan): string {
 function resendTitle(p: Plan): string {
   const more = props.resends?.get(p) ?? [];
   return (
-    `The same plan was also sent ${more.map(resendText).join(', ')}. Neither run can replace the other ` +
+    `The same route was also sent ${more.map(resendText).join(', ')}. Neither run can replace the other ` +
     '(one was sent without the owner code, from another browser, or within the hour), so both still count. ' +
-    'They finish within a day of each other, so they are listed as one plan and "Tried" counts it once. Open the ' +
+    'They finish within a day of each other, so they are listed as one route and "Tried" counts it once. Open the ' +
     'line for details.'
   );
 }

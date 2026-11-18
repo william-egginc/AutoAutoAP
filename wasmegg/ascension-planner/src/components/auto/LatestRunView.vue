@@ -166,7 +166,7 @@
             <HelpTip>
               Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
               half a day slower for one fewer ascension may well be the trade you want. Pick on the finish date, not the
-              day count: durations from different plan starts are not comparable.
+              day count: durations from different route starts are not comparable.
             </HelpTip>
           </h3>
           <button
@@ -303,7 +303,7 @@
                     <!-- When each stop is reached, and each egg's first and last shift and TE (RouteTimeline.vue). -->
                     <RouteTimeline v-if="row.legs.length" :chain="row.chain" :legs="row.legs" :zone="zone" />
                     <!-- No legs kept (past the run's leg budget, or a saved run reopened): worked out on one
-                         worker when asked (search/legsOnDemand.ts), from the run's plan start. -->
+                         worker when asked (search/legsOnDemand.ts), from the run's route start. -->
                     <div v-else class="space-y-1.5 text-small" data-testid="legs-on-demand">
                       <template v-if="demandOf(row)?.state === 'done'">
                         <p v-if="driftOf(row)" class="text-amber-800" data-testid="legs-on-demand-drift">{{ driftOf(row) }}</p>
@@ -616,7 +616,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
   };
 });
 
-/** The finish INSTANT, not the duration: durations from different plan starts are not comparable,
+/** The finish INSTANT, not the duration: durations from different route starts are not comparable,
  *  and the end date is the invariant a player actually plans around. */
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
@@ -650,12 +650,12 @@ function scheduleCost(row: ShortlistRow): number | null {
 
 /**
  * LEGS ON DEMAND (search/legsOnDemand.ts): a row without its legs, worked out on one worker when asked,
- * from the run's own plan start (`planStartUsed`; `collectInputs` reads the live one) with Fastest's
+ * from the run's own route start (`planStartUsed`; `collectInputs` reads the live one) with Fastest's
  * handoff ('now'). Cancelled when any search or Check exactly starts, and when this view closes.
  */
 const onDemand = createLegsOnDemand(createChainSearchPool);
 const stronger = useStrongerStore();
-/** The plan start the run's routes were priced from. */
+/** The route start the run's routes were priced from. */
 const runStart = computed(() => store.planStartUsed || store.planStart);
 const anythingRunning = computed(() => store.busy);
 watch(anythingRunning, on => on && onDemand.cancel());

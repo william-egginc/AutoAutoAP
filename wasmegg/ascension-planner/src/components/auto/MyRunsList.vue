@@ -341,7 +341,7 @@ function resultText(l: Line): string {
 function resultTitle(l: Line): string | undefined {
   if (l.kind === 'race') {
     const text = dayClock(msToSeconds(finishMs(l.row)), l.row.timezone);
-    return text ? `${text}, ${l.row.timezone || 'UTC'} time` : 'No finish date: the plan start or timezone is missing';
+    return text ? `${text}, ${l.row.timezone || 'UTC'} time` : 'No finish date: the route start or timezone is missing';
   }
   return `The highest TE this answer reaches by ${dayClock(l.row.deadline as number, props.viewZone) || '—'}`;
 }

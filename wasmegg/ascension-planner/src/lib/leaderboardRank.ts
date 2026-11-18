@@ -1213,7 +1213,7 @@ export function assessPlans<T extends BoardRow>(
     if (!e) return null;
     const low = whatIf.get(e);
     if (low) {
-      const which = low.start === e.start ? 'a run from the same plan start was at' : 'a later run started at';
+      const which = low.start === e.start ? 'a run from the same route start was at' : 'a later run started at';
       return { state: 'what-if', reason: `what-if: planned from TE ${e.te}, ${which} TE ${low.te}` };
     }
     const top = oldSave.get(e);
@@ -1246,7 +1246,7 @@ export function assessPlans<T extends BoardRow>(
   for (const p of plans) {
     if (p.start == null || p.finish == null) {
       p.state = 'no-date';
-      p.reason = 'no finish date (the plan start or timezone is missing)';
+      p.reason = 'no finish date (the route start or timezone is missing)';
       continue;
     }
     const off = offHistory(p.folded, p.start);
@@ -1270,7 +1270,7 @@ export function assessPlans<T extends BoardRow>(
       const when = dayOf(remeasure.start, remeasure.row);
       p.reason = remeasure.row.recheckOf
         ? `re-checked by a newer run (${when}), which priced it again from its own save`
-        : `replaced by a newer run of the same plan (${when})`;
+        : `replaced by a newer run of the same route (${when})`;
       p.replacedBy = byFolded.get(remeasure.f);
       continue;
     }
@@ -1285,7 +1285,7 @@ export function assessPlans<T extends BoardRow>(
       // The newest run that shows it wins the wording: it is the closest to "where you are now".
       if (e.te <= mark - BEHIND_TE) {
         const when = e === newest ? 'now' : `on ${dayOf(e.start, e.row)}`;
-        behind = `behind: at TE ${e.te} ${when}, the plan said ${mark.toFixed(1)}`;
+        behind = `behind: at TE ${e.te} ${when}, the route said ${mark.toFixed(1)}`;
       }
     }
     p.progress = last;
@@ -2359,7 +2359,7 @@ export function finishDateText(finish: number | null, timezone: string | undefin
 /** The full local finish and its zone, for a tooltip. */
 export function finishTitle(finish: number | null, timezone: string | undefined): string {
   const text = formatDate(finish, timezone, { dateStyle: 'medium', timeStyle: 'short' });
-  return text === '—' ? 'No finish date: the plan start or timezone is missing' : `${text}, ${timezone || 'UTC'} time`;
+  return text === '—' ? 'No finish date: the route start or timezone is missing' : `${text}, ${timezone || 'UTC'} time`;
 }
 
 /** The calendar day `ms` falls on in `timezone` (UTC for an unknown zone), as a day count. */
@@ -2426,7 +2426,7 @@ export function plannedText(plan: Plan, { zone, brief = false }: { zone?: string
   }
   if (plan.state === 'current' && plan.progress) {
     parts.push(
-      brief ? 'on track' : `on track (TE ${plan.progress.te}, plan said ${plan.progress.projected.toFixed(1)})`
+      brief ? 'on track' : `on track (TE ${plan.progress.te}, route said ${plan.progress.projected.toFixed(1)})`
     );
   }
   return parts.join(' · ');
@@ -2560,14 +2560,14 @@ function tagLookAlikes<T extends BoardRow>(g: readonly T[], out: Map<T, string[]
 export function settingTagTitle(tag: string): string {
   if (tag.startsWith('starts ')) {
     return (
-      'When this plan starts. Another run of this route to this target, from the same save and with the same ' +
+      'When this route starts. Another run of this route to this target, from the same save and with the same ' +
       'settings, starts at a different time. A different start shifts every ascension and the finish.'
     );
   }
   if (tag === 'finishes current run first' || tag === 'prestiges now') {
-    return 'Whether the first ascension finishes the run already under way or prestiges straight away. A look-alike of this plan from the same save was planned the other way.';
+    return 'Whether the first ascension finishes the run already under way or prestiges straight away. A look-alike of this route from the same save was planned the other way.';
   }
-  return 'Whether shifts are held. A look-alike of this plan from the same save was planned the other way.';
+  return 'Whether shifts are held. A look-alike of this route from the same save was planned the other way.';
 }
 
 /** What one copy of a result was found with, as the Effort column and the run detail show it:

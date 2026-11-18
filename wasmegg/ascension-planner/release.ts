@@ -37,7 +37,7 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-11-17T22:00:11Z', note: 'Target TE(s) checks your numbers. Ascensions from/to keep your edits. A link shows each ascension’s dates. Setup names hours and time off. A fresh first ascension no longer reads as under way.' },
   { at: '2026-11-17T22:00:10Z', note: 'Quick tour (22 slides) and Full tour (42 slides), in More and in the page footer. The Full tour can carry on from where the Quick tour ends. Show the tour again is in Setup' },
   { at: '2026-11-17T22:00:09Z', note: 'My runs follows the plan on your newest save and says “worked out on your save from…” for an older one. A box shows when the best for your date is below the TE you follow' },
-  { at: '2026-11-17T22:00:08Z', note: 'Setup shows When the plan starts in view, and on a smaller screen Setup is a round gear button at the bottom' },
+  { at: '2026-11-17T22:00:08Z', note: 'Setup shows When the route starts in view, and on a smaller screen Setup is a round gear button at the bottom' },
   { at: '2026-11-17T22:00:07Z', note: 'The save line says how old your save is. The silo warning shows only when your save is fresh and your silos are low; otherwise you just see the save’s age' },
   { at: '2026-11-17T22:00:06Z', note: 'Put my plan in my calendar is on in Setup: a private link for Google or Apple Calendar with your shifts, buys and ascensions, and a cloud calendar that updates itself. It may be a day behind' },
   { at: '2026-11-17T22:00:05Z', note: 'Instant answers use the newest simulator (sim5) where rebuilt, with a yellow note where one still comes from an older simulator. Answers can differ by about a week on a 490 route' },

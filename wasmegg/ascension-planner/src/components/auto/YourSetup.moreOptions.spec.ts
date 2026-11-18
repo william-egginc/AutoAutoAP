@@ -77,7 +77,7 @@ describe('Setup: what stays in view, what goes under More options', () => {
       'data-testid="share-instant"',
       'data-testid="share-baseline"',
       // 17 Nov 2026 (Jordan): the start time and the first ascension are in view, not under More options.
-      'When the plan starts</h3>',
+      'When the route starts</h3>',
       'First ascension</h3>',
     ])
       expect(shown, m).toContain(m);

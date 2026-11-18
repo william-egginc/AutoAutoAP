@@ -1,7 +1,7 @@
 /**
  * Two Leaderboard slips (site-wide fluff review 2, 5 Nov 2026, beyond-fluff item 5): By a date's tables said "Anonymous
  * answers are listed but not ranked, as in Fastest to N TE." with a literal N, and All runs showed plan length as
- * "380.000" (`durationDays.toFixed(3)`: days to a thousandth, no unit). Plan length now reads as By a date's Spare does,
+ * "380.000" (`durationDays.toFixed(3)`: days to a thousandth, no unit). Route length now reads as By a date's Spare does,
  * "380.0 d", and the line names the race tab as its own tab does ("Fastest to 490 TE", or "Fastest to a target TE").
  */
 import fs from 'node:fs';

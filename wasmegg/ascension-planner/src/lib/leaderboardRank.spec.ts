@@ -204,7 +204,7 @@ describe("Allan's daily re-run", () => {
       if (k > 1) {
         expect(allan.best.recheck).toEqual({ count: k, movedDays: 0, unchanged: true });
         expect(allan.best.earlier.map(p => p.reason)).toEqual(
-          Array.from({ length: k - 1 }, () => expect.stringContaining('replaced by a newer run of the same plan'))
+          Array.from({ length: k - 1 }, () => expect.stringContaining('replaced by a newer run of the same route'))
         );
       }
     }
@@ -476,7 +476,7 @@ describe('plans that no longer count', () => {
     expect(race.entries[0].dropped.map(d => [d.row.id, d.reason])).toEqual([
       ['whatif', 'what-if: planned from TE 215, a later run started at TE 199'],
     ]);
-    // Both runs keeping the same plan start means one save, and one save has one TE: the higher
+    // Both runs keeping the same route start means one save, and one save has one TE: the higher
     // one was typed in, whichever of the two was sent first.
     const judge = (rows: BoardRow[]) =>
       Object.fromEntries(
@@ -486,7 +486,7 @@ describe('plans that no longer count', () => {
     const before = row({ id: 'real3', startLocal: '2026-09-25 10:00', submittedAt: '2026-09-25T14:30:00Z' });
     for (const real of [after, before]) {
       expect(judge([whatIf, real])).toEqual({
-        whatif: ['what-if', 'what-if: planned from TE 215, a run from the same plan start was at TE 199'],
+        whatif: ['what-if', 'what-if: planned from TE 215, a run from the same route start was at TE 199'],
         [real.id!]: ['current', ''],
       });
     }
@@ -630,7 +630,7 @@ describe('plans that no longer count', () => {
     const p = buildRace([promise, now], { target: 490, now: NOW }).entries[0];
     expect(p.best.row.id).toBe('now');
     expect(p.dropped.map(d => [d.row.id, d.state, d.reason])).toEqual([
-      ['promise', 'behind', 'behind: at TE 199 now, the plan said 202.4'],
+      ['promise', 'behind', 'behind: at TE 199 now, the route said 202.4'],
     ]);
   });
 
@@ -699,7 +699,7 @@ describe('plans that no longer count', () => {
 
     it('still drops a plan the player is really behind', () => {
       // Early in the second leg but short of the stop the first leg reached.
-      expect(dropped([plan(), runAt(11, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      expect(dropped([plan(), runAt(11, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the route said 200.0']);
       // During a wait, below the TE the plan holds through it.
       const waits = plan({
         legs: [
@@ -708,9 +708,9 @@ describe('plans that no longer count', () => {
           { te: 490, days: 600, end: 640 },
         ],
       });
-      expect(dropped([waits, runAt(25, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the plan said 200.0']);
+      expect(dropped([waits, runAt(25, 197)])[0]).toEqual(['plan', 'behind', 'behind: at TE 197 now, the route said 200.0']);
       // Past the first 30% of a leg the straight line applies again: day 20 is half of 200 -> 225.
-      expect(dropped([plan(), runAt(20, 208)])[0]).toEqual(['plan', 'behind', 'behind: at TE 208 now, the plan said 212.5']);
+      expect(dropped([plan(), runAt(20, 208)])[0]).toEqual(['plan', 'behind', 'behind: at TE 208 now, the route said 212.5']);
     });
 
     it('ignores leg ends that do not add up and uses the straight line', () => {
@@ -756,7 +756,7 @@ describe('plans that no longer count', () => {
     expect(p.best.progress?.projected).toBeCloseTo(182.8, 1);
     expect(p.others.map(o => o.row.id)).toEqual(['probe']);
     // Read on the viewer's calendar, like the finish beside it: 21:21 UTC is already the 18th in Tokyo.
-    expect(plannedText(p.best, { zone: 'UTC' })).toMatch(/^17 Sep\w* · on track \(TE 182, plan said 182\.8\)$/);
+    expect(plannedText(p.best, { zone: 'UTC' })).toMatch(/^17 Sep\w* · on track \(TE 182, route said 182\.8\)$/);
     expect(plannedText(p.best, { zone: 'Asia/Tokyo', brief: true })).toMatch(/^18 Sep\w* · on track$/);
   });
 
@@ -1713,8 +1713,8 @@ describe('reason dates', () => {
     groupPlayers([first, again], { target: 490, now: NOW, zone })[0].plans.find(p => p.row.id === 'first')!.reason;
 
   it("reads them in the run's own zone by default, and on the calendar a board passes", () => {
-    expect(reason()).toBe('replaced by a newer run of the same plan (24 Sept)');
-    expect(reason('Europe/London')).toBe('replaced by a newer run of the same plan (25 Sept)');
+    expect(reason()).toBe('replaced by a newer run of the same route (24 Sept)');
+    expect(reason('Europe/London')).toBe('replaced by a newer run of the same route (25 Sept)');
   });
 });
 

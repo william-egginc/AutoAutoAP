@@ -8,7 +8,7 @@ describe('the instant card words', () => {
   it('today\'s words, unchanged', () => {
     expect(savedFromSentence({ when: 'Nov 3 at 11:19 AM' })).toBe('Saved from Nov 3 at 11:19 AM: same save, setup and filters, so nothing was worked out again.');
     expect(savedFromSentence({ when: 'Nov 3 at 11:19 AM', planStart: 'Nov 3 at 12:19 PM' })).toBe(
-      'Saved from Nov 3 at 11:19 AM: same save, setup and filters, so nothing was worked out again (its dates are for a plan start of Nov 3 at 12:19 PM).'
+      'Saved from Nov 3 at 11:19 AM: same save, setup and filters, so nothing was worked out again (its dates are for a route start of Nov 3 at 12:19 PM).'
     );
     expect(WORK_IT_OUT_AGAIN).toBe('Work it out again');
     expect(reachedLine({ time: 'Nov 20 at 9:00 AM', count: 1 })).toBe('Reached Nov 20 at 9:00 AM · 1 ascension');

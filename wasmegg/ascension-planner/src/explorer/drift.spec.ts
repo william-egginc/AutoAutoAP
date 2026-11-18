@@ -36,7 +36,7 @@ function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'id' | 'chain'>): 
   } as CollectorRow;
 }
 
-/** Plan starts at 10:00 Denver time (16:00 UTC in September) on day `n` after 1 Sep 2026. */
+/** Route starts at 10:00 Denver time (16:00 UTC in September) on day `n` after 1 Sep 2026. */
 const START = Date.parse('2026-09-01T16:00:00Z');
 
 /** A run planned to start `hours` after 10:00 on day `n`, sent five minutes after that. */

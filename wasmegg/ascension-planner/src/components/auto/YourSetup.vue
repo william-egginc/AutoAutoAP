@@ -13,7 +13,7 @@
   line names the workers and every value inside that isn't its default, by the same rule (the start time and the first
   ascension moved out into view, 17 Nov 2026).
 
-  The settings that change which route is fastest (plan start, hours, time off) lock while a search
+  The settings that change which route is fastest (route start, hours, time off) lock while a search
   runs: every route already priced was priced under the old ones. The machine settings don't, since
   a running search resizes to them.
 -->
@@ -54,7 +54,7 @@
         Setup
       </span>
       <span class="text-small text-slate-600"
-        >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
+        >Route starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
       >
       <span class="text-small text-slate-600"
         >First ascension <span class="font-bold text-slate-900">{{ firstLabel }}</span></span
@@ -357,13 +357,13 @@
         </fieldset>
       </div>
 
-      <!-- When the plan starts (17 Nov 2026, Jordan: out of More options, into the Setup panel itself; QA the same day: up under Time
+      <!-- When the route starts (17 Nov 2026, Jordan: out of More options, into the Setup panel itself; QA the same day: up under Time
            off, in the first screenful): the start time and the first ascension, in view. Its figures are in the header line and
            More options' line no longer names them. -->
       <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-        <h3 class="text-slate-600 label">When the plan starts</h3>
+        <h3 class="text-slate-600 label">When the route starts</h3>
         <SchedulingInputs />
-        <!-- An unset start means "now", which moves on every reload, and plan start is part of the
+        <!-- An unset start means "now", which moves on every reload, and route start is part of the
              run fingerprint: a checkpoint saved before a refresh stops matching. -->
         <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
           No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
@@ -390,7 +390,7 @@
             Choosing here changes it there too.
           </p>
           <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
-            The plan starts more than an hour from now, so there's no current ascension to continue then: the first
+            The route starts more than an hour from now, so there's no current ascension to continue then: the first
             ascension starts fresh, as in the {{ NAMES.classic }}.
           </p>
         </div>
@@ -617,12 +617,12 @@
                opened tall ("Memory · detail kept" in This computer) doesn't leave a blank beside it, as a grid row
                did (26 Oct 2026). One column on a phone, in the same order. The full-width cards follow in a grid. -->
           <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
-            <!-- Your save file: Load a save file with its warning, and what the plan starts from. -->
+            <!-- Your save file: Load a save file with its warning, and what the route starts from. -->
             <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
               <h3 class="text-slate-600 label">Your save file</h3>
               <!-- A save kept as a file ("Download this save" on a saved answer or run) back as the active save. -->
               <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
-              <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
+              <!-- What the route starts from, besides the artifacts: leg 1 continues an already-built farm,
                    and every later leg funds its own research out of earnings. -->
               <dl class="grid grid-cols-2 gap-3 text-body break-words border-t border-slate-100 pt-3">
                 <div>
@@ -1029,7 +1029,7 @@ const firstChoice = computed<FirstAscension>({
 const firstLabel = computed(
   () => FIRST_ASCENSION_CHOICES.find(c => c.value === store.firstAscension)?.label.replace(' (default)', '') ?? ''
 );
-/** Classic offers continue only for a plan starting within an hour of now; the search follows it. */
+/** Classic offers continue only for a route starting within an hour of now; the search follows it. */
 /** The More options line (lib/setupMore.ts): the workers, and whatever else in there isn't its default. */
 const { prefs: tabPrefs } = useTabPrefs(() => !!store.submitUrl);
 /** 18 March 2027, 13:15 here, as DateStyleToggle.vue shows it. */

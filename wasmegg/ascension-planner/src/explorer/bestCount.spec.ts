@@ -39,7 +39,7 @@ function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'chain' | 'current
   } as CollectorRow;
 }
 
-/** Plan starts on consecutive days at 10:00 in the default zone (America/Denver, MDT in September). */
+/** Route starts on consecutive days at 10:00 in the default zone (America/Denver, MDT in September). */
 const START = Date.parse('2026-09-01T16:00:00Z');
 const dayOf = (n: number) => new Date(Date.UTC(2026, 8, 1 + n)).toISOString().slice(0, 10);
 const iso = (n: number) => new Date(START + n * DAY_MS + 5 * 60_000).toISOString();

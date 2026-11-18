@@ -364,7 +364,7 @@
           >
           <template v-if="resumableLimitsNote">{{ ' ' }}{{ resumableLimitsNote }}</template>
           <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)"
-            >{{ ' ' }}It puts the plan start back to
+            >{{ ' ' }}It puts the route start back to
             <span class="font-bold">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
             >, the time it was priced from.</template
           >
@@ -886,16 +886,16 @@
           detail="other options, charts, and when each stop and egg happens"
         />
 
-        <!-- A plan start that slides is the quietest way to lose a checkpoint, and it cost a real
+        <!-- A route start that slides is the quietest way to lose a checkpoint, and it cost a real
              user a 778-chain run: after a rebuild the start moved 10:39 -> 17:44, the fingerprint
              changed, and the saved run simply stopped being offered. -->
         <div
           v-if="store.planStartIsNow"
           class="p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-900 space-y-1.5"
         >
-          <p class="font-bold text-amber-700">No plan start is set</p>
+          <p class="font-bold text-amber-700">No route start is set</p>
           <p>
-            Setup has no plan start date and time, so this plan is timed from
+            Setup has no route start date and time, so this route is timed from
             <span class="font-bold">right now</span>, and "now" moves every time you reload.
           </p>
           <p>
@@ -1394,7 +1394,7 @@ const {
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV card. */
 const { downloadCsv, downloadXlsx } = useRunDownloads(store);
 
-/** The finish INSTANT, not the duration: durations from different plan starts are not comparable,
+/** The finish INSTANT, not the duration: durations from different route starts are not comparable,
  *  and the end date is the invariant a player actually plans around. */
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
@@ -1553,7 +1553,7 @@ onMounted(() => void store.checkResumable(props.playerId));
 // The integrity check up front (search/rules.ts), so a stalled account says so before Start.
 useIntegrityProbe(() => props.playerId);
 
-// A checkpoint resumes only onto the same inputs, plan start aside (resuming restores it; see
+// A checkpoint resumes only onto the same inputs, route start aside (resuming restores it; see
 // search/persistence.ts's fingerprint), so re-check whenever anything that changes what a duration
 // MEANS changes.
 watch(

@@ -317,11 +317,11 @@
           </label>
 
           <p v-if="!race || !race.entries.length" class="text-body text-indigo-900/60 py-6 text-center">
-            No named player has a current plan to {{ target }} yet. To join, pick “Credit me as” when you share a
+            No named player has a current route to {{ target }} yet. To join, pick “Credit me as” when you share a
             result.
           </p>
           <p v-else-if="!raceShown.length" class="text-body text-indigo-900/60 py-6 text-center">
-            Nobody within {{ NEAR_TE }} TE of you has a current plan to {{ target }}.
+            Nobody within {{ NEAR_TE }} TE of you has a current route to {{ target }}.
           </p>
           <!-- A size container, so an opened player's plans can be exactly as wide as what is on
                screen (100cqw) however wide the table itself is. On a phone the route sits under
@@ -369,7 +369,7 @@
                           type="button"
                           class="text-slate-600 hover:text-indigo-700"
                           :aria-expanded="!!openPlayers[e.key]"
-                          :aria-label="`Show all of ${e.label}'s plans`"
+                          :aria-label="`Show all of ${e.label}'s routes`"
                           @click="openPlayers[e.key] = !openPlayers[e.key]"
                         >
                           {{ openPlayers[e.key] ? '⌄' : '›' }}
@@ -460,7 +460,7 @@
                         {{ scheduleText(e.best.row.window) }}
                       </td>
                       <td class="py-2 pr-3 text-right text-slate-600 whitespace-nowrap" :title="triedTitle(e)">
-                        {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
+                        {{ e.plansTried }} {{ e.plansTried === 1 ? 'route' : 'routes' }}
                       </td>
                       <!-- Use and Follow this route are in the opened row (fluff review 2, L13): the plan list there has
                            them on each plan, the best one first. -->
@@ -493,7 +493,7 @@
                               @use="c => emit('use', c)"
                             />
                             <p v-if="e.listed.length" class="mt-1 text-small text-slate-600">
-                              "vs best" only compares plans made from the same save as the best one and priced by the
+                              "vs best" only compares routes made from the same save as the best one and priced by the
                               same version of the planner.
                             </p>
                           </div>
@@ -532,13 +532,13 @@
 
           <details v-if="race && race.waiting.length" class="text-body text-indigo-900/80">
             <summary class="cursor-pointer font-bold">
-              No current plan to {{ target }} ({{ race.waiting.length }}
+              No current route to {{ target }} ({{ race.waiting.length }}
               {{ race.waiting.length === 1 ? 'player' : 'players' }})
             </summary>
             <ul class="mt-1 space-y-0.5">
               <li v-for="w in race.waiting" :key="w.key">
                 <span class="font-bold">{{ w.label }}</span>
-                <span class="text-slate-600">: {{ w.dropped[0]?.reason || 'no plan that counts' }}</span>
+                <span class="text-slate-600">: {{ w.dropped[0]?.reason || 'no route that counts' }}</span>
               </li>
             </ul>
           </details>
@@ -549,29 +549,29 @@
           <BoardFold :title="`How Fastest to ${target} TE is judged`" testid="race-judged">
             <ul class="ml-4 list-disc space-y-1">
               <li>Anonymous runs are not ranked here, so add a name to join. {{ tabLabel('all') }} lists every run.</li>
-              <li>A player's line is their earliest-finishing plan that still counts.</li>
+              <li>A player's line is their earliest-finishing route that still counts.</li>
               <li>
-                A plan stops counting when a newer run of the same plan replaces it. The newest run wins whether it
-                finishes earlier or later, and a newer run's automatic re-check of the plan replaces it too. A plan also
-                stops counting when a newer run shows the player 2 or more TE behind where the plan said they would be,
+                A route stops counting when a newer run of the same route replaces it. The newest run wins whether it
+                finishes earlier or later, and a newer run's automatic re-check of the route replaces it too. A route also
+                stops counting when a newer run shows the player 2 or more TE behind where the route said they would be,
                 when it is a what-if (it starts more than 12 hours after it was sent or before its save, or was planned
                 from a higher TE than the save or a later run shows), or when it is older than 30 days.
               </li>
               <li>
                 Only the player's own runs can do that: runs sent from the same browser (the Leaderboard matches a private
                 code that is never shown) or, for runs sent before codes existed, runs with the same name or the same
-                timezone and artifacts. Nobody can knock a plan out by sending runs under someone else's name.
+                timezone and artifacts. Nobody can knock a route out by sending runs under someone else's name.
               </li>
               <li>
                 Each player gets one line. Runs from a second browser (a second code) join it when the name, timezone,
-                artifacts and TE agree, and each browser's plans are judged by that browser's runs. Runs sent under the
+                artifacts and TE agree, and each browser's routes are judged by that browser's runs. Runs sent under the
                 name without a code since codes began join it the same way, tagged
                 <span class="font-bold">no code</span>. Anyone could have sent those, so they never set the line's
                 finish or place. A name marked <span class="font-bold">(no code)</span> or
                 <span class="font-bold">(other code)</span> is one of these lines that did not fit, and it may be
                 somebody else.
               </li>
-              <li>"Tried" counts each plan once, however often it was run or sent.</li>
+              <li>"Tried" counts each route once, however often it was run or sent.</li>
             </ul>
           </BoardFold>
         </template>
@@ -709,7 +709,7 @@
                       >
                     </td>
                     <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
-                    <td v-if="!narrow" class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
+                    <td v-if="!narrow" class="pr-3 py-1" :title="e.best.startLocal ? `route start ${e.best.startLocal}` : undefined">
                       {{ e.best.currentTE ?? '—' }} TE
                     </td>
                     <td v-if="!narrow" class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
@@ -768,13 +768,13 @@
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
         <!-- One line (fluff review 2, L17); the rest behind "How this list works". -->
-        <p class="text-body text-indigo-900/80 max-w-prose">Every run sent. Compare finish dates, not plan length.</p>
+        <p class="text-body text-indigo-900/80 max-w-prose">Every run sent. Compare finish dates, not route length.</p>
         <BoardFold title="How this list works" testid="all-how">
           <p class="max-w-prose">
             A result sent more than once shows once, with how many times it was sent; open it to see each copy and its
             CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent under a player's name
-            without their code since codes began is tagged <span class="font-bold">no code</span>. Plan length counts
-            from each run's own start, so it shrinks every day a plan is run again. A route's length on someone else's
+            without their code since codes began is tagged <span class="font-bold">no code</span>. Route length counts
+            from each run's own start, so it shrinks every day a route is run again. A route's length on someone else's
             account says little about yours until you open it and press <span class="font-bold">Use</span>.
           </p>
         </BoardFold>
@@ -1538,9 +1538,9 @@ function triedTitle(e: RaceEntry): string {
       : '';
   const codeless = e.noCode?.size ?? 0;
   const noCode = codeless
-    ? ` That includes ${codeless} ${codeless === 1 ? 'plan' : 'plans'} sent under this name without the owner code, tagged "no code". Those are listed and counted, but never set this line's finish or place.`
+    ? ` That includes ${codeless} ${codeless === 1 ? 'route' : 'routes'} sent under this name without the owner code, tagged "no code". Those are listed and counted, but never set this line's finish or place.`
     : '';
-  return `${sent}${from}. Each plan counts once, however often it was run or sent.${noCode}`;
+  return `${sent}${from}. Each route counts once, however often it was run or sent.${noCode}`;
 }
 
 // ----------------------------------------------------------------------- the viewer's own runs
@@ -1592,7 +1592,7 @@ const anonPlace = computed(() => {
   if (!r || !best || r.entries.some(isMe)) return '';
   const place = placeFor(r, best.finish);
   if (place == null) return '';
-  return `You'd be #${place} of ${r.entries.length + 1} if you added a name: your best plan finishes ${finishDateText(best.finish, viewZone)}. Only you see this line.`;
+  return `You'd be #${place} of ${r.entries.length + 1} if you added a name: your best route finishes ${finishDateText(best.finish, viewZone)}. Only you see this line.`;
 });
 
 // -------------------------------------------------------------------------------- all runs
@@ -1624,9 +1624,9 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
   // out in the header it wrapped onto four lines.
   {
     key: 'durationDays',
-    label: 'Plan length',
+    label: 'Route length',
     right: true,
-    title: "Days from the plan's own start, so the same plan run a day later is a day shorter. Compare finishes.",
+    title: "Days from the route's own start, so the same route run a day later is a day shorter. Compare finishes.",
   },
   // Worked out from the start and the length, never read from the local `endLocal` text, which
   // sorts wrong across timezones.

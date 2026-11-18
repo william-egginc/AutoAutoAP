@@ -71,7 +71,7 @@
         </div>
         <!-- In the viewer's zone first, like every date on the board, then the player's own. -->
         <div class="flex justify-between gap-3">
-          <span class="shrink-0">Plan starts</span>
+          <span class="shrink-0">Route starts</span>
           <span class="font-bold text-right"
             >{{ startText.main
             }}<span v-if="startText.own" class="block font-normal text-slate-600">{{ startText.own }}</span></span
@@ -80,7 +80,7 @@
         <!-- Counted from the plan's own start, so it shrinks every day the same plan is run
              again. The finish date below is the number that holds still. -->
         <div class="flex justify-between gap-3">
-          <span>Plan length</span>
+          <span>Route length</span>
           <span class="font-bold">{{ lengthText }}</span>
         </div>
         <div class="flex justify-between gap-3">

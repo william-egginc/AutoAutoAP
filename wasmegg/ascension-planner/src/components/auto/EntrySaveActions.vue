@@ -11,7 +11,7 @@
         type="button"
         class="font-bold text-violet-700 hover:text-violet-900 disabled:opacity-40"
         :disabled="store.busy || ui.loading || using"
-        title="Load this save into the planner as your active save, with this entry's plan start and settings"
+        title="Load this save into the planner as your active save, with this entry's route start and settings"
         @click="use"
       >
         <template v-if="using">Loading the save<AnimatedDots /></template

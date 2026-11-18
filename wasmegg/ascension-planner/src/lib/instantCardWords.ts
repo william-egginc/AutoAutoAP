@@ -9,9 +9,9 @@
 
 // ---- Today's words, moved unchanged ----
 
-/** The saved-from sentence. `when`: the saved time as the app writes it; `planStart`: the plan start the dates use, if any. */
+/** The saved-from sentence. `when`: the saved time as the app writes it; `planStart`: the route start the dates use, if any. */
 export function savedFromSentence(o: { when: string; planStart?: string | null }): string {
-  const start = o.planStart ? ` (its dates are for a plan start of ${o.planStart})` : '';
+  const start = o.planStart ? ` (its dates are for a route start of ${o.planStart})` : '';
   return `Saved from ${o.when}: same save, setup and filters, so nothing was worked out again${start}.`;
 }
 
