@@ -1,8 +1,14 @@
 /**
- * The My runs "Try next" pill that names the Fastest-to-N tile it opens (17 Nov 2026, Jordan: it read "Exact on my 490 route" beside a
- * followed route for Egg Day 2027). DRAFT: Words owns the text (asked 17 Nov 2026). The pill's "›" is drawn by TryNext.vue, not here.
- * A *Words.ts file: wording only, never part of the result code hash.
+ * The Try next pills' goal-naming labels (Words, 17 Nov 2026). The Exact pill belongs to the Fastest-to-N tile, not to the
+ * route you follow, so it says so. The component adds the trailing "›". A *Words.ts file: wording only.
  */
+
+/** "Exact on Fastest to 490 TE" */
 export function exactRacePill(target: number): string {
-  return `Exact on Fastest to ${target}`;
+  return `Exact on Fastest to ${target} TE`;
+}
+
+/** "Custom on Fastest to 490 TE (around 5 ascensions)": optional; the plain "Custom (around 5 ascensions)" is fine beside the Exact pill. */
+export function customRacePill(target: number, ascensions: number | null): string {
+  return ascensions ? `Custom on Fastest to ${target} TE (around ${ascensions} ascensions)` : `Custom on Fastest to ${target} TE`;
 }
