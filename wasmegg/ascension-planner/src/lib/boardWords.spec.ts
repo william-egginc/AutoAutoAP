@@ -47,7 +47,7 @@ describe('No literal "N" left on the Leaderboard (spec-fluff2-bugs left three, 5
   });
   it('My runs intro, the no-target line and the "no code" tooltip', () => {
     const words = template.replace(/\s+/g, ' ');
-    expect(words).toContain('Egg Day, Fastest to any target TE, and other dates');
+    expect(words).toContain('Egg Day, Fastest to any target TE, other dates');
     expect(words).toContain('Pick a target TE above: the race needs one finish line.');
     // The tooltip names the race as its tab does ("Fastest to 490 TE", or "Fastest to a target TE").
     expect(panel).toMatch(/so in \$\{tabLabel\('race'\)\} it never sets the player's finish or place/);

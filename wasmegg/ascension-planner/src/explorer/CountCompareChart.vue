@@ -70,10 +70,10 @@
       v-if="comparisons.length"
       v-model:hidden="hidden"
       :entries="legendEntries"
-      label="Lines: click to hide or show"
+      label="Lines: press to hide or show"
     />
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
-      No account here has submitted two different ascension counts against this target yet, so there is nothing to
+      No account here has sent two different ascension counts against this target yet, so there is nothing to
       compare. One Custom run covering a range of counts would answer it outright.
     </p>
     <div

@@ -85,8 +85,8 @@
         <p class="text-small text-slate-600">
           {{
             goal === 'date'
-              ? 'The highest TE each number of ascensions reaches: further right is higher. Tap one for its route.'
-              : 'The earliest finish for each number of ascensions: further left is sooner. Tap one for its route.'
+              ? 'The highest TE each number of ascensions reaches: further right is higher. Press one for its route.'
+              : 'The earliest finish for each number of ascensions: further left is sooner. Press one for its route.'
           }}
         </p>
         <ul class="space-y-0.5" role="list">

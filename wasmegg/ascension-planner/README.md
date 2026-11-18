@@ -54,7 +54,7 @@ that choice.
 
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
-- **Auto Planner** (was Single run, before that Your plan, Classic): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
+- **Auto Planner** (was Single run, before that Your plan, Classic): Joo's own auto planner. Type the TEs to ascend at and it lays out every ascension.
   Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
 - **Chain Finder** (Fastest to 490 TE and Highest TE by a date, on one switch: Target TE | By a date)
   - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
@@ -132,7 +132,7 @@ that choice.
   Low); **Try next**; **Your routes at a glance** (folded: a heat map of your routes, one goal at a time, by
   ascension count and finish date or TE, the best route starred, with "The same routes as a list"); then **Your
   runs** (the latest run or All my runs, with filters): runs on the Leaderboard that are yours or look like yours, the hidden ones too,
-  runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
+  runs saved on your phone or computer, and results not sent yet. Each run's details say **What was searched**.
   Saving the same run or answer again updates its entry instead of adding a copy (the button then reads "Saved ✓";
   `search/runLibrary.ts` `runIdentity`, `lib/savedAnswerIdentity.ts`), and copies saved before that are merged when
   the list is read. **Download this save** (Saved runs, Saved answers) writes the kept save with every player ID
@@ -324,7 +324,7 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
   `--delay-near`, `--delay-passes`, `--singles-only`; `--handoff hour` prestiges on the hour as the site does.
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
   `--nickname`: the re-checks, a table with per-ascension detail for the top 20,000 routes, diagnostics with
-  `--diagnostics`; no shared instant baseline and no best so far. To any collector not on your own machine
+  `--diagnostics`; no shared instant answer and no best so far. To any collector not on your own machine
   it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
 - Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`

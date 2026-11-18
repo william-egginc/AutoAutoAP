@@ -221,7 +221,7 @@
           :class="setTab === t ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-800'"
           @click="setTab = t"
         >
-          {{ t === 'delivery' ? 'production' : t }}
+          {{ t }}
         </button>
       </div>
       <div v-for="(slot, k) in setTab === 'earnings' ? row.earnings : row.delivery" :key="k" class="mb-1">
@@ -317,11 +317,11 @@
           <span class="font-bold">{{ marginDays === null ? '—' : marginDays.toFixed(3) + ' d' }}</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Median in space</span>
+          <span>Median in the boxes</span>
           <span class="font-bold">{{ row.proof.spread.median.toFixed(3) }} d</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Worst in space</span>
+          <span>Worst in the boxes</span>
           <span class="font-bold">{{ row.proof.spread.worst.toFixed(3) }} d</span>
         </div>
       </div>

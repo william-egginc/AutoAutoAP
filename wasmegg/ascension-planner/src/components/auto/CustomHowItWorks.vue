@@ -44,7 +44,7 @@
     </p>
     <p>
       <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-      first, so on a space with long routes "Stopping…" can sit for a minute or two. Nothing is lost: everything
+      first, so with long routes "Stopping…" can sit for a minute or two. Nothing is lost: everything
       priced so far stays, and the best of it is your answer.
     </p>
   </div>

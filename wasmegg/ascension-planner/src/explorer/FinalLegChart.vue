@@ -28,7 +28,7 @@
       v-if="points.length"
       v-model:hidden="hidden"
       :entries="legendEntries"
-      label="Accounts: click to hide or show"
+      label="Accounts: press to hide or show"
     />
     <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run to 490 TE here carries both per-ascension detail and a delivery set yet.

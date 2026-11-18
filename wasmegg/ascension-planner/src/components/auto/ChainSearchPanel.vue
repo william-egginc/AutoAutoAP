@@ -668,7 +668,7 @@
                     </th>
                     <th class="py-2 pr-3">
                       Start
-                      <HelpTip>When this ascension begins, in your plan's timezone.</HelpTip>
+                      <HelpTip>When this ascension begins, in the plan’s timezone.</HelpTip>
                     </th>
                     <th class="py-2 pr-3">
                       Finish

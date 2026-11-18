@@ -273,7 +273,7 @@
               The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
               range below.
             </p>
-            <p v-else class="font-bold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+            <p v-else class="font-bold text-rose-700">Nothing to check yet: the save has to load first.</p>
             <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
               <span class="font-bold text-slate-800">Ascensions</span>

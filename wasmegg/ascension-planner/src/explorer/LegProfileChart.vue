@@ -65,7 +65,7 @@
       v-if="withLegs.length"
       v-model:hidden="hidden"
       :entries="legendEntries"
-      label="Accounts: click to hide or show"
+      label="Accounts: press to hide or show"
     />
     <p class="text-small text-slate-600 px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
