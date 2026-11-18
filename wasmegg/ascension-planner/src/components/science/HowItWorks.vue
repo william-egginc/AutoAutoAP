@@ -172,8 +172,9 @@
           above it. A full set is about 90 hours of one processor core.
         </p>
         <p>
-          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator. A few
-          accounts also have one of their own. There are two kinds of answer:
+          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator (sim5). Some
+          accounts and gear sets also have one of their own. It uses the best one it has and says which. There are three
+          kinds of answer:
         </p>
         <ul class="hw-list">
           <li>
@@ -182,15 +183,19 @@
             checks this every time and says which one it used.
           </li>
           <li>
-            <b>The maxed answer moved to your gear</b> (the adjusted answer), for everyone else. Your weaker earnings
+            <b>A table for your gear set,</b> built for the same gear (for example "wood_420"). When two tables sit either side of
+            your gear, the page can use the nearer one, even one built from another account's runs.
+          </li>
+          <li>
+            <b>The maxed answer moved to your gear</b> (the adjusted answer, "form G"), for everyone else. Your weaker earnings
             set, colleggtibles and lab upgrade count as a lower TE, and the waits run at your own delivery rate. Your
             first ascension is worked out from your own save.
           </li>
         </ul>
         <p>
-          Files built with an older simulator are not used. The page can also use a file built for a gear set exactly
-          like yours, and show a range between stronger and weaker gear, but only from files built with the current
-          simulator.
+          Files built with an older simulator are not used: the 22 old gear tables from sim3 and sim4 are skipped, with
+          a yellow note. The page can also show a range between stronger and weaker gear, but only from files built with
+          the current simulator.
         </p>
         <p>
           The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
@@ -244,9 +249,9 @@
       <div class="hw-body">
         <p>
           Each line says what was compared, the result, and how it was measured. A percentage is of the ascension's own
-          length (a 0.1% error on a 30-day ascension is about 43 minutes). Every check here was made between 1 and 13
-          Oct 2026, on the simulator the site ran before 21 Oct. The site has run Joo's newer simulator since 21 Oct
-          (section 6), and none of these checks has been repeated on it yet.
+          length (a 0.1% error on a 30-day ascension is about 43 minutes). Most checks here were made between 1 and 13
+          Oct 2026, on an older simulator (sim3). From Release 9 the site runs sim5 (section 6). Only the first check below
+          has been repeated on sim5; the rest have not been repeated on it yet.
         </p>
         <div class="space-y-2">
           <div v-for="c in CHECKS" :key="c.what" class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
@@ -284,9 +289,9 @@
             <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
-            <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 PM, on that
-            day's code: 13 instant answers, 15 starts each, rebuilt from scratch, and all 195 came out identical. The simulator changed on 21 Oct 2026, so the
-            check has not been repeated on it yet.
+            <b>This simulator, bit for bit.</b> The last check was on 17 Nov 2026, on this simulator (sim5): 62 of 62 starts
+            rebuilt on a second computer came out identical, and 15 of 15 whole starting TEs rebuilt from scratch matched byte for byte.
+            The 13 Oct 2026 check on sim3 (13 instant answers, 15 starts each, all 195 identical) was not repeated beyond this.
           </li>
         </ul>
       </div>
@@ -379,7 +384,8 @@
         <p>
           <b>How the Leaderboard judges.</b> Plans are compared by the date they finish, not their length, since a length
           counts from the plan's own start. What-ifs are kept but don't race. A newer save's price of the same plan
-          replaces the old one, better or worse, so re-running can't fish for a lucky number. {{ NAMES.insights }} reads
+          replaces the old one, better or worse, so re-running can't fish for a lucky number. For now the ranks count runs from sim3 and sim5 together; from 7 days
+          after Release 9 only sim5 runs count. {{ NAMES.insights }} reads
           only the public rows; it can't see accounts, so it guesses them from timezone and artifacts.
         </p>
       </div>
@@ -411,8 +417,8 @@
             inside its boxes.
           </li>
           <li>
-            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › More options › Experimental (on the beta
-            site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2:00 PM to keep 248 TE", then
+            <b>"Prestige by…" (experimental, needs more data).</b> It is off by default; turn it on in Setup › More options › Experimental (it starts on
+            on the beta site). A line under the instant answer like "Prestige by Fri Nov 27, 2:00 PM to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
             route finder. In five test cases from one account, with awake hours off and an older model where the farm stopped
@@ -428,9 +434,9 @@
             route sits on the edge of a box, and it has more spare than one TE costs: let it finish, or widen the boxes.
           </li>
           <li>
-            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in this
-            site since 21 Oct 2026. Every instant answer (one per gear set) was simulated with the older one, so each
-            says so until it is simulated again, about 55 to 70 hours on a 16-core PC for all of them.
+            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in sim5, which
+            the site runs from Release 9. The instant answers are rebuilt on it. Where one still comes from an older
+            simulator, the page says so in a yellow note.
           </li>
         </ul>
         <p>
@@ -473,12 +479,18 @@ import PrivacyTip from '@/components/PrivacyTip.vue';
 import { SCIENCE_CREDIT_NAME, SCIENCE_NOTHING_UNLESS } from '@/lib/privacyWords';
 
 /** The date every number here was last checked. */
-const UPDATED = 'Oct 21, 2026';
+const UPDATED = 'Nov 17, 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [
   {
-    what: 'The same start gives the same answer on any machine',
+    what: 'The same start gives the same answer on any machine, on sim5',
+    result:
+      'Identical to the bit. 62 of 62 starts rebuilt on a second computer matched, and 15 of 15 whole starting TEs rebuilt from scratch were byte for byte the same.',
+    how: 'rebuilding individual starts from scratch and comparing every number (15-17 Nov 2026, simulator sim5).',
+  },
+  {
+    what: 'The same start gives the same answer on any machine, on sim3',
     result:
       "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 starts (13 instant answers, 15 starts each) matched on that day's code.",
     how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',

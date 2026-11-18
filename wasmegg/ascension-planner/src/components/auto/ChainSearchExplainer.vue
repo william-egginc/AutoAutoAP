@@ -122,7 +122,7 @@
         </div>
 
         <div>
-          <p class="font-bold text-slate-800 mb-2">What 109 runs from players have shown (29 Sept)</p>
+          <p class="font-bold text-slate-800 mb-2">What the first 109 runs from players showed (29 Sept)</p>
           <ul class="space-y-2 list-disc list-outside pl-4">
             <li>
               <span class="font-bold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
@@ -281,9 +281,7 @@
           <p class="mt-3">
             So the starting route matters a lot. That's why, since 6 Oct, the search starts from the instant answer's
             fastest route inside your limits (a route you type still wins): the instant answer has already looked at
-            every route, so the search starts on the right hill far more often. Until 12 Oct there was a "Find a starting
-            route for me" button instead; it was rough: on the two accounts tested, its pick was
-            <span class="font-bold text-slate-800">8.6 and 12.0 days</span> slower than where the search finished. If
+            every route, so the search starts on the right hill far more often. If
             the start is on the wrong hill, every later step does a careful job on the wrong hill. To catch that, run
             twice from different starting routes and compare, or use {{ NAMES.fullFirst }}, which prices every route in
             a space you choose.
@@ -291,8 +289,8 @@
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-800">
             What you get is a strong local best. Nobody has proven it's the best overall, and the search can't tell you
             how far off it might be. The accuracy figures for each effort level come from three accounts, and only one
-            of those has a proven best to check against. That's also why there are no confidence percentages here: three
-            data points can't honestly be turned into one. For a proven best inside boxes you choose, use
+            of those has a proven best to check against. That's also why there is no confidence percentage for the search itself: three
+            data points can't honestly be turned into one. The only miss-chance we give (about 1 to 2 in 100) is for one account and one start time. For a proven best inside boxes you choose, use
             {{ NAMES.fullFirst }}. How the instant answer, this search and {{ NAMES.full }} were checked against each
             other and against brute force is on
             <a href="#/science/how" class="font-bold underline">{{ NAMES.science }} › {{ NAMES.how }}</a
