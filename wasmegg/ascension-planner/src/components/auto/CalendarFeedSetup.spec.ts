@@ -138,7 +138,7 @@ describe('where it is, and what it is not', () => {
 
 describe('Words\' final lines (14 Nov 2026)', () => {
   it('the linked line, the 3-links error and the Save online error', () => {
-    expect(W.CAL_LINKED).toBe('You have a link. It was shown only once, when you made it. Press Reset link to make a new one.');
+    expect(W.CAL_LINKED).toBe("You have a link, but it can't be shown again. Press Reset link to make a new one.");
     expect(W.CAL_ERRORS.limit).toBe('You already have 3 links. Press Reset link, then Get link.');
     expect(W.CAL_RESET_ASK).toBe('Every link you made stops working at once. Your calendar will need a new one. Reset?');
     expect(W.CAL_RESET_DONE).toBe('Done. Your old links no longer work.');

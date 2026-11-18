@@ -15,8 +15,8 @@ export const CAL_APPLE = 'Add to Apple Calendar';
 export const CAL_GOOGLE = 'Add to Google Calendar';
 export const CAL_RESET = 'Reset link';
 
-export const CAL_SHOWN_ONCE = "Copy it now. It is shown only once. Anyone with this link can see your plan, so don't post it.";
-export const CAL_LINKED = 'You have a link. It was shown only once, when you made it. Press Reset link to make a new one.';
+export const CAL_SHOWN_ONCE = "Here is your link. Anyone with it can see your planned shifts and times, so don't post it.";
+export const CAL_LINKED = "You have a link, but it can't be shown again. Press Reset link to make a new one.";
 export const CAL_RESET_ASK = 'Every link you made stops working at once. Your calendar will need a new one. Reset?';
 export const CAL_RESET_YES = 'Reset';
 export const CAL_RESET_NO = 'Keep it';
