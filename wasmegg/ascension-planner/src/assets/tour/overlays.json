@@ -128,13 +128,13 @@
   "ch": 620,
   "rect": {
    "x": 776,
-   "y": 27,
+   "y": 33,
    "w": 109,
    "h": 48
   },
   "ring": {
    "x": 768,
-   "y": 19,
+   "y": 25,
    "w": 125,
    "h": 64
   },
@@ -143,7 +143,7 @@
   "arrow": {
    "dir": "up",
    "x": 831,
-   "y": 85,
+   "y": 91,
    "len": 120
   },
   "overText": false,
@@ -264,16 +264,16 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 63,
-   "y": 336,
-   "w": 506,
-   "h": 60
+   "x": 14,
+   "y": 340,
+   "w": 641,
+   "h": 74
   },
   "ring": {
-   "x": 55,
-   "y": 328,
-   "w": 522,
-   "h": 76
+   "x": 6,
+   "y": 332,
+   "w": 657,
+   "h": 90
   },
   "mag": "9-filters-desk-mag",
   "tabs": [
@@ -285,12 +285,12 @@
    }
   ],
   "arrow": {
-   "dir": "left",
-   "x": 579,
-   "y": 366,
+   "dir": "up",
+   "x": 335,
+   "y": 424,
    "len": 120
   },
-  "overText": false,
+  "overText": true,
   "inset": {
    "sprite": "strip-chain-desk",
    "rect": {
@@ -410,20 +410,20 @@
   "rect": {
    "x": 273,
    "y": 290,
-   "w": 149,
+   "w": 156,
    "h": 39
   },
   "ring": {
    "x": 265,
    "y": 282,
-   "w": 165,
+   "w": 172,
    "h": 55
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 432,
+   "x": 440,
    "y": 310,
    "len": 120
   },
@@ -532,13 +532,13 @@
   "ch": 620,
   "rect": {
    "x": 776,
-   "y": 27,
+   "y": 33,
    "w": 109,
    "h": 48
   },
   "ring": {
    "x": 768,
-   "y": 19,
+   "y": 25,
    "w": 125,
    "h": 64
   },
@@ -547,7 +547,7 @@
   "arrow": {
    "dir": "up",
    "x": 831,
-   "y": 85,
+   "y": 91,
    "len": 120
   },
   "overText": false,
@@ -573,13 +573,13 @@
   "ch": 620,
   "rect": {
    "x": 33,
-   "y": 264,
+   "y": 270,
    "w": 978,
    "h": 21
   },
   "ring": {
    "x": 25,
-   "y": 256,
+   "y": 262,
    "w": 994,
    "h": 37
   },
@@ -587,7 +587,7 @@
   "tabs": [
    {
     "x": 772,
-    "y": 23,
+    "y": 29,
     "w": 117,
     "h": 56
    }
@@ -595,7 +595,7 @@
   "arrow": {
    "dir": "left",
    "x": 1021,
-   "y": 275,
+   "y": 281,
    "len": 66
   },
   "overText": false,
@@ -621,13 +621,13 @@
   "ch": 620,
   "rect": {
    "x": 46,
-   "y": 464,
+   "y": 441,
    "w": 952,
    "h": 37
   },
   "ring": {
    "x": 38,
-   "y": 456,
+   "y": 433,
    "w": 968,
    "h": 53
   },
@@ -635,16 +635,16 @@
   "tabs": [
    {
     "x": 772,
-    "y": 23,
+    "y": 29,
     "w": 117,
     "h": 56
    }
   ],
   "arrow": {
-   "dir": "up",
-   "x": 522,
-   "y": 511,
-   "len": 90
+   "dir": "left",
+   "x": 1008,
+   "y": 460,
+   "len": 66
   },
   "overText": false,
   "inset": {
@@ -664,27 +664,34 @@
   }
  },
  "tracker-desk": {
-  "base": "19-tracker-base-desk",
+  "base": "4-tab-myruns-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
    "x": 46,
-   "y": 270,
+   "y": 554,
    "w": 952,
    "h": 33
   },
   "ring": {
    "x": 38,
-   "y": 262,
+   "y": 546,
    "w": 968,
    "h": 49
   },
   "mag": null,
-  "tabs": [],
+  "tabs": [
+   {
+    "x": 772,
+    "y": 29,
+    "w": 117,
+    "h": 56
+   }
+  ],
   "arrow": {
    "dir": "left",
    "x": 1008,
-   "y": 287,
+   "y": 571,
    "len": 66
   },
   "overText": false,
@@ -1711,7 +1718,7 @@
    "y": 136,
    "len": 120
   },
-  "overText": true,
+  "overText": false,
   "inset": {
    "sprite": "fstrip-myruns-desk",
    "rect": {
@@ -2047,21 +2054,7 @@
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "strip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "goalTarget-phone": {
   "base": "6-goal-target-base-phone",
@@ -2165,22 +2158,22 @@
   "ch": 440,
   "rect": {
    "x": 16,
-   "y": 228,
+   "y": 156,
    "w": 358,
    "h": 56
   },
   "ring": {
    "x": 8,
-   "y": 220,
+   "y": 148,
    "w": 374,
    "h": 72
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "down",
+   "dir": "up",
    "x": 195,
-   "y": 218,
+   "y": 222,
    "len": 70
   },
   "overText": true,
@@ -2289,20 +2282,20 @@
   "rect": {
    "x": 29,
    "y": 224,
-   "w": 149,
+   "w": 156,
    "h": 44
   },
   "ring": {
    "x": 21,
    "y": 216,
-   "w": 165,
+   "w": 172,
    "h": 60
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "left",
-   "x": 188,
+   "x": 195,
    "y": 246,
    "len": 70
   },
@@ -2430,21 +2423,7 @@
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "strip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "followedRoute-phone": {
   "base": "4-tab-myruns-base-phone",
@@ -2478,21 +2457,7 @@
    "len": 53
   },
   "overText": false,
-  "inset": {
-   "sprite": "strip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "nextStep-phone": {
   "base": "18-next-step-base-phone",
@@ -2500,13 +2465,13 @@
   "ch": 440,
   "rect": {
    "x": 46,
-   "y": 144,
+   "y": 36,
    "w": 298,
    "h": 79
   },
   "ring": {
    "x": 38,
-   "y": 136,
+   "y": 28,
    "w": 314,
    "h": 95
   },
@@ -2515,39 +2480,25 @@
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 233,
+   "y": 125,
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "strip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "tracker-phone": {
-  "base": "19-tracker-base-phone",
+  "base": "18-next-step-base-phone",
   "cw": 390,
   "ch": 440,
   "rect": {
    "x": 46,
-   "y": 135,
+   "y": 233,
    "w": 298,
    "h": 98
   },
   "ring": {
    "x": 38,
-   "y": 127,
+   "y": 225,
    "w": 314,
    "h": 114
   },
@@ -2556,25 +2507,11 @@
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 243,
+   "y": 341,
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "strip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "shifts-phone": {
   "base": "22-shifts-base-phone",
@@ -3501,7 +3438,7 @@
    "y": 177,
    "len": 53
   },
-  "overText": true,
+  "overText": false,
   "inset": {
    "sprite": "fstrip-myruns-phone",
    "rect": {
@@ -3543,21 +3480,7 @@
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "fstrip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 332,
-    "w": 217,
-    "h": 100
-   },
-   "ring": {
-    "x": 115,
-    "y": 364,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "r3tryNext-phone": {
   "base": "62-r3-try-next-base-phone",
@@ -3647,13 +3570,13 @@
   "ch": 440,
   "rect": {
    "x": 45,
-   "y": 132,
+   "y": 43,
    "w": 303,
    "h": 144
   },
   "ring": {
    "x": 37,
-   "y": 124,
+   "y": 35,
    "w": 319,
    "h": 160
   },
@@ -3662,25 +3585,11 @@
   "arrow": {
    "dir": "up",
    "x": 197,
-   "y": 286,
+   "y": 197,
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "fstrip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 100
-   },
-   "ring": {
-    "x": 115,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "r6boardRuns-phone": {
   "base": "64-r5-your-runs-base-phone",
@@ -3707,21 +3616,7 @@
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "fstrip-myruns-phone",
-   "rect": {
-    "x": 8,
-    "y": 332,
-    "w": 217,
-    "h": 100
-   },
-   "ring": {
-    "x": 115,
-    "y": 364,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "full-tabInsights-phone": {
   "base": "36-full-tab-insights-base-phone",

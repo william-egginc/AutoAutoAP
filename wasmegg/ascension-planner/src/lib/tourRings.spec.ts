@@ -138,9 +138,11 @@ describe('tour picture overlays (v4)', () => {
 
   it('the page badge (17 Nov 2026): every slide whose picture is on a page has the little tab strip, that page\'s tab ringed; the Setup dialog slides have none', () => {
     const none = ['setupAwake', 'setupInside', 'setupTimeOff'];
+    // R9 H3 (18 Nov 2026): on these phone slides no corner of the crop was clear of every ring, arrow and copy, so they have no badge.
+    const noRoomOnPhone = ['tabMyruns', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'r2gearSets', 'r5yourRuns', 'r6boardRuns'];
     for (const [name, o] of entries) {
       const id = name.replace(/-(desk|phone)$/, '');
-      if (none.includes(id)) expect(o.inset, name).toBeNull();
+      if (none.includes(id) || (name.endsWith('-phone') && noRoomOnPhone.includes(id))) expect(o.inset, name).toBeNull();
       else {
         expect(o.inset, name).toBeTruthy();
         expect(o.inset!.sprite, name).toMatch(/^f?strip-(manual|auto|chain|myruns|compare|science)-(desk|phone)$/);
