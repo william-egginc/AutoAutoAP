@@ -79,7 +79,7 @@
       <span
         class="ml-auto px-3 py-1.5 rounded-lg label"
         :class="ui.setupOpen ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
-        >{{ ui.setupOpen ? 'Close setup' : 'Edit setup' }}</span
+        >{{ ui.setupOpen ? 'Close Setup' : 'Edit Setup' }}</span
       >
     </button>
 

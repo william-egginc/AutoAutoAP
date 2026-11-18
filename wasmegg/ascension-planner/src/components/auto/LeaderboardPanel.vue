@@ -42,8 +42,8 @@
   <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <p class="flex-1 min-w-[14rem] text-body text-indigo-900/80">
-        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to any
-        target TE, and other dates, and the ones hidden from the public. Open one for its details, or press
+        Every run this browser sent for your account, and older runs with your timezone and artifacts. That covers Egg Day, Fastest to any
+        target TE, other dates, and the runs you hid from the public. Open one for its details, or press
         <span class="font-bold">Use</span> to open its route in the Auto Planner, without running it. The Auto Planner doesn't use your awake hours.
       </p>
       <button
@@ -289,7 +289,7 @@
       <p v-else-if="loading && !allRows.length" class="text-body text-indigo-900/60 py-6 text-center">Loading<AnimatedDots /></p>
 
       <p v-else-if="!allRows.length" class="text-body text-indigo-900/60 py-6 text-center">
-        Nothing submitted yet. Run a search and use <span class="font-bold">Share this result</span>.
+        Nothing sent yet. Run a search and use <span class="font-bold">Share this result</span>.
       </p>
 
       <!-- ================================================================== RACE -->
@@ -590,7 +590,7 @@
           <p class="max-w-prose">
             From {{ NAMES.chainFinder }}'s <span class="font-bold">{{ NAMES.byDate }}</span> search<template v-if="tab === 'eggday'">
               with the Egg Day preset</template
-            ><template v-else>, one table per date</template>, using each player's best answer.
+            ><template v-else>, one list per date</template>, using each player's best answer.
             <template v-if="tab === 'eggday'">The weekly research sale and Monday's 2x are in the simulator. Egg Day has no effect on the Path, and other events aren't simulated.</template>
             <template v-else>Egg Day {{ eggDayYear }} has its own tab.</template>
           </p>

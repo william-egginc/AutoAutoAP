@@ -76,7 +76,7 @@ describe('About and privacy page', () => {
     expect(upload).not.toMatch(/useConsent|consentAgreed/);
     if (AUTO_FOLLOW_FIRST)
       expect(text).toContain(
-        'Three things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
+        'Some things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
       );
     else expect(text).not.toContain('The route you follow can be saved online by itself');
     expect(text).toContain(
@@ -256,7 +256,7 @@ describe('About and privacy page', () => {
       'Before it is packed, the planner replaces anything shaped like a player ID, and an answer that still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB packed), the pricing and then the extras are left out; if it is still too big, it is not saved.'
     );
     expect(text).toContain(
-      "It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser has no answer for that goal, once per page load. There is no switch to turn it off. If the planner's server can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser, and it is not saved online until a later answer is."
+      "It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser has no answer for that goal, once per page load. The Save online switch in Setup turns it off. If the planner's server can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser, and it is not saved online until a later answer is."
     );
     expect(text).toContain('Your instant answers No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.');
     // What it says must stay true: the follow key, the scrub before gzip, the caps, the fields, the one write.
@@ -418,7 +418,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('no address is stored.');
     expect(text).toContain('deleted about 3 days after the search ends.');
     expect(text).toContain('it does not check whether the page is still open. If you close the tab, the page tries to say so.');
-    expect(text).toContain('No switch: this is on for every long search for as long as the maintainer is updating the site. It will be switched off later. Nothing about you or your account is sent.');
+    expect(text).toContain('No switch: this is on for every long search for as long as the maintainer is updating the site. Nothing about you or your account is sent.');
   });
   it('the storage table lists synced records, the calendar link and long-search records, and its IP row agrees with the long-search section (review W3, 15 Nov 2026)', () => {
     expect(text).toContain('Your starting TE, tracker ticks and plan No time limit. They stay until you delete them (see Delete it above).');
@@ -454,7 +454,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('The maintainer can see it too. A plan shows what you are planning to buy and when.');
     expect(text).toContain('Not saved online: your save, your player ID, a name or a route.');
     expect(text).toContain('How long it is kept: until you delete it.');
-    expect(text).toContain('The switch: Save online in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this device saves nothing online and shows nothing from online, and what is already saved online stays until you delete it.');
+    expect(text).toContain('The switch: Save online in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this browser saves nothing online and shows nothing from online, and what is already saved online stays until you delete it.');
     expect(text).toContain('After it, Save online is off on this device.');
     expect(text).toContain('Delete everything saved online for this account deletes everything saved online under your code');
   });

@@ -99,7 +99,7 @@ export function goalShiftWords(when: string): string {
 /** DRAFT (Words to review): the egg you are on, no shift back to it in the plan's next shifts. */
 export const GOAL_ON_EGG_WORDS = "you're on this egg now";
 /** DRAFT (Words to review): no shift to this egg in the plan's next shifts. */
-export const GOAL_NO_SHIFT_WORDS = "not in the plan's next shifts";
+export const GOAL_NO_SHIFT_WORDS = "not in this route's next shifts";
 
 /** How sure an egg's goal time is (lib/eggGoalTimes.ts): `at` the end of its last stint (the threshold crossed then);
  *  `by` a late bound; `byAbout` approximate (awake hours on). */
@@ -113,4 +113,4 @@ export function goalEggWords(te: number | null, when: string, bound: EggGoalBoun
   return bound === 'at' ? `${lead} on ${when}` : bound === 'by' ? `${lead} by ${when}` : `${lead} by about ${when}`;
 }
 /** Reviewed 13 Nov 2026: no later stint on the plan; the egg is at its goal (the game expert's "done on this plan", with why). */
-export const GOAL_EGG_DONE_WORDS = 'done: no more shifts to it on this plan';
+export const GOAL_EGG_DONE_WORDS = 'done: no more shifts to it on this route';

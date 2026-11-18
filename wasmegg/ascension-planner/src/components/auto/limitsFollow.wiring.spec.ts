@@ -111,10 +111,10 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
         maxAsc: 8,
         minRows: 1,
         placeholder: '',
-        sliderLead: 'Suggest a space tries',
+        sliderLead: 'Suggested boxes try',
       },
       { 'asc-after': ({ k }: { k: number }) => (k === 0 ? h('span', '(from the instant answer)') : null) }
     );
-    expect(textOf(html)).toMatch(/Box 1 Ascensions \(from the instant answer\) Suggest a space/);
+    expect(textOf(html)).toMatch(/Box 1 Ascensions \(from the instant answer\) Suggest boxes/);
   });
 });

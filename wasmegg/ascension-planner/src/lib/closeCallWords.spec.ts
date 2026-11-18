@@ -27,7 +27,7 @@ describe('close call: a By a date answer with under 2 days to spare (13 Nov 2026
   });
   it('points to a Custom result that found a lower TE, and calls it confirmed', () => {
     expect(closeCallLine({ te: 314, found: { level: 'Custom', endTE: 313 } })).toBe(
-      'Custom found 313 TE for this date, which is confirmed. The 314 TE above may miss.'
+      'Custom confirmed 313 TE for this date. The 314 TE above may miss.'
     );
   });
   it('a finished Custom result at the same TE or higher confirms it: no close-call line at all (review T12); Fast and Exact do not confirm', () => {

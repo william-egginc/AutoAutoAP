@@ -26,7 +26,7 @@
         <header class="space-y-1">
           <h1 class="text-headline font-black text-slate-900">Insights</h1>
           <p class="text-body text-slate-600 max-w-3xl">
-            Every run submitted to the planner's server, grouped by how many ascensions it takes. Pick a count to see where
+            Every run sent to the planner's server, grouped by how many ascensions it takes. Pick a count to see where
             each ascension lands, how long each one runs, and whether the shape repeats across accounts.
           </p>
         </header>
@@ -91,7 +91,7 @@
             </p>
             <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-600 max-w-prose">
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
-              (minutes x workers); runs from older versions and from uploads did not.
+              (minutes × workers); runs from older versions and from uploads did not.
             </p>
             <div v-if="!loading" class="space-y-0.5 text-body text-slate-600">
               <p v-if="folded.hidden.size">
@@ -190,7 +190,7 @@
           </summary>
           <div class="mt-2 space-y-2">
             <p class="leading-relaxed">
-              <b class="text-slate-700">Accounts are a guess.</b> Submissions carry no player id by design, so an
+              <b class="text-slate-700">Accounts are a guess.</b> Runs you send carry no player ID by design, so an
               "account" here is one timezone plus one set of virtue artifacts. People who retype their nickname every
               run still group correctly; two people in the same timezone with identical artifact sets would be merged
               into one.
@@ -247,8 +247,8 @@
             One target at a time, because a 300 route and a 490 route are different problems and their stops do not sit
             in the same places.
             <template v-if="exhaustiveOnly">
-              Proofs only: runs that enumerated a stated space and finished it, so the winner is the optimum of that
-              space rather than the best thing a search happened to find.
+              Proofs only: runs that priced every route in a stated box and finished, so the winner is the best of that
+              box rather than the best thing a search happened to find.
             </template>
           </p>
         </section>
@@ -409,7 +409,7 @@
             <div class="mt-2 space-y-2">
               <h3 class="text-slate-600 label">The runs</h3>
               <p class="text-body text-slate-600 max-w-3xl">
-                Grouped by account, earliest finish first unless you pick another order below; click an account's name
+                Grouped by account, earliest finish first unless you pick another order below; press an account's name
                 to fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone
                 (the player's own is on hover): it is the same whenever the same plan is run, so it is what compares
                 between an account's runs. <b>Plan length</b> counts from each run's own start, so a run made a day
@@ -501,7 +501,7 @@
                         :aria-sort="ariaSort('ascensions')"
                       >
                         <button type="button" :class="sortHeadClass('ascensions')" @click="sortRunsBy('ascensions')">
-                          Asc.<span aria-hidden="true">{{ sortArrow('ascensions') }}</span>
+                          Asc<span aria-hidden="true">{{ sortArrow('ascensions') }}</span>
                         </button>
                       </th>
                       <th class="text-left py-1 pr-3" :aria-sort="ariaSort('te')">
@@ -968,7 +968,7 @@
             </p>
             <p class="text-small text-slate-600">
               A wide range means the exact value barely matters; a range one or two TE wide means it does. Both are
-              measured against the space this run actually enumerated, so a range that runs to the edge of that space is
+              measured against the box this run actually priced, so a range that runs to the edge of that box is
               telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
               extra ascensions save, which is why this starts at 1 day. The chart marks the same line and the last
               stop's range.

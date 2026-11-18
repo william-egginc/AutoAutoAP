@@ -7,5 +7,5 @@
 export function safariStartWords(s: { workers: number; chosen: number } | null | undefined): string {
   if (!s || s.workers === s.chosen) return '';
   const w = s.workers === 1 ? '1 worker' : `${s.workers} workers`;
-  return `Safari starts runs with ${w}, not the ${s.chosen} you chose, because it has stopped runs that used more. Results are the same, only the time changes. Pick a number here to use it for this visit.`;
+  return `Safari starts runs with ${w}, not the ${s.chosen} you chose, because it has stopped runs that used more. Results are the same; only the time changes. Pick a number here to use it for this visit.`;
 }

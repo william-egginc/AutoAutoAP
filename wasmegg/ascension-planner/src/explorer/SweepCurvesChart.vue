@@ -183,7 +183,7 @@
       v-if="curves.length"
       v-model:hidden="hidden"
       :entries="legendEntries"
-      label="Runs: click to hide or show"
+      label="Runs: press to hide or show"
     />
     <p v-else-if="current" class="px-4 py-6 text-center text-body text-slate-600">
       Load the tables to draw this sweep.

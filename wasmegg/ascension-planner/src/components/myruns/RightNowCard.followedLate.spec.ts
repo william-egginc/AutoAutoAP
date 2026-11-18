@@ -79,7 +79,7 @@ describe('Right now: a followed route that lands after the date, beside the inst
     const html = await render({ times: 'estimate', end: JUL17, late: true });
     const t = textOf(html);
     expect(html).toContain('data-testid="now-followed-late"');
-    expect(t).toMatch(/Your followed route lands about Jul 17, 2027, after Egg Day starts/);
+    expect(t).toMatch(/The route you follow lands about Jul 17, 2027, after Egg Day starts/);
   });
   it('not followed, or not late: no line', async () => {
     expect(await render()).not.toContain('now-followed-late');

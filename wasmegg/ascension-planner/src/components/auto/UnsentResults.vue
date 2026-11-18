@@ -1,5 +1,5 @@
 <!--
-  "This result wasn't sent to the leaderboard: Send it now". Finished results this browser kept for
+  "This result wasn't sent to the Leaderboard: Send it now". Finished results this browser kept for
   sending (search/pendingSends.ts) that have not reached the board: the page went before the send
   landed, or nothing sent them. Each goes with its own payload and CSV, as the run left them, so it
   works after a reload and whatever save is loaded now. With the player's yes already given (Find and
@@ -34,7 +34,7 @@
       <template v-else>
         <div class="flex flex-wrap items-center gap-3">
           <span
-            ><span class="font-bold">This result wasn't sent to the leaderboard:</span> {{ p.label }}, from
+            ><span class="font-bold">This result wasn't sent to the Leaderboard:</span> {{ p.label }}, from
             {{ ago(p.createdAt) }}.</span
           >
           <button

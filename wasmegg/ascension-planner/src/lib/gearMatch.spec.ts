@@ -47,9 +47,9 @@ describe('whichSet', () => {
   });
 
   it('the Gear row names it', () => {
-    expect(equippedName('earnings')).toBe('Equipped now = your earnings set');
-    expect(equippedName('production')).toBe('Equipped now = your delivery set');
-    expect(equippedName('mix')).toBe('Equipped now = a mix');
+    expect(equippedName('earnings')).toBe('Equipped now: your earnings set');
+    expect(equippedName('production')).toBe('Equipped now: your delivery set');
+    expect(equippedName('mix')).toBe('Equipped now: a mix of both');
     expect(equippedName(null)).toBe('Equipped now');
   });
 });

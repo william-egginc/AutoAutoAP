@@ -32,7 +32,7 @@ describe('BuildUpTracker: a save still coming in', () => {
     expect(t).toContain('Build-up tracker reading your save...');
     expect(t).not.toContain('check-ins done');
     expect(html).toContain('data-testid="buildup-checking"');
-    expect(t).toContain('Reading your save: its ticks show once it is in.');
+    expect(t).toContain('Reading your save. Ticks show once it has loaded.');
     expect(html).not.toContain('data-testid="buildup-replan"');
   });
 });

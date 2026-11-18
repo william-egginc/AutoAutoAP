@@ -170,7 +170,7 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Setup changed since this plan. Get the instant answer for your Setup ›');
+    expect(changed).toContain('Setup has changed since this plan was made. Get the instant answer for your Setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
@@ -348,7 +348,7 @@ describe('your eggs and Try next', () => {
     const pills = tryNextPills({ tile: { goal: 'fastest', answer: null, olderSave: false, sure: null }, target: 490 }, tile());
     const t = textOf(await renderHtml(TryNext, { pills, line: 'One more TE by Egg Day 2027 (249) would need about 1.6 more days.' }));
     expect(t).toContain('Egg Day, Fast ›');
-    expect(t).toContain('Exact on Fastest to 490 TE ›');
+    expect(t).toContain('Exact on Fastest to 490 ›');
     expect(t).toContain('One more TE by Egg Day 2027 (249)');
   });
 
@@ -364,7 +364,7 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('Equipped now');
     expect(t).toContain('Earnings set');
     expect(t).toContain('+6 Clothed TE vs equipped');
-    expect(t).toContain('Production set');
+    expect(t).toContain('Delivery set');
     // By a date: the time to the same TE, not "+4 TE"; one line, after "Missing for a perfect set".
     expect(t).toContain("With a perfect set you'd reach 248 TE about 4.0 days sooner (an estimate from the instant answer).");
     expect(t).not.toContain('+4 TE');

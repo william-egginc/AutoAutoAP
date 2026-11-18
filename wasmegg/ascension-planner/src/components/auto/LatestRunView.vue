@@ -327,7 +327,7 @@
                         <p class="text-slate-600">
                           This run didn't keep this route's stops (it keeps them for its fastest routes, and a saved
                           run reopened keeps only its best).
-                          <template v-if="demandOf(row)?.state === 'failed'"> Working them out didn't work this time.</template>
+                          <template v-if="demandOf(row)?.state === 'failed'"> They couldn't be worked out this time.</template>
                           <template v-else-if="demandOf(row)?.state === 'cancelled'"> Stopped.</template>
                         </p>
                         <button

@@ -181,10 +181,10 @@
       </div>
       <p>
         <b class="text-slate-600">—</b> tried, but no finish at that count still stands (a what-if, a replaced plan, one
-        the player has fallen behind; hover or tap it for the reason). <i class="text-slate-600">hidden</i>: tried, but
-        with no finished box at that count, so Proofs only leaves those runs out. Blank: not tried. Hover or tap a cell
-        for the route, its finish date, how it searched and how the step from the next count down weighs up: a tap (or a
-        click) opens it under the cell's row.
+        the player has fallen behind; hover or press it for the reason). <i class="text-slate-600">hidden</i>: tried, but
+        with no finished box at that count, so Proofs only leaves those runs out. Blank: not tried. Hover or press a cell
+        for the route, its finish date, how it searched and how the step from the next count down weighs up: pressing it
+        opens it under the cell's row.
       </p>
     </div>
   </div>

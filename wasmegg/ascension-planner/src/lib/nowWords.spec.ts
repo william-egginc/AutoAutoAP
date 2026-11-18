@@ -158,7 +158,7 @@ describe('roundToHourIn: the instant answer times to the hour on the player cloc
 describe('the goal row says what the spare is measured against (Jordan, 12 Nov 2026)', () => {
   it('names the date, and for the instant answer the plan it comes from', () => {
     const e = ev({ at: NOW + 244 * 86400, kind: 'goal', spareHours: 65 });
-    expect(howFar(e, NOW, ZONE, true)).toBe("in 244d · 2d 17h spare before this date, on the instant answer's plan");
+    expect(howFar(e, NOW, ZONE, true)).toBe("in 244d · 2d 17h spare before this date, on the instant answer's route");
   });
 });
 

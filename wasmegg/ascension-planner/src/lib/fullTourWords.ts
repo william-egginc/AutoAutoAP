@@ -26,15 +26,15 @@ const OWN: Record<OwnId, { title: string; body: string }> = {
   m7send: { title: "Send to the Leaderboard", body: "Tick this to send the result to the Leaderboard when it finishes. Never your player ID or your save. The line under it, Before you send, shows what goes." },
   m8whatThisDoes: { title: "What this does", body: "What this does says what the search checks, and what it leaves out." },
   m9searchSettings: { title: "Settings", body: "Settings shows where the search starts, which ascension counts it tries and how many routes it may check." },
-  m10maxedGear: { title: "Maxed gear", body: "What if you had maxed gear? finds your route again as if all your gear were maxed (all legendary, T4 stones). It is a ballpark, to show what is possible." },
-  m11steppingAway: { title: "Stepping away", body: "Stepping away? has helpers for a long search: carry on after a crash, watch it from your phone, and send progress." },
+  m10maxedGear: { title: "Maxed gear", body: "The What if you had maxed gear? line finds your route again as if all your gear were maxed (all legendary, T4 stones). It is a ballpark, to show what is possible." },
+  m11steppingAway: { title: "Stepping away", body: "The Stepping away? fold has helpers for a long search: carry on after a crash, watch it from your phone and send progress." },
   m12howItWorks: { title: "How it works", body: "How it works opens Science, which shows how the answer is worked out and how it was checked." },
   r1changeRoute: { title: "Change route", body: "Change route is where you stop following, go back to an earlier version, or follow another route by typing or picking one." },
-  r2gearSets: { title: "Gear sets", body: "Gear sets for the route shows what you wear now, the earnings set, the production set, and what you are missing for a perfect set." },
-  r3tryNext: { title: "Try next", body: "Try next has the next searches to run: Egg Day, Fast; Exact on my 490 route; and Custom (around 5 ascensions). The numbers come from your route." },
-  r4share: { title: "Share my instant answer", body: "Share my instant answer with my runs sends its route and date beside each run you send, so the Leaderboard shows what the search gained. Never your ID or save." },
+  r2gearSets: { title: "Gear sets", body: "The Gear sets for the route fold shows what you wear now, the earnings set, the delivery set, and what you are missing for a perfect set." },
+  r3tryNext: { title: "Try next", body: "The Try next buttons are the next searches to run: Egg Day, Fast; Exact on Fastest to 490; and Custom (around 5 ascensions). The numbers come from your route." },
+  r4share: { title: "Share my instant answer", body: "The Share my instant answer with my runs tick sends its route and date with each run, so the Leaderboard shows what the search gained. Never your player ID or your save." },
   r5yourRuns: { title: "Your runs", body: "Your runs lists your searches: the latest Fastest, the latest By a date, or all of them. Each is compared with the instant answer for your save that day." },
-  r6boardRuns: { title: "Leaderboard runs", body: "Your runs on the Leaderboard lists the runs you sent. A run of yours isn't here? says why a run is missing, from its id." },
+  r6boardRuns: { title: "Leaderboard runs", body: "The “Your runs on the Leaderboard” fold lists the runs you sent. The “A run of yours isn’t here?” fold says why a run is missing, from its id." },
 };
 const OWN_ALT: Record<OwnId, string> = {
   tabLeaderboard: "The tab row, with the Leaderboard tab turned on and ringed, an arrow pointing at it.",
@@ -57,7 +57,7 @@ const OWN_ALT: Record<OwnId, string> = {
   r3tryNext: "The Try next buttons inside More on My runs, with an arrow pointing at them.",
   r4share: "The Share my instant answer with my runs tick inside More on My runs, with an arrow pointing at it.",
   r5yourRuns: "The Latest and All my runs choices under Your runs, with an arrow pointing at them.",
-  r6boardRuns: "The Your runs on the Leaderboard fold and the A run of yours is not here? fold, with an arrow pointing at them.",
+  r6boardRuns: "The Your runs on the Leaderboard fold and the A run of yours isn’t here? fold, with an arrow pointing at them.",
 };
 
 export const FULL_TOUR_STEPS_WORDS = Object.fromEntries([

@@ -38,7 +38,7 @@
         </button>
       </p>
       <p v-show="howOpen" :id="howId" class="mt-1">
-        Kept per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with the save
+        Kept per player, for Fast, Exact and Custom. A saved run carries on with the save
         it started with while that save is kept here, and puts its target, schedule, time off and plan start back;
         without that save, your TE has to be the same. Each run also keeps the save it was priced from, so you can go
         back to it after the game has moved on.

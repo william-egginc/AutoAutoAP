@@ -9,7 +9,7 @@ import type { GoalFollow } from './planGoals';
 /** Within this the plan shown and the followed route are the same finish: one line says it. */
 const SAME_FINISH_SECONDS = 3600;
 
-/** "Your followed route lands about Jul 17, 2027, after Egg Day starts"; '' when there is nothing to add. `planEnd`: the
+/** "The route you follow lands about Jul 17, 2027, after Egg Day starts"; '' when there is nothing to add. `planEnd`: the
  *  plan shown's finish; `lateWords`: lib/eggDayRule.ts `lateMarker`. */
 export function followedLateLine(
   f: GoalFollow | null | undefined,
@@ -19,5 +19,5 @@ export function followedLateLine(
 ): string {
   if (!f?.late || f.end == null || !(f.times === 'estimate' || f.times === 'finish' || f.times === 'timeline')) return '';
   if (typeof planEnd === 'number' && Math.abs(f.end - planEnd) < SAME_FINISH_SECONDS) return '';
-  return `Your followed route lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}, ${lateWords}`;
+  return `The route you follow lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}, ${lateWords}`;
 }

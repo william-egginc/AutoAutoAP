@@ -14,7 +14,7 @@
       <p v-if="!gaps" class="text-body text-slate-600">{{ headline }}</p>
       <template v-else>
         <p class="text-body text-slate-600 max-w-prose">
-          Perfect here is the maxed instant answer's bar: every artifact T4 Legendary, every stone slot filled at tier
+          Perfect means the maxed instant answer's bar: every artifact T4 Legendary, every stone slot filled at tier
           4. Only rarity, tier and stones are compared, not which artifacts or stone types suit each set.
         </p>
         <div v-for="s in gaps.sets" :key="s.id" class="space-y-1" :data-testid="`now-gear-perfect-${s.id}`">

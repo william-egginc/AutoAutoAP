@@ -56,7 +56,7 @@ describe('the banner', () => {
     const scope = effectScope();
     scope.run(() => bindResumeOffer(() => ({ key: 'full:1', disabled: false }), () => {}));
     const html = await renderHtml(ResumeBanner, {});
-    expect(textOf(html)).toBe('Your last run stopped. Resume Dismiss');
+    expect(textOf(html)).toBe('Your last run stopped. Carry on Dismiss');
     expect(html).toContain('data-testid="resume-banner"');
     expect(html.match(/min-h-\[44px\]/g)?.length).toBe(2);
     expect(html).toMatch(/class="sticky /);

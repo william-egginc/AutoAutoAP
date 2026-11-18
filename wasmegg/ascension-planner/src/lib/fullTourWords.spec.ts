@@ -39,7 +39,7 @@ describe('full tour words', () => {
   it("the slides the full tour shares with the first tour say the first tour's words; the rest are Words' (16 Nov 2026, ~/code/aaap-tools/notes/words-full-tour-text-2026-11-16.md)", () => {
     for (const id of ['tabManual', 'goalTarget', 'setupTimeOff', 'nextStep', 'shifts'] as const) expect(FULL_TOUR_STEPS_WORDS[id]).toEqual(FIRST_TOUR_STEPS[id]);
     expect(FULL_TOUR_STEPS_WORDS.m1more.body).toContain('More is the fold at the foot of Chain Finder');
-    expect(FULL_TOUR_STEPS_WORDS.m10maxedGear.body).toContain('What if you had maxed gear? finds your route again as if all your gear were maxed');
+    expect(FULL_TOUR_STEPS_WORDS.m10maxedGear.body).toContain('The What if you had maxed gear? line finds your route again as if all your gear were maxed');
     expect(FULL_TOUR_STEPS_WORDS.tabLeaderboard.body).toContain('Setup › More options › How the site shows things');
     expect(FULL_TOUR_ABOUT).toBe('Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.');
   });

@@ -3,7 +3,7 @@
  *   - not on virtue yet (lib/onVirtue.ts): "Not on virtue yet", "When should I start?" as the main action, no Next
  *     step, no events, no calendar; each goal's saved plan as "If you start <date>: …"; the switch, the route line
  *     and the timeline stay;
- *   - on virtue: the corner badge (Building / Producing with the rate) and Gear's "Equipped now = your … set";
+ *   - on virtue: the corner badge (Building / Producing with the rate) and Gear's "Equipped now: your … set";
  *   - "Recalculate": a button with a line saying what it does, asked through App and InstantRoute (ui.exactAsk).
  */
 import fs from 'node:fs';
@@ -251,9 +251,9 @@ describe('the corner badge and the gear', () => {
         goal: 'fastest',
         match,
       });
-    expect(textOf(await g('earnings'))).toContain('Equipped now = your earnings set');
-    expect(textOf(await g('production'))).toContain('Equipped now = your delivery set');
-    expect(textOf(await g('mix'))).toContain('Equipped now = a mix');
+    expect(textOf(await g('earnings'))).toContain('Equipped now: your earnings set');
+    expect(textOf(await g('production'))).toContain('Equipped now: your delivery set');
+    expect(textOf(await g('mix'))).toContain('Equipped now: a mix of both');
     expect(textOf(await g(null))).toContain('Equipped now');
     expect(read('RightNowCard.vue')).toContain(':match="gear.match ?? null"');
   });

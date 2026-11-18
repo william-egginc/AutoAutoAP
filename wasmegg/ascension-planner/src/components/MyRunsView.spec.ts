@@ -93,7 +93,7 @@ describe('MyRunsView', () => {
     // Something unsent: the warning colour.
     expect(partTag(kept, 'my-runs-part-unsent')).toContain('border-amber-200 bg-amber-50/40');
     // Every kind: a By a date result shows here (UnsentResults without a kind).
-    expect(textOf(kept)).toContain("This result wasn't sent to the leaderboard: 320 TE by Jul 14, 2027 9:00 AM");
+    expect(textOf(kept)).toContain("This result wasn't sent to the Leaderboard: 320 TE by Jul 14, 2027 9:00 AM");
   });
 
   it('reuses Saved runs and Saved answers as lists only, and Unsent results for every kind', () => {

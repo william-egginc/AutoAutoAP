@@ -22,7 +22,7 @@
         data-testid="resume-banner-resume"
         @click="offer.resume()"
       >
-        Resume
+        Carry on
       </button>
       <button
         type="button"

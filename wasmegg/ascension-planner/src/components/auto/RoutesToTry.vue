@@ -2,17 +2,17 @@
   "The routes to try": the chain-row editor shared by the Full sweep (its added chains, Chain 2 on)
   and Highest TE by a date (every chain). One row per chain: its number, the Ascensions box, Suggest a
   space and Remove; the box of bands with the band checker under it (BandCheckNotice.vue); the row's
-  count or what is wrong with it; Suggest a space's two sliders (SpaceSliders.vue), independent per
+  count or what is wrong with it; Suggest boxes's two sliders (SpaceSliders.vue), independent per
   chain unless the screen offers "move every chain's sliders together" (`linkable`) and it is ticked.
   Then "+ Add another chain", with the screen's own extras beside it (`footer`).
 
-  The screen owns the rows and every rule about them (what Suggest a space fills in, what a slider
+  The screen owns the rows and every rule about them (what Suggest boxes fills in, what a slider
   moves, what counts): this draws them and says what was asked (events). What genuinely differs goes
   in props and slots:
     - the Full sweep: up to 12 ascensions, its Chain 1 drawn by the screen above these rows
       (`firstNumber` 2), rows can all be removed, the band checker knows each row's count, and its
       "Suggest would fill in N chains" line under the sliders (`row-after`);
-    - By a date: up to 8 ascensions, at least one row, "Suggest a space tries" before the sliders,
+    - By a date: up to 8 ascensions, at least one row, "Suggested boxes try" before the sliders,
       the link option, the instant answer and Science notes (`row-notes`), the step-wider-than-±
       warning (`row-after`) and the shared "Last stop" box (`footer`).
   A screen's Simple mode (batch 3) can leave this out with v-if: nothing else depends on it.
@@ -42,7 +42,7 @@
           class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:bg-white disabled:opacity-40"
           @click="emit('suggest', k)"
         >
-          Suggest a space
+          Suggest boxes
         </button>
         <button
           v-if="rows.length > minRows"

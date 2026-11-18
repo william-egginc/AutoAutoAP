@@ -45,7 +45,7 @@
         <p v-if="r1Warning" class="text-amber-800" data-testid="buildup-r1-sleep">{{ r1Warning }}</p>
         <!-- The Monday 2x while it is on, or ahead within the plan (Jordan, 15 Nov 2026; lib/boostCheckIn.ts, Words' boost2xLine). -->
         <p v-if="boostLine" class="text-slate-700" data-testid="buildup-2x">{{ boostLine }}</p>
-        <p v-if="state === 'checking'" role="status" data-testid="buildup-checking">Reading your save: its ticks show once it is in.</p>
+        <p v-if="state === 'checking'" role="status" data-testid="buildup-checking">Reading your save. Ticks show once it has loaded.</p>
         <p v-else-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
           <!-- The hint above names the goal; the sentence that said it again is gone (UX fluff review 2, item R13). -->
@@ -188,7 +188,7 @@
             class="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-small text-amber-800"
             data-testid="buildup-silo-short"
           >
-            The silo trick does not fit this plan {{ siloWarnings === 1 ? 'once' : `${siloWarnings} times` }}: see the amber lines.
+            The silo trick does not fit {{ siloWarnings === 1 ? 'once' : `${siloWarnings} times` }}: see the amber lines.
           </p>
 
           <!-- DONE WORK FOLDED (spec-trackercompact; Jordan: "fold completed research INTO a summary line that says what was
@@ -498,7 +498,7 @@
             </template>
           </template>
           <p class="text-small text-slate-600" data-testid="buildup-foot">
-            Times are in your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
+            Times are in your time zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
             ({{ saleEndWords }}).
           </p>
         </template>

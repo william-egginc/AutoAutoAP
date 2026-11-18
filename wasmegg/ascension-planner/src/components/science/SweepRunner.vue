@@ -168,15 +168,15 @@
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
           <span class="block text-small text-slate-600">
-            Fewer keep the computer usable and quieter; more finish sooner. It can be changed during the run too, from
+            Fewer workers keep the computer usable and quiet; more workers finish sooner. It can be changed during the run too, from
             this window.
           </span>
         </label>
 
         <p v-if="timeOffText" class="text-body text-slate-600 max-w-prose">
           Planned around your time off (<b>{{ timeOffText }}</b
-          >). It still prices every route, but the result goes on the Leaderboard with the time-off runs and won’t fill this
-          gap.
+          >). It still prices every route, but the result goes on the Leaderboard with the time-off runs and will not fill this
+          sweep’s gap.
         </p>
 
         <div class="rounded-lg border border-slate-200 px-3 py-2 space-y-2">

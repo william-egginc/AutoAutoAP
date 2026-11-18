@@ -2016,7 +2016,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       return null;
     }
   }
-  /** Which set the save wears (lib/gearMatch.ts): Gear's "Equipped now = your earnings set" and the badge. */
+  /** Which set the save wears (lib/gearMatch.ts): Gear's "Equipped now: your earnings set" and the badge. */
   const setMatch = computed(() => {
     const inv = inventory.value;
     return inv ? whichSet(inv.equipped, inv.earnings, inv.production) : null;

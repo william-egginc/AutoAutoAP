@@ -87,7 +87,7 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain(`9:04 AM · buy 1 Hyperloop Train (slot 17), cars to 5 Show all ${result.days[0].lines.filter(l => l.tickable).length} still to do Sat Oct 31`);
     expect(result.lines.map(lineText)).toContain('wait for the sale: offline until Fri Oct 30 10:00 AM (25 min)');
     expect(t).toContain('clocks go back 1 h at 2:00 AM');
-    expect(t).toContain('Times are in your zone (America/Denver), rounded down to the minute.');
+    expect(t).toContain('Times are in your time zone (America/Denver), rounded down to the minute.');
   });
   it('bold lines are bold, research is not', async () => {
     const html = await render('ready');
@@ -123,7 +123,7 @@ describe('BuildUpTracker: the list', () => {
   it('the silo strip when the trick does not fit', async () => {
     const short = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: 3600, startSilos: 1, startEgg: 'curiosity', now: NOW });
     const t = textOf(await render('ready', { result: short, summary: trackerSummary(short, new Set()), siloWarnings: 2 }));
-    expect(t).toContain('The silo trick does not fit this plan 2 times: see the amber lines.');
+    expect(t).toContain('The silo trick does not fit 2 times: see the amber lines.');
     expect(t).toContain('Your silos hold 9 h: going offline Mon Nov 2 12:59 AM does not reach Mon Nov 2 10:01 AM.');
   });
 });

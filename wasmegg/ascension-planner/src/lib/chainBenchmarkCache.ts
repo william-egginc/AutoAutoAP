@@ -2,7 +2,7 @@
  * @module chainBenchmarkCache
  * @description localStorage-backed persistence for the exhaustive search's measured
  * seconds-per-chain rate (see stores/chainSearch.ts's `secondsPerChain`), so a rate obtained on this
- * machine — from the "Benchmark my PC" button or from a real run's own first chunk — survives a page
+ * machine — from the "Benchmark my computer" button or from a real run's own first chunk — survives a page
  * reload instead of falling back to the hardcoded 15 s assumption every time. Follows the same bare
  * localStorage pattern used elsewhere in this app (see autoPlannerFormCache.ts).
  *

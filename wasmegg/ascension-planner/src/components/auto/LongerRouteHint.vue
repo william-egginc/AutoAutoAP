@@ -33,7 +33,7 @@
           type="button"
           :disabled="disabled"
           class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-body font-bold hover:bg-amber-100 disabled:opacity-40"
-          title="Prices this route with the full simulator, in Exhaustive"
+          title="Prices this route with the full simulator, in Custom"
           @click="check(h.chain)"
         >
           Price this route

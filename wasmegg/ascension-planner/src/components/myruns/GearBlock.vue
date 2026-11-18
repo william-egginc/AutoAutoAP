@@ -7,7 +7,7 @@
   TIME (25 Oct 2026, search/maxedWhatIf.ts `perfectSetGap`): "With a perfect set you'd reach 490 TE about 3.2 days
   sooner (an estimate from the instant answer)", only when the maxed what-if was worked out for the goal's instant
   answer of this save and kept with it; nothing otherwise. The Equipped row says which set it is (16 Oct
-  2026, lib/gearMatch.ts): "Equipped now = your earnings set", "= your production set" or "= a mix".
+  2026, lib/gearMatch.ts): "Equipped now: your earnings set", "= your production set" or "= a mix".
   Under the rows, folded: "Missing for a perfect set" (PerfectSetGaps.vue, lib/perfectSet.ts, Q9).
 -->
 <template>
@@ -87,7 +87,7 @@ const rows = computed(() => {
     },
     {
       id: 'production',
-      name: 'Production set',
+      name: 'Delivery set',
       set: props.production,
       words: gearWords(props.production),
       tone: 'text-slate-700',

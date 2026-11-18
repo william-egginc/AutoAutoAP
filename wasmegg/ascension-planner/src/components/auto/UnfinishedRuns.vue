@@ -29,7 +29,7 @@
       <span class="leading-relaxed">
         <span class="font-bold">{{ item.record.durations.length.toLocaleString() }}</span>
         <template v-if="item.record.space?.chains"> of {{ item.record.space.chains.toLocaleString() }}</template>
-        plans priced, best {{ item.record.bestChain.join(' ') }} · {{ ago(item.record.updatedAt) }}
+        routes priced, best {{ item.record.bestChain.join(' ') }} · {{ ago(item.record.updatedAt) }}
         <template v-if="item.save"> · save from {{ when(item.save.backupAt) }}, TE {{ item.save.te }} </template>
         <template v-else> · no save kept, so it can only carry on if your save still matches</template>
       </span>

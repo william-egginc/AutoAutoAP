@@ -32,7 +32,7 @@
     <span v-else-if="state === 'missing'" class="text-slate-600">
       The save for this one wasn't kept (it was no longer on {{ thisDevice() }} when this was saved).
     </span>
-    <span v-else class="text-slate-600">The save for this one wasn't kept (saved before 10 Oct).</span>
+    <span v-else class="text-slate-600">The save for this one wasn't kept (saved before Oct 10).</span>
   </div>
 </template>
 

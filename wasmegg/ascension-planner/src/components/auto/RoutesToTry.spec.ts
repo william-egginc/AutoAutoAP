@@ -18,7 +18,7 @@ const byDate = {
   maxAsc: 8,
   minRows: 1,
   placeholder: '138-142:1; 160-200:10; 200-240:10',
-  sliderLead: 'Suggest a space tries',
+  sliderLead: 'Suggested boxes try',
   linkable: true,
 };
 
@@ -34,11 +34,11 @@ describe('RoutesToTry', () => {
     expect(textOf(html)).toContain('±2 TE around each stop (from a Science card)');
   });
 
-  it("draws By a date's rows: number, Ascensions, Suggest a space, Remove, box, problem or summary, sliders, link", async () => {
+  it("draws By a date's rows: number, Ascensions, Suggest boxes, Remove, box, problem or summary, sliders, link", async () => {
     const html = await renderHtml(RoutesToTry, byDate);
     const t = textOf(html);
     expect(t).toMatch(
-      /Box 1 Ascensions Suggest a space Remove 1,116 playable sets of early stops Suggest a space tries ±10 TE around each stop every 2 TE \(the first stop: every TE\) move every box's sliders together/
+      /Box 1 Ascensions Suggest boxes Remove 1,116 playable sets of early stops Suggested boxes try ±10 TE around each stop every 2 TE \(the first stop: every TE\) move every box's sliders together/
     );
     expect(t).toContain('Box 2');
     // A row's problem shows in place of its summary, in red.
@@ -90,10 +90,10 @@ describe('RoutesToTry', () => {
     );
     const t = textOf(html);
     expect(t).toMatch(/^Box 2 .*Box 3 /);
-    expect(t).not.toContain('Suggest a space tries');
+    expect(t).not.toContain('Suggested boxes try');
     expect(t).toMatch(/every 2 TE \(the first stop: every TE\) Suggest would fill in 40 routes Box 3/);
     // One ascension: no box and no sliders, just its summary.
-    expect(t).toMatch(/Box 3 Ascensions Suggest a space Remove Straight to 490: one route\. \+ Add another box/);
+    expect(t).toMatch(/Box 3 Ascensions Suggest boxes Remove Straight to 490: one route\. \+ Add another box/);
     expect(t).toContain('One click runs all 3 boxes');
     expect(html).toContain('max="12"');
     // Greyed out while a run is going.
