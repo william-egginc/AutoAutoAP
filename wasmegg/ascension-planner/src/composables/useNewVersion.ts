@@ -58,6 +58,10 @@ export interface ReleaseInfo {
   notes: ListedNote[];
   /** How many more NEW notes did not fit ("+N more"). */
   more: number;
+  /** The reload ask is a full-screen box (R8.1, 18 Nov 2026): set (true) only when this tab's own build time is known
+   *  and older than release.ts `reloadIfBuiltBefore`. Left off for the fallback essential (no marker, no build time,
+   *  no release object), small and big, which keep their banners. */
+  fullScreen?: boolean;
 }
 
 /** This bundle's build time, or '' where the define is absent (tests, dev). */
@@ -97,7 +101,7 @@ export function releaseFrom(versionJson: unknown, running: RunningBuild = RUNNIN
   const more = listed.more;
   const ownBuildTime = running?.builtAt ?? '';
   if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'essential', notes, more };
-  if (ownBuildTime < since) return { level: 'essential', notes, more };
+  if (ownBuildTime < since) return { level: 'essential', notes, more, fullScreen: true };
   return { level: listed.anyBig ? 'big' : 'small', notes, more };
 }
 
@@ -106,8 +110,23 @@ const RANK: Record<ReleaseLevel, number> = { small: 0, big: 1, essential: 2 };
 /** Levels only go up: a tab already asking for more never drops back to a quieter notice. The notes
  *  always come from the newest check: a later version.json lists every note this tab still lacks. */
 export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
-  if (current && RANK[current.level] > RANK[next.level]) return { ...next, level: current.level };
+  if (current && RANK[current.level] > RANK[next.level]) {
+    return { ...next, level: current.level, ...(current.level === 'essential' && current.fullScreen ? { fullScreen: true } : {}) };
+  }
+  // Once the box has been asked for it stays the box while the level stays essential.
+  if (current && current.level === 'essential' && next.level === 'essential' && current.fullScreen && !next.fullScreen) {
+    return { ...next, fullScreen: true };
+  }
   return next;
+}
+
+/** How long the reload ask's Later hides it. */
+export const ESSENTIAL_LATER_MS = 10 * 60 * 1000;
+
+/** Later: hide the reload ask now and bring it back after ESSENTIAL_LATER_MS (the tab is still running old code). */
+export function snoozeEssential(dismissed: BannerDismissals): void {
+  dismissed.essential = true;
+  setTimeout(() => (dismissed.essential = false), ESSENTIAL_LATER_MS);
 }
 
 /** The keys of the notes new to this tab, joined: what dismissing the big banner holds on to. */

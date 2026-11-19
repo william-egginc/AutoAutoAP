@@ -102,5 +102,7 @@ describe('R9 (17 Nov 2026): open R8 tabs are asked to reload', () => {
     expect(Number.isFinite(t)).toBe(true);
     expect(new Date(t).toISOString()).toBe(release.reloadIfBuiltBefore);
     expect(t).toBeGreaterThanOrEqual(Date.parse('2026-11-17T07:00:00.000Z'));
+    // R8.1 went live 18 Nov 2026 (build 2026-11-19T02:12:17.356Z): R9 must also ask open R8.1 tabs to reload.
+    expect(t).toBeGreaterThan(Date.parse('2026-11-19T02:12:17.356Z'));
   });
 });

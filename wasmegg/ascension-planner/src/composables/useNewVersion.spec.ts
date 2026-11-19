@@ -124,6 +124,7 @@ describe('how much an update matters', () => {
       level: 'essential',
       notes: [],
       more: 0,
+      fullScreen: true,
     });
   });
 
@@ -304,5 +305,37 @@ describe('which banner shows (R7, 31 Oct 2026: no new note, no banner)', () => {
   it('nothing before a newer build is live', () => {
     expect(bannerFor(false, { level: 'essential', notes: [], more: 0 }, none)).toBeNull();
     expect(bannerFor(false, { level: 'small', notes: [n('x')], more: 0 }, none)).toBeNull();
+  });
+});
+
+describe('the full-screen reload box (R8.1, 18 Nov 2026)', () => {
+  const marker = (since?: string) => ({ release: { ...(since === undefined ? {} : { reloadIfBuiltBefore: since }), note: '' } });
+
+  it('true only when the tab’s build is known and older than reloadIfBuiltBefore', () => {
+    const r = releaseFrom(marker('2026-11-10T06:15:19.000Z'), built('2026-11-10T04:25:00.000Z'));
+    expect(r.level).toBe('essential');
+    expect(r.fullScreen).toBe(true);
+  });
+
+  it('false for the fallback essential cases and for small / big', () => {
+    expect(releaseFrom(marker(), built('2026-11-10T04:25:00.000Z'))).toMatchObject({ level: 'essential' });
+    expect(releaseFrom(marker(), built('2026-11-10T04:25:00.000Z')).fullScreen).toBeFalsy();
+    expect(releaseFrom(marker('2026-11-10T06:15:19.000Z'), built('')).level).toBe('essential');
+    expect(releaseFrom(marker('2026-11-10T06:15:19.000Z'), built('')).fullScreen).toBeFalsy();
+    expect(releaseFrom({ index: 'assets/index-a.js' }, built('2026-11-10T04:25:00.000Z')).fullScreen).toBeFalsy();
+    expect(releaseFrom(null, built('2026-11-10T04:25:00.000Z')).fullScreen).toBeFalsy();
+    const newer = releaseFrom(marker('2026-11-10T06:15:19.000Z'), built('2026-11-11T00:00:00.000Z'));
+    expect(newer.level).toBe('small');
+    expect(newer.fullScreen).toBeFalsy();
+  });
+
+  it('raiseLevel keeps it while the level stays essential', () => {
+    const strict = { level: 'essential' as const, notes: [], more: 0, fullScreen: true };
+    const fallback = { level: 'essential' as const, notes: [], more: 0 };
+    const small = { level: 'small' as const, notes: [], more: 0 };
+    expect(raiseLevel(strict, small)).toMatchObject({ level: 'essential', fullScreen: true });
+    expect(raiseLevel(strict, fallback)).toMatchObject({ level: 'essential', fullScreen: true });
+    expect(raiseLevel(fallback, strict)).toMatchObject({ level: 'essential', fullScreen: true });
+    expect(raiseLevel(small, fallback).fullScreen).toBeFalsy();
   });
 });

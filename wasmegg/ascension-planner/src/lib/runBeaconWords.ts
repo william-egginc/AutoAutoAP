@@ -24,6 +24,14 @@ export const LONG_RUN_START_WORDS =
 export function longRunBannerWords(plannedAt: string): string {
   return `The site will update at about ${plannedAt}, and the update reloads this page, which would stop your search. Please message Williamthe5thc on Discord and the update will wait for it.`;
 }
+/**
+ * The planned-update notice on every page (R8.1, 18 Nov 2026), for a page with no long search running (components/PlannedUpdateNotice.vue).
+ * `plannedAt` as in longRunBannerWords. The owner's note, if any, follows on its own line.
+ */
+// DRAFT: Words and Jordan review before use (18 Nov 2026).
+export function plannedUpdateWords(plannedAt: string): string {
+  return `The site will update at about ${plannedAt}. The update reloads this page, so finish or save what you are doing before then.`;
+}
 /** The banner's close button, for screen readers and its visible text. */
 export const LONG_RUN_BANNER_CLOSE = 'Close';
 

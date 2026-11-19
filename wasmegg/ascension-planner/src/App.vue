@@ -36,6 +36,8 @@
           class="mb-4"
         />
       </div>
+      <!-- A planned update (version.json `reloadPlanned`), on every page, not only one running a long search (R8.1, 18 Nov 2026). -->
+      <PlannedUpdateNotice />
       <!-- EGG-BETA ONLY (lib/eggBetaReload.ts): compiled in only when the build had AAP_EGG_BETA_RELOAD_AT, and then
            shown only on the egg-beta host. -->
       <component
@@ -955,6 +957,7 @@ import { usePersistence } from 'lib/planners/composables/usePersistence';
 import { compactActionHistory } from 'lib/planners/composables/useCompactActionHistory';
 import { computeSnapshot } from 'lib/planners/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import PlannedUpdateNotice from '@/components/PlannedUpdateNotice.vue';
 import { storageBlocked } from '@/lib/storageGuard';
 import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
