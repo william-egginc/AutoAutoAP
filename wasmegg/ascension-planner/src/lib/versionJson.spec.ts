@@ -91,3 +91,16 @@ describe('reloadPlanned (the planned-update notice, lib/reloadPlanned.ts)', () =
     ).toThrow(/AAP_RELOAD_PLANNED_NOTE/);
   });
 });
+
+describe('R9 (17 Nov 2026): open R8 tabs are asked to reload', () => {
+  // R8 went live on a build of 9-10 Nov with reloadIfBuiltBefore 2026-11-10T04:25Z. R9's value must be later than every R8 build
+  // (so an R8 tab reloads into R9: the calendar feed and the sim5 tables) and a valid ISO time (a broken release.ts takes live down).
+  // Its exact time is set at the end of R9 prep; ~/code/aaap-tools/live-r9.sh checks it is before the R9 build's own time.
+  it('reloadIfBuiltBefore is a valid ISO time on or after the R9 build day', async () => {
+    const release = (await import('../../release')).default;
+    const t = Date.parse(release.reloadIfBuiltBefore);
+    expect(Number.isFinite(t)).toBe(true);
+    expect(new Date(t).toISOString()).toBe(release.reloadIfBuiltBefore);
+    expect(t).toBeGreaterThanOrEqual(Date.parse('2026-11-17T07:00:00.000Z'));
+  });
+});

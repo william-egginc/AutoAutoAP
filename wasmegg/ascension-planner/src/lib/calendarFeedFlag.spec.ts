@@ -34,8 +34,8 @@ const mem = () => {
 const lines = [{ key: 'k0', kind: 'research' as const, at: 1_800_000_000, text: 'buy Thing', tickable: true, checkIn: 0 }];
 
 describe('the flag', () => {
-  it('is off in the repo, and a QA build turns it on with VITE_CALENDAR_FEED=1', () => {
-    expect(CALENDAR_FEED.enabled).toBe(false);
+  it('is ON in the repo since R9 (the live collector has /cal since 15 Nov 2026); a QA build turns it off with VITE_CALENDAR_FEED=0', () => {
+    expect(CALENDAR_FEED.enabled).toBe(true);
     expect(readFileSync(new URL('./calendarCloud.ts', import.meta.url), 'utf8')).toContain('export const CALENDAR_FEED = { enabled: calendarFeedOn(import.meta.env.VITE_CALENDAR_FEED) };');
   });
 });

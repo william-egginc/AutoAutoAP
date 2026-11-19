@@ -102,10 +102,15 @@ describe('Delete everything: who sees it', () => {
 describe('Delete everything: the flow', () => {
   it('ask: the confirm names what goes and what stays (the Leaderboard, other devices); Keep it: nothing sent', async () => {
     await page();
+    // The calendar flag is on in the repo since R9 (lib/calendarFlag.ts): this case is a build with it off.
+    const { CALENDAR_FEED } = await import('@/lib/calendarCloud');
+    const was = CALENDAR_FEED.enabled;
+    CALENDAR_FEED.enabled = false;
     const d = useForgetEverything();
     d.ask();
     expect(d.phase.value).toBe('confirm');
     expect(d.confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
+    CALENDAR_FEED.enabled = was;
     expect(SYNC_DELETE_STAYS).toMatch(/Leaderboard/);
     expect(SYNC_DELETE_STAYS).toMatch(/[Oo]ther devices keep their own copy and may save it online again; turn Save online off on them to stop that/);
     d.cancel();
@@ -116,16 +121,18 @@ describe('Delete everything: the flow', () => {
 
   it('the confirm adds the calendar line only in a build with the calendar flag on', async () => {
     await page();
+    const { CALENDAR_FEED } = await import('@/lib/calendarCloud');
+    const { syncDeleteConfirm } = await import('@/lib/syncWords');
+    const was = CALENDAR_FEED.enabled;
+    CALENDAR_FEED.enabled = false;
     const d = useForgetEverything();
     d.ask();
     expect(d.confirmLines.value).toEqual([SYNC_DELETE_CONFIRM, SYNC_DELETE_STAYS]);
-    const { CALENDAR_FEED } = await import('@/lib/calendarCloud');
-    const { syncDeleteConfirm } = await import('@/lib/syncWords');
     CALENDAR_FEED.enabled = true;
     try {
       expect(useForgetEverything().confirmLines.value).toEqual([syncDeleteConfirm(null), SYNC_DELETE_STAYS]);
     } finally {
-      CALENDAR_FEED.enabled = false;
+      CALENDAR_FEED.enabled = was;
     }
     d.cancel();
   });
