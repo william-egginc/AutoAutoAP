@@ -48,9 +48,9 @@ describe('the Target TE | By a date switch is the page\'s subheading: bigger', (
     expect(sw).toContain("'text-slate-600 hover:text-slate-900'");
     expect(sw).toContain('bg-slate-100');
   });
-  it('the words are Words\' own, as typed (Target TE, By a date)', async () => {
+  it('the words are Words\' own, as typed (Target TE, By Egg Day)', async () => {
     const { GOAL_SWITCH } = await import('@/lib/chainFinderWords');
-    expect([GOAL_SWITCH.target, GOAL_SWITCH.byDate]).toEqual(['Target TE', 'By a date']);
+    expect([GOAL_SWITCH.target, GOAL_SWITCH.byDate]).toEqual(['Target TE', 'By Egg Day']);
   });
 });
 

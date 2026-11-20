@@ -53,38 +53,37 @@
     <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026), as on Fastest's (FastestRoute.vue). -->
     <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
     <h3 class="text-slate-600 label md:!mt-0">The date</h3>
-    <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
-         boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
-         of your own. -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The date" data-region="date">
+    <!-- By Egg Day (Jordan, 20 Nov 2026): the screen opens on Egg Day (lib/byDateForm.ts `startOnEggDay`), its date, time, Pacific and
+         your time in one summary, with a small "Pick another date" link that opens the date, time and zone boxes; "Back to Egg Day"
+         shuts them. It replaces the two big cards, which showed "Another date" picked over Egg Day's own date. -->
+    <div v-if="!showCustomDate" class="space-y-1" data-testid="egg-day-summary" data-region="date">
+      <p class="text-body font-bold text-slate-900">Egg Day {{ eggDayYear }}</p>
+      <p class="text-body text-slate-600">
+        {{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
+        {{ eggDayYear }} tab.
+      </p>
       <button
         type="button"
-        role="radio"
-        :aria-checked="!showCustomDate"
         :disabled="store.busy"
-        class="rounded-xl border-2 p-3 text-left transition-colors disabled:opacity-50"
-        :class="!showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
-        @click="chooseEggDay"
-      >
-        <span class="block text-body font-bold text-slate-900">Egg Day {{ eggDayYear }}</span>
-        <span class="block mt-0.5 text-body text-slate-600"
-          >{{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
-          {{ eggDayYear }} tab.</span
-        >
-      </button>
-      <button
-        type="button"
-        role="radio"
-        :aria-checked="showCustomDate"
-        :disabled="store.busy"
-        class="rounded-xl border-2 p-3 text-left transition-colors disabled:opacity-50"
-        :class="showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
+        class="min-h-[44px] sm:min-h-0 text-body font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50"
+        data-testid="pick-another-date"
         @click="customDate = true"
       >
-        <span class="block text-body font-bold text-slate-900">Another date</span>
-        <span class="block mt-0.5 text-body text-slate-600"
-          >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.</span
-        >
+        Pick another date
+      </button>
+    </div>
+    <div v-else class="space-y-1" data-region="date">
+      <p class="text-body text-slate-600">
+        Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.
+      </p>
+      <button
+        type="button"
+        :disabled="store.busy"
+        class="min-h-[44px] sm:min-h-0 text-body font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50"
+        data-testid="back-to-egg-day"
+        @click="chooseEggDay"
+      >
+        Back to Egg Day
       </button>
     </div>
     <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
@@ -1239,7 +1238,7 @@ import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
 import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
-import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
+import { applyByDatePreset, byDatePresetPending, startOnEggDay, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
 import FiltersButton from '@/components/layout/FiltersButton.vue';
@@ -1266,9 +1265,12 @@ function useEggDay(): void {
   time.value = '09:00';
   zone.value = 'America/Los_Angeles';
 }
-/** "Another date" picked: its boxes show (holding Egg Day until changed). */
+/** "Pick another date" opened: its boxes show (holding Egg Day until changed). */
 const { customDate } = kept;
 const showCustomDate = computed(() => customDate.value || !isEggDay.value);
+// Each opening starts on Egg Day (By Egg Day, 20 Nov 2026), unless a run going or being restored owns its date; a My Runs preset
+// (below) and a Science ask or link (applyRequest) are taken after this and still apply.
+startOnEggDay(store.deadlineRunning || store.preparing);
 function chooseEggDay(): void {
   customDate.value = false;
   useEggDay();

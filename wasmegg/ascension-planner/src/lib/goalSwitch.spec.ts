@@ -15,7 +15,7 @@ describe('the two goals', () => {
   it('Target TE then By a date, Fastest and By a date underneath', () => {
     expect(CHAIN_GOALS).toEqual(['fastest', 'by-date']);
     expect(CHAIN_FINDER_WORDS.goals.fastest).toBe('Target TE');
-    expect(CHAIN_FINDER_WORDS.goals['by-date']).toBe('By a date');
+    expect(CHAIN_FINDER_WORDS.goals['by-date']).toBe('By Egg Day');
   });
 
   it("each side's address is the old goal tab's, and lands back on it (Chain Finder lit)", () => {
@@ -61,7 +61,7 @@ describe('GoalSwitch.vue', () => {
     for (const b of radios) expect(b).toContain('role="radio"');
     expect(radios[0]).toContain('aria-checked="false"');
     expect(radios[1]).toContain('aria-checked="true"');
-    expect(textOf(html)).toBe('Target TE By a date');
+    expect(textOf(html)).toBe('Target TE By Egg Day');
   });
 
   it('one Tab stop: the checked radio is tabbable, the other is not', async () => {

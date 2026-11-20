@@ -12,7 +12,7 @@ export const CHAIN_FINDER_TAB = 'Chain Finder';
 /** The goal switch's two sides, left to right (Target TE = Fastest to N TE, By a date = Highest TE by a date), and its name for a screen reader. */
 export const GOAL_SWITCH = {
   target: 'Target TE',
-  byDate: 'By a date',
+  byDate: 'By Egg Day',
   label: 'Goal',
 } as const;
 
