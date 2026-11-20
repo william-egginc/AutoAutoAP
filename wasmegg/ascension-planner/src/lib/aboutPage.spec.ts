@@ -126,7 +126,7 @@ describe('About and privacy page', () => {
 
   it('says what the instant answer and the private search results send (23 Oct 2026)', () => {
     expect(text).toContain(
-      'If you tick "Share my instant answer with my runs" (on My Runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
+      'If you tick "Share my Instant Answer with my runs" (on My Runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
     );
     expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
     expect(text).toContain(

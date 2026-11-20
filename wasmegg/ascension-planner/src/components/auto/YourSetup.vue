@@ -483,7 +483,7 @@
               aria-describedby="share-baseline-what-body"
             />
             <span class="text-body text-slate-600">
-              <span class="font-bold text-slate-800">Share my instant answer with my runs</span>
+              <span class="font-bold text-slate-800">Share my Instant Answer with my runs</span>
               (public, with the run).
             </span>
           </label>

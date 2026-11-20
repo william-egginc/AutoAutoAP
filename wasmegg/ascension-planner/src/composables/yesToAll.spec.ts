@@ -1,6 +1,6 @@
 /**
  * Yes to all (composables/useStudy.ts `yesToAll`; Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or
- * "Share my instant answer with my runs", unticked). Every sharing choice on and remembered for the account on screen,
+ * "Share my Instant Answer with my runs", unticked). Every sharing choice on and remembered for the account on screen,
  * the send tick on for every Run (Fastest and By a date read the same one), kept over a reload and in another tab,
  * and no other account touched. The saved-online side (an older value arriving after) is in stores/prefs.cloud.spec.ts.
  * Placeholder IDs only.

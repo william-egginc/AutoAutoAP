@@ -176,7 +176,7 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
 export const ALL_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
 
 /**
- * YES TO ALL (Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or "Share my instant answer with my
+ * YES TO ALL (Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or "Share my Instant Answer with my
  * runs", unticked). Every sharing choice on, remembered for the account (each stamped now, so a value saved online
  * earlier never undoes it: stores/prefs.ts, newer wins): the four ticks of the box (share, CSV, diagnostics and this
  * visit's diagnostics tick, search results), the instant answer with my runs (`shareBaseline`), and the send tick
