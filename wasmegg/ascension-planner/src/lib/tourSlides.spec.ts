@@ -40,13 +40,13 @@ describe('tour slides', () => {
     expect(TOUR_FILES).toEqual(files);
   });
 
-  it('every slide has a desk and a phone picture and alt text; every WebP is a real WebP under 60 KB (2x: 780x880 phone, 1440x812 desk), and all together (the first tour and the full tour, both forms) under 3.5 MB (a visitor loads one form of one tour: a few hundred KB)', () => {
+  it('every slide has a desk and a phone picture and alt text; every WebP is a real WebP under 80 KB (the Science tab page is all text; 2x: 780x880 phone, the Instant Answer slide 780x1120, 1440x812 desk), and all together (the first tour and the full tour, both forms) under 3.5 MB (a visitor loads one form of one tour: a few hundred KB)', () => {
     const dir = new URL('../assets/tour/', import.meta.url);
     let total = 0;
     for (const f of readdirSync(dir).filter(n => n.endsWith('.webp'))) {
       const buf = readFileSync(new URL(f, dir));
       expect(`${f} ${buf.subarray(0, 4).toString('latin1')}${buf.subarray(8, 12).toString('latin1')}`).toBe(`${f} RIFFWEBP`);
-      expect(buf.length, f).toBeLessThan(60_000);
+      expect(buf.length, f).toBeLessThan(80_000);
       total += buf.length;
     }
     expect(total).toBeLessThan(3_500_000);
