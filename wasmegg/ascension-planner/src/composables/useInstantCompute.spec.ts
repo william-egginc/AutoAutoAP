@@ -1,13 +1,13 @@
 /**
- * My runs works the instant answer's pricing out itself (26 Oct 2026, composables/useInstantCompute.ts): after a Setup
+ * My Runs works the instant answer's pricing out itself (26 Oct 2026, composables/useInstantCompute.ts): after a Setup
  * change, or in a fresh browser, a followed goal said "not priced on this save yet" until Highest TE by a date was
  * opened on another tab. Now:
  *
- *   - EXACT: the record My runs builds (search/instantCompute.ts through `computeInstantPricing`) prices a route to the
+ *   - EXACT: the record My Runs builds (search/instantCompute.ts through `computeInstantPricing`) prices a route to the
  *     second as the record the instant answer keeps (InstantRoute.vue `run`, mirrored here step by step with the same
  *     shared functions), on a synthetic table, with hours, held shifts and a no-prestige day;
  *   - SCHEDULED: once per save and setup (a record already kept: nothing), again once after a Setup change, waiting
- *     while a search runs, one compute for every followed goal, stopped when leaving My runs, the newest setup winning;
+ *     while a search runs, one compute for every followed goal, stopped when leaving My Runs, the newest setup winning;
  *     nothing without a save; a missing table said with its reason.
  *
  * The synthetic save (id EI0000000000000000, never printed); stand-in route workers.
@@ -224,7 +224,7 @@ const EXACT_AT = Date.parse('2026-11-04T12:00:00-08:00');
  *  Sunday Nov 1, the 25-hour day, and every route runs through 2:00 am that day. */
 const FALL_BACK_AT = Date.parse('2026-10-30T12:00:00-07:00');
 
-describe("the record My runs builds prices a route exactly as the instant answer's record", () => {
+describe("the record My Runs builds prices a route exactly as the instant answer's record", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(EXACT_AT);
@@ -282,7 +282,7 @@ describe("the record My runs builds prices a route exactly as the instant answer
     }
   });
 
-  it("By a date: the card's record has the date, My runs' none; pricing a route never reads it, so the routes are the same", async () => {
+  it("By a date: the card's record has the date, My Runs' none; pricing a route never reads it, so the routes are the same", async () => {
     loadSave();
     withSetup(false);
     const te = Math.floor(useChainSearchStore().currentTE);
@@ -398,7 +398,7 @@ const routeOf = (chain: number[], now: number): Route => ({
   legs: chain.map((to, i) => ({ from: i ? chain[i - 1] : 194, to, endTE: to, start: now + i * 5 * D, end: now + (i + 1) * 5 * D, sales: 1, tier13: false, label: '1-sale' })),
 });
 
-/** My runs with the save, nothing of the instant answer kept, and these goals followed. */
+/** My Runs with the save, nothing of the instant answer kept, and these goals followed. */
 async function myRuns(followed: Record<string, { chain: number[] }>, o: { record?: boolean; noSave?: boolean } = {}) {
   if (!o.noSave) loadSave();
   const { pricingSetupFromStores, resetGoalChoice, useNowPage } = await import('./useNowPage');
@@ -448,7 +448,7 @@ async function render(page: Awaited<ReturnType<typeof myRuns>>['page']) {
   return { html, text: textOf(html) };
 }
 
-describe('My runs works the instant answer out by itself, in the background', () => {
+describe('My Runs works the instant answer out by itself, in the background', () => {
   beforeEach(() => {
     stubComputer();
     stubPricer();
@@ -556,7 +556,7 @@ describe('My runs works the instant answer out by itself, in the background', ()
     scope.stop();
   });
 
-  it('leaving My runs lets it go: the worker stopped, nothing kept', async () => {
+  it('leaving My Runs lets it go: the worker stopped, nothing kept', async () => {
     const { scope, now, te } = await myRuns({ [EGG_DAY()]: { chain: [205, 238] } });
     await vi.waitFor(() => expect(computes).toHaveLength(1));
     scope.stop();

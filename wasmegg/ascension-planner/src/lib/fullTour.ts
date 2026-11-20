@@ -9,8 +9,8 @@
 
 /** The steps, as rebuilt in the v3 style (spec-tour-v4, 16 Nov 2026, Jordan: "rebuild the full tour as v3's slides plus everything inside
  *  More"): forty-two, one thing a slide. Part 1 is the quick tour's slides (lib/firstTour.ts; its gear slide is here as `m10maxedGear`,
- *  its closing card is dropped) with the three optional tabs added after My runs. Part 2 is what More holds on Chain Finder, part 3
- *  what More holds on My runs. Slides that are in the quick tour share its pictures. */
+ *  its closing card is dropped) with the three optional tabs added after My Runs. Part 2 is what More holds on Chain Finder, part 3
+ *  what More holds on My Runs. Slides that are in the quick tour share its pictures. */
 export const FULL_TOUR_STEPS = [
   'tabManual',
   'tabAuto',

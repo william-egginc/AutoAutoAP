@@ -1,7 +1,7 @@
 /**
  * VITE_BOARD_SUBMIT_URL also names where the board is READ (spec-betaboard, Jordan, 16 Nov 2026): egg-beta sent runs to
  * the test collector but read /all, /mine and /flagged from the live one, so its runs never showed on the board Jordan
- * saw. With the setting, the Leaderboard, My runs, the flagged board, hide-from-public, the rechecks and the Explorer
+ * saw. With the setting, the Leaderboard, My Runs, the flagged board, hide-from-public, the rechecks and the Explorer
  * read the same collector the sends go to; follow, prefs, answers, sync, calendar and the beacon stay on VITE_SUBMIT_URL.
  * Unset, nothing changes.
  */
@@ -44,7 +44,7 @@ describe('the Explorer reads the board collector too', () => {
 });
 
 describe('where the store reads', () => {
-  it('Leaderboard, My runs and the rechecks take their base from the send URL; nothing else of the board still reads submitUrl', () => {
+  it('Leaderboard, My Runs and the rechecks take their base from the send URL; nothing else of the board still reads submitUrl', () => {
     const s = src('../stores/chainSearch.ts');
     expect(s).toMatch(/const leaderboardUrl = computed\(\(\) => sendUrl\.replace\(/);
     expect(s).toContain("fetchMineRows(sendUrl.replace(/\\/submit\\/?$/, ''), token)");
@@ -60,7 +60,7 @@ describe('where the store reads', () => {
 });
 
 describe('the Test board label', () => {
-  it('sits on the Leaderboard panel and on My runs\' board part, shown only with the board setting', () => {
+  it('sits on the Leaderboard panel and on My Runs\' board part, shown only with the board setting', () => {
     const label = src('../components/auto/TestBoardLabel.vue');
     expect(label).toContain('boardSendSeparate');
     expect(label).toContain('TEST_BOARD_LABEL');

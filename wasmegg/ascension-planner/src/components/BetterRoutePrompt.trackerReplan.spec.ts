@@ -1,6 +1,6 @@
 /**
  * L1 (spec-r7qa, QA 3 Nov 2026, LOW): "after pressing Re-plan directly the 'Keep mine' button stays with no offer text".
- * QA's sequence (harness-r7 snippets c44 to c46): My runs with the newer main save loaded over a plan of the older one;
+ * QA's sequence (harness-r7 snippets c44 to c46): My Runs with the newer main save loaded over a plan of the older one;
  * the page shows the Build-up tracker's Re-plan strip ("Your save has bought things this plan buys later …" and its own
  * "Re-plan from this save") and, above it, Right now's offer (BetterRoutePrompt.vue). The harness clicks the first
  * button reading exactly "Re-plan from this save" and then lists the visible buttons reading exactly "Keep mine" or "Re-plan
@@ -74,7 +74,7 @@ async function followed(): Promise<Pinia> {
   return pinia;
 }
 
-/** Right now's offer above the tracker, as on My runs. `offer`: the candidate's kind, or none. */
+/** Right now's offer above the tracker, as on My Runs. `offer`: the candidate's kind, or none. */
 async function page(pinia: Pinia, offer: 'better' | 'stale' | 'none', strip: typeof STRIP | null): Promise<string> {
   const candidate = offer === 'none' ? null : { chain: ANSWER, end: now() + 37 * D, endTE: 490, at: CLOCK + 1000, source: 'fast' as const, planStart: now() };
   const ticks = new Set<string>();

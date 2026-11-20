@@ -8,7 +8,7 @@ import { ASC_START_OPEN } from '@/lib/ascOpenKey';
 import { renderToString } from 'vue/server-renderer';
 
 let ascOpen = false;
-/** My runs' ascension blocks start open in what renderHtml draws next (a spec that reads what an opened block holds; call with false in afterAll). */
+/** My Runs' ascension blocks start open in what renderHtml draws next (a spec that reads what an opened block holds; call with false in afterAll). */
 export function openAscensions(on = true): void {
   ascOpen = on;
 }

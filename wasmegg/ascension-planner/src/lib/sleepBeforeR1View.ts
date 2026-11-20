@@ -40,7 +40,7 @@ export function r1OfTrackerLines(
   return r && r.r1At >= now ? r : null;
 }
 
-/** My runs, "if you prestige now": the ascension that would start at `max(now, at)` from `startTE` (the TE after the prestige is the save's). */
+/** My Runs, "if you prestige now": the ascension that would start at `max(now, at)` from `startTE` (the TE after the prestige is the save's). */
 export function r1IfPrestigeNow(o: { at?: number | null; now: number; startTE: number; hours: Hours; held?: boolean }): SleepBeforeR1 | null {
   if (!Number.isFinite(o.now) || !Number.isFinite(o.startTE)) return null;
   const start = Math.max(o.now, o.at ?? 0);

@@ -1,6 +1,6 @@
 /**
  * R7 red-team #3 (31 Oct 2026): a route followed for Egg Day (Highest TE by a date) never got a Build-up tracker ("follow
- * a route first" for 5 minutes) while a followed Fastest route did. Not the goal kind: My runs opened on Fastest to 490
+ * a route first" for 5 minutes) while a followed Fastest route did. Not the goal kind: My Runs opened on Fastest to 490
  * (first in the list, nothing kept for either goal), the tracker is the SELECTED goal's, and Fastest had no follow; with
  * the Egg Day pill picked the tracker was ready in 6 s (QA harness, egg-beta 811a39c8). Now Right now opens on the
  * followed goal (lib/planGoals.ts `defaultGoalKey`), and both goal kinds reach the tracker the same way, side by side

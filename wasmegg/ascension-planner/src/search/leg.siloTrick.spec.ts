@@ -2,7 +2,7 @@
  * THE SILO TRICK SETTING, in the simulation's context (spec-silotrick, 10 Nov 2026). Jordan: "For silo trick, Plans should
  * have a setting in setup, off by default." The simulator already credits the silo trick (a wait into Monday's 2x event pays
  * the away time at 2x, capped at the silos: auto/shifts/helpers/advanceTime.ts) behind `context.deferForEarningsMode`, which
- * nothing in My runs, Fast, Exact, Custom or Single run turned on. `SearchInputs.siloTrick` (Setup) now does, in `legContext`.
+ * nothing in My Runs, Fast, Exact, Custom or Single run turned on. `SearchInputs.siloTrick` (Setup) now does, in `legContext`.
  * Off (absent or false) leaves the context exactly as it was.
  */
 import { describe, expect, it } from 'vitest';

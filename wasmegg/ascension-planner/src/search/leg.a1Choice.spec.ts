@@ -1,5 +1,5 @@
 /**
- * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026; Jordan's decision via the orchestrator). Under My runs' unfinished-build
+ * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026; Jordan's decision via the orchestrator). Under My Runs' unfinished-build
  * path (composables/useNowPage.ts: 'buildup' with continue left out) a build-up that buys still wins even when it ends
  * LATER than finishing without buying (pieha's 27 Oct decision). Right now now offers both. Both candidates come from
  * ONE simulation: runLeg already records when continue would have ended (`firstLegEnds.continue`), and now also how many
@@ -8,7 +8,7 @@
  *
  * Real simulations of synthetic saves (src/test/syntheticSave.ts; no player data, fixed clock):
  * - `oneCarShortBackup`: the alt's shape with the last hyperloop one car short. The build-up buys 1 thing and ends later
- *   than continue. Only with 'buildup' forced: My runs calls this farm built (its shipping is above its laying), so the
+ *   than continue. Only with 'buildup' forced: My Runs calls this farm built (its shipping is above its laying), so the
  *   page never offers the choice on it (spec-r7redteam-f; NowPage.a1Choice.realPage.spec.ts).
  * - `shippingShortBackup`: nine full hyperloops, shipping below laying at full habs, the page's unfinished build. The
  *   build-up buys 81 things and ends later than continue.
@@ -32,7 +32,7 @@ import type { SearchInputs } from './types';
 const GOAL = 194;
 const state = (inputs: SearchInputs) => JSON.parse(JSON.stringify(inputs.baseState));
 const under = (base: SearchInputs, extra: Partial<SearchInputs>) => ({ ...base, ...extra }) as SearchInputs;
-/** My runs' unfinished build (useNowPage `carryOn`), and the side "Finish without buying" asks for. */
+/** My Runs' unfinished build (useNowPage `carryOn`), and the side "Finish without buying" asks for. */
 const UNFINISHED = { firstAscension: 'buildup', continueMaxSeconds: 0 } as const;
 const FINISH = { firstAscension: 'continue', continuePinSeconds: CONTINUE_MAX_SECONDS } as const;
 

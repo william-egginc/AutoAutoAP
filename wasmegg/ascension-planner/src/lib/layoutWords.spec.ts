@@ -13,7 +13,7 @@ describe('layout words', () => {
     expect(W.MORE_LINE_MYRUNS).toBe('Change route, gear, saved answer, try next, your runs');
   });
   it('what to do now', () => {
-    expect(W.NOW_BEFORE_FOLLOW).toBe('Press Follow this route: My runs then shows what to buy and when.');
+    expect(W.NOW_BEFORE_FOLLOW).toBe('Press Follow this route: My Runs then shows what to buy and when.');
     expect(W.nowAfterFollow('shift to Humility on Nov 14 at 9:52 am')).toBe('Next: shift to Humility on Nov 14 at 9:52 am.');
     expect(W.nowSearchRunning('Fast', 33.6)).toBe('Fast search running: 34%');
     expect(W.NOW_SHOW_SEARCH).toBe('Show search ›');
@@ -27,7 +27,7 @@ describe('layout words', () => {
     expect([W.FOLLOWING, W.HOW_IT_WORKS_LINK]).toEqual(['Following ✓', 'How it works ›']);
     expect(W.SEARCH_CARD_LINE).toBe('Checks the instant answer on your save.');
   });
-  it('My runs and Setup', () => {
+  it('My Runs and Setup', () => {
     expect(W.sharingSummaryWords({ help: 'no', saveOnline: true })).toBe(
       'Help improve: no thanks · Save online: on'
     );
@@ -35,7 +35,7 @@ describe('layout words', () => {
       'Help improve: not answered · Save online: off'
     );
     expect(W.sharingSummaryWords({ help: 'yes', saveOnline: true, searchResults: true, instantWithRuns: false })).toBe(
-      'Help improve: yes · Save online: on · Search results: on · Instant answer with runs: off'
+      'Help improve: yes · Save online: on · Search results: on · Instant Answer with runs: off'
     );
     expect([W.SAVE_LINE_CLOSE, W.CHANGE_PLAYER]).toEqual(['Close player box', 'Change player']);
     expect(W.SHOW_EVERYTHING_LINE).toBe('Every More fold starts open, like the old page.');

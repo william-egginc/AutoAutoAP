@@ -3,7 +3,7 @@
        44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
        bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
-       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. On My runs
+       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. On My Runs
        the pill is the full one-row pill (up to 27rem wide from xl) and the page keeps its full width: the pill floats
        over the bottom right like any floating button, draggable, and this bottom room lets the last lines clear it. -->
   <div
@@ -178,7 +178,7 @@
       </div>
 
       <!-- The chevron: one fixed place, just under the tabs (it used to jump between above and below the Auto Planner).
-           Gone from Fastest, By a date and My runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
+           Gone from Fastest, By a date and My Runs since the simpler page (Jordan, 9 Nov 2026, Q6): the save line takes
            its place there, and Setup's Change player opens the ID box. It stays on the Manual Planner (it folds Joo's plan
            library and action cards), Single run, the Leaderboard and Science. -->
       <div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">
@@ -646,7 +646,7 @@
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
       </div>
 
-      <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
+      <!-- My Runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
            computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
       <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
         <MyRunsView
@@ -690,7 +690,7 @@
         :bottom-offset="singleRunBarRoom"
         @height="setupPillHeight = $event"
       />
-      <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
+      <!-- And on My Runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
       <SetupDock
         v-else-if="plannerTab === 'myruns' && playerId && !loading"
         screen="fastest"
@@ -1026,7 +1026,7 @@ function useLeaderboardChain(chain: number[]): void {
   uiStore.autoView = 'classic';
   plannerTab.value = 'automatic';
 }
-/** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
+/** My Runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
  *  the tab click's fresh save (that would set the planner up again under the opened entry). */
 function openFromMyRuns(to: MyRunsOpen): void {
   pinnedRoute = null;
@@ -1050,7 +1050,7 @@ function openFromMyRuns(to: MyRunsOpen): void {
   plannerTab.value = 'automatic';
 }
 /**
- * My runs' "Run Fast" (lib/recalc.ts; "Recalculate", which ran Check exactly, until 23 Oct 2026): a fresh save first
+ * My Runs' "Run Fast" (lib/recalc.ts; "Recalculate", which ran Check exactly, until 23 Oct 2026): a fresh save first
  * when the loaded one is 6 hours old or more (the same path as entering the Auto Planner; stops on its reason), then
  * the goal's screen with the Stronger check panel on Fast. Nothing starts: the player presses Find. Under a running
  * search the screen only opens, as Open does.
@@ -1092,7 +1092,7 @@ const setupDockShown = computed(
   () => (plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value
 );
 /**
- * A screen shows its own h1 (its title): every Auto Planner screen once the save is in, My runs, Science's three
+ * A screen shows its own h1 (its title): every Auto Planner screen once the save is in, My Runs, Science's three
  * pages, the Leaderboard, and Manual with an account. Until then the header's title is the page's h1.
  */
 const screenHasH1 = computed(
@@ -1124,7 +1124,7 @@ const pageBottomRoom = computed(() =>
     ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`
     : `calc(${SETUP_DOCK_CLEARANCE} + ${NARROW_PILL_ROOM})`
 );
-/** The pill's height as measured (SetupDock emits it; 0 until then): taller than one row on My runs with a long summary
+/** The pill's height as measured (SetupDock emits it; 0 until then): taller than one row on My Runs with a long summary
  *  or during a search when its workers wrap, so the room follows it (Jordan, 12 Nov 2026: no control the pill covers
  *  for good). Never less than pageBottomRoom. */
 const setupPillHeight = ref(0);
@@ -1485,12 +1485,12 @@ const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
-/** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My runs, in place of
+/** The save line (layout/SaveLine.vue, the simpler page, 9 Nov 2026): on Fastest, By a date and My Runs, in place of
  *  the chevron. Single run keeps its own save strip in its setup bar (YourSetup.vue). */
 const saveLineShown = computed(
   () => !!playerId.value && (plannerTab.value === 'myruns' || (plannerTab.value === 'automatic' && autoView.value !== 'classic'))
 );
-/** On the save-line screens the player box folds once a save is in (My runs too, which had no automatic fold: Jordan's
+/** On the save-line screens the player box folds once a save is in (My Runs too, which had no automatic fold: Jordan's
  *  iPhone showed it open there, 9 Nov 2026), unless the player opened it (Change player keeps it open). */
 watch(
   () => [saveLineShown.value, !!initialStateStore.rawBackup],
@@ -1509,7 +1509,7 @@ function tabHidden(tab: typeof plannerTab.value): boolean {
   );
 }
 // On a tab that isn't shown (its box just turned off in Setup, an address for it in a copy with no collector, or My
-// runs with nothing to show): the tab it came from, else My runs, else the Auto Planner, never a blank page.
+// runs with nothing to show): the tab it came from, else My Runs, else the Auto Planner, never a blank page.
 watch(
   [plannerTab, optionalShown, myRunsTabShown],
   () => {
@@ -1529,7 +1529,7 @@ watch(
  * the loading watcher does not re-run it, and never over a load already in progress.
  */
 
-/** The top tabs, in Joo's order (Jordan, 12 Nov 2026): Manual Planner, Auto Planner, Chain Finder, My runs, then
+/** The top tabs, in Joo's order (Jordan, 12 Nov 2026): Manual Planner, Auto Planner, Chain Finder, My Runs, then
  *  Leaderboard, then Science. Which one is lit comes from the route (currentTopTab). */
 const topTabs = computed(() => [
   {
@@ -1547,7 +1547,7 @@ const topTabs = computed(() => [
     label: NAMES.chainFinder,
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
-  // My runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
+  // My Runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
   // no collector.
   ...(myRunsTabShown.value
     ? [
@@ -1681,7 +1681,7 @@ onMounted(async () => {
 
   if (playerId.value) {
     // Never the reason the rest of this doesn't run (red team 6 Nov 2026, R1): a draft this build can't open
-    // or a database that doesn't answer left myRunsReady false, so My runs and the Auto Planner never set up.
+    // or a database that doesn't answer left myRunsReady false, so My Runs and the Auto Planner never set up.
     try {
       await initPersistence(playerId.value);
     } catch (e) {
@@ -1716,7 +1716,7 @@ onMounted(async () => {
 
   // A saved player id on a link into the Auto Planner: set it up now rather than waiting for a click.
   await initAutoOnce();
-  // On My runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
+  // On My Runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
   myRunsReady = true;
   loadSaveForMyRuns();
   // On the Auto Planner with the stores still not set up from the save (setUpForInstantAnswer).
@@ -1926,7 +1926,7 @@ function backupFailureReason(e: unknown): string {
 watch(
   () => uiStore.backupRetryRequested,
   () => {
-    // On My runs (the daily loop: load today's save, tick buys) a fresh save loads and the player stays there (review S-1);
+    // On My Runs (the daily loop: load today's save, tick buys) a fresh save loads and the player stays there (review S-1);
     // from anywhere else it opens the Auto Planner as before.
     if (plannerTab.value === 'myruns') loadFreshSave();
     else void handleAutoPlannerTabClick();
@@ -1985,23 +1985,23 @@ async function prepareAutoPlanner(): Promise<string> {
   }
 }
 
-/** My runs' "Load a fresh one": the same fresh save as entering the Auto Planner, staying on My runs. */
+/** My Runs' "Load a fresh one": the same fresh save as entering the Auto Planner, staying on My Runs. */
 function loadFreshSave(): void {
   void prepareAutoPlanner();
 }
 
 /**
- * My runs reads everything from the save, so it needs one LOADED into the stores. On a page load they hold the
+ * My Runs reads everything from the save, so it needs one LOADED into the stores. On a page load they hold the
  * Manual planner's restored draft instead (initPersistence -> importPlan -> hydrate: no save time, and the TE
  * and egg of whenever that plan was made) beside the last fetched save: the strip said "No save loaded" and the
- * board's look-alike rule read the draft's TE (fix 20). So on My runs, with no save loaded into the stores, load
+ * board's look-alike rule read the draft's TE (fix 20). So on My Runs, with no save loaded into the stores, load
  * one the way entering the Auto Planner does (prepareAutoPlanner: a fresh save, else the stored one). After the
  * page's own restore (onMounted ends with it), at most once per account per page visit (a Manual plan opened
  * later from the library is never reset by a tab click: the strip's "Load your save" is there), never under a
  * search or over a save the player picked.
  *
  * An account switch (submitPlayerId) DOES load the save into the stores, but the 'default' way: the pending Truth
- * Eggs not rolled up (the TE is the claimed one) and the farm caught up to now. My runs reads its TE and eggs from
+ * Eggs not rolled up (the TE is the claimed one) and the farm caught up to now. My Runs reads its TE and eggs from
  * the save itself (useNowPage), but the instant answer's key and the gear sets need the stores set up as Fastest
  * and By a date have them, so then it sets them up from the save already in hand (no second fetch; fix 21).
  */
@@ -2046,7 +2046,7 @@ async function setUpFromSaveInHand(): Promise<void> {
   }
 }
 /**
- * My runs' Build-up tracker Try again while the stores are not this save's (QA review 7 Nov 2026 #5): the set-up of
+ * My Runs' Build-up tracker Try again while the stores are not this save's (QA review 7 Nov 2026 #5): the set-up of
  * this account and save time forgotten and asked for once more. Called by the press only, so a set-up that still
  * cannot match is asked once per press, never in a loop (`loadSaveForMyRuns` keeps its once-per-save guard).
  */
@@ -2156,7 +2156,7 @@ async function submitPlayerId(id: string) {
   loadingSaveFor = '';
 
   playerId.value = id;
-  // My runs sets this save up again (loadSaveForMyRuns), even for the same ID: this load leaves the pending Truth Eggs
+  // My Runs sets this save up again (loadSaveForMyRuns), even for the same ID: this load leaves the pending Truth Eggs
   // not rolled up, and a save with a TE not claimed yet then never matched (spec-webkit-tracker, 7 Nov 2026).
   myRunsLoadFor = '';
   savePlayerID(id);
@@ -2177,7 +2177,7 @@ async function submitPlayerId(id: string) {
 
     try {
       const pHash = await hashID(id);
-      // The server's save time is this save's now (lib/serverSave.ts: My runs' strip, no quiet check needed).
+      // The server's save time is this save's now (lib/serverSave.ts: My Runs' strip, no quiet check needed).
       noteServerSave(pHash, backup);
       await saveMetadata(pHash, 'rawBackup', backup);
     } catch (dbErr) {

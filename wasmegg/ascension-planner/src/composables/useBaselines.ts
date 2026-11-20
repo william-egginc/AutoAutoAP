@@ -1,5 +1,5 @@
 /**
- * The instant baselines My runs compares each run with (lib/instantBaseline.ts): the log kept in this browser, with
+ * The instant baselines My Runs compares each run with (lib/instantBaseline.ts): the log kept in this browser, with
  * the instant answers still in snapshots added to it once (a snapshot lasts a day, the log longer). Read once per
  * page; a run's baseline is found by the loaded account, the run's goal and its save.
  */

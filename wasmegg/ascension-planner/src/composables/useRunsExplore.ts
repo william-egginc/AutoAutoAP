@@ -1,5 +1,5 @@
 /**
- * My runs › Your runs' chip selection (lib/runsExplore.ts), remembered per account in this browser: read when the
+ * My Runs › Your runs' chip selection (lib/runsExplore.ts), remembered per account in this browser: read when the
  * account is known (its partition hash, lib/accountHash.ts, never the player ID) and written on every change. With
  * no account (or no storage) the selection lasts for the visit. `initial` (specs) starts from a given selection
  * and is never overwritten by what was stored.

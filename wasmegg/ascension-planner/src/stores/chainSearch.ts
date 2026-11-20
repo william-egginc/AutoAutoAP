@@ -1762,7 +1762,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chainRunSaveAt = ref(0);
   /**
    * Whose that result (or the run going now) is: the partition hash of the player ID it ran for
-   * (lib/accountHash.ts), '' when unknown. My runs › Your latest run shows it only on that account (16 Oct
+   * (lib/accountHash.ts), '' when unknown. My Runs › Your latest run shows it only on that account (16 Oct
    * 2026: another account's run showed there). Never the ID itself.
    */
   const chainResultOwner = ref('');
@@ -3701,7 +3701,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chartShown = ref(loadChartShown());
 
   /**
-   * Whether a chart is on screen (RunCharts.vue mounted: My runs › Your latest run, LatestRunView.vue).
+   * Whether a chart is on screen (RunCharts.vue mounted: My Runs › Your latest run, LatestRunView.vue).
    * The chart's data is built only while the chart is both shown AND on screen, so a remembered "shown"
    * costs nothing on every batch while Compare is closed. `chartMounted` counts the mounted charts.
    */
@@ -4671,7 +4671,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * Where the board's SENDS go (lib/boardSubmitUrl.ts): the result, a progress send / Send best so far, and what
    * follows a sent row (its CSV and deltas, the full CSV, Put my name on it). `VITE_BOARD_SUBMIT_URL` when the build
-   * has one (egg-beta: a newer simulator, so a test board), else `submitUrl` itself. Reading the board, My runs and the
+   * has one (egg-beta: a newer simulator, so a test board), else `submitUrl` itself. Reading the board, My Runs and the
    * rechecks follow it (spec-betaboard, 16 Nov 2026); the rest (follow, prefs, answers, sync, the beacon) stays on
    * `submitUrl`. A `--collector` on the command line names one collector for all of it.
    */

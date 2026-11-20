@@ -49,7 +49,7 @@ describe('the Build-up tracker: the shifts still ahead, only while R1 is ahead',
   });
 });
 
-describe('My runs: if you prestige now', () => {
+describe('My Runs: if you prestige now', () => {
   it('flagged late in the evening; the start is the later of now and the prestige\'s time', () => {
     expect(r1IfPrestigeNow({ now: at(18, '22:30'), startTE: 150, hours: HOURS })).not.toBeNull();
     // A prestige held until morning starts at 7 AM: no warning.

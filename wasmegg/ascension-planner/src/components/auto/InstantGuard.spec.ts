@@ -103,7 +103,7 @@ describe('InstantGuard', () => {
         mounts++;
         return () => {
           if (broken.value) throw new TypeError("undefined is not an object (evaluating 'r.legs')");
-          return h('section', 'Instant answer: 314 TE');
+          return h('section', 'Instant Answer: 314 TE');
         };
       },
     });
@@ -123,17 +123,17 @@ describe('InstantGuard', () => {
     (byTestId(root, 'instant-failed-again')!.props.onClick as () => void)();
     await nextTick();
     expect(byTestId(root, 'instant-failed')).toBeNull();
-    expect(textOf(root)).toContain('Instant answer: 314 TE');
+    expect(textOf(root)).toContain('Instant Answer: 314 TE');
     expect(mounts).toBe(2);
     spy.mockRestore();
   });
 
   it('a card that draws: as it is, no message', async () => {
-    const Card = defineComponent({ setup: () => () => h('section', 'Instant answer: 313 TE') });
+    const Card = defineComponent({ setup: () => () => h('section', 'Instant Answer: 313 TE') });
     const { root } = mount(Card);
     await nextTick();
     expect(byTestId(root, 'instant-failed')).toBeNull();
-    expect(textOf(root)).toBe('Instant answer: 313 TE');
+    expect(textOf(root)).toBe('Instant Answer: 313 TE');
   });
 
   it('a part inside the card failing blanks only that part (the card is still there)', async () => {
@@ -142,11 +142,11 @@ describe('InstantGuard', () => {
         throw new Error('part');
       },
     });
-    const Card = defineComponent({ setup: () => () => h('section', ['Instant answer', h(Part)]) });
+    const Card = defineComponent({ setup: () => () => h('section', ['Instant Answer', h(Part)]) });
     const { root, errors } = mount(Card);
     await nextTick();
     expect(byTestId(root, 'instant-failed')).toBeNull();
-    expect(textOf(root)).toBe('Instant answer');
+    expect(textOf(root)).toBe('Instant Answer');
     expect(errors).toHaveLength(1);
   });
 
@@ -172,7 +172,7 @@ describe('InstantGuard', () => {
     const Card = defineComponent({
       setup: () => () =>
         h('section', [
-          'Instant answer',
+          'Instant Answer',
           answer.value && !hold.value
             ? [h(Teleport, { to: '#share', defer: true }, [createCommentVNode('v-if', true)]), h(Part)]
             : createCommentVNode('v-if', true),
@@ -259,7 +259,7 @@ describe('InstantGuard keeps what went wrong', () => {
       setup: () => () => {
         if (which.value === 'first') throw new TypeError("Cannot read properties of null (reading 'nextSibling')");
         if (which.value === 'second') throw new TypeError("Cannot read properties of null (reading 'emitsOptions')");
-        return h('section', 'Instant answer: 312 TE');
+        return h('section', 'Instant Answer: 312 TE');
       },
     });
     const { root } = mount(Card);
@@ -281,7 +281,7 @@ describe('InstantGuard keeps what went wrong', () => {
     (byTestId(root, 'instant-failed-again')!.props.onClick as () => void)();
     await nextTick();
     expect(byTestId(root, 'instant-failed')).toBeNull();
-    expect(textOf(root)).toBe('Instant answer: 312 TE');
+    expect(textOf(root)).toBe('Instant Answer: 312 TE');
     spy.mockRestore();
   });
 

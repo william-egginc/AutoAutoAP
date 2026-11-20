@@ -1,12 +1,12 @@
 /**
  * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026; Jordan's decision via the orchestrator). When the save's build isn't
- * finished, My runs simulates the ascension you are in as the build-up carried on (composables/useNowPage.ts, the
+ * finished, My Runs simulates the ascension you are in as the build-up carried on (composables/useNowPage.ts, the
  * unfinished-build path), and a build-up that buys wins there even when it ends LATER than finishing without buying
  * (pieha's 27 Oct decision: a player mid build-up wants to see the build go on). Now Right now offers both when that
  * happens, and follows the sooner (finish without buying) until the player picks:
  *
  *   - THE TWO CANDIDATES come from one simulation: search/leg.ts `runLeg` records when each kind would have ended
- *     (`firstLegEnds`) and how many things the build-up's build buys (`buildUpBuys`), whichever kind won; My runs keeps
+ *     (`firstLegEnds`) and how many things the build-up's build buys (`buildUpBuys`), whichever kind won; My Runs keeps
  *     both on its simulated leg (lib/followSim.ts `SimLeg`). The side the player follows is then simulated under its
  *     own setup key (`A1_SETUP`), so its Next step, Next shifts and Build-up tracker are its own.
  *   - THE CHOICE shows only when the build-up buys something (N > 0) and ends strictly later than continue. A tie shows

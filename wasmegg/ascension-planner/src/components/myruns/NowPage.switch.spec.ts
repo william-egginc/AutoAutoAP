@@ -1,5 +1,5 @@
 /**
- * My runs after SWITCHING accounts (fix 21). On beta, Kelli -> main: the card said "Integrity · 159 TE so far" and
+ * My Runs after SWITCHING accounts (fix 21). On beta, Kelli -> main: the card said "Integrity · 159 TE so far" and
  * both tiles "How sure: Low · Your TE has moved since" over a save at 191 (35+38+39+39+40, as Your eggs said). The
  * switch (`submitPlayerId`) loads the save 'default'-style: `initialTeEarned` is the CLAIMED TE (pending Truth Eggs
  * not rolled up) and the farm is caught up to now; the page read those store fields. Now every TE, egg and time on
@@ -125,7 +125,7 @@ function olderPlanFor(b: ReturnType<typeof save>): void {
   } as never);
 }
 
-describe('My runs after switching accounts: every value follows the new save', () => {
+describe('My Runs after switching accounts: every value follows the new save', () => {
   it('A loaded, then B: the card’s TE and egg, Your eggs, the strip and the tiles are B’s own', async () => {
     const a = save(A_ID, 5);
     const b = save(B_ID, 1);
@@ -206,7 +206,7 @@ describe('My runs after switching accounts: every value follows the new save', (
 });
 
 describe('the switch, in the source', () => {
-  it('App sets the stores up from the save in hand on My runs when the switch left the TE claimed-only', async () => {
+  it('App sets the stores up from the save in hand on My Runs when the switch left the TE claimed-only', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
@@ -218,7 +218,7 @@ describe('the switch, in the source', () => {
     expect(app).toContain("watch(playerId, () => (myRunsLoadFor = ''));");
   });
 
-  it('My runs reads no TE, egg or farm field of the initial-state store', async () => {
+  it('My Runs reads no TE, egg or farm field of the initial-state store', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.resolve(__dirname, '../../composables/useNowPage.ts'), 'utf8');

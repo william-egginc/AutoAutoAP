@@ -383,7 +383,7 @@ describe('InstantRoute: every state draws something', () => {
     for (const s of states()) {
       n++;
       const html = await draw(s);
-      if (!html.includes('Instant answer') || !SAYS.some(m => html.includes(m))) nothing.push(s);
+      if (!html.includes('Instant Answer') || !SAYS.some(m => html.includes(m))) nothing.push(s);
     }
     expect(n).toBe(8192);
     expect(nothing).toEqual([]);
@@ -594,7 +594,7 @@ describe('the hidden section keeps its Show bar', () => {
     renderToString(
       createSSRApp({
         render: () =>
-          h(CollapsibleSection, { id: 'instant', title: 'Instant answer', summary: '314 TE by Jul 14' }, () =>
+          h(CollapsibleSection, { id: 'instant', title: 'Instant Answer', summary: '314 TE by Jul 14' }, () =>
             h('section', { 'data-testid': 'card' }, 'the card')
           ),
       })
@@ -604,7 +604,7 @@ describe('the hidden section keeps its Show bar', () => {
     store.set('aap-section-hidden-instant', '1');
     const html = await drawSection();
     expect(html).toContain('data-testid="show-instant"');
-    expect(html).toContain('Instant answer');
+    expect(html).toContain('Instant Answer');
     expect(html).toContain('314 TE by Jul 14');
     expect(html).toContain('Show');
     expect(html).not.toContain('data-testid="hide-instant"');
@@ -1152,7 +1152,7 @@ describe('the slim card: one line under the title, First step in the box', () =>
     it(`${name}: the one line sits under the title, before the controls and the box, its detail behind Why`, async () => {
       const html = await draw(at(answer, deadline), slim);
       const line = html.indexOf('data-testid="instant-header"');
-      expect(line).toBeGreaterThan(html.indexOf('Instant answer'));
+      expect(line).toBeGreaterThan(html.indexOf('Instant Answer'));
       expect(line).toBeLessThan(html.indexOf('data-testid="inside-hours"'));
       expect(line).toBeLessThan(html.indexOf('data-testid="instant-box"'));
       const why = html.slice(line, html.indexOf('</details>', line));

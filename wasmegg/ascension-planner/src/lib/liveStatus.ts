@@ -12,7 +12,7 @@ import { foundLevel } from './searchPointer';
 /** The instant answer's line: while it is worked out, and once it is there. Nothing otherwise. */
 export function instantLiveText(status: 'idle' | 'loading' | 'error' | 'done', hasAnswer: boolean): string {
   if (status === 'loading') return 'Working out the instant answer';
-  if (status === 'done' && hasAnswer) return 'Instant answer ready';
+  if (status === 'done' && hasAnswer) return 'Instant Answer ready';
   return '';
 }
 

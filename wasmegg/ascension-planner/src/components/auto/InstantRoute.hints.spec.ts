@@ -1,4 +1,4 @@
-/** Instant answer hints (14 Oct 2026): the near-tie note on the counts table, and the spaces before a template. */
+/** Instant Answer hints (14 Oct 2026): the near-tie note on the counts table, and the spaces before a template. */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';

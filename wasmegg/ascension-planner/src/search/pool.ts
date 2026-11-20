@@ -250,7 +250,7 @@ export interface EvaluateOptions {
    */
   memo?: { keepLast?: boolean; capacity?: (workers: number) => number };
   /** BUILD-UP TRACKER: each chain's first step comes back with its build-up list (search/chain.ts
-   *  `EvaluateChainOptions.keepPurchases`). Off by default; only My runs' simulation of the ascension
+   *  `EvaluateChainOptions.keepPurchases`). Off by default; only My Runs' simulation of the ascension
    *  you are in asks for it (composables/useCurrentSim.ts), not when dealt. */
   keepPurchases?: boolean;
 }

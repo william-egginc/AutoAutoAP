@@ -34,7 +34,7 @@ export function syncTEOverrideToAccount(): boolean {
  * The TE the Auto Planner sets this save up to start from: this account's override when it has one (claimed TE
  * only, put back over the rolled-up save, lib/modes/planFuture.ts 4b), else the save's own TE (pending counted).
  * What "the stores hold this save set up" is checked against (useNowPage `storeReady`, App `storesSetUpFromSave`):
- * against the save's TE alone, an override on left My runs waiting for good (spec-overridestart, 7 Nov 2026).
+ * against the save's TE alone, an override on left My Runs waiting for good (spec-overridestart, 7 Nov 2026).
  */
 export function plannerStartTEOf(raw: unknown): number {
   const planner = useAutoPlannerStore();

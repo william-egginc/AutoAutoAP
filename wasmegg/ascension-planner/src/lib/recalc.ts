@@ -1,7 +1,7 @@
 /**
  * Right now's "Run Fast" (was "Recalculate", which ran Check exactly until 23 Oct 2026): open the selected goal's
  * screen (Fastest, or By a date on Egg Day or its date) with the current save and the Stronger check panel on Fast,
- * ready to press Find. My runs still works nothing out itself, and Fast never starts by itself (price-route-v2).
+ * ready to press Find. My Runs still works nothing out itself, and Fast never starts by itself (price-route-v2).
  *
  *   App loads a fresh save first when the loaded one is `SAVE_AMBER_HOURS` (6) hours old or more, the same path as
  *   entering the Auto Planner; then opens the screen on Fast (`openFromMyRuns` with `fastOpen`). Pure.

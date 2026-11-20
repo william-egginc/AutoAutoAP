@@ -1,6 +1,6 @@
 /**
  * The R1 sleep warning MOUNTED on its surfaces (orchestrator / QA, 15 Nov 2026: source pins weren't enough): RouteTimeline
- * (a plan with exact legs; Chain Finder and By a date results), My runs' Next step (simulated prestige, and the plan-events
+ * (a plan with exact legs; Chain Finder and By a date results), My Runs' Next step (simulated prestige, and the plan-events
  * fallback "Not done yet: prestige …" with the plan's own line beside it in Follow), and the Build-up tracker. Held shifts
  * (the default) give the softer line; not held, the full one; no hours, none. Instant steps and AscensionList:
  * sleepR1Surfaces.spec.ts. Placeholder data only.
@@ -123,7 +123,7 @@ const nowCard = (o: { card?: boolean; nextStep?: unknown; hours?: Availability |
     [createPinia()]
   );
 
-describe("My runs' Next step: \"If you prestige now, …\"", () => {
+describe("My Runs' Next step: \"If you prestige now, …\"", () => {
   it('Follow, the plan-events fallback ("Not done yet: prestige at 191 TE"): the R1 line AND the plan\'s own line, no "Nothing left"', async () => {
     const html = await nowCard({});
     const t = textOf(html);

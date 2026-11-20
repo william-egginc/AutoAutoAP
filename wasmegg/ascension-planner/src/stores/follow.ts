@@ -96,7 +96,7 @@ export const useFollowStore = defineStore('follow', () => {
   /** 'unreachable': the saved routes couldn't be read on the last load (offline, the hour's limit, an error). */
   const cloudStatus = ref<'idle' | 'loading' | 'ok' | 'unreachable'>('idle');
   const saves = ref<Record<GoalKey, SaveState>>({});
-  // A follow (or one read back from online) is something My runs shows: the tab looks again (lib/myRunsShown.ts).
+  // A follow (or one read back from online) is something My Runs shows: the tab looks again (lib/myRunsShown.ts).
   watch(version, () => noteMyRuns());
 
   const idOf = () => ((useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId ?? '').trim();

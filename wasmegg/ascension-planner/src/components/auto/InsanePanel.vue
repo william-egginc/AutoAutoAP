@@ -997,7 +997,7 @@
             >
             <span class="text-slate-600"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
-          <!-- The run's charts are on My runs › Your latest run (LatestRunView.vue; moved off this screen,
+          <!-- The run's charts are on My Runs › Your latest run (LatestRunView.vue; moved off this screen,
                15 Oct 2026): "Dig deeper into your plan ›". -->
           <DigDeeperLink
             v-if="ownRun && store.pricedCount"

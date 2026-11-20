@@ -1,7 +1,7 @@
 /**
  * THE ESTIMATE SHOWN LAST (cached answers first, then recheck: Jordan, 27 Oct 2026). A followed route's estimate on
  * the instant answer's data (lib/followEstimate.ts) is worked out in a route worker on every page load, so a reload of
- * My runs had "Working out your route's times…" and no times for a few seconds. The last one shown is kept here, per
+ * My Runs had "Working out your route's times…" and no times for a few seconds. The last one shown is kept here, per
  * account (a hash, never the player ID), goal and route, and shown at once, marked "From <time>, checking…", until the
  * fresh one is in (composables/useNowPage.ts).
  *

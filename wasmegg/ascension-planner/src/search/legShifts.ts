@@ -1,5 +1,5 @@
 /**
- * EACH ASCENSION'S SHIFTS FROM THE INSTANT ANSWER (26 Oct 2026, Jordan: My runs' Right now said "the instant answer
+ * EACH ASCENSION'S SHIFTS FROM THE INSTANT ANSWER (26 Oct 2026, Jordan: My Runs' Right now said "the instant answer
  * only keeps when each ascension ends" and All planned shifts said "Can't tell"). A version 2 table build already
  * gives every shift AFTER the build-up: H1's and K3's are stored (tableV2.ts `BuildExtras`), and each later one (C4,
  * I2, R2, H2) comes out of the tail's replay, held for the player's hours (tableV2.ts `replayTail`). The finder prices

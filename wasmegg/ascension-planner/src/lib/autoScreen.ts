@@ -3,7 +3,7 @@ import type { AutoView, ChainView, Depth } from './siteNav';
 /**
  * The Auto Planner screen the player was last on (Fastest to 490 TE, Highest TE by a date or Single run, and
  * Fastest's depth), so the tab opened there rather than always on Single run (Jordan, 1 Nov 2026). An address
- * naming a screen and the explicit opens (My runs' Open, a leaderboard route) still win; they set the store
+ * naming a screen and the explicit opens (My Runs' Open, a leaderboard route) still win; they set the store
  * after it has read this.
  *
  * Since Chain Finder (spec-chainfinder, 12 Nov 2026) it is Chain Finder's last goal: Fastest (with its depth) or By a

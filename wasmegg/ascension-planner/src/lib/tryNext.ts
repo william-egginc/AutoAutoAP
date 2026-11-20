@@ -1,5 +1,5 @@
 /**
- * My runs' "Try next" (spec myruns-now v3, section 5): at most four one-click runs, each opening its screen set up
+ * My Runs' "Try next" (spec myruns-now v3, section 5): at most four one-click runs, each opening its screen set up
  * (App.vue `openFromMyRuns`); the player presses Find there. Nothing starts from here. Picked from what the two
  * saved-answer tiles already say:
  *
@@ -30,7 +30,7 @@ export interface Pill {
 
 const STRONG = new Set(['normal', 'thorough', 'exhaustive']);
 
-/** The goal of the route followed on My runs' card (cardPlan.goal when it is followed): null when none is followed. */
+/** The goal of the route followed on My Runs' card (cardPlan.goal when it is followed): null when none is followed. */
 export type FollowedGoal = { goal: 'fastest' | 'date'; target: number } | null;
 
 /**

@@ -101,7 +101,7 @@ describe('the summary, the line and the chart', () => {
 });
 
 describe('the words and the follow suggestions', () => {
-  it('My runs’ components use the helper’s words, not their own', () => {
+  it('My Runs’ components use the helper’s words, not their own', () => {
     expect(src('components/myruns/RightNowCard.vue')).toContain('noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null)');
     expect(src('components/myruns/RightNowCard.vue')).not.toContain('lands after the date');
     // Egg Day's tile, or another date's when that date is picked on Right now (24 Oct 2026).

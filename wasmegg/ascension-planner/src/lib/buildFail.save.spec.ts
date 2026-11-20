@@ -2,7 +2,7 @@
  * "THE ASCENSION TO 218 TE COULD NOT BE SIMULATED" ON THE REAL SAVE (spec-buildfail, 30 Oct 2026; the synthetic
  * version is followSim.justPrestiged.spec.ts). The save is read where it is, never copied into the repo:
  * BUILDFAIL_SAVE, or ~/code/aaap-tools/saves/main-2026-10-30-0952.json. SKIPPED when it is absent. Two cases, as
- * My runs builds the request (useNowPage.ts `simRequest`): the save rewound to a minute after the prestige to 197
+ * My Runs builds the request (useNowPage.ts `simRequest`): the save rewound to a minute after the prestige to 197
  * (its virtue farm bare, the state that failed), and the save as it is; the route 197 218 247 285 313, hours 7 am to
  * 1 am (America/Denver), shifts held for them, the build carried on. Fixed clocks. Each case runs the build-up
  * tracker on the plan (as buildUpTracker.real.spec.ts does); BUILDFAIL_DUMP=<file> writes its first lines (no IDs).

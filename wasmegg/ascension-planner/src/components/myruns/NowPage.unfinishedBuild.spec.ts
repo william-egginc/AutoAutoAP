@@ -191,7 +191,7 @@ describe("pieha's state: mid-ascension on Curiosity, habs not all bought", () =>
     expect(t).toMatch(/Next step Keep building: habs until about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
     expect(t).toMatch(/Next shifts Keep building: habs until about [^·]*Shift to Kindness · about/);
     expect(t).not.toMatch(/Next step (Shift to Curiosity|Prestige)/);
-    // BUILD-UP TRACKER PLACEMENT (30 Oct 2026, Jordan: it sat at the foot of My runs): MyRunsView.vue hands the tracker to
+    // BUILD-UP TRACKER PLACEMENT (30 Oct 2026, Jordan: it sat at the foot of My Runs): MyRunsView.vue hands the tracker to
     // Right now's `buildUp` slot, which renders directly under Next step and Next shifts, above the gear and the Full
     // timeline.
     const html = await cardHtml(page, { buildUp: () => h('div', { 'data-testid': 'buildup-tracker' }, 'Build-up tracker') });

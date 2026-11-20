@@ -1,6 +1,6 @@
 /**
  * Right now: the FOLLOWED route now misses its date (Jordan, 16 Nov 2026, an exception to the 13 Nov "no better-route
- * offer on My runs"). A By a date goal is followed and its finish, worked out again from the newest save, is later than
+ * offer on My Runs"). A By a date goal is followed and its finish, worked out again from the newest save, is later than
  * the date: a clear line (finish against date, 12-hour times) and a button that runs the same date search, on Fast, on
  * the latest save (the card's `recalc`). Miss shows it; on time, no date goal and no followed route do not.
  * Words: lib/followMissWords.ts (Words' text, Jordan's OK 16 Nov).

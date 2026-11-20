@@ -30,7 +30,7 @@ describe('the instant answer: the last one first, then the fresh one', () => {
     expect(show).toMatch(/if \(result\.value\) \{\n\s+staleAt\.value = answerAt\.value/);
   });
 
-  it('a stale answer is never kept, priced for My runs, followed on its own or sent to By a date', () => {
+  it('a stale answer is never kept, priced for My Runs, followed on its own or sent to By a date', () => {
     const apply = fn('applySnapshot');
     expect(apply).toContain('if (!stale) keepPricing();');
     expect(apply).toMatch(/if \(props\.deadline && !stale\) emitRoutes\(s\.result\);/);

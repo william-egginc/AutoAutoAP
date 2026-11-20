@@ -43,7 +43,7 @@ export type ConsentId =
   | 'autoSend'
   /** A science sweep's "I understand ... sent to the board automatically" (Science and the sweep card). */
   | 'scienceSweep'
-  /** "Share my instant baseline with my runs" (My runs, 23 Oct 2026): each run sent to the board carries the instant
+  /** "Share my instant baseline with my runs" (My Runs, 23 Oct 2026): each run sent to the board carries the instant
    *  answer for its goal and save (lib/instantBaseline.ts), shown on the board beside it. */
   | 'shareBaseline';
 

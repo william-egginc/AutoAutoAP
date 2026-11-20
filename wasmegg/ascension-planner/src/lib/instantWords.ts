@@ -42,7 +42,7 @@ export function noPrestigeDayCount(dates: readonly { from: string; to: string }[
 
 /** The full sentence's label behind the card's "?" (Jordan, 16 Nov 2026: the card line now says when to prestige, so the "?" explains how to get there; was "First step:"). */
 export const FIRST_STEP_LABEL = 'To get there:';
-/** When each step happens and My runs' Full timeline, a FRESH first ascension (lib/instantSteps.ts StepLine `fresh`): the
+/** When each step happens and My Runs' Full timeline, a FRESH first ascension (lib/instantSteps.ts StepLine `fresh`): the
  *  player prestiges now to start it, so not "now, in the ascension you are in" (17 Nov 2026, Words). */
 export const STEP_FRESH_NOW = 'prestige now, to start a fresh ascension';
 /** The awake-hours clause at the end of First step (was HOURS_NOTE's paragraph under the box; the math review's
@@ -53,7 +53,7 @@ export const FIRST_STEP_HOURS = 'With awake hours, prestige at the time shown: a
  *  show (spec-uxpass item 9, 8 Nov 2026: Jordan's pass found two caveats stacked under First step). Both meanings:
  *  prestige at the time shown; research buys may fall outside the hours, so the finish is a best case. DRAFT (Words). */
 export const FIRST_STEP_HOURS_NIGHT_BUY =
-  'With awake hours, prestige at the time shown (a few minutes late can cost days). Quick estimate: it may buy research at night; after you press Follow, My runs shows exact times.';
+  'With awake hours, prestige at the time shown (a few minutes late can cost days). Quick estimate: it may buy research at night; after you press Follow, My Runs shows exact times.';
 
 /**
  * First step and the one caveat line under it (components/auto/InstantRoute.vue). The night-buy note's show rule is

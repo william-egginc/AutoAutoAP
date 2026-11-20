@@ -2,7 +2,7 @@
  * The full tour's pictures (spec-fulltour, 14 Nov 2026; rebuilt in the v3 style, spec-tour-v4, 16 Nov 2026): the same kind as the
  * first tour's (lib/tourSlides.ts): a clean page picture shared by neighbouring slides, with a live overlay (ring, arrow,
  * enlarged copy, tab ring) that slides from one target to the next. The slides the two tours share use the very same pictures;
- * the rest (the optional tabs, what is inside More on Chain Finder and on My runs) are made by the same generator
+ * the rest (the optional tabs, what is inside More on Chain Finder and on My Runs) are made by the same generator
  * (~/code/aaap-tools/harness-r7/simpler/tour/make-tour-images-v4.mjs). Loaded ONLY when the full tour opens
  * (components/TourModal.vue imports this file dynamically). Nothing the result hash covers imports this file.
  */

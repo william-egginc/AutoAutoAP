@@ -1,5 +1,5 @@
 <!--
-  My runs' list of the viewer's runs on the board: every kind and target, hidden ones too (tagged
+  My Runs' list of the viewer's runs on the board: every kind and target, hidden ones too (tagged
   "hidden"), filtered and sorted by lib/myRuns.ts. LeaderboardPanel (mode="myruns") hands it the rows
   it already knows are the viewer's, and provides "Hide from the public" (HIDE_CONTROL), which each
   opened run's details (LeaderboardRunDetail) offer as on Compare. Nothing is fetched here.

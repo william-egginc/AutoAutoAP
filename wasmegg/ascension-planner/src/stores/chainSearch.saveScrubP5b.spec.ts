@@ -385,7 +385,7 @@ async function download(): Promise<string> {
 
 /** What the page shows for a save file loaded on screen for the account: the colleggtible tiers and modifiers (the
  *  Setup colleggtibles), the worn set, the farm's laying rate and earnings now (the engine's snapshot), and the rest
- *  Setup and My runs read off the save (TE, fuel, missions, Ultra, soul eggs, epic research, the farm, the clock). */
+ *  Setup and My Runs read off the save (TE, fuel, missions, Ultra, soul eggs, epic research, the farm, the clock). */
 async function loadAndRead(text: string) {
   setActivePinia(createPinia());
   useUIStore().screenPlayerId = ID;

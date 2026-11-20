@@ -7,7 +7,7 @@
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
 
 /**
- * The hours My runs gives the note (the Right now card and the Build-up tracker). What they show is the ascension
+ * The hours My Runs gives the note (the Right now card and the Build-up tracker). What they show is the ascension
  * simulated on the save, and with "hold my shifts" on (the default) and hours that rule something out the simulation
  * holds its research buys to the hours too (search/leg.ts legContext `holdUntil`, auto/shifts/helpers/advanceTime.ts
  * `stretchToHours`), so its finish is not a best case: no hours, no note. With "hold my shifts" off there is no hold, buys
@@ -24,7 +24,7 @@ export function nightBuyNoteShown(hours: Availability | null | undefined, buildU
 }
 
 /**
- * My runs' Next step shows a build-up finish: "Building up until about …" or "Keep building: … until about …" as the
+ * My Runs' Next step shows a build-up finish: "Building up until about …" or "Keep building: … until about …" as the
  * next action or in Next shifts (lib/nextAction.ts), or the Keep building / Finish without buying choice (its Keep
  * building side names the build-up's end, lib/a1Choice.ts `a1ChoiceWords`).
  */

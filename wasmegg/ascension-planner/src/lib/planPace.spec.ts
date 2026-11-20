@@ -327,7 +327,7 @@ describe('the words for every other case', () => {
   });
 });
 
-// My runs review, 22 Oct 2026 (bug 1): the alt save on Humility with 34 TE there, nearly at its 35th, and a plan
+// My Runs review, 22 Oct 2026 (bug 1): the alt save on Humility with 34 TE there, nearly at its 35th, and a plan
 // from that save whose first action is the shift to Curiosity at 8:03 PM. Curiosity then takes days per TE, so a
 // fraction counted on the save's side (and dropped by the plan when it leaves Humility) read "3 days ahead" for the
 // same save stamped 8 h later, and more with 20 h of laying added.

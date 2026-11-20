@@ -1,5 +1,5 @@
 /**
- * Fix 22: one rule for "the" answer of the loaded save, shared by My runs' Right now card and its tiles. The beta
+ * Fix 22: one rule for "the" answer of the loaded save, shared by My Runs' Right now card and its tiles. The beta
  * case: two Check exactly runs of one save, 11:51 pm with any hour (7 ascensions, Sep 17 2028) and 11:59 pm with
  * 7 am to 1 am (6 ascensions, Sep 22 2028), the hours changed in between. Pure.
  */
@@ -232,7 +232,7 @@ describe('the setup is recorded where answers are kept', () => {
     // No Check exactly since 23 Oct 2026: nothing new goes into the check history; the snapshot keeps the setup now.
     expect(src).not.toContain('entryFromRecord(');
     expect(src).toMatch(/\/\/ The hours and time off: the key holds them, so these are this snapshot's\.\s+setup: \{/);
-    // My runs builds both Right now and the tiles from the one selector.
+    // My Runs builds both Right now and the tiles from the one selector.
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
     expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)');
     expect(page).toContain('otherSnapshots: others');

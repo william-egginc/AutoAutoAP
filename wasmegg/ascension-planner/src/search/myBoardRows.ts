@@ -1,5 +1,5 @@
 /**
- * The viewer's own board runs, read the way My runs reads them (LeaderboardPanel.vue, mode "myruns"),
+ * The viewer's own board runs, read the way My Runs reads them (LeaderboardPanel.vue, mode "myruns"),
  * for anything else that needs them: the board's GET /all and GET /mine, merged, and kept to the rows
  * `isMyRun` counts as the viewer's (sent with this browser's code, or looking like theirs: one of the
  * account's keys and, from another browser or site, one of its names).
@@ -20,7 +20,7 @@ import { thisDevice } from './device';
 /** How long a remembered /all stands in for a new read. */
 export const ALL_FRESH_MS = 60_000;
 
-/** How long one board read waits before giving up (My runs, Compare, Light). */
+/** How long one board read waits before giving up (My Runs, Compare, Light). */
 export const BOARD_TIMEOUT_MS = 10_000;
 
 /** Why a board read failed: `unreachable` (no answer in time, or no connection) or `read` (it answered, with an
@@ -43,7 +43,7 @@ export class BoardReadError extends Error {
 /**
  * `read` with a time limit. The fetch gets an AbortSignal that fires at `timeoutMs` (or with the caller's
  * own), and the promise rejects at `timeoutMs` whether or not the fetch notices the abort: a request the
- * network holds open forever left My runs on "loading" for good (QA break-it #4).
+ * network holds open forever left My Runs on "loading" for good (QA break-it #4).
  */
 export async function withBoardTimeout<T>(
   read: (signal: AbortSignal) => Promise<T>,
@@ -75,7 +75,7 @@ export async function withBoardTimeout<T>(
 }
 
 /**
- * What a failed board read says, in words a player can act on and never the error itself. My runs says the
+ * What a failed board read says, in words a player can act on and never the error itself. My Runs says the
  * runs are not lost (a read failure used to read "none yet", as if they were gone); Compare says when to
  * try again. Each sits beside a Retry button.
  */
@@ -161,7 +161,7 @@ export function forgetAll(): void {
 
 /**
  * Every public row, the viewer's marked `yours`, plus any of theirs /all does not show (hidden, or not
- * on the edge's cached list yet). My runs' `mergedRows`.
+ * on the edge's cached list yet). My Runs' `mergedRows`.
  */
 export function mergeMine(shown: readonly BoardRow[], mine: readonly BoardRow[]): BoardRow[] {
   if (!mine.length) return [...shown];

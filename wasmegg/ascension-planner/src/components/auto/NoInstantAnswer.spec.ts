@@ -180,7 +180,7 @@ describe('notes say one thing', () => {
     expect(quickEstimateNote(false)).toBe('This is a quick estimate: Custom looks further, in boxes you set.');
   });
 
-  it('no folded Instant answer line on the search screens since the simpler page (9 Nov 2026): the answer is never hidden', () => {
+  it('no folded Instant Answer line on the search screens since the simpler page (9 Nov 2026): the answer is never hidden', () => {
     expect(NO_INSTANT_SUMMARY).toBe('none for your TE');
     // (The card itself says none, or that it couldn't be loaded: InstantRoute.unloaded.spec.ts.)
     for (const src of [panelScript, fastest]) expect(src).not.toContain('instantBusy:');

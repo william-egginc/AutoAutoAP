@@ -1,5 +1,5 @@
 /**
- * THE SAVE IN RIGHT NOW'S HEADER (Jordan, 12 Nov 2026, on egg-beta 9f9f37362): My runs drops the save box beside the
+ * THE SAVE IN RIGHT NOW'S HEADER (Jordan, 12 Nov 2026, on egg-beta 9f9f37362): My Runs drops the save box beside the
  * Right now card (layout/SaveSide.vue there). The save goes into the card's header line instead, in Words' shape
  * (lib/calculatedFromWords.ts calculatedFromLine: the plan's save and when it was calculated), amber once the loaded save
  * is out of date, with a "?" beside it (myruns/SaveHeadHelp.vue) that opens the same strip (myruns/SaveAgeStrip.vue: its
@@ -102,7 +102,7 @@ describe("Right now's header: the save, in Words' line", () => {
   });
 });
 
-describe('My runs: no save box beside the card; the "?" in the header opens the same strip', () => {
+describe('My Runs: no save box beside the card; the "?" in the header opens the same strip', () => {
   const view = tplOf(read('components/MyRunsView.vue'));
   it('no SaveSide and no side grid once the save is in (it stays while the page waits for the save)', () => {
     expect(view).not.toContain('<SaveSide :with-silo');
@@ -117,7 +117,7 @@ describe('My runs: no save box beside the card; the "?" in the header opens the 
     for (const p of [':state="saveStrip.state.value"', ':server="saveStrip.server.value"', ':loading="saveStrip.loading.value"', '@fresh="saveStrip.load"'])
       expect(t, p).toContain(p);
   });
-  it('one silo line on My runs: the player line\'s', () => {
+  it('one silo line on My Runs: the player line\'s', () => {
     expect(view).not.toContain('<SiloLine');
     expect(view.match(/:silo="saveStrip\.silo\.value"/g) ?? []).toHaveLength(1);
   });

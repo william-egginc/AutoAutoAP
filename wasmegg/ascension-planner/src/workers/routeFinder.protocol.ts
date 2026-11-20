@@ -71,7 +71,7 @@ export interface PolishRequest {
 }
 
 /** One route priced on the table as the finder prices it (routeFinder.ts `priceChain`): a route the player follows,
- *  on My runs' Right now (lib/followEstimate.ts). */
+ *  on My Runs' Right now (lib/followEstimate.ts). */
 export interface PriceChainRequest {
   kind: 'price-chain';
   id: number;

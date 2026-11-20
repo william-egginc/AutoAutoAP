@@ -1,5 +1,5 @@
 /**
- * My runs' newest runs went missing (16 Oct 2026): "A run of yours isn't here?" (MyRunsMissing.vue), the
+ * My Runs' newest runs went missing (16 Oct 2026): "A run of yours isn't here?" (MyRunsMissing.vue), the
  * keys this browser remembers per account (lib/myKeys.ts), and how LeaderboardPanel feeds both and the
  * look-alike match (lib/myRuns.ts `isMyRun`). Rendered on the server; the panel by its source.
  */

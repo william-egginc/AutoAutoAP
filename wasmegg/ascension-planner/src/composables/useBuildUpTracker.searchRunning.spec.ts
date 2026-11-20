@@ -1,5 +1,5 @@
 /**
- * spec-stuck3 (7 Nov 2026): Jordan's Safari tracker said "working it out…" for good on a fresh load of My runs, with no
+ * spec-stuck3 (7 Nov 2026): Jordan's Safari tracker said "working it out…" for good on a fresh load of My Runs, with no
  * search started. useCurrentSim says 'waiting' (no reason) while the page's searchBusy is set, and the tracker's stall
  * left that out ("a search ends it"). Now the tracker is told whether a search is REALLY running in this tab
  * (`searchRunning`: the store's isRunning || deadlineRunning): with none, that wait counts toward the 3-minute stall.

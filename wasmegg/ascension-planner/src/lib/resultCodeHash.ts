@@ -2,7 +2,7 @@
  * THE RESULT CODE HASH, worked out at BUILD time (vite.config.ts defines it as `__RESULT_CODE_HASH__`; the page reads
  * it through lib/resultCode.ts). Release 7, allanfieldhouse: after reloading onto a new build the page kept the answer
  * the OLD code had worked out, because his inputs had not changed; only "Work it out again" gave the new code's
- * answer. Every kept result (the instant answer, My runs' pricing record and simulated ascension, the Build-up
+ * answer. Every kept result (the instant answer, My Runs' pricing record and simulated ascension, the Build-up
  * tracker's plan) now carries this hash, and one kept under another hash is worked out again.
  *
  * WHAT IT COVERS: the code that decides results, not the words. A deploy that only changes wording keeps the hash, so

@@ -1,6 +1,6 @@
 <!--
   The starting-TE override banner (spec-overridebanner, 7 Nov 2026): one amber line at the top of Fastest, By a date,
-  Single run and My runs whenever this account's starting-TE override (Virtue Progress's Override, Joo's) is on, so a
+  Single run and My Runs whenever this account's starting-TE override (Virtue Progress's Override, Joo's) is on, so a
   plan never starts from another TE than the save's without saying so. Jordan's override (197, claimed TE only) had
   every screen plan from 197 while his save said 198, and only Single run's card showed it.
 

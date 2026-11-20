@@ -89,7 +89,7 @@ function ageLineOf(s: SaveState, nowSeconds: number, zone: string): string {
   return saveAgeLine(time, ageWords(s.saveAgeSeconds));
 }
 
-/** The save's age line for My runs' player line (17 Nov 2026, Jordan's rule: state the age unless the save is fresh AND its silos
+/** The save's age line for My Runs' player line (17 Nov 2026, Jordan's rule: state the age unless the save is fresh AND its silos
  *  are low): any save over FRESH_SAVE_SECONDS old with the clock not behind it, whatever the silos; else null. Pure. */
 export function saveAgeOnlyLine(s: SaveState | null, nowSeconds: number, zone: string): string | null {
   if (!s || s.clockBehindSeconds || !(s.saveAgeSeconds >= FRESH_SAVE_SECONDS)) return null;

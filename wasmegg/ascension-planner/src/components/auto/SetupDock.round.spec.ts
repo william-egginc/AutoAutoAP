@@ -3,7 +3,7 @@
  * it"). Below sm (640 px) and while no search runs, the Auto Planner's Setup pill is a 48 px round gear: aria-label
  * "Setup", its title, the red problem dot kept, no ⋮⋮ handle (the gear itself drags: a press that moves more than about
  * 8 px drags it, a tap opens Setup). From sm up the pill is as before (the word, the ⋮⋮ handle, double-click puts it
- * back). My runs (its summary under "Setup") and a running search (the workers) keep today's pill at every width.
+ * back). My Runs (its summary under "Setup") and a running search (the workers) keep today's pill at every width.
  * CSS breakpoints (max-sm:), so it is right from the first paint; rendered on the server with a stand-in window.
  */
 import { readFileSync } from 'node:fs';
@@ -67,9 +67,9 @@ describe('the Auto Planner at rest: a 48 px round gear below sm', () => {
   });
 });
 
-describe('My runs and a running search keep today\'s pill', () => {
+describe('My Runs and a running search keep today\'s pill', () => {
   for (const [name, o] of [
-    ['My runs (its summary)', { summary: '7 AM–11 PM · no time off' }],
+    ['My Runs (its summary)', { summary: '7 AM–11 PM · no time off' }],
     ['a search running (the workers)', { searching: true }],
   ] as const) {
     it(name, async () => {

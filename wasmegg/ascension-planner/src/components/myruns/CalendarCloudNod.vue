@@ -1,5 +1,5 @@
 <!--
-  A NOD TO THE CLOUD CALENDAR (Jordan, 15 Nov 2026), under "Add all N upcoming to calendar" on My runs' plan table. That button makes one-off
+  A NOD TO THE CLOUD CALENDAR (Jordan, 15 Nov 2026), under "Add all N upcoming to calendar" on My Runs' plan table. That button makes one-off
   events that go stale; the subscription feed (Setup › Sharing, composables/useCalendarFeed.ts) updates itself. Not set up: a line suggesting it.
   Set up: "Update cloud calendar", which sends the current plan now, in addition to the automatic pushes. It writes nothing when the calendar
   already has this plan and can be pressed once every 15 s (the account's sync budget is 60 writes an hour); a failure is the card's own upload

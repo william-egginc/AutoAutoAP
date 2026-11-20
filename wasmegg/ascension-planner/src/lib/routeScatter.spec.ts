@@ -1,4 +1,4 @@
-/** "Your routes at a glance" (lib/routeScatter.ts): points from the rows My runs already holds. */
+/** "Your routes at a glance" (lib/routeScatter.ts): points from the rows My Runs already holds. */
 import { describe, expect, it } from 'vitest';
 import type { BoardRow } from './leaderboardRank';
 import {

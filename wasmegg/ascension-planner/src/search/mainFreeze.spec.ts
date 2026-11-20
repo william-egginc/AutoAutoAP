@@ -155,7 +155,7 @@ describe('gearStamp on a 2.8 MB-class save', () => {
   });
 });
 
-describe('the My runs sim request path (useCurrentSim, its own chain worker, the real stores)', () => {
+describe('the My Runs sim request path (useCurrentSim, its own chain worker, the real stores)', () => {
   /** What a worker was sent, as sent. */
   let posted: WorkerRequest[];
   let clones: unknown[];

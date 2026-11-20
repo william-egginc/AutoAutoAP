@@ -4,13 +4,13 @@
  * with a different hours window."), and Next step still "No timeline for your route on this save yet", with no
  * "working it out" and nothing in the console, even after "Work it out again" on By a date.
  *
- * The cause: My runs priced a followed route only with the `pricing` kept in the goal's OWN snapshot, and that is
+ * The cause: My Runs priced a followed route only with the `pricing` kept in the goal's OWN snapshot, and that is
  * written only once the background polish and "Prestige by" are done (InstantRoute.vue `saveSnapshot`), and never
  * for an answer restored from before this build (it has none, and a restore doesn't save). Neither the other hours
  * window (only a note) nor an older save's price (followPrice found nothing) blocked it.
  *
  * The fix: the instant answer keeps its pricing settings at once in a record by account, save and setup
- * (lib/followEstimate.ts `recordPricing`), My runs reads them by those, answers saved before them are worked out again
+ * (lib/followEstimate.ts `recordPricing`), My Runs reads them by those, answers saved before them are worked out again
  * once (INSTANT_RULES), "working it out" shows the whole time it is asked, and with nothing to price with Right now
  * says so with what to do. The synthetic save (id EI0000000000000000, never printed); a stand-in route worker.
  */
@@ -179,7 +179,7 @@ const route = (now: number, end: number): Route => ({
 });
 
 describe("Jordan's Egg Day follow: the estimate whenever this save has an instant answer", () => {
-  it('reproduced: an old-build snapshot and nothing else: My runs works the instant answer out itself (26 Oct 2026; was "Open … once")', async () => {
+  it('reproduced: an old-build snapshot and nothing else: My Runs works the instant answer out itself (26 Oct 2026; was "Open … once")', async () => {
     const { open } = await jordan();
     const { page, scope } = await open();
     expect(page.follow.value).toMatchObject({ chain: [225, 300], price: 'none', estimating: 'instant' });

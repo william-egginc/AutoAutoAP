@@ -217,7 +217,7 @@ export interface LegSummary {
    *  (search/chain.ts `EvaluateChainOptions`); absent everywhere else. */
   buildUp?: import('./buildUpActions').BuildUpList;
   /** Leg 1 only, when "continue my build-up" was simulated: how many things its build buys (search/leg.ts
-   *  `LegResult.buildUpBuys`). My runs' A1 choice reads it (spec-a1choice). */
+   *  `LegResult.buildUpBuys`). My Runs' A1 choice reads it (spec-a1choice). */
   buildUpBuys?: number;
 }
 

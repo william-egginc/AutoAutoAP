@@ -1,5 +1,5 @@
 /**
- * My runs' Build-up tracker (Phase 1, 30 Oct 2026; outline ~/code/aaap-tools/wireframes/buildup-tracker-v1.md): what
+ * My Runs' Build-up tracker (Phase 1, 30 Oct 2026; outline ~/code/aaap-tools/wireframes/buildup-tracker-v1.md): what
  * the fold shows and when the simulation is asked for the build-up list.
  *
  *   - THE PLAN. The followed route's current ascension simulated by useCurrentSim with `wantBuildUp` on (helper A's
@@ -63,11 +63,11 @@ import { notePlanKept, noteTicksChange, trackerSyncVersion } from './useTrackerS
 
 /**
  * The switch useNowPage hands to useCurrentSim as `wantBuildUp`: on while a tracker on screen wants a plan. One for
- * the page (My runs shows one tracker).
+ * the page (My Runs shows one tracker).
  */
 export const buildUpWanted = ref(false);
 /**
- * The trackers on screen that want it (spec-buildstop, 30 Oct 2026): a tracker left behind (My runs mounted again)
+ * The trackers on screen that want it (spec-buildstop, 30 Oct 2026): a tracker left behind (My Runs mounted again)
  * that lets go after the new one said it wants the plan must not turn the switch off under it.
  */
 const wanting = new Set<object>();
@@ -300,7 +300,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     },
     { immediate: true }
   );
-  // Leaving My runs: this tracker wants it no more.
+  // Leaving My Runs: this tracker wants it no more.
   onScopeDispose(() => {
     wanting.delete(me);
     buildUpWanted.value = wanting.size > 0;
@@ -623,7 +623,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       }
       const reason = trackerCapReason(Math.round(CAP.ms / 60_000));
       buildUpLog(`tracker capped: ${reason} since it first said working it out`);
-      console.warn('My runs: the build-up list was not worked out:', reason);
+      console.warn('My Runs: the build-up list was not worked out:', reason);
       capped.value = true;
     }, CAP.ms);
   }

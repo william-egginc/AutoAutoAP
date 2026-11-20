@@ -81,7 +81,7 @@ export function maxedLetters(label: string | undefined): string {
 // ------------------------------------------------------------------- what the imperfect gear costs, in time
 
 /**
- * WHAT THE IMPERFECT GEAR COSTS (25 Oct 2026, Jordan): My runs' gear block, beside "Missing for a perfect set", says in
+ * WHAT THE IMPERFECT GEAR COSTS (25 Oct 2026, Jordan): My Runs' gear block, beside "Missing for a perfect set", says in
  * TIME what maxed gear (every artifact T4 Legendary, every stone tier 4: the maxed table behind "What if you had maxed
  * gear?") would change, from the what-if kept with the goal's instant answer of this save:
  *   Fastest: the finish-date gap (the player's instant answer reaches the target at `mineEnd`, maxed gear at `end`).
@@ -110,7 +110,7 @@ export function perfectSetWords(g: PerfectSetGap): string {
   return `With a perfect set you'd reach ${g.te} TE about ${spanWords(g.seconds)} sooner${tail}`;
 }
 
-/** "5 hours", "3.2 days", "12 days": one rounding for My runs' gear block and By a date's what-if. */
+/** "5 hours", "3.2 days", "12 days": one rounding for My Runs' gear block and By a date's what-if. */
 function spanWords(seconds: number): string {
   const h = seconds / 3600;
   return h < 24

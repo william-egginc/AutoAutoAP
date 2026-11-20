@@ -12,7 +12,7 @@
  * the save (stores/chainSearch.ts `keepSaveStart`), and reads THAT while the stores hold a Manual plan
  * (`saveStartFor`). Three belts on top, in our own code (Joo's io.ts and initialState are not touched):
  *   - App.vue `setUpForInstantAnswer` sets the save up again on the Auto Planner after a plan was opened
- *     (`needsSaveSetUp`), as My runs does;
+ *     (`needsSaveSetUp`), as My Runs does;
  *   - no search starts while the stores hold a plan (chainSearch `saveNotReady`, `PLAN_NOT_SAVE`);
  *   - the instant answer already waits for the save (search/startProvenance.ts `startWaitOf`).
  *

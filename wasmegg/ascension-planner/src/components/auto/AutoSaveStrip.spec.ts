@@ -1,6 +1,6 @@
 /**
  * The save strip on the Auto Planner screens (ux29 item 4, 27 Oct 2026): "Load latest save" was only in Setup, and
- * "A newer save is on the server · Load it" only on My runs. The same strip (myruns/SaveAgeStrip.vue) now sits at the
+ * "A newer save is on the server · Load it" only on My Runs. The same strip (myruns/SaveAgeStrip.vue) now sits at the
  * top of Fastest and By a date (Single run is Joo's planner: left as it is), with its own testid, quiet while the save is under 10 minutes old, and
  * one server check per page load however many screens show it (lib/serverSave.ts's guard). Placeholder IDs only.
  */

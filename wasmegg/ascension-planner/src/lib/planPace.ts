@@ -1,7 +1,7 @@
 /**
  * Plan vs actual, the simple version (R6, ~/code/aaap-tools/specialists/ui-r6-plan.md): how many hours earlier
  * (ahead) or later (behind) than a plan the latest save reached the progress it shows. One module for every place
- * that says it: My runs' saved runs and saved answers (components/myruns/PaceBadge.vue) and Right now's chip
+ * that says it: My Runs' saved runs and saved answers (components/myruns/PaceBadge.vue) and Right now's chip
  * (lib/nowPlan.ts `onTrack` is a thin wrapper), so they can never disagree.
  *
  *   progressOf  the save's progress: its whole TE per egg (pending counted), summed, and the egg the farm is on.
@@ -9,7 +9,7 @@
  *               TE is known (`planTEAt`), else leg by leg ("rough"); and the egg the plan is on at any moment.
  *   planPace    whole TE against whole TE at the save's time, and how many hours apart the plan and the save are.
  *
- * TE counts only whole, claimed TE (Jordan's My runs rule, 22 Oct 2026): no credit for the way to the next TE on
+ * TE counts only whole, claimed TE (Jordan's My Runs rule, 22 Oct 2026): no credit for the way to the next TE on
  * either side. The fraction once added on the save's side (and never on the plan's when it had left that egg) read
  * "3 days ahead" for a save 8 h behind (~/code/aaap-tools/notes/myruns-review-2026-10-22.md, bug 1). A save on another
  * egg than the plan is on at that moment can't be compared fairly: "Can't compare right now".

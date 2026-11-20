@@ -60,7 +60,7 @@ describe('the welcome box', () => {
     expect(t.state.phase).toBe('slides');
     expect(t.step.value).toBe('tabAuto');
     expect(t.state.wantFocus).toBe('title');
-    expect(t.state.announce).toBe(`Tour, step 1 of 8: ${FIRST_TOUR_STEPS.tabAuto.title}`);
+    expect(t.state.announce).toBe(`Tour, step 1 of 7: ${FIRST_TOUR_STEPS.tabAuto.title}`);
   });
 
   it('Skip: ticked adds 1 (the third is the last), unticked writes off; focus to the ID box with no save', () => {
@@ -105,7 +105,7 @@ describe('the slideshow', () => {
     t.begin({ ...ENV, hasAccount: true });
     t.take();
     const seen: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       seen.push(t.step.value);
       t.focused();
       if (!t.isLast.value) {
@@ -113,7 +113,7 @@ describe('the slideshow', () => {
         expect(t.state.wantFocus).toBe('title');
       }
     }
-    expect(seen).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
+    expect(seen).toEqual(['tabAuto', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     t.focused();
     t.back();
     expect(t.step.value).toBe('setupWhere');
@@ -131,7 +131,7 @@ describe('the slideshow', () => {
     expect(t.key('ArrowRight', NO_WAIT)).toBe(false);
     t.take();
     expect(t.key('ArrowRight', NO_WAIT)).toBe(true);
-    expect(t.step.value).toBe('load');
+    expect(t.step.value).toBe('goalTarget');
     expect(t.key('ArrowLeft', NO_WAIT)).toBe(true);
     expect(t.step.value).toBe('tabAuto');
     expect(t.key('Escape', { updateBox: true })).toBe(false);
@@ -145,11 +145,11 @@ describe('the slideshow', () => {
     expect(w.state.phase).toBe('closed');
   });
 
-  it('a save file with no player ID: seven slides (no My runs slide), the closing card is the last (Done)', () => {
+  it('a save file with no player ID: six slides (no My Runs slide), the closing card is the last (Done)', () => {
     const { m, t } = make('done', false);
     t.replay({ ...ENV, hasSaveFile: true });
-    expect(t.total.value).toBe(7);
-    for (let i = 0; i < 6; i++) t.next();
+    expect(t.total.value).toBe(6);
+    for (let i = 0; i < 5; i++) t.next();
     expect(t.step.value).toBe('closing');
     t.back();
     expect(t.step.value).toBe('setupWhere');

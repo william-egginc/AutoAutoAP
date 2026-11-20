@@ -1,7 +1,7 @@
 /**
  * MY RUNS WORKS OUT THE INSTANT ANSWER'S PRICING ITSELF (26 Oct 2026, Jordan: after his Setup changed, or in a fresh
  * browser, all three goals said "not priced on this save yet" and Next step said "Open Highest TE by a date once…").
- * My runs must not depend on another tab: when no pricing record (lib/followEstimate.ts `recordPricing`) of this save
+ * My Runs must not depend on another tab: when no pricing record (lib/followEstimate.ts `recordPricing`) of this save
  * and setup covers a followed route, it is worked out here, the instant answer's own way (search/instantCompute.ts:
  * the same table choice and first ascensions as InstantRoute.vue, without finding or polishing routes, which pricing a
  * followed route never needs), and kept in the same record. Then the estimate (composables/useFollowEstimate.ts)
@@ -12,7 +12,7 @@
  *   - After the page has settled (`delayMs`), in ONE route worker of its own, let go when done.
  *   - Never while a search runs (it has the memory): 'waiting', and it starts when the search ends; a search that
  *     starts lets the running one go and it starts again after.
- *   - Leaving My runs lets it go (`onScopeDispose`).
+ *   - Leaving My Runs lets it go (`onScopeDispose`).
  *   - Done keys are kept for the page load (and the record in localStorage, so a reload reads it at once); a failure
  *     says why in a short line (`reason`, never an ID) and is not tried again for that key on this page load.
  *
@@ -220,11 +220,11 @@ export function useInstantCompute(
       const kept = recordPricing({ account: req.account, backupTime: req.backupTime, setup: req.setup, url: got.url, tableTo: got.tableTo, at, pricing: got.pricing });
       if (!kept) throw new PlainFailure("this browser's storage is full");
       result = { key: req.key, status: 'done', at, ms: at - began };
-      console.info(`My runs: the instant answer's first ascensions for your setup were worked out in ${((at - began) / 1000).toFixed(1)} s.`);
+      console.info(`My Runs: the instant answer's first ascensions for your setup were worked out in ${((at - began) / 1000).toFixed(1)} s.`);
     } catch (err) {
       if (id !== asked) return;
       const reason = instantFailureWords(err);
-      console.warn("My runs: working out the instant answer for your setup failed:", reason);
+      console.warn("My Runs: working out the instant answer for your setup failed:", reason);
       result = { key: req.key, status: 'failed', reason };
     }
     computer?.terminate();

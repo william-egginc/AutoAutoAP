@@ -11,9 +11,9 @@
  *   Leaderboard      #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
  *                                            (was Compare until 16 Oct 2026; #/leaderboard[/<view>] lands here too)
  *                                            the Chain Explorer's charts
- *                    #/compare/latest        lands on My runs (Your latest run moved there 16 Oct 2026; its
+ *                    #/compare/latest        lands on My Runs (Your latest run moved there 16 Oct 2026; its
  *                                            one-line Leaderboard tab went 5 Nov 2026, fluff review 2)
- *   My runs          #/myruns                every run of yours: your latest run (its routes, other options
+ *   My Runs          #/myruns                every run of yours: your latest run (its routes, other options
  *                                            and charts; was Leaderboard › Your latest run until 16 Oct 2026),
  *                                            on the board (hidden ones too), saved on this computer, and not
  *                                            sent yet (15 Oct 2026; was Compare's My plans tab, and
@@ -73,14 +73,14 @@ export const NAMES = {
   /** The shared board and its charts (#/compare: the address kept its old name). Was "Compare" until
    *  16 Oct 2026. */
   compare: 'Leaderboard',
-  /** My runs (#/myruns, MyRunsView.vue): the account's runs on the board, saved here, and not sent yet. */
-  myRuns: 'My runs',
+  /** My Runs (#/myruns, MyRunsView.vue): the account's runs on the board, saved here, and not sent yet. */
+  myRuns: 'My Runs',
   science: 'Science',
   insights: 'Insights',
-  /** My runs › Your latest run (LatestRunView.vue): the newest search's routes, other options and charts.
+  /** My Runs › Your latest run (LatestRunView.vue): the newest search's routes, other options and charts.
    *  Was a Leaderboard tab's content (#/compare/latest, 15 Oct 2026) until 16 Oct 2026, then a one-line tab to My
-   *  runs until 5 Nov 2026 (fluff review 2, L1); that address lands on My runs, and "Dig deeper into your plan ›"
-   *  opens My runs (DigDeeperLink.vue). */
+   *  runs until 5 Nov 2026 (fluff review 2, L1); that address lands on My Runs, and "Dig deeper into your plan ›"
+   *  opens My Runs (DigDeeperLink.vue). */
   latest: 'Your latest run',
   check: 'What we need to check',
   submit: 'Submit a sweep',
@@ -108,7 +108,7 @@ export const NAMES = {
   fullFirst: 'Custom',
   /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
   study: 'Help improve the planner',
-  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner, Chain Finder and My runs. */
+  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner, Chain Finder and My Runs. */
   setup: 'Setup',
 } as const;
 
@@ -231,7 +231,7 @@ export function routeFromLocation(
   if (h.startsWith('/')) {
     const [section, sub, depth] = h.slice(1).split('/');
     if (section === 'manual' || section === 'myruns') return { ...DEFAULT_ROUTE, section };
-    // Compare's My plans tab became My runs (15 Oct 2026), and Your latest run's tab went (5 Nov 2026, fluff
+    // Compare's My plans tab became My Runs (15 Oct 2026), and Your latest run's tab went (5 Nov 2026, fluff
     // review 2): old links land there.
     if ((section === 'compare' || section === 'leaderboard') && (sub === 'mine' || sub === 'latest'))
       return { ...DEFAULT_ROUTE, section: 'myruns' };

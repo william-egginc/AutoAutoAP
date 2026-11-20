@@ -70,8 +70,8 @@ describe('the counts line', () => {
   });
 });
 
-describe("Words' My runs line", () => {
+describe("Words' My Runs line", () => {
   it('exactly', () => {
-    expect(CAL_OPEN_MYRUNS).toBe('Open My runs once so the plan reaches your calendar. It is only sent from there.');
+    expect(CAL_OPEN_MYRUNS).toBe('Open My Runs once so the plan reaches your calendar. It is only sent from there.');
   });
 });

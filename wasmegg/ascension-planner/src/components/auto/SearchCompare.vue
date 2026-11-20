@@ -1,5 +1,5 @@
 <!--
-  The answers side by side, right under the instant answer (the user, 12 Oct 2026): "Instant answer",
+  The answers side by side, right under the instant answer (the user, 12 Oct 2026): "Instant Answer",
   "Stronger check" and "Exhaustive", each with its route, when it finishes (Fastest) or the TE and the
   spare (By a date), and "not run yet" when there is none; the best is marked (search/compareAnswers.ts).
   The stronger check's line is the better of its own Best now and the search around the answer. Each

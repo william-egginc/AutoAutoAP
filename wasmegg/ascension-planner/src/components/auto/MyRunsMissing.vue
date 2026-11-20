@@ -1,5 +1,5 @@
 <!--
-  My runs' "A run of yours isn't here?" (16 Oct 2026): type the id of a run on the board (its first
+  My Runs' "A run of yours isn't here?" (16 Oct 2026): type the id of a run on the board (its first
   characters are enough) and read, in plain words, why it is or isn't listed as yours (lib/myRuns.ts
   `whyNotMine`): another browser's code under another name, a different timezone or gear, a TE above the
   save's, or no code in this browser at all. A tester's newest runs were missing and nothing said why.

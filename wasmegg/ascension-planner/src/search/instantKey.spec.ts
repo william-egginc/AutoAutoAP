@@ -1,6 +1,6 @@
 /**
  * The instant answer's key moved out of InstantRoute.vue (`cacheKey`) into search/instantSnapshot.ts `instantKey`
- * on 17 Oct 2026 so My runs can find the same saved answers. The hash must not move: every answer saved in a
+ * on 17 Oct 2026 so My Runs can find the same saved answers. The hash must not move: every answer saved in a
  * player's browser is under the old one. The golden values below were worked out by the OLD function's own code
  * (copied verbatim from InstantRoute.vue at 68674ebb, run on these inputs) before the refactor.
  */

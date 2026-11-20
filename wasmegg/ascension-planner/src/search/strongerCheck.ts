@@ -5,7 +5,7 @@
  * beat.
  *
  *  a. YOUR EARLIER ROUTES. The routes this player already found for the same goal (their board runs,
- *     as My runs counts them: sent from this browser or looking like theirs from another, see
+ *     as My Runs counts them: sent from this browser or looking like theirs from another, see
  *     search/myBoardRows.ts; saved searches and answers, the last search on this page, earlier
  *     Check exactly results) priced on the save loaded now, next to the instant answer's. A route a
  *     search found days ago can still beat what the table suggests today.

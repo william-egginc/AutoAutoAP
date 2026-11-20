@@ -1,5 +1,5 @@
 /**
- * The rate under the Building / Producing badge in My runs (13 Nov 2026). "2.179q/hr · from your save" read as the
+ * The rate under the Building / Producing badge in My Runs (13 Nov 2026). "2.179q/hr · from your save" read as the
  * farm's speed; it is the speed with the set the save wears (the earnings set while building), about half of what the
  * delivery set gives. So the line names the set. `afterSwap` (the delivery-set rate on the same farm) is optional:
  * the page doesn't compute it yet, and the swap clause shows only when it is passed.

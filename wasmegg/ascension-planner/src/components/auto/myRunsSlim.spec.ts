@@ -1,5 +1,5 @@
 /**
- * My runs (UX fluff review 2, 5 Nov 2026, part A items M1, M4, M7): the intro is its first clause; "Fastest is not always
+ * My Runs (UX fluff review 2, 5 Nov 2026, part A items M1, M4, M7): the intro is its first clause; "Fastest is not always
  * best…" is behind a "?" by the Other options heading, word for word; "Nothing else here is a genuinely different
  * plan…" is one line with a button to the Fastest view. New wording is DRAFT for Words. Sources read, no DOM.
  */
@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 
-describe('My runs, slim', () => {
+describe('My Runs, slim', () => {
   it('M1: no intro line since the simpler page (9 Nov 2026): the save line says it', () => {
     expect(read('../MyRunsView.vue')).not.toContain('data-testid="my-runs-intro"');
   });

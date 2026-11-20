@@ -89,7 +89,7 @@ export function rememberChoice(screen: SearchTabScreen, c: SearchChoice): void {
   }
 }
 
-/** A choice to open on next time the screen's panel opens, instead of the remembered one (My runs' Next
+/** A choice to open on next time the screen's panel opens, instead of the remembered one (My Runs' Next
  *  step, App.vue `openFromMyRuns`); used once, and not remembered. */
 const pending: Partial<Record<SearchTabScreen, SearchChoice>> = {};
 export function openOn(screen: SearchTabScreen, c: SearchChoice): void {

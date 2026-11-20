@@ -41,7 +41,7 @@ describe('no automatic run on the answer', () => {
     expect(polish).toContain('saveSnapshot(id);');
     expect(polish).not.toMatch(/runExact|evaluate\(/);
   });
-  it("My runs' Run Fast only opens the screen on Fast: no ask reaches this card (part B, 23 Oct 2026)", () => {
+  it("My Runs' Run Fast only opens the screen on Fast: no ask reaches this card (part B, 23 Oct 2026)", () => {
     expect(script).not.toContain('exactAsk');
   });
 });
@@ -114,7 +114,7 @@ describe('the pointer', () => {
     expect(found).toContain('running: store.isRunning');
     expect(found).toContain("custom: store.runKindUsed === 'full'");
     expect(found).toContain('date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner }');
-    // Kept with the snapshot for My runs' Right now.
+    // Kept with the snapshot for My Runs' Right now.
     expect(script).toContain('patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });');
     expect(script).toContain('search: newerSearch(keptSearch.value, thisSaveFound.value),');
     // And beyond the snapshot's day, for this save (lib/searchPlan.ts recordKeptSearch).

@@ -1,5 +1,5 @@
 /**
- * My runs' Next steps component (lib/myRunsDashboard.ts builds what it shows; reworked 24 Oct 2026, the six cards gone).
+ * My Runs' Next steps component (lib/myRunsDashboard.ts builds what it shows; reworked 24 Oct 2026, the six cards gone).
  * Rendered on the server; a button's click is its handler called through the component's setup state.
  */
 import { describe, expect, it, vi } from 'vitest';

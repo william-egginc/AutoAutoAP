@@ -14,7 +14,7 @@
   the button when it fits, else below, never over it, clamped inside the screen. Styled as the site's cards: white,
   slate border, small text.
 
-  `info-always`: the "i" on the desktop too, for a trigger that is not a button (My runs' source pill).
+  `info-always`: the "i" on the desktop too, for a trigger that is not a button (My Runs' source pill).
 
   Usage: <Tip :text="TIP_SIMULATE" name="Simulate this route" v-slot="{ describedby }"><button :aria-describedby=...>
 -->
@@ -89,7 +89,7 @@ const props = withDefaults(
     /** The button fills the row it is in (the run button, a Search choice). */
     fill?: boolean;
     /** The "i" on every screen, the desktop too, and the tip read with it (aria-describedby): for a trigger that is
-     *  not a button and so takes no keyboard focus (My runs' "from the instant answer" pill, spec-myruns-fix). */
+     *  not a button and so takes no keyboard focus (My Runs' "from the instant answer" pill, spec-myruns-fix). */
     infoAlways?: boolean;
   }>(),
   { info: true, fill: false, infoAlways: false }

@@ -1,9 +1,9 @@
 /**
  * "You won't reach R1 before you sleep" on its surfaces (Jordan's option a, 15 Nov 2026): the instant answer's "When each step happens", the
- * Full timeline of a plan with no exact legs, My runs' Next step ("if you prestige now") and the Build-up tracker. Reliability's check
+ * Full timeline of a plan with no exact legs, My Runs' Next step ("if you prestige now") and the Build-up tracker. Reliability's check
  * (lib/sleepBeforeR1.ts) and Words' text (lib/sleepBeforeR1Words.ts) are used as they are. Each surface: the flagged case shows the line;
  * no hours, held shifts and an unflagged start do not. Hours 7 AM-11 PM Denver, Wed 18 Nov 2026 (MST).
- * The two big cards (My runs' Next step, the tracker) are pinned in the source: their own specs render them with far more state.
+ * The two big cards (My Runs' Next step, the tracker) are pinned in the source: their own specs render them with far more state.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -59,7 +59,7 @@ describe('the Full timeline (no exact legs)', () => {
 
 describe('the cards are wired (source pin)', () => {
   const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
-  it('My runs\' Next step: "if you prestige now", under the step, only when the step is the prestige', () => {
+  it('My Runs\' Next step: "if you prestige now", under the step, only when the step is the prestige', () => {
     const card = read('./myruns/RightNowCard.vue');
     expect(card).toContain('data-testid="now-r1-sleep"');
     expect(card).toContain('sleepBeforeR1NextStep(');

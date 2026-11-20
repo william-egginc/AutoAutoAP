@@ -1,8 +1,8 @@
 /**
  * The starting-TE override banner (spec-overridebanner, 7 Nov 2026). Jordan's override (197, claimed TE only) made
- * every Auto Planner screen and My runs plan from 197 while his save said 198, and nothing on those screens said so:
+ * every Auto Planner screen and My Runs plan from 197 while his save said 198, and nothing on those screens said so:
  * only Single run's Virtue Progress card (Joo's) showed it. Now one amber line sits at the top of Fastest, By a date,
- * Single run and My runs whenever this account's override is on, with Remove doing exactly what Virtue Progress's
+ * Single run and My Runs whenever this account's override is on, with Remove doing exactly what Virtue Progress's
  * Remove Override does.
  *
  * "On" is the planning code's own test (lib/teOverrideAccount.ts `plannerStartTEOf`: an override, a loaded account,
@@ -266,7 +266,7 @@ describe("Use my save's TE (Remove in the code)", () => {
 });
 
 describe('on each of the four screens, at the top', () => {
-  it('Fastest, By a date and My runs: above the save strip (Fastest: above the answer; its save strip is the save line at the top since the simpler page, 9 Nov 2026)', () => {
+  it('Fastest, By a date and My Runs: above the save strip (Fastest: above the answer; its save strip is the save line at the top since the simpler page, 9 Nov 2026)', () => {
     for (const [file, after] of [
       ['FastestRoute.vue', 'data-region="answer"'],
       ['ByDateScreen.vue', '<InsanePanel'],

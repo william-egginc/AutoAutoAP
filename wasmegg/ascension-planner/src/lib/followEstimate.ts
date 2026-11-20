@@ -106,7 +106,7 @@ export function pickPricing(sources: readonly PricingSource[], chain: readonly n
 
 /**
  * No source of this save reaches the route's first stop: its first ascensions stop below it (`final`), or there is no
- * source at all. My runs then works the pricing record out itself (composables/useInstantCompute.ts) rather than
+ * source at all. My Runs then works the pricing record out itself (composables/useInstantCompute.ts) rather than
  * saying "not priced". A route past the table's rows stays 'beyond' (`pickPricing`): a new record wouldn't help.
  */
 export function needsPricingRecord(sources: readonly PricingSource[], chain: readonly number[], currentTE: number): boolean {
@@ -176,9 +176,9 @@ export function planFromEstimate(
 /**
  * THE PRICING RECORD (24 Oct 2026, the bug on Jordan's main account: a followed Egg Day route showed no estimate after
  * "Work it out again"). The snapshot's `pricing` is only written once the background polish and "Prestige by" are done,
- * an answer restored from before this build has none, and My runs only looked under the goal's own snapshot key. So the
+ * an answer restored from before this build has none, and My Runs only looked under the goal's own snapshot key. So the
  * instant answer also keeps its pricing settings here, the moment its first answer is in, per account, save and setup
- * (any goal: the settings price every route from this save), and My runs reads them by that, not by the goal's key.
+ * (any goal: the settings price every route from this save), and My Runs reads them by that, not by the goal's key.
  * The newest `PRICING_RECORDS` are kept (each about 100 kB at most, `PRICING_MAX_BYTES` 200 kB).
  */
 export const PRICING_RECORD_KEY = 'aap-follow-pricing';
@@ -199,9 +199,9 @@ export interface PricingRecord {
 }
 
 /** What the pricing settings depend on beyond the save: the hours (and whether the answer works inside them), time
- *  off, no-prestige days and the first ascension's rule. The same words from InstantRoute.vue and My runs.
+ *  off, no-prestige days and the first ascension's rule. The same words from InstantRoute.vue and My Runs.
  *
- *  Since 26 Oct 2026 (My runs works the record out itself on a Setup change, composables/useInstantCompute.ts) also
+ *  Since 26 Oct 2026 (My Runs works the record out itself on a Setup change, composables/useInstantCompute.ts) also
  *  the plan's time zone (the no-prestige days are whole local dates read in it), "hold my shifts for my hours" (only
  *  with the hours: it holds nothing without them) and the target; records kept before read as another setup and are
  *  worked out again once.
@@ -304,7 +304,7 @@ export function staleRecordSources(
 }
 
 /**
- * The pricing records in answers read back from online (stores/answers.ts): stale sources only (My runs' pricing
+ * The pricing records in answers read back from online (stores/answers.ts): stale sources only (My Runs' pricing
  * meanwhile, in a browser that keeps none of the account's). Their setup is marked so one is never taken for this
  * browser's own record of the same save and setup.
  */

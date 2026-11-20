@@ -1,7 +1,7 @@
 /**
  * A FOLLOWED ROUTE FROM A RUN SENT FROM ANOTHER BROWSER (26 Oct 2026, Williamthe5thc: his Egg Day route came from his
  * Fast run sent from an incognito window; any other browser showed only the instant estimate, no exact legs and no Add
- * buttons, while the saved answer tile knew the run). Such a run lives only as a board row of this account (My runs'
+ * buttons, while the saved answer tile knew the run). Such a run lives only as a board row of this account (My Runs'
  * `myRows`) and its CSV on the planner's server (search/runLegsCsv.ts reads the route's legs back). This module finds the
  * row for a followed route and turns its legs into the result a kept search gives (lib/searchPlan.ts SnapSearch), so the
  * followed route is priced the way a kept Fast, Exact or Custom result prices it (lib/followPrice.ts step 0).

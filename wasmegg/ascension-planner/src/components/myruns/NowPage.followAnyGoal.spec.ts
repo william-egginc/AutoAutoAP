@@ -192,7 +192,7 @@ describe("Right now: a route followed from this save's instant answer keeps the 
     try {
       expect(page.follow.value?.price).toBe('none');
       const { text } = await render(page);
-      // Nothing of this save to estimate it from: My runs works the instant answer for this setup out itself (26 Oct
+      // Nothing of this save to estimate it from: My Runs works the instant answer for this setup out itself (26 Oct
       // 2026), never "Open … once" and never "not priced on this save yet".
       expect(text).toContain('From the instant answer · working out its times');
       expect(text).toContain('Working out the instant answer for your setup...');

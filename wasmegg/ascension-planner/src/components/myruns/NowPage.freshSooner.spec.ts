@@ -1,7 +1,7 @@
 /**
  * STARTING FRESH WOULD BE SOONER ON RIGHT NOW (spec-r7verify, 1 Nov 2026; lib/freshSooner.ts). "Continue my build-up"
  * forced (Your setup's choice, or the unfinished build's build-up side) never compared the ascension you are in with a
- * fresh start; now My runs' simulation also prices the fresh start lazily (useNowPage `freshSim`), and Right now
+ * fresh start; now My Runs' simulation also prices the fresh start lazily (useNowPage `freshSim`), and Right now
  * says so when it ends more than an hour sooner, with "Switch to Soonest" for this ascension (kept per account and stop,
  * `aap.firstasc.*`, Setup untouched). Through useNowPage with synthetic saves (id EI0000000000000000, never printed) and
  * stand-in workers (the lazy fresh pricing, Prestige now, answered at once; leg.freshSooner.spec.ts runs the real

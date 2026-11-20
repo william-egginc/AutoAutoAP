@@ -11,10 +11,10 @@
   Saved from the result card's one Save (RouteResultCard.vue, UX fluff review 2, 5 Nov 2026): this list had its own
   name box and "Save this run" for the same run until then.
 
-  `list-only` (My runs, 15 Oct 2026): the list alone, without the explanation, Save this run or the
-  save-file bar, and Open says so (`opened`) for My runs to show the screen it opened on. There, each run
+  `list-only` (My Runs, 15 Oct 2026): the list alone, without the explanation, Save this run or the
+  save-file bar, and Open says so (`opened`) for My Runs to show the screen it opened on. There, each run
   says how the latest save is doing against it (R6, PaceBadge.vue); its legs are in the run's body, read
-  only while `pace-active` (My runs' "Saved on this device" is open), one run at a time.
+  only while `pace-active` (My Runs' "Saved on this device" is open), one run at a time.
 -->
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
@@ -147,14 +147,14 @@ const props = defineProps<{
   playerId: string;
   /** The Full sweep's screen: an unfinished sweep can be carried on from here. */
   canResume?: boolean;
-  /** My runs: the list alone (no explanation, no Save this run, no save-file bar). */
+  /** My Runs: the list alone (no explanation, no Save this run, no save-file bar). */
   listOnly?: boolean;
-  /** My runs' "Saved on this device" is open: the badges may read the runs' bodies (one at a time). */
+  /** My Runs' "Saved on this device" is open: the badges may read the runs' bodies (one at a time). */
   paceActive?: boolean;
   /** The list's heading: Custom's says "Saved for later", as its text does (Words, 26 Oct 2026); "Saved runs" else. */
   heading?: string;
 }>();
-/** A run was opened: `full` when it is an Exhaustive run (it has a space), for My runs to show its screen. */
+/** A run was opened: `full` when it is an Exhaustive run (it has a space), for My Runs to show its screen. */
 const emit = defineEmits<{ opened: [run: { full: boolean }] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
@@ -163,14 +163,14 @@ const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOp
 
 onMounted(() => void store.refreshSavedRuns(props.playerId));
 
-/** "N hours ahead / behind" on each run (My runs only). */
+/** "N hours ahead / behind" on each run (My Runs only). */
 const pace = usePlanPace({
   playerId: () => props.playerId,
   active: () => !!props.listOnly && !!props.paceActive,
   entries: () => store.savedRuns.map(run => ({ kind: 'run' as const, run, goalKey: `fastest-${run.finalTE}` })),
 });
 
-/** "vs your instant baseline: 1.2 days sooner (Fast)" (My runs, wireframe B1): the instant answer for the run's
+/** "vs your instant baseline: 1.2 days sooner (Fast)" (My Runs, wireframe B1): the instant answer for the run's
  *  target and save, logged here (lib/instantBaseline.ts); null without one or without the run's start. */
 /** A saved run's finish: its route start (from its fingerprint) plus its best days; null when either is unknown. */
 function runFinish(run: RunSummary): number | null {

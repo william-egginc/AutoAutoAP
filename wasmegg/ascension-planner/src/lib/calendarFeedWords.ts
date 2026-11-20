@@ -31,23 +31,23 @@ export const CAL_ERRORS: Record<'limit' | 'busy' | 'offline' | 'error' | 'off' |
   error: "That didn't work. Try again in a moment.",
   off: 'Calendar links need Save online turned on in Setup.',
   // The plan's own upload failing (not a link button): said so, and that the calendar may be stale. It really is sent again: the next plan change, or
-  // My runs opened again, finds the last good list unchanged and sends.
+  // My Runs opened again, finds the last good list unchanged and sends.
   upload: "Couldn't send the plan to your calendar, so it may be out of date. Try again in a moment.",
 };
 
-/** Under a link just made while My runs has not given the plan yet (only the marker is up). Words, 14 Nov 2026. */
-export const CAL_OPEN_MYRUNS = 'Open My runs once so the plan reaches your calendar. It is only sent from there.';
+/** Under a link just made while My Runs has not given the plan yet (only the marker is up). Words, 14 Nov 2026. */
+export const CAL_OPEN_MYRUNS = 'Open My Runs once so the plan reaches your calendar. It is only sent from there.';
 
-/** On the card between My runs opening and the first plan upload: the tracker takes a minute or more under load (QA, 15 Nov 2026). Words' text; the plan is worked out and sent from My runs, so leaving it stops the work (third sentence). */
+/** On the card between My Runs opening and the first plan upload: the tracker takes a minute or more under load (QA, 15 Nov 2026). Words' text; the plan is worked out and sent from My Runs, so leaving it stops the work (third sentence). */
 export const CAL_WORKING = 'The plan is being worked out for your calendar. It goes out as soon as it is ready, which can take a minute or two. Keep this page open until then.';
 
-/** The nod under "Add all N upcoming to calendar" on My runs' plan table (Jordan, 15 Nov 2026; Words' final text). "Sharing" is the card's real heading in Setup. */
+/** The nod under "Add all N upcoming to calendar" on My Runs' plan table (Jordan, 15 Nov 2026; Words' final text). "Sharing" is the card's real heading in Setup. */
 export const CAL_NOD_SUGGEST = 'Want it to update itself? Turn on Put my plan in my calendar in Setup › Sharing. Then there is nothing to add again.';
 export const CAL_NOD_UPDATE = 'Update cloud calendar';
 export const CAL_NOD_SENT = 'Sent to your calendar.';
 export const CAL_NOD_SAME = 'Your calendar is already up to date.';
-/** The feed only gets the plan from My runs, so "whenever you open My runs", not "when the plan changes". */
-export const CAL_NOD_HINT = 'It also updates by itself whenever you open My runs.';
+/** The feed only gets the plan from My Runs, so "whenever you open My Runs", not "when the plan changes". */
+export const CAL_NOD_HINT = 'It also updates by itself whenever you open My Runs.';
 
 /**
  * THE SAVED LINK (callink, 17 Nov 2026; Jordan: the calendar link shows in every browser of a player's). DRAFT (UI; Words to review). The link is

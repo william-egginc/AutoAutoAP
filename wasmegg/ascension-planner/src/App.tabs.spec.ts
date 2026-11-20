@@ -69,7 +69,7 @@ describe('App.vue header layout', () => {
   });
 });
 
-/** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My runs always. */
+/** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My Runs always. */
 describe('App.vue optional tabs', () => {
   it('builds the top tabs from what is shown, not from a count', () => {
     const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
@@ -85,17 +85,17 @@ describe('App.vue optional tabs', () => {
     expect(goTo.indexOf('allowForVisit(r.section)')).toBeLessThan(goTo.indexOf('applyRoute(r)'));
   });
 
-  it("on a tab that isn't shown, falls back to the last tab shown, else My runs, else the Auto Planner, at once", () => {
+  it("on a tab that isn't shown, falls back to the last tab shown, else My Runs, else the Auto Planner, at once", () => {
     const block = app.slice(app.indexOf('let lastShownTab'), app.indexOf('/**\n * On a link into the Auto Planner'));
     expect(block).toContain("let lastShownTab: typeof plannerTab.value = 'myruns';");
     expect(block).toContain(
       "plannerTab.value = !tabHidden(lastShownTab) ? lastShownTab : !tabHidden('myruns') ? 'myruns' : 'automatic';"
     );
-    // My runs with nothing to show is a hidden tab too (lib/myRunsShown.ts), and the fallback follows it.
+    // My Runs with nothing to show is a hidden tab too (lib/myRunsShown.ts), and the fallback follows it.
     expect(block).toContain("(tab === 'myruns' && !myRunsTabShown.value)");
     expect(block).toContain('[plannerTab, optionalShown, myRunsTabShown],');
     expect(block).toContain("{ immediate: true, flush: 'sync' }");
-    // The old rule (no collector: My runs and Science sent to the Manual Planner) is gone.
+    // The old rule (no collector: My Runs and Science sent to the Manual Planner) is gone.
     expect(app).not.toContain("plannerTab.value === 'myruns' || plannerTab.value === 'science'");
   });
 });

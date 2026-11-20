@@ -1,9 +1,9 @@
 <!--
   THE SAVE LINE (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026, Q6): region 1 on Fastest, By a
-  date and My runs, under the top tabs, always in the same place. Whose save: since 12 Nov 2026 the name is INSIDE the
+  date and My Runs, under the top tabs, always in the same place. Whose save: since 12 Nov 2026 the name is INSIDE the
   Change player button, its chevron under the name (Jordan, 12 Nov 2026 pm: not beside it; no separate name above it), centred (13 Nov 2026); the TE is on My
   runs' player line; the save-age banner and the silo line are layout/SaveSide.vue (Fastest, By a date) and Right now's
-  header (My runs). It replaces the chevron that hid the player ID box: the button opens the box above (Setup's
+  header (My Runs). It replaces the chevron that hid the player ID box: the button opens the box above (Setup's
   "Change player" does too); while it is open, Close here folds it again.
 -->
 <template>

@@ -243,7 +243,7 @@ export class AnswersClient {
   private blockedUntil = 0;
   private pending: AnswerOffer | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
-  /** Answers read back on this page load, newest first (My runs' pricing meanwhile). */
+  /** Answers read back on this page load, newest first (My Runs' pricing meanwhile). */
   readonly read: CloudAnswer[] = [];
 
   constructor(private env: AnswersEnv) {}

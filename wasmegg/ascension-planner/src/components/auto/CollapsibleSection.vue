@@ -1,5 +1,5 @@
 <!--
-  One of the three main sections of a search screen (Instant answer, Stronger check, Exhaustive) that a
+  One of the three main sections of a search screen (Instant Answer, Stronger check, Exhaustive) that a
   player can hide (the user, 12 Oct 2026). Open: the section as it is, with a small Hide button in its
   top corner (the section keeps its own heading). Hidden: one bar with the section's name and its
   one-line result, and Show. Remembered per section in this browser.

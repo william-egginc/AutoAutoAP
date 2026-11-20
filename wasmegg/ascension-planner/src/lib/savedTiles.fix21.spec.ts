@@ -1,5 +1,5 @@
 /**
- * Which answer heads My runs' Egg Day tile (fix 21). On beta the main account's tile showed 197 230 276 310
+ * Which answer heads My Runs' Egg Day tile (fix 21). On beta the main account's tile showed 197 230 276 310
  * (310 TE, 3.2 d to spare, Exhaustive, from the loaded save) over 197 230 276 311 (311 TE, 30.2 h to spare, sent
  * the same day): the 311's save time, worked out from its plan start less its rounded save age, fell a few minutes
  * outside the 10-minute "same save" window, so only the 310 competed. The rule now, in plain words:

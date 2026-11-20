@@ -138,7 +138,7 @@ describe('plansByGoal', () => {
   it("the loaded save's own plan beats an older save's higher-TE plan inside the 2 h window (Jordan, 17 Nov 2026; QA's two-save run)", () => {
     // QA's run: the Sample save, then the habs-cut save 30 min later; By a date. The older save's plan reaches 199 TE, the loaded
     // save's own plan 198 TE. Both saves count as "current" (CURRENT_SAVE_SECONDS, 2 h), and both snapshots sit under one key
-    // (ownKey true for both), so before this the 199 led and My runs' table showed the older save's numbers.
+    // (ownKey true for both), so before this the 199 led and My Runs' table showed the older save's numbers.
     const older = SAVE - 30 * 60;
     const key = `date-${MAR3}`;
     const meta = (backupTime: number) => ({ account: 'acct', goal: `date ${MAR3}`, backupTime });
@@ -198,7 +198,7 @@ describe('the default goal: the one checked LAST', () => {
     expect(defaultGoalKey(plansByGoal(goals, [], answers, SAVE), SAVE)).toBe('eggday-2027');
     expect(defaultGoalKey([], SAVE)).toBeNull();
   });
-  // R7 red-team #3 (31 Oct 2026): an Egg Day route followed while nothing of the save is kept for it opened My runs on
+  // R7 red-team #3 (31 Oct 2026): an Egg Day route followed while nothing of the save is kept for it opened My Runs on
   // Fastest to 490 (no plan, first in the list), so the Build-up tracker said "follow a route first" for 5 minutes.
   it('a followed goal without a plan opens before a goal with nothing, or with only an older save\'s plan', () => {
     const follow = new Set(['eggday-2027']);
@@ -210,7 +210,7 @@ describe('the default goal: the one checked LAST', () => {
     // Race with an older save's plan: the followed goal (its route is priced on this save).
     const old = { ...race, meta: { account: 'acct', goal: 'target 490', backupTime: SAVE - 3 * 86400 } };
     expect(defaultGoalKey(plansByGoal(goals, [other(old, 'fastest-490', MINE)], [], SAVE, follow), SAVE)).toBe('eggday-2027');
-    // Race with a plan of this save: still the followed goal (Jordan, 15 Nov 2026: My runs opens on the route being FOLLOWED, not
+    // Race with a plan of this save: still the followed goal (Jordan, 15 Nov 2026: My Runs opens on the route being FOLLOWED, not
     // the one last looked at; it was this save's plans first).
     expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], [], SAVE, follow), SAVE)).toBe('eggday-2027');
     // The same with Race followed instead: the same rule for both goal kinds.

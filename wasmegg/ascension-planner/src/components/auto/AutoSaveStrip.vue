@@ -1,5 +1,5 @@
 <!--
-  My runs' save strip (myruns/SaveAgeStrip.vue) on an Auto Planner screen (ux29 item 4, 27 Oct 2026): slim, near the
+  My Runs' save strip (myruns/SaveAgeStrip.vue) on an Auto Planner screen (ux29 item 4, 27 Oct 2026): slim, near the
   top, with its own testid. The save's age, "A newer save is on the server · Load it" once the quiet check knows,
   and "Load latest save" (Setup's button) otherwise. Hidden while the save is under 10 minutes old and green
   (composables/useAutoSaveStrip.ts). Since spec-saveage (29 Oct 2026) it is the one save-age banner, and Single run's

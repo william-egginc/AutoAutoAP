@@ -1,5 +1,5 @@
 /**
- * Fix 20: the main account's runs sent from the PC weren't "looks like yours" on beta (My runs listed 2 runs, and
+ * Fix 20: the main account's runs sent from the PC weren't "looks like yours" on beta (My Runs listed 2 runs, and
  * the Fastest tile led with a 26-day-old Exhaustive). The board (GET /all, read 15 Oct) holds them as Egg Day
  * answers NAMED with the PC browser's owner code (`acct`), the same timezone and gear as the save, from TE 191 and
  * the very save loaded here. Made-up fixtures for each cause:

@@ -8,7 +8,7 @@ describe('compareRows', () => {
   it('Fastest: the soonest finish is best; missing ones say so', () => {
     const rows = compareRows('fastest', { instant: f(1000), stronger: f(900), exhaustive: null });
     expect(rows.map(r => [r.label, r.best, !!r.entry])).toEqual([
-      ['Instant answer', false, true],
+      ['Instant Answer', false, true],
       ['Search', true, true],
       ['Custom', false, false],
     ]);

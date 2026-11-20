@@ -58,7 +58,7 @@ describe('the places that say it', () => {
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
   };
 
-  it('My runs: "Saved on this phone" on a phone, "Saved on this computer" on a computer', async () => {
+  it('My Runs: "Saved on this phone" on a phone, "Saved on this computer" on a computer', async () => {
     stubPhone();
     // The part shows only with something saved (spec-uxpass item 7, 8 Nov 2026): one saved run.
     const withSaved = () => {

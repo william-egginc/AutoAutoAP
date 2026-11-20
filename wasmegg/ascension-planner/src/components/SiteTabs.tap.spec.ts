@@ -1,7 +1,7 @@
 /**
  * Tab buttons at least 44 px tall on a phone (Jordan, 21 Oct 2026): the top tabs (SiteTabs.vue) and Chain Finder's goal
  * switch (GoalSwitch.vue; was the Auto Planner's sub-tabs in App.vue), with the old sizes from sm up. Since Chain Finder
- * (12 Nov 2026) the top tabs sit two a row below lg (2 x 2 with My runs; an odd last tab across its row).
+ * (12 Nov 2026) the top tabs sit two a row below lg (2 x 2 with My Runs; an odd last tab across its row).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,7 @@ const ALL = [
   tab('manual', 'Manual Planner'),
   tab('auto', 'Auto Planner'),
   tab('chain', 'Chain Finder'),
-  tab('myruns', 'My runs'),
+  tab('myruns', 'My Runs'),
   tab('compare', 'Leaderboard'),
   tab('science', 'Science'),
 ];
@@ -63,7 +63,7 @@ describe("Chain Finder's goal switch (GoalSwitch.vue; was the Auto Planner sub-t
 });
 
 describe('SiteTabs test ids (spec-tourfix, 16 Nov 2026)', () => {
-  it('each tab carries data-testid top-tab-<id>, so the tour picture can ring My runs', () => {
+  it('each tab carries data-testid top-tab-<id>, so the tour picture can ring My Runs', () => {
     const src = fs.readFileSync(path.join(__dirname, 'SiteTabs.vue'), 'utf8');
     expect(src).toMatch(/:data-testid="`top-tab-\$\{t\.id\}`"/);
   });

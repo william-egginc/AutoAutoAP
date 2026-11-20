@@ -62,7 +62,7 @@ describe('Prefer fewer and tight routes (By a date)', () => {
     expect(c.ascensionsFewer).toBe(2);
   });
 
-  it('a saved answer (My runs, the instant baseline) follows the same rule', () => {
+  it('a saved answer (My Runs, the instant baseline) follows the same rule', () => {
     const saved = (chain: number[], spareH: number, firstDays: number) => ({
       chain,
       end: DEADLINE - spareH * H,

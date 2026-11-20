@@ -1,5 +1,5 @@
 /**
- * Which part of My runs' simulation request changed (spec-stuck3, 7 Nov 2026), for the build-up breadcrumbs: useCurrentSim
+ * Which part of My Runs' simulation request changed (spec-stuck3, 7 Nov 2026), for the build-up breadcrumbs: useCurrentSim
  * starts a run only once its request has been unchanged for 3 s, so a key that keeps changing never starts one. The
  * line says which part moved, to find what churns. Never an ID: the account is named, not shown.
  */

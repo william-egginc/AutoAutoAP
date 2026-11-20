@@ -8,7 +8,7 @@
  *
  * Under a quarter left, one plain amber line says so (SoulEggWarning.vue); it never blocks anything.
  *
- * My runs also says what is left after the followed route (27 Oct 2026, Jordan: Single run shows "Soul eggs: −3.0s,
+ * My Runs also says what is left after the followed route (27 Oct 2026, Jordan: Single run shows "Soul eggs: −3.0s,
  * remaining 9.7s"): `soulEggsAfterLine`, one plain line, amber under the same quarter.
  */
 import { formatNumber } from './format';
@@ -57,7 +57,7 @@ export function soulEggWarningParts(p: SoulEggPlan): { line: string; fold: strin
 
 /**
  * "You'll have about 10.4s soul eggs left when this plan is done (about 2.3s goes on 41 shifts · about 24 of the 41 are
- * build-up shifts, estimated)" (My runs' Right now and its saved answer tile; worded plainer 28 Oct 2026, pieha):
+ * build-up shifts, estimated)" (My Runs' Right now and its saved answer tile; worded plainer 28 Oct 2026, pieha):
  * today's soul eggs less the planned shifts' cost (`plannedShiftsCost` from the save's `done` shifts, as All planned
  * shifts prices them), each number as Single run writes its Spent / Remaining (`formatNumber(x, 1)`). `opening`: how
  * many of the shifts are the estimated build-up shifts (lib/openingShifts.ts). `amber` under SE_WARN_BELOW left, the

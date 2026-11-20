@@ -95,7 +95,7 @@ describe("the tracker when the planner's inputs never become this save's", () =>
 });
 
 describe('Try again asks App to set the save up again', () => {
-  it('My runs: Try again, with the stores not this save\'s, asks for the set-up', () => {
+  it('My Runs: Try again, with the stores not this save\'s, asks for the set-up', () => {
     // useNowPage hands its storeReady out.
     const p = body(page, 'export function useNowPage(');
     expect(p.slice(p.lastIndexOf('\n  return {'))).toMatch(/\n    storeReady,/);

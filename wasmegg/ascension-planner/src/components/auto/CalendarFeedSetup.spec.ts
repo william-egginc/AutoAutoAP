@@ -96,7 +96,7 @@ describe('the card', () => {
   });
 });
 
-describe('QA 14 Nov: Reset link at the 3-link error, and the My runs line', () => {
+describe('QA 14 Nov: Reset link at the 3-link error, and the My Runs line', () => {
   const limitFetch: SyncFetch = async () => ({ ok: false, status: 409, json: async () => ({}), headers: { get: () => null } });
   it('with the limit hit and no link here: the error and a Reset link button (the way out)', async () => {
     const feed = createCalendarFeed({ storage: store(), env: { account: 'a1', target: () => ({ url: 'https://collector.example/sync', k: K }) }, fetch: limitFetch });
@@ -111,7 +111,7 @@ describe('QA 14 Nov: Reset link at the 3-link error, and the My runs line', () =
     feed.turnOn();
     expect(await render(feed)).not.toMatch(/data-testid="calendar-feed-reset"/);
   });
-  it('a link made before My runs gave a plan: the card asks to open My runs once', async () => {
+  it('a link made before My Runs gave a plan: the card asks to open My Runs once', async () => {
     const feed = make();
     feed.turnOn();
     await feed.getLink();
@@ -130,7 +130,7 @@ describe('where it is, and what it is not', () => {
     const words = readFileSync(new URL('../../lib/calendarFeedWords.ts', import.meta.url), 'utf8');
     expect(words).not.toMatch(/scrambled|fingerprint|maintainer could/i);
   });
-  it('My runs hands the feed the tracker\'s plan', () => {
+  it('My Runs hands the feed the tracker\'s plan', () => {
     const view = readFileSync(new URL('../MyRunsView.vue', import.meta.url), 'utf8');
     expect(view).toContain('useCalendarFeedPush({');
   });
@@ -151,8 +151,8 @@ describe('Words\' final lines (14 Nov 2026)', () => {
   });
 });
 
-describe('between opening My runs and the first plan upload (QA 15 Nov 2026)', () => {
-  it('"Open My runs once…" while My runs is closed; "Working out your plan…" once it is open, until the plan is sent', async () => {
+describe('between opening My Runs and the first plan upload (QA 15 Nov 2026)', () => {
+  it('"Open My Runs once…" while My Runs is closed; "Working out your plan…" once it is open, until the plan is sent', async () => {
     const feed = make();
     feed.turnOn();
     await feed.getLink();
@@ -165,7 +165,7 @@ describe('between opening My runs and the first plan upload (QA 15 Nov 2026)', (
     expect(textOf(open)).not.toContain(W.CAL_OPEN_MYRUNS);
     expect(open).toContain('data-testid="calendar-feed-working"');
   });
-  it("the words (Words' text, with the third sentence: the work stops when My runs is left)", () => {
+  it("the words (Words' text, with the third sentence: the work stops when My Runs is left)", () => {
     expect(W.CAL_WORKING).toBe('The plan is being worked out for your calendar. It goes out as soon as it is ready, which can take a minute or two. Keep this page open until then.');
   });
 });

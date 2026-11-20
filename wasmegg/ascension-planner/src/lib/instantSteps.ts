@@ -5,7 +5,7 @@
  * reached, and whether the prestige WAITED, for the hours or for a no-prestige day. The instant answer's legs keep
  * no egg shift times (the table has none; tableV2 holds the opening's shifts inside the hours without recording
  * when), so the shifts are not listed here: Simulate this route gives every one. Pure.
- * My runs' Full timeline (26 Oct 2026) adds each ascension's shifts where its legs carry them (`ascensionSteps`).
+ * My Runs' Full timeline (26 Oct 2026) adds each ascension's shifts where its legs carry them (`ascensionSteps`).
  */
 import { nextAvailable } from '@/search/availability';
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
@@ -173,7 +173,7 @@ export interface StayLine {
 }
 
 /**
- * EVERY ASCENSION AND ITS SHIFTS (26 Oct 2026, My runs' Full timeline for a route with no exact legs): `instantSteps`'
+ * EVERY ASCENSION AND ITS SHIFTS (26 Oct 2026, My Runs' Full timeline for a route with no exact legs): `instantSteps`'
  * lines, each with the shifts its leg lists (the table's from H1 on, search/legShifts.ts; the current ascension's
  * from the simulation once it is in). A leg that lists none has an empty list. Each fresh ascension also says what
  * its build-up is (`buildUp`, from its variant and rate: lib/buildUpLine.ts), the opening the table's shifts leave out,

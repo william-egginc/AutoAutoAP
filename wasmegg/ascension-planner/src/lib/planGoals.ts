@@ -1,5 +1,5 @@
 /**
- * My runs' "which plan" switch (Jordan, 16 Oct 2026): Right now shows the saved plan of ONE goal at a time, the
+ * My Runs' "which plan" switch (Jordan, 16 Oct 2026): Right now shows the saved plan of ONE goal at a time, the
  * player picks which (Race to 490 | Egg Day 2027 | By Feb 10, 2027). Saved data only: every plan here is a kept instant
  * answer snapshot, every "answer" a last checked answer, a Check exactly history entry or a saved By a date answer.
  *
@@ -86,7 +86,7 @@ export function goalKeyOf(goal: 'fastest' | 'date', target: number, deadline: nu
 }
 
 /**
- * The goals My runs knows: Race to the player's own target, Fastest to 490 when that target differs, Egg Day, and
+ * The goals My Runs knows: Race to the player's own target, Fastest to 490 when that target differs, Egg Day, and
  * each other date a plan was kept for. `dayWords` formats a deadline ("Mar 3, 2027").
  */
 export function goalDefs(o: {
@@ -179,11 +179,11 @@ export function plansByGoal(
  *
  * A FOLLOWED GOAL (R7 red-team #3, 31 Oct 2026; first of all since 15 Nov 2026, Jordan): one a route is followed for opens
  * before every goal that is not followed, whatever was looked at or planned last: its route is priced on this save (useNowPage
- * `followState`). Before, an Egg Day route followed with nothing kept for either goal opened My runs on Fastest to 490
+ * `followState`). Before, an Egg Day route followed with nothing kept for either goal opened My Runs on Fastest to 490
  * (first in the list), and the Build-up tracker, which is the shown goal's, said "follow a route first". With nothing followed it
  * is the goal last looked at, as before.
  */
-/** A followed goal ranks before every goal that is not followed (Jordan, 15 Nov 2026: My runs opens on the route being FOLLOWED, not the
+/** A followed goal ranks before every goal that is not followed (Jordan, 15 Nov 2026: My Runs opens on the route being FOLLOWED, not the
  *  one last looked at). Among followed goals the usual tiers still decide: this save's plan first. */
 const FOLLOWED_FIRST = 10;
 
@@ -289,7 +289,7 @@ export function goalFollowOf(
   if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
   if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
   if (card.estimating === 'working' || card.estimating === 'waiting') return { times: card.estimating, end: null };
-  // The instant answer for this setup being worked out on My runs (composables/useInstantCompute.ts): its times next.
+  // The instant answer for this setup being worked out on My Runs (composables/useInstantCompute.ts): its times next.
   if (card.estimating === 'instant') return { times: 'working', end: null };
   if (card.estimating === 'instantwait') return { times: 'waiting', end: null };
   if (current?.prestigeAt != null) return { times: 'current', end: current.prestigeAt };

@@ -1,5 +1,5 @@
 <!--
-  "+ Add to calendar" for one event or several (My runs' Right now card; lib/calendarEvents.ts): opens two
+  "+ Add to calendar" for one event or several (My Runs' Right now card; lib/calendarEvents.ts): opens two
   choices, a downloaded .ics (Apple Calendar, Outlook; Google Calendar imports it too) with a 10-minute alert, and
   for a single event Google Calendar's own "new event" page filled in. Built on this device; nothing is sent.
 -->

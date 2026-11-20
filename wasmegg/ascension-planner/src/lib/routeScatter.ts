@@ -1,6 +1,6 @@
 /**
- * My runs' "Your routes at a glance" (RouteScatter.vue, Q9, 18 Oct 2026; a heat map since 26 Oct, binned by
- * lib/heatBins.ts): the account's routes, from what My runs already holds (the board rows LeaderboardPanel hands
+ * My Runs' "Your routes at a glance" (RouteScatter.vue, Q9, 18 Oct 2026; a heat map since 26 Oct, binned by
+ * lib/heatBins.ts): the account's routes, from what My Runs already holds (the board rows LeaderboardPanel hands
  * up: this browser's and the "maybe you" ones, and the runs and answers saved on this device). Nothing is fetched
  * or priced here. Pure.
  *
@@ -142,7 +142,7 @@ export function goalOfDate(deadline: number, eggDayAt: number, eggDayYear: numbe
 }
 
 /** The goals that have points, Egg Day first, then the other dates soonest first, then the races by target
- *  (My runs' own order), and every point. */
+ *  (My Runs' own order), and every point. */
 export function buildScatter(i: ScatterInput): { goals: ScatterGoal[]; points: ScatterPoint[]; missed: number } {
   const goals = new Map<string, ScatterGoal & { sortKey: [number, number] }>();
   const points: ScatterPoint[] = [];

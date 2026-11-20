@@ -1,5 +1,5 @@
 <!--
-  THE SAVE BEHIND RIGHT NOW'S "?" (Jordan, 12 Nov 2026): My runs has no save box beside the Right now card any more; the
+  THE SAVE BEHIND RIGHT NOW'S "?" (Jordan, 12 Nov 2026): My Runs has no save box beside the Right now card any more; the
   save is in the card's header line (RightNowCard.vue, lib/calculatedFromWords.ts) and this "?" after it opens the same
   strip (myruns/SaveAgeStrip.vue, slim and small, as layout/SaveSide.vue draws it on Fastest and By a date): its age,
   Why and Details once old, amber past a day, Load latest save, the clock check. Closed by default on the quiet line;

@@ -1,7 +1,7 @@
 /**
  * The save's virtue egg numbers (a farm's `eggType`, 50..54) and the names players read. A copy of
  * search/leg.ts's private VIRTUE_EGGS_MAP (left untouched there), for pages that read the save without the
- * simulator: My runs' Right now card. virtueEggs.spec.ts checks the two agree.
+ * simulator: My Runs' Right now card. virtueEggs.spec.ts checks the two agree.
  */
 import { VIRTUE_EGG_NAMES, type VirtueEgg } from '@/types';
 
@@ -36,7 +36,7 @@ export function virtueEggType(egg: string | null | undefined): number | null {
  * FloatingStats.vue (`iconURL(\`egginc/egg_${currentEgg}.png\`, 64)`, the Manual planner's current egg),
  * ShiftActions.vue, AscensionOverview.vue, lib/missions.ts `virtueEggIconPath`, and the shared lib's
  * `eggIconPath(ei.Egg.CURIOSITY..KINDNESS)` (lib/eggs.ts). virtueEggs.spec.ts lists all five. Every egg picture on
- * My runs goes through here. Null for anything that isn't a virtue egg.
+ * My Runs goes through here. Null for anything that isn't a virtue egg.
  */
 export function eggIconPath(egg: string | null | undefined): string | null {
   return virtueEggType(egg) != null ? `egginc/egg_${egg}.png` : null;

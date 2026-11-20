@@ -130,7 +130,7 @@ describe('YourEggs shows the clock line under each egg in "next TE", the plan li
   });
 });
 
-describe('wired on My runs', () => {
+describe('wired on My Runs', () => {
   it('useNowPage builds the clock lines from the plan\'s Next shifts; MyRunsView passes them', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

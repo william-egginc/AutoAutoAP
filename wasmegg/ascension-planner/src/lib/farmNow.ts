@@ -1,5 +1,5 @@
 /**
- * The farm's silos estimated to now, from the save (My runs' Your eggs; item 6, 25 Oct 2026). Silo time only, no hab
+ * The farm's silos estimated to now, from the save (My Runs' Your eggs; item 6, 25 Oct 2026). Silo time only, no hab
  * fill (Jordan: silos empty, habs don't; once the silos run out no eggs are laid, so the habs stop filling too).
  *
  * The model is the planner's one offline-silo model (lib/saveAge.ts `siloSeconds`: silo count x the per-silo time

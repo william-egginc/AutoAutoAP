@@ -1,11 +1,11 @@
 /**
- * Light's earlier routes read the account's board runs as My runs does (18 Oct 2026, the alt on beta).
+ * Light's earlier routes read the account's board runs as My Runs does (18 Oct 2026, the alt on beta).
  *
  * The report: Light said "Your earlier routes: None" and ended on 247 (165 200 223 247), while the alt had a
  * Fast run on the save loaded now reaching 248 (165 200 224 248, about 10 h to spare) and a 161 198 218 248
  * run, both sent from the PC under the account's name. Light read GET /mine only, which answers for this
  * site's code in this browser; those runs carry the PC's code, so they never came back. Now Light reads
- * /all and /mine merged and keeps `isMyRun` rows (search/myBoardRows.ts), the same set My runs lists.
+ * /all and /mine merged and keeps `isMyRun` rows (search/myBoardRows.ts), the same set My Runs lists.
  * Made-up rows; no player ID anywhere.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ const MINE: BoardRow[] = [{ ...ALL[2], yours: true }];
 const look = (mine: readonly BoardRow[] | null) =>
   lookAlikeFor({ saveKey: KEY, remembered: [], mine, names: ['AltPlayer', ''], viewerTE: TE_NOW });
 
-describe("the rows Light now reads are My runs' rows", () => {
+describe("the rows Light now reads are My Runs' rows", () => {
   it('/mine alone (before) had only the 247 run', () => {
     const before = earlierRoutes({ goal: DATE, currentTE: TE_NOW, board: MINE, exclude: [[165, 200, 223, 247]] });
     expect(before.map(r => r.chain.join(' '))).toEqual(['166 201 223 247']);

@@ -1,12 +1,12 @@
 <!--
-  My runs › Your latest run (MyRunsView.vue; was Leaderboard › Your latest run, #/compare/latest, until 16 Oct
+  My Runs › Your latest run (MyRunsView.vue; was Leaderboard › Your latest run, #/compare/latest, until 16 Oct
   2026, and that tab is one line pointing here now): the newest search of this visit, Fastest's or By a date's,
   with when each stop and egg happens under each route's arrow (RouteTimeline.vue). For Fastest (Nearby routes
   or Exhaustive) also its other options and charts, moved here off Fastest's results (15 Oct 2026), where they
   pushed the CSV, saved runs and share box a long way down; for By a date its best route for each stop count
   and its top 50 routes, and while one runs its top routes so far (By a date's result shows only its best and
   its best for each stop count since 16 Oct 2026). Fastest's panels and By a date's link here ("Dig deeper
-  into your plan ›", DigDeeperLink.vue, opens My runs).
+  into your plan ›", DigDeeperLink.vue, opens My Runs).
 
   ONE ACCOUNT'S (16 Oct 2026): a run shows only on the account it ran for (lib/latestRunOwner.ts `runIsMine`,
   on the store's `chainResultOwner` / `deadlineResultOwner`, hashes of the player ID). Another account's run
@@ -435,7 +435,7 @@ import { runIsMine } from '@/lib/latestRunOwner';
 const props = defineProps<{
   /** The account on screen: only its runs show here. Never shown; only its hash is compared. */
   playerId: string;
-  /** Which run to show, from My runs' "Showing" switch (17 Oct 2026): its own "instead" line is then left out.
+  /** Which run to show, from My Runs' "Showing" switch (17 Oct 2026): its own "instead" line is then left out.
    *  Absent: the newest, with that line. */
   want?: 'fastest' | 'date' | null;
 }>();
@@ -511,7 +511,7 @@ watch(
 );
 /** The run shown: the one picked, else the newer (a run going now is newest), else none. */
 const shown = computed<'fastest' | 'date' | 'none'>(() => {
-  // My runs' "Showing" switch asks for one kind: only that kind's run, never the other one in its place (beta,
+  // My Runs' "Showing" switch asks for one kind: only that kind's run, never the other one in its place (beta,
   // 16 Oct: "Latest Highest TE by a date run" showed an Exhaustive run on Fastest, the fallback to the newest).
   if (props.want === 'fastest') return fastestAt.value !== null ? 'fastest' : 'none';
   if (props.want === 'date') return dateAt.value !== null ? 'date' : 'none';
@@ -528,8 +528,8 @@ const newest = computed<'fastest' | 'date' | 'none'>(() => {
   // A By a date run going now: its last result is the newest thing on that side, unless Fastest's is newer.
   return d > f ? 'date' : 'fastest';
 });
-/** Whether there is a run of this account to show (My runs opens its block then), and which kinds there are
- *  (My runs' "Showing" switch). */
+/** Whether there is a run of this account to show (My Runs opens its block then), and which kinds there are
+ *  (My Runs' "Showing" switch). */
 const emit = defineEmits<{ has: [has: boolean]; kinds: [kinds: { fastest: boolean; date: boolean }] }>();
 watch(
   () => shown.value !== 'none',

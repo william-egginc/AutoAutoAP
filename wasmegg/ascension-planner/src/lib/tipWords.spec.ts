@@ -6,8 +6,8 @@ import { isWordingOnly } from './resultCodeHash';
 
 describe('tip words', () => {
   it('Follow and Simulate, as Allan asked', () => {
-    expect(T.TIP_FOLLOW).toBe('Set as active for My runs');
-    expect(T.TIP_FOLLOWING).toBe('Active for My runs');
+    expect(T.TIP_FOLLOW).toBe('Set as active for My Runs');
+    expect(T.TIP_FOLLOWING).toBe('Active for My Runs');
     expect(T.TIP_SIMULATE).toBe('Opens this route in the Auto Planner');
   });
   it('the run button and the three choices', () => {

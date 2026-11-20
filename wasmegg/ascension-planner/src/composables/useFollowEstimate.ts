@@ -1,7 +1,7 @@
 /**
  * The followed route's estimate (lib/followEstimate.ts), worked out in one route worker (search/routePool.ts, the same
  * worker and table the instant answer uses; routeFinder.ts `priceChain`), so the page stays responsive. The only thing
- * My runs works out.
+ * My Runs works out.
  *
  *   - One request at a time: the newest wins; a reply for an older one (another route, a new save, a new instant
  *     answer: another key) is dropped.
@@ -52,10 +52,10 @@ export function setChainPricer(f: (() => ChainPricer | null) | null): void {
 }
 
 /**
- * STOPPED (spec-buildstop, 30 Oct 2026, Jordan's My runs: "pricing the followed route 218 247 285 313 failed: stopped"
+ * STOPPED (spec-buildstop, 30 Oct 2026, Jordan's My Runs: "pricing the followed route 218 247 285 313 failed: stopped"
  * and the page stuck on "working it out…"). A route worker torn down under a request rejects it with "stopped" (or
  * "paused"). When the page lets a request go itself (a newer key, a search, the selected goal taking over the
- * background's, a newer request's end letting the shared worker go, leaving My runs) its answer is not this key's
+ * background's, a newer request's end letting the shared worker go, leaving My Runs) its answer is not this key's
  * failure and is never kept as one (it was: the key then read 'failed' for the whole page load). When the request on
  * screen is stopped from outside, it is asked again once per key on this page load; a second stop is said as failed.
  */
@@ -85,7 +85,7 @@ export function useFollowEstimate(
   const otherStates = ref<Record<string, EstimateState>>({});
   let pricer: ChainPricer | null = null;
   let asked = 0;
-  /** The page's scope ended (leaving My runs). */
+  /** The page's scope ended (leaving My Runs). */
   let gone = false;
   function letGo(): void {
     pricer?.terminate();
@@ -102,7 +102,7 @@ export function useFollowEstimate(
       const route = await pricer.priceChain(req.url, JSON.parse(JSON.stringify(req.options)) as PolishOptions, [...req.chain]);
       if (route && route.legs.length) result = { key: req.key, status: 'done', route, at: Date.now() };
       else {
-        console.warn(`My runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
+        console.warn(`My Runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
         result = { key: req.key, status: 'failed' };
       }
     } catch (err) {
@@ -110,12 +110,12 @@ export function useFollowEstimate(
       if (id !== asked) return;
       if (wasStopped(err) && !stopRetried.has(req.key)) {
         stopRetried.add(req.key);
-        console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} was stopped; asking again once.`);
+        console.warn(`My Runs: pricing the followed route ${req.chain.join(' ')} was stopped; asking again once.`);
         letGo();
         void run(req);
         return;
       }
-      console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
+      console.warn(`My Runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
       result = { key: req.key, status: 'failed' };
     }
     // A finished answer is kept even when a newer request took over (switching back finds it); a failure only when it
@@ -185,15 +185,15 @@ export function useFollowEstimate(
       const route = await own.priceChain(req.url, JSON.parse(JSON.stringify(req.options)) as PolishOptions, [...req.chain]);
       if (route && route.legs.length) result = { key: req.key, status: 'done', route, at: Date.now() };
       else {
-        console.warn(`My runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
+        console.warn(`My Runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
         result = { key: req.key, status: 'failed' };
       }
     } catch (err) {
-      // Let go by the page (a search started, leaving My runs): not this key's failure.
+      // Let go by the page (a search started, leaving My Runs): not this key's failure.
       if (id !== otherRun) return;
       if (wasStopped(err) && !stopRetried.has(req.key)) {
         stopRetried.add(req.key);
-        console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} was stopped; asking again once.`);
+        console.warn(`My Runs: pricing the followed route ${req.chain.join(' ')} was stopped; asking again once.`);
         otherPricer?.terminate();
         otherPricer = null;
         otherKey = null;
@@ -202,7 +202,7 @@ export function useFollowEstimate(
         pumpOthers();
         return;
       }
-      console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
+      console.warn(`My Runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
       result = { key: req.key, status: 'failed' };
     }
     if (id !== otherRun) return;

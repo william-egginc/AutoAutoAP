@@ -7,7 +7,7 @@ describe('instantLiveText', () => {
   it('says it is working, then that it is ready; nothing when idle, failed or empty', () => {
     expect(instantLiveText('loading', false)).toBe('Working out the instant answer');
     expect(instantLiveText('loading', true)).toBe('Working out the instant answer');
-    expect(instantLiveText('done', true)).toBe('Instant answer ready');
+    expect(instantLiveText('done', true)).toBe('Instant Answer ready');
     expect(instantLiveText('done', false)).toBe('');
     expect(instantLiveText('idle', false)).toBe('');
     expect(instantLiveText('error', true)).toBe('');

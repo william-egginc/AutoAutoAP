@@ -1,9 +1,9 @@
 /**
- * spec-overridestart (7 Nov 2026). My runs waits for the stores set up from the save "as Fastest and By a date have
+ * spec-overridestart (7 Nov 2026). My Runs waits for the stores set up from the save "as Fastest and By a date have
  * them" (useNowPage `storeReady`, App `storesSetUpFromSave`), and checked that by the store's TE equalling the SAVE's
  * TE (pending counted). But setting a save up (lib/modes/planFuture.ts) rolls the pending TE up and THEN puts this
  * account's starting-TE override back (4b): claimed TE only, pending left out by design. With an override on, the
- * store never reads the save's TE, so My runs waited for good, whichever way in ("the planner's inputs are not this
+ * store never reads the save's TE, so My Runs waited for good, whichever way in ("the planner's inputs are not this
  * save's yet", Jordan, a save at 198 with one Curiosity TE pending, the stores at 197). The set-up is right when the
  * store holds the TE the planner starts from: the override's, when this account has one; else the save's.
  */
@@ -46,7 +46,7 @@ describe('plannerStartTEOf', () => {
   });
 });
 
-describe('My runs reads its set-up against the planner start TE, not the save TE alone', () => {
+describe('My Runs reads its set-up against the planner start TE, not the save TE alone', () => {
   const nowPage = readFileSync(new URL('../composables/useNowPage.ts', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../App.vue', import.meta.url), 'utf8');
 

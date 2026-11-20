@@ -1,7 +1,7 @@
 /**
- * THE INSTANT ANSWER'S PRICING INPUTS, IN ONE PLACE (26 Oct 2026, Jordan: My runs said "not priced on this save yet"
+ * THE INSTANT ANSWER'S PRICING INPUTS, IN ONE PLACE (26 Oct 2026, Jordan: My Runs said "not priced on this save yet"
  * after his Setup changed, until Highest TE by a date was opened on another tab). The instant answer
- * (components/auto/InstantRoute.vue) and My runs (composables/useInstantCompute.ts) both read:
+ * (components/auto/InstantRoute.vue) and My Runs (composables/useInstantCompute.ts) both read:
  *
  *   - which table the answer reads (`chooseInstantTable`): the player's own when it was built on the gear the save has
  *     now and by this simulator, else a board gear combination's exactly like theirs below GEAR_TABLE_TO, else the
@@ -10,7 +10,7 @@
  *     held for the hours and the no-prestige days as the answer holds them;
  *   - the options its routes are priced with (`instantPricingOptions`, routeFinder.ts PolishOptions).
  *
- * The instant answer goes on to find and polish its routes; My runs stops here and keeps the pricing record
+ * The instant answer goes on to find and polish its routes; My Runs stops here and keeps the pricing record
  * (lib/followEstimate.ts `recordPricing`), which is all that pricing a followed route needs (routeFinder.ts
  * `priceChain`: the table, the first ascensions and these options). One pipeline: neither has a copy of it.
  *
@@ -222,7 +222,7 @@ export async function instantFirstLegs(d: InstantLegsDeps): Promise<InstantLegs 
   return { legsRequest, days, tail, firstLegs };
 }
 
-/** The options the instant answer's routes are priced with (its polish, and My runs' estimate of a followed route). */
+/** The options the instant answer's routes are priced with (its polish, and My Runs' estimate of a followed route). */
 export function instantPricingOptions(o: {
   te: number;
   start: number;

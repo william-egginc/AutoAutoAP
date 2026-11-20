@@ -287,7 +287,7 @@ export const BOARD_ROWS: InjectionKey<Ref<readonly BoardRow[]>> = Symbol('boardR
 
 /** One line of the comparison list (B2): the baseline, then Fast, Exact and Custom ("not run" when absent). */
 export interface CompareLine {
-  label: 'Instant answer' | FoundLevel;
+  label: 'Instant Answer' | FoundLevel;
   /** This run's own line. */
   thisRun: boolean;
   /** Unix seconds; null: not run. */
@@ -320,7 +320,7 @@ export function compareLines<R extends { id?: string; acct?: string; chain: numb
   const mine = (r: R) => r === row || (!!row.acct && r.acct === row.acct && rowGoalWords(r) === goal && sameBase(r));
   const better = (a: RunVsBaseline, b: RunVsBaseline) => (a.goal === 'date' ? a.endTE - b.endTE || b.end - a.end : b.end - a.end);
   const out: CompareLine[] = [
-    { label: 'Instant answer', thisRun: false, end: base.end, endTE: base.endTE, diff: '', tone: null, at: base.at ?? null },
+    { label: 'Instant Answer', thisRun: false, end: base.end, endTE: base.endTE, diff: '', tone: null, at: base.at ?? null },
   ];
   const thisLevel = rowFoundLevel(row);
   for (const level of ['Fast', 'Exact', 'Custom'] as const) {

@@ -5,7 +5,7 @@
  * more on this page load.
  *
  * Read: only as the "stale answer" while the fresh one is worked out, and only when this browser keeps none for the
- * goal (InstantRoute.vue `showStale`; My runs' pricing meanwhile, composables/useNowPage.ts). Written: only a fresh
+ * goal (InstantRoute.vue `showStale`; My Runs' pricing meanwhile, composables/useNowPage.ts). Written: only a fresh
  * answer once kept in this browser (InstantRoute.vue `saveSnapshot`), never on load, never a restored or stale one.
  */
 import { defineStore, getActivePinia } from 'pinia';
@@ -82,7 +82,7 @@ export const useAnswersStore = defineStore('answers', () => {
     },
     fetch: () => fetchFor(),
   });
-  /** Bumped when an answer is read back (My runs reads `read` again). */
+  /** Bumped when an answer is read back (My Runs reads `read` again). */
   const readTick = ref(0);
 
   /** The answer saved online to show for a goal while it is worked out (lib/answersCloud.ts `pickEntry`: the exact entry,
@@ -92,7 +92,7 @@ export const useAnswersStore = defineStore('answers', () => {
     if (a) readTick.value++;
     return a;
   }
-  /** The newest answer saved online of any goal (My runs' pricing meanwhile), or null. */
+  /** The newest answer saved online of any goal (My Runs' pricing meanwhile), or null. */
   async function newestAny(): Promise<CloudAnswer | null> {
     const a = await client.newestAny().catch(() => null);
     if (a) readTick.value++;

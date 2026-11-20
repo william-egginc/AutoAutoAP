@@ -32,7 +32,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The tracker wired as My runs wires it while no simulation is asked (useNowPage `buildUpSim` = `simGap`), with the
+/** The tracker wired as My Runs wires it while no simulation is asked (useNowPage `buildUpSim` = `simGap`), with the
  *  gap worked out again on every tick of `clock` (useNowPage's minute clock, through `followState`). */
 function mount() {
   const clock = ref(0);

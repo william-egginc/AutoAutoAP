@@ -1,5 +1,5 @@
 /**
- * Which saved answer is "the" answer for the loaded save (fix 22, beta 16 Oct): ONE rule for My runs' Right now
+ * Which saved answer is "the" answer for the loaded save (fix 22, beta 16 Oct): ONE rule for My Runs' Right now
  * card and its two tiles, so they cannot disagree. Jordan changed his hours (any hour -> 7 am to 1 am) between two
  * Check exactly runs of the same save: Right now showed the 11:59 pm plan (his hours, 6 ascensions) and the
  * Fastest tile the 11:51 pm one (any hour, 7 ascensions, sooner), and read it as "same save, two answers".
@@ -8,7 +8,7 @@
  *   0. By a date (Egg Day too): only an answer whose last TE counts by the date (lib/eggDayRule.ts, Jordan 22 Oct
  *      2026); a late one is never the pick, whatever it reaches;
  *   1. an answer of the loaded save (or of one at most CURRENT_SAVE_SECONDS older, fix 21) before any other;
- *      among those, My runs' plans of the loaded save ITSELF (`ofThisSave`) before an older one's, whatever the TE
+ *      among those, My Runs' plans of the loaded save ITSELF (`ofThisSave`) before an older one's, whatever the TE
  *      (Jordan, 17 Nov 2026: a later save's own 198 TE plan leads the earlier save's 199);
  *   2. an answer priced with the CURRENT setup (hours and time off as Your setup has them now) before one priced
  *      with other hours or with hours not recorded, EVEN IF that one finishes sooner;
@@ -153,7 +153,7 @@ export interface Rankable {
   /** A plan Right now can show (a kept snapshot): it leads a tie, so the card and the tile name the same one. */
   plan?: boolean;
   /** Of the loaded save itself (within a minute), not just a current one: it leads every other current save's answer, whatever the TE
-   *  (Jordan, 17 Nov 2026). Set for My runs' plans (`rankableOf`); unset ranks as before. */
+   *  (Jordan, 17 Nov 2026). Set for My Runs' plans (`rankableOf`); unset ranks as before. */
   thisSave?: boolean;
 }
 
@@ -208,7 +208,7 @@ export function pickAnswer<T extends Rankable>(list: readonly T[], goal: 'fastes
 /** A kept snapshot Right now could show. */
 export interface CardCandidate {
   plan: NowPlan;
-  /** Which goal it is for (its place in My runs' goal list): candidates of one goal are ranked together; across
+  /** Which goal it is for (its place in My Runs' goal list): candidates of one goal are ranked together; across
    *  goals the place is only the last tie-break (`pickCardPlan`). */
   goalIndex: number;
   /** lib/planGoals.ts's key for the goal ('fastest-490', 'eggday-2027', 'date-<unix>'), when known. */
@@ -311,7 +311,7 @@ export function pickGoalPlan(all: readonly CardCandidate[], loadedSave: number, 
  * Right now's default plan over every goal: each goal's lead by the same rule as the tiles (`pickGoalPlan`), then
  * the goals by the save tier and the setup of their lead (as before), then the goal the player checked LAST
  * (the newest calculated time of its plans), then the goal order. The fixed order Fastest 490 > own target > Egg
- * Day is now only the last tie-break. My runs lets the player pick another goal (lib/planGoals.ts).
+ * Day is now only the last tie-break. My Runs lets the player pick another goal (lib/planGoals.ts).
  */
 export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
   if (!list.length) return null;

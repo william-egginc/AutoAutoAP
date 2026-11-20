@@ -1,4 +1,4 @@
-/** spec-stuck3: the breadcrumb naming which part of My runs' simulation request changed (lib/simKeyChange.ts). */
+/** spec-stuck3: the breadcrumb naming which part of My Runs' simulation request changed (lib/simKeyChange.ts). */
 import { describe, expect, it } from 'vitest';
 import { simKeyChange } from './simKeyChange';
 import { simSetupKey } from './followSim';

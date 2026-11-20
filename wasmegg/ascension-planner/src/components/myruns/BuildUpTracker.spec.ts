@@ -1,5 +1,5 @@
 /**
- * My runs' Build-up tracker (BuildUpTracker.vue): each fold state, the lines in the oracle format, ticks shown from
+ * My Runs' Build-up tracker (BuildUpTracker.vue): each fold state, the lines in the oracle format, ticks shown from
  * what is kept, days collapsed or open, and the template rules (type scale, explicit spaces). Rendered on the server
  * (test/renderComponent.ts), placeholder plan (lib/buildUpTracker.fixture.ts), fixed clock.
  */

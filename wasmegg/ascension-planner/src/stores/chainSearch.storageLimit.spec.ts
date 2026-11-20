@@ -1,7 +1,7 @@
 /**
  * spec-stuck3 (7 Nov 2026): a run's start (and end) never leaves the running flags set for good. Between setting
  * isRunning and clearing it a run awaits the browser's storage (the checkpoint read, the leg spill's open and restore);
- * when one of those never answered, isRunning stayed true, My runs' simulation waited "for a search to end" and the
+ * when one of those never answered, isRunning stayed true, My Runs' simulation waited "for a search to end" and the
  * Build-up tracker said "working it out" for good. Now: past 40 s with no answer the run does not start, the flags
  * are cleared, the screen says why, the console says why (once), and the run mark is removed (only that one), so
  * nothing carries the run on into the same wait again. And Jordan's real mark (a finished By a date run) pins nothing.

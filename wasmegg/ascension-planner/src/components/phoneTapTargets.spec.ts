@@ -65,7 +65,7 @@ describe('the instant card on a phone', () => {
     expect(t).toContain('sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0');
     expect(src).toMatch(/<span\s+class="px-2 py-0\.5 rounded-full border border-slate-200 bg-white[^"]*"\s*>Hide<\/span/);
   });
-  it('My runs: the "?" after Right now\'s save line (SaveHeadHelp, 12 Nov 2026): CardHelp\'s 14 px look and 44 px area', () => {
+  it('My Runs: the "?" after Right now\'s save line (SaveHeadHelp, 12 Nov 2026): CardHelp\'s 14 px look and 44 px area', () => {
     const t = tagWith(read('myruns/SaveHeadHelp.vue'), 'data-testid="now-save-help"');
     expect(t).toContain('w-3.5 h-3.5');
     expect(t).toContain("relative self-center before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
@@ -144,7 +144,7 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     const form = fs.readFileSync(path.resolve(__dirname, '../../../../ui/components/PlayerIdForm.vue'), 'utf8');
     expect(form).toContain('aria-label="Edit name"');
   });
-  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
+  it('My Runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-why-summary"')).toContain(SUMMARY);
     const tile = read('myruns/SavedTile.vue');
@@ -161,7 +161,7 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     // "A run of yours isn't here?" (ux review 26 Oct, row 12: was 264×15).
     expect(tagWith(read('auto/MyRunsMissing.vue'), 'data-testid="my-runs-missing-summary"')).toContain(SUMMARY);
   });
-  it('My runs: Try next chips, the Showing buttons, the section summaries and the Your runs chips', () => {
+  it('My Runs: Try next chips, the Showing buttons, the section summaries and the Your runs chips', () => {
     expect(tagWith(read('myruns/TryNext.vue'), ':data-testid="`now-try-${p.id}`"')).toContain('min-h-[44px] sm:min-h-0');
     const view = read('MyRunsView.vue');
     expect(tagWith(view, ':data-testid="`my-runs-show-${m.id}`"')).toContain('min-h-[44px] sm:min-h-0');
@@ -211,7 +211,7 @@ describe('nothing floating covers the end of the page on a phone', () => {
   });
 });
 
-describe('My runs › Your runs on a phone (fluff review 2, 5 Nov 2026: view buttons 31 px, Refresh and Show 21 px)', () => {
+describe('My Runs › Your runs on a phone (fluff review 2, 5 Nov 2026: view buttons 31 px, Refresh and Show 21 px)', () => {
   const src = read('auto/LatestRunView.vue');
   it('Other options: the view buttons (A good mix … By finish date) and Refresh', () => {
     expect(tagWith(src, ':key="v.id"')).toContain(TAP);

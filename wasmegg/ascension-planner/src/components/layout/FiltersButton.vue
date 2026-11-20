@@ -4,7 +4,7 @@
   does. The bar's small-button style (layout/SaveLine.vue's Change player), 44 px at every width. Right above the
   instant answer card (Jordan, 13 Nov 2026): on By a date below the date picker and its "days from the route’s start"
   line (auto/DeadlinePanel.vue), on Fastest in the same spot (auto/FastestRoute.vue); not in the card, not beside the
-  tabs or My runs' title. Only where SetupDock is mounted (a player ID).
+  tabs or My Runs' title. Only where SetupDock is mounted (a player ID).
 -->
 <template>
   <button

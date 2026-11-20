@@ -17,7 +17,7 @@ import { bannerFor, releaseFrom } from '@/composables/useNewVersion';
 const TEXTS = [
   'Release 6: new instant answers and one Run button',
   'New instant answers, and new gear tables',
-  'My runs shows your Next step and Next shifts',
+  'My Runs shows your Next step and Next shifts',
   'Your Setup and the route you follow are saved online',
   'One Run button with a tick to send the result',
   'Opening a Manual plan no longer changes the answers',

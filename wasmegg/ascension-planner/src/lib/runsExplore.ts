@@ -1,5 +1,5 @@
 /**
- * My runs › Your runs, explorable (Jordan, 24 Oct 2026: "dig deeper into what my plans do"). The list of the
+ * My Runs › Your runs, explorable (Jordan, 24 Oct 2026: "dig deeper into what my plans do"). The list of the
  * viewer's board runs (MyRunsList.vue) gets one compact bar of chip buttons (components/myruns/RunsExploreBar.vue)
  * in place of the old selects (MyRunsFilters.vue):
  *
@@ -74,7 +74,7 @@ export const GROUP_LABELS: Record<ExploreGroup, string> = {
 
 const LEVEL_ORDER: LevelValue[] = ['instant', 'Fast', 'Exact', 'Custom', 'unknown'];
 const LEVEL_LABELS: Record<LevelValue, string> = {
-  instant: 'Instant answer',
+  instant: 'Instant Answer',
   Fast: 'Fast',
   Exact: 'Exact',
   Custom: 'Custom',

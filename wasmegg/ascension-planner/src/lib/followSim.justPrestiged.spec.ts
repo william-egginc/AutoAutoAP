@@ -1,6 +1,6 @@
 /**
  * "THE ASCENSION TO 218 TE COULD NOT BE SIMULATED" (spec-buildfail, 30 Oct 2026, Jordan mid build-up on egg-beta).
- * A minute after the prestige to 197 TE, on Curiosity, following 197 218 247 285 313 with hours 7 am to 1 am, My runs
+ * A minute after the prestige to 197 TE, on Curiosity, following 197 218 247 285 313 with hours 7 am to 1 am, My Runs
  * simulates the ascension he is in (composables/useCurrentSim.ts: the chain evaluator on the one-stop route [218],
  * the build carried on, `continueMaxSeconds` 0) and it came back empty: Next shifts fell back to the instant answer's
  * estimates and the build-up tracker had no plan.

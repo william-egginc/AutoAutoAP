@@ -1,7 +1,7 @@
 /**
  * Opening a screen's More from the page (the simpler default page, 9 Nov 2026; components/layout/MoreFold.vue): the
  * search sits inside More, so whatever shows a search tab or scrolls to the search (a result's "See it", Check exactly,
- * a link to #/auto/fastest/full, My runs' Next step, a run starting, "Show search ›") asks here first. Not remembered as
+ * a link to #/auto/fastest/full, My Runs' Next step, a run starting, "Show search ›") asks here first. Not remembered as
  * the player's toggle. Kept out of lib/searchTab.ts on purpose: that file is a result code input (lib/resultCodeHash.ts
  * follows it from the search code), and this is page behaviour only.
  */

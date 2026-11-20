@@ -1,5 +1,5 @@
 /**
- * My runs when the leaderboard can't be read (QA break-it #3, 22 Oct 2026): a 500, 413, 429 or a body that
+ * My Runs when the leaderboard can't be read (QA break-it #3, 22 Oct 2026): a 500, 413, 429 or a body that
  * isn't JSON used to read "Your runs on the board · none yet", the same as an account that never sent a run.
  * Now the count, the scatter and the panel each say the board couldn't be read, and never "none yet".
  */

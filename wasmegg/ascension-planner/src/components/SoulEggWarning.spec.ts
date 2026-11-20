@@ -59,7 +59,7 @@ describe('SoulEggWarning', () => {
     expect(loaded).toContain('About 180 shifts since your last Path reset (90 in your save, 90 in the route)');
   });
 
-  it('mounted on the Fastest result cards, By a date\'s result and My runs, never in place of anything', () => {
+  it('mounted on the Fastest result cards, By a date\'s result and My Runs, never in place of anything', () => {
     const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
     for (const f of ['auto/ChainSearchPanel.vue', 'auto/InsanePanel.vue', 'auto/DeadlinePanel.vue', 'MyRunsView.vue'])
       expect(read(f), f).toMatch(/<SoulEggWarning [^>]*\/>/);

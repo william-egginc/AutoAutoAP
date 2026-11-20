@@ -1,5 +1,5 @@
 /**
- * THE NIGHT-BUY NOTE on My runs' Right now (spec-nightbuynote; Jordan's option b, until Joo's fix after #729): with
+ * THE NIGHT-BUY NOTE on My Runs' Right now (spec-nightbuynote; Jordan's option b, until Joo's fix after #729): with
  * awake hours set, a build-up's research buys can fall outside them, so the finish Next step shows ("Building up until
  * about …", "Keep building: … until about …", the Keep building choice) is a best case. Said once in Next step, after
  * Next shifts, only when one of those shows and awake hours are set (lib/nightBuyNote.ts); never for a fresh start that
@@ -107,7 +107,7 @@ describe('Right now: the night-buy note in Next step', () => {
   });
 });
 
-describe('the night-buy note on My runs follows the simulation (spec-nightbuyfix)', () => {
+describe('the night-buy note on My Runs follows the simulation (spec-nightbuyfix)', () => {
   // With "hold my shifts" on and hours that rule something out, the simulated ascension holds its research buys to the
   // hours too (search/leg.ts legContext holdUntil; auto/shifts/helpers/advanceTime.ts stretchToHours), so its finish is
   // not a best case any more and Next step and the tracker say nothing. Hours set but "hold my shifts" off: no hold in

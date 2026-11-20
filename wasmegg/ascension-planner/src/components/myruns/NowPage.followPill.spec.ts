@@ -1,5 +1,5 @@
 /**
- * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan): on My runs › Right now the Fastest to 490 TE pill said "no saved route
+ * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan): on My Runs › Right now the Fastest to 490 TE pill said "no saved route
  * yet" while the line under it said "Following 226 → 277 → 317 → 490 … not priced on this save yet". The pill of a
  * followed goal now says what is true of its route in the follow line's words, and every followed goal's route is
  * estimated on load (the picked one first, the others in the background), as Egg Day's was only once picked. Through
@@ -184,7 +184,7 @@ async function setup(
     page.selectGoal(goalKey);
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
   } else {
-    // "Another goal picked": My runs now opens on the FOLLOWED route (Jordan, 15 Nov 2026), so these cases pick the other goal by hand,
+    // "Another goal picked": My Runs now opens on the FOLLOWED route (Jordan, 15 Nov 2026), so these cases pick the other goal by hand,
     // as the player does, where they used to rely on it being the default.
     page.selectGoal(goalKey.startsWith('eggday') ? 'fastest-490' : `eggday-${nextEggDayYear()}`);
   }
@@ -260,7 +260,7 @@ function route490(now: number, end: number): Route {
 const FOLLOWED = { chain: [226, 277, 317, 490], from: 'typed', source: 'manual' };
 /** The followed routes' requests: Egg Day's own instant route (200 → 238) is also priced again, for its shifts only
  *  (useNowPage `shiftRequest`, 26 Oct 2026). */
-/** Only the live ones: a request the page let go (My runs now opens on the followed goal, 15 Nov 2026, so picking another goal at once lets
+/** Only the live ones: a request the page let go (My Runs now opens on the followed goal, 15 Nov 2026, so picking another goal at once lets
  *  its first request go and the background asks again) is superseded by the later one for the same route. */
 const followCalls = () => {
   const own = calls.filter(c => c.chain.join(',') !== '200,238');

@@ -1,6 +1,6 @@
 /**
  * Chain Finder in App.vue (spec-chainfinder, Jordan 12 Nov 2026): the top tabs are Manual Planner · Auto Planner ·
- * Chain Finder · My runs, then Leaderboard, then Science (when ticked). The Auto Planner tab is Joo's simulator alone
+ * Chain Finder · My Runs, then Leaderboard, then Science (when ticked). The Auto Planner tab is Joo's simulator alone
  * (#/auto/classic, no goal row); Chain Finder holds Fastest and By a date under one "Target TE | By a date" switch
  * (GoalSwitch.vue). plannerTab stays 'automatic' for all three screens; which top tab is lit comes from the route
  * (lib/siteNav.ts topTabOf). Source-level checks, as the other App specs.
@@ -13,7 +13,7 @@ const between = (a: string, b: string) => app.slice(app.indexOf(a), app.indexOf(
 const nav = between('<nav v-if="playerId"', '<div v-else-if="plannerTab === \'science\'"');
 
 describe('the top tabs', () => {
-  it('Manual Planner, Auto Planner, Chain Finder, My runs, Leaderboard, Science, in that order', () => {
+  it('Manual Planner, Auto Planner, Chain Finder, My Runs, Leaderboard, Science, in that order', () => {
     const tabs = between('const topTabs = computed', '\n]);');
     const ids = [...tabs.matchAll(/id: '([a-z]+)' as const/g)].map(m => m[1]);
     expect(ids).toEqual(['manual', 'auto', 'chain', 'myruns', 'compare', 'science']);

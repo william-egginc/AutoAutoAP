@@ -61,7 +61,7 @@ export function useBoardRunLegs(o: {
             fetchCsv(row.id)
               .then(text => legsFromRunCsv(text, row.chain))
               .catch(err => {
-                console.warn('My runs: reading your Leaderboard run’s legs failed:', err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+                console.warn('My Runs: reading your Leaderboard run’s legs failed:', err instanceof Error ? `${err.name}: ${err.message}` : String(err));
                 return null;
               })
           );

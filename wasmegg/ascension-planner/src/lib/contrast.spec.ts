@@ -65,7 +65,7 @@ describe('and the screens use them', () => {
     const sw = read('components/auto/GoalSwitch.vue');
     expect(sw).toContain('bg-slate-100');
     expect(sw).toContain("'text-slate-600 hover:text-slate-900'");
-    // (The Auto Planner's My runs copy, also slate-600, is gone: My runs is a top tab only since 26 Oct 2026.)
+    // (The Auto Planner's My Runs copy, also slate-600, is gone: My Runs is a top tab only since 26 Oct 2026.)
     expect(app).not.toContain('data-testid="auto-tab-myruns"');
     expect(app).not.toContain('text-slate-400 hover:text-slate-700');
   });

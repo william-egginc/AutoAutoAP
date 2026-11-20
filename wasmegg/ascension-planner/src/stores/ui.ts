@@ -18,7 +18,7 @@ function readKeptOpen(): boolean {
 }
 
 export const useUIStore = defineStore('ui', () => {
-  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My runs, Science. */
+  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My Runs, Science. */
   const plannerTab = ref<PlannerTab>('manual');
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
   const lastScreen = readAutoScreen();

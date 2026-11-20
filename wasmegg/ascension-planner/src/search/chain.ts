@@ -82,7 +82,7 @@ export interface EvaluateChainOptions {
   delays?: number[];
   /**
    * BUILD-UP TRACKER: the FIRST step's legs come back with their picked variant's actions as compact
-   * records (`LegSummary.buildUp`, search/leg.ts `LegOptions.keepPurchases`). Off by default; My runs'
+   * records (`LegSummary.buildUp`, search/leg.ts `LegOptions.keepPurchases`). Off by default; My Runs'
    * simulation of the ascension you are in asks for it. The step is kept in the memo under its own
    * key, so an answer made with it never answers a chain asked without it, nor the other way round.
    */

@@ -1,5 +1,5 @@
 /**
- * My runs' "Right now" card (spec myruns-now v3, section 2), from a SAVED instant answer only: the snapshot the
+ * My Runs' "Right now" card (spec myruns-now v3, section 2), from a SAVED instant answer only: the snapshot the
  * instant answer keeps once Check exactly has finished (search/instantSnapshot.ts, `aap-instant-snap:<key>`).
  * Nothing here simulates or prices anything: it reads the routes, the exact check's legs (each shift's time,
  * egg and TE) and the table's own legs, and lays them out against the clock.
@@ -34,7 +34,7 @@ export interface SnapRoute {
     start: number;
     end: number;
     label?: string;
-    /** Each shift after the build-up from the table's replay (search/legShifts.ts, RouteLeg.shifts): My runs'
+    /** Each shift after the build-up from the table's replay (search/legShifts.ts, RouteLeg.shifts): My Runs'
      *  estimate asks for them; a snapshot's own routes have none. */
     shifts?: { at: number; egg: string }[];
     /** routeFinder.ts RouteLeg's held opening: the prestige into it waited for a morning where its opening fits. */
@@ -395,7 +395,7 @@ export interface SaveDone {
  * kept) and the goal: Fastest's last stop ("reach 490"), By a date's last prestige then the date itself. In time
  * order, `next` on the first one still to do.
  *
- * Done is the save's state, not the clock alone (My runs review, 22 Oct 2026, bug 2: the shift due 1.5 h after the
+ * Done is the save's state, not the clock alone (My Runs review, 22 Oct 2026, bug 2: the shift due 1.5 h after the
  * save showed "passed" while the save was still on the egg before it). Of the events whose time has passed, a shift
  * is shown done when the save is on its egg, a prestige when the save has its TE; every event before the last one
  * shown done is done too (the save is past it). One after that whose effect the save doesn't show is `notDone`. The
@@ -672,7 +672,7 @@ export function plannedShiftsAfter(plan: NowPlan, afterSeconds: number): { count
 
 // ----------------------------------------------------------------------------------- on track
 
-// The plan's TE line and the pace live in lib/planPace.ts (R6, 21 Oct 2026), shared with My runs' saved runs and
+// The plan's TE line and the pace live in lib/planPace.ts (R6, 21 Oct 2026), shared with My Runs' saved runs and
 // answers so Right now's chip and their badges can never disagree; re-exported here for this module's callers.
 export { SAVE_EGG_ORDER, planTEAt } from './planPace';
 
@@ -697,7 +697,7 @@ export function onTrack(
       : null;
   const byEgg = plan.meta?.teByEgg && plan.meta.teByEgg.length === 5 ? plan.meta.teByEgg : null;
   // A followed route's estimate keeps no snapshot (no `meta.teByEgg`): its first table leg says the TE it starts from,
-  // so it is compared leg by leg rather than "Can't tell: saved without each egg's TE" (30 Oct 2026, Jordan's My runs
+  // so it is compared leg by leg rather than "Can't tell: saved without each egg's TE" (30 Oct 2026, Jordan's My Runs
   // showed that next to his own per-egg TE, which is the loaded save's, not the plan's start).
   // A Leaderboard run sent from another browser (simulated legs, no per-egg TE) says its start TE in its meta.
   const from = tableLegs ? plan.tableLegs?.[0]?.from : plan.meta?.startTE;

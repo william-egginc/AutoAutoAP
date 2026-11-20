@@ -75,7 +75,7 @@ describe('maxedLetters', () => {
   });
 });
 
-describe("perfectSetGap / perfectSetWords: what the imperfect gear costs, in time (My runs' gear block)", () => {
+describe("perfectSetGap / perfectSetWords: what the imperfect gear costs, in time (My Runs' gear block)", () => {
   const D = 86400;
   const w = { at: 1, end: 88 * D, te: 490, mineEnd: 100 * D, mineTE: 490 };
   it('Fastest: the finish-date gap', () => {
@@ -115,7 +115,7 @@ describe('MaxedWhatIf keeps the By a date same-TE time with its result', () => {
 describe('By a date says when maxed gear reaches the player’s own TE (1 Nov 2026)', () => {
   const maxed252 = { route: route(299 * 86400, 252), end: 299 * 86400, te: 252 };
   const base = { deadline: 300 * 86400, final: 490, maxed: maxed252, show };
-  it('against the player’s own arrival, with the same wording as My runs', () => {
+  it('against the player’s own arrival, with the same wording as My Runs', () => {
     const t = maxedWhatIfText({ ...base, mine: { end: 290 * 86400, te: 248 }, sameEnd: 285.5 * 86400 });
     expect(t).toContain('With maxed gear: TE 252 by day 300 instead of 248.');
     expect(t).toContain('Maxed gear would reach 248 on day 286, 4.5 days sooner than with your gear.');

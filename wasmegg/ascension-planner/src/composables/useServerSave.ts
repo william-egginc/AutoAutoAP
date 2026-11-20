@@ -1,5 +1,5 @@
 /**
- * My runs' save strip: the save on the server versus the save loaded here (lib/serverSave.ts). Once the page holds
+ * My Runs' save strip: the save on the server versus the save loaded here (lib/serverSave.ts). Once the page holds
  * its save and nothing is loading, ask the server quietly, once per page load per account (the module's guard; a
  * load this page made already counts). No timers, no polling, no focus checks: a reload is the way to ask again.
  */

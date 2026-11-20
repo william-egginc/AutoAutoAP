@@ -1,5 +1,5 @@
 <!--
-  My runs' Right now card (spec myruns-now v3, section 2), from a SAVED plan only (composables/useNowPage.ts):
+  My Runs' Right now card (spec myruns-now v3, section 2), from a SAVED plan only (composables/useNowPage.ts):
   the egg the save is on, how the save compares with the plan, the next step, the gear, the next events with
   their dates, times and distances, and the whole route folded. The plan is the instant answer kept after Check
   exactly (for this save; else the same save under an older setup; else an earlier save's), so its times are
@@ -70,7 +70,7 @@
           >
           · from your save of {{ planSaveWhen }}
         </p>
-        <!-- My runs: the "?" that opens the save strip (myruns/SaveHeadHelp.vue), right after the line. -->
+        <!-- My Runs: the "?" that opens the save strip (myruns/SaveHeadHelp.vue), right after the line. -->
         <slot name="save" />
       </div>
     </div>
@@ -176,7 +176,7 @@
     </p>
 
     <!-- THE FOLLOWED ROUTE NOW MISSES ITS DATE (Jordan, 16 Nov 2026; an exception to the 13 Nov "no better-route offer on
-         My runs", lib/followMiss.ts): the finish Right now has for it is after the By a date goal's date. Said plainly, with the
+         My Runs", lib/followMiss.ts): the finish Right now has for it is after the By a date goal's date. Said plainly, with the
          way to look again: the same date search on the latest save (`recalc`). Words: lib/followMissWords.ts. -->
     <!-- NO ROUTE MAKES THE DATE (17 Nov 2026): the followed By a date route is priced on an older save and this save's answer for the date
          has no route above the TE: said plainly, with the way on, a later date (the same date again cannot help). Words: lib/followMissWords.ts. -->
@@ -279,7 +279,7 @@
       :zone="zone"
     />
     <!-- Change route (the simpler page, Jordan 9 Nov 2026): Earlier versions, Stop following and Follow another route go
-         into My runs' More with `changeRouteTo` (a looked-up element, never deferred; on this card without one). -->
+         into My Runs' More with `changeRouteTo` (a looked-up element, never deferred; on this card without one). -->
     <Teleport :to="changeRouteEl ?? 'body'" :disabled="!changeRouteEl">
     <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
     <FollowHistory
@@ -339,7 +339,7 @@
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
-    <!-- The player line (My runs' #player: myruns/PlayerLine.vue, 12 Nov 2026), right above the egg. -->
+    <!-- The player line (My Runs' #player: myruns/PlayerLine.vue, 12 Nov 2026), right above the egg. -->
     <slot name="player" />
     <!-- The egg. -->
     <div class="flex flex-wrap items-center gap-3" data-testid="now-egg-row">
@@ -502,7 +502,7 @@
         <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data<AnimatedDots /></template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
-      <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
+      <!-- My Runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
       <p
         v-else-if="follow && (follow.estimating === 'instant' || follow.estimating === 'instantwait')"
         class="text-body text-slate-700 max-w-prose"
@@ -574,7 +574,7 @@
     <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
     <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
 
-    <!-- The gear and the full timeline go into My runs' More with `detailTo` (the simpler page, 9 Nov 2026): a looked-up
+    <!-- The gear and the full timeline go into My Runs' More with `detailTo` (the simpler page, 9 Nov 2026): a looked-up
          element, never deferred; on this card without one. -->
     <Teleport :to="detailEl ?? 'body'" :disabled="!detailEl">
     <GearBlock
@@ -713,7 +713,7 @@ import { STOP_FOLLOWING } from '@/lib/layoutWords';
 import { calculatedFromLine } from '@/lib/calculatedFromWords';
 
 const props = defineProps<{
-  /** My runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
+  /** My Runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
    *  following and Follow another route; without one they stay on this card. */
   changeRouteTo?: string;
   /** The same for the gear (into More). */
@@ -1066,7 +1066,7 @@ const secondaryText = computed(() => {
   if (!sec) return '';
   return secondaryLine(sec.label, sec.plan, t => dayWords(t, props.zone));
 });
-/** The chip: lib/planPace.ts's words, the same as My runs' saved plans ("3 hours behind, as of 3:42 pm"). */
+/** The chip: lib/planPace.ts's words, the same as My Runs' saved plans ("3 hours behind, as of 3:42 pm"). */
 const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));
 /** lib/planPace.ts's words for a plan made from the save loaded now: the chip says nothing new then, so it is left out
  *  (UX fluff review 2, 5 Nov 2026, item R9; the words are planPace.ts's, a result code input, so they are matched here). */

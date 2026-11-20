@@ -3,11 +3,11 @@
  * been on egg-beta for hours, PC Chrome read it ("your gear", 313), Safari still showed the answer saved from before
  * it existed: "Saved from …: same save, setup and filters, so nothing was worked out again", 314 on the form G).
  *
- * The saved answer's key (instantSnapshot.ts `instantKey`, shared with My runs) is the save, the setup and the
+ * The saved answer's key (instantSnapshot.ts `instantKey`, shared with My Runs) is the save, the setup and the
  * filters: not the tables. So a table deployed, rebuilt or restamped after an answer was saved never reached it. Now
  * every saved answer carries the identity of the tables the page could read for that player when it was worked out
  * (`tablesIdentity`: from tables.json, each candidate file's name, simulator, build time and gear numbers) and is
- * put back only while that identity still holds (`savedAnswerFits`). The key itself is unchanged, so My runs finds
+ * put back only while that identity still holds (`savedAnswerFits`). The key itself is unchanged, so My Runs finds
  * every answer as before.
  *
  * No Vue, no fetch: InstantRoute.vue reads tables.json and the player's file names.
@@ -22,7 +22,7 @@ import type { TableEntry } from './tableBracket';
  * be claimed, spec-heldfix), so answers saved under the old rules are worked out again once.
  */
 // 24 Oct 2026 (pricing): answers saved before they kept their pricing settings (lib/followEstimate.ts) are worked out
-// again once, so My runs can price a followed route on them.
+// again once, so My Runs can price a followed route on them.
 // 26 Oct 2026 (boxprestige): the "Prestige by" line is worked out on the route the box shows (Prefer fewer's pick) and
 // saved with that route; answers saved with a line for the best route are worked out again once.
 // 3 Nov 2026 (sim3): the simulator moved (SIM_VERSION 2026-11-03-sim3); answers saved under the old one are worked

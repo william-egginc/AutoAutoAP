@@ -51,7 +51,7 @@ describe('RunsExploreBar at several run sets', () => {
     expect(html).toContain('data-testid="runs-chip-level-Fast"');
     expect(html).not.toContain('data-testid="runs-chip-level-Exact"');
     expect(html).not.toContain('data-testid="runs-chip-level-Custom"');
-    expect(textOf(html)).toContain('Level Instant answer 1 Fast 3');
+    expect(textOf(html)).toContain('Level Instant Answer 1 Fast 3');
   });
 
   it('the 25-run mix: goal, ascensions, hours and sent chips; a pick and Clear filters', async () => {

@@ -2,7 +2,7 @@
  * THE SAVE STRIP OUT OF THE TOP BAR (Jordan, 12 Nov 2026): the save strip and the silo line sat in the top bar
  * (layout/SaveLine.vue) between the player's name and "Change player", too big. The top bar keeps the name and Change
  * player; the strip and the silo line are layout/SaveSide.vue, small (text-small), with the same content: on Fastest and
- * By a date a small block of its own under the bar (on My runs only while the save loads: since 12 Nov 2026 the save is in
+ * By a date a small block of its own under the bar (on My Runs only while the save loads: since 12 Nov 2026 the save is in
  * Right now's header there, the strip behind its "?", myruns/SaveHeadHelp.vue).
  */
 import fs from 'node:fs';
@@ -58,16 +58,16 @@ describe('SaveSide: the same strip and silo line, small', () => {
 });
 
 describe('where it sits', () => {
-  it('My runs: no SaveSide beside Right now since 12 Nov 2026 (Jordan): the save is in its header, the strip behind a "?" (RightNowCard.saveHead.spec.ts)', () => {
+  it('My Runs: no SaveSide beside Right now since 12 Nov 2026 (Jordan): the save is in its header, the strip behind a "?" (RightNowCard.saveHead.spec.ts)', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).not.toContain('data-testid="now-grid"');
     expect(view.slice(view.indexOf('<RightNowCard'), view.indexOf('<SoulEggWarning'))).not.toContain('<SaveSide');
   });
-  it('My runs: the save strip shows while the page waits for the save too', () => {
+  it('My Runs: the save strip shows while the page waits for the save too', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).toMatch(/<SaveSide v-if="!page\.hasSave\.value"/);
   });
-  it('Fastest and By a date: SaveSide inside the target card, top right (headerRound2.spec.ts); not drawn by App.vue, not on My runs', () => {
+  it('Fastest and By a date: SaveSide inside the target card, top right (headerRound2.spec.ts); not drawn by App.vue, not on My Runs', () => {
     const app = read('App.vue');
     expect(app.slice(0, app.indexOf('<script setup'))).not.toContain('<SaveSide');
     for (const f of ['components/auto/FastestRoute.vue', 'components/auto/DeadlinePanel.vue']) expect(tplOf(read(f))).toContain('<SaveSide />');

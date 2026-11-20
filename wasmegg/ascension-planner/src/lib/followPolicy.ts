@@ -7,7 +7,7 @@
  * Follow press:
  *   - the instant answer (Fastest or By a date, InstantRoute.vue): the route its box leads with, as shown (Prefer
  *     fewer honoured), once the answer is finished (`instantAutoFollowOf`, source instant);
- *   - a Fast, Exact or Custom result of this save that takes over Right now on My runs (lib/searchPlan.ts
+ *   - a Fast, Exact or Custom result of this save that takes over Right now on My Runs (lib/searchPlan.ts
  *     `drivingPlan`: it makes the date, or drives Fastest; useNowPage, `autoFollowOf`, source fast|exact|custom).
  *
  * ONE TIME per goal: once anything is followed (a press, an automatic follow, or one read back from online), and

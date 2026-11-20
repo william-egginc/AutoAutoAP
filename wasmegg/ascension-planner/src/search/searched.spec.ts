@@ -1,6 +1,6 @@
 /**
  * What a search looked at, as one line (search/searched.ts): the text each kind of run writes, the CSV
- * header lines made from it, the cap it is sent under, and the words My runs shows.
+ * header lines made from it, the cap it is sent under, and the words My Runs shows.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -142,7 +142,7 @@ describe('cleanSearched', () => {
   });
 });
 
-describe('searchedWords (My runs: What was searched)', () => {
+describe('searchedWords (My Runs: What was searched)', () => {
   it("By a date's boxes as the player reads them", () => {
     expect(searchedWords('195-197:2; 209-240:1; 230-260:1; 255-300:1; last 300-320; ascensions: 5')).toBe(
       'Stops: 195-197 (every 2), 209-240, 230-260, 255-300; last stop 300-320; 5 ascensions'

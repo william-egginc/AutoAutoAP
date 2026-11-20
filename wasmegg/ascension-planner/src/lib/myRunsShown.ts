@@ -1,26 +1,26 @@
 /**
- * MY RUNS ONLY WITH SOMETHING TO SHOW (Jordan, 24 Oct 2026): the My runs tab (the top tab and the Auto Planner's
+ * MY RUNS ONLY WITH SOMETHING TO SHOW (Jordan, 24 Oct 2026): the My Runs tab (the top tab and the Auto Planner's
  * sub-tab, App.vue) is hidden until the account has a followed route, a saved answer or instant answer snapshot, a kept
  * Fast, Exact or Custom result, or a run on the board. With the first answer becoming the follow (lib/followPolicy.ts)
  * it shows as soon as any answer exists. Never hidden while a search runs, and a player on it when it goes is taken to
  * the Auto Planner (`myRunsTab`).
  *
  * Once the account had something, this browser remembers it (`aap-myruns-seen:<account hash>`, lib/accountHash.ts,
- * never the player ID): the tab doesn't go again when a day-old snapshot is dropped, and a board run seen on My runs
- * keeps it for the next visit (the board itself is only read on My runs; nothing is fetched to decide this).
+ * never the player ID): the tab doesn't go again when a day-old snapshot is dropped, and a board run seen on My Runs
+ * keeps it for the next visit (the board itself is only read on My Runs; nothing is fetched to decide this).
  */
 import { ref } from 'vue';
 
 export const MY_RUNS_SEEN_PREFIX = 'aap-myruns-seen:';
 
-/** Moved on whenever something My runs shows may have been kept (an instant answer saved, a result kept, a follow):
+/** Moved on whenever something My Runs shows may have been kept (an instant answer saved, a result kept, a follow):
  *  composables/useMyRunsShown.ts looks again. */
 export const myRunsBump = ref(0);
 export function noteMyRuns(): void {
   myRunsBump.value++;
 }
 
-/** This browser has seen something on My runs for the account (its partition hash). */
+/** This browser has seen something on My Runs for the account (its partition hash). */
 export function readMyRunsSeen(partition: string): boolean {
   if (!partition) return false;
   try {
@@ -30,7 +30,7 @@ export function readMyRunsSeen(partition: string): boolean {
   }
 }
 
-/** Remember that the account has something on My runs. */
+/** Remember that the account has something on My Runs. */
 export function writeMyRunsSeen(partition: string): void {
   if (!partition) return;
   try {
@@ -40,7 +40,7 @@ export function writeMyRunsSeen(partition: string): void {
   }
 }
 
-/** What the account has that My runs shows. */
+/** What the account has that My Runs shows. */
 export interface MyRunsHas {
   followed: boolean;
   /** A saved By a date answer or an instant answer snapshot of the account. */
@@ -49,7 +49,7 @@ export interface MyRunsHas {
   kept: boolean;
   /** A saved run (search/runLibrary.ts). */
   saved: boolean;
-  /** Remembered: a board run seen on My runs, or anything earlier (`readMyRunsSeen`). */
+  /** Remembered: a board run seen on My Runs, or anything earlier (`readMyRunsSeen`). */
   seen: boolean;
 }
 
@@ -63,7 +63,7 @@ export type MyRunsContent = 'unknown' | 'some' | 'none';
 /**
  * The tab: ALWAYS shown once an account is in (the simpler default page, Jordan 9 Nov 2026, Q5: the tab row no longer
  * changes under the player). It used to show only while a search ran, once the account had something, or while that
- * was being worked out; with nothing there yet My runs shows its empty Right now and the tracker's "Pick a route to
+ * was being worked out; with nothing there yet My Runs shows its empty Right now and the tracker's "Pick a route to
  * follow ›" (lib/pickRoute.ts). `content` and `running` are kept for the callers; `leave` is never true now.
  */
 export function myRunsTab(o: { content: MyRunsContent; running: boolean; onIt: boolean }): { shown: boolean; leave: boolean } {

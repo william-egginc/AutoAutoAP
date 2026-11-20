@@ -126,7 +126,7 @@ describe('About and privacy page', () => {
 
   it('says what the instant answer and the private search results send (23 Oct 2026)', () => {
     expect(text).toContain(
-      'If you tick "Share my instant answer with my runs" (on My runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
+      'If you tick "Share my instant answer with my runs" (on My Runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
     );
     expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
     expect(text).toContain(
@@ -168,7 +168,7 @@ describe('About and privacy page', () => {
       "If it couldn't be saved when you pressed it (you were offline, say), it is saved once the next time your account is loaded, unless a newer one is saved online by then."
     );
     expect(text).toContain(
-      "If it still isn't saved, My runs, Right now, says so under the route, with Save it online"
+      "If it still isn't saved, My Runs, Right now, says so under the route, with Save it online"
     );
     expect(text).toContain(
       'when a page loads, a route you follow in this browser that is newer than the one saved online for that goal is saved too, once, so the newest route you followed wins on every device. Nothing else saves it.'
@@ -179,7 +179,7 @@ describe('About and privacy page', () => {
     if (AUTO_FOLLOW_FIRST) {
       expect(text).toContain(auto);
       expect(text).toContain(
-        'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
+        'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My Runs, Right now, whichever comes first.'
       );
       expect(text).toContain('Every other goal (another Highest TE by a date, a Fastest to N TE target of your own) is saved when you press Follow this route');
       expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
@@ -247,7 +247,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('Each instant answer worked out on the page is saved online (see Your instant answers, saved online ).');
     expect(text).toContain('Your newest instant answers are also saved online');
     expect(text).toContain(
-      'When an instant answer is kept in this browser (worked out, or shown again from what it kept), it is also saved online, under the same code made from your player ID that the route you follow uses. That is so another device or a private window, which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works the answer out again. My runs also uses it to price your route meanwhile. Anyone who knows your player ID can make the same code, so they could read these answers, and change them.'
+      'When an instant answer is kept in this browser (worked out, or shown again from what it kept), it is also saved online, under the same code made from your player ID that the route you follow uses. That is so another device or a private window, which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works the answer out again. My Runs also uses it to price your route meanwhile. Anyone who knows your player ID can make the same code, so they could read these answers, and change them.'
     );
     expect(text).toContain(
       "What is stored: the answer as its box shows it (the route, its stops, times and TE, and the lines worked out with it), which instant answer data it came from (for data made for your account, the gear it was made for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige days, the first ascension, your target TE and your time zone)."
@@ -312,9 +312,9 @@ describe('About and privacy page', () => {
     expect(read('scripts/siteRun.ts')).toContain('legs.spill');
   });
 
-  it("says what My runs' quiet save check sends: the same request as loading a save, through the relay (26 Oct 2026)", () => {
+  it("says what My Runs' quiet save check sends: the same request as loading a save, through the relay (26 Oct 2026)", () => {
     expect(text).toContain(
-      "My runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the same request as loading your save: your player ID goes through the same relay to the game's server, and your save comes back. The planner keeps only the save's time, and only until you close or reload the page."
+      "My Runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the same request as loading your save: your player ID goes through the same relay to the game's server, and your save comes back. The planner keeps only the save's time, and only until you close or reload the page."
     );
     expect(text).toContain(
       'It checks once per page load for each account, and not when you are offline or your save is under 10 minutes old. Nothing goes to the planner\'s own server.'
@@ -328,11 +328,11 @@ describe('About and privacy page', () => {
     expect(text).toContain('unless you press A newer save is on the server · Load it');
   });
 
-  it("says My runs reads your own run's CSV back by the row's id, never the player ID (26 Oct 2026)", () => {
+  it("says My Runs reads your own run's CSV back by the row's id, never the player ID (26 Oct 2026)", () => {
     expect(text).toContain(
-      "If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My runs reads that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It asks by the run's row ID on the Leaderboard, never by your player ID."
+      "If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My Runs reads that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It asks by the run's row ID on the Leaderboard, never by your player ID."
     );
-    expect(text).toContain("If the run has no CSV, or it can't be read, My runs shows the estimate instead.");
+    expect(text).toContain("If the run has no CSV, or it can't be read, My Runs shows the estimate instead.");
     // What it says must stay true: the fetch takes a row id only.
     expect(read('src/composables/useBoardRunLegs.ts')).toContain('fetchCsv(row.id)');
     expect(read('src/explorer/collector.ts')).toContain('const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });');
@@ -377,7 +377,7 @@ describe('About and privacy page', () => {
       "When a newer version is live, a banner lists what changed: only the notes your open copy doesn't have yet, newest first, at most 3. If there is nothing new to tell you, no banner shows, unless the new version asks open copies to reload."
     );
     expect(text).toContain(
-      "After an update, answers that an older version worked out and kept in this browser are worked out again: instant answers, the times My runs works out for the route you follow, and the Build-up tracker's plan. Meanwhile an instant answer is marked \"From &lt;time&gt; (older version), checking…\". Saved runs and saved answers are kept as they are."
+      "After an update, answers that an older version worked out and kept in this browser are worked out again: instant answers, the times My Runs works out for the route you follow, and the Build-up tracker's plan. Meanwhile an instant answer is marked \"From &lt;time&gt; (older version), checking…\". Saved runs and saved answers are kept as they are."
     );
     // What it says must stay true: the save download keeps only what the planner reads (lib/saveKeep.ts, its fields
     // and their readers listed there; chainSearch.saveScrubP5b.spec.ts checks every leaf), scrubs IDs, a file loads under the

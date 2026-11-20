@@ -1,5 +1,5 @@
 /**
- * My runs' list (MyRunsList.vue): every kind and target by default, hidden runs tagged "hidden" with Show
+ * My Runs' list (MyRunsList.vue): every kind and target by default, hidden runs tagged "hidden" with Show
  * again in their details, and the filters folded under one line on a phone. Rendered on the server (no
  * DOM): an opened row is the component's `open` ref set before it renders.
  */
@@ -77,7 +77,7 @@ async function renderWith(props: Record<string, unknown>, setup: Record<string, 
   return renderToString(app);
 }
 
-describe('MyRunsList (My runs › Your runs on the board)', () => {
+describe('MyRunsList (My Runs › Your runs on the board)', () => {
   it('shows every kind by default, Egg Day first, then other dates, then races', async () => {
     const html = await renderWith({});
     const t = textOf(html);

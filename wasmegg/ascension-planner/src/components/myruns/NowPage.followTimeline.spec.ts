@@ -241,7 +241,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(page.follow.value?.price).toBe('none');
     expect(page.cardPlan.value).toBeNull();
     const { html, text } = await render(page);
-    // No pricing settings kept for this save (an answer from before 24 Oct 2026): My runs works them out itself (26 Oct
+    // No pricing settings kept for this save (an answer from before 24 Oct 2026): My Runs works them out itself (26 Oct
     // 2026), said while it does.
     expect(text).toContain('Working out its times');
     expect(text).toContain('Working out the instant answer for your setup...');

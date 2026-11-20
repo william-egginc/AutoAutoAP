@@ -1,7 +1,7 @@
 /**
  * The save strip on the Auto Planner screens (ux29 item 4, 27 Oct 2026; components/auto/AutoSaveStrip.vue): "Load
- * latest save" was only inside Setup and "A newer save is on the server · Load it" only on My runs. Fastest and By a
- * date now show My runs' strip too, slim, near the top.
+ * latest save" was only inside Setup and "A newer save is on the server · Load it" only on My Runs. Fastest and By a
+ * date now show My Runs' strip too, slim, near the top.
  *
  * One source: the server's save time lives in lib/serverSave.ts's module state, and the quiet check is the same
  * once-per-page-load one (useServerSave), so a strip on every screen still asks the server at most once. Quiet while

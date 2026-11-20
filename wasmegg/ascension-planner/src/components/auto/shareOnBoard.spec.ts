@@ -142,7 +142,7 @@ describe('Fastest: Share this result', () => {
   });
 });
 
-describe("My runs' Send it now", () => {
+describe("My Runs' Send it now", () => {
   it.each(sentCases)('a kept result already on the board (sent %s): the line, no Send it now', async (_, row, when) => {
     const p = createPinia();
     setActivePinia(p);

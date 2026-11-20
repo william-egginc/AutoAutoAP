@@ -89,7 +89,7 @@ describe('useTargetDraft: commit on Enter or leaving the box, not per keystroke'
     expect(store.finalTE).toBe(490);
     expect(d.draft.value).toBe('490');
   });
-  it('follows a change made elsewhere (More, My runs Open, online Setup)', async () => {
+  it('follows a change made elsewhere (More, My Runs Open, online Setup)', async () => {
     const { store, d } = setup();
     store.finalTE = 350;
     await nextTick();

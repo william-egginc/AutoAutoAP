@@ -26,7 +26,7 @@
 
   PHASE 2 (collector redeploy, 2026-09-25). Rows carry `acct`, a tag made from the sender's owner
   code (search/owner.ts), so the race knows who is who exactly and nobody can knock a plan out with
-  rows dressed as someone else's (lib/leaderboardRank.ts `mayJudge`). My runs and the "you" chip come
+  rows dressed as someone else's (lib/leaderboardRank.ts `mayJudge`). My Runs and the "you" chip come
   from GET /mine -- the rows sent with this browser's code for the loaded account, anonymous ones
   included -- plus, for runs from before codes existed, the timezone+artifacts match. An anonymous
   viewer is told privately where they would place.
@@ -37,7 +37,7 @@
 -->
 <template>
   <!-- ================================================================== MY RUNS (#/myruns) -->
-  <!-- My runs' "Your runs on the board" (MyRunsView.vue): the same load, /mine, "which runs are mine"
+  <!-- My Runs' "Your runs on the board" (MyRunsView.vue): the same load, /mine, "which runs are mine"
        and Hide from the public as Compare, without its tabs. Every kind and target, hidden runs too. -->
   <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1083,20 +1083,20 @@ const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
    *  storage key the code is kept under; the id itself never leaves the browser. */
   playerId?: string;
-  /** 'myruns': My runs' "Your runs on the board" (MyRunsView.vue), the viewer's own runs of every kind
+  /** 'myruns': My Runs' "Your runs on the board" (MyRunsView.vue), the viewer's own runs of every kind
    *  without Compare's tabs. Compare's views otherwise. */
   mode?: 'compare' | 'myruns';
 }>();
 const emit = defineEmits<{
   use: [chain: number[]];
-  /** My runs only: how many of the viewer's runs are on the board, null until the first load is in. */
+  /** My Runs only: how many of the viewer's runs are on the board, null until the first load is in. */
   count: [n: number | null];
-  /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
+  /** My Runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
   rows: [rows: BoardRow[] | null];
-  /** My runs mode: every public row already loaded (your hidden ones left out), for "where you stand" on the
+  /** My Runs mode: every public row already loaded (your hidden ones left out), for "where you stand" on the
    *  Right now page (lib/standing.ts). Null until the first load is in. */
   board: [rows: BoardRow[] | null];
-  /** My runs mode: why the last /all read failed, or null when it answered (so "none yet" is never said for a
+  /** My Runs mode: why the last /all read failed, or null when it answered (so "none yet" is never said for a
    *  board that could not be read). */
   failed: [kind: BoardReadKind | null];
 }>();
@@ -1133,15 +1133,15 @@ const tab = computed<Tab>({
   set: v => (ui.compareView = v),
 });
 /** The views that read the collector's board (not Insights, which loads its own). Your latest run's one-line tab
- *  went in the fluff review 2 (5 Nov 2026, L1); #/compare/latest lands on My runs (lib/siteNav.ts). */
+ *  went in the fluff review 2 (5 Nov 2026, L1); #/compare/latest lands on My Runs (lib/siteNav.ts). */
 function isBoardView(t: Tab): boolean {
   return t !== 'insights';
 }
-/** My runs always reads the board. */
+/** My Runs always reads the board. */
 const boardView = computed(() => myRunsMode.value || isBoardView(tab.value));
 const allRows = ref<Row[]>([]);
 const loading = ref(false);
-/** The first load has answered (or failed): My runs folds an empty part only then. */
+/** The first load has answered (or failed): My Runs folds an empty part only then. */
 const loadedOnce = ref(false);
 const error = ref('');
 /** Why the last load failed (null when it answered). */
@@ -1278,7 +1278,7 @@ const saveName = computed(() => {
   return own ? (raw?.userName ?? '') : '';
 });
 const sharedName = useSharedName(() => props.playerId ?? '');
-/** What My runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
+/** What My Runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
  *  which Light reads too): every key that is the viewer's -- the save's, the remembered ones, /mine's
  *  rows' -- and the account's names; no look-alikes without a save. */
 const lookAlike = computed(() =>
@@ -1330,7 +1330,7 @@ const hiddenIds = computed(() => hiddenIdSet(mineRows.value, hideOverrides.value
 /** /mine's rows with `hidden` as the board knows it now. */
 const mineNow = computed<Row[]>(() => withHidden(mineRows.value ?? [], hiddenIds.value));
 /** Every public view's rows: /all without the viewer's hidden runs, and on the Leaderboard tab without other
- *  simulators' runs when "Show runs from older simulators" is off (My runs always shows them). */
+ *  simulators' runs when "Show runs from older simulators" is off (My Runs always shows them). */
 const publicShown = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.value));
 const showOlder = useShowOlderSims();
 const shownRows = computed<Row[]>(() =>
@@ -1554,7 +1554,7 @@ const mine = computed(() =>
 );
 
 /**
- * My runs' rows (mode "myruns"): every run of the viewer's on the board, any kind and target, the ones
+ * My Runs' rows (mode "myruns"): every run of the viewer's on the board, any kind and target, the ones
  * hidden from the public included (marked `hidden`), by /mine or by the save's timezone and artifacts
  * (lib/myRuns.ts `isMyRun`). Replaced Compare's My plans, which showed one target's runs only.
  */
@@ -1563,14 +1563,14 @@ const myRunRows = computed<Row[]>(() => {
   const l = lookAlike.value;
   return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));
 });
-// How many, for My runs' header and to fold its part when there are none; null until the first load is
+// How many, for My Runs' header and to fold its part when there are none; null until the first load is
 // in. One per result, as the list counts them (`myRunsCount`): a result sent twice is one run.
 watch(
   () => (myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null),
   n => emit('count', n),
   { immediate: true }
 );
-// And the rows, for My runs' summary at the top (cards and Next steps); null until the first load is in.
+// And the rows, for My Runs' summary at the top (cards and Next steps); null until the first load is in.
 watch(
   () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
   rows => emit('rows', rows),

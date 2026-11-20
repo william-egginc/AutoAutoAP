@@ -1,5 +1,5 @@
 /**
- * CACHED ANSWERS FIRST, THEN RECHECK on My runs (Jordan, 27 Oct 2026: "answers recalculating with nothing shown"). A
+ * CACHED ANSWERS FIRST, THEN RECHECK on My Runs (Jordan, 27 Oct 2026: "answers recalculating with nothing shown"). A
  * followed route whose pricing record for this save and setup is missing (a Setup change, a new save at the same TE)
  * is priced at once with the account's newest record that starts at the save's TE, marked "From <time>, checking…",
  * while the record for this setup is worked out (composables/useInstantCompute.ts); then the fresh estimate replaces
@@ -156,7 +156,7 @@ const route = (now: number, end: number): Route => ({
   ],
 });
 
-describe('My runs: the last pricing first, marked, then the fresh one', () => {
+describe('My Runs: the last pricing first, marked, then the fresh one', () => {
   it("a Setup change: priced at once with the account's newest record, 'From <time>, checking…', then swapped", async () => {
     const { keepOther, open, now, eggDayAt, pricingOf } = await setUp();
     keepOther(2 * H * 1000);
@@ -263,7 +263,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
 
   it('RELEASE 7: reloaded onto a new build with the same inputs: the pricing record is worked out again, the held estimate marked "(older version)"', async () => {
     const r = await reloadUnder('A', 'B');
-    // Build A's record is not this build's: My runs asks for it to be worked out again.
+    // Build A's record is not this build's: My Runs asks for it to be worked out again.
     expect(r.computes).toBe(1);
     expect(r.follow?.price).toBe('estimate');
     // The estimate shown last stays on screen meanwhile, never as current.

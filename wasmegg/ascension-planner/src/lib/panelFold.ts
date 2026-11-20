@@ -20,14 +20,14 @@ export type FoldSection =
   | 'steppingAway' // Stepping away? (StepAwayOptions.vue)
   | 'countTable' // the instant answer's "Every number of ascensions" table (InstantRoute.vue)
   | 'howWorkedOut' // the instant answer's "How this is worked out" (InstantRoute.vue)
-  | 'buildUpTracker' // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
+  | 'buildUpTracker' // My Runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
   | 'setupMore' // Setup's More options (auto/YourSetup.vue, docked; UX fluff review 2, 5 Nov 2026): its own button, same table and toggle
   | 'buildUpCompact' // the Build-up tracker's List / Compact toggle (myruns/BuildUpTracker.vue; open = Compact, spec-trackercompact)
   // The simpler default page (notes/simpler-design.md, Jordan 9 Nov 2026): the one closed "More" fold at the foot of each
   // screen (MoreFold.vue), and Setup's "Sharing and privacy" fold (YourSetup.vue).
   | 'moreFastest' // Fastest to 490 TE's More
   | 'moreByDate' // Highest TE by a date's More
-  | 'moreMyRuns' // My runs' More
+  | 'moreMyRuns' // My Runs' More
   | 'setupSharing'; // Setup's Sharing and privacy
 
 export type FoldDefault = 'open' | 'folded';

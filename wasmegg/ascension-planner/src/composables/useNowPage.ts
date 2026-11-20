@@ -1,5 +1,5 @@
 /**
- * Everything My runs' "Right now" page shows, read from what is already here (spec myruns-now v3; build plan
+ * Everything My Runs' "Right now" page shows, read from what is already here (spec myruns-now v3; build plan
  * aaap-tools/specialists/ui-nowpage-build.md). NOTHING is worked out again: no instant answer, no Check exactly,
  * no search. One exception (24 Oct 2026): a followed route with no timeline on this save is priced on the instant
  * answer's data in one route worker (lib/followEstimate.ts, composables/useFollowEstimate.ts). The reads:
@@ -12,7 +12,7 @@
  *                              key; `aap-instant-answer:<key>` (the last checked answer, no age limit)
  *   Check exactly's history    IndexedDB, per account
  *   saved answers              the store's list (By a date)
- *   board rows                 the ones My runs' board part already loaded (passed in)
+ *   board rows                 the ones My Runs' board part already loaded (passed in)
  *
  * The one thing worked out here is the two artifact sets (earnings and production), from the save: pure and a few
  * milliseconds, the same calls the instant answer makes for its key every time it opens (store `readInventory`);
@@ -233,7 +233,7 @@ export interface FollowCard {
   /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
    *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
    *  ('nosource': only when working it out here failed, `instantFailure`), or the estimate failed ('failed'). With no
-   *  record yet, My runs works the instant answer's pricing out itself (composables/useInstantCompute.ts): 'instant'
+   *  record yet, My Runs works the instant answer's pricing out itself (composables/useInstantCompute.ts): 'instant'
    *  while it does, 'instantwait' while a search runs. Absent: priced. */
   estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed' | 'instant' | 'instantwait';
   /** 'nosource': why the instant answer for this setup couldn't be worked out here (short, no IDs). */
@@ -866,13 +866,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * re-reads it once), and a reading that throws keeps the last good key with a console line.
    */
   const pricingSetupLast = { value: '' };
-  /** Bumped when My runs keeps a pricing record itself (`instantNeed`): the records are read again. */
+  /** Bumped when My Runs keeps a pricing record itself (`instantNeed`): the records are read again. */
   const recordsRead = ref(0);
   const pricingSetup = computed(() =>
     readKept(
       () => pricingSetupFromStores(),
       pricingSetupLast,
-      err => console.warn('My runs: reading the setup for the follow estimate failed:', err instanceof Error ? err.message : String(err))
+      err => console.warn('My Runs: reading the setup for the follow estimate failed:', err instanceof Error ? err.message : String(err))
     )
   );
   type FollowPriced = NonNullable<ReturnType<typeof followPricedFor>>;
@@ -903,7 +903,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** What this save's instant answer priced its routes with (`goalKey`'s own snapshot ranked first). */
   function pricingSourcesFor(goalKey: GoalKey): PricingSource[] {
     void kept.value;
-    // A record My runs kept itself (`instantNeed` below) is read again.
+    // A record My Runs kept itself (`instantNeed` below) is read again.
     void recordsRead.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
@@ -1990,7 +1990,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value) : 0));
   const track = computed(() => {
     if (!cardPlan.value) return null;
-    // Whole TE only, and the egg the farm is on (lib/planPace.ts `progressOf`), as on My runs' saved plans.
+    // Whole TE only, and the egg the farm is on (lib/planPace.ts `progressOf`), as on My Runs' saved plans.
     const p = progressOf(raw.value, saveSeconds.value);
     return onTrack(cardPlan.value.plan, {
       seconds: saveSeconds.value,

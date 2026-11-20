@@ -1,5 +1,5 @@
 /**
- * My runs' two saved-answer tiles (spec myruns-now v3, section 4): Fastest to 490 and Egg Day, each the best
+ * My Runs' two saved-answer tiles (spec myruns-now v3, section 4): Fastest to 490 and Egg Day, each the best
  * answer already worked out for the loaded save, with when it was calculated, from which save, and How sure
  * (lib/howSure.ts). Nothing is worked out again: every answer comes from something this browser or the board
  * already holds:
@@ -418,7 +418,7 @@ export function sourceWords(a: TileAnswer): string {
 export function howWords(a: TileAnswer): string {
   if (a.found) return a.found;
   if (a.how === 'instant') return 'instant answer';
-  if (a.how === 'check') return a.level === 'light' ? 'Instant answer' : 'simulator check';
-  const w: Record<SearchLevel, string> = { light: 'Instant answer', quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', exhaustive: 'Custom' };
+  if (a.how === 'check') return a.level === 'light' ? 'Instant Answer' : 'simulator check';
+  const w: Record<SearchLevel, string> = { light: 'Instant Answer', quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', exhaustive: 'Custom' };
   return a.level ? w[a.level] : 'a search';
 }

@@ -117,7 +117,7 @@ function heldSims() {
   return asked;
 }
 type Ask = { inputs: SearchInputs };
-/** My runs' unfinished-build path, each side (useNowPage `simRequest`, lib/a1Choice.ts `a1Inputs`). */
+/** My Runs' unfinished-build path, each side (useNowPage `simRequest`, lib/a1Choice.ts `a1Inputs`). */
 const isBuildupAsk = (s: Ask) => s.inputs.firstAscension === 'buildup' && s.inputs.continueMaxSeconds === 0;
 const isContinueAsk = (s: Ask) =>
   s.inputs.firstAscension === 'continue' &&

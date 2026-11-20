@@ -29,7 +29,7 @@ export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { k
  *  time, start from the big things and work your way down"), as he reviewed it (~1:30 PM): twenty-three, then twenty-two (Jordan, 16 Nov, ~10:55 PM: the maxed-gear what-if is in the Full tour only). The tab row is four
  *  slides, one a tab, and the goal switch two (Target TE, By a date); then the result, the filters button, what is inside
  *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this route and Follow this
- *  route; then My runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
+ *  route; then My Runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
  *  the shifts, and a closing card that points at the Full tour (lib/fullTour.ts), which holds what More holds. */
 export type TourStepId =
   | 'tabManual'
@@ -54,10 +54,10 @@ export type TourStepId =
   | 'setupInside'
   | 'shifts'
   | 'closing';
-/** The quick tour: eight slides (Jordan, 18 Nov 2026, after the UX sweep: "cut to about 8, ending with More in the Full tour"). Every
+/** The quick tour: seven slides (Jordan, 18 Nov 2026: "cut to about 8, ending with More in the Full tour"; 19 Nov: the load slide dropped). Every
  *  other step id below stays a word and a picture the full tour uses (lib/fullTour.ts); opened from this tour's last card the full
  *  tour leaves out the ones seen here (`fullStepsFor`). */
-export const TOUR_STEPS: readonly TourStepId[] = ['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing'];
+export const TOUR_STEPS: readonly TourStepId[] = ['tabAuto', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing'];
 
 /** The stored string as a state; anything else reads as never seen. */
 export function parseTour(v: string | null | undefined): TourStored {
@@ -106,7 +106,7 @@ export function isNewVisitor(p: { savedPlayerId: string | null | undefined; last
   return !p.savedPlayerId && !p.lastRoute;
 }
 
-/** The steps for what is loaded: a save file with no player ID has no My runs page, so it leaves that slide out (seven steps). */
+/** The steps for what is loaded: a save file with no player ID has no My Runs page, so it leaves that slide out (six steps). */
 export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
   return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.filter(id => id !== 'myrunsPage') : [...TOUR_STEPS];
 }

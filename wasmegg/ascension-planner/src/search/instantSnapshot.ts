@@ -8,7 +8,7 @@
  * localStorage, in try/catch everywhere: it is a convenience, never a reason for the page to fail.
  *
  * A snapshot never keeps a `search` priced on another save than its own `meta.backupTime` (17 Nov 2026, second path:
- * the newer save's snapshot carried the older save's result and My runs read "Calculated from your <newer> save" over
+ * the newer save's snapshot carried the older save's result and My Runs read "Calculated from your <newer> save" over
  * its plan): `writeSnapshot` and `patchSnapshot` drop that field (`searchFitsSave`, 60 s), the rest is kept.
  */
 import type { Availability } from './availabilitySchedule';
@@ -30,13 +30,13 @@ export interface StorageLike {
 interface IndexEntry {
   key: string;
   at: number;
-  /** What the answer is for (new snapshots since 17 Oct 2026): My runs finds an older save's plan by it
+  /** What the answer is for (new snapshots since 17 Oct 2026): My Runs finds an older save's plan by it
    *  without parsing every snapshot. Small: no route, no legs. */
   meta?: SnapMeta;
 }
 
 /**
- * A snapshot's own description (17 Oct 2026, the My runs "Right now" page): which account (a hash, never the
+ * A snapshot's own description (17 Oct 2026, the My Runs "Right now" page): which account (a hash, never the
  * player id), which goal, which save, and each egg's TE in that save, so a newer save can be compared with the
  * plan made from an older one (lib/nowPlan.ts `onTrack`). Copied into the index entry.
  */
@@ -53,7 +53,7 @@ export interface SnapMeta {
   /** The plan's own starting TE, for a run read back from the Leaderboard that has no per-egg TE (lib/boardRunPlan.ts
    *  `runMetaOf`): the pace badge then goes leg by leg from it. */
   startTE?: number;
-  /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers priced
+  /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My Runs ranks answers priced
    *  with Your setup now first and names the hours of the others (lib/currentAnswer.ts). */
   setup?: { availability: Availability | null; timeOff: TimeOffDates[] };
 }
@@ -70,7 +70,7 @@ export interface SnapWhatIf {
   mineEnd: number | null;
   mineTE: number;
   /** By a date: when maxed gear reaches the player's own TE (`mineTE`), the fastest route to it on the maxed table, unix
-   *  seconds; null when none. Absent before 25 Oct 2026 (My runs' "With a perfect set" line then says nothing). */
+   *  seconds; null when none. Absent before 25 Oct 2026 (My Runs' "With a perfect set" line then says nothing). */
   sameEnd?: number | null;
 }
 
@@ -324,7 +324,7 @@ export function instantGoal(deadline: number | null | undefined, finalTE: number
  * filters. The JSON and its key order are exactly InstantRoute's before this moved here: a different hash
  * would lose every answer saved in players' browsers (instantSnapshot.spec.ts holds golden values).
  */
-/** The save's own time for `InstantKeyInput.saveAt`, one place so the Instant route and My runs cannot drift. */
+/** The save's own time for `InstantKeyInput.saveAt`, one place so the Instant route and My Runs cannot drift. */
 export function instantSaveAt(
   raw: { approxTime?: number; settings?: { lastBackupTime?: number } } | null | undefined
 ): number | null {

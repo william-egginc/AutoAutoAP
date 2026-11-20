@@ -1,6 +1,6 @@
 /**
  * R6 simple: the "N hours ahead / behind" badge (PaceBadge.vue), the lines usePlanPace builds from saved runs and
- * answers, and the wiring (badges on My runs only, bodies read only while "Saved on this device" is open).
+ * answers, and the wiring (badges on My Runs only, bodies read only while "Saved on this device" is open).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -142,7 +142,7 @@ describe('PaceBadge', () => {
 describe('the wiring', () => {
   const src = (p: string) => fs.readFileSync(path.join(__dirname, p), 'utf8');
 
-  it('saved runs and saved answers show the badge on My runs only (list-only)', () => {
+  it('saved runs and saved answers show the badge on My Runs only (list-only)', () => {
     expect(src('../auto/SavedRuns.vue')).toMatch(/<PaceBadge\s+v-if="listOnly"/);
     expect(src('../auto/SavedAnswers.vue')).toMatch(/<PaceBadge\s+v-if="listOnly"/);
     for (const f of ['../auto/SavedRuns.vue', '../auto/SavedAnswers.vue'])

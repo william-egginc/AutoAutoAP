@@ -1,6 +1,6 @@
 /**
  * THE LAYOUT CONTRACT in App.vue (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the top tabs
- * with My runs always in them (Q5), then the save line in the chevron's place on Fastest, By a date and My runs (Q6),
+ * with My Runs always in them (Q5), then the save line in the chevron's place on Fastest, By a date and My Runs (Q6),
  * then the goal tabs, the screen, the footer. The ID box stays reachable: Setup's Change player opens and focuses it,
  * the first visit shows it as before, and the save line's Close folds it again.
  */
@@ -24,7 +24,7 @@ describe('App: the regions in their fixed order', () => {
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
-  it('the save line in place of the chevron on Fastest, By a date and My runs; the chevron stays elsewhere', () => {
+  it('the save line in place of the chevron on Fastest, By a date and My Runs; the chevron stays elsewhere', () => {
     // The same bar on all three (Jordan, 13 Nov 2026): the name above a centred Change player.
     expect(tpl).toContain('<SaveLine v-if="saveLineShown" />');
     expect(tpl).toContain('<div v-if="playerId && !saveLineShown" class="flex justify-center mt-2" data-testid="header-toggle">');
@@ -39,7 +39,7 @@ describe('App: the regions in their fixed order', () => {
       expect(t.slice(t.indexOf('<template>'), t.indexOf('<template>') + 80), f).toMatch(/<template>\s*<div class="max-w-4xl mx-auto\b/);
     }
   });
-  it('My runs is always in the top tabs, whatever the account has', () => {
+  it('My Runs is always in the top tabs, whatever the account has', () => {
     for (const content of ['none', 'unknown', 'some'] as const) expect(myRunsTab({ content, running: false, onIt: false }).shown).toBe(true);
   });
   it('Change player is in Setup: it opens the ID box and focuses it', () => {

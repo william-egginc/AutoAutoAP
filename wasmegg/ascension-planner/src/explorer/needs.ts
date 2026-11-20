@@ -572,7 +572,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     want: 1,
     preset: 'F2',
     runs: 1,
-    note: `Instant answer built so far for: ${COVERED_GEAR.join('; ')}. Most of these were built with an older simulator and are not used until they are built again. Spare stones and junk artifacts don't matter, only what your best sets use.`,
+    note: `Instant Answer built so far for: ${COVERED_GEAR.join('; ')}. Most of these were built with an older simulator and are not used until they are built again. Spare stones and junk artifacts don't matter, only what your best sets use.`,
     group: 'gear',
   });
 

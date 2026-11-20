@@ -4,7 +4,7 @@
  * syncs to the server every few minutes while it is open, so the server's copy can be just as old as the one here.
  *
  * So the page learns the server's save time, quietly, once per page load per account:
- *   - every real load of a save (the Load button, entering the Auto Planner, My runs' own load) notes it
+ *   - every real load of a save (the Load button, entering the Auto Planner, My Runs' own load) notes it
  *     (`noteServerSave`), so a page that just fetched never asks again;
  *   - otherwise `checkServerQuietly` makes the same request as Load (lib/saveLoad.ts `requestSave`, through the
  *     relay), once, with nothing on screen while it runs. It never puts the save it gets into the planner, never shows

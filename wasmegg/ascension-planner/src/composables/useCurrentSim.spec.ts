@@ -142,7 +142,7 @@ describe('useCurrentSim', () => {
     runs[0].reject(new RangeError('Invalid time value'));
     await flush();
     expect(m.state.value).toMatchObject({ status: 'failed', reason: 'Invalid time value', retrying: true });
-    expect(console.warn).toHaveBeenCalledWith('My runs: simulating the ascension you are in failed:', 'Invalid time value');
+    expect(console.warn).toHaveBeenCalledWith('My Runs: simulating the ascension you are in failed:', 'Invalid time value');
     // Once more, after the wait.
     await new Promise(r => setTimeout(r, 80));
     await flush();
@@ -230,7 +230,7 @@ describe('useCurrentSim', () => {
     m.scope.stop();
   });
 
-  it('leaving My runs while it waits or runs stops it; the next visit starts again, or reads the record once it finished', async () => {
+  it('leaving My Runs while it waits or runs stops it; the next visit starts again, or reads the record once it finished', async () => {
     setSimTiming(null);
     vi.useFakeTimers();
     const a = mount(req());

@@ -75,7 +75,7 @@ describe('To get there: the hours clause and the night-buy note as ONE line (spe
     const r = mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, true);
     expect(r).toEqual({ step: STEP, note: FIRST_STEP_HOURS_NIGHT_BUY });
     expect(FIRST_STEP_HOURS_NIGHT_BUY).toMatch(/prestige at the time shown/i);
-    expect(FIRST_STEP_HOURS_NIGHT_BUY).toBe("With awake hours, prestige at the time shown (a few minutes late can cost days). Quick estimate: it may buy research at night; after you press Follow, My runs shows exact times.");
+    expect(FIRST_STEP_HOURS_NIGHT_BUY).toBe("With awake hours, prestige at the time shown (a few minutes late can cost days). Quick estimate: it may buy research at night; after you press Follow, My Runs shows exact times.");
   });
   it('only one would show: that one, unchanged', () => {
     expect(mergeFirstStepCaveats(`${STEP} ${FIRST_STEP_HOURS}`, false)).toEqual({ step: `${STEP} ${FIRST_STEP_HOURS}`, note: null });

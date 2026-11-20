@@ -287,7 +287,7 @@ describe('a failed plan upload shows, and a new link sends the plan at once', ()
     expect(String(note.mock.calls[0][0])).not.toContain('AbCdEf');
     note.mockRestore();
   });
-  it('the same plan is sent again after a failure (a reload, or My runs opened again), not skipped as unchanged', async () => {
+  it('the same plan is sent again after a failure (a reload, or My Runs opened again), not skipped as unchanged', async () => {
     const { st } = memStore();
     const col = collector({ putStatus: [200, 400, 200] });
     const note = vi.spyOn(blackBox, 'note').mockImplementation(() => {});
@@ -349,7 +349,7 @@ describe('a failed plan upload shows, and a new link sends the plan at once', ()
   });
 });
 
-describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is opened', () => {
+describe('QA 14 Nov: the 3-link dead end, and the empty feed until My Runs is opened', () => {
   it('limit (409) with no link kept here: Reset link is offered, revokes every link ({ k, all: true }) after the confirm, then Get link works', async () => {
     const { st } = memStore();
     let mint = 409;
@@ -387,7 +387,7 @@ describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is op
     c.turnOn();
     expect(c.canReset.value).toBe(false);
   });
-  it('Get link before My runs gave any plan: the marker goes up at once, and the card asks for My runs', async () => {
+  it('Get link before My Runs gave any plan: the marker goes up at once, and the card asks for My Runs', async () => {
     const { st } = memStore();
     const col = collector();
     const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
@@ -415,19 +415,19 @@ describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is op
     expect(c.needsMyRuns.value).toBe(false);
     expect(JSON.parse(col.puts()[0].body!).events.length).toBeGreaterThan(1);
   });
-  describe('between opening My runs and the first plan upload (QA 15 Nov 2026: 60-100 s under load, the feed held only the marker)', () => {
-    it('"working" from My runs being open with a link and no plan sent, until the first plan upload succeeds', async () => {
+  describe('between opening My Runs and the first plan upload (QA 15 Nov 2026: 60-100 s under load, the feed held only the marker)', () => {
+    it('"working" from My Runs being open with a link and no plan sent, until the first plan upload succeeds', async () => {
       const { st } = memStore();
       const col = collector();
       const c = createCalendarFeed({ storage: st, env: ENV, fetch: col.f });
       c.turnOn();
       await c.getLink();
       await vi.advanceTimersByTimeAsync(0);
-      // The marker is up, My runs is not open: the card asks for it, nothing is "working".
+      // The marker is up, My Runs is not open: the card asks for it, nothing is "working".
       expect(c.needsMyRuns.value).toBe(true);
       expect(c.onMyRuns.value).toBe(false);
       expect(c.working.value).toBe(false);
-      // My runs opens, its tracker not worked out yet: no plan to send, so working, and not asking any more.
+      // My Runs opens, its tracker not worked out yet: no plan to send, so working, and not asking any more.
       c.viewing();
       expect(c.onMyRuns.value).toBe(true);
       expect(c.working.value).toBe(true);
@@ -438,7 +438,7 @@ describe('QA 14 Nov: the 3-link dead end, and the empty feed until My runs is op
       expect(col.puts()).toHaveLength(2);
       expect(c.working.value).toBe(false);
     });
-    it('a link made while My runs is already open is "working" at once', async () => {
+    it('a link made while My Runs is already open is "working" at once', async () => {
       const { st } = memStore();
       const c = createCalendarFeed({ storage: st, env: ENV, fetch: collector().f });
       c.turnOn();

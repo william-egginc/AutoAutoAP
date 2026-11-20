@@ -103,7 +103,7 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
     expect(template.match(/v-if="!noTable"/g)).toHaveLength(1);
     expect(template).toMatch(
       // The pointer to a finished search's result (InstantPointer.vue) may sit between, on `pointer` alone (23 Oct 2026).
-      /<section v-else [^>]*data-testid="instant-no-table">\s*<h3[^>]*>Instant answer<\/h3>\s*<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>\s*<InstantUnloaded :older="olderPage" @retry="run\(true\)" @by-date="emit\('by-date'\)">/
+      /<section v-else [^>]*data-testid="instant-no-table">\s*<h3[^>]*>Instant Answer<\/h3>\s*<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>\s*<InstantUnloaded :older="olderPage" @retry="run\(true\)" @by-date="emit\('by-date'\)">/
     );
     // `noTable` appears in the template only there, and in the share line, which lives beside the card (its
     // Teleport stays as long as the card; InstantRoute.states.spec.ts) and shows only with the answer section.

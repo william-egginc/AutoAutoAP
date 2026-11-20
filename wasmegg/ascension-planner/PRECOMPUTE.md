@@ -11,7 +11,7 @@ full simulator then checks the routes it shows, on the player's own account.
 
 The wiki covers the same ground in more detail and keeps dated measurements:
 [Tables and the route finder](https://github.com/william-egginc/AutoAutoAP/wiki/Tables-and-the-route-finder)
-(for players: [Instant answer](https://github.com/william-egginc/AutoAutoAP/wiki/Instant-answer)).
+(for players: [Instant Answer](https://github.com/william-egginc/AutoAutoAP/wiki/Instant-answer)).
 
 Everything below runs in the browser. The tables are static files; nothing about a player is sent
 anywhere to get an answer.

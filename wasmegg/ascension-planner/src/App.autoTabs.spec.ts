@@ -1,7 +1,7 @@
 /**
  * The Auto Planner's sub-tabs (Jordan, 26 Oct 2026; UX review 26 Oct, #9) were Fastest to 490 TE, Highest TE by a date,
  * then Single run. Since Chain Finder (spec-chainfinder, 12 Nov 2026) the first two are Chain Finder's goal switch
- * ("Target TE | By a date", GoalSwitch.vue) and Single run is the Auto Planner tab alone. My runs stays a top tab
+ * ("Target TE | By a date", GoalSwitch.vue) and Single run is the Auto Planner tab alone. My Runs stays a top tab
  * only (its copy here made the row jump when it appeared). A new player lands on Chain Finder's By a date with Egg Day
  * (or the goal they used last; spec-startchain2, 12 Nov 2026), and remembered tabs and old links still open where they did.
  */
@@ -20,7 +20,7 @@ describe("Chain Finder's goal switch (was the Auto Planner sub-tabs)", () => {
     expect(app).not.toContain('const autoTabs');
   });
 
-  it('has no My runs copy: one switch, no buttons of its own in the nav', () => {
+  it('has no My Runs copy: one switch, no buttons of its own in the nav', () => {
     expect(nav).not.toContain('auto-tab-myruns');
     expect(nav).not.toContain("selectSection('myruns')");
     expect(nav).not.toContain('NAMES.myRuns');
@@ -28,17 +28,17 @@ describe("Chain Finder's goal switch (was the Auto Planner sub-tabs)", () => {
     expect(nav.match(/<GoalSwitch\b/g)).toHaveLength(1);
   });
 
-  it('in every state: nothing but the screen decides it shows (no fresh-profile, width, answer or run condition), and nothing else draws a goal row (QA 26 Oct 2026 saw "My runs, Fastest, …" on an older build)', () => {
+  it('in every state: nothing but the screen decides it shows (no fresh-profile, width, answer or run condition), and nothing else draws a goal row (QA 26 Oct 2026 saw "My Runs, Fastest, …" on an older build)', () => {
     const wrap = nav.slice(nav.lastIndexOf('<div', nav.indexOf('<GoalSwitch')), nav.indexOf('<GoalSwitch'));
     expect(wrap).toContain("v-if=\"plannerTab === 'automatic' && autoView !== 'classic'\"");
     for (const cond of ['myRunsTabShown', 'myRuns', 'innerWidth', 'matchMedia', 'hasData', 'rawBackup']) expect(wrap).not.toContain(cond);
     expect(app.match(/<GoalSwitch\b/g)).toHaveLength(1);
     expect(nav).not.toMatch(/myruns/i);
-    // My runs appears in the top tabs exactly once.
+    // My Runs appears in the top tabs exactly once.
     expect(app.match(/id: 'myruns' as const/g)).toHaveLength(1);
   });
 
-  it('My runs is still a top tab, shown on the same rule', () => {
+  it('My Runs is still a top tab, shown on the same rule', () => {
     expect(app).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[\s*\{\s*id: 'myruns' as const,\s*label: NAMES\.myRuns,/);
   });
 });
@@ -60,7 +60,7 @@ describe('landing and links after the move', () => {
     }
   });
 
-  it('My runs links reach the top tab: #/myruns, the old Compare › My plans address, and Your latest run\'s', () => {
+  it('My Runs links reach the top tab: #/myruns, the old Compare › My plans address, and Your latest run\'s', () => {
     expect(routeFromLocation('', '#/myruns')?.section).toBe('myruns');
     expect(routeFromLocation('', '#/compare/mine')?.section).toBe('myruns');
     expect(openingRoute({ fromUrl: null, stored: '#/myruns', savedPlayerId: ID }).route?.section).toBe('myruns');

@@ -183,7 +183,7 @@ describe('RoutePool when a worker never starts (Safari reload, 23 Oct 2026)', ()
   });
 });
 
-describe('RoutePool priceChain (a followed route on My runs, lib/followEstimate.ts)', () => {
+describe('RoutePool priceChain (a followed route on My Runs, lib/followEstimate.ts)', () => {
   it('asks one worker for the route and gives back its answer', async () => {
     const { p, made } = pool(1);
     const route = { chain: [205, 238], legs: [], end: 100, seconds: 50 };

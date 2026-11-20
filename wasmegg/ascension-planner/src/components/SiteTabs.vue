@@ -8,7 +8,7 @@
   <div class="space-y-1">
     <div class="flex justify-center">
       <!-- Narrow windows: two tabs a row (Chain Finder, 12 Nov 2026: Manual Planner and Auto Planner, then Chain
-           Finder and My runs, then Leaderboard and Science when ticked), and an odd last tab across its row, so no
+           Finder and My Runs, then Leaderboard and Science when ticked), and an odd last tab across its row, so no
            row is ragged (six tabs in one row need about 1000px with the icons). Below sm the icons go, so each label
            fits its cell at 375. From lg up, one row (wrapping, centred, if a window is just too narrow). Each tab is
            at least 44 px tall below sm (Jordan, 21 Oct 2026); from sm up, the old size. -->

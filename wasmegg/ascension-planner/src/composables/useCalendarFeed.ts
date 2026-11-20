@@ -11,7 +11,7 @@
  *    OFF does the same and forgets what was kept.
  *  - THE PLAN goes up as the 'cal' record (PUT /sync kind=cal slot 0) only when the switch is on, a link exists and the list
  *    changed (`sameCalendar`), 10 s after the last change, coalesced; on a 409 sent ONCE more with a fresh stamp. The page
- *    that has the Build-up tracker (My runs) calls `note` when its lines or ticks change.
+ *    that has the Build-up tracker (My Runs) calls `note` when its lines or ticks change.
  * Not a result code hash input.
  */
 import { computed, ref } from 'vue';
@@ -89,11 +89,11 @@ export function createCalendarFeed(o: {
   const error = ref<'' | CalFail | 'upload'>('');
   const phase = ref<CalPhase>('idle');
   const copied = ref(false);
-  /** A link was made before My runs gave any plan: only the marker is up, and the card says to open My runs once. */
+  /** A link was made before My Runs gave any plan: only the marker is up, and the card says to open My Runs once. */
   const needsMyRuns = ref(false);
-  /** My runs is open (its page called `viewing`): the plan is on its way, so the card stops asking for it (QA, 15 Nov 2026). */
+  /** My Runs is open (its page called `viewing`): the plan is on its way, so the card stops asking for it (QA, 15 Nov 2026). */
   const onMyRuns = ref(false);
-  /** A plan (not the bare marker) has gone up since the link was made; until then, with My runs open, the card says it is being worked out. */
+  /** A plan (not the bare marker) has gone up since the link was made; until then, with My Runs open, the card says it is being worked out. */
   const planSent = ref(false);
   let planNoted = false;
   /** After "Update cloud calendar": the plan went up, or the calendar already had it ('same'). Cleared when the plan changes. */
@@ -256,7 +256,7 @@ export function createCalendarFeed(o: {
       // A new link has no events yet: forget what an earlier link was sent, and send the plan now, not 10 s from the next change.
       keep(null);
       planSent.value = false;
-      // The plan My runs gave so far, else just the marker (a fresh subscription is never empty); the card asks for My runs.
+      // The plan My Runs gave so far, else just the marker (a fresh subscription is never empty); the card asks for My Runs.
       needsMyRuns.value = !latest;
       pending = latest ?? { now: Date.now(), ascensionStart: 0, lines: [], ticks: new Set<string>(), zone: browserZone(), hours: null };
       if (timer) clearTimeout(timer);
@@ -344,7 +344,7 @@ export function createCalendarFeed(o: {
     error.value = r.why === 'offline' ? 'offline' : r.why === 'off' ? 'off' : 'upload';
     blackBox.note(`calendar upload failed: ${r.why}`);
   }
-  /** The plan as it is now (My runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */
+  /** The plan as it is now (My Runs calls it when its lines or ticks change). Coalesced: sent 10 s after the last. */
   function note(input: CalendarFeedInput): void {
     if (!CALENDAR_FEED.enabled) return;
     latest = input;
@@ -372,11 +372,11 @@ export function createCalendarFeed(o: {
     await flush();
     pushed.value = error.value ? '' : last !== was ? 'sent' : 'same';
   }
-  /** My runs calls this when it opens (useCalendarFeedPush). */
+  /** My Runs calls this when it opens (useCalendarFeedPush). */
   function viewing(): void {
     onMyRuns.value = true;
   }
-  /** Linked, My runs open, no plan sent yet and no upload error: "Working out your plan for the calendar" (the tracker takes 60-100 s under load). */
+  /** Linked, My Runs open, no plan sent yet and no upload error: "Working out your plan for the calendar" (the tracker takes 60-100 s under load). */
   const working = computed(() => enabled.value && linked.value && onMyRuns.value && !planSent.value && !error.value);
 
   // A page load with the switch already on: read the saved link back (this browser may not have it in memory, another may have made it).
@@ -409,7 +409,7 @@ function localStore(): StorageLike | null {
     return null;
   }
 }
-/** The feed of an account (one per account per page: the Setup card and My runs share it). */
+/** The feed of an account (one per account per page: the Setup card and My Runs share it). */
 export function calendarFeedFor(account: string): CalendarFeed {
   let c = feeds.get(account);
   if (!c) {
@@ -428,7 +428,7 @@ export function useCalendarFeed(): CalendarFeed {
 }
 
 /**
- * My runs: hand the feed the plan whenever the tracker's lines or ticks change. The feed does nothing unless it is on and
+ * My Runs: hand the feed the plan whenever the tracker's lines or ticks change. The feed does nothing unless it is on and
  * linked (and says nothing of its own here: a watcher of what the tracker already computes, never a read of the save).
  */
 export function useCalendarFeedPush(src: {
@@ -449,7 +449,7 @@ export function useCalendarFeedPush(src: {
       const own = src.lines.value;
       const lines = own ?? src.fallbackLines?.value;
       const account = accountOf(initial.rawBackup);
-      // My runs is open (whether or not a plan is ready yet): the card stops asking for it and says the plan is being worked out.
+      // My Runs is open (whether or not a plan is ready yet): the card stops asking for it and says the plan is being worked out.
       if (account) calendarFeedFor(account).viewing();
       if (!lines || !account) return;
       // The tracker's lines need the ascension's start (their uids). The stand-ins are keyed without a time and always use slot 0: the plan's

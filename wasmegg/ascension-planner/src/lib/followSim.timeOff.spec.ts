@@ -1,5 +1,5 @@
 /**
- * REGRESSION (26 Oct 2026, Williamthe5thc on egg-beta 14866724: My runs "went backwards"). With his synced setup (awake
+ * REGRESSION (26 Oct 2026, Williamthe5thc on egg-beta 14866724: My Runs "went backwards"). With his synced setup (awake
  * hours 7 AM-11 PM Denver, time off Oct 29-30, no prestige Oct 27) the current-ascension simulation of his Egg Day route
  * 197 → 219 → … came back from the chain evaluator as TWO segments: the ascension cut when the time off starts
  * ('stopped', at 196 TE) and the rebuild after it ('restarted', to 197). Only the first was read; it ends below the

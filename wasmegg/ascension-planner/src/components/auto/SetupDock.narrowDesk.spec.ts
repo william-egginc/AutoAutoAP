@@ -4,7 +4,7 @@
  * below about 1090 it lay over the instant answer. Two rules:
  *  (a) a remembered drag position is forgotten when the window's width has changed by more than 40 px since it was saved (an old entry
  *      with no width is forgotten once), so a spot left at one size cannot sit over the content at another;
- *  (b) from sm to 1279 px the pill is the small round gear at the right edge (My runs included: its hours are one tap away in Setup), and
+ *  (b) from sm to 1279 px the pill is the small round gear at the right edge (My Runs included: its hours are one tap away in Setup), and
  *      App.vue keeps a right margin for it so no content lies under it. A running search keeps the pill (its workers stay adjustable).
  * CSS arbitrary breakpoints (sm:max-[1279px]:), so it is right from the first paint.
  */
@@ -70,12 +70,12 @@ describe('(a) a remembered position is forgotten when the window width has chang
   });
 });
 
-describe('(b) from sm to 1279 px the pill is the round gear, My runs included', () => {
+describe('(b) from sm to 1279 px the pill is the round gear, My Runs included', () => {
   it('at rest: the pill is 48 px round and the gear fills it (the word and the handle are hidden), sm to 1279 px', async () => {
     const c = classOf(pillTag(await render()));
     expect(c).toEqual(expect.arrayContaining(['max-[1279px]:w-12', 'max-[1279px]:h-12', 'max-[1279px]:p-0', 'max-[1279px]:rounded-full']));
   });
-  it('My runs (its summary): the round gear from sm to 1583 px (17 Nov 2026: the full pill covers the egg cards until the 1152 px column leaves it a margin), its summary line hidden there', async () => {
+  it('My Runs (its summary): the round gear from sm to 1583 px (17 Nov 2026: the full pill covers the egg cards until the 1152 px column leaves it a margin), its summary line hidden there', async () => {
     const html = await render({ screen: 'fastest', summary: 'Awake 8:00 AM to 11:00 PM' });
     expect(classOf(pillTag(html))).toEqual(expect.arrayContaining(['sm:max-[1583px]:w-12', 'sm:max-[1583px]:h-12', 'sm:max-[1583px]:rounded-full']));
     expect(classOf(pillTag(html)).join(' ')).not.toContain('1279px');
@@ -90,7 +90,7 @@ describe('(b) from sm to 1279 px the pill is the round gear, My runs included', 
     const app = readFileSync(new URL('../../App.vue', import.meta.url), 'utf8');
     expect(app).toMatch(/setupDockShown \? 'sm:max-\[1279px\]:pr-\[4\.5rem\]' : ''/);
   });
-  it('the gear drags itself up to 1279 px (1583 on My runs), not only on a phone', () => {
+  it('the gear drags itself up to 1279 px (1583 on My Runs), not only on a phone', () => {
     const src = readFileSync(new URL('./SetupDock.vue', import.meta.url), 'utf8');
     expect(src).toContain('(props.summary ? viewport.value.w >= 640 && viewport.value.w < ROUND_UNDER_MY_RUNS : viewport.value.w < ROUND_UNDER)');
     expect(src).toContain('const ROUND_UNDER = 1280;');

@@ -3,7 +3,7 @@
  * notes/instant-proposal.md question 2): on the instant answer card the offer is one line ("The answer above is better:
  * …", lib/instantCardWords.ts betterAboveLine) with Keep mine, in the Following bar (layout/NowLine.vue) under the card.
  * "Follow it" goes: the card's main button is the same press, and reads "Follow this route instead" while another route
- * is followed. BetterRoutePrompt's `line` is the instant card's only; the search result cards and My runs keep theirs.
+ * is followed. BetterRoutePrompt's `line` is the instant card's only; the search result cards and My Runs keep theirs.
  * Rendered on the server like the other component specs. Fake collector and fetch; fixed clock; placeholder id only.
  */
 import fs from 'node:fs';
@@ -161,7 +161,7 @@ describe('where it sits', () => {
     expect(read('auto/DeadlinePanel.vue')).toContain('now-to="now-offer-by-date"');
     expect(read('auto/FastestRoute.vue')).toContain('now-to="now-offer-fastest"');
   });
-  it('My runs keeps its own (replanOnly), the result cards theirs: no `line` outside the instant card', () => {
+  it('My Runs keeps its own (replanOnly), the result cards theirs: no `line` outside the instant card', () => {
     for (const f of ['myruns/RightNowCard.vue', 'auto/ChainSearchPanel.vue', 'auto/DeadlinePanel.vue'])
       expect(read(f)).not.toMatch(/<BetterRoutePrompt[^>]*\sline\b/);
   });

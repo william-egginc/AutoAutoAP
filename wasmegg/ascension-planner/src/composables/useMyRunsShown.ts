@@ -1,5 +1,5 @@
 /**
- * Whether the account on screen has anything My runs shows (lib/myRunsShown.ts): a followed route, an instant answer
+ * Whether the account on screen has anything My Runs shows (lib/myRunsShown.ts): a followed route, an instant answer
  * snapshot or a saved By a date answer, a kept Fast, Exact or Custom result, a saved run, or something seen there
  * before. Reads only this browser's storage (localStorage and the saved-run library); nothing is fetched. Looked at
  * again when the account changes and whenever something may have been kept (`myRunsBump`: an instant answer saved, a
@@ -56,7 +56,7 @@ export async function readMyRunsHas(id: string, raw: unknown): Promise<{ partiti
   return { partition: p, has: { followed, answers: answersHere, kept, saved, seen } };
 }
 
-/** Remember that the account has something on My runs (a board run seen there). */
+/** Remember that the account has something on My Runs (a board run seen there). */
 export async function markMyRunsSeen(id: string): Promise<void> {
   const p = id ? await accountHash(id).catch(() => '') : '';
   if (p) writeMyRunsSeen(p);
@@ -64,7 +64,7 @@ export async function markMyRunsSeen(id: string): Promise<void> {
 
 /**
  * A route followed in the follow store (stores/follow.ts) for the loaded save's account, read live (QA 24 Oct 2026,
- * Safari: "Follow this route" didn't bring My runs in). The store keeps follows under the hash of the save's own ID, and
+ * Safari: "Follow this route" didn't bring My Runs in). The store keeps follows under the hash of the save's own ID, and
  * the stored read above under the ID as typed: when the two differ (typed in lower case, or a save whose ID isn't the
  * one typed) the follow was never found. Only once the page has made the store (a Follow press or an automatic follow
  * always has), so nothing is made or fetched here for this; reactive on the store being made, its account and its

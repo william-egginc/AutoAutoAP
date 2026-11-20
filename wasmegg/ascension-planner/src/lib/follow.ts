@@ -189,7 +189,7 @@ export function followableAnswer(route: { ascendAt?: number; spare?: number } | 
 /**
  * A board row's finish, TE and start for "Follow this route" (saved online with it, and what the better-route prompt
  * compares, lib/searchPlan.ts): its own times (`endUtc`, a By a date row's last ascension `deadlineAscendAt`). Passed
- * for the player's own runs only (My runs' list): another player's finish is from their account, not comparable.
+ * for the player's own runs only (My Runs' list): another player's finish is from their account, not comparable.
  */
 export function boardRowSummary(row: BoardRow): { finish?: number; endTE: number; planStart?: number; deadline?: number } {
   const sec = (iso: string | undefined) => {

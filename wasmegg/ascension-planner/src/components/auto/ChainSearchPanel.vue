@@ -879,7 +879,7 @@
           </p>
         </div>
 
-        <!-- The run's other options and its charts are on My runs › Your latest run (LatestRunView.vue;
+        <!-- The run's other options and its charts are on My Runs › Your latest run (LatestRunView.vue;
              moved off this screen, 15 Oct 2026): "Dig deeper into your plan ›". -->
         <DigDeeperLink
           v-if="ownRun && store.pricedCount"
@@ -1220,7 +1220,7 @@ const startOptions = computed(() => {
     seen.add(k);
     out.push({ key: k, label: `${label}: ${c.join(' ')}`, chain: c });
   };
-  instantSummary.listed.slice(1).forEach(c => add(c, `Instant answer, ${c.length} ascensions`));
+  instantSummary.listed.slice(1).forEach(c => add(c, `Instant Answer, ${c.length} ascensions`));
   out.push({ key: 'typed', label: 'Type a route…' });
   return out;
 });

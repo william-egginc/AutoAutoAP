@@ -5,7 +5,7 @@ at on the way to a target such as 490, so you get there soonest. It is built on 
 Ascension Planner** (the simulator) and the **wasmegg tools** by **Carpet**, and is not affiliated
 with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 248 286 327 490`.
 
-- **Instant answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
+- **Instant Answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
 - **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look and press Run (the button
   reads Run Fast, Run Exact or Run Custom; the tick under it sends the result to the Leaderboard). Fast and Exact search
   near the instant answer's route, pricing each route through the full simulator on your own save. **Price this
@@ -13,7 +13,7 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
 - **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
 - **Prefer fewer ascensions** (on the instant answer) and **Try waiting before each prestige** (under a search result).
-- **My runs**: where you are now on the route you follow: the Next step, the Next shifts, the Build-up tracker, the Full
+- **My Runs**: where you are now on the route you follow: the Next step, the Next shifts, the Build-up tracker, the Full
   timeline, and your runs.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
   Both are off until you tick them in Setup.
@@ -31,7 +31,7 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The tabs are **Manual Planner**, **Auto Planner**, **Chain Finder** and **My runs** (shown once the account has
+The tabs are **Manual Planner**, **Auto Planner**, **Chain Finder** and **My Runs** (shown once the account has
 something there, or while a search runs), in that order, as on Joo's site (12 Nov 2026; Fastest and Highest TE by a date
 were under the Auto Planner until then, and their addresses `#/auto/fastest`, `#/auto/fastest/full` and `#/auto/by-date`
 did not change). Joo's `?tab=chain-finder` (and `?tab=instant-search`) links open Chain Finder, `?tab=auto-planner` the
@@ -73,7 +73,7 @@ that choice.
     to 15 minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
   - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
-- **Setup** (the Setup button on Chain Finder, the Auto Planner and My runs; a round gear button on a phone) holds the three kinds of "not now":
+- **Setup** (the Setup button on Chain Finder, the Auto Planner and My Runs; a round gear button on a phone) holds the three kinds of "not now":
   - **Awake hours**: you are on the virtue farm, but a shift or a prestige waits until you are back inside
     them; the farm keeps laying meanwhile, and those eggs count.
   - **No prestige days**: whole dates with no prestige. You stay on virtue, a prestige waits for the next
@@ -87,10 +87,10 @@ that choice.
     Awake hours.
 - **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Fastest to 490 TE, All runs, Other dates, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
-  pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
+  pointing to My Runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
-- **My runs** (a top tab): the "where am I now" page. One quiet save line (its age) and a small silo line (when the silos run out, as of the save; amber under 30% of the
+- **My Runs** (a top tab): the "where am I now" page. One quiet save line (its age) and a small silo line (when the silos run out, as of the save; amber under 30% of the
   silo time), also on Chain Finder and the Auto Planner's Setup bar (`lib/saveFreshness.ts`,
   `lib/saveBanner.ts`): once the save is getting old (half the virtue farm's silo time used, or nine tenths for out of
   date; neither before 1 hour; 3 hours of silos when the save doesn't say) it adds **Why is my save out of date?** and
@@ -122,7 +122,7 @@ that choice.
   its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends
   that ascension where the time off starts. Then each ascension's row in **You are here** opens to its shifts and dates (each egg's first and last
   shift), where each fresh ascension has a build-up line such as "You do the build-up for 2 sales, then start
-  producing at 3.574q/hr". My runs works out the instant answer for a followed route itself, so no other tab
+  producing at 3.574q/hr". My Runs works out the instant answer for a followed route itself, so no other tab
   is needed after a Setup change or in a fresh browser; the instant answer does not price Time off, and its rows
   say so in amber. A route followed from your own run sent from another browser gets that run's exact times
   from its CSV on the planner's server, when it was sent with one. Calendar reminders are built in the browser:
@@ -161,11 +161,11 @@ Release 4, in short: Prefer fewer ascensions; Try waiting before each prestige; 
 no instant answer; big boxes ask first; faster searches, most of all Highest TE by a date's Fast, Exact and
 Custom (a leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
 Egg Day run); no edge warning for an edge Widen and run again can't move; a stopping search says it is
-finishing the routes already started (up to about a minute); and the My runs chart.
+finishing the routes already started (up to about a minute); and the My Runs chart.
 Release 5, in short: Joo's latest planner (his artifact and stone editor, the opening switch, fewer empty
-shifts); the Help improve the planner box; hours ahead or behind on My runs; simulator chips and Show runs
+shifts); the Help improve the planner box; hours ahead or behind on My Runs; simulator chips and Show runs
 from older simulators on the Leaderboard; Leaderboard and Science off until ticked in Setup.
-Release 7 (Nov 4, 2026), in short: the Build-up tracker on My runs; Keep building or Finish without buying; Re-plan
+Release 7 (Nov 4, 2026), in short: the Build-up tracker on My Runs; Keep building or Finish without buying; Re-plan
 from this save for a followed route your save no longer matches; empty build-ups dropped; a farm off Humility keeps the
 artifacts it has on; one save-age box with Check your clock; Download for Excel (.xlsx); downloaded saves with no
 player ID and no device IDs; saving the same run or answer twice keeps one entry; answers worked out by an older

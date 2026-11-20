@@ -1,4 +1,4 @@
-/** My runs' filters and sort (lib/myRuns.ts): everything by default, best first per kind. */
+/** My Runs' filters and sort (lib/myRuns.ts): everything by default, best first per kind. */
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MY_RUNS_FILTERS,

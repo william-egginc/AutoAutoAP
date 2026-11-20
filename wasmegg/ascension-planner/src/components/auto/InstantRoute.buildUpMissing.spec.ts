@@ -3,7 +3,7 @@
  * said "prestige now and reach 220" mid build-up because the build-up's worker failed. The card now says so, but a
  * reload put the saved answer back for the same save and setup without asking for the build-up again, so "reload"
  * would not have helped. Now such an answer (the first-legs request's `buildUpMissing`, search/instantFirstLegs.ts)
- * is never saved, never offered online and never kept as My runs' pricing; and one that somehow carries the flag is not
+ * is never saved, never offered online and never kept as My Runs' pricing; and one that somehow carries the flag is not
  * put back (search/instantTables.ts `savedAnswerFits`), so the next load works it out, and the build-up, again.
  * Source checks for the card's wiring, as InstantRoute's other specs; `savedAnswerFits` for real.
  */
@@ -41,12 +41,12 @@ describe('an answer whose build-up could not be worked out is not reused on the 
     const run = fn('run');
     expect(run).toContain('const missing = legsRequest.buildUpMissing === true;');
     expect(run).toMatch(/answerBuildUpMissing\.value = missing;\n\s+result\.value = answer;/);
-    // Never My runs' pricing record.
+    // Never My Runs' pricing record.
     expect(run).toContain('if (!missing) keepPricing();');
     expect(run).not.toMatch(/\n\s+keepPricing\(\);/);
   });
 
-  it('never saved, so never offered online, nor noted for My runs', () => {
+  it('never saved, so never offered online, nor noted for My Runs', () => {
     const save = fn('saveSnapshot');
     const guard = save.indexOf('if (answerBuildUpMissing.value) return;');
     expect(guard).toBeGreaterThan(0);

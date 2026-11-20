@@ -1,6 +1,6 @@
 /**
  * A run's details against its player's instant answer (wireframe B2, lib/instantBaseline.ts): the line and the list
- * Instant answer, Fast, Exact, Custom, only when the row carries `baseline` (the collector must keep that field).
+ * Instant Answer, Fast, Exact, Custom, only when the row carries `baseline` (the collector must keep that field).
  */
 import { describe, expect, it } from 'vitest';
 import { ref, type Plugin } from 'vue';
@@ -37,7 +37,7 @@ describe('vs their instant answer (B2)', () => {
     expect(t).toContain('vs their instant answer: 36h sooner (Exact)');
     expect(t).toContain('Compared with their instant answer');
     // Dates in the viewer's zone, in the runner's locale.
-    expect(t).toMatch(/Instant answer \S+ \S+ 2028, 10:00 PM \(UTC\) · /i);
+    expect(t).toMatch(/Instant Answer \S+ \S+ 2028, 10:00 PM \(UTC\) · /i);
     expect(t).toMatch(/Fast \S+ \S+ 2028, 0?5:10 PM \(UTC\) 28h 50m sooner/i);
     expect(t).toMatch(/Exact this run \S+ \S+ 2028, 10:00 AM \(UTC\) 36h sooner/i);
     expect(t).toMatch(/Custom not run ·/);

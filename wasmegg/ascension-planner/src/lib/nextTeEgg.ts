@@ -1,5 +1,5 @@
 /**
- * My runs' Your eggs (Jordan, 26 Oct 2026): a time to the NEXT TE for every egg, not only the one being laid. For an
+ * My Runs' Your eggs (Jordan, 26 Oct 2026): a time to the NEXT TE for every egg, not only the one being laid. For an
  * egg the player isn't on it is the time from the moment they shift to it. From the LOADED SAVE only. Pure.
  *
  * THE FARM AFTER A SHIFT. A shift keeps research, habs, vehicles and silos and sets the chickens to zero

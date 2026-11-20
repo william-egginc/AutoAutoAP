@@ -9,8 +9,8 @@ import { FIRST_TOUR_STEPS } from './firstTourWords';
 import { FULL_TOUR_ABOUT, FULL_TOUR_ALT, FULL_TOUR_CLOSING, FULL_TOUR_FROM_FIRST, FULL_TOUR_ITEM, FULL_TOUR_STEPS_WORDS } from './fullTourWords';
 
 describe('full tour words', () => {
-  it("the My runs slide keeps Jordan's 'Click Next to learn more about My runs.' here, though the Quick tour card drops it (18 Nov 2026)", () => {
-    expect(FULL_TOUR_STEPS_WORDS.myrunsPage.body).toBe(`${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My runs.`);
+  it("the My Runs slide keeps Jordan's 'Click Next to learn more about My Runs.' here, though the Quick tour card drops it (18 Nov 2026)", () => {
+    expect(FULL_TOUR_STEPS_WORDS.myrunsPage.body).toBe(`${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My Runs.`);
   });
   it('a title, body and alt for every step, and none for a step that is not there', () => {
     expect(Object.keys(FULL_TOUR_STEPS_WORDS).sort()).toEqual([...FULL_TOUR_STEPS].sort());
@@ -20,10 +20,10 @@ describe('full tour words', () => {
       expect(FULL_TOUR_ALT[id].length).toBeGreaterThan(10);
     }
   });
-  it('each card within the cap (169 characters, 3 sentences at most)', () => {
+  it('each card within the cap (279 characters, 3 sentences at most; Jordan\'s Goals card is 273, 19 Nov 2026)', () => {
     for (const id of FULL_TOUR_STEPS) {
       const t = FULL_TOUR_STEPS_WORDS[id].body;
-      expect(t.length, id).toBeLessThan(170);
+      expect(t.length, id).toBeLessThan(280);
       expect(t.split(/(?<=\.)\s/).length, id).toBeLessThanOrEqual(3);
     }
   });
@@ -34,8 +34,9 @@ describe('full tour words', () => {
       FULL_TOUR_ABOUT,
     ].join(' ');
     // "double-click" is the Setup button's own gesture (its tooltip says it); no other Click, and no Tap.
-    // ...and Jordan's own "Click Next to learn more about ..." on the Chain Finder and My runs slides (16 Nov 2026).
-    expect(all.replace(/double-click/gi, '').replace(/Click Next to learn more about/g, '')).not.toMatch(/\b(click|tap)\b/i);
+    // ...and Jordan's own "Click Next to learn more about ..." on the Chain Finder and My Runs slides (16 Nov 2026).
+    // ...and Jordan's copyedit of 19 Nov 2026: "Clicking 'Follow This Route'" and "click Setup on the right".
+    expect(all.replace(/double-click/gi, '').replace(/Click Next to learn more about/g, '').replace(/Clicking 'Follow This Route'/g, '').replace(/click Setup on the right/g, '')).not.toMatch(/\b(click|tap)\b/i);
     expect(all).not.toMatch(/EI\d{16}/);
     expect(all).not.toMatch(/Stronger check|Nearby routes|Exhaustive|Check exactly|Race to|Classic|Your plan|checkpoint|baseline/);
   });
@@ -44,7 +45,7 @@ describe('full tour words', () => {
     expect(FULL_TOUR_STEPS_WORDS.m1more.body).toContain('More is the fold at the foot of Chain Finder');
     expect(FULL_TOUR_STEPS_WORDS.m10maxedGear.body).toContain('The What if you had maxed gear? line finds your route again as if all your gear were maxed');
     expect(FULL_TOUR_STEPS_WORDS.tabLeaderboard.body).toContain('Setup › More options › How the site shows things');
-    expect(FULL_TOUR_ABOUT).toBe('Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.');
+    expect(FULL_TOUR_ABOUT).toBe('Want to see where everything is? Open More on Chain Finder or My Runs and press Full tour.');
   });
   it('the entries', () => {
     expect(FULL_TOUR_ITEM).toBe('Full tour');

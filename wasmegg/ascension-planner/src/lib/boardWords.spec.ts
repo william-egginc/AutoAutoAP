@@ -45,7 +45,7 @@ describe('No literal "N" left on the Leaderboard (spec-fluff2-bugs left three, 5
     expect(panel).not.toMatch(/Fastest to N TE/);
     expect(list).not.toMatch(/Fastest to N TE/);
   });
-  it('My runs intro, the no-target line and the "no code" tooltip', () => {
+  it('My Runs intro, the no-target line and the "no code" tooltip', () => {
     const words = template.replace(/\s+/g, ' ');
     expect(words).toContain('Egg Day, Fastest to any target TE, other dates');
     expect(words).toContain('Pick a target TE above: the race needs one finish line.');

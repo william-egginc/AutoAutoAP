@@ -2,7 +2,7 @@
  * QA review 7 Nov 2026, finding #3 (MED): the tracker said failed while a result was being sent, then Try again killed
  * a healthy run.
  *
- *   - My runs handed the tracker `searchRunning` without `resultSending`, but useCurrentSim waits on useNowPage's
+ *   - My Runs handed the tracker `searchRunning` without `resultSending`, but useCurrentSim waits on useNowPage's
  *     `searchBusy`, which has it: during a send (up to 10 minutes) the sim is 'waiting' with no reason, so the stall
  *     fired and the 8-minute cap clock ran. The two must agree.
  *   - Once fired, the cap stayed (`armCap` returns early while `capSince` is set): "it took over 8 minutes" showed over a
@@ -163,7 +163,7 @@ describe('Try again and a healthy run', () => {
   });
 });
 
-describe('My runs and useCurrentSim agree on what a search is', () => {
+describe('My Runs and useCurrentSim agree on what a search is', () => {
   const view = readFileSync(new URL('../components/MyRunsView.vue', import.meta.url), 'utf8');
   const page = readFileSync(new URL('./useNowPage.ts', import.meta.url), 'utf8');
   it("the tracker's searchRunning is the page's searchBusy, which has resultSending", () => {

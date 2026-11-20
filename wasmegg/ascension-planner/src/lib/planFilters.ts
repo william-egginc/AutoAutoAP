@@ -1,7 +1,7 @@
 /**
  * The My plans filters: which of the viewer's own runs to show, and "the best one for each".
  *
- * Compare's My plans tab became My runs on 15 Oct 2026, with its own filters (lib/myRuns.ts); My runs
+ * Compare's My plans tab became My Runs on 15 Oct 2026, with its own filters (lib/myRuns.ts); My Runs
  * still reads the hours from here (`hoursLabel`, `hoursTitle`). The bar below is no longer on screen.
  *
  * A player comparing their own plans asks "what is best if I play 7 am to 11 pm", "what if I start on

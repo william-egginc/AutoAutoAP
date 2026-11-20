@@ -27,7 +27,7 @@ describe('the instant answer note', () => {
     const t = textOf(await renderHtml(AscensionList, { lines, only: 2, zone: ZONE, note: false }));
     expect(t).not.toContain(ASC_TIMES_NOTE);
   });
-  it('My runs says it once under You are here, not per opened block', () => {
+  it('My Runs says it once under You are here, not per opened block', () => {
     const card = read('components/myruns/RightNowCard.vue');
     const tpl = card.slice(card.indexOf('<template>'), card.indexOf('</template>\n\n<script'));
     expect(tpl).toMatch(/<AscensionList[^>]*:only="asc"[^>]*:note="false"/);

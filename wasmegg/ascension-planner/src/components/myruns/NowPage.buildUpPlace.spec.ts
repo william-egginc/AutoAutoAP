@@ -1,5 +1,5 @@
 /**
- * WHERE THE BUILD-UP TRACKER SITS (30 Oct 2026, Jordan on egg-beta: the fold rendered at the very foot of My runs,
+ * WHERE THE BUILD-UP TRACKER SITS (30 Oct 2026, Jordan on egg-beta: the fold rendered at the very foot of My Runs,
  * after Your runs and "Next steps · nothing to look at"). His spec: directly under Right now's Next step and Next
  * shifts, as the Full timeline fold sits in Right now. MyRunsView.vue hands it to RightNowCard.vue's `buildUp` slot;
  * the rendered order is checked in NowPage.unfinishedBuild.spec.ts. Source order here.

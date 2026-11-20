@@ -1,5 +1,5 @@
 /**
- * My runs' "Your eggs" block (spec myruns-now v3, section 3): each virtue egg's TE and the way to its next one,
+ * My Runs' "Your eggs" block (spec myruns-now v3, section 3): each virtue egg's TE and the way to its next one,
  * and the farm's facts, from the LOADED SAVE only. The rates are the planner's own pure formulas
  * (src/calculations: hab capacity, lay rate, shipping, ELR), fed the save's farm, research, colleggtibles and
  * equipped artifacts: what the companion shows, worked out the same way the planner does at the save's moment.

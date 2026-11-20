@@ -1,7 +1,7 @@
 /**
  * Right now with a followed route (23 Oct 2026, the followed route saved online): a newer, better Fast result never
  * replaces it, it is asked about ("Follow it" / "Keep mine") on the Auto Planner's cards, not on Right now (Jordan, 13 Nov
- * 2026: following is done from the Auto Planner; My runs keeps only the save-contradiction "Re-plan from this save"
+ * 2026: following is done from the Auto Planner; My Runs keeps only the save-contradiction "Re-plan from this save"
  * offer, `replanOnly`), so the offer's rules are read from BetterRoutePrompt with Right now's props (`offerProps`);
  * without a followed route the instant-first rule is
  * unchanged (it takes over). A route read back from online set with other hours says so. Through useNowPage with the

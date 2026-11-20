@@ -4,7 +4,7 @@
  * with nothing left to buy. Plan start Oct 31, 3:09 pm Mountain, goal 166 TE, no hours.
  *
  * Measured before the fix (Reliability's notes, and this spec on cca35261): the build-up A1 bought nothing and was
- * 6 shifts (K->C at once, H, K, C, I, R), 38.59Q of soul eggs, ending Dec 13, 10:50 am; My runs' unfinished-build
+ * 6 shifts (K->C at once, H, K, C, I, R), 38.59Q of soul eggs, ending Dec 13, 10:50 am; My Runs' unfinished-build
  * simulation (continue left out, useNowPage.ts `continueMaxSeconds` 0) took it. Continue is 3 shifts (K->I at K33,
  * I->C, C->R), 17.82Q, ending Dec 12, 10:50 am (Mountain), as Wonky says. Now every setting that builds up gives
  * continue, and the build-up is no option at all (no variant, no instant-answer tails).
@@ -82,7 +82,7 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)("Jordan's alt: the buil
     // round: "Test timed out in 20000ms" twice before it passed alone).
   }, 600_000);
 
-  it("A1 is continue (3 shifts, Dec 12, 10:50 am) under Fastest, Continue my build-up and My runs' unfinished build", () => {
+  it("A1 is continue (3 shifts, Dec 12, 10:50 am) under Fastest, Continue my build-up and My Runs' unfinished build", () => {
     const settings = [
       { firstAscension: 'auto' },
       { firstAscension: 'buildup' },

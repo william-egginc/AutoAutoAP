@@ -128,14 +128,14 @@ export interface LegResult {
   buildUp?: BuildUpList;
   /** A1 only, when "continue my build-up" was simulated (whichever kind won): how many things its build buys (research,
    *  vehicle, train car, hab and silo purchases before its first wait for TE, the Build-up tracker's build part:
-   *  lib/buildUpTracker.ts `buildPart`). My runs' A1 choice (spec-a1choice, 1 Nov 2026) says "buys N things". */
+   *  lib/buildUpTracker.ts `buildPart`). My Runs' A1 choice (spec-a1choice, 1 Nov 2026) says "buys N things". */
   buildUpBuys?: number;
 }
 
 /** How `runLeg` is asked for more than its result. Absent: the result as it always was. */
 export interface LegOptions {
   /** Keep the picked variant's action list as compact records (`LegResult.buildUp`). Off by default;
-   *  on only for My runs' simulation of the ascension you are in (composables/useCurrentSim.ts). It
+   *  on only for My Runs' simulation of the ascension you are in (composables/useCurrentSim.ts). It
    *  reads the actions the simulation made anyway and changes nothing the simulation does. */
   keepPurchases?: boolean;
 }
@@ -367,7 +367,7 @@ export function runLeg(
   // A1 CHOICE (spec-a1choice): its build's buy count is read here, before its actions are let go.
   // SHIFT NOW (spec-emptyshiftnow, `isShiftNow`): a build-up whose build buys nothing (the sale's buying done, H1 at once)
   // is only ever an addition. It is taken when it is sooner than continue (by a deadline: more TE); otherwise the best
-  // build-up that buys stands in for it, exactly as before it was kept (My runs' unfinished build and its A1 choice too).
+  // build-up that buys stands in for it, exactly as before it was kept (My Runs' unfinished build and its A1 choice too).
   let buildUp = ((): CompactVariant | null => {
     if (!allowContinue || mode === 'fresh') return null;
     const startOf = () => buildUpBuild(inputs, baseState, startTime, startTE)?.start;
@@ -389,7 +389,7 @@ export function runLeg(
   // here: `buildUpBuild` keeps only the variants whose build (the steps to C3 and C3 itself) buys something (and SHIFT NOW,
   // which opens with no shift and is weighed against continue above). With
   // nothing to buy, "Continue my build-up" is "just laying" (the 'buildup' rule below): continue, even when the
-  // caller left continue out (My runs' unfinished build, useNowPage.ts `continueMaxSeconds` 0), within the six months.
+  // caller left continue out (My Runs' unfinished build, useNowPage.ts `continueMaxSeconds` 0), within the six months.
   const nothingToBuild = allowContinue && mode !== 'fresh' && !!buildUpBuild(inputs, baseState, startTime, startTE)?.buysNothing;
   if (nothingToBuild && !cont && mode === 'buildup' && kinds.continue) {
     const c = kinds.continue.v;

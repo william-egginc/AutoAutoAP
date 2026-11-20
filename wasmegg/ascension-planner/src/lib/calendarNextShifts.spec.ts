@@ -68,7 +68,7 @@ describe('Producing, nothing to buy: the feed has the marker, the next shifts in
   });
 });
 
-describe('My runs hands the stand-ins over only when the tracker is notBuilding', () => {
+describe('My Runs hands the stand-ins over only when the tracker is notBuilding', () => {
   it('MyRunsView passes the Next shifts as fallbackLines, gated on notBuilding (never while the tracker is just working)', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('../components/MyRunsView.vue', import.meta.url), 'utf8');

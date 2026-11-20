@@ -290,7 +290,7 @@ export function nothingToBuyBackup(daysToNextTE: Partial<Record<'curiosity' | 'i
  * from its next TE, the others a little further) with the last hyperloop one car short. Its build-up buys that one car
  * and so is a build-up, but its shifts make it end LATER than finishing without buying (measured on this fixture:
  * build-up 6.90 days, continue 6.39 days from the plan start, to 194 TE) WHEN 'buildup' IS FORCED (leg.a1Choice.spec.ts).
- * NOT an unfinished build as My runs judges one (spec-r7redteam-f, 1 Nov 2026): its 169 cars ship more than the farm lays,
+ * NOT an unfinished build as My Runs judges one (spec-r7redteam-f, 1 Nov 2026): its 169 cars ship more than the farm lays,
  * so the page calls it built and never offers the choice on it (NowPage.a1Choice.realPage.spec.ts). The page's case is
  * `shippingShortBackup`.
  */
@@ -303,7 +303,7 @@ export function oneCarShortBackup(): any {
 
 /**
  * SHIPPING SHORT OF LAYING, ON KINDNESS (spec-r7redteam-f, 1 Nov 2026; QA: the A1 choice never showed on the real page for
- * `oneCarShortBackup`). `oneCarShortBackup` is not an unfinished build as My runs judges one (lib/saveBuild.ts, ux30: vehicles
+ * `oneCarShortBackup`). `oneCarShortBackup` is not an unfinished build as My Runs judges one (lib/saveBuild.ts, ux30: vehicles
  * count only while shipping is below laying at full habs): its 169 cars ship far more than the farm lays (delivery limited
  * by laying, measured with the page's own rates: laying 1.72e12/s, delivery 1.72e12/s), so the page rightly calls it built
  * and never takes the unfinished-build path. This one is: the alt's shape with NINE full hyperloops (eight slots unbought):

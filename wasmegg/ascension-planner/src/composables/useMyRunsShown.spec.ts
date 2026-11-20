@@ -1,5 +1,5 @@
 /**
- * My runs only with something to show (Jordan, 24 Oct 2026; lib/myRunsShown.ts, composables/useMyRunsShown.ts, App.vue):
+ * My Runs only with something to show (Jordan, 24 Oct 2026; lib/myRunsShown.ts, composables/useMyRunsShown.ts, App.vue):
  * hidden for an empty account, shown from its first answer (which becomes the follow, lib/followPolicy.ts), from a saved
  * answer or snapshot, a kept result, a saved run, or a board run seen there; never hidden while a search runs, and a
  * player on it when it goes is taken to the Auto Planner. Ids: placeholders only.
@@ -54,7 +54,7 @@ const settled = async (c: { value: string }) => vi.waitFor(() => expect(c.value)
 
 describe('the tab rule (myRunsTab)', () => {
   // Always shown once an account is in since the simpler page (Jordan, 9 Nov 2026, Q5): the row never changes under the
-  // player; an empty My runs shows its empty Right now and "Pick a route to follow ›".
+  // player; an empty My Runs shows its empty Right now and "Pick a route to follow ›".
   it('shown for every account, empty, unknown, running or not, and never left', () => {
     for (const content of ['none', 'some', 'unknown'] as const)
       for (const running of [false, true])
@@ -135,7 +135,7 @@ describe('what the account has', () => {
     scope.stop();
   });
 
-  it('a board run seen on My runs is remembered for the next visit', async () => {
+  it('a board run seen on My Runs is remembered for the next visit', async () => {
     await markMyRunsSeen(ID);
     const { content, scope } = shown();
     await settled(content);
@@ -155,7 +155,7 @@ describe('what the account has', () => {
   });
 });
 
-describe('a follow counts at once (QA 24 Oct 2026, Safari: Follow this route left My runs hidden)', () => {
+describe('a follow counts at once (QA 24 Oct 2026, Safari: Follow this route left My Runs hidden)', () => {
   function shownWith(typed: string, saveId: string) {
     const playerId = ref(typed);
     const raw = ref<unknown>({ eiUserId: saveId });

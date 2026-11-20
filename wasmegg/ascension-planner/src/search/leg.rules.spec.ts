@@ -343,7 +343,7 @@ describe('leg 1: no build-up that buys nothing or ends no sooner than continue (
     }
   });
 
-  it("with nothing to buy, My runs' unfinished build (continue left out) is continue, not the empty build-up", () => {
+  it("with nothing to buy, My Runs' unfinished build (continue left out) is continue, not the empty build-up", () => {
     contDays = 42;
     buildUpDays = 43;
     buildUpBuys = false;
@@ -431,7 +431,7 @@ describe("leg 1: the sale's buying done, the build-up shifts now (spec-emptyshif
       // The option that lost, as recorded before: the 2-sale build, not shifting now.
       expect(r.firstLegEnds?.buildup).toBe(47 * DAY);
     }
-    // My runs' unfinished build (continue left out): the build that buys is carried on (pieha, 27 Oct 2026), as before.
+    // My Runs' unfinished build (continue left out): the build that buys is carried on (pieha, 27 Oct 2026), as before.
     const r = leg1(carryOn())!;
     expect(r.key).toBe('buildup');
     expect(r.summary.endTime).toBe(47 * DAY);

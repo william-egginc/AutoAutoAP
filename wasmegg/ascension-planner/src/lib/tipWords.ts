@@ -6,11 +6,11 @@
  * hash, lib/resultCodeHash.ts `isWordingOnly`).
  */
 
-/** "Follow this route" (FollowButton.vue). Was: "Right now (My runs) follows this route for <goal> instead of the
- *  checked one". Allan: "Set as active for My Runs" (written with the site's "My runs"). */
-export const TIP_FOLLOW = 'Set as active for My runs';
-/** The same button once pressed ("Following ✓"). Was: "Right now (My runs) follows this route for <goal>". */
-export const TIP_FOLLOWING = 'Active for My runs';
+/** "Follow this route" (FollowButton.vue). Was: "Right now (My Runs) follows this route for <goal> instead of the
+ *  checked one". Allan: "Set as active for My Runs" (written with the site's "My Runs"). */
+export const TIP_FOLLOW = 'Set as active for My Runs';
+/** The same button once pressed ("Following ✓"). Was: "Right now (My Runs) follows this route for <goal>". */
+export const TIP_FOLLOWING = 'Active for My Runs';
 
 /** "Simulate this route" (the answer, its table rows, the result cards, More routes). Was lib/siteNav.ts
  *  SIMULATE_TITLE: "Opens this route in Single run (Joo's original planner) and simulates every shift on your save";

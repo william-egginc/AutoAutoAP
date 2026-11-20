@@ -1,5 +1,5 @@
 /**
- * My runs › Your runs' chips (lib/runsExplore.ts): what each chip reads, the chips that exist only for values the
+ * My Runs › Your runs' chips (lib/runsExplore.ts): what each chip reads, the chips that exist only for values the
  * runs have, "or" within a group and "and" across, the sorts, Clear filters, and the selection remembered per
  * account (a bare localStorage stub; a storage that throws changes nothing).
  */
@@ -101,7 +101,7 @@ describe('chips only for values that occur', () => {
       'Other dates 1',
     ]);
     expect(g[1].chips.map(c => c.label)).toEqual(['1', '2', '3']);
-    expect(g[2].chips.map(c => c.label)).toEqual(['Instant answer', 'Fast', 'Exact', 'Custom']);
+    expect(g[2].chips.map(c => c.label)).toEqual(['Instant Answer', 'Fast', 'Exact', 'Custom']);
     expect(g[3].chips.map(c => c.label)).toEqual(['My awake hours', 'Any time']);
     expect(g[4].chips.map(c => c.label)).toEqual(['Today', '1–6 days ago', '1–4 weeks ago', 'Older']);
   });

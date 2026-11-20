@@ -1,5 +1,5 @@
 /**
- * The words of My runs' Right now card (spec myruns-now v3, section 2): an event's title, how far away it is,
+ * The words of My Runs' Right now card (spec myruns-now v3, section 2): an event's title, how far away it is,
  * the next-step sentence and the "calculated …" line. Pure; `now` and the zone are parameters.
  */
 import { dateAt, eventWhen, relativeWords } from './eventWhen';
@@ -58,7 +58,7 @@ export function roundToHourIn(at: number, zone: string): number {
 }
 
 /**
- * The row as it happens (My runs' You are here table, and the ascension picker's "A2 ends" line, one definition: QA 18 Nov 2026): a waiting
+ * The row as it happens (My Runs' You are here table, and the ascension picker's "A2 ends" line, one definition: QA 18 Nov 2026): a waiting
  * prestige (for the hours or past a no-prestige day, lib/instantSteps.ts `markPrestigeWaits`) at its held time; a prestige whose next
  * ascension starts later than the stop (the instant answer ascends on the hour) at that start; every other row as it is.
  */
@@ -240,7 +240,7 @@ function stretchList(list: TimeOffDates[], locale?: string): string {
 }
 
 /**
- * The Setup pill's line on My runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
+ * The Setup pill's line on My Runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
  * "7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is
  * left out when there are none. Hours and dates in the browser's format (lib/clock.ts), the hours always with their
  * minutes (Jordan, 12 Nov 2026: "7:00 AM", never "7 AM"); `locale` is for specs.

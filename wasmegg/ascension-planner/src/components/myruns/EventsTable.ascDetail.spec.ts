@@ -98,7 +98,7 @@ describe('the separate Full timeline is gone', () => {
     expect(tpl).toMatch(/<details v-else[^>]*data-testid="now-asc-all"/);
     expect(tpl).not.toMatch(/<details v-else[^>]*\bopen\b/);
   });
-  it('My runs has no slot for it above More, and its fold state is not kept any more', () => {
+  it('My Runs has no slot for it above More, and its fold state is not kept any more', () => {
     const view = read('components/MyRunsView.vue');
     expect(view).not.toContain('myruns-timeline');
     expect(view).not.toContain('timeline-to');

@@ -1,5 +1,5 @@
 <!--
-  My runs' "Your eggs" (spec myruns-now v3, section 3), from the loaded save: each virtue egg's TE and how far to
+  My Runs' "Your eggs" (spec myruns-now v3, section 3), from the loaded save: each virtue egg's TE and how far to
   its next (the egg being laid: when, at the save's rate; each other egg: when, after a shift to it, lib/nextTeEgg.ts,
   26 Oct 2026), and the farm's facts. The silos are estimated to now
   (lib/farmNow.ts): time left, or empty since when. "All planned shifts" counts the

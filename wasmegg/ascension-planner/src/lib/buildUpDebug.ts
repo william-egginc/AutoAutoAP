@@ -48,7 +48,7 @@ export function shortKey(key: string): string {
  * PERF BREADCRUMBS (spec-mainfreeze, 31 Oct 2026: Jordan's live tab froze 45 s or more on the main thread right after
  * "[buildup] run scheduled (leg)", while the Build-up tracker was worked out). Behind the same flag as the lines above,
  * read ONCE per page load: off (the default), each helper is one boolean test and nothing else (no performance.mark, no
- * clock read, no observer). On: every step of a My runs sim request gets a performance.mark + performance.measure named
+ * clock read, no observer). On: every step of a My Runs sim request gets a performance.mark + performance.measure named
  * `aap:<step>` (they show in the browser's own Performance panel), a `[buildup] perf <step> <ms> ms` line when it took
  * 50 ms or more, and a long-task observer says `[buildup] longtask <ms> ms` with the nearest step marked before it.
  */

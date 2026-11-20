@@ -170,7 +170,7 @@
           An unofficial fan tool for planning virtue ascensions in Egg, Inc. It is built on Joo's Auto Ascension Planner
           and the wasmegg tools. It is not affiliated with, or endorsed by, Auxbrain, the makers of Egg, Inc.
         </p>
-        <p>Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.</p>
+        <p>Want to see where everything is? Open More on Chain Finder or My Runs and press Full tour.</p>
       </section>
 
       <section id="stays">
@@ -223,7 +223,7 @@
         </p>
         <!-- lib/serverSave.ts, composables/useServerSave.ts: these sentences go with that code. -->
         <p id="save-check">
-          My runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the
+          My Runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the
           same request as loading your save: your player ID goes through the same relay to the game's server, and
           your save comes back. The planner keeps only the save's time, and only until you close or reload the page.
           It does not put that save into the planner unless you press <b>A newer save is on the server · Load it</b>. It checks once per page load for
@@ -271,7 +271,7 @@
             that time and your eggs, never from your player ID; the eggs delivered for each egg at the start; whether
             the plan starts now, at a time you set, or at a time handed over from a search; and how long the page had
             been open and how old the planner's version was.
-            If you tick "Share my instant answer with my runs" (on My runs), a row you send also has your instant
+            If you tick "Share my instant answer with my runs" (on My Runs), a row you send also has your instant
             answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is
             shown on your public run so others can compare. Without that tick it is not sent.
           </li>
@@ -335,11 +335,11 @@
           that device is the one followed. Anyone who knows your player ID can make the same code, so they can see the
           route you follow, and change it. If it couldn't be saved when you pressed it (you were offline, say), it is
           saved once the next time your account is loaded, unless a newer one is saved online by then. If it still isn't
-          saved, My runs, Right now, says so under the route, with <b>Save it online</b>.
+          saved, My Runs, Right now, says so under the route, with <b>Save it online</b>.
           <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts): this sentence goes with the constant. -->
           <span id="follow-auto">The first answer for Fastest to 490 TE and for Egg Day 2027 becomes the route you follow and
           is saved online, unless you already follow one. That is the instant answer as its box shows it, or a Fast, Exact
-          or Custom run that becomes your route on My runs, Right now, whichever comes first. It is saved once, the same way as a press,
+          or Custom run that becomes your route on My Runs, Right now, whichever comes first. It is saved once, the same way as a press,
           and only after your saved routes were read, so a route you follow on another device is never replaced. After
           that, a better answer only asks you (<b>Follow it</b> or <b>Keep mine</b>). Every other goal (another Highest TE by a date, a Fastest to N TE target of your
           own) is saved when you press <b>Follow this route</b>.</span>
@@ -354,7 +354,7 @@
         </p>
         <p>
           The last 5 versions for each goal are kept. To put an earlier one back, open <b>Earlier versions</b> under the
-          route you follow on My runs, Right now, and press <b>Restore</b>: it is saved again as the newest. At most 30
+          route you follow on My Runs, Right now, and press <b>Restore</b>: it is saved again as the newest. At most 30
           changes an hour are saved. Using the planner's route again only changes this browser: the saved route stays
           online, and another device keeps following it.
         </p>
@@ -388,7 +388,7 @@
           When an instant answer is kept in this browser (worked out, or shown again from what it kept), it is also saved online, under the same
           code made from your player ID that the route you follow uses. That is so another device or a private window,
           which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works
-          the answer out again. My runs also uses it to price your route meanwhile. Anyone who knows your player ID can
+          the answer out again. My Runs also uses it to price your route meanwhile. Anyone who knows your player ID can
           make the same code, so they could read these answers, and change them.
         </p>
         <p>
@@ -456,10 +456,10 @@
       <section id="readback">
         <h2>Your own run's CSV, read back</h2>
         <p>
-          If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My runs reads
+          If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My Runs reads
           that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It
           asks by the run's row ID on the Leaderboard, never by your player ID. It is the same CSV the Leaderboard
-          offers for that row. If the run has no CSV, or it can't be read, My runs shows the estimate instead.
+          offers for that row. If the run has no CSV, or it can't be read, My Runs shows the estimate instead.
         </p>
       </section>
 
@@ -593,7 +593,7 @@
       <section id="remove">
         <h2>Hiding or removing your rows</h2>
         <p>
-          <b>Hide from the public</b> is one press on your own rows (in the row details, or on the My runs tab, which lists hidden rows too). It hides them
+          <b>Hide from the public</b> is one press on your own rows (in the row details, or on the My Runs tab, which lists hidden rows too). It hides them
           from every public view and stops other people downloading their CSV. You and the planner's maintainer can still
           see them, and <b>Show again</b> undoes it. A hidden row leaves the public lists within about a minute.
         </p>
@@ -642,7 +642,7 @@
         </p>
         <p id="recalc">
           After an update, answers that an older version worked out and kept in this browser are worked out again:
-          instant answers, the times My runs works out for the route you follow, and the Build-up tracker's plan.
+          instant answers, the times My Runs works out for the route you follow, and the Build-up tracker's plan.
           Meanwhile an instant answer is marked "From &lt;time&gt; (older version), checking…". Saved runs and saved
           answers are kept as they are.
         </p>

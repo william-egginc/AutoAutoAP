@@ -1,5 +1,5 @@
 /**
- * My runs › Your runs, "Other options" (LatestRunView.vue): the amber box that was not a warning ("Every view above reads
+ * My Runs › Your runs, "Other options" (LatestRunView.vue): the amber box that was not a warning ("Every view above reads
  * the N routes this run priced, so switching costs nothing…") is cut (UX fluff review 2, 5 Nov 2026, item M8).
  */
 import fs from 'node:fs';

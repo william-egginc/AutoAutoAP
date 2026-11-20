@@ -1,5 +1,5 @@
 <!--
-  My runs (#/myruns): where you are now, from what is already saved (spec "myruns-now" v3, agreed 15 Oct 2026;
+  My Runs (#/myruns): where you are now, from what is already saved (spec "myruns-now" v3, agreed 15 Oct 2026;
   build plan aaap-tools/specialists/ui-nowpage-build.md). NOTHING is calculated on this page: no instant answer,
   no search (one exception since 24 Oct 2026: a followed route with no timeline is priced on the instant answer's data
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:

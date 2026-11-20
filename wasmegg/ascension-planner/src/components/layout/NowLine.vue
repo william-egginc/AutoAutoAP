@@ -1,7 +1,7 @@
 <!--
   "WHAT TO DO NOW" (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the region under the answer,
   always in the same place. A search running on this screen: its progress and "Show search ›", which opens More at the
-  search. Else a route followed for this goal: that it is followed, and "Open My runs ›", where the next steps are.
+  search. Else a route followed for this goal: that it is followed, and "Open My Runs ›", where the next steps are.
   Else the hint to press Follow this route. Words: lib/layoutWords.ts (DRAFT). Under it, the instant card's better-route
   line when there is one (`now-offer-<screen>`).
 -->

@@ -16,7 +16,7 @@ export function parseTargetTE(text: string): number {
 
 /**
  * A bad commit (the store's words back) changes nothing, puts the target back in the box and shows the words (`error`);
- * typing again clears them. Follows a target changed elsewhere (More's boxes, My runs' Open, online Setup).
+ * typing again clears them. Follows a target changed elsewhere (More's boxes, My Runs' Open, online Setup).
  */
 export function useTargetDraft(o: {
   current: () => number;

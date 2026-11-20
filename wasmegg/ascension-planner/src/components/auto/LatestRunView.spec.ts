@@ -1,5 +1,5 @@
 /**
- * My runs › Your latest run (was Leaderboard › Your latest run, #/compare/latest, until 16 Oct 2026): the newest
+ * My Runs › Your latest run (was Leaderboard › Your latest run, #/compare/latest, until 16 Oct 2026): the newest
  * search's routes with their arrows; for Fastest its other options and charts, moved off its results (15 Oct
  * 2026); for By a date its best route for each stop count and its top 50, and while it runs its top routes so far
  * (moved off By a date's result, 16 Oct 2026). This account's runs only (16 Oct 2026). Fastest's panels and By a
@@ -62,7 +62,7 @@ const row = (chain: number[], days: number, reason: ShortlistRow['reason']): Sho
   reason,
 });
 
-describe('LatestRunView (My runs › Your latest run)', () => {
+describe('LatestRunView (My Runs › Your latest run)', () => {
   it('no run in this visit: says so plainly, and nothing else', async () => {
     const html = await view();
     expect(html).toContain('data-testid="latest-run-empty"');
@@ -108,11 +108,11 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const src = read('LatestRunView.vue');
     expect(src).toMatch(/const RunCharts = safeAsyncComponent\(\(\) => import\('\.\/charts\/RunCharts\.vue'\)\)/);
     expect(src).not.toMatch(/import RunCharts from/);
-    // The view is on My runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
+    // The view is on My Runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
     expect(read('../MyRunsView.vue')).toMatch(/<LatestRunView\s+:player-id="playerId"\s+:want="[^"]+"\s+@has="v => \(latestHas = v\)"/);
     expect(read('LeaderboardPanel.vue')).not.toMatch(/<LatestRunView|import\('\.\/LatestRunView\.vue'\)/);
-    // Its Leaderboard tab, one line to My runs since 16 Oct, went in the fluff review 2 (L1, 5 Nov 2026); the
-    // address lands on My runs (siteNav.spec.ts).
+    // Its Leaderboard tab, one line to My Runs since 16 Oct, went in the fluff review 2 (L1, 5 Nov 2026); the
+    // address lands on My Runs (siteNav.spec.ts).
     expect(read('LeaderboardPanel.vue')).not.toContain('data-testid="latest-moved"');
     // The store builds the chart's data only while a chart is mounted.
     expect(read('charts/RunCharts.vue')).toContain('onMounted(() => store.chartMounted(true))');
@@ -122,7 +122,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
 
 describe("Fastest's results: one line in place of the moved blocks", () => {
   for (const file of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
-    it(`${file}: "Dig deeper into your plan ›" to My runs, and no longer has the blocks`, () => {
+    it(`${file}: "Dig deeper into your plan ›" to My Runs, and no longer has the blocks`, () => {
       const src = read(file);
       expect(src).toMatch(/<DigDeeperLink\s+v-if="ownRun && store.pricedCount"/);
       expect(src).not.toContain('Other options worth considering');
@@ -140,7 +140,7 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
 
   it("By a date's result keeps its best, its best for each stop count and the share box; its top routes moved", () => {
     const src = read('DeadlinePanel.vue');
-    // Moved to My runs › Your latest run (Jordan, 16 Oct): the priced summary and the top routes, and the live
+    // Moved to My Runs › Your latest run (Jordan, 16 Oct): the priced summary and the top routes, and the live
     // "Top routes so far".
     expect(src).not.toMatch(/>Every route in your boxes/);
     expect(src).not.toMatch(/title="Top routes so far"/);
@@ -157,8 +157,8 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     const { default: DigDeeperLink } = await import('./DigDeeperLink.vue');
     const html = await renderHtml(DigDeeperLink, {});
     expect(textOf(html)).toContain('Dig deeper into your plan ›');
-    expect(textOf(html)).toContain('(My runs › Your runs)');
-    // Its click asks My runs to open on Your runs (lib/myRunsFocus.ts).
+    expect(textOf(html)).toContain('(My Runs › Your runs)');
+    // Its click asks My Runs to open on Your runs (lib/myRunsFocus.ts).
     expect(read('DigDeeperLink.vue')).toContain('@click="askYourRuns()"');
     expect(html).toContain('href="#/myruns"');
     expect(html).not.toContain('#/compare/latest');
@@ -360,7 +360,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
   });
 });
 
-describe("My runs' Showing switch: each option shows only its own kind (beta, 16 Oct)", () => {
+describe("My Runs' Showing switch: each option shows only its own kind (beta, 16 Oct)", () => {
   const wanted = (want: 'fastest' | 'date') => renderHtml(LatestRunView, { playerId: A, want }, {}, [pinia]);
   const fastestRun = (store: ReturnType<typeof storeOfA>) => {
     store.pricedCount = 7;

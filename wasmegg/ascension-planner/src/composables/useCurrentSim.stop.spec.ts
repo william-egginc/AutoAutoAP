@@ -1,5 +1,5 @@
 /**
- * STOPPED → NEVER STUCK ON WORKING (spec-buildstop, 30 Oct 2026; Jordan's main account, My runs: the Build-up tracker
+ * STOPPED → NEVER STUCK ON WORKING (spec-buildstop, 30 Oct 2026; Jordan's main account, My Runs: the Build-up tracker
  * said "working it out…" for over a minute, with "pricing the followed route … failed: stopped" the only console line).
  *
  * What it was: the followed route's estimate being stopped and asked again moves Right now's plan (useNowPage

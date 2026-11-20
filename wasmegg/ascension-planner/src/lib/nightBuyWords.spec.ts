@@ -12,9 +12,9 @@ describe('night buy words', () => {
     expect(NIGHT_BUY_TIP).toBe(
       "This run's egg shifts don't wait for your awake hours, and neither do its research buys, so it may plan buys at night. Making them wait makes the finish later: on one save it was 3 h 44 min."
     );
-    expect(INSTANT_NIGHT_BUY_NOTE).toBe("Quick estimate: it may buy research at night. After you press Follow, My runs shows exact times.");
+    expect(INSTANT_NIGHT_BUY_NOTE).toBe("Quick estimate: it may buy research at night. After you press Follow, My Runs shows exact times.");
     expect(INSTANT_NIGHT_BUY_TIP).toBe(
-      "The instant answer is a quick estimate and does not hold its research buys to your awake hours, so it may buy at night. After you press Follow, My runs works out the exact times with the buys inside your hours. The finish there can be later: on one save it was 3 h 44 min."
+      "The instant answer is a quick estimate and does not hold its research buys to your awake hours, so it may buy at night. After you press Follow, My Runs works out the exact times with the buys inside your hours. The finish there can be later: on one save it was 3 h 44 min."
     );
   });
   it('plain words: no simulator, no names', () => {

@@ -154,7 +154,7 @@
             Load latest save
           </button>
           <!-- Change player (the simpler page, Jordan 9 Nov 2026, Q6): the chevron that hid the ID box is gone from the
-               Auto Planner and My runs; this opens the box at the top and puts the cursor in it. -->
+               Auto Planner and My Runs; this opens the box at the top and puts the cursor in it. -->
           <button
             type="button"
             :disabled="store.busy || ui.loading"
@@ -474,7 +474,7 @@
             with "Share this result" for just one.
           </p>
           <!-- "Share my instant baseline with my runs" (the `shareBaseline` consent, lib/instantBaseline.ts): the same
-               box as on My runs. -->
+               box as on My Runs. -->
           <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
             <input
               v-model="shareBaselineOn"
@@ -505,7 +505,7 @@
           >
             Each run you send to the Leaderboard also carries your instant answer for it: the
             route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
-            can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
+            can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My Runs.
           </p>
           <!-- The long-run alert has no switch (lib/runBeacon.ts RUN_BEACON_SENDS; Jordan, 16 Nov 2026): one plain line says it. -->
           <p class="text-body text-slate-600 max-w-prose" data-testid="run-beacon-line">{{ BEACON_SETUP_LINE }}</p>
@@ -547,7 +547,7 @@
                   The first answer for {{ fastestName(store.finalTE) }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online,
                   unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.</span
                 >
-                The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
+                The last 5 versions for each goal are kept: open Earlier versions under the route on My Runs, Right now, and
                 press Restore.
               </p>
               <!-- Your choices and Setup saved online (lib/prefsCloud.ts, stores/prefs.ts); about.html says the same. -->

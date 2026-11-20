@@ -1,6 +1,6 @@
 /**
  * By a date's deadline, kept for the page load (DeadlinePanel.vue's `kept`), and a way for another page
- * to set it before opening that screen (My runs' Next steps, 16 Oct 2026: "Find my Egg Day answer").
+ * to set it before opening that screen (My Runs' Next steps, 16 Oct 2026: "Find my Egg Day answer").
  *
  * Only the deadline lives here: the date, time and zone the screen's boxes hold, and whether "Another
  * date" is picked. Everything else DeadlinePanel keeps (the stop boxes, the sliders, the mode) stays in

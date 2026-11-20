@@ -1,5 +1,5 @@
 <!--
-  My runs' "Try next" (spec myruns-now v3, section 5; lib/tryNext.ts): up to four runs, each opening its screen set
+  My Runs' "Try next" (spec myruns-now v3, section 5; lib/tryNext.ts): up to four runs, each opening its screen set
   up. The player presses Find there; nothing starts from here.
 -->
 <template>

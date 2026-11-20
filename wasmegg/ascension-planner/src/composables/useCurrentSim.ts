@@ -118,7 +118,7 @@ export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | n
 /**
  * FRIENDLIER (26 Oct 2026, the coordinator: one simulation measured 36-199 s on the synthetic saves). It starts only once
  * the page has been settled `delayMs` (nothing asked changed, no search: the table's estimate is on screen by then),
- * and once it has run `slowMs` Right now adds "(can take a few minutes)". Leaving My runs lets it go; the next visit
+ * and once it has run `slowMs` Right now adds "(can take a few minutes)". Leaving My Runs lets it go; the next visit
  * starts it again, or reads the record when it finished.
  */
 /**
@@ -142,7 +142,7 @@ const failed = new Map<string, { reason: string; tries: number }>();
  * STOPPED (spec-buildstop, 30 Oct 2026): keys whose run was stopped from outside (its worker torn down: "stopped",
  * "chain search pool was terminated", "paused") and asked again at once, on this page load. One automatic retry per key,
  * so a second stop is said as failed rather than looping. A run the page lets go itself (a newer key, a search, leaving
- * My runs) is not one of these: its answer is dropped before it is read.
+ * My Runs) is not one of these: its answer is dropped before it is read.
  */
 const stopRetried = new Set<string>();
 /**
@@ -244,7 +244,7 @@ export function useCurrentSim(
     const runTimer = setTimeout(() => {
       if (id !== asked) return;
       const reason = `it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
-      console.warn('My runs: simulating the ascension you are in failed:', reason);
+      console.warn('My Runs: simulating the ascension you are in failed:', reason);
       buildUpLog(`run timed out${have ? ' (planFailed)' : ''}: ${reason}`);
       letGo();
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
@@ -319,14 +319,14 @@ export function useCurrentSim(
         // Stopped from outside: asked again once, the leg (if any) on screen meanwhile. Never 'working' for good.
         stopRetried.add(req.key);
         buildUpLog('run stopped from outside: asked again once');
-        console.warn('My runs: simulating the ascension you are in was stopped; asking again once.');
+        console.warn('My Runs: simulating the ascension you are in was stopped; asking again once.');
         runner?.terminate();
         runner = null;
         schedule(req, have);
         return;
       }
       const reason = reasonOf(err);
-      console.warn('My runs: simulating the ascension you are in failed:', reason);
+      console.warn('My Runs: simulating the ascension you are in failed:', reason);
       buildUpLog(`run failed${have ? ' (planFailed)' : ''}: ${reason}`);
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
       failed.set(req.key, { reason, tries: have ? 2 : tries });

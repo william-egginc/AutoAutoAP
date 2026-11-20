@@ -1,6 +1,6 @@
 /**
  * RIGHT NOW AFTER CHECK EXACTLY (part B of the instant-first redesign, wireframes/price-route-v2 R1 and R2, Jordan 23
- * Oct 2026). My runs' Right now follows the INSTANT answer for a goal until a Fast, Exact or Custom search has a
+ * Oct 2026). My Runs' Right now follows the INSTANT answer for a goal until a Fast, Exact or Custom search has a
  * finished result for the same goal on the same save; then it follows that result, when the result is better:
  *
  *   By a date (Egg Day too)  the result makes the date (lib/eggDayRule.ts `finishesBefore`). It replaces the instant
@@ -22,7 +22,7 @@
  *
  * Where a result comes from: the chain-search store while it holds one (`liveSearchResult`, the same rule as the
  * instant card's pointer, InstantRoute.vue `searchFound`), and the instant answer's snapshot, which keeps the last
- * one as `search` (search/instantSnapshot.ts; written by InstantRoute and by My runs). Pure.
+ * one as `search` (search/instantSnapshot.ts; written by InstantRoute and by My Runs). Pure.
  */
 import { doneBeforeSave, searchFitsSave, SNAP_SAME_SAVE_SECONDS } from './searchFits';
 import { MAKES_DATE_WORDS } from './searchPlanWords';

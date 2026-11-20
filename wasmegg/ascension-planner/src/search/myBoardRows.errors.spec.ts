@@ -122,7 +122,7 @@ describe('a collector that answers with an error', () => {
 });
 
 describe('what the player reads', () => {
-  it('My runs: unreachable and read errors, neither saying "none yet" nor naming the collector', () => {
+  it('My Runs: unreachable and read errors, neither saying "none yet" nor naming the collector', () => {
     expect(boardErrorText('unreachable', 'myruns')).toMatch(
       /^Couldn't reach the leaderboard right now\. Your runs are safe on this (computer|phone|tablet|device)\.$/
     );
@@ -150,7 +150,7 @@ describe('what the player reads', () => {
 });
 
 describe('Refresh is a full tap target', () => {
-  it("both Leaderboard Refresh buttons (My runs and Compare) are at least 44 px tall", () => {
+  it("both Leaderboard Refresh buttons (My Runs and Compare) are at least 44 px tall", () => {
     const src = readFileSync(new URL('../components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8');
     const refresh = src.split('<button').filter(b => b.includes("{{ loading ? 'Loading' : 'Refresh' }}"));
     expect(refresh).toHaveLength(2);

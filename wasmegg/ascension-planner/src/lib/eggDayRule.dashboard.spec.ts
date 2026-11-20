@@ -1,5 +1,5 @@
 /**
- * The Egg Day rule on My runs' chart (lib/eggDayRule.ts, Jordan 22 Oct 2026): the chart leaves late saved answers
+ * The Egg Day rule on My Runs' chart (lib/eggDayRule.ts, Jordan 22 Oct 2026): the chart leaves late saved answers
  * out, as it does late board runs. (The Egg Day and By a date cards and the "No Egg Day run yet" step went with the six
  * cards and the reworked Next steps, 24 Oct 2026: lib/myRunsDashboard.spec.ts.)
  */

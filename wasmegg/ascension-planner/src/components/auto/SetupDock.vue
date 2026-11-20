@@ -9,12 +9,12 @@
   <div ref="dock" class="fixed z-50" :style="dockStyle">
     <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
          Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
-         of ascensions ›"). On My runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
-         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My runs keeps
+         of ascensions ›"). On My Runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
+         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My Runs keeps
          its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it.
          One row is 297 px; below about 313 px (an iPhone with Safari's text size up) it ran off the left edge, drag
          handle first (ux32-b, 28 Oct 2026). It now wraps instead, the workers together on a second row, never wider
-         than the screen less 2rem; its 1.75rem corners are a pill on one row and still round on two. On My runs Setup
+         than the screen less 2rem; its 1.75rem corners are a pill on one row and still round on two. On My Runs Setup
          and its summary take what the row leaves (basis-0 grow), so the summary wraps under Setup and the workers stay
          on the row while Setup's longest word fits; − and + never shrink below 44 px (at 342 px they were 34), nor the gear. -->
     <div
@@ -64,7 +64,7 @@
         </svg>
         <span class="flex flex-col items-start leading-tight" :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1583px]:hidden' : 'max-[1279px]:hidden']">
           <span class="text-body font-bold">Setup</span>
-          <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
+          <!-- My Runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
           <span v-if="summary" class="text-small font-normal text-white text-left xl:max-w-[13rem] sm:max-[1583px]:hidden" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
@@ -153,19 +153,19 @@ import { movedPast } from './setupDockDrag';
 
 const props = defineProps<{
   screen: AutoView;
-  /** A short line under "Setup" ("7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27"), on My runs, which has no
+  /** A short line under "Setup" ("7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27"), on My Runs, which has no
    *  setup box of its own. */
   summary?: string;
   /** Room to leave under the pill, px: Single run's fixed bar of totals and its fold tab (App.vue measures it,
    *  useBottomBarRoom), so the pill sits 1rem above the bar instead of cut off over it (Jordan, 27 Oct 2026). */
   bottomOffset?: number;
 }>();
-/** The pill's height, px, whenever it changes (App.vue sizes the room under the page by it: on My runs its summary
+/** The pill's height, px, whenever it changes (App.vue sizes the room under the page by it: on My Runs its summary
  *  wraps to two or three lines, and during a search its workers can wrap to a second row; Jordan, 12 Nov 2026). */
 const emit = defineEmits<{ height: [px: number] }>();
 const pillEl = ref<HTMLElement | null>(null);
 let pillObserver: ResizeObserver | null = null;
-/** Stacked in two rows from xl (see the pill): every screen but My runs (its summary needs the width). */
+/** Stacked in two rows from xl (see the pill): every screen but My Runs (its summary needs the width). */
 const stacked = computed(() => !props.summary);
 const store = useChainSearchStore();
 const ui = useUIStore();
@@ -178,7 +178,7 @@ const problemsText = computed(() => `${errors.value} problem${errors.value > 1 ?
 /**
  * THE ROUND GEAR (Jordan, 12 Nov 2026 pm, phone proposal question 5): below sm (the max-sm: classes) and while no search
  * runs, the pill is a 48 px round gear (aria-label "Setup", its title and the red problem dot kept) that is also its own
- * drag handle. My runs (its summary) and a running search (the workers) keep the pill at every width.
+ * drag handle. My Runs (its summary) and a running search (the workers) keep the pill at every width.
  */
 const round = computed(() => !props.summary && !searching.value);
 
@@ -290,12 +290,12 @@ function endDrag(): void {
  *  press that doesn't is a tap, which opens Setup (onGearClick). The click a drag ends with is swallowed. */
 let gearFrom: { px: number; py: number; x: number; y: number; id: number } | null = null;
 let dragged = false;
-/** Where the round gear gives way to the full pill: 1280 px, and on My runs 1584 (the 1152 px column plus a margin that holds the pill). */
+/** Where the round gear gives way to the full pill: 1280 px, and on My Runs 1584 (the 1152 px column plus a margin that holds the pill). */
 const ROUND_UNDER = 1280;
 const ROUND_UNDER_MY_RUNS = 1584;
 function roundNow(): boolean {
   // Phones (the old round gear) and, from 17 Nov 2026, any width below 1280 where the pill is the round gear (not while a search runs);
-  // on My runs (the summary) from sm to 1583 px: its full pill covers the egg cards until the 1152 px column leaves it a margin.
+  // on My Runs (the summary) from sm to 1583 px: its full pill covers the egg cards until the 1152 px column leaves it a margin.
   return (round.value && viewport.value.w < 640) || (!searching.value && (props.summary ? viewport.value.w >= 640 && viewport.value.w < ROUND_UNDER_MY_RUNS : viewport.value.w < ROUND_UNDER));
 }
 function onGearDown(e: PointerEvent): void {

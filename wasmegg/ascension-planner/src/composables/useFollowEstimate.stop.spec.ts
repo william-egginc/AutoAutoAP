@@ -1,5 +1,5 @@
 /**
- * STOPPED → NEVER STUCK ON WORKING, the followed route's estimate (spec-buildstop, 30 Oct 2026: My runs said "pricing
+ * STOPPED → NEVER STUCK ON WORKING, the followed route's estimate (spec-buildstop, 30 Oct 2026: My Runs said "pricing
  * the followed route 218 247 285 313 failed: stopped" and the page stayed on "working it out…").
  *
  * A stand-in route worker that behaves as search/routePool.ts does: `terminate` rejects every request in flight with
@@ -175,7 +175,7 @@ describe('useFollowEstimate: a stopped request', () => {
     m.scope.stop();
   });
 
-  it('leaving My runs stops the request but asks nothing again', async () => {
+  it('leaving My Runs stops the request but asks nothing again', async () => {
     const m = mount(reqOf('K1'));
     await settle();
     m.scope.stop();

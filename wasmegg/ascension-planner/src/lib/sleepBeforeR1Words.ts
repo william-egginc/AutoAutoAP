@@ -24,7 +24,7 @@ function clause(d: SleepBeforeR1, fmt: Fmt): string {
 export const sleepBeforeR1Card = (d: SleepBeforeR1, fmt: Fmt): string =>
   `Your silo buys (R1) ${clause(d, fmt)}.${d.held ? '' : ' Prestige in the morning, or re-plan.'}`;
 
-/** My runs, Next step or Follow, before the next prestige. */
+/** My Runs, Next step or Follow, before the next prestige. */
 export const sleepBeforeR1NextStep = (d: SleepBeforeR1, fmt: Fmt): string =>
   `If you prestige now, your silo buys (R1) ${clause(d, fmt)}.`;
 

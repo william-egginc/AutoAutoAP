@@ -6,7 +6,7 @@
  * A *Words.ts file: wording only, never part of the result code hash.
  */
 
-/** The top tab, between Auto Planner and My runs. */
+/** The top tab, between Auto Planner and My Runs. */
 export const CHAIN_FINDER_TAB = 'Chain Finder';
 
 /** The goal switch's two sides, left to right (Target TE = Fastest to N TE, By a date = Highest TE by a date), and its name for a screen reader. */

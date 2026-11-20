@@ -11,8 +11,8 @@ import { FIRST_TOUR_ALT } from './firstTourWords';
 
 
 describe('tour slides', () => {
-  it('eight slides in the quick tour (Jordan, 18 Nov 2026: cut to about 8, ending with More in the Full tour); every step keeps its own picture pair, for the full tour', () => {
-    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
+  it('seven slides in the quick tour (Jordan, 18 Nov 2026: cut to about 8, ending with More in the Full tour; 19 Nov: the load slide dropped); every step keeps its own picture pair, for the full tour', () => {
+    expect(TOUR_SLIDES.map(s => s.id)).toEqual(['tabAuto', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing']);
     const files: Record<string, string> = {
       tabManual: '1-tab-manual',
       tabAuto: '2-tab-auto',
@@ -59,7 +59,7 @@ describe('tour slides', () => {
   });
 
   it('slides that share a page picture are neighbours the dialog slides between (sharesPicture); a slide with its own picture fades', () => {
-    // The quick tour is eight slides now; the pictures of the others are still the full tour's.
+    // The quick tour is seven slides now; the pictures of the others are still the full tour's.
     const by = (id: keyof typeof TOUR_FILES) => buildSlide(id, TOUR_FILES[id]);
     // Each tab slide is its own page now (17 Nov 2026), so Manual and Auto Planner fade; Chain Finder's page is Target TE's.
     expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(false);
@@ -75,10 +75,10 @@ describe('tour slides', () => {
     expect(new Set((Object.keys(TOUR_FILES) as (keyof typeof TOUR_FILES)[]).map(id => by(id).desk.src)).size).toBeLessThan(Object.keys(TOUR_FILES).length - 5);
   });
 
-  it('a save file with no player ID: seven slides (no My runs slide), ending at the closing card', () => {
-    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabAuto', 'load', 'goalTarget', 'result', 'follow', 'setupWhere', 'closing']);
-    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(8);
-    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(8);
+  it('a save file with no player ID: six slides (no My Runs slide), ending at the closing card', () => {
+    expect(slidesFor({ hasAccount: false, hasSaveFile: true }).map(s => s.id)).toEqual(['tabAuto', 'goalTarget', 'result', 'follow', 'setupWhere', 'closing']);
+    expect(slidesFor({ hasAccount: true, hasSaveFile: false })).toHaveLength(7);
+    expect(slidesFor({ hasAccount: false, hasSaveFile: false })).toHaveLength(7);
   });
 
   it('imported, so vite hashes them (not public/): the module globs src/assets/tour/ and resolves each picture to a URL', () => {

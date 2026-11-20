@@ -26,7 +26,7 @@ describe('virtue eggs by number', () => {
   });
 });
 
-describe('virtue egg pictures (fix 20: one helper for every egg picture on My runs)', () => {
+describe('virtue egg pictures (fix 20: one helper for every egg picture on My Runs)', () => {
   const FIVE = {
     50: ['curiosity', 'egginc/egg_curiosity.png'],
     51: ['integrity', 'egginc/egg_integrity.png'],
@@ -54,7 +54,7 @@ describe('virtue egg pictures (fix 20: one helper for every egg picture on My ru
     expect(src).toContain('iconURL(`egginc/egg_${currentEgg}.png`, 64)');
   });
 
-  it('every egg picture on My runs goes through eggIconPath', () => {
+  it('every egg picture on My Runs goes through eggIconPath', () => {
     for (const f of ['RightNowCard.vue', 'YourEggs.vue', 'SavedTile.vue', 'EventsTable.vue', 'TryNext.vue', 'GearBlock.vue']) {
       const src = readFileSync(new URL(`../components/myruns/${f}`, import.meta.url), 'utf8');
       expect(src, f).not.toMatch(/egginc\/egg_/);

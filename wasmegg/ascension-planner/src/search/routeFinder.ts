@@ -254,7 +254,7 @@ export interface RouteLeg {
   shifts?: { at: number; egg: string }[];
   /** With `PolishOptions.shifts` (priceChain): the rate the build produces at once its build-up is done, eggs per
    *  second (the table cell's `BuildParams.peakELR`, the rate every wait of the leg is priced at; for a fresh first
-   *  ascension from `firstLegs`, its `rate`). For My runs' Full timeline "then start producing at" (lib/buildUpLine.ts).
+   *  ascension from `firstLegs`, its `rate`). For My Runs' Full timeline "then start producing at" (lib/buildUpLine.ts).
    *  Absent on continue / build-up first legs and on routes priced without asking. */
   peakELR?: number;
 }
@@ -1211,7 +1211,7 @@ export interface PolishOptions extends TailOptions {
   wideAll?: boolean;
   /** Polish this many of the finder's kept routes for each count, not only its best (default 1). */
   candidates?: number;
-  /** `priceChain`: each table leg also carries its shifts (RouteLeg.shifts, search/legShifts.ts). My runs' estimate
+  /** `priceChain`: each table leg also carries its shifts (RouteLeg.shifts, search/legShifts.ts). My Runs' estimate
    *  of a followed route asks; the finder and the polish do not (default off). */
   shifts?: boolean;
 }

@@ -332,7 +332,7 @@ export interface BoxRouteLike {
 }
 
 /**
- * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My runs' Right now and the
+ * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My Runs' Right now and the
  * instant baseline follow the box, not the best): `best` (Fastest `result.best`, By a date `result.byDate`) and the
  * rows per count (`byAscensions` / `byDateByAscensions`), chosen with `margin` as InstantRoute's box does (By a date
  * the spare is to `deadline`). The best with the margin Off, when nothing fits, or without a best.

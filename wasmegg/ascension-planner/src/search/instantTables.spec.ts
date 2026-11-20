@@ -133,7 +133,7 @@ describe('InstantRoute wiring', () => {
     expect(fn).toContain('names.push(...(await gearTableFiles(stamp)))');
     // The same lists the run probes.
     expect(script).toContain('ownName = { id, names: ownTableNames(id) }');
-    // (The run's table choice is search/instantCompute.ts `chooseInstantTable`, shared with My runs.)
+    // (The run's table choice is search/instantCompute.ts `chooseInstantTable`, shared with My Runs.)
     expect(script).toContain('const choice = await chooseInstantTable({');
     expect(fs.readFileSync(path.resolve(__dirname, './instantCompute.ts'), 'utf8')).toContain('for (const gearName of await gearTableFiles(stamp))');
     expect(fn).toContain('names.push(MAXED_TABLE_FILE)');

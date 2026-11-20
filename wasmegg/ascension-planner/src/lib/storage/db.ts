@@ -30,7 +30,7 @@ export async function hashID(id: string): Promise<string> {
 /**
  * How long an open may take before the caller is told there is no database (red team 6 Nov 2026, R1).
  * WebKit can leave `indexedDB.open` unanswered for good (blocked storage, its known hang), and the page's
- * startup awaited it, so My runs and the Auto Planner setup never came. Nothing is deleted or written on a
+ * startup awaited it, so My Runs and the Auto Planner setup never came. Nothing is deleted or written on a
  * timeout: the open keeps going, and if it answers late the database is used again from the next call.
  */
 export const OPEN_TIMEOUT_MS = 5000;

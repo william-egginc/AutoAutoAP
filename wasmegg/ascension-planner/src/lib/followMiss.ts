@@ -1,5 +1,5 @@
 /**
- * THE FOLLOWED ROUTE THAT NOW MISSES ITS DATE (Jordan, 16 Nov 2026; his exception to the 13 Nov rule that My runs gives
+ * THE FOLLOWED ROUTE THAT NOW MISSES ITS DATE (Jordan, 16 Nov 2026; his exception to the 13 Nov rule that My Runs gives
  * no better-route offer). A By a date goal is followed, and the finish Right now has for it (the one Next step and Next
  * shifts already work out from the newest save: the card's plan, or the finish of a priced history check) is later than
  * the goal's date. Pure: no engine, no new simulation. The card shows the line and a button (RightNowCard.vue,
@@ -125,7 +125,7 @@ export function followBelowOf(o: {
 /**
  * (spec-myruns-nobetter, Jordan, 16 Nov 2026) The button opens the goal's screen on Fast; the player runs it there and
  * comes back. When a search for that goal finished AFTER the press and is no faster than the followed route (a minute's
- * slack: the same route comes out to the second), My runs says so instead of leaving the question open. Pure.
+ * slack: the same route comes out to the second), My Runs says so instead of leaving the question open. Pure.
  */
 const SAME_ROUTE_SLACK_S = 60;
 
@@ -142,7 +142,7 @@ export function followLookNothingBetter(o: {
 }
 
 /** Which goals the button was pressed for, and when (ms), for this visit: module state, like the goal picked
- *  (composables/useNowPage.ts), because the press leaves My runs for the goal's screen. Keyed by lib/recalc.ts `askGoal`. */
+ *  (composables/useNowPage.ts), because the press leaves My Runs for the goal's screen. Keyed by lib/recalc.ts `askGoal`. */
 const asked = reactive<Record<string, number>>({});
 export const followLook = {
   ask(goal: string, at: number): void {

@@ -1,7 +1,7 @@
 /**
  * spec-buildup-stuck (6 Nov 2026): Safari's Build-up tracker said "working it out" from 10:05 am to 12:39 pm on a save
  * (198 TE, Custom route 221 246 280 312) that a headless run plans in about 2 s. The tracker and useCurrentSim wired as
- * My runs wires them (useNowPage `buildUpPlan` / `buildUpSim`), with a chain worker that never answers (died or never
+ * My Runs wires them (useNowPage `buildUpPlan` / `buildUpSim`), with a chain worker that never answers (died or never
  * loaded in a hidden tab), and with no simulation asked at all: either way the tracker must reach the failed state with
  * Try again within its bounds, and Try again must ask again.
  */

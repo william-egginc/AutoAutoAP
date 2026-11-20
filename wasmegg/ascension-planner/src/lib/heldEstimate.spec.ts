@@ -1,6 +1,6 @@
 /**
  * The followed route's estimate shown last, kept in this browser (cached answers first, then recheck: Jordan, 27 Oct
- * 2026): a reload of My runs shows it at once, marked, while it is priced again. Per account hash, goal and route;
+ * 2026): a reload of My Runs shows it at once, marked, while it is priced again. Per account hash, goal and route;
  * the newest HELD_MAX; never the player ID.
  */
 import { describe, expect, it } from 'vitest';

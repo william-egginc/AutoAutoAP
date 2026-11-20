@@ -1,5 +1,5 @@
 <!--
-  One of My runs' two saved-answer tiles (spec myruns-now v3, section 4; lib/savedTiles.ts): the best answer
+  One of My Runs' two saved-answer tiles (spec myruns-now v3, section 4; lib/savedTiles.ts): the best answer
   already worked out for the loaded save, when it was calculated and from which save, How sure (lib/howSure.ts)
   and where it stands on the board. Nothing is worked out here: the buttons open the screen that does.
 -->
@@ -95,7 +95,7 @@ const props = defineProps<{
   /** Another date than Egg Day (the goal picked on Right now, 24 Oct 2026): its screen. Absent: Egg Day's. */
   open?: MyRunsOpen | null;
   /** Right now's Run Fast button is on the page for this same goal: How sure gives no second one (ux review
-   *  26 Oct, row 15: one Run Fast on My runs). */
+   *  26 Oct, row 15: one Run Fast on My Runs). */
   runFastAbove?: boolean;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`), amber
    *  under a quarter left; given only when the answer is the route Right now follows. Null or absent: none. */

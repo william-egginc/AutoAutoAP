@@ -1,5 +1,5 @@
 /**
- * 17 Nov 2026 (QA's real-account pass, via the orchestrator): My runs' player line showed no save age for a 7 h 34 m old save
+ * 17 Nov 2026 (QA's real-account pass, via the orchestrator): My Runs' player line showed no save age for a 7 h 34 m old save
  * whose silos were NOT low. Jordan's rule: state the save age unless the save is fresh AND its silos are low. `saveAgeOnlyLine`
  * is that age line for any save over an hour old (clock not behind), whatever the silos; MyRunsView passes it to PlayerLine,
  * which shows it beside the plain "Silos run out about …" line.
@@ -34,7 +34,7 @@ describe('saveAgeOnlyLine', () => {
   });
 });
 
-describe('My runs wires it', () => {
+describe('My Runs wires it', () => {
   it('MyRunsView passes it, PlayerLine shows it as a line of its own', () => {
     const v = read('components/MyRunsView.vue');
     expect(v).toContain('saveAgeOnlyLine(saveStrip.state.value');

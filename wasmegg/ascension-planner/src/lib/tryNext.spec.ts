@@ -87,7 +87,7 @@ describe('try next', () => {
   });
 });
 
-describe('My runs hands Try next the followed route\'s goal', () => {
+describe('My Runs hands Try next the followed route\'s goal', () => {
   it('MyRunsView passes cardPlan.goal when the card is followed', () => {
     const src = readFileSync(new URL('../components/MyRunsView.vue', import.meta.url), 'utf8');
     expect(src).toContain('c?.followed ? { goal: c.goal.goal, target: c.goal.target } : null');

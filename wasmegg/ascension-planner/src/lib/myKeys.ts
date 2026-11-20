@@ -1,6 +1,6 @@
 /**
  * The account keys (lib/leaderboardRank.ts `accountKeyOf`: timezone + best artifact per family) this
- * browser has seen for an account, so My runs' "maybe you" (lib/myRuns.ts `isMyRun`) still finds a run
+ * browser has seen for an account, so My Runs' "maybe you" (lib/myRuns.ts `isMyRun`) still finds a run
  * sent before the gear or the timezone changed (16 Oct 2026: a tester's runs from an earlier save went
  * missing once the save moved on).
  *

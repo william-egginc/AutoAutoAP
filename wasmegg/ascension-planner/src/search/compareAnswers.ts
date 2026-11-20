@@ -24,7 +24,7 @@ export interface CompareRow {
 }
 
 export const COMPARE_LABELS: Record<CompareRow['id'], string> = {
-  instant: 'Instant answer',
+  instant: 'Instant Answer',
   stronger: 'Search',
   exhaustive: 'Custom',
 };

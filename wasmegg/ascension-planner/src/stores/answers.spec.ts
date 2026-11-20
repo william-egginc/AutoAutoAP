@@ -1,6 +1,6 @@
 /**
  * stores/answers.ts: the client gets the account's follow key and the collector beside /follow, and does nothing without
- * them. My runs prices a followed route meanwhile with a pricing record read back from online when this browser keeps
+ * them. My Runs prices a followed route meanwhile with a pricing record read back from online when this browser keeps
  * none of the account's (composables/useNowPage.ts `staleSources`). Placeholder IDs only.
  */
 import fs from 'node:fs';
@@ -58,7 +58,7 @@ describe('the answers store', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('My runs reads the records read back as stale pricing only when the account has none here', () => {
+  it('My Runs reads the records read back as stale pricing only when the account has none here', () => {
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
     const stale = page.slice(page.indexOf('function staleSources('), page.indexOf('\n  }\n', page.indexOf('function staleSources(')));
     expect(stale).toContain('cloudPricingRecords(answers.read())');

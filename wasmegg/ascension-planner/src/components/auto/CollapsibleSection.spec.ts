@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('CollapsibleSection', () => {
   it('open by default: the content and a Hide button', async () => {
-    const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer', summary: 'x' }, { default: () => h('p', 'BODY') });
+    const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant Answer', summary: 'x' }, { default: () => h('p', 'BODY') });
     expect(html).toContain('data-testid="hide-instant"');
     expect(textOf(html)).toContain('BODY');
   });
@@ -36,16 +36,16 @@ describe('Hide in the heading row (spec-uxpass items 8 and 13, 8 Nov 2026: a lon
     const Card = defineComponent({
       setup() {
         const hide = inject(SECTION_HIDE, null);
-        return () => h('div', [h('h3', ['Instant answer', hide ? h('button', { 'data-testid': 'card-hide', onClick: hide }, 'Hide') : null])]);
+        return () => h('div', [h('h3', ['Instant Answer', hide ? h('button', { 'data-testid': 'card-hide', onClick: hide }, 'Hide') : null])]);
       },
     });
-    const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer', hideInHeading: true }, { default: () => h(Card) });
+    const html = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant Answer', hideInHeading: true }, { default: () => h(Card) });
     expect(html).not.toContain('data-testid="hide-instant"');
     expect(html).toContain('data-testid="card-hide"');
     // Open: never the hidden section's Show bar as well.
     expect(html).not.toContain('data-testid="show-instant"');
     // Without it, as before: the pill, and nothing handed down.
-    const plain = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant answer' }, { default: () => h(Card) });
+    const plain = await renderHtml(CollapsibleSection, { id: 'instant', title: 'Instant Answer' }, { default: () => h(Card) });
     expect(plain).toContain('data-testid="hide-instant"');
     expect(plain).not.toContain('data-testid="card-hide"');
   });

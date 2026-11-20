@@ -4,7 +4,7 @@
  * width, a real button with a name, aria-expanded and aria-haspopup="dialog". It opens the floating Setup
  * (auto/SetupDock.vue's panel, ui.setupOpen). Where (Jordan, 13 Nov 2026, on egg-beta c19f76795, made precise the same
  * day): right ABOVE the instant answer card, on By a date below the date picker and its "N days from the route’s start"
- * line, on Fastest in the same spot; not inside the card, not after the Auto Planner tabs, not beside My runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
+ * line, on Fastest in the same spot; not inside the card, not after the Auto Planner tabs, not beside My Runs' title. Only where SetupDock is mounted (a player ID). The word is in lib/layoutWords.ts.
  * Side (Jordan, 12 Nov 2026 pm: centred or on the left, not right-aligned): LEFT at every width (the floating Setup
  * pill, fixed bottom-right, sat over a right-aligned button at 390 px).
  */
@@ -72,7 +72,7 @@ describe('where it sits', () => {
     expect(f).toBeLessThan(t.indexOf('data-testid="section-instant"'));
     expect(t.slice(t.lastIndexOf('<div', f), f)).toContain('<div class="flex justify-start">');
   });
-  it('not in the card, not beside the Auto Planner tabs, not beside My runs\' title (one place per screen)', () => {
+  it('not in the card, not beside the Auto Planner tabs, not beside My Runs\' title (one place per screen)', () => {
     expect(tplOf(read('components/auto/InstantRoute.vue'))).not.toContain('<FiltersButton');
     const app = read('App.vue');
     const tpl = app.slice(0, app.indexOf('<script setup')).replace(/<!--[\s\S]*?-->/g, '');

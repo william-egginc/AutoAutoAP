@@ -1,5 +1,5 @@
 /**
- * My runs (#/myruns, MyRunsList.vue): which of the viewer's own board runs to show, and in what order.
+ * My Runs (#/myruns, MyRunsList.vue): which of the viewer's own board runs to show, and in what order.
  *
  * The tab replaced Compare's My plans (15 Oct 2026), which listed only the runs to one target TE: a
  * tester who sent an Egg Day answer found nothing there. So everything shows by default, every kind
@@ -164,7 +164,7 @@ function some(items: readonly string[], n = 4): string {
 }
 
 /**
- * My runs' "A run of yours isn't here?" (MyRunsMissing.vue): in plain words, why the run with this id
+ * My Runs' "A run of yours isn't here?" (MyRunsMissing.vue): in plain words, why the run with this id
  * is or isn't listed. `row` null: no public row has that id. `saveKey` is the loaded save's own key
  * (null without a save), `hasCode` whether this site in this browser holds a code for the account.
  */
@@ -235,7 +235,7 @@ export function rowsById(rows: readonly BoardRow[], typed: string): BoardRow[] {
 
 /**
  * How many runs the viewer has on the board: one per result, a result sent more than once counted once
- * (`foldCopies`, as the list shows them). My runs' header, its list and "Showing n of m" all count this.
+ * (`foldCopies`, as the list shows them). My Runs' header, its list and "Showing n of m" all count this.
  */
 export function myRunsCount(rows: readonly BoardRow[]): number {
   return foldCopies(rows).length;

@@ -1,8 +1,8 @@
 /**
  * Jordan, 14 Nov 2026: "the 'fastest to 490' should be replaced with the tab, so the tabs are now the headers and then the
- * subheaders are the subheaders." On a screen named by its tab (Chain Finder: Fastest and By a date, My runs, Manual
+ * subheaders are the subheaders." On a screen named by its tab (Chain Finder: Fastest and By a date, My Runs, Manual
  * Planner, Single run) the big page title goes: the tab is the heading. Each screen keeps an h1 for screen readers
- * (visually hidden, the same words); the intro lines stay. And My runs hides the Build-up tracker row while the farm
+ * (visually hidden, the same words); the intro lines stay. And My Runs hides the Build-up tracker row while the farm
  * is Producing (nothing to buy until the next prestige).
  */
 import fs from 'node:fs';
@@ -37,7 +37,7 @@ describe('the tab is the heading: the screen\'s h1 is visually hidden', () => {
   });
 });
 
-describe('My runs: no tracker row while Producing', () => {
+describe('My Runs: no tracker row while Producing', () => {
   const view = tplOf(read('components/MyRunsView.vue'));
   const at = view.indexOf('<BuildUpTracker');
   const tag = view.slice(view.lastIndexOf('<', at - 1) === at ? at : at, view.indexOf('>', at));

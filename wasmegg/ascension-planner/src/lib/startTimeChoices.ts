@@ -22,7 +22,7 @@ export function startTimeChoices(o: {
     if (chain.length && !out.some(c => c.key === key)) out.push({ key, label, chain: [...chain] });
   };
   o.instant.forEach((c, i) =>
-    add(c, `${i === 0 ? "Instant answer's best" : 'Instant answer'}: ${c.join(' ')} (${plural(c.length)})`)
+    add(c, `${i === 0 ? "Instant Answer's best" : 'Instant Answer'}: ${c.join(' ')} (${plural(c.length)})`)
   );
   if (o.search?.length) add(o.search, `Your search's best: ${o.search.join(' ')}`);
   if (o.requested?.length) add(o.requested, `This route: ${o.requested.join(' ')}`);

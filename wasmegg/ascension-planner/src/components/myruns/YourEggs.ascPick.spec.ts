@@ -101,7 +101,7 @@ describe('the picker', () => {
 });
 
 describe('wiring', () => {
-  it('My runs hands the card the per-ascension lines from the page', () => {
+  it('My Runs hands the card the per-ascension lines from the page', () => {
     const view = read('components/MyRunsView.vue');
     expect(view).toContain(':asc-total="page.ascTotal.value"');
     expect(view).toContain(':goal-times-by-asc="page.goalTimesByAsc.value"');

@@ -9,7 +9,7 @@
  * Real simulations of synthetic saves (src/test/syntheticSave.ts; no player data, fixed clock):
  * - the alt's shape (`nothingToBuyBackup`): on Kindness wearing its production set (checked worn, as
  *   leg.continueSet.spec.ts `wornAs` does), nothing left to buy, Kindness 1.5 days from its next TE and the others a
- *   little further. Before the fix: a 6-shift build-up was offered, and My runs' unfinished build (continue left out)
+ *   little further. Before the fix: a 6-shift build-up was offered, and My Runs' unfinished build (continue left out)
  *   took it. Now: no build-up at all, and A1 is continue with 3 shifts under every setting that builds up;
  * - the synthetic save as it is (a half-built Curiosity farm): its build-up buys and is far sooner than continue, so
  *   it is still taken.
@@ -54,8 +54,8 @@ const under = (base: SearchInputs, extra: Partial<SearchInputs>) => ({ ...base, 
 const SETTINGS = {
   Fastest: { firstAscension: 'auto' },
   'Continue my build-up': { firstAscension: 'buildup' },
-  // My runs' unfinished build (composables/useNowPage.ts `carryOn`): the build carried on, continue left out.
-  "My runs' unfinished build": { firstAscension: 'buildup', continueMaxSeconds: 0 },
+  // My Runs' unfinished build (composables/useNowPage.ts `carryOn`): the build carried on, continue left out.
+  "My Runs' unfinished build": { firstAscension: 'buildup', continueMaxSeconds: 0 },
 } as const;
 
 describe("the alt's shape: on Kindness, nothing left to buy", () => {
@@ -92,8 +92,8 @@ describe("the alt's shape: on Kindness, nothing left to buy", () => {
       expect(r.rival?.key).not.toBe('buildup');
     }, 600_000);
 
-  it("My runs' Build-up tracker list for it buys nothing (lib/buildUpTracker.ts reads that as no build-up)", () => {
-    const r = runLeg(under(inputs, SETTINGS["My runs' unfinished build"]), state(inputs), inputs.planStart, GOAL, true, inputs.currentTE, 0, undefined, {
+  it("My Runs' Build-up tracker list for it buys nothing (lib/buildUpTracker.ts reads that as no build-up)", () => {
+    const r = runLeg(under(inputs, SETTINGS["My Runs' unfinished build"]), state(inputs), inputs.planStart, GOAL, true, inputs.currentTE, 0, undefined, {
       keepPurchases: true,
     })!;
     expect(r.key).toBe('continue');
@@ -112,7 +112,7 @@ describe('a build-up that buys and is sooner than continue is still taken (the s
     const b = buildUpVariantForCheck(inputs, state(inputs), inputs.planStart, 192, 0, inputs.currentTE)!;
     expect(b).not.toBeNull();
     expect(b.actions.some(isPurchase)).toBe(true);
-    for (const extra of [SETTINGS['Continue my build-up'], SETTINGS["My runs' unfinished build"]]) {
+    for (const extra of [SETTINGS['Continue my build-up'], SETTINGS["My Runs' unfinished build"]]) {
       const r = runLeg(under(inputs, extra), state(inputs), inputs.planStart, 192, true, inputs.currentTE, 0)!;
       expect(r.key).toBe('buildup');
       expect(r.summary.endTime).toBeLessThan(r.firstLegEnds!.continue!);

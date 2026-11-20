@@ -1,5 +1,5 @@
 /**
- * "Add to calendar" on My runs' events (Jordan, 17 Oct 2026): a shift or a prestige from the saved plan as a
+ * "Add to calendar" on My Runs' events (Jordan, 17 Oct 2026): a shift or a prestige from the saved plan as a
  * calendar event, built in this browser and handed to the player, nothing sent anywhere. Two ways: an .ics file
  * (Apple Calendar, Outlook, and Google Calendar's import), with a 10-minute alert, and a Google Calendar link that
  * opens its "new event" page filled in.
@@ -79,7 +79,7 @@ export function eventUid(e: Pick<CalEvent, 'at' | 'title'>): string {
 
 /** The whole .ics for `events`. `stampMs`: when it was made (DTSTAMP). */
 export function icsText(events: readonly CalEvent[], stampMs: number): string {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//My runs//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//My Runs//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   for (const e of events) {
     lines.push(
       'BEGIN:VEVENT',

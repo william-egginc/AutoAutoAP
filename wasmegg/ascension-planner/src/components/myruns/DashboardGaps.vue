@@ -1,5 +1,5 @@
 <!--
-  My runs' Next steps (lib/myRunsDashboard.ts `buildSteps`, reworked 24 Oct 2026): only what changes what to do, each
+  My Runs' Next steps (lib/myRunsDashboard.ts `buildSteps`, reworked 24 Oct 2026): only what changes what to do, each
   item with a one-line reason and one button. The first few show; the rest fold under "n more". Nothing to do: one
   calm line.
 -->

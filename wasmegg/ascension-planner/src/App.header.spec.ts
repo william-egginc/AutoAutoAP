@@ -1,6 +1,6 @@
 /**
  * The page header in App.vue (UX review 26 Oct 2026): the title (the name line under it cut, fluff review 2 H3), the nav
- * bar's 44 px tap areas on phones (#12) and the active My runs tab's colour (#15).
+ * bar's 44 px tap areas on phones (#12) and the active My Runs tab's colour (#15).
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -35,7 +35,7 @@ describe('the nav bar icons (#12)', () => {
 });
 
 describe('the top tabs (#15)', () => {
-  it('My runs, when on, is indigo like the Auto Planner (it was sky blue)', () => {
+  it('My Runs, when on, is indigo like the Auto Planner (it was sky blue)', () => {
     const tab = (id: string) => {
       const at = app.indexOf(`id: '${id}' as const`);
       return app.slice(at, app.indexOf('}', at));

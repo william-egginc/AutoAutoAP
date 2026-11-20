@@ -1,11 +1,11 @@
 /**
  * STARTING FRESH WOULD BE SOONER (spec-r7verify, 1 Nov 2026; Release 7 verify item 3). "Continue my build-up" (Your
- * setup's First ascension, or My runs' unfinished build: the build-up side of the A1 choice) never compares the
+ * setup's First ascension, or My Runs' unfinished build: the build-up side of the A1 choice) never compares the
  * ascension you are in with a fresh start: search/leg.ts runLeg takes the build-up and stops. On a mid-build save that
  * waits for the next research sale, prestiging now ended the ascension 6.5 to 29 days sooner (the verify's synthetic
  * mid-build saves), while Fastest already picks the fresh start. So:
  *
- *   - THE FRESH END: once the forced build-up's simulation is on Right now, My runs prices a fresh start in a second
+ *   - THE FRESH END: once the forced build-up's simulation is on Right now, My Runs prices a fresh start in a second
  *     simulation of its own (composables/useNowPage.ts `freshSim`, setup `FRESH_PRICE_SETUP`): lazily, so Right now's
  *     first answer never waits for it. The ascension followed is unchanged.
  *   - THE LINE shows only when the simulation followed is the forced build-up (or the "just laying" it falls back to)

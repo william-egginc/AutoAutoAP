@@ -2,9 +2,9 @@
  * The starting-TE override banner (components/auto/TeOverrideBanner.vue; spec-overridebanner, 7 Nov 2026): whether
  * this account's override is on, its TE and the save's, and Remove.
  *
- * WHY. Jordan's override (197, claimed TE only) made every Auto Planner screen and My runs plan from 197 while his save
+ * WHY. Jordan's override (197, claimed TE only) made every Auto Planner screen and My Runs plan from 197 while his save
  * said 198, and only Single run's Virtue Progress card said so. The banner sits at the top of Fastest, By a date,
- * Single run and My runs.
+ * Single run and My Runs.
  *
  * "On" is lib/teOverrideAccount.ts `plannerStartTEOf`'s own test (an override, a loaded account, the override set up
  * for that account), which decides the TE every screen is set up from (App `storesSetUpFromSave`, useNowPage

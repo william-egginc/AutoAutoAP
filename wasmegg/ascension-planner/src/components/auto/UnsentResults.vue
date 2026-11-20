@@ -168,7 +168,7 @@ import ConsentBox from './ConsentBox.vue';
 import SharingSummary from '../SharingSummary.vue';
 
 const props = defineProps<{
-  /** This screen's kind; every kind when left out (My runs' "Not sent yet"). */
+  /** This screen's kind; every kind when left out (My Runs' "Not sent yet"). */
   kind?: PendingKind;
   playerId: string;
   /** The screen's own "Credit me as" box, to start each name from; else the account's name. */

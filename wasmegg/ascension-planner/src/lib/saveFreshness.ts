@@ -1,6 +1,6 @@
 /**
  * The one save-age banner (spec-saveage, 29 Oct 2026; components/myruns/SaveAgeStrip.vue): how old the loaded save
- * is and how much of the virtue farm's silo time is used, in one tone, on every surface (My runs, the Auto Planner
+ * is and how much of the virtue farm's silo time is used, in one tone, on every surface (My Runs, the Auto Planner
  * screens, Setup). Before, two banners said it two ways: a strip on the save's age (6 h amber, 24 h red) and a red
  * line on the farm's last step against the route start ("Your save is 40h old, longer than your silos hold").
  *
@@ -20,7 +20,7 @@ import { ageAgo, ageWords, siloSeconds as siloSecondsFor } from './saveAge';
 import { countTEThresholdsPassed } from './truthEggs';
 
 /**
- * My runs' "load a fresh save first" line (lib/recalc.ts `needsFreshSave`): 6 h. Was also the old strip's amber
+ * My Runs' "load a fresh save first" line (lib/recalc.ts `needsFreshSave`): 6 h. Was also the old strip's amber
  * (Jordan, 15 Oct 2026); the banner's tones now follow the silo thresholds below, this one stays as it was.
  */
 export const SAVE_AMBER_HOURS = 6;
@@ -94,7 +94,7 @@ export interface SaveState {
   details: string[];
   /** A search's run note on red (store `runNotes`), else null. */
   runNote: string | null;
-  /** The load button's words where the screen has none of its own (My runs). */
+  /** The load button's words where the screen has none of its own (My Runs). */
   link: string;
 }
 

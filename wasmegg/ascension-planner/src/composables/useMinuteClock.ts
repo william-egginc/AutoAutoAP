@@ -1,5 +1,5 @@
 /**
- * One clock for My runs' "Right now" page: `now` (unix seconds) moves once a minute, only while the page is
+ * One clock for My Runs' "Right now" page: `now` (unix seconds) moves once a minute, only while the page is
  * visible (a hidden tab costs nothing), and catches up at once when it shows again. The useNewVersion.ts
  * pattern: one interval, stopped on `visibilitychange` to hidden and on unmount.
  */

@@ -293,7 +293,7 @@ describe('kept beyond the snapshot: Right now does not drop back to the instant 
     const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
     page.selectGoal(eggDay);
     expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
-    // My runs kept it beyond the snapshot.
+    // My Runs kept it beyond the snapshot.
     expect(readKeptSearches().map(k => k.search.at)).toEqual([found.at]);
 
     // The next day: the snapshot is gone (24 h), the kept result still drives, priced on this save.

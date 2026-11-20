@@ -1,5 +1,5 @@
 /**
- * My runs' Next steps (#/myruns; reworked 24 Oct 2026, Jordan: "plans don't change that much", the old list repeated
+ * My Runs' Next steps (#/myruns; reworked 24 Oct 2026, Jordan: "plans don't change that much", the old list repeated
  * Right now and nagged about things that don't move the answer). ONLY what changes what the player should do, each
  * with one action:
  *
@@ -15,7 +15,7 @@
  * `prestige` item), "your save moved on", "only Fast so far", hidden runs, and the six cards above the list.
  * Pure: the components only render (components/myruns/DashboardGaps.vue).
  *
- * Also here: the words and checks other My runs parts share (a board row's goal and hours, `hoursDiffer`,
+ * Also here: the words and checks other My Runs parts share (a board row's goal and hours, `hoursDiffer`,
  * `simulatorAge`) and opening a screen (`openFor`).
  */
 import { formatClock } from './clock';
@@ -316,7 +316,7 @@ export function buildSteps(i: StepsInput): DashSteps {
 
 // ------------------------------------------------------------------------- opening a screen
 
-/** What My runs asks App.vue (`openFromMyRuns`) to open: the Auto Planner screen, and for a Next step its
+/** What My Runs asks App.vue (`openFromMyRuns`) to open: the Auto Planner screen, and for a Next step its
  *  setup: the search tab, the Stronger check level, Fastest's target, By a date's deadline (lib/byDateForm.ts). */
 export interface MyRunsOpen {
   auto: AutoView;

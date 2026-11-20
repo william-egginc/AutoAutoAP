@@ -1,6 +1,6 @@
 <!--
   "Your routes at a glance" (Q9, 18 Oct 2026; a heat map since 26 Oct): the account's routes, one goal at a time,
-  from what My runs already holds (the board rows LeaderboardPanel hands up, the runs and answers saved on this
+  from what My Runs already holds (the board rows LeaderboardPanel hands up, the runs and answers saved on this
   device). Nothing is fetched or priced (lib/routeScatter.ts gathers, lib/heatBins.ts bins). No chart library.
 
   Across: ascensions, one column per count. Up: a Fastest goal's finish date, a date goal's TE, in bins, lowest

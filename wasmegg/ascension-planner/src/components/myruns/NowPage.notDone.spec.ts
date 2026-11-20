@@ -1,5 +1,5 @@
 /**
- * My runs review, 22 Oct 2026 (bug 2): the shift due just after the save showed greyed as "passed" and Next step
+ * My Runs review, 22 Oct 2026 (bug 2): the shift due just after the save showed greyed as "passed" and Next step
  * skipped it while the save was still on the egg before it, so the plan's first action never showed. Done is now the
  * save's state (lib/nowPlan.ts `planEvents`): a step whose time has passed but whose effect the save doesn't show is
  * "Not done yet: shift to Curiosity (due 8:03 PM)", and Next step leads with it. Server-rendered.

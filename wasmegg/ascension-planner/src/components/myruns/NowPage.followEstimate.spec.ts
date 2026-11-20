@@ -275,7 +275,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     }
   });
 
-  it("(d) a route whose first stop is past the instant answer's first ascensions: My runs works the instant answer out again up to it (26 Oct 2026), never sent to the pricing worker", async () => {
+  it("(d) a route whose first stop is past the instant answer's first ascensions: My Runs works the instant answer out again up to it (26 Oct 2026), never sent to the pricing worker", async () => {
     const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { final: 200 });
     expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'instant' });
     await nextTick();

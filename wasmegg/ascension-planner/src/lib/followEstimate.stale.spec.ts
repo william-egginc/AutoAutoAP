@@ -1,5 +1,5 @@
 /**
- * My runs prices a followed route with the account's newest pricing record while the one for this save and setup is
+ * My Runs prices a followed route with the account's newest pricing record while the one for this save and setup is
  * worked out (cached answers first, then recheck: Jordan, 27 Oct 2026). Only a record that starts at the save's TE
  * (the first ascensions are from it), of the same account; never the exact record (that one is not stale).
  */

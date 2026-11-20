@@ -368,7 +368,7 @@ export function noInstantHeading(tableFrom: number | null): string {
     : 'No instant answer for your TE yet.';
 }
 
-/** The Instant answer section's folded summary when it settled with none (it said "working out…"). */
+/** The Instant Answer section's folded summary when it settled with none (it said "working out…"). */
 export const NO_INSTANT_SUMMARY = 'none for your TE';
 /** The same, when its file couldn't be loaded (InstantRoute's `unloaded`; QA break-it #5). */
 export const UNLOADED_INSTANT_SUMMARY = 'couldn’t be loaded';

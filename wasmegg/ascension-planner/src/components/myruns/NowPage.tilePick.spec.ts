@@ -72,7 +72,7 @@ async function view() {
   return { html, tiles: textOf(tiles), tilesHtml: tiles };
 }
 
-describe('My runs: the saved answer follows the goal picked on Right now', () => {
+describe('My Runs: the saved answer follows the goal picked on Right now', () => {
   it('one card at a time: the pill picked, and switching the pill switches the card', async () => {
     const { page, scope } = await setup();
     const year = nextEggDayYear();

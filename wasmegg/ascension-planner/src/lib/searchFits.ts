@@ -14,7 +14,7 @@ export const DONE_BEFORE_SAVE_SECONDS = 10 * 60;
 /**
  * The result was done (`at`, ms) BEFORE the save existed, so it cannot have been priced on it, whatever else it says
  * (Jordan's screenshot, 17 Nov 2026: the old beta re-stamped a Nov 15 Custom result under the Nov 17 save, with no
- * `backupAt`, and My runs read "Calculated from your Nov 17 at 9:50 AM save at Nov 15 at 4:23 PM"). Unknown: false.
+ * `backupAt`, and My Runs read "Calculated from your Nov 17 at 9:50 AM save at Nov 15 at 4:23 PM"). Unknown: false.
  */
 export function doneBeforeSave(s: { at?: number | null } | null | undefined, saveSeconds: number | null | undefined): boolean {
   const at = s?.at;

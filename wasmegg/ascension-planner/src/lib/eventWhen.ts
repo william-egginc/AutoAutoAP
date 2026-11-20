@@ -1,5 +1,5 @@
 /**
- * An upcoming (or past) event the way a player reads it on the My runs "Right now" card (Jordan, 17 Oct):
+ * An upcoming (or past) event the way a player reads it on the My Runs "Right now" card (Jordan, 17 Oct):
  * the calendar day, the clock time and how far away it is, all at once:
  *   "today at 2:40 pm, in 1h 20m" · "tomorrow at 9:00 am, in 18h" · "Oct 20 at 4:00 pm, in 2d 4h" ·
  *   "Jul 14 at 11:25 pm, in 271d" · "today at 11:05 am, 3h ago".
@@ -92,7 +92,7 @@ export function dateAt(at: number | null | undefined, nowSeconds: number, zone: 
 
 /**
  * A calendar day with its year, month first: "Feb 10, 2027" (Jordan, 24 Oct 2026: never "10 Feb 2027"). '' when
- * unknown. My runs' By a date goal names ("By Feb 10, 2027") and finish days.
+ * unknown. My Runs' By a date goal names ("By Feb 10, 2027") and finish days.
  */
 export function dayWords(at: number | null | undefined, zone: string): string {
   if (!at || !Number.isFinite(at)) return '';
@@ -103,7 +103,7 @@ export function dayWords(at: number | null | undefined, zone: string): string {
   }
 }
 
-/** The day with its year and the 12-hour clock: "Feb 10, 2027 at 2:36 pm". '' when unknown. My runs' tooltips. */
+/** The day with its year and the 12-hour clock: "Feb 10, 2027 at 2:36 pm". '' when unknown. My Runs' tooltips. */
 export function dayClockWords(at: number | null | undefined, zone: string): string {
   if (!at || !Number.isFinite(at)) return '';
   try {

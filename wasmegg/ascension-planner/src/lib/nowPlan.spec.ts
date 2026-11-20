@@ -149,7 +149,7 @@ describe('planEvents and the table', () => {
     // A continued first ascension, or no save time: as before.
     expect(ascensionAt(p, T0 + H, T0 - 1800)).toBe(1);
     expect(ascensionAt(fresh, T0 + H)).toBe(1);
-    // My runs' ascension count passes the loaded save's time.
+    // My Runs' ascension count passes the loaded save's time.
     const src = readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
     expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value)');
   });
@@ -164,7 +164,7 @@ describe('on track', () => {
     expect(planTEAt(legs, teStart, T0 + 10 * H)).toBe(191); // Humility ends on 38: one past the stop
   });
 
-  // R6 (21 Oct 2026): onTrack is now a thin wrapper over lib/planPace.ts, shared with My runs' saved plans. Wording
+  // R6 (21 Oct 2026): onTrack is now a thin wrapper over lib/planPace.ts, shared with My Runs' saved plans. Wording
   // changed with it (Jordan's OK): "On plan" within 30 minutes is "On schedule (within an hour)", hours are whole
   // ("3 hours behind", days from 48 h), behind is negative hours, and a plan without its shift TEs or without the
   // exact legs is compared leg by leg ("rough") instead of "Can't tell". planPace.spec.ts has every case.

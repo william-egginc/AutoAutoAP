@@ -1,7 +1,7 @@
 /**
  * MOVING DOTS ON EVERY "STILL WORKING" LABEL (spec-dots, Jordan 1 Nov 2026: "Can we have all the parts that are
  * searching have a simple '...' repeating (like the searching...) so that the user knows that something is going on
- * and it's not frozen"; his shot: My runs, "Build-up tracker  working it out..." with still dots).
+ * and it's not frozen"; his shot: My Runs, "Build-up tracker  working it out..." with still dots).
  *
  * A label shown while something runs has its words typed and its dots drawn by components/auto/AnimatedDots.vue (CSS
  * only, aria-hidden, still with reduced motion), as FindBar's "Searching" has since 12 Oct. A string from a module that
@@ -295,12 +295,12 @@ describe('the labels, drawn', () => {
     const was = (globalThis as { localStorage?: unknown }).localStorage;
     (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => '1', setItem: () => {} };
     try {
-      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'working out', summaryBusy: true });
+      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant Answer', summary: 'working out', summaryBusy: true });
       expect(html).toContain('data-testid="show-dots-spec"');
-      expect(textOf(html)).toBe('Instant answer working out... Show');
+      expect(textOf(html)).toBe('Instant Answer working out... Show');
       expect(html).toContain(DOTS);
       expect(html).not.toContain('…');
-      const done = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'Reaches 490 on Nov 4 · 5 ascensions' });
+      const done = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant Answer', summary: 'Reaches 490 on Nov 4 · 5 ascensions' });
       expect(done).not.toContain('animated-dots');
     } finally {
       (globalThis as { localStorage?: unknown }).localStorage = was;

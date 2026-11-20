@@ -1,5 +1,5 @@
 /**
- * By a date's deadline, kept for the page load in lib/byDateForm.ts, and My runs' preset for it ("Find my
+ * By a date's deadline, kept for the page load in lib/byDateForm.ts, and My Runs' preset for it ("Find my
  * Egg Day answer"): applied when the screen mounts (after its async load), once, never over a run, never
  * over a date the player picks afterwards, and dropped when stale.
  */

@@ -27,11 +27,11 @@
   <!-- On a phone the green box is the card (Jordan, 12 Nov 2026 pm; phone proposal item a): the outer card's border,
        background and padding from sm up only, so the box's text gets 42 px more width at 390. -->
   <section v-if="!noTable" class="sm:rounded-2xl sm:border border-emerald-200 sm:bg-white sm:p-4 space-y-3">
-    <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
+    <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant Answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h3 class="text-title font-bold text-slate-900">
-        Instant answer
+        Instant Answer
         <span
           v-if="own"
           class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 label"
@@ -907,7 +907,7 @@
        instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile; a file newer
        than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
-    <h3 class="text-title font-bold text-slate-900">Instant answer</h3>
+    <h3 class="text-title font-bold text-slate-900">Instant Answer</h3>
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
@@ -1281,7 +1281,7 @@ const deadlineStale = computed(
  * mid build-up, when continuing reached it 4 days 19 h sooner): the answer in `result` was worked out with the
  * setting building up and a farm in the save, but the build-up could not be worked out (the store's worker failed), so
  * its first ascension is only fresh or continue. Such an answer is shown but never kept: no snapshot, no answer
- * offered online, no pricing record for My runs (`saveSnapshot`, `run`), and one that somehow carries the flag is not
+ * offered online, no pricing record for My Runs (`saveSnapshot`, `run`), and one that somehow carries the flag is not
  * put back (search/instantTables.ts `savedAnswerFits`), so a reload or the next visit works it out again. A fresh
  * or continue First step says so instead of "prestige now" or "continue your current ascension" (`firstStep`,
  * lib/instantWords.ts FIRST_STEP_BUILDUP_MISSING, FIRST_STEP_BUILDUP_MISSING_CONTINUE).
@@ -2224,7 +2224,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
     if (SAFARI) p.limitWorkers(p.size);
     // The player's own table when there is one built on the gear their save has now; else a gear table, the form G or
-    // the maxed one (search/instantCompute.ts `chooseInstantTable`, the same choice My runs makes).
+    // the maxed one (search/instantCompute.ts `chooseInstantTable`, the same choice My Runs makes).
     stampHash.value = '';
     const choice = await chooseInstantTable({
       pool: p,
@@ -2260,7 +2260,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
     // The first ascension to every stop, held for the hours and the no-prestige days (search/instantCompute.ts
-    // `instantFirstLegs`, the same request My runs makes).
+    // `instantFirstLegs`, the same request My Runs makes).
     const legs = await instantFirstLegs({
       pool: p,
       url,
@@ -2319,7 +2319,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
     answerPricing = snapPricing(polishOptions, target.value);
-    // A build-up that failed is never kept (`answerBuildUpMissing`): My runs would price only fresh and continue.
+    // A build-up that failed is never kept (`answerBuildUpMissing`): My Runs would price only fresh and continue.
     if (!missing) keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
@@ -2474,7 +2474,7 @@ function routeOf(chain: readonly number[]): Route | null {
   const all = [found.best, found.byDate, ...dateRowsOf(found), ...fastestRowsOf(found)];
   return all.find((r): r is Route => !!r && key(r.chain) === want) ?? null;
 }
-/** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
+/** "Follow this route": the goal My Runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
 /** When the answer on screen was worked out (ms; a snapshot's own time when restored): a route followed before it is
  *  older, so a better answer is offered (BetterRoutePrompt.vue). */
@@ -2483,7 +2483,7 @@ const answerAt = ref(0);
 const answerGoal = ref('');
 /**
  * The answer on screen once it is kept in this browser under its key (`saveSnapshot`, or put back by
- * `restoreSnapshot`): My runs prices a route followed from the instant answer with this snapshot's own times, so the
+ * `restoreSnapshot`): My Runs prices a route followed from the instant answer with this snapshot's own times, so the
  * answer becomes the follow only once kept (below). Before (24 Oct 2026), a By a date answer became the follow as soon
  * as the polish was done, while the snapshot waited for the nearest tables and the "Prestige by" line: leaving the
  * screen or starting a search then left Right now with "from the instant answer · not priced on this save yet".
@@ -2764,7 +2764,7 @@ function rowTight(r: Route): boolean {
  * followed for this goal, the route the box leads with (as shown: Prefer fewer honoured; By a date only one in time)
  * becomes the followed route and is saved online once, for Fastest to 490 and Egg Day 2027 only (stores/follow.ts `autoFollow`, which waits for the account's
  * saved routes to be read). Once the answer is finished: worked out and polished, not one kept on screen while a
- * search has the workers, and kept in this browser (`keptAnswer`), so My runs has its times for any goal (Egg Day,
+ * search has the workers, and kept in this browser (`keptAnswer`), so My Runs has its times for any goal (Egg Day,
  * another date, a race target). With a route followed, the box's BetterRoutePrompt asks instead.
  */
 const follows = useFollowStore();
@@ -2772,7 +2772,7 @@ watch(
   () => {
     const found = result.value;
     if (!found || status.value !== 'done' || waiting.value || backgroundStatus.value === 'running') return null;
-    // Only an answer kept under its key (`keptAnswer`): My runs shows the followed route's times from it.
+    // Only an answer kept under its key (`keptAnswer`): My Runs shows the followed route's times from it.
     if (keptAnswer.value !== found) return null;
     const goalKey = followGoal.value;
     // Only Fastest to 490 and Egg Day 2027 follow on their own; every other goal waits for a Follow press.
@@ -2899,7 +2899,7 @@ onUnmounted(() => {
 });
 
 /**
- * The key the whole answer is saved under (search/instantSnapshot.ts `instantKey`, shared with My runs since 17 Oct
+ * The key the whole answer is saved under (search/instantSnapshot.ts `instantKey`, shared with My Runs since 17 Oct
  * 2026: the same hash as before, so answers saved in players' browsers keep matching). Valid only for the same thing
  * asked of the same account: the player, the mode (target, or the date), the TE and every egg's count (a new save
  * moves them), the inventory and epic research, and the setup (playing hours, time off, dates to hit, the continue
@@ -2940,7 +2940,7 @@ function cacheKey(): string | null {
  * reads them works unchanged: the searches' seeds (`instantRoutes`, `suggestedRoute`,
  * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit) and Simulate this route.
  *
- * `exact`, `dateExact` and `dateExactByK` were Check exactly's (gone since 23 Oct 2026): written empty, so My runs
+ * `exact`, `dateExact` and `dateExactByK` were Check exactly's (gone since 23 Oct 2026): written empty, so My Runs
  * reads every new snapshot as the instant answer's; an older snapshot's are never shown here.
  */
 interface InstantSnapshot {
@@ -2963,18 +2963,18 @@ interface InstantSnapshot {
   /** The experimental "Prestige by" line, when it was worked out, with the route the box showed (`route`; absent
    *  before 26 Oct 2026, when it was always the best: such a line is not put back). */
   prestige?: PrestigeResult | null;
-  /** Which account, goal and save it is for (17 Oct 2026, for My runs; absent before). */
+  /** Which account, goal and save it is for (17 Oct 2026, for My Runs; absent before). */
   meta?: SnapMeta;
   /** "What if you had maxed gear?", once worked out for this answer (MaxedWhatIf `result`). */
   whatIf?: SnapWhatIf | null;
-  /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts): My runs' Right now follows it
+  /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts): My Runs' Right now follows it
    *  when it is better than the instant answer (23 Oct 2026). */
   search?: SnapSearch | null;
   /** The tables the page could read for this player when it was worked out (search/instantTables.ts
    *  `tablesIdentity`): put back only while they are the same. Absent before 24 Oct 2026; null when tables.json
    *  couldn't be read. */
   tables?: string | null;
-  /** What its routes were priced with (lib/followEstimate.ts): My runs' Right now prices a followed route on them.
+  /** What its routes were priced with (lib/followEstimate.ts): My Runs' Right now prices a followed route on them.
    *  Absent before 24 Oct 2026, or null when too big to keep. */
   pricing?: SnapPricing | null;
   /** The code that worked it out (lib/resultCode.ts, Release 7): put back only under the same (search/instantTables.ts
@@ -2987,8 +2987,8 @@ interface InstantSnapshot {
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
 let answerPricing: SnapPricing | null = null;
-/** The same inputs kept at once for My runs, by account, save and setup (lib/followEstimate.ts `recordPricing`): the
- *  snapshot is only written when everything has finished, and My runs prices a followed route of any goal with them. */
+/** The same inputs kept at once for My Runs, by account, save and setup (lib/followEstimate.ts `recordPricing`): the
+ *  snapshot is only written when everything has finished, and My Runs prices a followed route of any goal with them. */
 function keepPricing(): void {
   const r = pricingRecordNow();
   if (r) recordPricing(r);
@@ -3069,7 +3069,7 @@ function saveSnapshot(id: number): void {
     noteMyRuns();
     offerCloud(snap);
   }
-  // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
+  // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My Runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
 }
@@ -3131,7 +3131,7 @@ function currentSnapshot(): InstantSnapshot | null {
   if (snap.pricing && JSON.stringify(snap).length > SNAP_MAX_BYTES) snap.pricing = null;
   return snap;
 }
-/** What My runs reads to find this answer again from a newer save (search/instantSnapshot.ts SnapMeta). */
+/** What My Runs reads to find this answer again from a newer save (search/instantSnapshot.ts SnapMeta). */
 function snapMeta(): SnapMeta | undefined {
   const raw = initialState.rawBackup;
   const account = accountOf(raw);
@@ -3176,7 +3176,7 @@ function restoreSnapshot(tablesNow: string | null): boolean {
  * is about to be worked out (a setup or save change, new tables or rules, a reload after a day): the answer on screen
  * stays, marked "From <time>, checking…" (`staleAt`); with none, the last one kept in this browser for this goal (its
  * own key's even when it no longer fits, else the newest of this account and goal: search/instantSnapshot.ts
- * `latestSnapshotFor`) is drawn at once, marked the same. A stale answer is never kept, priced for My runs, followed on
+ * `latestSnapshotFor`) is drawn at once, marked the same. A stale answer is never kept, priced for My Runs, followed on
  * its own, shared or sent to By a date's search; Follow and Share wait for the fresh one. None at all (the first
  * ever): the loading line as before.
  */
@@ -3245,7 +3245,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
       ? kept
       : null;
   answerPricing = stale ? null : readPricing(s.pricing);
-  // A saved answer put back feeds My runs too (it is for this key: this save and setup); a stale one never.
+  // A saved answer put back feeds My Runs too (it is for this key: this save and setup); a stale one never.
   if (!stale) keepPricing();
   // A stale answer is only drawn: the run that is working the fresh one out keeps its own states.
   if (!stale) {
@@ -3373,11 +3373,11 @@ function tableGap(seconds: number): string {
 
 /**
  * THE SEARCH RESULT FOR THIS GOAL (Jordan, 23 Oct 2026): a finished Fast, Exact or Custom result for the same goal,
- * on this save and account (lib/searchPlan.ts `liveSearchResult`, the rule My runs' Right now reads too). The instant
+ * on this save and account (lib/searchPlan.ts `liveSearchResult`, the rule My Runs' Right now reads too). The instant
  * card only points to it (`pointer`); "Share this result" sends it with the instant answer (below). Fastest: the
  * chain search's best once it stops (its kind and effort say the level); By a date: the date search's result for this
  * deadline, started from the TE the save has now. A running search's best so far is not a result yet. It is kept in
- * the snapshot (`search`) for My runs.
+ * the snapshot (`search`) for My Runs.
  */
 type SearchFound = SnapSearch;
 /** The result kept with the snapshot on screen (a restored one's), until a newer one is found. */
@@ -3413,7 +3413,7 @@ const searchFound = computed<SearchFound | null>(() =>
 const searchFromOtherSave = computed(() => fromOtherSave(searchFound.value, initialState.lastBackupTime));
 /** The result when it is this save's (the snapshot keeps only that). */
 const thisSaveFound = computed<SearchFound | null>(() => (searchFromOtherSave.value ? null : searchFound.value));
-// Kept with the snapshot as it lands, so My runs' Right now finds it (the snapshot is saved before a search ends),
+// Kept with the snapshot as it lands, so My Runs' Right now finds it (the snapshot is saved before a search ends),
 // and kept beyond the snapshot's day for this save (lib/searchPlan.ts `recordKeptSearch`). A result priced on ANOTHER
 // save (17 Nov 2026) is kept under that save's own time (`keptEntryOf`) and never patches this save's snapshot: the
 // pointer still shows it, saying whose it is.

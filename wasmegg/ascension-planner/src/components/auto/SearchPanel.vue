@@ -188,7 +188,7 @@ function choose(o: SearchOption): void {
   emit('pick', o);
 }
 
-/** Opening the screen with no search running: an unfinished run's option (or My runs' Next step), else the
+/** Opening the screen with no search running: an unfinished run's option (or My Runs' Next step), else the
  *  level remembered here. The remembered part (Custom, or Fast / Exact) is lib/searchTab.ts's tab, which
  *  every pick also remembers and a link (#/auto/fastest/full) may have set, so only the level comes from
  *  here. Light is no longer picked: it shows as Fast. Very high shows as Exact while its box is switched

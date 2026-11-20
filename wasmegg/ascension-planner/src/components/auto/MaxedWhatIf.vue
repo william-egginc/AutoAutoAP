@@ -54,7 +54,7 @@ const props = defineProps<{
   deadline?: number;
 }>();
 
-/** The result, once worked out, for the instant answer to keep with its snapshot (My runs' gear block reads it). */
+/** The result, once worked out, for the instant answer to keep with its snapshot (My Runs' gear block reads it). */
 const emit = defineEmits<{ result: [r: SnapWhatIf] }>();
 
 const open = ref(false);
@@ -114,7 +114,7 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     maxed.value = r;
     status.value = 'done';
-    // By a date, also when maxed gear reaches the player's own TE (fastest, no date): My runs says the gap in time
+    // By a date, also when maxed gear reaches the player's own TE (fastest, no date): My Runs says the gap in time
     // (search/maxedWhatIf.ts `perfectSetGap`). A failure here only leaves it out.
     let sameEnd: number | null | undefined;
     if (props.deadline && props.mine.te > 0) {

@@ -38,7 +38,7 @@
               :key="c.label"
               class="border-t border-slate-100"
               :class="c.thisRun ? 'bg-indigo-50' : ''"
-              :data-testid="`run-baseline-${c.label === 'Instant answer' ? 'instant' : c.label.toLowerCase()}`"
+              :data-testid="`run-baseline-${c.label === 'Instant Answer' ? 'instant' : c.label.toLowerCase()}`"
             >
               <td class="pr-3 py-1 font-bold text-slate-800">
                 {{ c.label
@@ -46,7 +46,7 @@
               </td>
               <td class="pr-3 py-1" :class="c.end == null ? 'text-slate-600' : ''">{{ compareFinish(c) }}</td>
               <td class="pr-3 py-1 font-bold" :class="c.tone === 'better' ? 'text-emerald-700' : 'text-slate-600'">{{ c.diff || '·' }}</td>
-              <td class="py-1 text-slate-600">{{ c.at ? whenText(c.at).main : c.label === 'Instant answer' ? 'worked out ahead' : '' }}</td>
+              <td class="py-1 text-slate-600">{{ c.at ? whenText(c.at).main : c.label === 'Instant Answer' ? 'worked out ahead' : '' }}</td>
             </tr>
           </tbody>
         </table>

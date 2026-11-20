@@ -1,5 +1,5 @@
 <!--
-  My runs' Build-up tracker (Phase 1, 30 Oct 2026; outline ~/code/aaap-tools/wireframes/buildup-tracker-v1.md and its
+  My Runs' Build-up tracker (Phase 1, 30 Oct 2026; outline ~/code/aaap-tools/wireframes/buildup-tracker-v1.md and its
   mockup): the followed route's build-up, check-in by check-in, under Right now's Next step and Next shifts (RightNowCard.vue's
   `buildUp` slot, 30 Oct 2026). A PanelFold (lib/panelFold.ts
   `buildUpTracker`) styled like Right now's Full timeline fold; closed by default, open while the player is in a

@@ -103,8 +103,8 @@ describe('tour picture overlays (v4)', () => {
     for (const [name, o] of entries) for (const tab of o.tabs) expect(dist({ x: o.arrow.x, y: o.arrow.y }, tab), name).toBeGreaterThan(0);
   });
 
-  it('Jordan: a thing under a top tab (Chain Finder or My runs) is shown with that tab ringed lightly, at least on a desk, wherever the tab fits in the picture', () => {
-    const under = ['goalTarget', 'goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My runs slide rings the My runs tab itself)
+  it('Jordan: a thing under a top tab (Chain Finder or My Runs) is shown with that tab ringed lightly, at least on a desk, wherever the tab fits in the picture', () => {
+    const under = ['goalTarget', 'goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My Runs slide rings the My Runs tab itself)
     for (const id of under) expect(overlays[`${id}-desk`].tabs.length, `${id}-desk`).toBeGreaterThan(0);
   });
 
@@ -114,7 +114,7 @@ describe('tour picture overlays (v4)', () => {
     for (const [base, os] of Object.entries(by)) for (const o of os) expect([o.cw, o.ch], base).toEqual([os[0].cw, os[0].ch]);
   });
 
-  it('each tab slide is a picture of THAT page, its tab lit and ringed (17 Nov 2026): Manual, Auto Planner and Chain Finder have a picture of their own, My runs shares the My runs slide\'s', () => {
+  it('each tab slide is a picture of THAT page, its tab lit and ringed (17 Nov 2026): Manual, Auto Planner and Chain Finder have a picture of their own, My Runs shares the My Runs slide\'s', () => {
     const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
     for (const f of ['desk', 'phone']) {
       expect(new Set(['tabManual', 'tabAuto', 'tabChain'].map(id => base(id, f))).size, f).toBe(3);

@@ -1,10 +1,10 @@
 /**
- * "Where you stand" on My runs' saved-answer tiles (Jordan's extra 5, spec section 4): your place among the NAMED
+ * "Where you stand" on My Runs' saved-answer tiles (Jordan's extra 5, spec section 4): your place among the NAMED
  * players on the board, as a count only ("3rd of 12 named players"), from the rows the board part has already
  * loaded. No names are shown and nothing is fetched. The board's own rules decide who counts and how they rank
  * (lib/leaderboardRank.ts `buildDeadlineBoard`, `buildRace`).
  *
- * Your line is found by your runs' ids (the rows My runs already knows are yours). Not on the board under a name
+ * Your line is found by your runs' ids (the rows My Runs already knows are yours). Not on the board under a name
  * (anonymous, hidden, or never sent): where your answer WOULD sit, said as such.
  */
 import { buildDeadlineBoard, buildRace, type BoardRow } from './leaderboardRank';

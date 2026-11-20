@@ -1,5 +1,5 @@
 <!--
-  "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
+  "Follow this route" (lib/follow.ts, stores/follow.ts): My Runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
   "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `main` fills it (the answer's own, the screen's one main button; "Follow this route instead" while another route is followed); `primary` makes it a 44 px tap
   target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):

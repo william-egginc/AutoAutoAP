@@ -2,7 +2,7 @@
   THE SAVE STRIP, SMALL (Jordan, 12 Nov 2026): out of the top bar (layout/SaveLine.vue keeps the name and Change player),
   the same save strip (myruns/SaveAgeStrip.vue: the save's age, "Why is my save out of date?" and Details once old, amber
   past a day, Load latest save) and the silo line (layout/SiloLine.vue), in small text. On Fastest and By a date a small
-  block under the bar, in the screens' column (App.vue); on My runs only while the save loads (since 12 Nov 2026 the save
+  block under the bar, in the screens' column (App.vue); on My Runs only while the save loads (since 12 Nov 2026 the save
   is in Right now's header there, the strip behind its "?": myruns/SaveHeadHelp.vue).
 -->
 <template>

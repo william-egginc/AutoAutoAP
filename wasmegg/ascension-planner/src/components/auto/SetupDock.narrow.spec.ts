@@ -45,7 +45,7 @@ async function render(summary?: string): Promise<string> {
 describe('the Setup pill fits a 300 px screen, drag handle and all', () => {
   for (const [name, summary] of [
     ['the Auto Planner', undefined],
-    ['My runs', '7 AM–11 PM · time off Oct 29–30'],
+    ['My Runs', '7 AM–11 PM · time off Oct 29–30'],
   ] as const) {
     it(`${name}: wraps rather than running off the left edge, never wider than the screen less 2rem`, async () => {
       const c = classOf(pillTag(await render(summary)));
@@ -73,13 +73,13 @@ describe('the Setup pill fits a 300 px screen, drag handle and all', () => {
       const html = await render(summary);
       const divider = html.match(/<span class="[^"]*\bw-px h-5 bg-white\/30\b[^"]*"/)?.[0];
       expect(classOf(divider)).toContain('max-[319px]:hidden');
-      // − and + never shrink (at 342 px on My runs they were 34 px wide).
+      // − and + never shrink (at 342 px on My Runs they were 34 px wide).
       expect((html.match(/w-11 h-11 sm:w-6 sm:h-6 shrink-0/g) ?? []).length).toBe(2);
       expect(html).toContain('min-h-[44px] sm:min-h-0 rounded-full px-2.5');
     });
   }
 
-  it('My runs: Setup and its summary take what the row leaves, so the workers stay on it while Setup fits', async () => {
+  it('My Runs: Setup and its summary take what the row leaves, so the workers stay on it while Setup fits', async () => {
     const html = await render('7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27');
     const setup = classOf(html.match(/<button[^>]*aria-label="Setup"[^>]*>/)?.[0]);
     expect(setup).toEqual(expect.arrayContaining(['basis-0', 'grow', 'xl:basis-auto', 'xl:grow-0']));
@@ -91,7 +91,7 @@ describe('the Setup pill fits a 300 px screen, drag handle and all', () => {
     expect(classOf((await render()).match(/<button[^>]*aria-label="Setup"[^>]*>/)?.[0])).not.toContain('basis-0');
   });
 
-  it('My runs keeps its one row from xl (27rem, summary at 13rem)', async () => {
+  it('My Runs keeps its one row from xl (27rem, summary at 13rem)', async () => {
     const c = classOf(pillTag(await render('7 AM–11 PM · no time off')));
     expect(c).toEqual(expect.arrayContaining(['xl:flex-nowrap', 'xl:max-w-[27rem]', 'xl:rounded-2xl']));
   });

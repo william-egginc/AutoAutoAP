@@ -18,7 +18,7 @@ export function barRoom(rect: Pick<DOMRect, 'top'> | null, windowHeight: number)
  * The room under the page for the floating Setup pill, from its MEASURED height (SetupDock emits it): the pill's 1rem
  * from the bottom, its height and 1.5rem more, plus Single run's bar (`barPx`) and the safe area; never less than
  * `base`, App.vue's fixed room for a one-row pill, which is also all there is until the pill has been measured
- * (`pillPx` 0). A taller pill (My runs' summary on two or three lines, its workers wrapped to a second row during a
+ * (`pillPx` 0). A taller pill (My Runs' summary on two or three lines, its workers wrapped to a second row during a
  * search) left less than that fixed room allowed for; every control must still scroll clear of it (Jordan, 12 Nov 2026).
  */
 export function pillPageRoom(base: string, pillPx: number, barPx: number): string {

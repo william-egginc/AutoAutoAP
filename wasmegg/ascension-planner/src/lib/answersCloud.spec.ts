@@ -331,7 +331,7 @@ describe('the client against a stand-in collector', () => {
   });
 });
 
-describe("My runs' pricing meanwhile from an answer read back", () => {
+describe("My Runs' pricing meanwhile from an answer read back", () => {
   it('its pricing record, marked as the cloud’s (never this browser’s own record), only when usable', async () => {
     const { cloudPricingRecords } = await import('./followEstimate');
     const good = { account: 'acct', backupTime: 1, setup: '[]', url: 'u', tableTo: 489, at: 5, pricing: { v: 1, final: 490, options: { startTE: 194, start: 1, firstLegs: [{ to: 200, endTE: 200, end: 2, delivered: [1] }] } } };

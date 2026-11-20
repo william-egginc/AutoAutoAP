@@ -1,7 +1,7 @@
 /**
  * Red team 6 Nov 2026, R1: App.vue's onMounted awaited initPersistence, which rethrew a draft that would not
  * import (a newer beta wrote it, then a rollback) or a database read that failed. The rest of onMounted never
- * ran, myRunsReady stayed false, and My runs and the Auto Planner setup never came, on every reload.
+ * ran, myRunsReady stayed false, and My Runs and the Auto Planner setup never came, on every reload.
  */
 import '../../scripts/node-shims';
 import { readFileSync } from 'node:fs';

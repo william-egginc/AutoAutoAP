@@ -283,7 +283,7 @@ describe('the screens (source)', () => {
   });
 });
 
-describe("My runs' Next step opens the panel on its own option, once (App.vue openFromMyRuns)", () => {
+describe("My Runs' Next step opens the panel on its own option, once (App.vue openFromMyRuns)", () => {
   it('wins over the remembered option, is not remembered, and is used once', async () => {
     const { openOn } = await import('@/lib/searchOption');
     rememberChoice('fastest', { option: 'fast', veryHigh: false });

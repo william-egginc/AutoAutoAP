@@ -1,5 +1,5 @@
 /**
- * The Egg Day rule's words on My runs (lib/eggDayRule.ts, Jordan 22 Oct 2026), server-rendered:
+ * The Egg Day rule's words on My Runs (lib/eggDayRule.ts, Jordan 22 Oct 2026), server-rendered:
  *   - Right now, a goal whose kept plans all land late: "No route finishes before Egg Day starts. The nearest is 7 hours
  *     after." with the nearest route marked "after Egg Day starts" (By a date: "before your date", "after your date");
  *   - the Egg Day tile: the same words instead of an answer, the nearest marked, the screen still offered;

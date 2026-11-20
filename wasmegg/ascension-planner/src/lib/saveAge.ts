@@ -37,7 +37,7 @@ export interface SaveAgeNote {
 
 /**
  * A save's age in the one style every save-age line uses (ux review 26 Oct, row 19: Setup said "Save from 14 min
- * ago" and "Your save is 42m old", the stale warning "25d old", My runs "14 minutes ago"): now the one
+ * ago" and "Your save is 42m old", the stale warning "25d old", My Runs "14 minutes ago"): now the one
  * compact duration (lib/duration, ux29-d): `14m`, `5h`, `25d`. Under a minute: `<1m`. Sign ignored.
  */
 export function ageWords(seconds: number): string {

@@ -1,5 +1,5 @@
 /**
- * My runs' Next steps (lib/myRunsDashboard.ts, reworked 24 Oct 2026): only what changes what the player should do: a
+ * My Runs' Next steps (lib/myRunsDashboard.ts, reworked 24 Oct 2026): only what changes what the player should do: a
  * followed route a priced result beats by about a day or more, time off or a no-prestige day on its prestiges, a save
  * over about 3 days old, results not sent. The old nags ("No Egg Day run yet", "priced by an older simulator", "priced
  * with other hours / time off", "your save moved on", "only Fast so far", hidden runs) and the six cards are gone.

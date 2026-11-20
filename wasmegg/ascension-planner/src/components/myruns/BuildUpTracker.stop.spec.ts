@@ -4,7 +4,7 @@
  *     when the run was stopped; MyRunsView wires it to useNowPage `retryBuildUp` (useCurrentSim / useFollowEstimate
  *     `retry`, specced in their own stop specs);
  *   - the switch that asks useCurrentSim for the plan (`buildUpWanted`) is not turned off under a tracker that wants it
- *     by another one letting go after it (My runs mounted again).
+ *     by another one letting go after it (My Runs mounted again).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,7 +40,7 @@ describe('BuildUpTracker: failed, with Try again', () => {
     expect(await renderHtml(BuildUpTracker, { ...base, state: 'working' })).not.toContain('buildup-retry');
   });
 
-  it('My runs wires Try again to the page (useNowPage retryBuildUp) and says when it was a stop', () => {
+  it('My Runs wires Try again to the page (useNowPage retryBuildUp) and says when it was a stop', () => {
     const src = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
     // The stall bound forgotten too (spec-buildup-stuck), and the set-up asked again while the stores are not this
     // save's (QA review 7 Nov 2026 #5).

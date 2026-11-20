@@ -1,5 +1,5 @@
 /**
- * THE LAYOUT CONTRACT on My runs (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line
+ * THE LAYOUT CONTRACT on My Runs (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line
  * at the top (App.vue; this page's own save strip and intro went), the title, Right now with the Build-up tracker, the
  * soul-egg line, then the one closed More holding the rest in its old order: Change route (Earlier versions, Stop
  * following, Follow another route), your eggs, the saved answer, Try next, the routes at a glance and Your runs (its
@@ -13,7 +13,7 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', f), 'u
 const tpl = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
 const view = tpl(read('MyRunsView.vue'));
 
-describe('My runs: the regions in their fixed order', () => {
+describe('My Runs: the regions in their fixed order', () => {
   it('title, Right now (with the tracker), the soul-egg line, Your eggs, More (Jordan, 9 Nov 2026: eggs above More; the Full timeline is merged into You are here, 17 Nov 2026)', () => {
     const at = ['data-region="title"', '<RightNowCard', '<BuildUpTracker', '<SoulEggWarning', '<YourEggs', '<MoreFold'].map(m => view.indexOf(m));
     expect(at.every(i => i >= 0), String(at)).toBe(true);

@@ -59,7 +59,7 @@ describe('the Setup pill at 1280', () => {
     }
   });
 
-  it('My runs keeps the full pill at xl: Setup, the summary line, the divider and − workers +, nothing hidden', async () => {
+  it('My Runs keeps the full pill at xl: Setup, the summary line, the divider and − workers +, nothing hidden', async () => {
     const p = createPinia();
     setActivePinia(p);
     // The workers show only while a search runs (the simpler page, 9 Nov 2026): these cases are about the pill with them.
@@ -95,14 +95,14 @@ describe('the Setup pill at 1280', () => {
     expect(html).toContain('min-h-[44px] sm:min-h-0 rounded-full px-2.5');
   });
 
-  it('My runs keeps full width at xl: no right padding class; bottom padding stays', () => {
+  it('My Runs keeps full width at xl: no right padding class; bottom padding stays', () => {
     const app = readFileSync('src/App.vue', 'utf8');
     // The pill floats over the page like any floating button (orchestrator, 26 Oct 2026: a 28rem right padding left
     // an empty right half at 1280, worse than the overlap).
     expect(app).not.toMatch(/xl:pr-\[/);
     expect(app).toContain('<div class="max-w-6xl mx-auto p-4"');
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'" class="max-w-6xl mx-auto mt-6">');
-    // The room under the page for the pill, on My runs too.
+    // The room under the page for the pill, on My Runs too.
     expect(app).toContain(":style=\"setupDockShown ? { paddingBottom: pageRoom } : undefined\"");
     expect(app).toContain("(plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value");
     expect(app).toContain("const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';");

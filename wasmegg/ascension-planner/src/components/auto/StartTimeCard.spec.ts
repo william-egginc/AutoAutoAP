@@ -36,7 +36,7 @@ describe('StartTimeCard (Science)', () => {
     const store = useChainSearchStore();
     useInstantSummaryStore().lastListed = { finalTE: store.finalTE, routes: [[205, 250, 490]] };
     const t = textOf(await renderHtml(StartTimeCard, {}, {}, [pinia]));
-    expect(t).toContain("Instant answer's best: 205 250 490 (3 ascensions)");
+    expect(t).toContain("Instant Answer's best: 205 250 490 (3 ascensions)");
     expect(t).not.toContain('Open Fastest');
   });
 

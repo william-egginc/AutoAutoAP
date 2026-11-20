@@ -3,7 +3,7 @@
  * pill covered "Simulate this route" and the edge of "Follow this route instead"). A fixed pill always sits over
  * whatever scrolls under it; what must hold is that every control can be scrolled clear of it, so:
  *  - the room under the page is at least the pill's MEASURED height + its 1rem from the bottom + 1.5rem, never only
- *    the fixed 6rem sized for a one-row pill (My runs' summary wraps to three or four lines with several stretches of
+ *    the fixed 6rem sized for a one-row pill (My Runs' summary wraps to three or four lines with several stretches of
  *    time off, and the pill is then taller than 6rem allows);
  *  - the page's scroll padding at the bottom is that same room, so whatever the browser or the planner scrolls into
  *    view (Tab to a button, Find, a "bring it into view" scroll) stops above the pill, not under it.

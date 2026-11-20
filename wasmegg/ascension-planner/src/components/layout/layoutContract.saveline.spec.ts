@@ -88,7 +88,7 @@ describe('the switch-account control on the line', () => {
     expect(fn).toContain('ui.setHeaderKeptOpen(true);');
     expect(fn).toContain("document.getElementById('playerId')");
   });
-  it('App folds the player box once a save is in on the save-line screens (My runs too), unless the player opened it', () => {
+  it('App folds the player box once a save is in on the save-line screens (My Runs too), unless the player opened it', () => {
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toMatch(/watch\(\s*\(\) => \[saveLineShown\.value, !!initialStateStore\.rawBackup\][\s\S]{0,200}collapseHeaderIfPlayerLoaded\(\)/);
   });

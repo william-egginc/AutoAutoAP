@@ -23,7 +23,7 @@ export const SAVE_ONLINE_LINE_ON_NO_SYNC =
  * keeps its own copy and, with Save online on there, saves it online again the next time something changes.
  */
 export const SYNC_DELETE_STAYS =
-  'Results you shared with the Leaderboard stay there (you can hide them from My runs). Other devices keep their own copy and may save it online again; turn Save online off on them to stop that.';
+  'Results you shared with the Leaderboard stay there (you can hide them from My Runs). Other devices keep their own copy and may save it online again; turn Save online off on them to stop that.';
 /** The button while the call runs. */
 export const SYNC_DELETE_RUNNING = 'Deleting…';
 /** The button after a network failure. */

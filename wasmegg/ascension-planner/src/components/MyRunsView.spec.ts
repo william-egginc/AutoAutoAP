@@ -1,5 +1,5 @@
 /**
- * My runs (#/myruns, 15 Oct 2026): three parts, each folded when empty; the board part is Compare's own
+ * My Runs (#/myruns, 15 Oct 2026): three parts, each folded when empty; the board part is Compare's own
  * LeaderboardPanel in its my-runs mode; Compare no longer has a My plans tab; the tab sits between
  * Compare and Science.
  */
@@ -191,14 +191,14 @@ describe('Compare without My plans', () => {
   });
 });
 
-describe('the My runs tab', () => {
+describe('the My Runs tab', () => {
   const app = read('../App.vue');
 
   it('sits after Chain Finder and before Leaderboard and Science (Joo\'s order, Jordan 12 Nov 2026; was after Leaderboard), shown once there is something on it (24 Oct 2026), and opens MyRunsView', () => {
     const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
     const ids = [...tabs.matchAll(/id: '(\w+)' as const/g)].map(m => m[1]);
     expect(ids).toEqual(['manual', 'auto', 'chain', 'myruns', 'compare', 'science']);
-    // Leaderboard and Science each behind their own switch; My runs behind what the account has (lib/myRunsShown.ts),
+    // Leaderboard and Science each behind their own switch; My Runs behind what the account has (lib/myRunsShown.ts),
     // never behind the collector.
     expect(tabs).not.toContain('submitUrl');
     const my = tabs.slice(tabs.indexOf("id: 'chain'"), tabs.indexOf("id: 'compare'"));
@@ -211,7 +211,7 @@ describe('the My runs tab', () => {
     expect(app).not.toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
   });
 
-  it('the tabs wrap two a row below lg (the planners, then Chain Finder and My runs, then Leaderboard and Science when shown), an odd last one across its row', () => {
+  it('the tabs wrap two a row below lg (the planners, then Chain Finder and My Runs, then Leaderboard and Science when shown), an odd last one across its row', () => {
     const tabs = read('SiteTabs.vue');
     expect(tabs).toContain('grid grid-cols-2 w-full lg:flex');
     expect(tabs).toContain("i === tabs.length - 1 && tabs.length % 2 === 1 ? 'col-span-2' : 'col-span-1'");
@@ -225,7 +225,7 @@ describe('the My runs tab', () => {
   });
 });
 
-describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its own part)', () => {
+describe('My Runs › Your runs: the latest run inside it (17 Oct 2026; was its own part)', () => {
   it('opens Your runs on the latest run, before the board part, with the Showing switch', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const section = html.indexOf('data-testid="my-runs-your-runs"');
@@ -257,7 +257,7 @@ describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its 
     expect(theirs).not.toContain('EI0000000000000000');
   });
 
-  it("the Leaderboard has no Your latest run tab (fluff review 2, L1): #/compare/latest opens My runs", async () => {
+  it("the Leaderboard has no Your latest run tab (fluff review 2, L1): #/compare/latest opens My Runs", async () => {
     const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
     expect(html).not.toContain('data-testid="latest-moved"');
     expect(textOf(html)).not.toContain('Your latest run');
@@ -314,7 +314,7 @@ describe('words (26 Oct 2026)', () => {
     expect(src).not.toContain('The only thing worked out here');
   });
 
-  it("Custom's run list is headed Saved for later, as its text says; My runs' stays Saved runs", () => {
+  it("Custom's run list is headed Saved for later, as its text says; My Runs' stays Saved runs", () => {
     expect(read('auto/InsanePanel.vue')).toContain('<SavedRuns :player-id="playerId" can-resume heading="Saved for later" />');
     expect(read('auto/SavedRuns.vue')).toContain("{{ heading || 'Saved runs' }}");
     expect(read('MyRunsView.vue')).not.toMatch(/<SavedRuns[^>]*heading=/);

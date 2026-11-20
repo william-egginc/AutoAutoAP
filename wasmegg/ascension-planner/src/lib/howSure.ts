@@ -1,5 +1,5 @@
 /**
- * "How sure" on My runs' saved-answer tiles (spec myruns-now v3, section 4): High, Medium or Low with one reason
+ * "How sure" on My Runs' saved-answer tiles (spec myruns-now v3, section 4): High, Medium or Low with one reason
  * line, never a percentage (a real probability needs calibration data still being collected). First match wins:
  *
  *   Low     an older simulator; an instant answer an older build of the page worked out (Release 7); hours used differ from Your setup now; under LOW_SPARE_HOURS to spare (By a
@@ -35,14 +35,14 @@ export type SureLevel = 'high' | 'medium' | 'low';
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
-  light: 'Instant answer',
+  light: 'Instant Answer',
   quick: 'Fast',
   normal: 'Exact',
   thorough: 'Exact (wider)',
   exhaustive: 'Custom',
 };
 
-/** "a Fast", "an Exact", "an Instant answer": the article for a level word. */
+/** "a Fast", "an Exact", "an Instant Answer": the article for a level word. */
 const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
 
 export interface SureInput {
@@ -80,7 +80,7 @@ export interface SureInput {
 
 export interface Sure {
   level: SureLevel;
-  /** "Instant answer, 5 days old" (shown after "How sure: Medium"). */
+  /** "Instant Answer, 5 days old" (shown after "How sure: Medium"). */
   reason: string;
   /** The button beside it: a short Fast search (Check exactly for By a date's instant answer until 23 Oct 2026). */
   action?: 'fast';
@@ -151,8 +151,8 @@ export function howSure(i: SureInput): Sure {
   // Medium.
   if (i.how === 'instant')
     return i.goal === 'fastest'
-      ? { level: 'medium', reason: `instant answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
-      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'fast' };
+      ? { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
+      : { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}`, action: 'fast' };
   if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
   if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'simulator check done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)

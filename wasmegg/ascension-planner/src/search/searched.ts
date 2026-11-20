@@ -5,7 +5,7 @@
  *   - the CSV's header, as `# searched: ...` and `# ascensions: N-M; min gap: G` under the "routes
  *     priced" line (search/csv.ts `metaLines`; the command line writes its CSVs with the same code);
  *   - the submission's `searched` field (submission.ts), which the board keeps on the row;
- *   - My runs' "What was searched" line (`searchedWords`, LeaderboardRunDetail.vue).
+ *   - My Runs' "What was searched" line (`searchedWords`, LeaderboardRunDetail.vue).
  *
  * THE FORMAT. Tokens joined by "; ", in the command line's own box notation:
  *
@@ -180,7 +180,7 @@ function bandWords(band: string): string | null {
 }
 
 /**
- * A `searched` line in words, for My runs: "Stops: 195-197 (every 2), 209-240, 230-260, 255-300;
+ * A `searched` line in words, for My Runs: "Stops: 195-197 (every 2), 209-240, 230-260, 255-300;
  * last stop 300-320; 5 ascensions". A line it cannot read comes back as it is; none at all, as
  * `SEARCHED_NOT_RECORDED`.
  */

@@ -1,6 +1,6 @@
 /**
  * THE FOLLOWED ROUTE THAT NOW MISSES ITS DATE (Jordan, 16 Nov 2026; his exception to the 13 Nov "no better-route offer
- * on My runs"): a By a date goal is followed and the finish worked out again from the newest save is later than the
+ * on My Runs"): a By a date goal is followed and the finish worked out again from the newest save is later than the
  * goal's date. Pure rule; the card shows it (RightNowCard.followMisses.spec.ts).
  */
 import { describe, expect, it } from 'vitest';

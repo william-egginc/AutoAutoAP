@@ -52,10 +52,10 @@ const OWN_ALT: Record<OwnId, string> = {
   m10maxedGear: "The What if you had maxed gear? line in More, with an arrow pointing at it.",
   m11steppingAway: "The Stepping away? fold, with an arrow pointing at it.",
   m12howItWorks: "The How it works link at the foot of More, with an arrow pointing at it.",
-  r1changeRoute: "The Change route card inside More on My runs, with an arrow pointing at it.",
-  r2gearSets: "The gear sets for the route inside More on My runs, with an arrow pointing at them.",
-  r3tryNext: "The Try next buttons inside More on My runs, with an arrow pointing at them.",
-  r4share: "The Share my instant answer with my runs tick inside More on My runs, with an arrow pointing at it.",
+  r1changeRoute: "The Change route card inside More on My Runs, with an arrow pointing at it.",
+  r2gearSets: "The gear sets for the route inside More on My Runs, with an arrow pointing at them.",
+  r3tryNext: "The Try next buttons inside More on My Runs, with an arrow pointing at them.",
+  r4share: "The Share my instant answer with my runs tick inside More on My Runs, with an arrow pointing at it.",
   r5yourRuns: "The Latest and All my runs choices under Your runs, with an arrow pointing at them.",
   r6boardRuns: "The Your runs on the Leaderboard fold and the A run of yours isn’t here? fold, with an arrow pointing at them.",
 };
@@ -64,9 +64,9 @@ export const FULL_TOUR_STEPS_WORDS = Object.fromEntries([
   ...SHARED.map(id => [id, FIRST_TOUR_STEPS[id]] as const),
   ...(Object.keys(OWN) as OwnId[]).map(id => [id, OWN[id]] as const),
 ]) as Record<FullTourStepId, { title: string; body: string }>;
-// The Quick tour's My runs card stands alone (its next slide is Setup); in the Full tour the next slide is more about My runs, so only
-// here it ends with Jordan's own "Click Next to learn more about My runs." (18 Nov 2026).
-FULL_TOUR_STEPS_WORDS.myrunsPage = { ...FIRST_TOUR_STEPS.myrunsPage, body: `${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My runs.` };
+// The Quick tour's My Runs card stands alone (its next slide is Setup); in the Full tour the next slide is more about My Runs, so only
+// here it ends with Jordan's own "Click Next to learn more about My Runs." (18 Nov 2026).
+FULL_TOUR_STEPS_WORDS.myrunsPage = { ...FIRST_TOUR_STEPS.myrunsPage, body: `${FIRST_TOUR_STEPS.myrunsPage.body} Click Next to learn more about My Runs.` };
 
 /** Each picture's alt text: what is highlighted, on the sample account. */
 export const FULL_TOUR_ALT = Object.fromEntries([
@@ -78,7 +78,7 @@ export const FULL_TOUR_CLOSING = "That's everything. Show it again any time from
 /** The entries: More's item, the first tour's last card, About's line. */
 export const FULL_TOUR_ITEM = 'Full tour';
 export const FULL_TOUR_FROM_FIRST = 'More: Full tour';
-export const FULL_TOUR_ABOUT = 'Want to see where everything is? Open More on Chain Finder or My runs and press Full tour.';
+export const FULL_TOUR_ABOUT = 'Want to see where everything is? Open More on Chain Finder or My Runs and press Full tour.';
 
 /** Said to a screen reader on each step. */
 export const fullTourAnnounce = (n: number, of: number, title: string): string => `Full tour, step ${n} of ${of}: ${title}`;

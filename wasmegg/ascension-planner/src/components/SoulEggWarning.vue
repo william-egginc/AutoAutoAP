@@ -2,11 +2,11 @@
   One short amber line when a plan's shifts would leave under a quarter of the soul eggs (lib/soulEggs.ts; the math
   review's second check, 24 Oct 2026, finding 15), and the details behind a closed "?" (Jordan, 9 Nov 2026: the one long
   line nagged a tester; lib/soulEggs.ts `soulEggWarningParts`, words in lib/soulEggWords.ts). Nothing that does anything:
-  it only says so. One component for its four places (the Fastest result cards, By a date's result, My runs).
+  it only says so. One component for its four places (the Fastest result cards, By a date's result, My Runs).
 
   The plan's shifts: `shifts`, or counted from simulated `legs` (search/preferFewer.ts `shiftCount`: null when a leg
   didn't keep its shifts, a table estimate, and then nothing shows). The save's shifts since its last Path reset:
-  `done` (My runs passes its save's), or with `planner` the Auto Planner's loaded save (none loaded: "in this plan
+  `done` (My Runs passes its save's), or with `planner` the Auto Planner's loaded save (none loaded: "in this plan
   alone").
 -->
 <template>

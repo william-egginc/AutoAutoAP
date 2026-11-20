@@ -1,4 +1,4 @@
-/** Q9 on My runs: "Your routes at a glance" (RouteScatter.vue) and "Missing for a perfect set" (PerfectSetGaps.vue,
+/** Q9 on My Runs: "Your routes at a glance" (RouteScatter.vue) and "Missing for a perfect set" (PerfectSetGaps.vue,
  *  under GearBlock.vue), server-rendered, and how they are wired. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -142,7 +142,7 @@ describe('Your routes at a glance: the heat map', () => {
     );
   });
 
-  it('wired on My runs from the rows already loaded, above Your runs; nothing fetched or priced', () => {
+  it('wired on My Runs from the rows already loaded, above Your runs; nothing fetched or priced', () => {
     const view = read('../MyRunsView.vue');
     expect(view).toMatch(
       /<RouteScatter\s+:rows="boardRows"\s+:saved-runs="store.savedRuns"\s+:saved-answers="store.savedAnswers"/

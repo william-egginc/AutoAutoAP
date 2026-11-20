@@ -1,5 +1,5 @@
 /**
- * My runs' "Right now" page (spec myruns-now v3, 17 Oct 2026), server-rendered: the strip, the card, the eggs, the
+ * My Runs' "Right now" page (spec myruns-now v3, 17 Oct 2026), server-rendered: the strip, the card, the eggs, the
  * tiles and Try next, from saved data only. The integration test loads the synthetic save (player id
  * EI0000000000000000, never printed) and a saved instant answer under the key InstantRoute would use.
  */
@@ -134,7 +134,7 @@ describe('the Right now card', () => {
   });
 
   it('behind plan: "Run Fast ›" (was Check again); no timeline: "Can\'t tell"', async () => {
-    // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My runs' saved plans ("Behind by 6 h" before).
+    // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My Runs' saved plans ("Behind by 6 h" before).
     const track = {
       kind: 'behind' as const,
       hours: -6,
@@ -214,7 +214,7 @@ const tile = (o: Partial<Tile> = {}): Tile => ({
     how: 'instant',
   },
   olderSave: true,
-  sure: { level: 'medium', reason: 'instant answer, 5 days old', action: 'fast' },
+  sure: { level: 'medium', reason: 'Instant Answer, 5 days old', action: 'fast' },
   ...o,
 });
 
@@ -235,7 +235,7 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('248 TE');
     expect(t).toContain('16h 48m spare · 161 198 218 248');
     expect(t).toContain('Calculated Oct 10 at 2:40 PM (5d ago) · from your save of Oct 10 at 2:20 PM · instant answer');
-    expect(t).toContain('How sure: Medium Instant answer, 5 days old. Run Fast ›');
+    expect(t).toContain('How sure: Medium Instant Answer, 5 days old. Run Fast ›');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
     expect(t).toContain('See the routes ›');
@@ -255,7 +255,7 @@ describe('a saved-answer tile', () => {
         runFastAbove: true,
       })
     );
-    expect(t).toContain('How sure: Medium Instant answer, 5 days old.');
+    expect(t).toContain('How sure: Medium Instant Answer, 5 days old.');
     expect(t).not.toContain('Run Fast');
   });
 
@@ -423,7 +423,7 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
 });
 
 describe('source checks', () => {
-  it('My runs keys the same fields InstantRoute does', () => {
+  it('My Runs keys the same fields InstantRoute does', () => {
     const fields = (src: string) => {
       const i = src.indexOf('instantKey({');
       const body = src.slice(i, src.indexOf('});', i));
@@ -435,7 +435,7 @@ describe('source checks', () => {
     expect(fields(read('../../composables/useNowPage.ts'))).toEqual(route);
   });
 
-  it('App mounts the floating Setup on My runs, with its hours under it', () => {
+  it('App mounts the floating Setup on My Runs, with its hours under it', () => {
     const app = read('../../App.vue');
     expect(app).toMatch(/<SetupDock\s+v-else-if="plannerTab === 'myruns' && playerId && !loading"\s+screen="fastest"/);
     expect(app).toContain(':summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"');

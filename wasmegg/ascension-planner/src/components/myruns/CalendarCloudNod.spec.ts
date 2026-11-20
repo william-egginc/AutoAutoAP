@@ -1,5 +1,5 @@
 /**
- * The nod to the cloud calendar under "Add all N upcoming to calendar" on My runs' plan table (Jordan, 15 Nov 2026): not set up, a line suggesting
+ * The nod to the cloud calendar under "Add all N upcoming to calendar" on My Runs' plan table (Jordan, 15 Nov 2026): not set up, a line suggesting
  * it; set up, an "Update cloud calendar" button that sends the current plan now. All behind the calendar flag. A fake collector as in
  * CalendarFeedSetup.spec. Words' final text.
  */
@@ -105,7 +105,7 @@ describe("Words' text", () => {
     expect(W.CAL_NOD_UPDATE).toBe('Update cloud calendar');
     expect(W.CAL_NOD_SENT).toBe('Sent to your calendar.');
     expect(W.CAL_NOD_SAME).toBe('Your calendar is already up to date.');
-    expect(W.CAL_NOD_HINT).toBe('It also updates by itself whenever you open My runs.');
+    expect(W.CAL_NOD_HINT).toBe('It also updates by itself whenever you open My Runs.');
     for (const t of [W.CAL_NOD_SUGGEST, W.CAL_NOD_SENT, W.CAL_NOD_SAME, W.CAL_NOD_HINT]) expect(t).not.toMatch(/15 s|budget|60 writes|^Your plan/);
   });
   it('"Sharing" is a real heading in Setup', () => {

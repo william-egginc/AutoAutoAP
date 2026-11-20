@@ -718,7 +718,7 @@
             simulate
             @simulate="simulateLive"
           />
-          <!-- Its top routes so far are on My runs › Your latest run (LatestRunView.vue; moved off here, Jordan
+          <!-- Its top routes so far are on My Runs › Your latest run (LatestRunView.vue; moved off here, Jordan
                16 Oct 2026). -->
           <DigDeeperLink
             v-if="store.deadlineProgress.top.length > 1"
@@ -854,7 +854,7 @@
         <p v-else class="text-body font-bold text-rose-700 max-w-prose">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
-        <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
+        <!-- Its top routes with when each stop and egg happens, on My Runs › Your latest run (LatestRunView.vue). -->
         <DigDeeperLink v-if="best && !store.deadlineRunning" detail="its top 50 routes and when each stop and egg happens" />
         <!-- More than the single best (TopRoutes.vue, item 12): the best 5 kept and the best per ascension count. -->
         <TopRoutes
@@ -956,7 +956,7 @@
       </ResultTable>
 
       <!-- The top routes and how many were priced ("Every route in your space: N priced, run complete") are on
-           My runs › Your latest run (LatestRunView.vue; Jordan, 16 Oct 2026): the result keeps its best, the best
+           My Runs › Your latest run (LatestRunView.vue; Jordan, 16 Oct 2026): the result keeps its best, the best
            for each stop count and the share box. -->
       <template #keep>
         <!-- Saved answers (SavedAnswers.vue). The CSV and the one Save (with its name) are on the card. The footer that
@@ -1046,7 +1046,7 @@ import {
  * sliders) came back as the defaults; the Egg Day link's boxes came back instead, every visit.
  */
 const kept = {
-  // The deadline (date, time, zone, "Another date") lives in lib/byDateForm.ts, so My runs can preset it.
+  // The deadline (date, time, zone, "Another date") lives in lib/byDateForm.ts, so My Runs can preset it.
   ...byDateForm,
   minStops: keptRef(3),
   maxStops: keptRef(5),
@@ -1273,7 +1273,7 @@ function chooseEggDay(): void {
   customDate.value = false;
   useEggDay();
 }
-// A deadline asked for by another page (My runs' "Find my Egg Day answer", lib/byDateForm.ts): taken
+// A deadline asked for by another page (My Runs' "Find my Egg Day answer", lib/byDateForm.ts): taken
 // once, when this screen mounts or at once if it is open, and never applied under a run going or being
 // restored, which owns its date.
 watch(

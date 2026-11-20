@@ -1,7 +1,7 @@
 /**
  * M13 follow-up (12 Nov 2026): the better-route box compared a candidate with the finish SAVED with the follow ("yours: 313
  * TE, 37h 6m to spare") even when that price was worked out by another version of the planner or with other awake hours:
- * it disagreed with My runs, which prices the same chain fresh (hours 7 AM-10 PM on the fixture: the older chain lands 4 days
+ * it disagreed with My Runs, which prices the same chain fresh (hours 7 AM-10 PM on the fixture: the older chain lands 4 days
  * later). A price that isn't for the current setup is not compared: the offer is "Re-plan from this save" without "yours: ...".
  * Rendered on the server like BetterRoutePrompt.replanDone.spec.ts; a fake chain-search store; placeholder id only.
  */

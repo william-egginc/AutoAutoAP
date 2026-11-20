@@ -48,7 +48,7 @@ function h1s(html: string): string[] {
 
 describe('each screen has one h1, its own title', () => {
   const screens: [string, Component, Record<string, unknown>, string][] = [
-    ['My runs', MyRunsView, { playerId: 'EI1234567890123456' }, NAMES.myRuns],
+    ['My Runs', MyRunsView, { playerId: 'EI1234567890123456' }, NAMES.myRuns],
     ['Fastest', FastestRoute, { playerId: 'EI1234567890123456', depth: 'smart', lockedTo: null, blockedBy: null }, fastestName(490)],
     ['Highest TE by a date', ByDateScreen, { playerId: 'EI1234567890123456' }, NAMES.byDate],
     ['Science › How it works', HowItWorks, {}, 'How it works, and how we checked it'],
@@ -62,7 +62,7 @@ describe('each screen has one h1, its own title', () => {
       expect(html).not.toContain('EI1234567890123456');
     });
   }
-  it('My runs’ board part (LeaderboardPanel in its my-runs mode) adds no h1 of its own', async () => {
+  it('My Runs’ board part (LeaderboardPanel in its my-runs mode) adds no h1 of its own', async () => {
     const html = await renderHtml(LeaderboardPanel, { playerId: 'P', mode: 'myruns' }, {}, [pinia]);
     expect(h1s(html)).toEqual([]);
   });

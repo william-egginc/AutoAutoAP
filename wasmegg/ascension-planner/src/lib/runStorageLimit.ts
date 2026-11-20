@@ -3,7 +3,7 @@
  * (the store's isRunning / deadlineRunning) and clearing them, a run awaits the browser's storage: the account's hash,
  * the checkpoint read (IndexedDB), the leg spill's open and restore (OPFS, through its worker) and the save kept for
  * the run, and at its end the last checkpoint and the result. If one of those never answers, the flags stay set for
- * good: the page reads as busy (My runs' simulation waits for a search to end, Run stays greyed). Each such stretch now
+ * good: the page reads as busy (My Runs' simulation waits for a search to end, Run stays greyed). Each such stretch now
  * gets `RUN_STORAGE.ms` without an answer; past it the caller is told (`StorageTimeout`) and `onExpire` runs once.
  *
  * 40 s WITHOUT AN ANSWER, not 40 s in all. IndexedDB already gives up on one transaction after 30 s (5 s once known

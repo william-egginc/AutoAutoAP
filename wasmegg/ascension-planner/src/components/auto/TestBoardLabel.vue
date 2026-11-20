@@ -1,5 +1,5 @@
 <!--
-  A small label on the board's views (the Leaderboard panel, My runs' board part) when this build reads a board of its own
+  A small label on the board's views (the Leaderboard panel, My Runs' board part) when this build reads a board of its own
   (VITE_BOARD_SUBMIT_URL, lib/boardSubmitUrl.ts: egg-beta reads the test collector its runs are sent to, spec-betaboard,
   16 Nov 2026). Nothing without the setting. DRAFT wording (TEST_BOARD_LABEL), Words may change it.
 -->

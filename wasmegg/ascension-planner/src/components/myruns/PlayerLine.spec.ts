@@ -3,7 +3,7 @@
  * 2 pending · 328 Clothed TE" right above Right now's egg row, the silo line beside it (under it on a phone). Claimed and
  * pending from the save (lib/playerTe.ts, lib/backupVirtue.ts parseVirtueProgress, as the initial-state store reads
  * them); Clothed TE the value Your eggs shows (the gear's clothedEarnings). Below sm the short "CTE" with its "?". No TE
- * line when the values are missing. The top bar's name goes on My runs (it is not the switcher; Change player stays).
+ * line when the values are missing. The top bar's name goes on My Runs (it is not the switcher; Change player stays).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -92,7 +92,7 @@ describe('PlayerLine', () => {
 });
 
 describe('wiring', () => {
-  it('Right now has a #player slot right above the egg row; My runs fills it with PlayerLine and the Your eggs value', () => {
+  it('Right now has a #player slot right above the egg row; My Runs fills it with PlayerLine and the Your eggs value', () => {
     const card = tplOf(read('components/myruns/RightNowCard.vue'));
     const slot = card.indexOf('<slot name="player"');
     expect(slot).toBeGreaterThan(-1);
@@ -104,13 +104,13 @@ describe('wiring', () => {
     expect(t).toContain(':clothed="page.gear.value?.clothedEarnings ?? null"');
     expect(view).toContain(':clothed-earnings="page.gear.value?.clothedEarnings ?? null"');
   });
-  it('the silo line shows once on My runs: beside the player line (no SaveSide beside the card since 12 Nov 2026)', () => {
+  it('the silo line shows once on My Runs: beside the player line (no SaveSide beside the card since 12 Nov 2026)', () => {
     const view = tplOf(read('components/MyRunsView.vue'));
     expect(view).not.toContain('<SaveSide :with-silo');
     expect(view).not.toContain('<SiloLine');
     expect(view.match(/:silo="saveStrip\.silo\.value"/g) ?? []).toHaveLength(1);
   });
-  it('the top bar names the player on My runs too, above Change player (Jordan, 13 Nov 2026: on every screen with the bar)', () => {
+  it('the top bar names the player on My Runs too, above Change player (Jordan, 13 Nov 2026: on every screen with the bar)', () => {
     const app = read('App.vue');
     expect(app).toContain('<SaveLine v-if="saveLineShown" />');
     const line = read('components/layout/SaveLine.vue');

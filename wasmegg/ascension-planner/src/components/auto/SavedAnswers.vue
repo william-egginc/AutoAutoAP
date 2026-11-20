@@ -10,9 +10,9 @@
   run library, carries them on and names them after saving: the two stores hold different records,
   and joining them would change both. Several roots, so it sits in the screen's own spacing.
 
-  `list-only` (My runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
-  so (`opened`) for My runs to show By a date. There, each answer says how the latest save is doing against
-  it (R6, PaceBadge.vue), worked out while `pace-active` (My runs' "Saved on this device" is open).
+  `list-only` (My Runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
+  so (`opened`) for My Runs to show By a date. There, each answer says how the latest save is doing against
+  it (R6, PaceBadge.vue), worked out while `pace-active` (My Runs' "Saved on this device" is open).
 -->
 <template>
   <!-- The answer is saved from the card's one Save, with its name (ByDateRouteCard.vue; UX fluff review 2, 5 Nov 2026,
@@ -97,15 +97,15 @@ const props = defineProps<{
   defaultLabel: string;
   /** The planner's time zone, for "saved Oct 8, 2026, 2:22 PM". */
   zone: string;
-  /** My runs: the list alone (no Save this answer, no slots, no save-file bar). */
+  /** My Runs: the list alone (no Save this answer, no slots, no save-file bar). */
   listOnly?: boolean;
-  /** My runs' "Saved on this device" is open: the badges may load what they need (one answer at a time). */
+  /** My Runs' "Saved on this device" is open: the badges may load what they need (one answer at a time). */
   paceActive?: boolean;
 }>();
 const emit = defineEmits<{ opened: [] }>();
 const store = useChainSearchStore();
 
-/** "vs your instant baseline: −1 TE (313 → 312), 0.28 days more spare (Fast)" (My runs, wireframe B1): the instant
+/** "vs your instant baseline: −1 TE (313 → 312), 0.28 days more spare (Fast)" (My Runs, wireframe B1): the instant
  *  answer for the answer's date and save, logged here (lib/instantBaseline.ts); null without one. */
 const baselines = props.listOnly ? useBaselines() : null;
 function baselineOf(a: (typeof store.savedAnswers)[number]) {
@@ -127,7 +127,7 @@ function open(id: string): void {
 
 onMounted(() => void store.refreshSavedAnswers(props.playerId));
 
-/** "N hours ahead / behind" on each answer (My runs only). */
+/** "N hours ahead / behind" on each answer (My Runs only). */
 const pace = usePlanPace({
   playerId: () => props.playerId,
   active: () => !!props.listOnly && !!props.paceActive,

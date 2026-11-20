@@ -1,5 +1,5 @@
 /**
- * My runs on a cold page load (fix 20). The first account shown after a load said "No save loaded" over the
+ * My Runs on a cold page load (fix 20). The first account shown after a load said "No save loaded" over the
  * draft's egg and TE: App.onMounted restores the Manual planner's draft into the initial-state store
  * (initPersistence -> importPlan -> hydrate: `lastBackupTime` 0, the TE and egg of whenever that plan was made)
  * and puts the last fetched save beside it (`rawBackup`); nothing loaded the save itself. Here the store goes
@@ -71,7 +71,7 @@ function loadSave(backup: ReturnType<typeof syntheticBackup>): void {
   rollUpPendingTE();
 }
 
-describe('My runs on a cold load', () => {
+describe('My Runs on a cold load', () => {
   it('the strip, the card and the tiles follow the save as it arrives (one page, no re-mount)', async () => {
     const backup = save();
     const eggDayAt = eggDaySeconds(nextEggDayYear());
@@ -125,7 +125,7 @@ describe('My runs on a cold load', () => {
   it('renders "No save loaded", then the save’s age with the page waiting, then the card with the save’s egg', async () => {
     const { default: MyRunsView } = await import('../MyRunsView.vue');
     // The save's age is the save line at the top of the page since the simpler page (9 Nov 2026; App.vue draws it over
-    // My runs): drawn here with the page, as the player sees them.
+    // My Runs): drawn here with the page, as the player sees them.
     const { default: SaveLine } = await import('../layout/SaveLine.vue');
     const pinia = getActivePinia()!;
     const render = async () => {
@@ -161,7 +161,7 @@ describe('My runs on a cold load', () => {
 });
 
 describe('the cold load, in the source', () => {
-  it('App loads the save on My runs once the draft is restored, once per account and save, never under a search', async () => {
+  it('App loads the save on My Runs once the draft is restored, once per account and save, never under a search', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
@@ -176,7 +176,7 @@ describe('the cold load, in the source', () => {
     expect(app).toContain('if (myRunsLoadFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;');
   });
 
-  it('the board’s look-alike TE and My runs’ summary read the save’s own TE, never the stores’', async () => {
+  it('the board’s look-alike TE and My Runs’ summary read the save’s own TE, never the stores’', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const board = fs.readFileSync(path.resolve(__dirname, '../auto/LeaderboardPanel.vue'), 'utf8');

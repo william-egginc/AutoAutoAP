@@ -37,7 +37,7 @@ export function setupMoreChanged(v: SetupMoreValues): string[] {
   const out: string[] = [];
   if (v.backgroundWorkers > 0) out.push(`In the background ${v.backgroundWorkers} worker${v.backgroundWorkers === 1 ? '' : 's'}`);
   if (!v.keepAwake) out.push('Keep awake off');
-  if (v.instantDuringSearch) out.push('Instant answer during a search on');
+  if (v.instantDuringSearch) out.push('Instant Answer during a search on');
   if (v.legDetail !== v.legDetailDefault)
     out.push(v.legDetail ? `Detail kept for ${v.legDetail.toLocaleString()} routes` : 'Detail kept for all routes');
   if (v.isoDates) out.push(`Dates as ${v.isoDates}`);

@@ -1,5 +1,5 @@
 /**
- * My runs' "Your routes at a glance" as a heat map (RouteScatter.vue, Jordan 26 Oct 2026): the goal's routes
+ * My Runs' "Your routes at a glance" as a heat map (RouteScatter.vue, Jordan 26 Oct 2026): the goal's routes
  * counted into cells. Pure: no Vue, no storage.
  *
  *   across  one column per ascension count present, fewest first; past `maxCols` (12) the longest counts share

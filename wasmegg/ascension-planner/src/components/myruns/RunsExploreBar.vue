@@ -1,5 +1,5 @@
 <!--
-  My runs › Your runs: the chip buttons above the list (lib/runsExplore.ts). One row per group that has two values or
+  My Runs › Your runs: the chip buttons above the list (lib/runsExplore.ts). One row per group that has two values or
   more among the player's runs (Goal, Ascensions, Level, Hours, Sent), then Sort and the stops box, all folded under
   "Filter and sort" (· N picked); "N of M runs" and Clear filters stay outside the fold. The fold is closed on a
   phone, open from sm up (matchMedia once mounted) and open whenever a pick is remembered. Each chip toggles on tap; within a group they are "or". Chips wrap, nothing scrolls sideways,

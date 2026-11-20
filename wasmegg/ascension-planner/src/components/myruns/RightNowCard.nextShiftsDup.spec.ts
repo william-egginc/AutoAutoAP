@@ -1,5 +1,5 @@
 /**
- * 17 Nov 2026 (Jordan, phone screenshot of My runs): the purple Next step card's "NEXT SHIFTS" list repeated the timeline right below it
+ * 17 Nov 2026 (Jordan, phone screenshot of My Runs): the purple Next step card's "NEXT SHIFTS" list repeated the timeline right below it
  * ("You are here", then each shift with its date and "in 6d 13h"). Where that timeline (EventsTable) is shown under the card, the list is left
  * out; Next step's headline and the soul-eggs line stay. Where no timeline is shown below (a followed route with no plan card, or a card
  * with no events), the list stays as it was.

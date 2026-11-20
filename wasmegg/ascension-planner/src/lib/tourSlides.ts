@@ -108,7 +108,7 @@ export function sharesPicture(a: { desk: TourPicture; phone: TourPicture } | nul
   return !!a && !!b && a.desk.src === b.desk.src && a.phone.src === b.phone.src;
 }
 
-/** The slides for what is loaded: a save file with no player ID has no My runs tab and ends at Follow this route (lib/firstTour.ts stepsFor). */
+/** The slides for what is loaded: a save file with no player ID has no My Runs tab and ends at Follow this route (lib/firstTour.ts stepsFor). */
 export function slidesFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourSlide[] {
   const ids = stepsFor(p);
   return TOUR_SLIDES.filter(s => ids.includes(s.id));

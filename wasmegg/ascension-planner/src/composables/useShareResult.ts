@@ -145,7 +145,7 @@ export function useAccountName(playerId: () => string): ComputedRef<string> {
 }
 
 /**
- * Every name this account may be credited as from another browser, for My runs' "looks like yours" (lib/myRuns.ts
+ * Every name this account may be credited as from another browser, for My Runs' "looks like yours" (lib/myRuns.ts
  * `isMyRun`): the header's nickname AND the in-game username (a browser sends under `nickname || username`, and
  * the other browser may have no nickname, or another one). Blank ones dropped.
  */

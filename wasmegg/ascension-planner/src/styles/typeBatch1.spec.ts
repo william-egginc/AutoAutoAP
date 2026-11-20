@@ -221,7 +221,7 @@ describe('(d) no mono anywhere', () => {
     expect(fs.readFileSync(path.join(APP, 'tailwind.config.ts'), 'utf8')).toMatch(/fontFamily: \{\s*mono: \['inherit'\],\s*\}/);
   });
 
-  it('route chains carry tabular-nums: instant answer, Leaderboard, My runs, the explainers', () => {
+  it('route chains carry tabular-nums: instant answer, Leaderboard, My Runs, the explainers', () => {
     expect(read('components/auto/InstantRoute.vue')).toContain('tabular-nums');
     expect(read('components/auto/LeaderboardPanel.vue')).toContain('tabular-nums');
     expect(read('components/myruns/RightNowCard.vue')).toContain('tabular-nums');

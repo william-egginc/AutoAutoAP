@@ -1,7 +1,7 @@
 /**
  * A FORCED BUILD-UP AGAINST A FRESH START (spec-r7verify, 1 Nov 2026; Release 7 verify item 3). "Continue my build-up"
- * forced (Your setup's choice, or My runs' unfinished build) never compares the ascension in progress with a fresh start:
- * search/leg.ts runLeg returns the build-up first. My runs now prices the fresh start lazily in a second simulation
+ * forced (Your setup's choice, or My Runs' unfinished build) never compares the ascension in progress with a fresh start:
+ * search/leg.ts runLeg returns the build-up first. My Runs now prices the fresh start lazily in a second simulation
  * (composables/useNowPage.ts `freshSim`: the same inputs as Prestige now) and says so on Right now when it ends more than
  * an hour sooner (lib/freshSooner.ts). Here the real simulator, exactly as the page asks it (search/chain.ts on a one-stop
  * route, a worker's plain copy of the inputs).
@@ -21,7 +21,7 @@ import { FRESH_SOONER_SECONDS, freshSooner } from '@/lib/freshSooner';
 import type { SearchInputs } from './types';
 
 const GOAL = 192;
-/** My runs' unfinished build (useNowPage `carryOn`, lib/a1Choice.ts `a1Inputs('buildup')`). */
+/** My Runs' unfinished build (useNowPage `carryOn`, lib/a1Choice.ts `a1Inputs('buildup')`). */
 const UNFINISHED = { firstAscension: 'buildup', continueMaxSeconds: 0 } as const;
 
 describe('a mid-build save, build-up forced, against the fresh start priced beside it', () => {

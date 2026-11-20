@@ -29,8 +29,8 @@ const under = (base: SearchInputs, extra: Partial<SearchInputs>) => ({ ...base, 
 const SETTINGS = {
   Fastest: { firstAscension: 'auto' },
   'Continue my build-up': { firstAscension: 'buildup' },
-  // My runs' unfinished build (composables/useNowPage.ts): the build carried on, continue left out.
-  "My runs' unfinished build": { firstAscension: 'buildup', continueMaxSeconds: 0 },
+  // My Runs' unfinished build (composables/useNowPage.ts): the build carried on, continue left out.
+  "My Runs' unfinished build": { firstAscension: 'buildup', continueMaxSeconds: 0 },
 } as const;
 
 async function inSale(short?: number): Promise<SearchInputs> {

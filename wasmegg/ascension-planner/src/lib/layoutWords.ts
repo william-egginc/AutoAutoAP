@@ -14,8 +14,8 @@ export const MORE_TITLE = 'More';
 /** Fastest and By a date: what is inside, said once under the fold's name. `changed` names a value not at its default.
  *  DRAFT (Words), 12 Nov 2026 pm: "Every number of ascensions, " dropped, the table is on the answer card now (Jordan). */
 export const MORE_LINE_AUTO = 'Run a search (Fast, Exact or Custom), maxed gear, how it works';
-/** My runs. */
-/** My runs' More line: Your eggs and the timeline moved above More, so they are not named here (spec-simpler2). */
+/** My Runs. */
+/** My Runs' More line: Your eggs and the timeline moved above More, so they are not named here (spec-simpler2). */
 export const MORE_LINE_MYRUNS = 'Change route, gear, saved answer, try next, your runs';
 /** The second fold control at the foot of an open More (Allan, 9 Nov 2026: one click folds all of it). */
 export const MORE_LESS = 'Less ⌃';
@@ -28,10 +28,10 @@ export function moreLineWithChanges(line: string, changed: readonly string[]): s
 
 // ---------------------------------------------------------------------------------------- "What to do now"
 
-export const NOW_BEFORE_FOLLOW = 'Press Follow this route: My runs then shows what to buy and when.';
+export const NOW_BEFORE_FOLLOW = 'Press Follow this route: My Runs then shows what to buy and when.';
 /** After Follow: "Next: shift to Humility on Nov 14 at 9:52 am." `step` is the next step's own words. */
 export const nowAfterFollow = (step: string): string => `Next: ${step}.`;
-export const NOW_OPEN_MY_RUNS = 'Open My runs ›';
+export const NOW_OPEN_MY_RUNS = 'Open My Runs ›';
 /** While a search runs or has a new result: its progress or result, then a link that opens More at the search. */
 export const nowSearchRunning = (kind: string, percent: number): string => `${kind} search running: ${Math.round(percent)}%`;
 export const NOW_SHOW_SEARCH = 'Show search ›';
@@ -53,7 +53,7 @@ export const ROW_HINT = 'Open a row to follow or simulate that route instead.';
 /** The Search card's one line. */
 export const SEARCH_CARD_LINE = 'Checks the instant answer on your save.';
 
-// ---------------------------------------------------------------------------------------- My runs
+// ---------------------------------------------------------------------------------------- My Runs
 
 /** The button that opens Setup, above the answer. Was "Filters" (Jordan's word, 12 Nov 2026); renamed 13 Nov 2026 because it opens Setup,
  *  and the real filters sit under it (UX review H4). Round 2, 14 Nov 2026: an instruction (Jordan: "Click to open Setup: awake hours, time off and more filters").
@@ -80,7 +80,7 @@ export function sharingSummaryWords(o: {
   const onOff = (b: boolean) => (b ? 'on' : 'off');
   const base = `Help improve: ${help} · Save online: ${onOff(o.saveOnline)}`;
   if (o.searchResults === undefined || o.instantWithRuns === undefined) return base;
-  return `${base} · Search results: ${onOff(o.searchResults)} · Instant answer with runs: ${onOff(o.instantWithRuns)}`;
+  return `${base} · Search results: ${onOff(o.searchResults)} · Instant Answer with runs: ${onOff(o.instantWithRuns)}`;
 }
 export const SHOW_EVERYTHING_LABEL = 'Show everything';
 export const SHOW_EVERYTHING_LINE = 'Every More fold starts open, like the old page.';
@@ -96,7 +96,7 @@ export const YOUR_ACCOUNT = 'Your account';
 /** The save line's button holds the player's name (Jordan, 12 Nov 2026: "▾ Williamthe5thc"); its name for a screen reader
  *  still starts with Change player. DRAFT (spec-header), for Words. */
 export const changePlayerLabel = (name: string): string => `${CHANGE_PLAYER}: ${name}`;
-/** My runs: the "?" after Right now's "Calculated from your … save" line, for a screen reader. It opens the save strip
+/** My Runs: the "?" after Right now's "Calculated from your … save" line, for a screen reader. It opens the save strip
  *  (its age, Why is my save out of date?, Details, Load latest save). DRAFT (spec-header, 12 Nov 2026), for Words. */
 export const SAVE_DETAILS_LABEL = 'Your save: its age and details';
 

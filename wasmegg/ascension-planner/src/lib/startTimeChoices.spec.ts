@@ -13,8 +13,8 @@ describe('startTimeChoices', () => {
       search: [210, 490],
     });
     expect(c.map(x => x.label)).toEqual([
-      "Instant answer's best: 205 250 490 (3 ascensions)",
-      'Instant answer: 210 490 (2 ascensions)',
+      "Instant Answer's best: 205 250 490 (3 ascensions)",
+      'Instant Answer: 210 490 (2 ascensions)',
     ]);
     const withSearch = startTimeChoices({ instant: [[205, 250, 490]], search: [206, 251, 490] });
     expect(withSearch.map(x => x.key)).toEqual(['205,250,490', '206,251,490']);

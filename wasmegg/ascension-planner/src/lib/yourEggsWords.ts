@@ -1,5 +1,5 @@
 /**
- * YOUR EGGS' WORDS (My runs > "Your eggs · from your save", spec-myruns-fix2, 13 Nov 2026). Wording only: not a
+ * YOUR EGGS' WORDS (My Runs > "Your eggs · from your save", spec-myruns-fix2, 13 Nov 2026). Wording only: not a
  * result code hash input (src/lib/resultCodeHash.ts skips *Words.ts). lib/nextTeEgg.ts builds the lines from these.
  *
  * THE TWO VIEWS (Jordan, 13 Nov 2026):

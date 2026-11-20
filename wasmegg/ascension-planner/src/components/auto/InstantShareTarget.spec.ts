@@ -162,7 +162,7 @@ function mountPage(opts: { panelFailsFirst?: boolean } = {}) {
       const cache: unknown[] = [];
       return () => {
         ctx.shareEl = el.value;
-        return [h('section', [h('h3', 'Instant answer'), h('p', ctx.result ? 'Reaches 490 TE' : 'Working out the instant answer')]), renderShare(ctx, cache)];
+        return [h('section', [h('h3', 'Instant Answer'), h('p', ctx.result ? 'Reaches 490 TE' : 'Working out the instant answer')]), renderShare(ctx, cache)];
       };
     },
   });
@@ -252,7 +252,7 @@ describe('Share this result: the instant answer is never replaced by the guard',
     const line = byTestId(p.root, 'share-check');
     expect(line).not.toBeNull();
     // Beside the card's own section, in the guard's slot, not in a panel.
-    expect(find(line!.parentNode!, n => n.tag === 'section' && textOf(n).startsWith('Instant answer'))).not.toBeNull();
+    expect(find(line!.parentNode!, n => n.tag === 'section' && textOf(n).startsWith('Instant Answer'))).not.toBeNull();
     // The panel draws later; the next time the line shows, it moves there.
     p.panelDraw.value++;
     await settle();
@@ -305,7 +305,7 @@ describe('the hazard itself (Vue 3.5 deferred Teleport with no target)', () => {
     const panel = ref(false);
     const Card = defineComponent({
       setup: () => () => [
-        h('section', 'Instant answer'),
+        h('section', 'Instant Answer'),
         h(Vue.Teleport, { to: SHARE_TO, defer: true }, [show.value ? h('div', 'Share this result') : Vue.createCommentVNode('v-if', true)]),
       ],
     });
