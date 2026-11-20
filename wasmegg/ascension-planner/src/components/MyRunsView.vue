@@ -248,7 +248,7 @@
       >
         <input v-model="shareBaseline.agreed.value" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300" />
         <span>
-          <b>Share my instant answer with my runs</b>
+          <b>Share my Instant Answer with my runs</b>
           <span class="block max-w-prose text-body text-slate-600"
             >Sends the instant answer's route and date beside each run you send, so the Leaderboard can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span

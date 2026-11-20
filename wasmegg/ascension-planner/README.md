@@ -43,7 +43,7 @@ Above the tabs, once a save is loaded (and only in a build with a collector), th
 planner** box asks whether to turn on the site's sharing choices (share runs on the
 Leaderboard, the CSV, private diagnostics, share search results). It is open on every page load until it is
 answered; **Hide** folds it to a strip. All four start unticked, and **Yes, help improve it** stays off
-until one is ticked; **Yes to all** ticks all four (and "Share my instant answer with my runs" and the Run
+until one is ticked; **Yes to all** ticks all four (and "Share my Instant Answer with my runs" and the Run
 tick) and says yes in one press; No thanks is always available. The answer is kept in this browser (`aap.study`, no
 player ID and no name) across tabs, reloads and restarts, and with the account's choices saved online (see
 Privacy and security), so a new browser does not ask again; Yes or No thanks hides the box, and the choices

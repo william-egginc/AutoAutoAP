@@ -168,7 +168,7 @@ describe('Sharing: the consent text folded in place, word for word', () => {
     }
     const t = textOf(shown);
     expect(t).toContain('Share my search results (anonymous; helps make the instant answer more accurate).');
-    expect(t).toContain('Share my instant answer with my runs (public, with the run).');
+    expect(t).toContain('Share my Instant Answer with my runs (public, with the run).');
     // The disclosures, unchanged (the whole of each, in the source, between the tick and the next).
     const words = src.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     expect(src).toContain(`:hidden.attr="whatOpen.instant ? undefined : 'until-found'"`);

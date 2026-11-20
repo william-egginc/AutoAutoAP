@@ -26,7 +26,7 @@ describe('My Runs: the regions in their fixed order', () => {
     expect(more).not.toContain('id="myruns-timeline"');
     expect(at.every(i => i >= 0), String(at)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
-    expect(more).toContain('<b>Share my instant answer with my runs</b>');
+    expect(more).toContain('<b>Share my Instant Answer with my runs</b>');
     expect(view).not.toContain('<SaveAgeStrip');
     expect(view).not.toContain('data-testid="my-runs-intro"');
     expect(view).toContain('section="moreMyRuns" :line="MORE_LINE_MYRUNS"');
