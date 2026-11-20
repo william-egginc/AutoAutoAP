@@ -20,7 +20,7 @@
       <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
       {{ ' ' }}{{ causeLine }}
       <template v-if="deadlineOffer"
-        >{{ ' ' }}A By a date search was going: its progress is saved, see
+        >{{ ' ' }}A By Egg Day search was going: its progress is saved, see
         <a href="#by-date-unfinished" class="underline font-bold" @click.prevent="toOffer">the unfinished run above</a>
         to carry it on.</template
       >

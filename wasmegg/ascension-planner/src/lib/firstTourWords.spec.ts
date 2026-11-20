@@ -15,8 +15,8 @@ describe('first tour words', () => {
     expect(B('tabChain')).toBe('Chain Finder looks for the best route by comparing routes with different numbers of ascensions. Click Next to learn more about Chain Finder.');
     expect(B('tabMyruns')).toBe('\'My Runs\' is your dashboard for your chain. It has your ascension plan, and you can add calendar reminders from this page.');
     expect(B('load')).toBe('Enter your Player ID or load a save file, so the planner works from your real account.');
-    expect(B('goalTarget')).toBe('There are two different goals you can pick: \'Target TE\' & \'By a Date\'. Target TE finds the fastest ascension plan to obtain an amount of TE you choose; \'By a Date\' calculates how much TE you can get by a certain date. Both goals display chains for \'N\' number of ascensions.');
-    expect(B('goalDate')).toBe('By a date finds the most TE you can reach by a date, such as Egg Day.');
+    expect(B('goalTarget')).toBe('There are two different goals you can pick: \'Target TE\' & \'By Egg Day\'. Target TE finds the fastest ascension plan to obtain an amount of TE you choose; \'By Egg Day\' calculates how much TE you can get by Egg Day, or by another date you pick. Both goals display chains for \'N\' number of ascensions.');
+    expect(B('goalDate')).toBe('By Egg Day finds the most TE you can reach by Egg Day, or by another date you pick.');
     expect(B('result')).toBe('The \'Instant Answer\' shows you the date you would achieve your goal, how long it would take, and the chain you should follow.');
     expect(B('filters')).toBe('The Setup button opens Setup, where you set what the answer is worked out for.');
     expect(B('setupAwake')).toBe('Awake hours are when you can play. Prestiges and shifts wait for them, so no step lands while you sleep.');
@@ -45,8 +45,8 @@ describe('first tour words', () => {
   it('plain: at most two or three short sentences a card, no jargon words', () => {
     const all = [...Object.values(FIRST_TOUR_STEPS).map(s => s.body), FIRST_TOUR_CLOSING];
     for (const t of all) {
-      // Jordan's own cards run longer than 170 (19 Nov 2026: his Goals card is 273 characters); his words stay.
-      expect(t.length).toBeLessThan(280);
+      // Jordan's own cards run longer than 170 (his Goals card is 273 characters, 297 with the By Egg Day wording of 20 Nov 2026); his words stay.
+      expect(t.length).toBeLessThan(320);
       expect(t.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(3);
       expect(t).not.toMatch(/simulator|collector|baseline|checkpoint/i);
     }

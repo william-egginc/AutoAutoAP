@@ -20,10 +20,10 @@ describe('full tour words', () => {
       expect(FULL_TOUR_ALT[id].length).toBeGreaterThan(10);
     }
   });
-  it('each card within the cap (279 characters, 3 sentences at most; Jordan\'s Goals card is 273, 19 Nov 2026)', () => {
+  it('each card within the cap (319 characters, 3 sentences at most; the Goals card is 297 with By Egg Day, 20 Nov 2026)', () => {
     for (const id of FULL_TOUR_STEPS) {
       const t = FULL_TOUR_STEPS_WORDS[id].body;
-      expect(t.length, id).toBeLessThan(280);
+      expect(t.length, id).toBeLessThan(320);
       expect(t.split(/(?<=\.)\s/).length, id).toBeLessThanOrEqual(3);
     }
   });

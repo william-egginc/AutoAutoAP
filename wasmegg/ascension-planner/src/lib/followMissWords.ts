@@ -38,9 +38,9 @@ export function followCannotLine(date: string, eggDay: boolean): string {
   const what = eggDay ? 'Egg Day' : date;
   return `No route can make ${what} now. On your newest save, none gets you above your current TE by then. Choose a later date.`;
 }
-/** The next step, option 1 (the default; searching the same date again cannot help): open By a date to choose another. */
+/** The next step, option 1 (the default; searching the same date again cannot help): open By Egg Day to choose another. */
 export const FOLLOW_CANNOT_LATER = 'Choose a later date';
-export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By a date, where you pick the date to search for.';
+export const FOLLOW_CANNOT_LATER_NOTE = 'Opens By Egg Day, where you can pick another date to search for.';
 /** The card shows the OLD followed route under a newer save. `when`: the save the route was worked out on, as the player
  *  reads it ("Nov 14, 2026 at 9:00 AM"). */
 export function followOldPlanLabel(when: string): string {
@@ -60,4 +60,4 @@ export function FOLLOW_BELOW_LINE(date: string, bestTE: number, followedTE: numb
 /** The button: opens By a date for that date, where the best row has Follow and Fast can check for better. */
 export const FOLLOW_BELOW_BUTTON = 'See the best route now';
 /** Under the button. */
-export const FOLLOW_BELOW_NOTE = 'Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.';
+export const FOLLOW_BELOW_NOTE = 'Opens By Egg Day for this date. The best route has a Follow button, and Fast can look for a better one.';

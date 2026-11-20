@@ -330,7 +330,7 @@ export function useByDateShare(
   /** The leaderboard tab this answer goes on: Egg Day has its own. */
   const shareTab = computed(() => {
     const y = result.value ? eggDayYearOf(result.value.deadline) : null;
-    return y ? `Egg Day ${y}` : 'By a date';
+    return y ? `Egg Day ${y}` : 'Other dates';
   });
 
   /** One send, worded for the status line: the store builds, remembers and sends it

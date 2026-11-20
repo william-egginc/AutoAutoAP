@@ -205,7 +205,7 @@ describe('no route makes the date, and the old plan under a newer save (17 Nov 2
     expect(t).toContain('No route can make Egg Day now. On your newest save, none gets you above your current TE by then. Choose a later date.');
     expect(html).toContain('data-testid="now-follow-cannot-later"');
     expect(t).toContain('Choose a later date');
-    expect(t).toContain('Opens By a date, where you pick the date to search for.');
+    expect(t).toContain('Opens By Egg Day, where you can pick another date to search for.');
     expect(t).not.toContain('See By a date for this date');
     expect(html).not.toContain('data-testid="now-follow-misses-search"');
   });
@@ -238,7 +238,7 @@ describe('the best on the newest save is below the TE you follow (17 Nov 2026)',
     expect(t).toContain('On your newest save, the best by Egg Day is 198 TE, below the 199 TE you follow.');
     expect(html).toContain('data-testid="now-follow-below-see"');
     expect(t).toContain('See the best route now');
-    expect(t).toContain('Opens By a date for this date. The best route has a Follow button, and Fast can look for a better one.');
+    expect(t).toContain('Opens By Egg Day for this date. The best route has a Follow button, and Fast can look for a better one.');
     expect(html).not.toContain('data-testid="now-follow-misses-search"');
     const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
     expect(src).toMatch(/data-testid="now-follow-below-see"[\s\S]{0,200}@click="emit\('open', goalOpen\)"/);

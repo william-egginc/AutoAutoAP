@@ -324,7 +324,7 @@ function byDateNeeds(): DataNeed[] {
       ...base,
       id: 'bydate-1-4',
       title: 'Egg Day, 1 to 4 ascensions',
-      why: "By a date runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how the instant answer picks routes.",
+      why: "By Egg Day runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how the instant answer picks routes.",
       byDate: {
         asc: [1, 2, 3, 4],
         eggDay: true,
