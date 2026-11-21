@@ -82,6 +82,7 @@ export function readSetup(v) {
   else if (v.hours !== undefined) {
     const h = v.hours;
     const days = h?.days;
+    const blocked = h?.blocked; // R10 weekly hours: the blocked hours of the week, Monday 00:00 = 0 (Availability.blocked)
     if (
       !h ||
       typeof h !== 'object' ||
@@ -89,15 +90,19 @@ export function readSetup(v) {
       !HHMM.test(h.start ?? '') ||
       !HHMM.test(h.end ?? '') ||
       (days !== undefined && !(Array.isArray(days) && days.length <= 7 && days.every(d => whole(d, 0, 6)))) ||
-      (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean')
+      (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean') ||
+      (blocked !== undefined && blocked !== null && !(Array.isArray(blocked) && blocked.length <= 168 && blocked.every(i => whole(i, 0, 167))))
     )
-      problems.push('hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false }');
+      problems.push(
+        'hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false, blocked?: null or at most 168 whole numbers 0 to 167 }'
+      );
     else
       out.hours = {
         start: h.start,
         end: h.end,
         ...(days !== undefined ? { days: days.slice() } : {}),
         ...(h.scheduleEnabled !== undefined ? { scheduleEnabled: h.scheduleEnabled } : {}),
+        ...(blocked !== undefined ? { blocked: blocked === null ? null : blocked.slice() } : {}),
       };
   }
   if (v.timeOff !== undefined) {
