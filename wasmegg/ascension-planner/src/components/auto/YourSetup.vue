@@ -530,6 +530,8 @@
           <!-- The calendar feed (spec-calendar-ui, 14 Nov 2026): its own switch, off by default; keyed by the account, so the card is
                made for the account on screen. -->
           <CalendarFeedSetup :key="calendarAccount" class="mt-3" />
+          <!-- The account's PIN (R10, 21 Nov 2026): set, change, remove, recovery code; hidden without a collector. -->
+          <PinCard :key="calendarAccount" class="mt-3" />
         </div>
       </div>
 
@@ -849,6 +851,7 @@ import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
 import CalendarFeedSetup from './CalendarFeedSetup.vue';
+import PinCard from './PinCard.vue';
 import { accountOf } from '@/search/runSaves';
 import { saveOnlineOn } from '@/lib/saveOnline';
 import { askTourReplay } from '@/composables/useFirstTour';
