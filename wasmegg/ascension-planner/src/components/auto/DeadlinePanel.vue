@@ -89,7 +89,7 @@
       </button>
     </div>
     <p class="text-body text-slate-600 max-w-prose">
-      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from the route’s start.</template>
+      <template v-if="deadline">{{ daysFromStartLine(daysAway) }}</template>
       <template v-else>Pick a date and time.</template>
     </p>
     <!-- Right now, from your save (R11, 21 Nov 2026): the start, with a button to Setup. -->
@@ -1117,6 +1117,7 @@ import {
   type InstantState,
 } from '@/search/autoWiden';
 import TimeBox12 from './TimeBox12.vue';
+import { daysFromStartLine } from '@/lib/daysFromStart';
 import StartLine from './StartLine.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BigBoxNote from './BigBoxNote.vue';
