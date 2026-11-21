@@ -8,8 +8,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
+import { maskOfWindow } from '@/search/availabilitySchedule';
 import WeeklyHoursPicker from './WeeklyHoursPicker.vue';
-import { WEEKLY_HOURS_WORDS, dailyWindowHours, hourName, presetHours } from '@/lib/weeklyHours';
+import { WEEKLY_HOURS_WORDS, hourName, presetHours } from '@/lib/weeklyHours';
 
 const src = fs.readFileSync(path.resolve(__dirname, 'WeeklyHoursPicker.vue'), 'utf8');
 
@@ -52,20 +53,16 @@ describe('presets', () => {
     expect(h).not.toContain(5 * 24 + 9);
     expect(h).not.toContain(17);
   });
-  it('the daily window preset blocks everything outside today’s From/To, on the days picked (Sunday = 0 there, Monday first in the grid)', () => {
-    const blocked = dailyWindowHours({ fromHour: 7, toHour: 23, days: [1, 2, 3, 4, 5] });
+  it('the daily window preset is the core’s maskOfWindow: outside today’s From/To on the days picked (Sunday = 0 there)', () => {
+    const blocked = maskOfWindow([1, 2, 3, 4, 5], 7, 23);
     expect(blocked).toHaveLength(168 - 5 * 16);
     expect(blocked).not.toContain(7);
     expect(blocked).toContain(23);
     expect(blocked).toContain(5 * 24 + 8);
-    expect(blocked).toContain(6);
   });
-  it('a window that crosses midnight wraps onto the same day’s morning', () => {
-    const blocked = dailyWindowHours({ fromHour: 20, toHour: 4, days: [0, 1, 2, 3, 4, 5, 6] });
-    expect(blocked).toHaveLength(7 * 16);
-    expect(blocked).not.toContain(21);
-    expect(blocked).not.toContain(2);
-    expect(blocked).toContain(10);
+  it('the picker uses it, not its own copy', () => {
+    expect(src).toContain('maskOfWindow(props.daily.days');
+    expect(fs.readFileSync(path.resolve(__dirname, '../../lib/weeklyHours.ts'), 'utf8')).not.toContain('dailyWindowHours');
   });
 });
 

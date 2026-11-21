@@ -73,8 +73,8 @@
  * or unblocks. Filled = blocked (no prestige or egg shift then).
  */
 import { computed, onMounted, onUnmounted } from 'vue';
-import { WEEK_HOURS } from '@/search/availabilitySchedule';
-import { WEEKLY_HOURS_WORDS, dailyWindowHours, hourName, presetHours } from '@/lib/weeklyHours';
+import { WEEK_HOURS, maskOfWindow } from '@/search/availabilitySchedule';
+import { WEEKLY_HOURS_WORDS, hourName, presetHours } from '@/lib/weeklyHours';
 
 const model = defineModel<number[]>({ required: true });
 const props = defineProps<{
@@ -97,7 +97,7 @@ const timezoneLabel = computed(() => props.timezone.split('/').pop()!.replace(/_
 const presets = computed(() => [
   { key: 'sleep', title: undefined, label: WEEKLY_HOURS_WORDS.presets.sleep, hours: presetHours('sleep') },
   { key: 'work', title: undefined, label: WEEKLY_HOURS_WORDS.presets.work, hours: presetHours('work') },
-  ...(props.daily ? [{ key: 'daily', title: WEEKLY_HOURS_WORDS.dailyTitle, label: WEEKLY_HOURS_WORDS.presets.daily, hours: dailyWindowHours(props.daily) }] : []),
+  ...(props.daily ? [{ key: 'daily', title: WEEKLY_HOURS_WORDS.dailyTitle, label: WEEKLY_HOURS_WORDS.presets.daily, hours: maskOfWindow(props.daily.days, props.daily.fromHour, props.daily.toHour) }] : []),
 ]);
 
 function set(hours: number[], on: boolean) {
