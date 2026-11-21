@@ -22,6 +22,20 @@ describe('hour names are 12-hour, always', () => {
   });
 });
 
+describe('wording (Words, 21 Nov 2026): never "blocked", Press not Click', () => {
+  it('has none of Joo’s words', () => {
+    const all = JSON.stringify([WEEKLY_HOURS_WORDS.presets, WEEKLY_HOURS_WORDS.help('Denver'), WEEKLY_HOURS_WORDS.legend]);
+    expect(all).not.toMatch(/blocked|Click/i);
+    expect(WEEKLY_HOURS_WORDS.presets.sleep).toBe('Sleep, 11 PM to 7 AM');
+    expect(WEEKLY_HOURS_WORDS.presets.work).toBe('Work, 9 AM to 5 PM on weekdays');
+  });
+  it('draws a legend', async () => {
+    const t = textOf(await renderHtml(WeeklyHoursPicker, { modelValue: [], timezone: 'America/Denver' }));
+    expect(t).toContain('You can play');
+    expect(t).toContain("You can't play");
+  });
+});
+
 describe('presets', () => {
   it('Sleep 11 PM–7 AM fills 8 hours on every day', () => {
     const h = presetHours('sleep');
@@ -61,7 +75,8 @@ describe('the picker', () => {
     const cells = html.match(/<button[^>]*data-testid="weekly-hour"[^>]*>/g) ?? [];
     expect(cells).toHaveLength(168);
     expect(cells[0]).toContain('aria-pressed="true"');
-    expect(cells[0]).toMatch(/aria-label="Mon 12 AM/);
+    expect(cells[0]).toContain('aria-label="Monday 12 AM: can&#39;t play"');
+    expect(cells[2]).toContain('aria-label="Monday 2 AM: can play"');
     expect(cells[2]).toContain('aria-pressed="false"');
   });
   it('shows the three presets and the 12-hour axis', async () => {
@@ -95,8 +110,9 @@ describe('the picker', () => {
     expect(src).not.toMatch(/text-\[\d+px\]/);
     expect(src).not.toMatch(/this device|this computer/i);
   });
-  it('reads the count of blocked hours a week', async () => {
+  it('reads the hours a week you can play (168 minus the shaded ones)', async () => {
     const t = textOf(await renderHtml(WeeklyHoursPicker, { modelValue: [0, 1, 2], timezone: 'America/Denver' }));
-    expect(t).toContain(WEEKLY_HOURS_WORDS.count(3));
+    expect(t).toContain('165 hours a week you can play.');
+    expect(WEEKLY_HOURS_WORDS.count(1)).toBe('1 hour a week you can play.');
   });
 });

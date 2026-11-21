@@ -36,11 +36,17 @@ export function dailyWindowHours(w: { fromHour: number; toHour: number; days: nu
   return range(0, WEEK_HOURS).filter(i => !awake.has(i));
 }
 
+/** Words' wording (21 Nov 2026): the setting stays "My awake hours"; shaded hours are the ones you can't play. */
 export const WEEKLY_HOURS_WORDS = {
-  // DRAFT: Words to check.
-  presets: { sleep: 'Sleep 11 PM–7 AM', work: 'Work 9–5 weekdays', daily: 'My daily hours' },
+  presets: { sleep: 'Sleep, 11 PM to 7 AM', work: 'Work, 9 AM to 5 PM on weekdays', daily: 'My daily hours' },
+  dailyTitle: 'Fills the week from the awake hours you had before.',
   clear: 'Clear all',
+  clearTitle: 'Make every hour one you can play.',
   help: (zone: string) =>
-    `Click or drag across hours to block or unblock them. Hours are read in the time zone above (${zone}).`,
-  count: (n: number) => `${n} hour${n === 1 ? '' : 's'} a week blocked.`,
+    `Press or drag across hours to mark them as hours you can't play, or to mark them free again. Times are in the time zone above (${zone}).`,
+  /** n = hours a week you CAN play (168 minus the shaded ones). */
+  count: (n: number) => (n === 1 ? '1 hour a week you can play.' : `${n} hours a week you can play.`),
+  legend: { can: 'You can play', cant: "You can't play" },
+  gridLabel: 'Your week, hour by hour',
+  cellLabel: (day: string, hour: string, cant: boolean) => `${day} ${hour}: ${cant ? "can't play" : 'can play'}`,
 };
