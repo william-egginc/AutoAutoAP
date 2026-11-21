@@ -179,6 +179,24 @@ describe('with ACCOUNT_KEY_SALT set (the TEST and live collectors have one)', ()
     expect(callinkRows()).toHaveLength(0);
     expect((await get()).status).toBe(404);
   });
+  it('the hourly cron cannot delete the record while a legacy account is re-keyed (every table moves in one batch, 21 Nov 2026)', async () => {
+    // Rows made before the salt: raw key K in synced and cal_feeds.
+    expect((await put(REC())).status).toBe(200);
+    expect((await post('/cal/new', { k: K })).status).toBe(200);
+    expect(callinkRows()[0].key).toBe(K);
+    env.ACCOUNT_KEY_SALT = 'test-salt-not-a-real-secret';
+    // The cron runs after every batch the move sends (the moment between two table moves, if there is one).
+    const db = env.WATCH;
+    const batch = db.batch.bind(db);
+    db.batch = async stmts => {
+      const r = await batch(stmts);
+      await pruneCal({ WATCH: { prepare: q => db.prepare(q) } }, T0);
+      return r;
+    };
+    expect((await get()).status).toBe(200);
+    expect(callinkRows()).toHaveLength(1);
+    expect(callinkRows()[0].key).not.toBe(K);
+  });
   it('an older at with DIFFERENT bytes is 409; the same bytes at an older at is "unchanged" 200 (nothing changes)', async () => {
     expect((await put(REC(), { at: T0 })).status).toBe(200);
     expect((await put(REC({ ct: b64(101) }), { at: T0 - 5000 })).status).toBe(409);
