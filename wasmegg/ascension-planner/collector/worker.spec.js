@@ -3857,3 +3857,26 @@ describe('the edge rate limit binding (QA, 21 Oct 2026)', () => {
     expect((await csvPost()).status).not.toBe(429);
   });
 });
+
+// R10 weekly hours (notes/r10-mask-record-2026-11-21.md): a mask is recorded in `window` as "wk:" + 28 base64url
+// characters + " " + the zone, at most 64 characters. The collector keeps `window` as text, so this needs no collector
+// change; these pin that it is kept whole, scrubbed of nothing, and told apart in the fingerprint.
+describe('a weekly-hours mask in `window`', () => {
+  const WK = n => `wk:${'AQ'.padEnd(26, 'A')}${n} America/Denver`; // 3 + 28 + 1 + 16 = 48 characters
+  const send = (window, durationDays) =>
+    post('/submit', { ...MINIMAL, nickname: 'Willsalt', effort: 'balanced', holdShifts: true, window, durationDays }, '1.1.1.1');
+
+  it('keeps the text whole, 64 characters included', async () => {
+    const w = `wk:${'AQAA'.repeat(7)} America/Argentina/ComodRivadavia`;
+    expect(w).toHaveLength(64);
+    await send(w, 700);
+    expect(stored()[0][1].window).toBe(w);
+  });
+  it('keeps two different masks as two rows, and folds the same mask sent twice', async () => {
+    await send(WK('AA'), 700);
+    await send(WK('AB'), 700);
+    await send(WK('AA'), 700);
+    const rows = (await (await get('/all')).json()).rows;
+    expect(rows.map(r => r.window).sort()).toEqual([WK('AA'), WK('AB')]);
+  });
+});
