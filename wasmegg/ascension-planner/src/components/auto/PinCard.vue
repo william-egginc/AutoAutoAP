@@ -8,8 +8,6 @@
 -->
 <template>
   <section v-if="acct.state.value !== 'unavailable'" class="space-y-2" data-testid="pin-card" aria-labelledby="pin-card-title">
-    <!-- Always there, filled when there is something to say: the slow hash, and the result of an action. -->
-    <p class="sr-only" role="status" aria-live="polite">{{ acct.busy.value ? PIN_WORKING : '' }}</p>
     <h4 id="pin-card-title" class="text-body font-bold text-slate-800">{{ PIN_TITLE }}</h4>
 
     <!-- A reset someone asked for, whatever the state. -->
@@ -69,7 +67,7 @@
 
     <template v-else>
       <p v-if="acct.state.value === 'unknown' || acct.state.value === 'checking'" class="text-body text-slate-600" data-testid="pin-checking">
-        {{ PIN_CHECKING }}
+        {{ PIN_CHECKING }}<AnimatedDots />
       </p>
 
       <!-- OFF -->
@@ -158,6 +156,9 @@
         </div>
       </template>
 
+      <!-- The slow hash (about 0.3 to 1 s on a phone): a visible status with the moving dots while an action runs. -->
+      <!-- Always there, filled while it works (an element added already full is not announced). -->
+      <p class="text-body text-slate-600 empty:hidden" role="status" aria-live="polite" data-testid="pin-working"><template v-if="acct.busy.value">{{ PIN_WORKING }}<AnimatedDots /></template></p>
       <p
         v-if="errorLine"
         class="text-body font-bold text-amber-800 max-w-prose"
@@ -176,6 +177,7 @@ import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 import { usePinAccount, type PinAccount } from '@/composables/usePinAccount';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
+import AnimatedDots from './AnimatedDots.vue';
 import {
   PIN_AGAIN, PIN_CANCEL, PIN_CHANGE, PIN_CHECKING, PIN_ENTER, PIN_FIELD, PIN_FORGOT, PIN_FORGOT_TITLE, PIN_LOCK, PIN_LOCKED_LINE,
   PIN_MISMATCH, PIN_NEW, PIN_OFF_LINE, PIN_OPEN_LINE, PIN_PRIVATE_NOTE, PIN_RECOVER, PIN_RECOVERY_COPIED, PIN_RECOVERY_COPY,

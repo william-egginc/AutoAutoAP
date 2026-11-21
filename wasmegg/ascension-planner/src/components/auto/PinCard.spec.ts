@@ -185,3 +185,22 @@ describe('where it lives', () => {
     expect(src).toMatch(/clearBoxes\(\)/);
   });
 });
+
+describe('pending labels draw their dots (Jordan, 1 Nov 2026; components/pendingDots.spec.ts)', () => {
+  it('the words files hold no typed ellipsis: the dots are AnimatedDots', () => {
+    const words = fs.readFileSync(path.resolve(__dirname, '../../lib/pinCardWords.ts'), 'utf8');
+    expect(words.replace(/^\s*(\/\/|\*|\/\*).*$/gm, '')).not.toMatch(/…|\.\.\./);
+  });
+  it('Checking while the account is asked draws the moving dots', async () => {
+    const h = await draw(fake({ state: 'checking' }));
+    expect(h).toContain('class="animated-dots" aria-hidden="true"');
+  });
+  it('the slow-hash hint is a visible status with the moving dots, while busy only', async () => {
+    const busy = await draw(fake({ state: 'locked', busy: true }));
+    expect(busy).toMatch(/<p[^>]*role="status"[^>]*data-testid="pin-working"[^>]*>[\s\S]*?animated-dots/);
+    const idle = await draw(fake({ state: 'locked' }));
+    expect(idle).toMatch(/data-testid="pin-working"><\/p>|data-testid="pin-working"><!---->/);
+    expect(textOf(idle)).not.toContain(W.PIN_WORKING);
+  });
+});
+

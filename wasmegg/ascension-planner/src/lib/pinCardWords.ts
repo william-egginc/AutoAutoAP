@@ -5,8 +5,9 @@
 import type { PinFail } from '@/lib/pinCloud';
 
 export const PIN_TITLE = 'PIN';
-export const PIN_CHECKING = 'Checking…';
-export const PIN_WORKING = 'Checking… this takes a moment.';
+/** Pending labels: the words only; PinCard draws the moving dots after them (AnimatedDots, Jordan 1 Nov 2026). */
+export const PIN_CHECKING = 'Checking';
+export const PIN_WORKING = 'Checking, this takes a moment';
 export const PIN_OFF_LINE = 'No PIN is set. Anyone who knows your player ID can change what is saved online for you.';
 export const PIN_OPEN_LINE = 'Your PIN is on, and this browser is signed in.';
 export const PIN_LOCKED_LINE = 'Your PIN is on, and this browser is signed out. What is saved online is not read or changed from here until you enter the PIN. Everything else still works.';
