@@ -202,6 +202,48 @@ describe('guessing', () => {
     expect(Number(locked.headers.get('retry-after'))).toBeGreaterThan(17 * 3600);
     expect((await verify(PK, K, T0 + DAY + 1000)).status).toBe(200);
   });
+  it('a daily per-address cap says the real time left, not a flat hour (and a retry then is allowed)', async () => {
+    // 20 sets a day per address: the 21st, 5 hours after the first, must wait the rest of the day.
+    for (let i = 0; i < 20; i++) expect((await pin('set', { k: i.toString(16).padStart(2, '0').repeat(32), pk: PK }, {}, T0, '203.0.113.9')).status).not.toBe(429);
+    const k21 = 'c'.repeat(64);
+    const refused = await pin('set', { k: k21, pk: PK }, {}, T0 + 5 * HOUR, '203.0.113.9');
+    expect(refused.status).toBe(429);
+    const wait = Number(refused.headers.get('retry-after'));
+    expect(wait).toBeGreaterThan(18 * 3600 - 5);
+    expect(wait).toBeLessThanOrEqual(19 * 3600);
+    expect((await refused.json()).retryAfter).toBe(wait);
+    expect((await pin('set', { k: k21, pk: PK }, {}, T0 + 5 * HOUR + wait * 1000, '203.0.113.9')).status).toBe(200);
+  });
+  it('a 4th reset in a day says the real time left', async () => {
+    const ks = ['d', 'e', 'f', '1'].map(c => c.repeat(64));
+    for (const k of ks) await setPin(k);
+    for (let i = 0; i < 3; i++) expect((await pin('reset', { k: ks[i] }, {}, T0, '203.0.113.7')).status).toBe(200);
+    const refused = await pin('reset', { k: ks[3] }, {}, T0 + 2 * HOUR, '203.0.113.7');
+    expect(refused.status).toBe(429);
+    const wait = Number(refused.headers.get('retry-after'));
+    expect(wait).toBeGreaterThan(22 * 3600 - 5);
+    expect(wait).toBeLessThanOrEqual(22 * 3600);
+    expect((await pin('reset', { k: ks[3] }, {}, T0 + 2 * HOUR + wait * 1000, '203.0.113.7')).status).toBe(200);
+  });
+  it('the 11th recovery try in a day says the real time left', async () => {
+    await setPin();
+    const bad = 'A'.repeat(16);
+    for (let i = 0; i < 10; i++) expect((await pin('recover', { k: K, recovery: bad, pk: PK2 }, {}, T0)).status).toBe(401);
+    const refused = await pin('recover', { k: K, recovery: bad, pk: PK2 }, {}, T0 + 3 * HOUR);
+    expect(refused.status).toBe(429);
+    const wait = Number(refused.headers.get('retry-after'));
+    expect(wait).toBeGreaterThan(21 * 3600 - 5);
+    expect(wait).toBeLessThanOrEqual(21 * 3600);
+  });
+  it('the hourly address cap on tries says the real time left', async () => {
+    await setPin();
+    for (let i = 0; i < 30; i++) await verify('9'.repeat(64), K, T0, '203.0.113.50');
+    const refused = await verify('9'.repeat(64), K, T0 + 20 * 60_000, '203.0.113.50');
+    expect(refused.status).toBe(429);
+    const wait = Number(refused.headers.get('retry-after'));
+    expect(wait).toBeGreaterThan(40 * 60 - 5);
+    expect(wait).toBeLessThanOrEqual(40 * 60);
+  });
   it('a right PIN resets the count (5 more free tries)', async () => {
     await setPin();
     await wrong(4);

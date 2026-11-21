@@ -20,7 +20,7 @@
  * session are never put in a URL or logged.
  */
 import { hmacHex, AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { DAY_MS, spend } from './budget.js';
+import { DAY_MS, spend, waitSeconds } from './budget.js';
 import { PLAYER_ID, isKey, overLimit, reply, retry } from './follow.js';
 
 export const PIN_FREE_TRIES = 5;
@@ -180,7 +180,7 @@ export async function handlePin(request, env, now = Date.now()) {
     if (!only(body, ['k', 'pk']) || !isKey(body.pk)) return bad(['send { k, pk }, pk 64 lowercase hex characters']);
     if (row) return reply({ error: 'a PIN is already set: change it with a session' }, 409);
     const day = await spend(env, `pinset|${await ipHash(env, request)}`, 1, PIN_SETS_PER_ADDRESS_DAY, now, DAY_MS);
-    if (!day.ok) return retry(3600, 'too many PINs set from this address today');
+    if (!day.ok) return retry(waitSeconds(day.since, DAY_MS, now), 'too many PINs set from this address today');
     const code = recoveryCode();
     const revoked = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM cal_feeds WHERE key = ?').bind(sk).first();
     await env.WATCH.batch([
@@ -197,7 +197,7 @@ export async function handlePin(request, env, now = Date.now()) {
   if (route === 'verify') {
     if (!only(body, ['k', 'pk']) || !isKey(body.pk)) return bad(['send { k, pk }, pk 64 lowercase hex characters']);
     const addr = await spend(env, `pinip|${await ipHash(env, request)}`, 1, PIN_TRIES_PER_ADDRESS_HOUR, now, HOUR_MS);
-    if (!addr.ok) return retry(600, 'too many tries from this address');
+    if (!addr.ok) return retry(waitSeconds(addr.since, HOUR_MS, now), 'too many tries from this address');
     // Reserve the try BEFORE comparing, in one statement, so parallel guesses cannot all slip under the cap.
     const r = await env.WATCH.prepare(
       `UPDATE pin SET
@@ -220,7 +220,7 @@ export async function handlePin(request, env, now = Date.now()) {
   if (route === 'recover') {
     if (!only(body, ['k', 'recovery', 'pk']) || !isKey(body.pk) || !/^[A-Z2-7]{16}$/.test(body.recovery || '')) return bad(['send { k, recovery, pk }']);
     const tries = await spend(env, `pinrec|${sk}`, 1, PIN_TRIES_PER_DAY, now, DAY_MS);
-    if (!tries.ok) return retry(3600, 'too many recovery tries today');
+    if (!tries.ok) return retry(waitSeconds(tries.since, DAY_MS, now), 'too many recovery tries today');
     if (!sameText(await recProofOf(env, sk, body.recovery), row.rec_proof)) return reply({ error: 'wrong recovery code', pin: true }, 401);
     const code = recoveryCode();
     const epoch = row.epoch + 1;
@@ -236,7 +236,7 @@ export async function handlePin(request, env, now = Date.now()) {
     if (row.reset_cooldown > now) return retry(Math.ceil((row.reset_cooldown - now) / 1000), 'a reset was cancelled recently: wait before asking again', 409);
     const a = await spend(env, `pinreset|${await ipHash(env, request)}`, 1, PIN_RESETS_PER_ADDRESS_DAY, now, DAY_MS);
     const all = await spend(env, 'pinreset-day', 1, PIN_RESETS_PER_DAY, now, DAY_MS);
-    if (!a.ok || !all.ok) return retry(3600, 'too many resets asked today');
+    if (!a.ok || !all.ok) return retry(Math.max(...[a, all].filter(x => !x.ok).map(x => waitSeconds(x.since, DAY_MS, now))), 'too many resets asked today');
     const resetAt = now + PIN_RESET_MS;
     await env.WATCH.prepare('UPDATE pin SET reset_at = ? WHERE key = ? AND reset_at = 0').bind(resetAt, sk).run();
     return reply({ ok: true, resetAt });
