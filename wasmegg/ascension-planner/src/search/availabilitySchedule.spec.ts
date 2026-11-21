@@ -8,9 +8,13 @@ import * as schedule from './availabilitySchedule';
 import * as availability from './availability';
 
 describe('availabilitySchedule', () => {
-  it('imports nothing at all, so it can never drag lib/events (or its table) into a page', () => {
+  it('imports nothing but lib/weekWindow, which imports nothing, so it can never drag lib/events (or its table) into a page', () => {
+    // R10 (21 Nov 2026): the collector's `window` text for weekly hours is lib/weekWindow.ts's, a pure module.
     const source = readFileSync(new URL('./availabilitySchedule.ts', import.meta.url), 'utf8');
-    expect(source).not.toMatch(/^\s*import\s/m);
+    const imports = (source.match(/^\s*import\s.*$/gm) ?? []).map(l => l.trim());
+    expect(imports).toEqual(["import { awakeFromBlocked, weekWindowText } from '@/lib/weekWindow';"]);
+    const week = readFileSync(new URL('../lib/weekWindow.ts', import.meta.url), 'utf8');
+    expect(week).not.toMatch(/^\s*import\s/m);
   });
 
   it('is what availability.ts re-exports, so the planner and the Explorer share one definition', () => {

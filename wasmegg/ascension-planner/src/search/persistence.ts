@@ -283,7 +283,8 @@ export function fingerprintChanges(saved: string, current: string): string[] {
 export interface FingerprintSettings {
   final: number;
   firstAscension: FirstAscension;
-  availability: { days: number[]; fromHour: number; toHour: number; timezone: string } | null;
+  /** `blocked`: weekly hours (R10), read back from an `availw-` key. */
+  availability: { days: number[]; fromHour: number; toHour: number; timezone: string; blocked?: number[] } | null;
   deferShifts: boolean | null;
   milestones: { te: number; by: number }[];
   timeOff: { from: number; to: number }[];

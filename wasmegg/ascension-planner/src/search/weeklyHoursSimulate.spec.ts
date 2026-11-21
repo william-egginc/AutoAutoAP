@@ -122,8 +122,9 @@ describe('(a) the chain evaluator reads the mask: every shift and prestige in a 
     const { r, starts: s } = evaluate({ availability: SPLIT, deferShifts: true });
     expect(r.legs.length).toBe(2);
     for (const leg of r.legs) for (const sh of leg.shifts ?? []) expect(isAvailable(sh.at, SPLIT)).toBe(true);
+    const first = r.legs[0]!;
     // The prestige between the two ascensions: the second starts when the player is back.
-    const prestige = r.legs[0].endTime + r.legs[0].sleepDelaySeconds;
+    const prestige = first.endTime + (first.sleepDelaySeconds ?? 0);
     expect(isAvailable(prestige, SPLIT)).toBe(true);
     expect(s[1]).toBe(prestige);
     expect(r.legs[0].sleepDelaySeconds).toBeGreaterThan(0);
@@ -137,11 +138,11 @@ describe('(a) the chain evaluator reads the mask: every shift and prestige in a 
     const window = evaluate({ availability: WINDOW, deferShifts: true });
     expect(masked.r.seconds).toBeGreaterThan(none.r.seconds);
     expect(masked.r.seconds).not.toBe(window.r.seconds);
-    expect(masked.r.legs[0].shifts.map(x => x.at)).not.toEqual(window.r.legs[0].shifts.map(x => x.at));
+    expect((masked.r.legs[0]!.shifts ?? []).map(x => x.at)).not.toEqual((window.r.legs[0]!.shifts ?? []).map(x => x.at));
     // Without held shifts the prestige still waits for the mask, and the night shifts are counted against it.
     const prestigeOnly = evaluate({ availability: SPLIT, deferShifts: false });
-    const p = prestigeOnly.r.legs[0];
-    expect(isAvailable(p.endTime + p.sleepDelaySeconds, SPLIT)).toBe(true);
+    const p = prestigeOnly.r.legs[0]!;
+    expect(isAvailable(p.endTime + (p.sleepDelaySeconds ?? 0), SPLIT)).toBe(true);
     expect(p.nightShifts).toBeGreaterThan(0);
   });
 });

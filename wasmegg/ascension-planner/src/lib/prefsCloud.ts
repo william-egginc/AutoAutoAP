@@ -84,8 +84,9 @@ export interface CloudHours {
   end: string;
   days?: number[];
   scheduleEnabled?: boolean;
-  /** Weekly hours (R10): the week's blocked hours (search/availabilitySchedule.ts), null for none (the daily window).
-   *  Absent when read back: not said (an older client, or a collector that does not keep it yet), so left as it is. */
+  /** Weekly hours (R10): the week's blocked hours (search/availabilitySchedule.ts). Sent only when there is a mask, so a
+   *  Setup with none is the value it always was. Read back, hours without it mean no mask: the newest Setup wins, an
+   *  older client's daily window included. */
   blocked?: number[] | null;
 }
 
@@ -191,7 +192,8 @@ export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour'
   const to = hour(s.toHour);
   if (from === null || to === null) return { hours: null };
   const days = weekdays(s.days) ?? [];
-  const blocked = s.blocked === undefined ? {} : { blocked: Array.isArray(s.blocked) ? validBlocked(s.blocked) : null };
+  const mask = Array.isArray(s.blocked) ? validBlocked(s.blocked) : [];
+  const blocked = mask.length ? { blocked: mask } : {};
   return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days, scheduleEnabled: !!s.scheduleEnabled, ...blocked } };
 }
 export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days' | 'blocked'>> {
@@ -203,8 +205,8 @@ export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<Se
     toHour: Number(v.hours.end.slice(0, 2)),
   };
   if (v.hours.days) out.days = [...v.hours.days];
-  if (v.hours.blocked === null) out.blocked = null;
-  else if (Array.isArray(v.hours.blocked)) out.blocked = validBlocked(v.hours.blocked);
+  const mask = Array.isArray(v.hours.blocked) ? validBlocked(v.hours.blocked) : [];
+  out.blocked = mask.length ? mask : null;
   return out;
 }
 

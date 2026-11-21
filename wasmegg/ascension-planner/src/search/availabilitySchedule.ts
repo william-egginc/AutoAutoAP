@@ -13,6 +13,8 @@
  * availability.ts re-exports all of this, so the planner's imports did not change.
  */
 
+import { awakeFromBlocked, weekWindowText } from '@/lib/weekWindow';
+
 export interface Availability {
   /** Days the player can act, 0 = Sunday .. 6 = Saturday. Empty means every day. */
   days: number[];
@@ -81,8 +83,9 @@ function windowConstrained(a: Availability): boolean {
 export function describeAvailability(a: Availability | null | undefined): string {
   if (!isConstrained(a)) return 'any time';
   // A mask that is its own daily window reads as that window (a saved schedule turned into a mask keeps its words, its
-  // key and the collector's `window`). Any other: DRAFT words, the collector's `window` text is Collector's (R10).
-  if (!isOwnWindow(a)) return `weekly ${WEEK_HOURS - blockedArray(a)!.count}h free ${a.timezone}`;
+  // key and the collector's `window`). Any other: Collector's text (lib/weekWindow.ts): a mask one daily window can say
+  // in the old words, else `wk:` + the 168 hours + the zone, at most 64 characters (notes/r10-mask-record-2026-11-21.md).
+  if (!isOwnWindow(a)) return weekWindowText(awakeFromBlocked(a.blocked ?? []), a.timezone) ?? 'any time';
   const pad = (h: number) => `${String(h).padStart(2, '0')}:00`;
   const days = validDays(a).sort((x, y) => x - y);
   const dayText = !days.length || days.length === 7 ? 'every day' : days.map(d => DAY_NAMES[d]).join(',');

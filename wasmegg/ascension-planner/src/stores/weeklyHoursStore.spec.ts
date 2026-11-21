@@ -86,13 +86,15 @@ describe('the remembered blob and the online value', () => {
     expect(parseSetup(raw('nope'), '2026-11-21')?.hours.blocked).toBeUndefined();
     expect(parseSetup(JSON.stringify({ v: 1, hours: { on: true, from: 7, to: 23, days: [] }, at: 1 }), '2026-11-21')?.hours.blocked).toBeUndefined();
   });
-  it('the online hours carry the mask, or null for none; reading back absent means "not said"', () => {
+  it('the online hours carry the mask only when there is one (a Setup with none is the value it always was); read back, hours without one mean no mask, and no hours mean not said', () => {
     const base = { scheduleEnabled: true, fromHour: 7, toHour: 23, days: [] as number[] };
     expect(scheduleToCloud({ ...base, blocked: SLEEP_WORK }).hours?.blocked).toEqual(SLEEP_WORK);
-    expect(scheduleToCloud({ ...base, blocked: null }).hours?.blocked).toBeNull();
-    const back = scheduleFromCloud(scheduleToCloud({ ...base, blocked: SLEEP_WORK }));
-    expect(back.blocked).toEqual(SLEEP_WORK);
-    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00' } })).not.toHaveProperty('blocked');
+    expect(scheduleToCloud({ ...base, blocked: null }).hours).not.toHaveProperty('blocked');
+    expect(scheduleToCloud({ ...base, blocked: [] }).hours).not.toHaveProperty('blocked');
+    expect(scheduleToCloud({ ...base, blocked: null })).toEqual(scheduleToCloud(base));
+    expect(scheduleFromCloud(scheduleToCloud({ ...base, blocked: SLEEP_WORK })).blocked).toEqual(SLEEP_WORK);
+    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00' } }).blocked).toBeNull();
+    expect(scheduleFromCloud({})).not.toHaveProperty('blocked');
   });
 });
 
