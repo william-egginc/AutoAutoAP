@@ -173,6 +173,7 @@ import {
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
+import { maskOfWindow, validBlocked } from '@/search/availabilitySchedule';
 import {
   MAX_LAST_STOP,
   runDeadlineSearch,
@@ -774,16 +775,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const availableTo = ref(23);
   /** 0 = Sunday. All seven means "every day", which the constraint check treats as no day filter. */
   const availableDays = ref<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  /**
+   * Weekly hours (R10, 21 Nov 2026): the week's BLOCKED hours, indices 0-167, Monday 00:00 first
+   * (search/availabilitySchedule.ts). Null: the daily window above, exactly as before. Saved with the hours group.
+   */
+  const blockedHours = ref<number[] | null>(null);
+  /** What the weekly picker edits: the mask, or until the player paints one, the daily window as a mask (the window is
+   *  then a preset). Setting it keeps valid indices only. */
+  const weekBlocked = computed<number[]>({
+    get: () => blockedHours.value ?? maskOfWindow(availableDays.value, availableFrom.value, availableTo.value),
+    set: v => {
+      blockedHours.value = validBlocked(v);
+    },
+  });
 
   /** The schedule as the search takes it, or null. Timezone comes from the Auto Planner's own
    *  scheduling inputs so the hours mean what the rest of the planner shows. */
   const availability = computed<Availability | null>(() => {
     if (!scheduleEnabled.value) return null;
-    const a = {
+    const a: Availability = {
       days: [...availableDays.value],
       fromHour: availableFrom.value,
       toHour: availableTo.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      ...(blockedHours.value ? { blocked: [...blockedHours.value] } : {}),
     };
     return isConstrained(a) ? a : null;
   });
@@ -860,6 +875,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         from: availableFrom.value,
         to: availableTo.value,
         days: [...availableDays.value],
+        ...(blockedHours.value ? { blocked: [...blockedHours.value] } : {}),
       },
       holdShifts: deferShifts.value,
       siloTrick: siloTrick.value,
@@ -877,6 +893,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableFrom.value = v.hours.from;
       availableTo.value = v.hours.to;
       availableDays.value = [...v.hours.days];
+      blockedHours.value = v.hours.blocked ? validBlocked(v.hours.blocked) : null;
       deferShifts.value = v.holdShifts;
       siloTrick.value = !!v.siloTrick;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
@@ -958,6 +975,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         availableDays.value = days;
         groups.add('hours');
       }
+      // Weekly hours: absent is "not said" (an older client, or a collector that does not keep it yet), null clears.
+      if (p.blocked !== undefined) {
+        const b = Array.isArray(p.blocked) ? validBlocked(p.blocked) : null;
+        if (!same(b, blockedHours.value)) {
+          blockedHours.value = b;
+          groups.add('hours');
+        }
+      }
       if (p.timeOff && !same(p.timeOff, timeOff.value)) {
         timeOff.value = p.timeOff.filter(range).map(w => ({ from: w.from, to: w.to }));
         groups.add('timeOff');
@@ -975,7 +1000,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return changed || groups.size > 0;
   }
   // `sync`: the mute is read at the moment of the change, not after the restore that made it has ended.
-  watch([scheduleEnabled, availableFrom, availableTo, availableDays], () => noteSetupEdit('hours'), {
+  watch([scheduleEnabled, availableFrom, availableTo, availableDays, blockedHours], () => noteSetupEdit('hours'), {
     flush: 'sync',
     deep: true,
   });
@@ -2947,6 +2972,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // As the run had them, none ticked included: filling in all seven fingerprints as a different
       // schedule (`avail0123456` against `availall`) and the carry-on was refused for it.
       availableDays.value = [...set.availability.days];
+      blockedHours.value = set.availability.blocked ? validBlocked(set.availability.blocked) : null;
       if (set.availability.timezone && planner.timezone !== set.availability.timezone) {
         planner.timezone = set.availability.timezone;
       }
@@ -7684,6 +7710,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableFrom.value = set.availability.fromHour;
       availableTo.value = set.availability.toHour;
       availableDays.value = [...set.availability.days];
+      blockedHours.value = set.availability.blocked ? validBlocked(set.availability.blocked) : null;
       const planner = useAutoPlannerStore();
       if (set.availability.timezone && planner.timezone !== set.availability.timezone) {
         planner.timezone = set.availability.timezone;
@@ -10340,6 +10367,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     availableFrom,
     availableTo,
     availableDays,
+    blockedHours,
+    weekBlocked,
     availability,
     availabilityLabel,
     deferShifts,
@@ -10406,6 +10435,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setupIsRemembered,
     loadSetupFor,
     applyOnlineSetup,
+    setupNow,
+    applySetup,
     resetSetupToDefaults,
     muteSetupMemory,
     setupMuted,

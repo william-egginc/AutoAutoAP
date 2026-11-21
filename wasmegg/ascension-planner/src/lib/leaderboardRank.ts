@@ -88,6 +88,7 @@
  */
 
 import { FIRST_ASCENSION_WORDS, readFirstAscensionOrNull, type FirstAscension } from '@/search/firstAscension';
+import { parseWeekWindow } from './weekWindow';
 import { finishesBefore } from './eggDayRule';
 import { inTimeStyle } from './timeStyleWords';
 
@@ -2437,8 +2438,12 @@ export function plannedText(plan: Plan, { zone, brief = false }: { zone?: string
  * which the full text (for a tooltip) still names; the zone made the cell wrap. `none` for no
  * schedule.
  */
+/** What a player reads for a week that is not one daily window (Words, 21 Nov). */
+export const CUSTOM_WEEK_HOURS = 'Custom weekly hours';
+
 export function scheduleText(window: string | null | undefined, none = 'any time'): string {
   if (!window) return none;
+  if (parseWeekWindow(window)) return CUSTOM_WEEK_HOURS; // R10: never print the wk: code
   return window.replace(/\s+[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)+\s*$/, '').trim() || window;
 }
 

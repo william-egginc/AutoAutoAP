@@ -90,6 +90,7 @@ type SearchLike = {
   availableFrom: number;
   availableTo: number;
   availableDays: number[];
+  blockedHours?: number[] | null;
   timeOff: { from: string; to: string }[];
   noPrestige: { from: string; to: string }[];
   finalTE: number;
@@ -215,6 +216,7 @@ export const usePrefsStore = defineStore('prefs', () => {
       fromHour: s.availableFrom,
       toHour: s.availableTo,
       days: [...(s.availableDays ?? [])],
+      blocked: s.blockedHours ? [...s.blockedHours] : null,
       timeOff: (s.timeOff ?? []).map(w => ({ from: w.from, to: w.to })),
       noPrestige: (s.noPrestige ?? []).map(w => ({ from: w.from, to: w.to })),
       finalTE: s.finalTE,
@@ -309,6 +311,7 @@ export const usePrefsStore = defineStore('prefs', () => {
       if (p.fromHour !== undefined && s.availableFrom !== p.fromHour) s.availableFrom = p.fromHour;
       if (p.toHour !== undefined && s.availableTo !== p.toHour) s.availableTo = p.toHour;
       if (p.days && JSON.stringify(p.days) !== JSON.stringify(s.availableDays)) s.availableDays = [...p.days];
+      if (p.blocked !== undefined && JSON.stringify(p.blocked) !== JSON.stringify(s.blockedHours ?? null)) s.blockedHours = p.blocked ? [...p.blocked] : null;
       if (p.timeOff && JSON.stringify(p.timeOff) !== JSON.stringify(s.timeOff)) s.timeOff = p.timeOff;
       if (p.noPrestige && JSON.stringify(p.noPrestige) !== JSON.stringify(s.noPrestige)) s.noPrestige = p.noPrestige;
       if (p.finalTE !== undefined && s.finalTE !== p.finalTE) s.finalTE = p.finalTE;
@@ -626,6 +629,7 @@ export const usePrefsStore = defineStore('prefs', () => {
         s.availableFrom,
         s.availableTo,
         s.availableDays,
+        s.blockedHours ?? null,
         s.timeOff,
         s.noPrestige,
         s.finalTE,

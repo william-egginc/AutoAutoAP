@@ -88,7 +88,9 @@ export interface CalendarInput {
   /** The followed route's finish (Fastest to a TE, By a date...): one `route` event at the time it ends. Off by default. */
   route?: { goal: string; finish?: number | null; endTE?: number | null } | null;
   /** The player's hours (the followed route's `hours`): events outside them are `quiet`. */
-  hours?: { start: string; end: string; timezone?: string } | null;
+  /** `blocked`: weekly hours (R10), the week's blocked hours, Monday 00:00 first (search/availabilitySchedule.ts); when
+   *  present it decides, not start and end. */
+  hours?: { start: string; end: string; timezone?: string; blocked?: number[] } | null;
   /** The planner's IANA zone (the hours' zone when they carry none). */
   zone?: string;
   options?: CalOptions;
@@ -153,7 +155,7 @@ export function hash(text: string): string {
 }
 
 /** Whether `ms` falls inside the player's hours (start to end, overnight when start is later), in the zone's wall clock. */
-export function inHours(ms: number, hours: { start: string; end: string; timezone?: string }, zone: string): boolean {
+export function inHours(ms: number, hours: { start: string; end: string; timezone?: string; blocked?: number[] }, zone: string): boolean {
   let tz = hours.timezone || zone || 'UTC';
   let parts: Intl.DateTimeFormatPart[];
   const fmt = (z: string) =>
@@ -162,6 +164,7 @@ export function inHours(ms: number, hours: { start: string; end: string; timezon
       hour: '2-digit',
       minute: '2-digit',
       hourCycle: 'h23',
+      weekday: 'short',
     }).formatToParts(new Date(ms));
   try {
     parts = fmt(tz);
@@ -171,6 +174,11 @@ export function inHours(ms: number, hours: { start: string; end: string; timezon
   }
   const at =
     Number(parts.find(p => p.type === 'hour')!.value) * 60 + Number(parts.find(p => p.type === 'minute')!.value);
+  if (hours.blocked) {
+    // Monday first, as the mask is (en-GB short weekday names).
+    const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(parts.find(p => p.type === 'weekday')?.value ?? '');
+    if (day >= 0) return !hours.blocked.includes(day * 24 + Math.floor(at / 60));
+  }
   const minutes = (s: string): number => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
   const from = minutes(hours.start);
   const to = minutes(hours.end);

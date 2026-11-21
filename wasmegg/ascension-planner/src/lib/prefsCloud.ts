@@ -21,6 +21,7 @@
  */
 import { followKey, followUrlOf, hasPlayerId, isAheadRefusal, putOnceMore, readLatest, type CloudFail, type PutResult } from './followCloud';
 import type { TimeOffDates } from '@/search/timeOff';
+import { validBlocked } from '@/search/availabilitySchedule';
 
 export { hasPlayerId };
 /** The same key as the followed routes (one code per account). */
@@ -83,6 +84,10 @@ export interface CloudHours {
   end: string;
   days?: number[];
   scheduleEnabled?: boolean;
+  /** Weekly hours (R10): the week's blocked hours (search/availabilitySchedule.ts). Sent only when there is a mask, so a
+   *  Setup with none is the value it always was. Read back, hours without it mean no mask: the newest Setup wins, an
+   *  older client's daily window included. */
+  blocked?: number[] | null;
 }
 
 /** "Send my progress every N hours" as the Setup value would keep it (`SYNC_PROGRESS_SENDS`; not in the contract). */
@@ -132,6 +137,8 @@ export interface SetupNow {
   fromHour: number;
   toHour: number;
   days: number[];
+  /** Weekly hours (R10): the store's `blockedHours`; null: the daily window. */
+  blocked?: number[] | null;
   timeOff: TimeOffDates[];
   noPrestige: TimeOffDates[];
   finalTE: number;
@@ -179,23 +186,27 @@ const weekdays = (v: unknown): number[] | null =>
  * the hours picked are kept while the tick is off too. The app's whole hours go as "HH:00" (24 as "00:00", the same end
  * of the day); a read "HH:MM" keeps its hour. Read back: null is "any time" (off); no `scheduleEnabled` is on.
  */
-export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>): Pick<CloudSetup, 'hours'> {
+export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days' | 'blocked'>): Pick<CloudSetup, 'hours'> {
   const hour = (h: number) => (Number.isInteger(h) && h >= 0 && h <= 24 ? h % 24 : null);
   const from = hour(s.fromHour);
   const to = hour(s.toHour);
   if (from === null || to === null) return { hours: null };
   const days = weekdays(s.days) ?? [];
-  return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days, scheduleEnabled: !!s.scheduleEnabled } };
+  const mask = Array.isArray(s.blocked) ? validBlocked(s.blocked) : [];
+  const blocked = mask.length ? { blocked: mask } : {};
+  return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days, scheduleEnabled: !!s.scheduleEnabled, ...blocked } };
 }
-export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> {
+export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days' | 'blocked'>> {
   if (v.hours === undefined) return {};
   if (v.hours === null) return { scheduleEnabled: false };
-  const out: Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> = {
+  const out: Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days' | 'blocked'>> = {
     scheduleEnabled: v.hours.scheduleEnabled ?? true,
     fromHour: Number(v.hours.start.slice(0, 2)),
     toHour: Number(v.hours.end.slice(0, 2)),
   };
   if (v.hours.days) out.days = [...v.hours.days];
+  const mask = Array.isArray(v.hours.blocked) ? validBlocked(v.hours.blocked) : [];
+  out.blocked = mask.length ? mask : null;
   return out;
 }
 
@@ -317,6 +328,8 @@ export function readSetupValue(v: unknown): CloudSetup | null {
       const days = weekdays(h.days);
       if (days) out.hours.days = days;
       if (typeof h.scheduleEnabled === 'boolean') out.hours.scheduleEnabled = h.scheduleEnabled;
+      if (h.blocked === null) out.hours.blocked = null;
+      else if (Array.isArray(h.blocked)) out.hours.blocked = validBlocked(h.blocked as number[]);
     }
   }
   if (Array.isArray(x.timeOff)) out.timeOff = ranges(x.timeOff as CloudRange[]);

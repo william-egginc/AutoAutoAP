@@ -96,9 +96,11 @@ describe('the Setup value', () => {
       fromHour: 9,
       toHour: 17,
       days: [0, 6],
+      // R10: hours without a weekly mask mean none (the newest Setup wins).
+      blocked: null,
     });
     expect(scheduleFromCloud({ hours: null })).toEqual({ scheduleEnabled: false });
-    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00' } })).toEqual({ scheduleEnabled: true, fromHour: 7, toHour: 23 });
+    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00' } })).toEqual({ scheduleEnabled: true, fromHour: 7, toHour: 23, blocked: null });
     expect(scheduleFromCloud({})).toEqual({});
   });
 

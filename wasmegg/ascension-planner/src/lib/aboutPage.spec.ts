@@ -102,7 +102,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('Last updated Nov 15, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
-    expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
+    expect(sub).toContain('window: isConstrained(i.availability) ? describeAvailability(i.availability) : null,');
     expect(sub).toContain('...(i.timeOff?.length ? { timeOff: i.timeOff.map(w => ({ ...w })) } : {}),');
     expect(sub).toContain('startWeekday: weekdayIn(i.planStart, tz),');
     const worker = read('collector/worker.js');

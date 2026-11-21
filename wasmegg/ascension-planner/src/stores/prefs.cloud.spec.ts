@@ -208,6 +208,8 @@ describe('loading an account', () => {
       fromHour: 9,
       toHour: 17,
       days: [1, 2, 3, 4, 5],
+      // R10: hours without a weekly mask mean none (the newest Setup wins).
+      blocked: null,
       timeOff: [{ from: '2026-12-24', to: '2026-12-26' }],
       noPrestige: [{ from: '2026-11-03', to: '2026-11-04' }],
       finalTE: 300,
