@@ -61,12 +61,13 @@ describe('a mask made from its own window is that window, exactly', { timeout: 1
     [[3], 9, 17],
   ];
   const zones = [LA, 'Europe/London', 'Australia/Sydney', 'Asia/Kolkata'];
-  // Every 3 h 7 min through 2027, plus every 13 minutes across each zone's clock changes (the four dates below give a
-  // day either side of every change in these zones).
+  // Every 9 h 11 min through 2027 (an odd step, so it walks round every hour of the week), plus every 29 minutes across
+  // each zone's clock changes (a day either side of every change in these zones). Lighter since 21 Nov 2026 (it took
+  // ~25 s and risked the parallel run's timeout); the same coverage of hours of the week and of every change.
   const changes = ['2027-03-14', '2027-03-28', '2027-04-04', '2027-10-03', '2027-10-31', '2027-11-07'];
   const instants = [
-    ...Array.from({ length: 2810 }, (_, i) => at('2027-01-01T00:00:00Z') + i * 187 * 60),
-    ...changes.flatMap(d => Array.from({ length: 330 }, (_, i) => at(`${d}T00:00:00Z`) - 86400 + i * 13 * 60)),
+    ...Array.from({ length: 955 }, (_, i) => at('2027-01-01T00:00:00Z') + i * 551 * 60),
+    ...changes.flatMap(d => Array.from({ length: 150 }, (_, i) => at(`${d}T00:00:00Z`) - 86400 + i * 29 * 60)),
   ];
   for (const [days, f, t] of windows)
     for (const tz of zones) {
