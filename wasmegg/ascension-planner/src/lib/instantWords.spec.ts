@@ -18,6 +18,9 @@ describe('the line under the title (DRAFT)', () => {
   });
   it('hours only, days only, one day, neither', () => {
     expect(instantHeaderLine({ hours: '8 am to 11 pm', noPrestigeDays: 0 })).toBe(`${LEAD} Keeps your awake hours (8 am to 11 pm).`);
+    // R10 (Words, 22 Nov 2026): a custom week has no window to bracket.
+    expect(instantHeaderLine({ hours: 'custom weekly hours', noPrestigeDays: 0 })).toBe(`${LEAD} Keeps your custom weekly hours.`);
+    expect(instantHeaderLine({ hours: 'custom weekly hours', noPrestigeDays: 2 })).toBe(`${LEAD} Keeps your custom weekly hours and your 2 no-prestige days.`);
     expect(instantHeaderLine({ hours: null, noPrestigeDays: 3 })).toBe(`${LEAD} Keeps your 3 no-prestige days.`);
     expect(instantHeaderLine({ hours: null, noPrestigeDays: 1 })).toBe(`${LEAD} Keeps your 1 no-prestige day.`);
     expect(instantHeaderLine({ hours: null, noPrestigeDays: 0 })).toBe(LEAD);

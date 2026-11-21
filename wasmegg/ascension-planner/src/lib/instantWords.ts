@@ -19,7 +19,8 @@ export const INSTANT_ESTIMATE_LINE =
 export function instantHeaderLine(o: { hours: string | null; noPrestigeDays: number }): string {
   const lead = 'Worked out ahead of time, a few days either side of a search on your save.';
   const days = o.noPrestigeDays > 0 ? `your ${o.noPrestigeDays} no-prestige ${o.noPrestigeDays === 1 ? 'day' : 'days'}` : '';
-  const hours = o.hours ? `your awake hours (${o.hours})` : '';
+  // A custom week (R10) has no window to put in brackets: "your custom weekly hours" (lib/pricedWith.ts hoursWords).
+  const hours = o.hours ? (o.hours === 'custom weekly hours' ? `your ${o.hours}` : `your awake hours (${o.hours})`) : '';
   const kept = [hours, days].filter(Boolean).join(' and ');
   return kept ? `${lead} Keeps ${kept}.` : lead;
 }
