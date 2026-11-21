@@ -180,6 +180,7 @@ function ctxOf(s: State): Record<string, unknown> {
     exact: { start: () => {}, stop: () => {}, state: { value: null } },
     exactDone: null,
     exactShown: null,
+    EXACT_COUNTS_NOTE: '',
     dateBoxOf: (r: Route) => ({ chain: r.chain, endTE: last(r), end: r.end }),
     datePickedRow: () => false,
     countIds: 'counts-v0',

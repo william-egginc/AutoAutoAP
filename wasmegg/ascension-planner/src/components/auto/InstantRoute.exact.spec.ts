@@ -59,4 +59,10 @@ describe('the box', () => {
   it('only an exact result for the route on screen is used (the key must match)', () => {
     expect(script).toMatch(/const exactDone = computed\([\s\S]{0,300}\.key === exactRequest\.value\?\.key/);
   });
+  it('a note above each counts table says its rows are quick estimates once the box is exact (the lead row shows the old number)', () => {
+    expect(tpl.match(/data-testid="counts-exact-note"/g)?.length).toBe(2);
+    expect(tpl.match(/v-if="exactDone" class="px-1 pb-1 text-small text-slate-600" data-testid="counts-exact-note"/g)?.length).toBe(2);
+    expect(script).toContain('EXACT_COUNTS_NOTE');
+  });
 });
+

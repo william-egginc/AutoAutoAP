@@ -490,6 +490,8 @@
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
+            <!-- Once the box is exact only its route was worked out: the rows are the quick estimates, the lead one with its old number. -->
+            <p v-if="exactDone" class="px-1 pb-1 text-small text-slate-600" data-testid="counts-exact-note">{{ EXACT_COUNTS_NOTE }}</p>
             <!-- Every row tight: the tag says nothing, so one line says it (UX sweep R9, M3; lib/countRowsWords.ts DRAFT). -->
             <p v-if="allRowsTight" class="px-1 pb-1 text-small text-amber-800" data-testid="counts-all-tight">{{ COUNTS_ALL_TIGHT }}</p>
             <div
@@ -707,6 +709,8 @@
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div data-testid="counts-list">
+            <!-- Once the box is exact only its route was worked out: the rows are the quick estimates, the lead one with its old number. -->
+            <p v-if="exactDone" class="px-1 pb-1 text-small text-slate-600" data-testid="counts-exact-note">{{ EXACT_COUNTS_NOTE }}</p>
             <!-- Every row tight: the tag says nothing, so one line says it (UX sweep R9, M3; lib/countRowsWords.ts DRAFT). -->
             <p v-if="allRowsTight" class="px-1 pb-1 text-small text-amber-800" data-testid="counts-all-tight">{{ COUNTS_ALL_TIGHT }}</p>
             <div
@@ -1098,6 +1102,7 @@ import { compositeUrl, formGBelowReach, parseCompositeUrl, parseGearShiftUrl } f
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import ExactLine from './ExactLine.vue';
+import { EXACT_COUNTS_NOTE } from '@/lib/exactLineWords';
 import { exactWanted, useInstantExact, type ExactRequest } from '@/composables/useInstantExact';
 import { EXACT_HOURS, EXACT_PHONE_QUERY, exactDisabled, exactTriggerFor, instantExactKey } from '@/lib/exactOptions';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';

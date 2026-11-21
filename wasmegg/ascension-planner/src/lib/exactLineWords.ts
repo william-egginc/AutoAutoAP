@@ -12,3 +12,4 @@ export const exactWas = (when: string): string => `Quick estimate was ${when}`;
 export const EXACT_SAME = 'Same as the quick estimate';
 export const exactMisses = (gap: string): string => `Misses the date by about ${gap}`;
 export const EXACT_STEPS_NOTE = 'The steps below are still quick estimates.';
+export const EXACT_COUNTS_NOTE = 'These are quick estimates. The route above was worked out exactly.';
