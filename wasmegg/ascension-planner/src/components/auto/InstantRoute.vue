@@ -367,6 +367,8 @@
                 >{{ closeCall ? CLOSE_CALL_TAG : 'tight' }}</span
               >
             </div>
+            <!-- The route worked out exactly in the background (R10 option C, 21 Nov 2026; ExactLine.vue). -->
+            <ExactLine :state="exactShown" :instant-end="dateBoxOf(result.byDate).end" :zone="zone" :goal="'date'" @start="exact.start()" @stop="exact.stop()" />
             <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
             <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
             <!-- The prompt to check it: a Fast run for this goal (Jordan, 15 Nov 2026), for a close call only. -->
@@ -383,7 +385,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(exactDone?.end ?? dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -607,11 +609,13 @@
             >
           </div>
           <div class="flex flex-wrap items-baseline gap-x-3">
-            <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
+            <span class="text-headline font-black text-slate-900">{{ showFinish(exactDone?.end ?? boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+            in {{ headlineGap(boxLead.seconds + (exactDone ? exactDone.end - boxLead.end : 0)) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
           </div>
+          <!-- The route worked out exactly in the background (R10 option C, 21 Nov 2026; ExactLine.vue). -->
+          <ExactLine :state="exactShown" :instant-end="boxLead.end" :zone="zone" :goal="'fastest'" @start="exact.start()" @stop="exact.stop()" />
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
             <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
@@ -1093,6 +1097,9 @@ import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableName
 import { compositeUrl, formGBelowReach, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import ExactLine from './ExactLine.vue';
+import { exactWanted, useInstantExact, type ExactRequest } from '@/composables/useInstantExact';
+import { EXACT_HOURS, EXACT_PHONE_QUERY, exactDisabled, exactTriggerFor, instantExactKey } from '@/lib/exactOptions';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
 import { useAnswersStore } from '@/stores/answers';
@@ -2416,11 +2423,13 @@ const tableDate = (r: Route): DatePick => ({
   end: r.end,
   first: firstStopOf(r.legs, r.chain),
 });
-const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
+const spareOf = (d: DatePick) => exactDone.value?.spare ?? (props.deadline ?? 0) - d.end;
 /** The box's "to spare" and whether it is tight: under a day, or inside the gear caveat's window when the form G's
  *  caveat shows ("Up to about 5 days later than shown", lib/spareLine.ts; Jordan, 26 Oct 2026). */
 const dateSpare = computed(() => {
   const b = result.value?.byDate;
+  // An exact route that misses the date has no spare to show: the exact line says it misses (ExactLine.vue).
+  if (exactDone.value && exactDone.value.spare !== null && exactDone.value.spare < 0) return null;
   return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
 });
 /** Offer "Check this with Fast" under a close call: none running, no Custom result already settling it. */
@@ -2633,7 +2642,9 @@ const boxShown = computed(
 /** The one line under the answer and its "Why?" list (lib/answerCaveat.ts: gear, then the bound, then the low-TE
  *  opening), each in the words it had on its own. */
 const headCaveat = computed(() =>
-  answerCaveat([
+  exactDone.value
+    ? null
+    : answerCaveat([
     gearCaveat(
       {
         gearShift: shiftedTable.value,
@@ -2679,6 +2690,47 @@ const boxRoute = computed<Route | null>(() => {
   const want = key(dateBoxOf(found.byDate).chain);
   return [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want) ?? null;
 });
+/**
+ * THE ROUTE WORKED OUT EXACTLY (R10 option C, 21 Nov 2026; composables/useInstantExact.ts, lib/exactOptions.ts). Only for the route the box
+ * shows, once the answer has settled (not while its background polish runs: the lead route can still change), and only with hours that
+ * want it. The inputs are built once, in the run, never here. A phone gets a button, a desktop starts on its own.
+ */
+const exactIsPhone = typeof window !== 'undefined' && !!window.matchMedia?.(EXACT_PHONE_QUERY).matches;
+const exactTrigger = ref<'auto' | 'manual'>(exactTriggerFor(exactIsPhone));
+const exactRequest = computed<ExactRequest | null>(() => {
+  if (exactDisabled() || !boxShown.value || backgroundStatus.value === 'running') return null;
+  if (!useHours.value || !exactWanted(store.availability, store.deferShifts, EXACT_HOURS)) return null;
+  const r = boxRoute.value;
+  if (!r) return null;
+  const backup = initialState.rawBackup as { approxTime?: number } | null;
+  return {
+    key: instantExactKey({
+      rawBackup: initialState.rawBackup,
+      backupTime: backup?.approxTime,
+      chain: r.chain,
+      hours: store.availability,
+      deferShifts: store.deferShifts,
+      firstAscension: String(store.firstAscension),
+      deadline: props.deadline ?? null,
+      planStart: answerStart.value,
+    }),
+    chain: r.chain,
+    deadline: props.deadline ?? null,
+    inputs: () => ({ ...store.collectInputs(), milestones: [] }),
+  };
+});
+const exact = useInstantExact(exactRequest, runBusy, exactTrigger);
+/** The exact result, only when it is for the route on screen (a stale key shows nothing). */
+const exactDone = computed(() => {
+  const s = exact.state.value;
+  return s && s.status === 'done' && s.key === exactRequest.value?.key ? s : null;
+});
+/** The state for the line, the same rule: another route's state is not this one's. */
+const exactShown = computed(() => {
+  const s = exact.state.value;
+  return s && s.key === exactRequest.value?.key ? s : null;
+});
+
 /**
  * THE BOX'S ROUTE CHANGED (Prefer fewer's pick, "Show the fastest instead", or the margin): its line again, from this
  * answer's lines when it had one, else worked out after a short wait (a few clicks on the chips run it once), for

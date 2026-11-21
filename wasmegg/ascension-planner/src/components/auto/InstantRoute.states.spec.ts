@@ -176,6 +176,10 @@ function ctxOf(s: State): Record<string, unknown> {
     bracketText: '',
     confirmRun: () => {},
     confirming: null,
+    // The exact line (R10 option C, 21 Nov 2026): no run here, so the box shows its quick estimate.
+    exact: { start: () => {}, stop: () => {}, state: { value: null } },
+    exactDone: null,
+    exactShown: null,
     dateBoxOf: (r: Route) => ({ chain: r.chain, endTE: last(r), end: r.end }),
     datePickedRow: () => false,
     countIds: 'counts-v0',
