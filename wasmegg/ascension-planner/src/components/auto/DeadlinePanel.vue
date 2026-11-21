@@ -72,7 +72,7 @@
       </label>
       <label class="space-y-1 max-w-full">
         <span class="block text-slate-600 label">In</span>
-        <select v-model="zone" :disabled="store.busy" class="min-h-[44px] sm:min-h-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold">
+        <select v-model="zone" :disabled="store.busy" class="min-h-[44px] sm:min-h-0 w-48 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold">
           <option value="America/Los_Angeles">Pacific time</option>
           <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
         </select>

@@ -63,6 +63,9 @@ describe('date, time and zone on one line, prefilled with Egg Day', () => {
     expect(html).not.toContain('type="time"');
     expect(html).toContain('America/Los_Angeles');
   });
+  it('the zone box has a width of its own, so the date, time and zone sit on one line at desktop widths', () => {
+    expect(row).toMatch(/<select v-model="zone"[^>]*class="[^"]*\bw-48\b/);
+  });
   it('the row is one wrapping flex line, boxes at 44 px on a phone', () => {
     expect(row).toMatch(/data-testid="date-row"[^>]*>|class="[^"]*flex[^"]*"[^>]*data-testid="date-row"/);
     expect(tpl).toContain('<TimeBox12');

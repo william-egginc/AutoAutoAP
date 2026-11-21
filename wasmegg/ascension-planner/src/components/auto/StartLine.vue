@@ -30,5 +30,6 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const ui = useUIStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-const line = computed(() => (store.planStartIsNow ? START_NOW : startAt(showDateTime(store.planStart, zone.value))));
+/** The app fills the start boxes from the save by itself; only a start the player set in Setup is said as a date. */
+const line = computed(() => (planner.startTimeOverride ? startAt(showDateTime(store.planStart, zone.value)) : START_NOW));
 </script>

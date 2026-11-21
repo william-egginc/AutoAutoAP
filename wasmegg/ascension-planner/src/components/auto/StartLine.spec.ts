@@ -26,11 +26,20 @@ describe('the line', () => {
     expect(html).toContain('data-testid="start-line"');
     expect(textOf(html)).toContain(W.START_NOW);
   });
-  it('says the date when a plan start is set, and still offers Setup', async () => {
+  it('the app fills the start boxes from the save by itself: that is still "Right now, from your save"', async () => {
     const planner = useAutoPlannerStore();
     planner.timezone = 'America/Denver';
     planner.startDate = '2027-01-05';
     planner.startTime = '09:00';
+    planner.startTimeOverride = false;
+    expect(textOf(await draw())).toContain(W.START_NOW);
+  });
+  it('says the date when the player set a start in Setup, and still offers Setup', async () => {
+    const planner = useAutoPlannerStore();
+    planner.timezone = 'America/Denver';
+    planner.startDate = '2027-01-05';
+    planner.startTime = '09:00';
+    planner.startTimeOverride = true;
     const html = await draw();
     expect(textOf(html)).not.toContain(W.START_NOW);
     expect(textOf(html)).toMatch(/Jan 5, 2027/);
