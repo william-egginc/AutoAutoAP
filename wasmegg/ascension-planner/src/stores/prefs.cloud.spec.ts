@@ -409,7 +409,7 @@ describe('quiet failures', () => {
     search.finalTE = 350;
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
     expect(puts()).toHaveLength(1);
-    expect(prefs.saves.setup.state).toBe('failed');
+    expect(prefs.saves.setup?.state).toBe('failed');
     expect(search.finalTE).toBe(350);
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 5);
     expect(puts()).toHaveLength(1);

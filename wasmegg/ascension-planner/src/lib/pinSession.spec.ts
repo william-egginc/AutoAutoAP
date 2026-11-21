@@ -114,7 +114,7 @@ describe('locked', () => {
     const { p } = make();
     p.set(K, OPEN);
     for (const s of [429, 500, 503, 400]) await p.wrap(stub(s).f)(`https://c.example/sync?k=${K}`);
-    await p.wrap(async () => Promise.reject(new TypeError('offline')))(`https://c.example/sync?k=${K}`).catch(() => undefined);
+    await p.wrap(async (_url: string) => Promise.reject(new TypeError('offline')))(`https://c.example/sync?k=${K}`).catch(() => undefined);
     expect(p.locked(K)).toBe(false);
     expect(p.get(K)).not.toBeNull();
   });
