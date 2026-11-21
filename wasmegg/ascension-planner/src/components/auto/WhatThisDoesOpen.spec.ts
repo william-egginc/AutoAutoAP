@@ -63,6 +63,7 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       moreByDate: 'folded',
       moreMyRuns: 'folded',
       setupSharing: 'folded',
+      goalFilters: 'folded', // the Filters fold on both goal screens (R11, 21 Nov 2026)
     });
   });
 

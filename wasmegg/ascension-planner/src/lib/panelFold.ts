@@ -28,7 +28,8 @@ export type FoldSection =
   | 'moreFastest' // Fastest to 490 TE's More
   | 'moreByDate' // Highest TE by a date's More
   | 'moreMyRuns' // My Runs' More
-  | 'setupSharing'; // Setup's Sharing and privacy
+  | 'setupSharing' // Setup's Sharing and privacy
+  | 'goalFilters'; // the Filters fold on Fastest and By Egg Day (R11, Jordan 21 Nov 2026): the Setup button and the answer's filters
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -41,6 +42,9 @@ export type FoldDefault = 'open' | 'folded';
  * long and the two safety clauses stay in view above it; a player who opens it finds it open next time (rule 2).
  */
 export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
+  // Closed (R11, Jordan 21 Nov 2026; before it the filters were always shown, his 12 Nov ask): its line names what is set inside.
+  // Change this one word to 'open' to show them as before.
+  goalFilters: 'folded',
   whatItDoes: 'folded',
   searchSettings: 'folded',
   acknowledgement: 'folded',

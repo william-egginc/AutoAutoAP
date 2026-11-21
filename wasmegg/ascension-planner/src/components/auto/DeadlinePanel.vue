@@ -95,14 +95,16 @@
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
          where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
-    <div v-if="initialState.playerId" class="space-y-2" data-region="filters">
-      <div class="flex justify-start">
-        <FiltersButton />
+    <PanelFold v-if="initialState.playerId" section="goalFilters" title="Filters" :hint="filtersText" data-region="filters">
+      <div class="space-y-2 pt-1">
+        <div class="flex justify-start">
+          <FiltersButton />
+        </div>
+        <!-- The answer's filters (InstantRoute `filters-to`): Works inside my awake hours, Ascensions from/to and its line,
+             Prefer fewer ascensions. In the one closed Filters fold since R11 (21 Nov 2026), with a one-line summary. -->
+        <div id="filters-bydate-answer" class="empty:hidden" data-testid="filters-under"></div>
       </div>
-      <!-- The answer's filters, just below Filters and always shown (Jordan, 12 Nov 2026 pm; InstantRoute `filters-to`):
-           Works inside my awake hours, Ascensions from/to and its line, Prefer fewer ascensions. -->
-      <div id="filters-bydate-answer" class="empty:hidden" data-testid="filters-under"></div>
-    </div>
+    </PanelFold>
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
     <!-- The simpler default page (9 Nov 2026, notes/simpler-design.md): the answer always shown (no Hide; the section's
@@ -120,6 +122,7 @@
         filters-to="filters-bydate-answer"
         now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
+        @filters-line="l => (filtersText = l)"
         @check="checkByDate"
         @check-fast="checkWithFast"
         @routes="onInstantRoutes"
@@ -1522,6 +1525,8 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
 useSearchSnapshots('date');
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
 const moreChanges = ref<string[]>([]);
+/** The closed Filters fold's one-line summary, from the instant answer (lib/filtersLine.ts). */
+const filtersText = ref('');
 const more = ref<InstanceType<typeof MoreFold> | null>(null);
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(deadline.value ?? null, store.finalTE));

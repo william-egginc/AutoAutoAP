@@ -29,6 +29,8 @@ const SECTIONS: FoldSection[] = [
   'moreByDate',
   'moreMyRuns',
   'setupSharing',
+  // The Filters fold on Fastest and By Egg Day (R11, 21 Nov 2026), closed.
+  'goalFilters',
 ];
 
 let mem: Map<string, string>;
