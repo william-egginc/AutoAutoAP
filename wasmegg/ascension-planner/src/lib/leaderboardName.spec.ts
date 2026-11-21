@@ -59,7 +59,6 @@ describe('the Leaderboard name', () => {
   it('the top tab and the possessives read from NAMES.compare', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
     expect(app).toMatch(/label: NAMES\.compare,/);
-    const deadline = fs.readFileSync(path.join(SRC, 'components', 'auto', 'DeadlinePanel.vue'), 'utf8');
-    expect(deadline).toContain("Answers you send go on the {{ NAMES.compare }}'s Egg Day");
+    // DeadlinePanel's "Answers you send go on the ... Egg Day tab" line is gone (R11, Jordan 21 Nov 2026: no explanation).
   });
 });
