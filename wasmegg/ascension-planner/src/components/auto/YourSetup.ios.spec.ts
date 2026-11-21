@@ -61,9 +61,9 @@ describe('Setup on an iPhone: nothing wider than the panel', () => {
   it('every select and date, time or number box may shrink and stays in its box', async () => {
     const html = await everythingOpen();
     const controls = [...tags(html, 'select'), ...tags(html, 'input').filter(t => /type="(?:date|time|number)"/.test(t))];
-    // The two hour selects, the timezone, the background speed and the date style; start date and time, two rows of
-    // two dates, the detail count.
-    expect(controls.length).toBeGreaterThanOrEqual(12);
+    // The timezone, the background speed and the date style; start date and time, two rows of two dates, the detail
+    // count (the two hour selects went with the weekly hours grid, R10).
+    expect(controls.length).toBeGreaterThanOrEqual(10);
     for (const c of controls) expect(classOf(c), c).toEqual(expect.arrayContaining(['min-w-0', 'max-w-full']));
   });
 

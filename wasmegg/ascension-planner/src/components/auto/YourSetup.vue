@@ -235,73 +235,18 @@
           Prestiges and egg shifts wait for your hours; the farm keeps laying meanwhile.
         </p>
         <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
-              From
-              <select
-                v-model.number="store.availableFrom"
-                class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
-              >
-                <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
-              </select>
-            </label>
-            <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
-              to
-              <select
-                v-model.number="store.availableTo"
-                class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
-              >
-                <option v-for="h in 24" :key="h - 1" :value="h - 1">
-                  {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
-                </option>
-              </select>
-            </label>
-          </div>
-          <!-- The day at a glance: filled hours are when the plan may prestige. -->
-          <div>
-            <div class="flex gap-px" aria-hidden="true">
-              <span
-                v-for="h in 24"
-                :key="h - 1"
-                class="h-3 flex-1 rounded-sm"
-                :class="hourAwake(h - 1) ? 'bg-indigo-500' : 'bg-slate-200'"
-                :title="showHour(h - 1) + (hourAwake(h - 1) ? ': awake' : ': asleep')"
-              ></span>
-            </div>
-            <div class="flex justify-between text-small text-slate-600 mt-0.5">
-              <span>{{ showHour(0) }}</span
-              ><span>{{ showHour(6) }}</span
-              ><span>{{ showHour(12) }}</span
-              ><span>{{ showHour(18) }}</span
-              ><span>{{ showHour(23) }}</span>
-            </div>
-          </div>
-          <!-- The timezone sentence is gone (UX fluff review 2, S14): the readback under the days names the zone. -->
-          <div class="flex flex-wrap gap-1" role="group" aria-label="Days you are awake">
-            <button
-              v-for="(label, day) in DAY_LABELS"
-              :key="day"
-              type="button"
-              class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md text-body font-bold disabled:opacity-50"
-              data-testid="setup-day"
-              :class="
-                store.availableDays.includes(day)
-                  ? 'bg-slate-800 text-white'
-                  : 'border border-slate-200 text-slate-600 hover:text-slate-600'
-              "
-              @click="toggleDay(day)"
-            >
-              {{ label }}
-            </button>
-          </div>
+          <!-- WEEKLY HOURS (R10, Jordan 21 Nov 2026): a week, hour by hour, in place of one From/To and the day buttons;
+               today's daily window is a preset. Shaded hours are the ones you can't play (store.weekBlocked). -->
+          <WeeklyHoursPicker
+            v-model="store.weekBlocked"
+            :timezone="zone"
+            :daily="{ fromHour: store.availableFrom, toHour: store.availableTo, days: store.availableDays }"
+          />
           <!-- Ticked but describing no restriction at all reads as a constraint and isn't one. -->
-          <p v-if="store.scheduleIsEmpty" class="text-body font-bold text-amber-700 max-w-prose">
+          <p v-if="store.scheduleIsEmpty && store.weekBlocked.length < 168" class="text-body font-bold text-amber-700 max-w-prose">
             Every day, all hours: that's no restriction at all, and it's recorded as no schedule.
           </p>
-          <p v-else-if="!store.availableDays.length" class="text-body font-bold text-amber-700">
-            No days picked. Pick at least one, or nothing can be scheduled.
-          </p>
-          <p v-else class="text-body text-slate-600">{{ scheduleText(store.availability) }}.</p>
+          <p v-else-if="store.availability" class="text-body text-slate-600">{{ scheduleText(store.availability) }}.</p>
           <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                still be in that state; say so, with a way back. -->
@@ -863,6 +808,7 @@ import { consentState, useConsent } from '@/composables/useConsent';
 import { ThisDevice, deviceWord, thisDevice } from '@/search/device';
 import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
+import WeeklyHoursPicker from './WeeklyHoursPicker.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
 import { useShowEverything } from '@/composables/useShowEverything';
@@ -875,7 +821,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
-import { dateStyle, showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
+import { dateStyle, showDateTime, showSchedule as scheduleText } from '@/lib/displayTime';
 import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 import { setupMoreSummary } from '@/lib/setupMore';
 import { safariStartWords } from '@/lib/safariStartWords';
@@ -1005,15 +951,6 @@ const rememberedWhen = computed(() => {
   return at ? showDateTime(at / 1000, zone.value) : '';
 });
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-/** Whether the plan may prestige in this hour of the day: from-hour inclusive, to-hour exclusive,
- *  wrapping past midnight, and equal ends meaning all day (search/availability.ts). */
-function hourAwake(h: number): boolean {
-  const from = store.availableFrom;
-  const to = store.availableTo;
-  if (from === to) return true;
-  return from > to ? h >= from || h < to : h >= from && h < to;
-}
-
 const startLabel = computed(() => (store.planStartIsNow ? 'now (not set)' : showDateTime(store.planStart, zone.value)));
 const awakeLabel = computed(() =>
   store.scheduleEnabled && !store.scheduleIsEmpty ? scheduleText(store.availability) : 'any hour'
@@ -1091,18 +1028,6 @@ function formatSoulEggs(n: number): string {
   const units = ['', 'K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'o', 'N', 'd', 'U'];
   const tier = Math.min(units.length - 1, Math.floor(Math.log10(n) / 3));
   return `${(n / 10 ** (tier * 3)).toFixed(2)}${units[tier]}`;
-}
-
-/** Sunday-first, matching `availableDays`, which stores JS `getDay()` numbers. */
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-function toggleDay(day: number): void {
-  // In place (other panels read `availableDays`) and kept sorted, as Chain Search always kept it,
-  // so the same days always make the same schedule, and the same run fingerprint.
-  const days = store.availableDays;
-  const i = days.indexOf(day);
-  if (i === -1) days.push(day);
-  else days.splice(i, 1);
-  days.sort((a, b) => a - b);
 }
 
 /**

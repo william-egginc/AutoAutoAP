@@ -35,7 +35,7 @@
           >{{ hourName(h - 1) }}</span
         >
         <template v-for="(day, d) in dayLabels" :key="day">
-          <span class="pr-1 text-right text-small font-bold uppercase text-slate-600 leading-[44px] sm:leading-6">{{ day }}</span>
+          <span class="pr-1 text-right text-small font-bold text-slate-600 leading-[44px] sm:leading-6">{{ day }}</span>
           <button
             v-for="h in 24"
             :key="`${d}-${h}`"

@@ -83,7 +83,8 @@ describe('(a) form fields are 16 px on a phone', () => {
   it('the fields the review named are 16 px below sm in their own classes too, the body size from sm up (type batch 2)', () => {
     const sched = read('components/auto/SchedulingInputs.vue');
     expect(sched.match(/py-2\.5 text-base sm:text-body font-bold/g)).toHaveLength(3);
-    expect(read('components/auto/YourSetup.vue').match(/border-slate-200 text-base sm:text-body font-bold/g)).toHaveLength(2);
+    // The two hour selects are gone (weekly hours grid, R10), so no Setup field of this class is left.
+    expect(read('components/auto/YourSetup.vue').match(/border-slate-200 text-base sm:text-body font-bold/g) ?? []).toHaveLength(0);
     expect(read('components/auto/ChainSearchPanel.vue')).toContain('border-slate-300 text-base sm:text-body font-bold');
     expect(read('components/auto/InstantRoute.vue').match(/border-slate-200 text-base sm:text-body py-0\.5/g)).toHaveLength(2);
   });

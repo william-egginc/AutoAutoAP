@@ -66,8 +66,8 @@ describe('S13 and S14: Awake hours', () => {
     expect(group).toContain('>Any hour<');
     expect(group).toContain('>My awake hours<');
     expect(group.match(/min-h-\[44px\]/g)?.length).toBe(2);
-    // The days row keeps a name for a screen reader.
-    expect(template).toContain('role="group" aria-label="Days you are awake"');
+    // The weekly grid (R10) replaced the days row; it names itself for a screen reader (WeeklyHoursPicker).
+    expect(template).toContain('<WeeklyHoursPicker');
   });
 });
 

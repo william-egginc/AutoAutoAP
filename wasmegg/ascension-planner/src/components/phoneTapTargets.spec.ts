@@ -179,7 +179,7 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     const resets = tagsWith(src, 'data-testid="setup-reset"');
     expect(resets).toHaveLength(2);
     for (const t of resets) expect(t).toContain(TAP);
-    expect(tagWith(src, 'data-testid="setup-day"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(read('auto/WeeklyHoursPicker.vue'), 'data-testid="weekly-hour"')).toContain('min-h-[44px]');
     expect(tagWith(src, 'data-testid="setup-profile"')).toContain('min-h-[44px] sm:min-h-0');
     expect(tagWith(src, '@click="store.deferShifts = true"')).toContain(TAP);
     const off = read('auto/TimeOffEditor.vue');
