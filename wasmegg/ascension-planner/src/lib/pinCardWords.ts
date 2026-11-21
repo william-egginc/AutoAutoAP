@@ -1,5 +1,5 @@
 /**
- * The Setup PIN card: PLACEHOLDER strings (UI, 21 Nov 2026), every one for Words to write or replace. Wording only, so never
+ * The Setup PIN card: Words' draft (21 Nov 2026) over UI's placeholders; Jordan's OK is needed before it ships. Wording only, so never
  * part of the result hash. No clock times here (a reset date is shown through the shared formatter, 12-hour).
  */
 import type { PinFail } from '@/lib/pinCloud';
@@ -7,10 +7,10 @@ import type { PinFail } from '@/lib/pinCloud';
 export const PIN_TITLE = 'PIN';
 export const PIN_CHECKING = 'Checking…';
 export const PIN_WORKING = 'Checking… this takes a moment.';
-export const PIN_OFF_LINE = 'No PIN. Anyone with your player ID can change what is saved online for it.';
-export const PIN_OPEN_LINE = 'A PIN is on. This browser is signed in.';
-export const PIN_LOCKED_LINE = 'A PIN is on. This browser is signed out, so what is saved online is not read or changed here. Everything else still works.';
-export const PIN_PRIVATE_NOTE = 'A private window, or cleared site data, signs you out.';
+export const PIN_OFF_LINE = 'No PIN is set. Anyone who knows your player ID can change what is saved online for you.';
+export const PIN_OPEN_LINE = 'Your PIN is on, and this browser is signed in.';
+export const PIN_LOCKED_LINE = 'Your PIN is on, and this browser is signed out. What is saved online is not read or changed from here until you enter the PIN. Everything else still works.';
+export const PIN_PRIVATE_NOTE = 'A private window, or clearing this browser\'s site data, signs you out.';
 
 export const PIN_SET = 'Set a PIN';
 export const PIN_CHANGE = 'Change PIN';
@@ -28,12 +28,12 @@ export const PIN_NEW = 'New 6-digit PIN';
 export const PIN_MISMATCH = 'The two PINs are not the same.';
 export const PIN_SIX = 'A PIN is exactly 6 digits.';
 
-export const PIN_REMOVE_ASK = 'Remove the PIN? Anyone with your player ID can then change what is saved online.';
+export const PIN_REMOVE_ASK = 'Remove your PIN? Anyone who knows your player ID will be able to change what is saved online for you.';
 export const PIN_REMOVE_YES = 'Remove';
 export const PIN_REMOVE_NO = 'Keep it';
 
 export const PIN_RECOVERY_TITLE = 'Your recovery code';
-export const PIN_RECOVERY_LINE = 'Keep this somewhere safe. It is shown once. It is the only way back in if you forget the PIN.';
+export const PIN_RECOVERY_LINE = 'Keep this code somewhere safe. It is shown only once, and it is the only way back in if you forget your PIN.';
 export const PIN_RECOVERY_COPY = 'Copy';
 export const PIN_RECOVERY_COPIED = 'Copied';
 export const PIN_RECOVERY_DOWNLOAD = 'Download';
@@ -44,7 +44,7 @@ export const PIN_FORGOT_TITLE = 'Forgot the PIN';
 export const PIN_RECOVERY_FIELD = 'Recovery code';
 export const PIN_RECOVER = 'Set a new PIN';
 export const PIN_RESET_LINK = 'No code? Ask to delete what is saved online instead';
-export const PIN_RESET_ASK = 'In 7 days what is saved online for this account is deleted, and you can start again. You can cancel in that time from a browser that is signed in. Ask?';
+export const PIN_RESET_ASK = 'In 7 days, what is saved online for you will be deleted and you can start again. Until then, you can cancel from a browser that is signed in. Ask for the reset?';
 export const PIN_RESET_YES = 'Ask for the reset';
 
 export const pinResetBanner = (when: string): string =>
@@ -53,7 +53,7 @@ export const PIN_RESET_CANCEL = 'Cancel the reset';
 export const PIN_RESET_CANCEL_HINT = 'Enter the PIN to cancel it.';
 
 export const pinRevokedNote = (n: number): string =>
-  n === 1 ? 'Your calendar link was turned off. You can make a new one.' : `${n} calendar links were turned off. You can make a new one.`;
+  n === 1 ? 'Your calendar link was turned off. You can make a new one when you are ready.' : `${n} calendar links were turned off. You can make new ones when you are ready.`;
 
 /** How long to wait, from seconds: no clock time. */
 export function pinWait(seconds: number | null): string {
@@ -77,17 +77,17 @@ export function pinErrorLine(error: '' | PinFail, retryAfter: number | null): st
     case 'cooldown':
       return `A reset was cancelled a moment ago. Try again in ${pinWait(retryAfter)}.`;
     case 'exists':
-      return 'This account already has a PIN. Enter it instead.';
+      return 'This account already has a PIN. Choose Enter PIN instead.';
     case 'nopin':
       return 'This account has no PIN.';
     case 'session':
-      return 'You are signed out. Enter the PIN again.';
+      return 'This browser is signed out. Enter your PIN again.';
     case 'rejected':
       return PIN_SIX;
     case 'off':
-      return 'PINs are off on the server right now.';
+      return 'PINs are switched off right now. Try again later.';
     case 'offline':
-      return 'No connection. Try again.';
+      return 'No connection. Check it and try again.';
     default:
       return 'That did not work. Try again.';
   }
