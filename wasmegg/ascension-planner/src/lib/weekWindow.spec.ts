@@ -157,18 +157,22 @@ describe('old readers and old rows keep working (R9 planFilters, currentAnswer, 
     for (const t of [hoursLabel(NEW), hoursTitle(NEW), hoursTitle(one)]) expect(t).not.toContain('wk:');
     expect(hoursLabel(NEW)).not.toMatch(/awake|blocked/i);
   });
-  it('the Leaderboard hours filter lists a mask row as its own awake-hours choice, never under "Any hour" (the empty value)', () => {
+  it('the Leaderboard hours filter has ONE "Custom weekly hours" choice for every mask (Words, 21 Nov), never under "Any hour" (the empty value)', () => {
     const other = `wk:${encodeWeekMask(mask((_d, h) => h >= 6 && h < 9))} ${DENVER}`;
     const rows = [base(NEW), base(other), base(OLD), base(null)];
-    expect(facetsOf(rows[0], DENVER).hours).not.toBe('');
-    expect(facetsOf(rows[0], DENVER).hours).not.toBe(facetsOf(rows[1], DENVER).hours);
+    const key = facetsOf(rows[0], DENVER).hours;
+    expect(key).not.toBe('');
+    expect(facetsOf(rows[1], DENVER).hours).toBe(key); // two different masks, one filter value
+    expect(key).not.toBe(facetsOf(rows[2], DENVER).hours);
+    expect(key).not.toContain('wk:');
     const opts = filterOptions(rows, DENVER).hours;
-    expect(opts.map(o => o.label).sort()).toEqual(['7 am–11 pm', 'Any hour', 'Custom weekly hours', 'Custom weekly hours']);
+    expect(opts.map(o => o.label).sort()).toEqual(['7 am–11 pm', 'Any hour', 'Custom weekly hours']);
+    expect(opts.find(o => o.value === key)!.title).toBe('Awake hours that differ by day.'); // no count, no zone
     expect(opts.find(o => o.value === '')!.label).toBe('Any hour');
-    const f = { ...NO_FILTERS, hours: facetsOf(rows[0], DENVER).hours };
-    expect(rows.filter(r => inFilters(r, f, DENVER))).toEqual([rows[0]]);
-    // an option's hover says its own hours, so two masks with the same label are told apart by it
-    expect(opts.find(o => o.value === f.hours)!.title).toBe(`Awake hours that differ by day: 42 hours a week you can play, in ${DENVER}.`);
+    const f = { ...NO_FILTERS, hours: key };
+    expect(rows.filter(r => inFilters(r, f, DENVER))).toEqual([rows[0], rows[1]]);
+    // the row's own hover is where two masks are told apart
+    expect(hoursTitle(rows[0].window)).not.toBe(hoursTitle(rows[1].window));
   });
   it('a row recorded with a mask gives its setup back (the zone and the hours), where an unreadable text gives null', () => {
     const s = rowSetup({ window: NEW });
