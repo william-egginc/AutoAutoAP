@@ -75,7 +75,7 @@ import { maskOfWindow, weekIndex } from './availabilitySchedule';
 import { workerCopy } from './workerCopy';
 import { inputsForWorkers } from './workerBackup';
 import { simSetupKey } from '@/lib/followSim';
-import { hoursOf, sameHours } from '@/lib/followCloud';
+import { buildCloudValue, hoursOf, sameHours } from '@/lib/followCloud';
 
 const TZ = 'America/Denver';
 const FREE = [6, 7, 17, 18, 19, 20, 21];
@@ -230,15 +230,20 @@ describe('the store hands the mask on', () => {
       expect(simSetupKey({ ...base, availability: SPLIT })).not.toBe(simSetupKey({ ...base, availability: WINDOW }));
     });
 
-    // TODO (21 Nov 2026, Collector: the follow record's `hours` has no field for the week): the followed route's `hours` (stores/follow.ts:291 `hoursOf(store.availability)`, and
-    // useNowPage.ts:1791 / :1803 comparing it with `sameHours`) keeps only fromHour/toHour/timezone
-    // (lib/followCloud.ts:142-153). A route followed under one week reads as "the same hours" under any other week
-    // with the same window, so "set with other hours" and the stale check never fire for a mask change. Times are not
-    // affected: the simulation's key above does tell them apart.
-    it.todo("the followed route's hours tell two masks with one window apart");
-    it.skip("the followed route's hours tell two masks with one window apart (the check, for when the record carries the week)", () => {
+    // The follow record's `hours` keeps the week (lib/followCloud.ts CloudHours.week) in this browser only: the collector
+    // has no field for it, so a route read back from online carries none and says nothing about the week.
+    it("the followed route's hours tell two masks with one window apart", () => {
       const other: Availability = { ...WINDOW, blocked: maskOfWindow([], 6, 22) };
       expect(sameHours(hoursOf(SPLIT), hoursOf(other))).toBe(false);
+      expect(sameHours(hoursOf(SPLIT), hoursOf({ ...SPLIT }))).toBe(true);
+    });
+
+    it("the week is never sent to the collector, and a route with no week (read back from online) reads as the same", () => {
+      const f = { chain: [0, 100], from: 'saved', at: Date.now(), source: 'fast', planStart: Math.floor(Date.now() / 1000), hours: hoursOf(SPLIT) } as never;
+      expect(JSON.stringify(buildCloudValue(f)?.value.hours)).not.toContain('week');
+      const { week: _w, ...noWeek } = hoursOf(SPLIT)!;
+      expect(sameHours(noWeek, hoursOf(SPLIT))).toBe(true);
+      expect(sameHours(noWeek, hoursOf({ ...WINDOW, blocked: maskOfWindow([], 6, 22) }))).toBe(true);
     });
   });
 });

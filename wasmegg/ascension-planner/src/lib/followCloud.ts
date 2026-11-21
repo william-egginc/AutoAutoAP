@@ -22,7 +22,9 @@
  *
  * Pure apart from `fetch` (injected, the global one by default) and `crypto.subtle`.
  */
+import { blockedArray, type Availability } from '@/search/availabilitySchedule';
 import { eggDaySeconds } from './eggDay';
+import { encodeWeekMask } from './weekWindow';
 import { screenGoalKey, type Followed, type FollowFrom, type FollowMap } from './follow';
 import type { GoalKey } from './planGoals';
 
@@ -45,6 +47,12 @@ export interface CloudHours {
   start: string;
   end: string;
   timezone?: string;
+  /**
+   * The week's awake hours as lib/weekWindow.ts's 28-character code (R10). Kept in this browser only: the collector's
+   * `hours` has no field for it (buildCloudValue never sends it), so a route read back from online has none, and a
+   * side with none says nothing about the week (`sameHours`).
+   */
+  week?: string;
 }
 
 /** One goal's value as the collector keeps it (contract "Value"). */
@@ -139,16 +147,19 @@ const pad2 = (h: number) => String(h).padStart(2, '0');
  * The hours window of Your setup as the collector keeps it: `{start, end, timezone}` from search/availability.ts's
  * `fromHour`/`toHour`, null for any time. The days and the time off are not kept (the contract has no field).
  */
-export function hoursOf(a: { fromHour: number; toHour: number; timezone?: string } | null | undefined): CloudHours | null {
+export function hoursOf(a: Availability | null | undefined): CloudHours | null {
   if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour) || a.fromHour === a.toHour) return null;
   if (a.fromHour < 0 || a.fromHour > 23 || a.toHour < 0 || a.toHour > 23) return null;
   const tz = typeof a.timezone === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(a.timezone) ? a.timezone : undefined;
-  return { start: `${pad2(a.fromHour)}:00`, end: `${pad2(a.toHour)}:00`, ...(tz ? { timezone: tz } : {}) };
+  const mask = Array.isArray(a.days) || Array.isArray(a.blocked) ? blockedArray(a) : null; // a partial setup (no days) says no week
+  const week = mask ? encodeWeekMask(Array.from(mask.blocked, b => b === 0)) : undefined;
+  return { start: `${pad2(a.fromHour)}:00`, end: `${pad2(a.toHour)}:00`, ...(tz ? { timezone: tz } : {}), ...(week ? { week } : {}) };
 }
 
 /** Two hours windows are the same (null = any time). */
 export function sameHours(a: CloudHours | null | undefined, b: CloudHours | null | undefined): boolean {
   if (!a || !b) return !a && !b;
+  if (a.week && b.week && a.week !== b.week) return false;
   return a.start === b.start && a.end === b.end && (a.timezone ?? '') === (b.timezone ?? '');
 }
 
