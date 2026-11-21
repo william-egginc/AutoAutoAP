@@ -128,3 +128,20 @@ describe('a week with no hour you can play (Words, 21 Nov 2026)', () => {
   });
 });
 
+describe('the summary line and the screen reader (Words, 21 Nov 2026)', () => {
+  it('summary reads "custom week, N hours a week", never "blocked"', () => {
+    expect(WEEKLY_HOURS_WORDS.summary(112)).toBe('custom week, 112 hours a week');
+    expect(WEEKLY_HOURS_WORDS.summary(1)).toBe('custom week, 1 hour a week');
+    expect(WEEKLY_HOURS_WORDS.summary(5)).not.toMatch(/blocked/i);
+  });
+  it('the grid is described by the no-free-hour note, so a screen reader hears it', async () => {
+    expect(src).toMatch(/aria-describedby/);
+    expect(src).toContain('id="weekly-none-free"');
+    const all = Array.from({ length: 168 }, (_, i) => i);
+    const html = await renderHtml(WeeklyHoursPicker, { modelValue: all, timezone: 'America/Denver' });
+    expect(html).toMatch(/role="group"[^>]*aria-describedby="weekly-none-free"/);
+    const free = await renderHtml(WeeklyHoursPicker, { modelValue: [], timezone: 'America/Denver' });
+    expect(free).not.toContain('aria-describedby');
+  });
+});
+

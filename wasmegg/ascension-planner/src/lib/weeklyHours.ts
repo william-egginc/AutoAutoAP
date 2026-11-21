@@ -32,6 +32,8 @@ export const WEEKLY_HOURS_WORDS = {
   legend: { can: 'You can play', cant: "You can't play" },
   /** Beside a greyed Save, and as its aria text: all 168 shaded is read by the core as no limit. */
   noneFree: 'Leave at least one hour you can play. To plan with no limit, choose Any hour.',
+  /** Setup's one-line summary after "Awake hours", for a custom week (n = hours you can play a week). */
+  summary: (n: number) => `custom week, ${n} ${n === 1 ? 'hour' : 'hours'} a week`,
   gridLabel: 'Your week, hour by hour',
   cellLabel: (day: string, hour: string, cant: boolean) => `${day} ${hour}: ${cant ? "can't play" : 'can play'}`,
 };

@@ -809,6 +809,8 @@ import { ThisDevice, deviceWord, thisDevice } from '@/search/device';
 import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import WeeklyHoursPicker from './WeeklyHoursPicker.vue';
+import { WEEKLY_HOURS_WORDS } from '@/lib/weeklyHours';
+import { WEEK_HOURS, validBlocked } from '@/search/availabilitySchedule';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
 import { useShowEverything } from '@/composables/useShowEverything';
@@ -952,9 +954,13 @@ const rememberedWhen = computed(() => {
 });
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 const startLabel = computed(() => (store.planStartIsNow ? 'now (not set)' : showDateTime(store.planStart, zone.value)));
-const awakeLabel = computed(() =>
-  store.scheduleEnabled && !store.scheduleIsEmpty ? scheduleText(store.availability) : 'any hour'
-);
+/** The summary after "Awake hours": a custom week is short ("custom week, 112 hours a week"; the zone is shown just
+ *  below in the readback), a daily window keeps today's words. */
+const awakeLabel = computed(() => {
+  if (!store.scheduleEnabled || store.scheduleIsEmpty) return 'any hour';
+  if (store.availability?.blocked) return WEEKLY_HOURS_WORDS.summary(WEEK_HOURS - validBlocked(store.availability.blocked).length);
+  return scheduleText(store.availability);
+});
 const timeOffCount = computed(() => usableTimeOff(store.timeOff).length);
 const noPrestigeCount = computed(() => usableTimeOff(store.noPrestige).length);
 

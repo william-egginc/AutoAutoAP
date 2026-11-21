@@ -36,4 +36,11 @@ describe('Setup’s Awake hours', () => {
   it('the locked search still locks the grid (the fieldset is disabled)', () => {
     expect(tpl).toMatch(/<fieldset\s+:disabled="locked"[\s\S]*Awake hours/);
   });
+  it('the summary line says "custom week, N hours a week" only when a week is set, else today’s label', () => {
+    const label = src.slice(src.indexOf('const awakeLabel'), src.indexOf('const timeOffCount'));
+    expect(label).toContain('store.availability?.blocked');
+    expect(label).toContain('WEEKLY_HOURS_WORDS.summary(');
+    expect(label).toContain('scheduleText(store.availability)');
+    expect(label).toContain("'any hour'");
+  });
 });
