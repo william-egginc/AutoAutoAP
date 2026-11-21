@@ -41,6 +41,8 @@ describe('each state', () => {
     const h = await draw({ key: 'k', status: 'running', done: 2, total: 5, startedAt: 0 }, { now: 1000 });
     expect(textOf(h)).toContain(W.EXACT_RUNNING);
     expect(textOf(h)).toContain(W.exactProgress(2, 5));
+    expect(W.exactProgress(0, 1)).toBe('0 of 1 ascension');
+    expect(W.exactProgress(2, 5)).toBe('2 of 5 ascensions');
     expect(h).toContain('class="animated-dots" aria-hidden="true"');
     expect(h).toContain('data-testid="exact-stop"');
     expect(h).toMatch(/role="status"/);

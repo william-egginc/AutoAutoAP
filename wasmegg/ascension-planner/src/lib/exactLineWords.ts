@@ -1,9 +1,9 @@
-/** The exact line under the instant answer (R10 option C, 21 Nov 2026): PLACEHOLDER words, all for Words. Wording only, never in the result hash.
+/** The exact line under the instant answer (R10 option C, 21 Nov 2026): Words' draft (21 Nov 2026) over UI's placeholders; every string is one export so a second-route state (if Jordan adds one) is a new line here, not a rewrite. Wording only, never in the result hash.
  *  "Check exactly" is a retired player word, so none of these use it. No typed "…": the moving dots are drawn (Jordan, 1 Nov 2026). */
 export const EXACT_START = 'Work this out exactly';
 export const EXACT_WAITING = 'Waiting for your search to finish';
 export const EXACT_RUNNING = 'Working out this route exactly';
-export const exactProgress = (done: number, total: number): string => `${done} of ${total} ascensions`;
+export const exactProgress = (done: number, total: number): string => `${done} of ${total} ${total === 1 ? 'ascension' : 'ascensions'}`;
 export const EXACT_LONG = 'This can take several minutes.';
 export const EXACT_STOP = 'Stop';
 export const EXACT_TAG = 'exact';
