@@ -6,10 +6,10 @@
  */
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
 
-/** "12 AM", "9 AM", "12 PM", "11 PM": 12-hour always. */
+/** "12:00 AM", "9:00 AM", "12:00 PM", "11:00 PM": the full time, 12-hour always (lib/timeStyle.spec.ts). */
 export function hourName(hour: number): string {
   const h = ((Math.floor(hour) % 24) + 24) % 24;
-  return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+  return `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 export type WeeklyPreset = 'sleep' | 'work';
@@ -21,7 +21,7 @@ export function presetHours(preset: WeeklyPreset): number[] {
 
 /** Words' wording (21 Nov 2026): the setting stays "My awake hours"; shaded hours are the ones you can't play. */
 export const WEEKLY_HOURS_WORDS = {
-  presets: { sleep: 'Sleep, 11 PM to 7 AM', work: 'Work, 9 AM to 5 PM on weekdays', daily: 'My daily hours' },
+  presets: { sleep: 'Sleep, 11:00 PM to 7:00 AM', work: 'Work, 9:00 AM to 5:00 PM on weekdays', daily: 'My daily hours' },
   dailyTitle: 'Fills the week from the awake hours you had before.',
   clear: 'Clear all',
   clearTitle: 'Make every hour one you can play.',

@@ -16,10 +16,10 @@ const src = fs.readFileSync(path.resolve(__dirname, 'WeeklyHoursPicker.vue'), 'u
 
 describe('hour names are 12-hour, always', () => {
   it('names midnight, noon and evening', () => {
-    expect(hourName(0)).toBe('12 AM');
-    expect(hourName(9)).toBe('9 AM');
-    expect(hourName(12)).toBe('12 PM');
-    expect(hourName(23)).toBe('11 PM');
+    expect(hourName(0)).toBe('12:00 AM');
+    expect(hourName(9)).toBe('9:00 AM');
+    expect(hourName(12)).toBe('12:00 PM');
+    expect(hourName(23)).toBe('11:00 PM');
   });
 });
 
@@ -27,8 +27,8 @@ describe('wording (Words, 21 Nov 2026): never "blocked", Press not Click', () =>
   it('has none of Joo’s words', () => {
     const all = JSON.stringify([WEEKLY_HOURS_WORDS.presets, WEEKLY_HOURS_WORDS.help('Denver'), WEEKLY_HOURS_WORDS.legend]);
     expect(all).not.toMatch(/blocked|Click/i);
-    expect(WEEKLY_HOURS_WORDS.presets.sleep).toBe('Sleep, 11 PM to 7 AM');
-    expect(WEEKLY_HOURS_WORDS.presets.work).toBe('Work, 9 AM to 5 PM on weekdays');
+    expect(WEEKLY_HOURS_WORDS.presets.sleep).toBe('Sleep, 11:00 PM to 7:00 AM');
+    expect(WEEKLY_HOURS_WORDS.presets.work).toBe('Work, 9:00 AM to 5:00 PM on weekdays');
   });
   it('draws a legend', async () => {
     const t = textOf(await renderHtml(WeeklyHoursPicker, { modelValue: [], timezone: 'America/Denver' }));
@@ -72,8 +72,8 @@ describe('the picker', () => {
     const cells = html.match(/<button[^>]*data-testid="weekly-hour"[^>]*>/g) ?? [];
     expect(cells).toHaveLength(168);
     expect(cells[0]).toContain('aria-pressed="true"');
-    expect(cells[0]).toContain('aria-label="Monday 12 AM: can&#39;t play"');
-    expect(cells[2]).toContain('aria-label="Monday 2 AM: can play"');
+    expect(cells[0]).toContain('aria-label="Monday 12:00 AM: can&#39;t play"');
+    expect(cells[2]).toContain('aria-label="Monday 2:00 AM: can play"');
     expect(cells[2]).toContain('aria-pressed="false"');
   });
   it('shows the three presets and the 12-hour axis', async () => {
@@ -85,7 +85,7 @@ describe('the picker', () => {
     expect(t).toContain(WEEKLY_HOURS_WORDS.presets.sleep);
     expect(t).toContain(WEEKLY_HOURS_WORDS.presets.work);
     expect(t).toContain(WEEKLY_HOURS_WORDS.presets.daily);
-    expect(t).toContain('12 AM');
+    expect(t).toContain('12:00 AM');
     expect(t).not.toMatch(/\b(0[0-9]|1[3-9]|2[0-3]):00\b/);
   });
   it('phone: every cell is a 44 px target (the grid scrolls sideways rather than shrinking them); desktop keeps small cells', () => {

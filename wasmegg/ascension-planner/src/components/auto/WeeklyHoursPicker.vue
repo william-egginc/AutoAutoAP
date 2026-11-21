@@ -35,7 +35,7 @@
         <span
           v-for="h in 24"
           :key="`h${h}`"
-          class="text-center text-small font-bold text-slate-600"
+          class="min-w-0 whitespace-nowrap text-center text-small font-bold text-slate-600"
           :class="(h - 1) % 3 ? 'invisible' : ''"
           >{{ hourName(h - 1) }}</span
         >
