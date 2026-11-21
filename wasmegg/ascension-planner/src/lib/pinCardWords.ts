@@ -55,14 +55,20 @@ export const PIN_RESET_CANCEL_HINT = 'Enter the PIN to cancel it.';
 export const pinRevokedNote = (n: number): string =>
   n === 1 ? 'Your calendar link was turned off. You can make a new one when you are ready.' : `${n} calendar links were turned off. You can make new ones when you are ready.`;
 
-/** How long to wait, from seconds: no clock time. */
+/**
+ * How long to wait, from seconds: no clock time. The collector sends the true time left (a daily cap: up to about 24 h; a cancelled
+ * reset's cooldown: up to 7 days). Rounded UP, with "about" unless it is exact, so it never says "1 hour" for 1 h 20 min.
+ */
 export function pinWait(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return 'a while';
+  const unit = (n: number, size: number, one: string, many: string): string => {
+    const q = Math.ceil(n / size);
+    return `${n % size === 0 ? '' : 'about '}${q} ${q === 1 ? one : many}`;
+  };
   if (seconds < 90) return `${Math.max(1, Math.round(seconds))} seconds`;
-  const m = Math.round(seconds / 60);
-  if (m < 60) return `${m} minutes`;
-  const h = Math.round(seconds / 3600);
-  return h === 1 ? '1 hour' : `${h} hours`;
+  if (seconds < 3600) return unit(seconds, 60, 'minute', 'minutes');
+  if (seconds < 172800) return unit(seconds, 3600, 'hour', 'hours');
+  return unit(seconds, 86400, 'day', 'days');
 }
 
 /** A refused call in plain words; '' for none. */

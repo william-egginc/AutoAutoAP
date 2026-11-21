@@ -169,10 +169,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, ref } from 'vue';
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 import { usePinAccount, type PinAccount } from '@/composables/usePinAccount';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
+import { setRecoveryPending } from '@/lib/pinRecoveryGuard';
 import AnimatedDots from './AnimatedDots.vue';
 import {
   PIN_AGAIN, PIN_CANCEL, PIN_CHANGE, PIN_ENTER, PIN_FIELD, PIN_FORGOT, PIN_FORGOT_TITLE, PIN_LOCK, PIN_LOCKED_LINE,
@@ -310,4 +311,11 @@ function downloadCode(): void {
 }
 
 onMounted(() => void acct.check());
+// A code waiting to be saved: the page asks before a reload or a closed tab (lib/pinRecoveryGuard.ts, installed by App.vue). Not cleared when
+// this card goes away with Setup: the code is the page's, and the step is shown again when Setup reopens.
+watch(
+  () => !!acct.recovery.value,
+  pending => setRecoveryPending(pending),
+  { immediate: true }
+);
 </script>

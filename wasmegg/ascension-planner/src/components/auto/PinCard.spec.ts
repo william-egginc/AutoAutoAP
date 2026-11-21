@@ -50,7 +50,8 @@ describe('what the card shows for each state', () => {
   });
   it('it still asks once when it mounts, so an off/locked/open account then shows it, and it does not ask again by itself', () => {
     expect(src).toMatch(/onMounted\(\(\) => void acct\.check\(\)\)/);
-    expect(src).not.toMatch(/watch\(/);
+    // The one check() is the mount's: no watch re-asks (a flaky connection would loop). The one watch is the recovery guard's.
+    expect(src.match(/acct\.check\(\)/g)).toHaveLength(1);
   });
   it('off: Set a PIN', async () => {
     const h = await draw(fake({ state: 'off' }));
@@ -203,3 +204,24 @@ describe('pending labels draw their dots (Jordan, 1 Nov 2026; components/pending
   });
 });
 
+
+describe('the recovery code survives closing Setup (QA, 21 Nov 2026), and a reload or closed tab asks first', () => {
+  it('Setup closing unmounts the card; drawing it again for the same account still shows the code and the gate', async () => {
+    const acct = fake({ state: 'open', recovery: 'ABCD2345EFGH6723' });
+    const first = await draw(acct);
+    const again = await draw(acct);
+    for (const h of [first, again]) {
+      expect(h).toContain('data-testid="pin-recovery"');
+      expect(textOf(h)).toContain('ABCD 2345 EFGH 6723');
+    }
+    expect((acct as unknown as { ackRecovery: ReturnType<typeof vi.fn> }).ackRecovery).not.toHaveBeenCalled();
+  });
+  it('the card says a code is waiting to be saved, and that it is done once acknowledged', () => {
+    expect(src).toMatch(/watch\(\s*\(\) => !!acct\.recovery\.value/);
+    expect(src).toContain('setRecoveryPending(');
+  });
+  it('the page asks before a reload or a closed tab while a code is waiting (App.vue installs it once)', () => {
+    const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
+    expect(app).toContain('installRecoveryLeaveGuard()');
+  });
+});
