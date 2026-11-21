@@ -22,6 +22,26 @@ export interface Availability {
   toHour: number;
   /** IANA zone the hours and days are read in. The plan's own timezone, not the browser's. */
   timezone: string;
+  /**
+   * Weekly hours (R10, 21 Nov 2026): the BLOCKED hours of the week, as Joo's picker paints them: indices 0-167,
+   * Monday 00:00-01:00 first (`WEEK_HOURS`, `weekIndex`), read in `timezone`. When present it is the whole schedule and
+   * `days` / `fromHour` / `toHour` are kept only as the daily window it was made from (or the last one, for older
+   * readers). Absent: the daily window above, exactly as before (`maskOfWindow` turns it into a mask).
+   */
+  blocked?: number[];
+}
+
+/** Hours in a week: `Availability.blocked` holds indices 0-167, Monday 00:00-01:00 first. */
+export const WEEK_HOURS = 168;
+
+/** THE one conversion between our weekdays (0 = Sunday, Date#getDay) and the Monday-first week index. */
+export function weekIndex(sundayFirstDay: number, hour: number): number {
+  return ((sundayFirstDay + 6) % 7) * 24 + hour;
+}
+
+/** The blocked indices with anything that is not 0-167 dropped, sorted, each once. */
+export function validBlocked(blocked: readonly number[]): number[] {
+  return [...new Set(blocked.filter(i => Number.isInteger(i) && i >= 0 && i < WEEK_HOURS))].sort((x, y) => x - y);
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
