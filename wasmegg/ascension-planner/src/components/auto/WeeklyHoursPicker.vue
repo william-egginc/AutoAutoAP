@@ -59,6 +59,9 @@
       <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded-sm bg-slate-100 border border-slate-300"></span>{{ WEEKLY_HOURS_WORDS.legend.can }}</span>
       <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded-sm bg-indigo-600"></span>{{ WEEKLY_HOURS_WORDS.legend.cant }}</span>
     </div>
+    <p v-if="model.length >= WEEK_HOURS" class="text-body font-bold text-amber-700 max-w-prose" data-testid="weekly-none-free">
+      {{ WEEKLY_HOURS_WORDS.noneFree }}
+    </p>
     <p class="text-small text-slate-600">
       {{ WEEKLY_HOURS_WORDS.help(timezoneLabel) }}
       <template v-if="model.length"> {{ WEEKLY_HOURS_WORDS.count(WEEK_HOURS - model.length) }}</template>

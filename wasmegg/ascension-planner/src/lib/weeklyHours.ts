@@ -30,6 +30,8 @@ export const WEEKLY_HOURS_WORDS = {
   /** n = hours a week you CAN play (168 minus the shaded ones). */
   count: (n: number) => (n === 1 ? '1 hour a week you can play.' : `${n} hours a week you can play.`),
   legend: { can: 'You can play', cant: "You can't play" },
+  /** Beside a greyed Save, and as its aria text: all 168 shaded is read by the core as no limit. */
+  noneFree: 'Leave at least one hour you can play. To plan with no limit, choose Any hour.',
   gridLabel: 'Your week, hour by hour',
   cellLabel: (day: string, hour: string, cant: boolean) => `${day} ${hour}: ${cant ? "can't play" : 'can play'}`,
 };

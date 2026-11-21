@@ -113,3 +113,18 @@ describe('the picker', () => {
     expect(WEEKLY_HOURS_WORDS.count(1)).toBe('1 hour a week you can play.');
   });
 });
+
+describe('a week with no hour you can play (Words, 21 Nov 2026)', () => {
+  const all = Array.from({ length: 168 }, (_, i) => i);
+  it('says to leave one hour, in the picker, when every hour is shaded', async () => {
+    const html = await renderHtml(WeeklyHoursPicker, { modelValue: all, timezone: 'America/Denver' });
+    expect(html).toContain('data-testid="weekly-none-free"');
+    expect(textOf(html)).toContain(WEEKLY_HOURS_WORDS.noneFree);
+    expect(WEEKLY_HOURS_WORDS.noneFree).toBe('Leave at least one hour you can play. To plan with no limit, choose Any hour.');
+  });
+  it('and says nothing when one hour is free', async () => {
+    const html = await renderHtml(WeeklyHoursPicker, { modelValue: all.slice(1), timezone: 'America/Denver' });
+    expect(html).not.toContain('weekly-none-free');
+  });
+});
+
