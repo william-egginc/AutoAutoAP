@@ -86,7 +86,7 @@ function collector(o: { pinOff?: boolean; pk?: string; wrongTries?: number } = {
   };
   return { f, calls, pk: () => pk, epoch: () => epoch };
 }
-const make = (col: ReturnType<typeof collector>, o: { id?: string; target?: boolean; now?: number; st?: ReturnType<typeof memStore> } = {}) => {
+const make = (col: ReturnType<typeof collector>, o: { id?: string; target?: boolean; now?: number; st?: ReturnType<typeof memStore>; onSet?: (n: number) => void } = {}) => {
   const store = o.st ?? memStore();
   const sessions = createPinSessions({ storage: store.st, now: () => o.now ?? NOW });
   const p = createPinAccount({
@@ -94,6 +94,7 @@ const make = (col: ReturnType<typeof collector>, o: { id?: string; target?: bool
     sessions,
     fetch: sessions.wrap(col.f),
     now: () => o.now ?? NOW,
+    ...(o.onSet ? { onSet: o.onSet } : {}),
   });
   return { p, sessions, store };
 };
@@ -282,5 +283,27 @@ describe('forgot the PIN', () => {
     await b.p.enter('123456');
     await b.p.cancelReset();
     expect(b.p.resetAt.value).toBeNull();
+  });
+});
+
+describe('setting a PIN tells the page (onSet): the server revoked the calendar links and deleted the saved one', () => {
+  it('called once after a successful set, with the number of links revoked', async () => {
+    const seen: number[] = [];
+    const { p } = make(collector(), { onSet: n => void seen.push(n) });
+    await p.setPin('123456');
+    expect(seen).toEqual([1]);
+  });
+  it('not for enter, change, remove, recover, a refused set or a PIN that is not 6 digits', async () => {
+    let n = 0;
+    const onSet = () => void n++;
+    const a = make(collector({ pk: await PK('123456') }), { onSet });
+    await a.p.setPin('654321'); // exists: refused
+    await a.p.enter('123456');
+    await a.p.changePin('654321');
+    await a.p.recover('ABCD2345EFGH6723', '111111').catch(() => undefined);
+    await a.p.removePin();
+    const b = make(collector(), { onSet });
+    await b.p.setPin('12345'); // not 6 digits: no call
+    expect(n).toBe(0);
   });
 });

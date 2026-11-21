@@ -218,6 +218,14 @@ export function createCalendarFeed(o: {
     write(key('.saved'), null);
     keep(null);
   }
+  /** The collector deleted this account's links (a PIN was set, which revokes them): forget the marker and the link here, call nothing. */
+  function linksGone(): void {
+    forget();
+    error.value = '';
+    needsMyRuns.value = false;
+    planSent.value = false;
+    phase.value = 'idle';
+  }
   async function turnOff(): Promise<void> {
     if (!CALENDAR_FEED.enabled) return;
     enabled.value = false;
@@ -382,7 +390,7 @@ export function createCalendarFeed(o: {
   // A page load with the switch already on: read the saved link back (this browser may not have it in memory, another may have made it).
   if (enabled.value) void checkSaved();
 
-  return { enabled, linked, link, savedState, linkFromSave, replaceLink, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, pushNow, pushed, pushCoolingDown, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
+  return { linksGone, enabled, linked, link, savedState, linkFromSave, replaceLink, busy, error, phase, copied, needsMyRuns, onMyRuns, working, viewing, pushNow, pushed, pushCoolingDown, canReset, available, turnOn, turnOff, getLink, copy, askReset, keepIt, confirmReset, note };
 }
 export type CalendarFeed = ReturnType<typeof createCalendarFeed>;
 

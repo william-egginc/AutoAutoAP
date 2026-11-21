@@ -455,3 +455,27 @@ describe('the saved link removed in another browser (QA 18 Nov: Reset or switch 
     expect(a2.linked.value).toBe(true);
   });
 });
+
+describe('linksGone: the collector deleted the links (a PIN was set), this browser forgets its own state', () => {
+  it('clears the link, the linked marker and the saved state, and calls nothing', async () => {
+    const { st, m } = memStore();
+    const col = collector();
+    const c = createCalendarFeed({ storage: st, env: env(), fetch: col.f });
+    c.turnOn();
+    await settle();
+    await c.getLink();
+    await waitFor(c, 'loaded');
+    expect(c.linked.value).toBe(true);
+    const before = col.calls.length;
+    c.linksGone();
+    expect(c.linked.value).toBe(false);
+    expect(c.link.value).toBe(null);
+    expect(c.savedState.value).toBe('none');
+    expect(c.canReset.value).toBe(false);
+    expect([...m.keys()].filter(k => k.endsWith('.linked') || k.endsWith('.saved') || k.endsWith('.last'))).toEqual([]);
+    expect(col.calls.length).toBe(before); // no revoke, no PUT, no DELETE: the server already did it
+    // the card offers Get link again, and it still works
+    await c.getLink();
+    expect(c.link.value).toBe(URL2);
+  });
+});

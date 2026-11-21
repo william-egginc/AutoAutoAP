@@ -23,7 +23,14 @@ export interface PinAccountEnv {
   rounds?: number;
 }
 
-export function createPinAccount(o: { env: PinAccountEnv; sessions: PinSessions; fetch?: SyncFetch | null; now?: () => number }) {
+export function createPinAccount(o: {
+  env: PinAccountEnv;
+  sessions: PinSessions;
+  fetch?: SyncFetch | null;
+  now?: () => number;
+  /** A PIN was just set: the collector revoked the account's calendar links and deleted the saved one (`revokedLinks` links). */
+  onSet?: (revokedLinks: number) => void;
+}) {
   const now = o.now ?? Date.now;
   const f = o.fetch;
   const base = ref<PinState>('unknown');
@@ -115,6 +122,7 @@ export function createPinAccount(o: { env: PinAccountEnv; sessions: PinSessions;
         keep(t.k, r);
         recovery.value = r.recovery;
         revokedLinks.value = r.revokedLinks;
+        o.onSet?.(r.revokedLinks);
       } else {
         fail(r.why, r.retryAfter);
         if (r.why === 'exists') base.value = 'locked';
@@ -187,6 +195,8 @@ export type PinAccount = ReturnType<typeof createPinAccount>;
 // ------------------------------------------------------------------------------------------------ the page's instance
 import { useInitialStateStore } from '@/stores/initialState';
 import { syncTarget } from './useOverrideSync';
+import { calendarFeedFor } from './useCalendarFeed';
+import { accountOf } from '@/search/runSaves';
 
 const accounts = new Map<string, PinAccount>();
 /** The PIN of the account on screen (one per account per page; the Setup card and anything else share it). */
@@ -198,6 +208,8 @@ export function usePinAccount(): PinAccount {
       env: { target: () => syncTarget(), playerId: () => ((useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId ?? '').trim() },
       sessions: pinSessions(),
       fetch: pinSessions().wrap(((u: string, i?: object) => fetch(u, i as RequestInit)) as unknown as SyncFetch),
+      // Setting a PIN deletes the saved calendar link on the collector: this page's feed forgets its own marker and link.
+      onSet: () => calendarFeedFor(accountOf(useInitialStateStore().rawBackup)).linksGone(),
     });
     accounts.set(id, a);
   }
