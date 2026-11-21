@@ -154,6 +154,7 @@
           <li><a href="#readback">Your own run's CSV, read back</a></li>
           <li><a href="#never">What is never sent to the leaderboard</a></li>
           <li><a href="#online">What goes online, and the code made from your ID</a></li>
+          <li><a href="#pin">The optional PIN</a></li>
           <li><a href="#long-searches">Long searches tell the maintainer they are running</a></li>
           <li><a href="#code">The random browser code</a></li>
           <li><a href="#stored">Where it is stored, and for how long</a></li>
@@ -483,10 +484,38 @@
           <!-- calendar-feed:begin -->
           <li>If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID (see <a href="#calendar">Your calendar link</a>).</li>
           <!-- calendar-feed:end -->
-          <li>The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and read or change what is saved under it. The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.</li>
+          <li>The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and, unless you set a PIN, read or change what is saved under it (see <a href="#pin">The optional PIN</a>). The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.</li>
           <li>On the leaderboard: only what you tick. Never your player ID or your save.</li>
           <li>Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.</li>
         </ul>
+      </section>
+
+      <!-- collector/pin.js, lib/pinCardWords.ts: this section goes with that code. -->
+      <section id="pin">
+        <h2>The optional PIN</h2>
+        <p>
+          By default, anyone who knows a player ID can read and change what is saved online for it (see
+          <a href="#online">What goes online</a>). A PIN is an optional lock on that. It is off until you set one.
+        </p>
+        <ul>
+          <li><b>What it is:</b> 6 digits, for one player ID. Common PINs are allowed.</li>
+          <li><b>What it locks:</b> everything saved online for that ID: the route you follow, your Setup and sharing choices, your saved answers, your ticks and plan, <!-- calendar-feed:begin -->your My Runs calendar plan, your calendar link, <!-- calendar-feed:end -->and Delete everything online. A browser without the PIN can no longer read, change or delete them.</li>
+          <li><b>What it does not lock:</b> your save file and anything kept only in your browser. What you have already shared to the leaderboard or the public instant answers, which are not part of your saved-online copy. The PIN does not encrypt what is saved on the planner's server. It decides who may read and change it.</li>
+          <li><b>What leaves your browser:</b> not the PIN. Your browser scrambles the 6 digits together with your player ID (a slow scramble, about a second at most on a phone) and sends only the result, never in a web address.</li>
+          <li><b>What the server keeps:</b> a scrambled key for the account, a second scramble of the PIN's result under a secret key only the server has, a scramble of your recovery code, when the PIN was made, how many wrong tries were made today, and a reset timer if one is running. A copy of the server's database alone cannot be used to guess PINs.</li>
+          <li><b>Signed in:</b> after you enter the PIN, the server gives your browser a session code with no player ID in it. It is kept in that browser's site data for up to 30 days since you last used it. Clearing site data, or a private window, signs you out. Changing the PIN signs out every other browser.</li>
+          <!-- calendar-feed:begin -->
+          <li><b>Setting a PIN turns off your calendar links.</b> Your old calendar links stop working and the saved calendar link is deleted. You make a new link afterwards. The planner says so before you confirm.</li>
+          <!-- calendar-feed:end -->
+          <li><b>The recovery code:</b> 16 letters and digits, shown once when you set the PIN. It is the way back in if you forget the PIN. The planner cannot show it again or look it up. Using it sets a new PIN and gives a new recovery code.</li>
+          <li><b>Wrong tries:</b> 5 free tries, then one an hour, and at most 10 a day for one account. A right PIN resets the count. After 10 tries, even the right PIN waits until 24 hours after the first try that day. Each network address is also limited to 30 tries an hour.</li>
+          <li><b>Forgot the PIN and lost the code:</b> you can ask for a reset without signing in. It waits 7 days. Any browser signed in to that account can cancel it, and after a cancel no new reset can start for 7 days. A banner with the date shows on every signed-in browser while a reset waits. When the 7 days pass, what is saved online for that account is deleted, the same as Delete everything online, and the PIN is gone. Each browser can then upload its own copy again.</li>
+          <li><b>No email, no phone, no login:</b> nothing else can recover a forgotten PIN.</li>
+        </ul>
+        <p class="muted">
+          How safe it is: 6 digits is 1,000,000 possibilities. The limits make guessing slow (about 10 tries a day), not impossible.
+          It stops casual meddling. It is not bank-level security.
+        </p>
       </section>
 
       <!-- lib/runBeaconWords.ts: this section and Setup's line and the banner go with that code. -->

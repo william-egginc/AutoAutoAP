@@ -35,25 +35,25 @@ describe('About: the calendar blocks go with the flag', () => {
     const at = h.indexOf('<nav class="contents" aria-label="Contents">');
     return [...h.slice(at, h.indexOf('</nav>', at)).matchAll(/<a href="#([^"]+)">([^<]+)<\/a>/g)].map(m => ({ id: m[1], title: m[2] }));
   };
-  it('the source has five marked blocks (the section, its contents link, a sentence in What is sent, a bullet in What goes online, a row in the storage table), each begin matched by an end', () => {
-    expect(about.match(/<!-- calendar-feed:begin -->/g)).toHaveLength(5);
-    expect(about.match(/<!-- calendar-feed:end -->/g)).toHaveLength(5);
+  it('the source has seven marked blocks (the section, its contents link, a sentence in What is sent, a bullet in What goes online, a row in the storage table, two parts of the PIN section), each begin matched by an end', () => {
+    expect(about.match(/<!-- calendar-feed:begin -->/g)).toHaveLength(7);
+    expect(about.match(/<!-- calendar-feed:end -->/g)).toHaveLength(7);
   });
-  it('off: no calendar anywhere, 18 sections and a link for each, no marker left', () => {
+  it('off: no calendar anywhere, 19 sections and a link for each, no marker left', () => {
     const off = applyCalendarFeed(about, false);
     expect(off).not.toMatch(/calendar/i);
     expect(off).not.toContain('calendar-feed:');
-    expect(sections(off)).toHaveLength(18);
+    expect(sections(off)).toHaveLength(19);
     expect(links(off)).toEqual(sections(off));
     // The rest of the page is as it was: only the marked blocks went.
     expect(off.length).toBeLessThan(about.length);
     expect(off).toContain('<h2>What stays on your computer</h2>');
   });
-  it('on: the calendar section and its link, 19 sections, the markers dropped', () => {
+  it('on: the calendar section and its link, 20 sections, the markers dropped', () => {
     const on = applyCalendarFeed(about, true);
     expect(on).toContain('Your calendar link');
     expect(on).not.toContain('calendar-feed:');
-    expect(sections(on)).toHaveLength(19);
+    expect(sections(on)).toHaveLength(20);
     expect(links(on)).toEqual(sections(on));
   });
   it('an unmatched begin is left alone rather than eating the page', () => {

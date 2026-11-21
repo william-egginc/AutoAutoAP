@@ -1023,6 +1023,19 @@ table works without it.
 
 ---
 
+## PIN (optional, per account)
+
+The optional PIN locks one account's online copy: the followed route, Setup and consent, saved answers, synced records, the calendar link and "Delete everything online". It does not lock the save file, anything kept only in the player's browser, or what has been shared to the Leaderboard or the public instant-answer data. It does not encrypt the data on the server. It decides who may read and change it.
+
+- The PIN is 6 digits. It never leaves the browser. The browser sends a slow hash (PBKDF2-SHA-256, 600,000 rounds, 6 digits plus the player ID, about 0.3 to 1 s on a phone) in a request body, never in a URL.
+- The server keeps the account's salted key, an HMAC (server secret) of the hash, an HMAC of the recovery code, a counter that changes when the PIN changes, the creation time, the day's wrong-try counters and any reset timer. A copy of the database alone cannot be used to guess PINs.
+- After a right PIN the server gives a signed session token (no player ID in it), sent in a header and kept in the browser's local storage for up to 30 days since last use. No PIN, hash, recovery code or session goes into a URL or a log.
+- Setting a PIN turns off the account's older calendar links and deletes the saved calendar link. A 16-character recovery code is shown once; using it sets a new PIN and returns a new code. Changing the PIN signs out the other browsers. Removing it, from a signed-in browser, turns the lock off.
+- Tries: 5 wrong free, then one an hour; at most 10 a day per account; a right PIN resets the count; after 10 tries even the right PIN waits until 24 hours after that day's first try; 30 tries an hour per network address.
+- Forgotten PIN, no code: "start reset" needs no sign-in and waits 7 days. A signed-in browser of the account can cancel it, and then no new reset can start for 7 days. After 7 days the account's online copy is deleted (as Delete everything online) and the PIN is gone. Limits: 3 resets a day per network address, 50 a day across the service. Signed-in browsers show a banner with the date.
+- If the PIN feature is switched off on the server, accounts that have a PIN answer 503 "unavailable". They are never opened up.
+- Honest limit: 6 digits is 1,000,000 possibilities, and the limits make guessing slow (about 10 a day), not impossible. This stops casual meddling. It is not bank-level security.
+
 ## Testing the Worker without deploying
 
 ```bash
