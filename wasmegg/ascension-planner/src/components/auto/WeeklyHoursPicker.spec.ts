@@ -145,3 +145,27 @@ describe('the summary line and the screen reader (Words, 21 Nov 2026)', () => {
   });
 });
 
+describe('QA, 21 Nov 2026: day names stay put on a phone, the whole week fits at desktop width', () => {
+  it('A: the day column is sticky, so Mon..Sun stay in view while the grid scrolls sideways; so is the hour header row', () => {
+    expect(src).toMatch(/class="[^"]*\bsticky\b[^"]*\bleft-0\b[^"]*"[^>]*>\{\{ day \}\}/);
+    expect(src).toMatch(/weekly-corner[\s\S]{0,200}sticky/);
+    expect(src).toMatch(/weekly-hour-name[\s\S]{0,200}sticky[^"]*top-0|sticky[^"]*top-0[^"]*weekly-hour-name/);
+    expect(src).toMatch(/\bbg-white\b/);
+  });
+  it('B: from sm up the 24 columns share the width (minmax(0, 1fr)), phone keeps 44 px columns', () => {
+    expect(src).toContain('weekly-grid');
+    expect(src).toMatch(/@media \(min-width: 640px\)[\s\S]*\.weekly-grid[\s\S]*minmax\(0, 1fr\)/);
+    expect(src).toMatch(/\.weekly-grid\s*\{[^}]*2\.75rem\)/);
+    expect(src).not.toMatch(/gridTemplateColumns/);
+  });
+  it('B: hour names on the header: every 3 hours on a phone, every 6 from sm up, always the full "9:00 AM" style', () => {
+    expect(src).toMatch(/\(h - 1\) % 3 \? 'invisible/);
+    expect(src).toMatch(/\(h - 1\) % 6 \? 'sm:invisible/);
+    expect(src).toContain('hourName(h - 1)');
+  });
+  it('B: a hidden hour name is clipped too (invisible text still widens the scroll area: 9:00 PM stuck out 31 px at 1280)', () => {
+    expect(src).toMatch(/\(h - 1\) % 3 \? 'invisible overflow-hidden'/);
+    expect(src).toMatch(/\(h - 1\) % 6 \? 'sm:invisible sm:overflow-hidden'/);
+  });
+});
+

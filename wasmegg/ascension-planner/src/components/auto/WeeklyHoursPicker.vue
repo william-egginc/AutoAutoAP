@@ -30,17 +30,17 @@
       :aria-label="WEEKLY_HOURS_WORDS.gridLabel"
       :aria-describedby="model.length >= WEEK_HOURS ? 'weekly-none-free' : undefined"
     >
-      <div class="inline-grid select-none gap-px" :style="{ gridTemplateColumns: `2.75rem repeat(24, minmax(2.75rem, 1fr))` }">
-        <span />
+      <div class="weekly-grid select-none gap-px">
+        <span class="weekly-corner sticky left-0 top-0 z-20 bg-white" />
         <span
           v-for="h in 24"
           :key="`h${h}`"
-          class="min-w-0 whitespace-nowrap text-center text-small font-bold text-slate-600"
-          :class="(h - 1) % 3 ? 'invisible' : ''"
+          class="weekly-hour-name sticky top-0 z-10 min-w-0 whitespace-nowrap bg-white text-small font-bold text-slate-600"
+          :class="[(h - 1) % 3 ? 'invisible overflow-hidden' : '', (h - 1) % 6 ? 'sm:invisible sm:overflow-hidden' : '']"
           >{{ hourName(h - 1) }}</span
         >
         <template v-for="(day, d) in dayLabels" :key="day">
-          <span class="pr-1 text-right text-small font-bold text-slate-600 leading-[44px] sm:leading-6">{{ day }}</span>
+          <span class="sticky left-0 z-10 bg-white pr-1 text-right text-small font-bold text-slate-600 leading-[44px] sm:leading-6">{{ day }}</span>
           <button
             v-for="h in 24"
             :key="`${d}-${h}`"
@@ -140,3 +140,19 @@ onUnmounted(() => {
   window.removeEventListener('pointercancel', stopPaint);
 });
 </script>
+
+<style scoped>
+/* A phone keeps 44 px columns and scrolls sideways under a sticky day column; from sm up the 24 hours share the
+   panel's width, so the whole week shows with no scrolling (Setup's panel is about 580 px wide). */
+.weekly-grid {
+  display: inline-grid;
+  grid-template-columns: 2.75rem repeat(24, 2.75rem);
+}
+@media (min-width: 640px) {
+  .weekly-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 3rem repeat(24, minmax(0, 1fr));
+  }
+}
+</style>
