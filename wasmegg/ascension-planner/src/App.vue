@@ -959,6 +959,7 @@ import { computeSnapshot } from 'lib/planners/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import PlannedUpdateNotice from '@/components/PlannedUpdateNotice.vue';
 import { storageBlocked } from '@/lib/storageGuard';
+import { installRecoveryLeaveGuard } from '@/lib/pinRecoveryGuard';
 import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
@@ -1257,6 +1258,8 @@ function onHashChange(): void {
   else goTo({ ...here, section: r.section });
 }
 onMounted(() => window.addEventListener('hashchange', onHashChange));
+// A PIN recovery code not yet saved is lost by a reload or a closed tab: ask first (lib/pinRecoveryGuard.ts).
+installRecoveryLeaveGuard();
 onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
 
 /**
