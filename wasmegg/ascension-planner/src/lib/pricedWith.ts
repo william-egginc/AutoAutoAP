@@ -13,6 +13,7 @@
 import { isConstrained, validDays, type Availability } from '@/search/availabilitySchedule';
 import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { formatClockTime } from './timeStyleWords';
+import { awakeFromBlocked, weekWindowText } from './weekWindow';
 
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -35,6 +36,11 @@ function dayRuns(days: number[]): string {
   return out.join(', ');
 }
 
+/** A weekly mask that is not one daily window (R10): its words are "custom weekly hours", never the window it was made from. */
+function isCustomWeek(a: Availability | null | undefined): boolean {
+  return !!a?.blocked && (weekWindowText(awakeFromBlocked(a.blocked), a.timezone)?.startsWith('wk:') ?? false);
+}
+
 /** The hours from the numbers, `sep` between the two times; null for "any hour". */
 function hoursOf(a: Availability | null | undefined, sep: string, locale?: string): string | null {
   if (!isConstrained(a)) return null;
@@ -46,6 +52,7 @@ function hoursOf(a: Availability | null | undefined, sep: string, locale?: strin
 
 /** "awake hours 9:00 AM to 1:00 AM on Mon–Fri", or "any hour". */
 export function hoursWords(a: Availability | null | undefined, locale?: string): string {
+  if (isCustomWeek(a)) return 'custom weekly hours';
   const h = hoursOf(a, ' to ', locale);
   return h ? `awake hours ${h}` : 'any hour';
 }
@@ -53,6 +60,7 @@ export function hoursWords(a: Availability | null | undefined, locale?: string):
 /** The hours alone, short: "any hour", "9:00 AM–1:00 AM", "9:00 AM–11:00 PM on Mon–Fri", "all day on Sat, Sun"
  *  ("09:00–01:00" in a 24-hour locale). Built from the numbers, never read back from the words. */
 export function hoursShort(a: Availability | null | undefined, locale?: string): string {
+  if (isCustomWeek(a)) return 'custom weekly hours';
   return hoursOf(a, '–', locale) ?? 'any hour';
 }
 

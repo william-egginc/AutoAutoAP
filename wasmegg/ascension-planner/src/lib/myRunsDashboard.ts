@@ -22,6 +22,7 @@ import { formatClock } from './clock';
 import { formatDate, isDeadlineRow, sentMs, type BoardRow } from './leaderboardRank';
 import { runKind } from './myRuns';
 import { parseWindow } from './planFilters';
+import { parseWeekWindow } from './weekWindow';
 import { hoursWords } from './pricedWith';
 import { dateAt } from './eventWhen';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -115,7 +116,8 @@ export function rowHoursWords(row: BoardRow): string | null {
   if (row.window === undefined) return null;
   if (!row.window) return 'any hour';
   const a = parseWindow(row.window);
-  return a ? hoursWords({ ...a, timezone: a.timezone }) : row.window;
+  if (a) return hoursWords({ ...a, timezone: a.timezone });
+  return parseWeekWindow(row.window) ? 'custom weekly hours' : row.window; // never print the wk: code
 }
 
 // ------------------------------------------------------------------------- hours and simulator

@@ -31,6 +31,7 @@ import { describeAvailability, isConstrained, type Availability } from '@/search
 import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { hoursShort, pricedWithLine, timeOffWords } from './pricedWith';
 import { parseWindow } from './planFilters';
+import { blockedFromAwake, parseWeekWindow } from './weekWindow';
 import { finishesBefore } from './eggDayRule';
 import type { NowPlan } from './nowPlan';
 import type { Driving } from './searchPlan';
@@ -94,7 +95,12 @@ export function rowSetup(row: { window?: string | null; timeOff?: TimeOffDates[]
   if (row.window === undefined) return null;
   if (row.window === null || row.window === '') return { availability: null, timeOff: row.timeOff ?? [] };
   const a = parseWindow(row.window);
-  return a ? { availability: a, timeOff: row.timeOff ?? [] } : null;
+  if (a) return { availability: a, timeOff: row.timeOff ?? [] };
+  // R10: a week that is not one daily window (lib/weekWindow.ts)
+  const wk = parseWeekWindow(row.window);
+  return wk
+    ? { availability: { days: [], fromHour: 0, toHour: 0, timezone: wk.timezone, blocked: blockedFromAwake(wk.hours) }, timeOff: row.timeOff ?? [] }
+    : null;
 }
 
 /**

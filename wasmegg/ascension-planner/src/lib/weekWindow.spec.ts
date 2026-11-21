@@ -21,8 +21,10 @@ import {
 } from './weekWindow';
 import { contentFingerprint, type BoardRow } from './leaderboardRank';
 import { NO_FILTERS, facetsOf, filterOptions, hoursLabel, hoursTitle, inFilters, parseWindow } from './planFilters';
-import { availabilityKey, describeAvailability } from '../search/availabilitySchedule';
+import { availabilityKey, describeAvailability, maskOfWindow } from '../search/availabilitySchedule';
 import { rowSetup } from './currentAnswer';
+import { hoursShort, hoursWords, pricedWithLine } from './pricedWith';
+import { rowHoursWords } from './myRunsDashboard';
 import { inDeadlineFilter } from './leaderboardRank';
 import { inMyRunsFilters, DEFAULT_MY_RUNS_FILTERS } from './myRuns';
 
@@ -151,7 +153,7 @@ describe('old readers and old rows keep working (R9 planFilters, currentAnswer, 
   });
   it('the Leaderboard and My Runs hours lines say "Custom weekly hours" for the new text, and the old words are unchanged', () => {
     expect(hoursLabel(NEW)).toBe('Custom weekly hours');
-    expect(hoursLabel(OLD)).toBe('7 am–11 pm');
+    expect(hoursLabel(OLD)).toBe('7:00 AM–11:00 PM');
     expect(hoursLabel(null)).toBe('Any hour');
     // Words, 21 Nov: the hover says what it holds, in the grid's words, and never shows the wk: text.
     expect(hoursTitle(NEW)).toBe(`Awake hours that differ by day: 42 hours a week you can play, in ${DENVER}.`);
@@ -169,7 +171,7 @@ describe('old readers and old rows keep working (R9 planFilters, currentAnswer, 
     expect(key).not.toBe(facetsOf(rows[2], DENVER).hours);
     expect(key).not.toContain('wk:');
     const opts = filterOptions(rows, DENVER).hours;
-    expect(opts.map(o => o.label).sort()).toEqual(['7 am–11 pm', 'Any hour', 'Custom weekly hours']);
+    expect(opts.map(o => o.label).sort()).toEqual(['7:00 AM–11:00 PM', 'Any hour', 'Custom weekly hours']);
     expect(opts.find(o => o.value === key)!.title).toBe('Awake hours that differ by day.'); // no count, no zone
     expect(opts.find(o => o.value === '')!.label).toBe('Any hour');
     const f = { ...NO_FILTERS, hours: key };
@@ -263,5 +265,38 @@ describe('one text with Reliability\'s describeAvailability (needs their wiring:
     expect(availabilityKey(a)).toBe(availabilityKey({ days: [], fromHour: 7, toHour: 23, timezone: DENVER }));
     expect(describeAvailability(sched(ALL))).toBe('any time');
     expect(describeAvailability(sched(NONE))).toBe('any time');
+  });
+});
+
+describe('what players read for a custom week (Words, 21 Nov)', () => {
+  const a = { days: [], fromHour: 0, toHour: 0, timezone: DENVER, blocked: splitDay.flatMap((x, i) => (x ? [] : [i])) };
+  it('"Priced with custom weekly hours, no time off": never the window the mask was made from, never wk:', () => {
+    expect(hoursWords(a)).toBe('custom weekly hours');
+    expect(hoursShort(a)).toBe('custom weekly hours');
+    expect(pricedWithLine({ availability: a, timeOff: [] })).toBe('Priced with custom weekly hours, no time off');
+  });
+  it('a mask that is one daily window still reads in the old words', () => {
+    const daily = { days: [], fromHour: 7, toHour: 23, timezone: DENVER, blocked: mask((_d, h) => !(h >= 7 && h < 23)).flatMap((x, i) => (x ? [i] : [])) };
+    expect(hoursWords(daily)).toBe('awake hours 7:00 AM to 11:00 PM');
+    expect(hoursShort(daily)).toBe('7:00 AM–11:00 PM');
+  });
+  it('My Runs says "custom weekly hours" for a mask row, never the wk: code', () => {
+    expect(rowHoursWords({ window: `wk:${encodeWeekMask(splitDay)} ${DENVER}` } as BoardRow)).toBe('custom weekly hours');
+  });
+});
+
+describe('this file reads a daily window as Reliability\'s maskOfWindow does (r10-core e5591fd34)', () => {
+  const DAYSETS: number[][] = [[], [0, 1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5], [0, 6], [5], [5, 6], [0], [3, 4]];
+  it('every from/to, with several day lists: the same week, and the text round-trips', () => {
+    for (const days of DAYSETS)
+      for (let from = 0; from < 24; from++)
+        for (let to = 0; to < 24; to++) {
+          const theirs = awakeFromBlocked(maskOfWindow(days, from, to));
+          const text = describeAvailability({ days, fromHour: from, toHour: to, timezone: 'UTC' });
+          if (text === 'any time') expect(theirs).toEqual(ALL);
+          else expect(windowHours(text)).toEqual(theirs);
+          // the text a week writes for itself is that same text
+          expect(weekWindowText(theirs, 'UTC')).toBe(theirs.every(Boolean) ? null : text);
+        }
   });
 });
