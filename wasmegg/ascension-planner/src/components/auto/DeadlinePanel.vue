@@ -92,6 +92,8 @@
       <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from the route’s start.</template>
       <template v-else>Pick a date and time.</template>
     </p>
+    <!-- Right now, from your save (R11, 21 Nov 2026): the start, with a button to Setup. -->
+    <StartLine />
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
          where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
@@ -1115,6 +1117,7 @@ import {
   type InstantState,
 } from '@/search/autoWiden';
 import TimeBox12 from './TimeBox12.vue';
+import StartLine from './StartLine.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BigBoxNote from './BigBoxNote.vue';
 import { bigBoxNote, type BigBoxInput } from '@/search/bigBox';
