@@ -1,10 +1,12 @@
 /**
  * Weekly hours (R10): the picker's helpers. Hours are indexes 0-167, Monday 00:00-01:00 first (Joo's
- * lib/instantSearch/blockedTime.ts); the picker edits the BLOCKED hours. Our day numbers are Sunday = 0.
+ * lib/instantSearch/blockedTime.ts); the picker edits the BLOCKED hours, the same style as the core's
+ * Availability.blocked (src/search/availabilitySchedule.ts, whose weekIndex is the one Sunday-first conversion).
  * WEEKLY_HOURS_WORDS is DRAFT wording for Words to check.
  */
+import { WEEK_HOURS, weekIndex } from '@/search/availabilitySchedule';
+
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
-const gridDay = (sunFirst: number) => (sunFirst + 6) % 7;
 
 /** "12 AM", "9 AM", "12 PM", "11 PM": 12-hour always. */
 export function hourName(hour: number): string {
@@ -23,15 +25,15 @@ export function presetHours(preset: WeeklyPreset): number[] {
 export function dailyWindowHours(w: { fromHour: number; toHour: number; days: number[] }): number[] {
   const awake = new Set<number>();
   for (const day of w.days) {
-    const d = gridDay(day);
-    if (w.fromHour === w.toHour) range(0, 24).forEach(h => awake.add(d * 24 + h));
-    else if (w.fromHour < w.toHour) range(w.fromHour, w.toHour).forEach(h => awake.add(d * 24 + h));
-    else {
-      range(w.fromHour, 24).forEach(h => awake.add(d * 24 + h));
-      range(0, w.toHour).forEach(h => awake.add(d * 24 + h));
-    }
+    const hours =
+      w.fromHour === w.toHour
+        ? range(0, 24)
+        : w.fromHour < w.toHour
+          ? range(w.fromHour, w.toHour)
+          : [...range(w.fromHour, 24), ...range(0, w.toHour)];
+    for (const h of hours) awake.add(weekIndex(day, h));
   }
-  return range(0, 168).filter(i => !awake.has(i));
+  return range(0, WEEK_HOURS).filter(i => !awake.has(i));
 }
 
 export const WEEKLY_HOURS_WORDS = {
