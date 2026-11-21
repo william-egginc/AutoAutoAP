@@ -158,14 +158,24 @@ describe('QA, 21 Nov 2026: day names stay put on a phone, the whole week fits at
     expect(src).toMatch(/\.weekly-grid\s*\{[^}]*2\.75rem\)/);
     expect(src).not.toMatch(/gridTemplateColumns/);
   });
-  it('B: hour names on the header: every 3 hours on a phone, every 6 from sm up, always the full "9:00 AM" style', () => {
-    expect(src).toMatch(/\(h - 1\) % 3 \? 'invisible/);
-    expect(src).toMatch(/\(h - 1\) % 6 \? 'sm:invisible/);
-    expect(src).toContain('hourName(h - 1)');
-  });
-  it('B: a hidden hour name is clipped too (invisible text still widens the scroll area: 9:00 PM stuck out 31 px at 1280)', () => {
-    expect(src).toMatch(/\(h - 1\) % 3 \? 'invisible overflow-hidden'/);
-    expect(src).toMatch(/\(h - 1\) % 6 \? 'sm:invisible sm:overflow-hidden'/);
+  it('B: the hour names are 8 labels of 3 hours each (6 hours from sm up, the odd ones hidden), always the full "9:00 AM" style', () => {
+    expect(src).toMatch(/v-for="g in 8"/);
+    expect(src).toContain('hourName((g - 1) * 3)');
+    expect(src).toMatch(/col-span-3 sm:col-span-6/);
+    expect(src).toMatch(/\(g - 1\) % 2 \? 'max-sm:block sm:hidden'|\(g - 1\) % 2 \? 'sm:hidden'/);
   });
 });
 
+describe('QA follow-ups, 21 Nov 2026: a swipe hint on phones, a cut-off hour name fades behind the corner', () => {
+  it('a phone-only hint says how to scroll (a swipe that starts on a cell paints), and it is Words text', async () => {
+    expect(WEEKLY_HOURS_WORDS.scrollHint).toMatch(/swipe/i);
+    expect(WEEKLY_HOURS_WORDS.scrollHint).not.toMatch(/this device|this computer/i);
+    expect(src).toMatch(/class="[^"]*\bsm:hidden\b[^"]*"[^>]*data-testid="weekly-scroll-hint"/);
+    const html = await renderHtml(WeeklyHoursPicker, { modelValue: [], timezone: 'America/Denver' });
+    expect(textOf(html)).toContain(WEEKLY_HOURS_WORDS.scrollHint);
+  });
+  it('an hour name sticks to the corner’s right edge while its block scrolls under it, so no cut-off "..0 PM" stump shows', () => {
+    expect(src).toMatch(/weekly-hour-name[\s\S]{0,300}sticky[^"]*left-\[2\.75rem\]/);
+    expect(src).not.toContain('weekly-corner::after');
+  });
+});

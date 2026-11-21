@@ -34,6 +34,8 @@ export const WEEKLY_HOURS_WORDS = {
   noneFree: 'Leave at least one hour you can play. To plan with no limit, choose Any hour.',
   /** Setup's one-line summary after "Awake hours", for a custom week (n = hours you can play a week). */
   summary: (n: number) => `custom week, ${n} ${n === 1 ? 'hour' : 'hours'} a week`,
+  /** Phone only, under the legend: a swipe that starts on an hour paints it, so say where to swipe to scroll. DRAFT: Words to confirm. */
+  scrollHint: 'To scroll, swipe the hour names or the day names.',
   gridLabel: 'Your week, hour by hour',
   cellLabel: (day: string, hour: string, cant: boolean) => `${day} ${hour}: ${cant ? "can't play" : 'can play'}`,
 };

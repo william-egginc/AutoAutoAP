@@ -32,12 +32,14 @@
     >
       <div class="weekly-grid select-none gap-px">
         <span class="weekly-corner sticky left-0 top-0 z-20 bg-white" />
+        <!-- Eight names of three hours each (every six from sm up: the odd ones hide). A name sticks to the corner's right
+             edge while its block scrolls under it, so a half-hidden name never shows as a stump. -->
         <span
-          v-for="h in 24"
-          :key="`h${h}`"
-          class="weekly-hour-name sticky top-0 z-10 min-w-0 whitespace-nowrap bg-white text-small font-bold text-slate-600"
-          :class="[(h - 1) % 3 ? 'invisible overflow-hidden' : '', (h - 1) % 6 ? 'sm:invisible sm:overflow-hidden' : '']"
-          >{{ hourName(h - 1) }}</span
+          v-for="g in 8"
+          :key="`h${g}`"
+          class="weekly-hour-name sticky left-[2.75rem] top-0 z-10 col-span-3 sm:col-span-6 min-w-0 overflow-hidden whitespace-nowrap bg-white text-small font-bold text-slate-600"
+          :class="(g - 1) % 2 ? 'sm:hidden' : ''"
+          >{{ hourName((g - 1) * 3) }}</span
         >
         <template v-for="(day, d) in dayLabels" :key="day">
           <span class="sticky left-0 z-10 bg-white pr-1 text-right text-small font-bold text-slate-600 leading-[44px] sm:leading-6">{{ day }}</span>
@@ -64,6 +66,7 @@
       <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded-sm bg-slate-100 border border-slate-300"></span>{{ WEEKLY_HOURS_WORDS.legend.can }}</span>
       <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded-sm bg-indigo-600"></span>{{ WEEKLY_HOURS_WORDS.legend.cant }}</span>
     </div>
+    <p class="text-small text-slate-600 sm:hidden" data-testid="weekly-scroll-hint">{{ WEEKLY_HOURS_WORDS.scrollHint }}</p>
     <p v-if="model.length >= WEEK_HOURS" class="text-body font-bold text-amber-700 max-w-prose" id="weekly-none-free" data-testid="weekly-none-free">
       {{ WEEKLY_HOURS_WORDS.noneFree }}
     </p>
