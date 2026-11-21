@@ -36,7 +36,7 @@ import {
   type BuildParams,
   type TailSweep,
 } from './precomputedLeg';
-import { getNextSaleEnd, isResearchSaleActive } from 'lib/planners/events';
+import { getNextSaleEnd, getNextSaleStart, isResearchSaleActive } from 'lib/planners/events';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { holdUntilOf, isAvailable, type Availability } from './availability';
 import { creditedWaitSeconds, noPrestigeAt, prestigeHoldOf } from './noPrestige';
@@ -77,6 +77,9 @@ export interface TailOptions {
   /** With `holdShifts`: false prices a fresh ascension whose opening's shifts may fall outside the player's hours
    *  as before (`heldOpeningStart`), for comparing. Default: it starts when the opening fits. */
   heldOpening?: boolean;
+  /** With `holdShifts`: false prices each build's purchases as the table has them (`heldBuys`), for comparing.
+   *  Default: a build whose sale purchases wait for the player is moved later, a week when they miss the sale. */
+  heldBuys?: boolean;
   /** The held opening's TE rows below the player's TE (the form G's whole Clothed-TE gap, search/instantGear.ts): the
    *  opening of a player that many TE behind the table's account is about that account's opening at their TE less
    *  the gap. Default 0. */
@@ -117,6 +120,7 @@ export function tailOptionsOf(o: TailOptions): TailOptions {
     ...(o.creditWaits === false ? { creditWaits: false } : {}),
     ...(o.inSale === 'atOnce' ? { inSale: 'atOnce' as const } : {}),
     ...(o.heldOpening === false ? { heldOpening: false } : {}),
+    ...(o.heldBuys === false ? { heldBuys: false } : {}),
     ...(o.openingRows ? { openingRows: o.openingRows } : {}),
     ...(o.noPrestige?.length ? { noPrestige: o.noPrestige.map(w => ({ from: w.from, to: w.to })) } : {}),
     ...(o.noPrestige?.length && o.siloSeconds !== undefined ? { siloSeconds: o.siloSeconds } : {}),
@@ -149,6 +153,52 @@ function onNoPrestigeDay(t: number, o: Pick<TailOptions, 'noPrestige'> | undefin
   return !!o?.noPrestige?.length && noPrestigeAt(t, o.noPrestige) !== null;
 }
 
+/** `heldBuys`' estimate: the share of the time the player is away at the start of each sale a build rides by which
+ *  its last purchase lands later. Set from the same-start legs (Reliability's notes, 21 Nov); exported for the leg
+ *  harness only. */
+export const HELD_BUYS = { share: 0.3 };
+
+/**
+ * THE HELD BUYS (R10, 21 Nov 2026). The simulator holds a build's research purchases until the player is around
+ * (auto/shifts/helpers/advanceTime.ts `stretchToHours`); the table's builds were made with no hours, and the replay
+ * (tableV2.ts) holds only the shifts from H1 on. A build buys most at the start of each sale it rides; a player away
+ * then (work hours, evenings only) buys later, the build finishes later or after its sale, and the simulator takes
+ * another build. The instant answer said too soon: same-start legs, maxed table, work9to5 / evenings / split, a mean
+ * of 4-7 h early, worst 58 h; the daily window 0 (away only at night, after the sale's start).
+ *
+ * The table does not store when each purchase happens, so this is an estimate: the last purchase (`waitStart`, K3's
+ * wait begins) lands `HELD_BUYS.share` of the waits at the sales' starts later (the lag), then when the player is
+ * next around. The build, H1 and K3 move by the lag; the replay's hold on H1 already waits for the player (a build
+ * whose last purchase is at the sale's start while they are away: the simulator to the second). When the purchase
+ * then falls after the sale's end, the build misses its sale and is priced a week later (the next sale's), so the
+ * finder takes another build. A player around at every sale's start: unchanged.
+ */
+export function heldBuys(
+  b: BuildWithExtras,
+  start: number,
+  lateBy: number,
+  holdUntil: (t: number) => number
+): BuildWithExtras {
+  const x = b.extras!;
+  const saleEnd = b.saleEnd - lateBy;
+  let away = 0;
+  for (let s0 = getNextSaleStart(start); s0 - start < b.waitStart; s0 = getNextSaleStart(s0 + 3600))
+    away += holdUntil(s0) - s0;
+  const lag = HELD_BUYS.share * away;
+  // When the last purchase is really made: the lag, then when the player is next around.
+  const done = holdUntil(start + b.waitStart + lag) - start;
+  // Inside the sale before, after it now: the next sale's prices (a week on).
+  const missed = b.waitStart <= saleEnd - SALE_MARGIN && done > saleEnd - SALE_MARGIN;
+  if (!missed && !(lag > 0)) return b;
+  const by = missed ? 7 * 86400 : lag;
+  return {
+    ...b,
+    waitStart: b.waitStart + by,
+    ...(missed ? { saleEnd: b.saleEnd + by } : {}),
+    extras: { ...x, h1At: x.h1At + by, k3At: x.k3At + by },
+  };
+}
+
 /** Every checkpoint's tail from one build: `sweepTails`, or with hours held (or the simulator's order)
  *  and a version 2 build, `sweepReplay` from the ascension's real start. */
 function sweepOne(
@@ -162,6 +212,7 @@ function sweepOne(
   /** Only `top` is wanted (`priceLeg`): a replay works out that checkpoint alone (tableV2.ts `sweepReplay` `only`). */
   only = false
 ): TailSweep {
+  if (holdUntil && b.extras && o.heldBuys !== false) b = heldBuys(b, start, lateBy, holdUntil);
   return replays(b, holdUntil, o)
     ? sweepReplay(b, b.extras!, top, {
         start,
