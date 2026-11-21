@@ -7,7 +7,7 @@
   code are never put in storage, a URL, a log or analytics, and the boxes are emptied after use.
 -->
 <template>
-  <section v-if="acct.state.value !== 'unavailable'" class="space-y-2" data-testid="pin-card" aria-labelledby="pin-card-title">
+  <section v-if="SHOWN.includes(acct.state.value)" class="space-y-2" data-testid="pin-card" aria-labelledby="pin-card-title">
     <h4 id="pin-card-title" class="text-body font-bold text-slate-800">{{ PIN_TITLE }}</h4>
 
     <!-- A reset someone asked for, whatever the state. -->
@@ -66,12 +66,8 @@
     </div>
 
     <template v-else>
-      <p v-if="acct.state.value === 'unknown' || acct.state.value === 'checking'" class="text-body text-slate-600" data-testid="pin-checking">
-        {{ PIN_CHECKING }}<AnimatedDots />
-      </p>
-
       <!-- OFF -->
-      <template v-else-if="acct.state.value === 'off'">
+      <template v-if="acct.state.value === 'off'">
         <p class="text-body text-slate-600 max-w-prose">{{ PIN_OFF_LINE }}</p>
         <template v-if="step === 'set'">
           <form class="space-y-2" data-testid="pin-set" @submit.prevent="submit">
@@ -173,13 +169,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, h, onMounted, ref } from 'vue';
 import { usePinAccount, type PinAccount } from '@/composables/usePinAccount';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import AnimatedDots from './AnimatedDots.vue';
 import {
-  PIN_AGAIN, PIN_CANCEL, PIN_CHANGE, PIN_CHECKING, PIN_ENTER, PIN_FIELD, PIN_FORGOT, PIN_FORGOT_TITLE, PIN_LOCK, PIN_LOCKED_LINE,
+  PIN_AGAIN, PIN_CANCEL, PIN_CHANGE, PIN_ENTER, PIN_FIELD, PIN_FORGOT, PIN_FORGOT_TITLE, PIN_LOCK, PIN_LOCKED_LINE,
   PIN_MISMATCH, PIN_NEW, PIN_OFF_LINE, PIN_OPEN_LINE, PIN_PRIVATE_NOTE, PIN_RECOVER, PIN_RECOVERY_COPIED, PIN_RECOVERY_COPY,
   PIN_RECOVERY_DONE, PIN_RECOVERY_DOWNLOAD, PIN_RECOVERY_FIELD, PIN_RECOVERY_LINE, PIN_RECOVERY_SAVED, PIN_RECOVERY_TITLE, PIN_REMOVE,
   PIN_REMOVE_ASK, PIN_REMOVE_NO, PIN_REMOVE_YES, PIN_RESET_ASK, PIN_RESET_CANCEL, PIN_RESET_CANCEL_HINT, PIN_RESET_LINK,
@@ -193,6 +189,9 @@ const props = defineProps<{
   startAt?: 'set' | 'change' | 'remove' | 'forgot';
 }>();
 const acct = props.account ?? usePinAccount();
+/** Only an account known to have a PIN service shows the card: not unavailable, and not unknown or checking either (a failed
+ *  or timed-out call leaves it unknown, and nothing may be behind it). It asks once when it mounts (Setup keys it by the account). */
+const SHOWN = ['off', 'locked', 'open'];
 
 type Step = '' | 'set' | 'change' | 'remove' | 'forgot';
 const step = ref<Step>(props.startAt ?? '');
@@ -311,11 +310,4 @@ function downloadCode(): void {
 }
 
 onMounted(() => void acct.check());
-// A different account is a different card (Setup keys it), but the state of a same-key card is asked again if it falls back to unknown.
-watch(
-  () => acct.state.value,
-  s => {
-    if (s === 'unknown') void acct.check();
-  }
-);
 </script>

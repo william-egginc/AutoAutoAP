@@ -41,13 +41,16 @@ describe('what the card shows for each state', () => {
   it('unavailable: nothing at all', async () => {
     expect(await draw(fake({ state: 'unavailable' }))).not.toContain('data-testid="pin-card"');
   });
-  it('unknown and checking: the card with only a quiet checking line', async () => {
+  it('unknown and checking: nothing at all (a flaky connection leaves the account unknown, and no PIN service may be behind it)', async () => {
     for (const state of ['unknown', 'checking']) {
       const h = await draw(fake({ state }));
-      expect(h).toContain('data-testid="pin-card"');
-      expect(textOf(h)).toContain(W.PIN_CHECKING);
-      expect(h).not.toContain('data-testid="pin-set"');
+      expect(h, state).not.toContain('data-testid="pin-card"');
+      expect(textOf(h), state).not.toContain(W.PIN_TITLE);
     }
+  });
+  it('it still asks once when it mounts, so an off/locked/open account then shows it, and it does not ask again by itself', () => {
+    expect(src).toMatch(/onMounted\(\(\) => void acct\.check\(\)\)/);
+    expect(src).not.toMatch(/watch\(/);
   });
   it('off: Set a PIN', async () => {
     const h = await draw(fake({ state: 'off' }));
@@ -190,10 +193,6 @@ describe('pending labels draw their dots (Jordan, 1 Nov 2026; components/pending
   it('the words files hold no typed ellipsis: the dots are AnimatedDots', () => {
     const words = fs.readFileSync(path.resolve(__dirname, '../../lib/pinCardWords.ts'), 'utf8');
     expect(words.replace(/^\s*(\/\/|\*|\/\*).*$/gm, '')).not.toMatch(/…|\.\.\./);
-  });
-  it('Checking while the account is asked draws the moving dots', async () => {
-    const h = await draw(fake({ state: 'checking' }));
-    expect(h).toContain('class="animated-dots" aria-hidden="true"');
   });
   it('the slow-hash hint is a visible status with the moving dots, while busy only', async () => {
     const busy = await draw(fake({ state: 'locked', busy: true }));
