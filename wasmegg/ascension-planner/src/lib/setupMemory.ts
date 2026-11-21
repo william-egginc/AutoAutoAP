@@ -17,6 +17,7 @@
  */
 import { DEFAULT_FIRST_ASCENSION, isFirstAscension, type FirstAscension } from '@/search/firstAscension';
 import type { TimeOffDates } from '@/search/timeOff';
+import { validBlocked } from '@/search/availabilitySchedule';
 
 export const SETUP_PREFIX = 'aap-setup:';
 /** The target with nothing remembered, and the highest one (stores/chainSearch.ts TARGET_TE_MAX). */
@@ -28,7 +29,8 @@ export const isSetupTarget = (v: unknown): v is number =>
 /** What is remembered. `v` for a later change of shape. */
 export interface RememberedSetup {
   v: 1;
-  hours: { on: boolean; from: number; to: number; days: number[] };
+  /** `blocked`: weekly hours (R10), the week's blocked hours (search/availabilitySchedule.ts). Absent: the daily window. */
+  hours: { on: boolean; from: number; to: number; days: number[]; blocked?: number[] };
   holdShifts: boolean;
   /** The silo trick (10 Nov 2026): plans count the 2x-event credit for going offline into Monday. Off by default; absent in a
    *  blob written before: off. */
@@ -110,6 +112,7 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
       from: hour(h.from) ? h.from : d.hours.from,
       to: hour(h.to) ? h.to : d.hours.to,
       days,
+      ...(Array.isArray(h.blocked) ? { blocked: validBlocked(h.blocked as number[]) } : {}),
     },
     holdShifts: typeof o.holdShifts === 'boolean' ? o.holdShifts : d.holdShifts,
     siloTrick: typeof o.siloTrick === 'boolean' ? o.siloTrick : d.siloTrick,

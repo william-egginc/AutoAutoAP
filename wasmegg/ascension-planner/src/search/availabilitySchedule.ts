@@ -149,12 +149,23 @@ export function blockedArray(a: Availability): BlockedArray | null {
 }
 
 /** No mask, or a mask that is exactly the daily window it carries. */
-function isOwnWindow(a: Availability): boolean {
+export function isOwnWindow(a: Availability): boolean {
   if (a.blocked === undefined) return true;
   if (!windowConstrained(a)) return false;
   const own = maskOfWindow(a.days, a.fromHour, a.toHour);
   const mine = validBlocked(a.blocked);
   return own.length === mine.length && own.every((x, i) => x === mine[i]);
+}
+
+/** The blocked hours from `blockedHex`'s 42 hex digits (the run fingerprint's `availw-` key), or null. */
+export function blockedFromHex(hex: string): number[] | null {
+  if (!/^[0-9a-f]{42}$/.test(hex)) return null;
+  const out: number[] = [];
+  for (let i = 0; i < 42; i++) {
+    const n = parseInt(hex[i], 16);
+    for (let b = 0; b < 4; b++) if (n & (8 >> b)) out.push(i * 4 + b);
+  }
+  return out;
 }
 
 /** The blocked hours as 42 hex digits, Monday 00:00 first, 4 hours to a digit. */

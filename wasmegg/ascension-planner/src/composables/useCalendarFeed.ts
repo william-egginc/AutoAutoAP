@@ -392,13 +392,22 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { accountOf } from '@/search/runSaves';
 import { syncTarget } from './useOverrideSync';
 import type { CalLine } from '@/lib/calendarFeedEvents';
-import type { Availability } from '@/search/availabilitySchedule';
+import { isConstrained, maskOfWindow, validBlocked, validDays, type Availability } from '@/search/availabilitySchedule';
 
-/** The availability's hours as the builder reads them ({ start, end } as HH:MM in the plan's zone); null: none. */
+/** The availability's hours as the builder reads them ({ start, end } as HH:MM in the plan's zone); null: none.
+ *  Weekly hours (R10, 21 Nov 2026): the week's mask goes too (`blocked`), and the builder reads that instead. A daily
+ *  window on chosen days goes as its mask, so its other days are quiet (they were dropped before R10). */
 export function calHoursOf(a: Availability | null | undefined): CalendarFeedInput['hours'] {
-  if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour)) return null;
+  if (!a || !isConstrained(a)) return null;
   const hh = (h: number) => `${String(((h % 24) + 24) % 24).padStart(2, '0')}:00`;
-  return { start: hh(a.fromHour), end: hh(a.toHour), ...(a.timezone ? { timezone: a.timezone } : {}) };
+  const days = validDays(a);
+  const blocked =
+    a.blocked !== undefined
+      ? validBlocked(a.blocked)
+      : days.length && days.length < 7
+        ? maskOfWindow(a.days, a.fromHour, a.toHour)
+        : null;
+  return { start: hh(a.fromHour), end: hh(a.toHour), ...(a.timezone ? { timezone: a.timezone } : {}), ...(blocked ? { blocked } : {}) };
 }
 
 const feeds = new Map<string, CalendarFeed>();

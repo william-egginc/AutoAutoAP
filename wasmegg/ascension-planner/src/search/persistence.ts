@@ -23,6 +23,7 @@ import type { CacheEntry } from './driver';
 import type { ProvisionalRow, SearchSpace } from './submission';
 import type { WatchLinkState } from './watchLink';
 import { availabilityKey, type Availability } from './availability';
+import { blockedFromHex } from './availabilitySchedule';
 import { milestonesKey, type Milestone } from './milestones';
 import { SIM_VERSION } from './simVersion';
 import {
@@ -332,6 +333,14 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
         .map(m => m.split('@').map(Number))
         .filter(m => m.length === 2 && m.every(Number.isFinite))
         .map(([te, by]) => ({ te, by }));
+    } else if (/^availw-/.test(part)) {
+      // Weekly hours (R10): the mask itself; the daily window it was painted from is not in the key (7 AM-11 PM stands in).
+      const w = /^availw-([0-9a-f]{42})@(.+?)(\+shifts)?$/.exec(part);
+      const blocked = w ? blockedFromHex(w[1]) : null;
+      if (w && blocked) {
+        out.availability = { days: [], fromHour: 7, toHour: 23, timezone: w[2], blocked };
+        out.deferShifts = !!w[3];
+      }
     } else {
       const m = /^avail(all|\d*)-(\d+)-(\d+)@(.+?)(\+shifts)?$/.exec(part);
       if (m) {

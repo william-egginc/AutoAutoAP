@@ -10,6 +10,7 @@
 import { ref, watch } from 'vue';
 import { formatInZone } from '@/search/csv';
 import { formatHourOfDay, formatMoment } from './clock';
+import { isOwnWindow, validBlocked, WEEK_HOURS } from '@/search/availabilitySchedule';
 
 export type DateStyle = 'local' | 'iso';
 const KEY = 'aap.dateStyle';
@@ -59,10 +60,16 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** An awake-hours schedule in words, by the player's clock: "every day, 9:00 AM to 1:00 AM (next day)". */
 export function showSchedule(
-  a: { days: number[]; fromHour: number; toHour: number; timezone: string } | null | undefined,
+  a: { days: number[]; fromHour: number; toHour: number; timezone: string; blocked?: number[] } | null | undefined,
   style = dateStyle.value
 ): string {
   if (!a) return 'any time';
+  // Weekly hours (R10): a mask that is its own daily window reads as that window; any other in Words' words
+  // ("Custom weekly hours", 21 Nov 2026; the hours you can play counted).
+  if (a.blocked !== undefined && !isOwnWindow(a)) {
+    const free = WEEK_HOURS - validBlocked(a.blocked).length;
+    return `Custom weekly hours, ${free} ${free === 1 ? 'hour' : 'hours'} a week you can play (${a.timezone})`;
+  }
   const days = [...new Set(a.days.filter(d => d >= 0 && d <= 6))].sort((x, y) => x - y);
   const dayText = !days.length || days.length === 7 ? 'every day' : days.map(d => DAYS[d]).join(', ');
   if (a.fromHour === a.toHour) return `${dayText}, all day (${a.timezone})`;

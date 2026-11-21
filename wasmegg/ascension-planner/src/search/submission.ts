@@ -29,7 +29,7 @@ import type { SubmissionFlag } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
 import type { Availability } from './availabilitySchedule';
-import { describeAvailability } from './availabilitySchedule';
+import { describeAvailability, isConstrained } from './availabilitySchedule';
 import type { LegSummary } from './types';
 import { SIM_VERSION } from './simVersion';
 import type { DeliveryScore } from './virtueScore';
@@ -1080,7 +1080,8 @@ export function buildSubmission(input: SubmissionInputs): Submission {
     currentTE: i.currentTE,
     finalTE: i.finalTE,
     effort: i.effort,
-    window: i.availability ? describeAvailability(i.availability) : null,
+    // A schedule that rules nothing out (an R10 week with every hour blocked included) is no schedule: null.
+    window: isConstrained(i.availability) ? describeAvailability(i.availability) : null,
     holdShifts: i.holdShifts,
     ...(i.firstAscension !== undefined
       ? { forceContinue: forceContinueOf(i.firstAscension), firstAscension: i.firstAscension }
