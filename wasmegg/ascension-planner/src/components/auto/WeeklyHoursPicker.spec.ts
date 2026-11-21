@@ -168,7 +168,8 @@ describe('QA, 21 Nov 2026: day names stay put on a phone, the whole week fits at
 
 describe('QA follow-ups, 21 Nov 2026: a swipe hint on phones, a cut-off hour name fades behind the corner', () => {
   it('a phone-only hint says how to scroll (a swipe that starts on a cell paints), and it is Words text', async () => {
-    expect(WEEKLY_HOURS_WORDS.scrollHint).toMatch(/swipe/i);
+    expect(WEEKLY_HOURS_WORDS.scrollHint).toBe('To scroll the week, swipe on the day names or the hour names. Swiping on the hours marks them.');
+    expect(WEEKLY_HOURS_WORDS.scrollHint).not.toMatch(/\btap\b/i);
     expect(WEEKLY_HOURS_WORDS.scrollHint).not.toMatch(/this device|this computer/i);
     expect(src).toMatch(/class="[^"]*\bsm:hidden\b[^"]*"[^>]*data-testid="weekly-scroll-hint"/);
     const html = await renderHtml(WeeklyHoursPicker, { modelValue: [], timezone: 'America/Denver' });
