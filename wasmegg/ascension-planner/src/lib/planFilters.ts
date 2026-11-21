@@ -14,7 +14,8 @@
  * on the row's own calendar, ascensions from the route, the goal from `deadline`, time off from
  * `timeOff`. Pure, so the component only renders.
  */
-import { isDeadlineRow, scheduleText, startMs, type BoardRow } from './leaderboardRank';
+import { CUSTOM_WEEK_HOURS, isDeadlineRow, scheduleText, startMs, type BoardRow } from './leaderboardRank';
+import { parseWeekWindow, weekAwakeCount } from './weekWindow';
 import { formatClockTime } from './timeStyleWords';
 import { showSchedule } from './displayTime';
 
@@ -96,6 +97,7 @@ export function parseWindow(
 /** `7 am–11 pm`, `Sat, Sun 9 am–1 am`, `all day`, or `Any hour` for no schedule. */
 export function hoursLabel(window: string | null | undefined): string {
   if (!window) return 'Any hour';
+  if (parseWeekWindow(window)) return CUSTOM_WEEK_HOURS; // R10: a week that is not one daily window
   const a = parseWindow(window);
   if (!a) return scheduleText(window);
   const days = [...new Set(a.days)].sort((x, y) => x - y);
@@ -107,6 +109,11 @@ export function hoursLabel(window: string | null | undefined): string {
 /** The full schedule for a tooltip, by the player's clock (lib/displayTime.ts `showSchedule`). */
 export function hoursTitle(window: string | null | undefined): string {
   if (!window) return 'Planned for play at any hour (no awake hours set)';
+  const wk = parseWeekWindow(window);
+  if (wk) {
+    const n = weekAwakeCount(window)!;
+    return `Awake hours that differ by day: ${n} ${n === 1 ? 'hour' : 'hours'} a week you can play, in ${wk.timezone || 'its own timezone'}.`;
+  }
   const a = parseWindow(window);
   return a ? showSchedule({ ...a, timezone: a.timezone || 'its own timezone' }) : window;
 }
@@ -199,7 +206,12 @@ export function filterOptions(rows: readonly BoardRow[], zone: string, target?: 
   return {
     hours: [...hours.keys()]
       .sort((a, b) => startHour(a) - startHour(b) || a.localeCompare(b))
-      .map(k => ({ value: k, label: hoursLabel(hours.get(k)?.window), title: hoursTitle(hours.get(k)?.window) })),
+      .map(k => ({
+        value: k,
+        label: hoursLabel(hours.get(k)?.window),
+        // every custom week is one choice here, so its hover has no count and no zone (Words, 21 Nov)
+        title: k === CUSTOM_WEEK_HOURS ? 'Awake hours that differ by day.' : hoursTitle(hours.get(k)?.window),
+      })),
     // Monday first: a plan week reads Mon..Sun.
     day: [...days]
       .sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
