@@ -27,6 +27,7 @@ import {
   type FetchLike,
 } from './followCloud';
 import { eggDaySeconds } from './eggDay';
+import type { Availability } from '@/search/availabilitySchedule';
 import type { Followed } from './follow';
 
 const ID = 'EI0000000000000000';
@@ -147,8 +148,8 @@ describe('the value', () => {
     expect(buildCloudValue(followed({ source: undefined, from: 'typed' }))!.value.source).toBe('manual');
   });
   it('keeps the hours window as HH:MM (any time: null; the days and time off are not kept)', () => {
-    expect(hoursOf({ fromHour: 7, toHour: 1, timezone: 'America/Denver' })).toEqual({ start: '07:00', end: '01:00', timezone: 'America/Denver' });
-    expect(hoursOf({ fromHour: 5, toHour: 5 })).toBe(null);
+    expect(hoursOf({ fromHour: 7, toHour: 1, timezone: 'America/Denver' } as Availability)).toEqual({ start: '07:00', end: '01:00', timezone: 'America/Denver' });
+    expect(hoursOf({ fromHour: 5, toHour: 5 } as Availability)).toBe(null);
     expect(hoursOf(null)).toBe(null);
     expect(sameHours(null, null)).toBe(true);
     expect(sameHours({ start: '07:00', end: '01:00' }, null)).toBe(false);
