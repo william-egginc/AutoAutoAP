@@ -263,3 +263,46 @@ describe('through the Worker: routing, CORS, and /follow unchanged', () => {
     expect(JSON.stringify(f)).not.toMatch(/consent|setup/);
   });
 });
+
+// R10 weekly hours (21 Nov 2026): the Setup's `hours.blocked` is the BLOCKED hours of the week, Availability.blocked
+// (search/availabilitySchedule.ts): whole numbers 0-167, Monday 00:00 first, null for none. Without this the hours sync
+// to no other browser (readSetup used to drop it; the client reads absent as "not said").
+describe('weekly hours in the Setup (hours.blocked)', () => {
+  const WEEK = { start: '07:00', end: '23:00', blocked: [0, 1, 2, 167] };
+  const hoursOf = async () => (await (await get(`/prefs?k=${K}`)).json()).prefs.setup.value.hours;
+
+  it('keeps blocked as sent, beside the daily window it was made from, and serves it back', async () => {
+    await send('setup', { ...SETUP, hours: WEEK });
+    expect(await hoursOf()).toEqual(WEEK);
+  });
+  it('keeps blocked null (none blocked), and a setup without blocked stays as it was', async () => {
+    expect(readSetup({ ...SETUP, hours: { start: '07:00', end: '23:00', blocked: null } }).value.hours).toEqual({ start: '07:00', end: '23:00', blocked: null });
+    expect(readSetup(SETUP).value).toEqual(SETUP);
+    expect(readSetup(SETUP).value.hours).not.toHaveProperty('blocked');
+  });
+  it('takes all 168 hours, and an empty list', () => {
+    const all = Array.from({ length: 168 }, (_, i) => i);
+    expect(readSetup({ ...SETUP, hours: { ...WEEK, blocked: all } }).value.hours.blocked).toEqual(all);
+    expect(readSetup({ ...SETUP, hours: { ...WEEK, blocked: [] } }).value.hours.blocked).toEqual([]);
+    expect(JSON.stringify(readSetup({ ...SETUP, hours: { ...WEEK, blocked: all } }).value).length).toBeLessThan(4096);
+  });
+  it.each([
+    ['not a list', 'x'],
+    ['an object', { 0: 1 }],
+    ['169 entries', Array.from({ length: 169 }, (_, i) => i % 168)],
+    ['168 and over', [168]],
+    ['a negative', [-1]],
+    ['a fraction', [0.5]],
+    ['text', ['5']],
+    ['NaN', [Number.NaN]],
+  ])('refuses blocked that is %s, storing nothing', async (_n, blocked) => {
+    const bad = { k: K, kind: 'setup', value: { ...SETUP, hours: { ...WEEK, blocked } } };
+    const res = await put(bad);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.length).toBeGreaterThan(0);
+    expect(count('prefs')).toBe(0);
+  });
+  it('keeps nothing else under hours: an unknown field is dropped as before', () => {
+    expect(readSetup({ ...SETUP, hours: { ...WEEK, mask: 'x', extra: 1 } }).value.hours).toEqual(WEEK);
+  });
+});
