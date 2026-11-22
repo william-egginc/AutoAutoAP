@@ -67,6 +67,16 @@ describe('chainSearch: seedChain', () => {
     expect(store.seedChain).not.toEqual([490]);
   });
 
+  it('a typed lock above the box max is used as the max: one stop stays free (code review 22 Nov 2026, R2.4)', () => {
+    const store = setup({ targetTE: '195 226 277 317' });
+    store.pin = 9;
+    expect(store.pinUsed).toBe(3);
+    store.pin = 2.7;
+    expect(store.pinUsed).toBe(2);
+    store.pin = -1;
+    expect(store.pinUsed).toBe(0);
+  });
+
   it('keeps a usable typed chain exactly as typed', () => {
     const store = setup({ targetTE: '195 226 277 317' });
     expect(store.seedChain).toEqual([195, 226, 277, 317, 490]);

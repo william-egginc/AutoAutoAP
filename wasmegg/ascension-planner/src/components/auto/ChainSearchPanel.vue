@@ -216,9 +216,9 @@
             <p class="text-body text-slate-600 max-w-prose">
               Ascension count is the route length including your final target. It bounds Fast's check of the other
               counts and Exact's one-more-or-fewer step.
-              <span v-if="store.pin > 0" class="font-bold text-slate-700">
-                Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
-                will not move {{ store.pin === 1 ? 'it' : 'them' }}.
+              <span v-if="store.pinUsed > 0" class="font-bold text-slate-700">
+                Locking {{ store.pinUsed }} holds {{ store.seedChain.slice(0, store.pinUsed).join(' ') }} fixed, so the
+                search will not move {{ store.pinUsed === 1 ? 'it' : 'them' }}.
               </span>
               <span v-else>
                 Locking stops is worth it when you have already committed to them in game: moving the first stop
@@ -1251,7 +1251,7 @@ const settingsScope = computed(() =>
     !props.levelElsewhere && `Effort: ${note.value.label}`,
     `from ${store.seedOverride.trim() ? 'your route' : seedSource.value}`,
     `${store.minPrestiges} to ${store.maxPrestiges} ascensions`,
-    store.pin > 0 && `first ${store.pin} locked`,
+    store.pinUsed > 0 && `first ${store.pinUsed} locked`,
     `up to ~${store.estimateForCurrentSettings.toLocaleString()} routes`,
   ])
 );

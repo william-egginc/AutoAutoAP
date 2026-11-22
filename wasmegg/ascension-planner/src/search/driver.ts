@@ -278,6 +278,13 @@ class ChainCache {
  * finding 3). Below 490 the last stop may go anywhere below the target that a route still continues from
  * (routeFinder.ts USEFUL_STOP_MAX).
  */
+/** "Lock the first N" as a run uses it: a whole number from 0, leaving at least one stop of a route of `length`
+ *  (final target included) free to move, as the panel's box allows (code review 22 Nov 2026, R2.4: a typed value
+ *  above the box's max reached the driver as it was). */
+export function clampPin(pin: number, length: number): number {
+  return Math.min(Math.max(0, Math.floor(pin) || 0), Math.max(0, length - 2));
+}
+
 export function defaultMaxLast(final: number): number {
   return final >= 490 ? final - 150 : Math.min(USEFUL_STOP_MAX, final - 2);
 }
@@ -286,12 +293,14 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   const cfg = EFFORT[opts.effort];
   const final = opts.final;
   const maxLast = opts.maxLast ?? defaultMaxLast(final);
-  const pin = opts.pin ?? 0;
   const cache = new ChainCache(final, opts.currentTE, opts.evaluateBatch);
   if (opts.restoredCache?.length) cache.restore(opts.restoredCache);
 
   let cur = [...opts.seedChain];
   if (cur[cur.length - 1] !== final) cur = [...cur, final];
+  // At most every stop but the final target locked, whatever was typed (code review 22 Nov 2026, R2.4: a lock above
+  // the route's stops let resolveLast move a locked last stop). The store clamps to one free stop (`clampPin`).
+  const pin = Math.min(Math.max(0, Math.floor(opts.pin ?? 0) || 0), cur.length - 1);
 
   const seedLen = cur.length;
   const minLen = opts.minCheckpoints ?? Math.max(2, cur.length - 1);
@@ -384,6 +393,8 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   async function resolveLast(chain: number[], extra: number[][] = []): Promise<number[]> {
     const ch = [...chain];
     if (ch.length < 2) return ch;
+    // The last stop is locked too (every stop is, or a shorter count left no free one): nothing to move.
+    if (pin >= ch.length - 1) return ch;
     // autoplan.py indexes `ch[-3]` here and so requires at least three entries. The floor it wants
     // is "whatever the previous checkpoint is"; for a two-entry chain there is no previous
     // checkpoint and the player's current TE is the real floor. One above either: that is what
