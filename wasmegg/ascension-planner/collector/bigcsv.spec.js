@@ -365,9 +365,15 @@ describe('review 22 Nov, C3: abandoned and half-finished uploads', () => {
     const r2 = await submit({ durationDays: 731 });
     expect((await start(r2.id, r2.uploadToken, PART + 1)).status).toBe(200);
     env.WATCH._db.prepare('DELETE FROM bigcsv').run();
+    // A young open upload counts by the bytes that have actually arrived (coll-gaps-b-2), so one with no part yet reserves nothing.
     ins('deadbeef', 'open', HOUR, BIGCSV_BUDGET_BYTES - 1);
     const r3 = await submit({ durationDays: 732 });
-    expect((await start(r3.id, r3.uploadToken, PART + 1)).status).toBe(429);
+    expect((await start(r3.id, r3.uploadToken, PART + 1)).status).toBe(200);
+    env.WATCH._db.prepare('DELETE FROM bigcsv').run();
+    ins('deadbeef', 'open', HOUR, 1);
+    env.WATCH._db.prepare("INSERT INTO bigcsv_parts (id, n, etag, size) VALUES ('deadbeef', 1, 'e', ?)").run(BIGCSV_BUDGET_BYTES - 1);
+    const r4 = await submit({ durationDays: 733 });
+    expect((await start(r4.id, r4.uploadToken, PART + 1)).status).toBe(429);
   });
   it('C3.1: a part for an upload R2 no longer has answers 404, not 500 and not 409', async () => {
     const { id, uploadToken } = await submit();
@@ -412,5 +418,24 @@ describe('review 22 Nov, C3: abandoned and half-finished uploads', () => {
     const again = await complete(id, uploadToken);
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual({ ok: true, bytes: file.length });
+  });
+});
+
+describe('code review round 2, C3 addition (coll-gaps-b-2): throwaway starts cannot reserve the budget', () => {
+  it('a 6th open upload started inside a day gets 429 whether it has an owner code or a fresh one each time; old open rows are marked deleted', async () => {
+    for (let i = 0; i < 5; i++) {
+      const r = await submit({ durationDays: 740 + i }, String(i).repeat(32).slice(0, 32), `3.3.3.${i}`);
+      expect((await start(r.id, r.uploadToken, PART + 1)).status).toBe(200);
+    }
+    const sixth = await submit({ durationDays: 750 }, 'f'.repeat(32), '3.3.3.9');
+    const res = await start(sixth.id, sixth.uploadToken, PART + 1);
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+    const noOwner = await submit({ durationDays: 751 }, '', '3.3.3.10');
+    expect((await start(noOwner.id, noOwner.uploadToken, PART + 1)).status).toBe(429);
+    // A day later the earlier ones no longer count, and are marked deleted by the next start.
+    env.WATCH._db.prepare('UPDATE bigcsv SET created = ?').run(Date.now() - 25 * 3_600_000);
+    expect((await start(sixth.id, sixth.uploadToken, PART + 1)).status).toBe(200);
+    expect(env.WATCH._db.prepare("SELECT COUNT(*) AS n FROM bigcsv WHERE state = 'deleted'").get().n).toBe(5);
   });
 });

@@ -29,6 +29,8 @@ export const BIGCSV_MAX_PART = 90_000_000;
 export const BIGCSV_MAX_BYTES = 4 * 1024 ** 3;
 export const BIGCSV_MAX_PARTS = 1000;
 /** An open upload older than this is abandoned: /start aborts it and begins fresh (review 22 Nov, C3.1). */
+/** Uploads that may be open at once across the collector (code review round 2, coll-gaps-b-2). */
+export const BIGCSV_OPEN_PER_DAY = 5;
 export const BIGCSV_OPEN_MS = 20 * 3_600_000;
 export const BIGCSV_PER_OWNER = 3;
 export const BIGCSV_DAYS = 90;
@@ -172,8 +174,16 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
       const c = await env.WATCH.prepare("SELECT COUNT(*) AS n FROM bigcsv WHERE owner = ? AND created > ? AND (state = 'done' OR (state = 'open' AND created > ?))").bind(owner, since, now - DAY_MS).first();
       if ((c?.n ?? 0) >= BIGCSV_PER_OWNER) return retry(7 * 86400, `at most ${BIGCSV_PER_OWNER} full CSVs per account in 30 days`);
     }
-    const used = await env.WATCH.prepare("SELECT COALESCE(SUM(bytes), 0) AS b FROM bigcsv WHERE created > ? AND (state = 'done' OR (state = 'open' AND created > ?))").bind(now - BIGCSV_DAYS * DAY_MS, now - DAY_MS).first();
-    if ((used?.b ?? 0) + bytes > BIGCSV_BUDGET_BYTES) return retry(86400, 'the full-CSV store is full right now');
+    // Open rows older than a day are over (R2 drops their parts): marked deleted so they stop counting for good (coll-gaps-b-2).
+    await env.WATCH.prepare("UPDATE bigcsv SET state = 'deleted' WHERE state = 'open' AND created <= ?").bind(now - DAY_MS).run();
+    // At most a few uploads open at once across the collector: a throwaway sender cannot hold many (an owner code is no proof of anything).
+    const openNow = await env.WATCH.prepare("SELECT COUNT(*) AS n FROM bigcsv WHERE state = 'open' AND created > ?").bind(now - DAY_MS).first();
+    if ((openNow?.n ?? 0) >= (Number(env.BIGCSV_OPEN_PER_DAY) || BIGCSV_OPEN_PER_DAY)) return retry(3600, 'too many big CSV uploads are open right now');
+    // The budget counts what is kept (done rows by their size) plus the bytes of open uploads that have actually ARRIVED, not the
+    // size a sender declared before sending a byte.
+    const kept = await env.WATCH.prepare("SELECT COALESCE(SUM(bytes), 0) AS b FROM bigcsv WHERE state = 'done' AND created > ?").bind(now - BIGCSV_DAYS * DAY_MS).first();
+    const arrived = await env.WATCH.prepare("SELECT COALESCE(SUM(p.size), 0) AS b FROM bigcsv_parts p JOIN bigcsv b ON b.id = p.id WHERE b.state = 'open'").first();
+    if ((kept?.b ?? 0) + (arrived?.b ?? 0) + bytes > BIGCSV_BUDGET_BYTES) return retry(86400, 'the full-CSV store is full right now');
     const mp = await env.BIGCSV.createMultipartUpload(objectKey(id), { customMetadata: { row: id, bytes: String(bytes), parts: String(parts), at: String(now) } });
     // A deleted or abandoned record for this id is replaced.
     await env.WATCH.prepare('DELETE FROM bigcsv_parts WHERE id = ?').bind(id).run();
