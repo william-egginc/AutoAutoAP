@@ -621,7 +621,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return formatMoment((store.planStart + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
+  return formatMoment((store.resultsPlanStart() + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 }
 
 /** Why a runner-up is on the list, in words. A bare ranking invites "so why is #4 here?". */

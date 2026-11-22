@@ -445,7 +445,7 @@
                 :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
-                :reach-at="store.planStart + store.bestDays * 86400"
+                :reach-at="store.resultsPlanStart() + store.bestDays * 86400"
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
@@ -1251,7 +1251,7 @@ const { downloadCsv, downloadXlsx } = useRunDownloads(store);
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return formatMoment((store.planStart + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
+  return formatMoment((store.resultsPlanStart() + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 }
 
 const endDate = computed(() => finishInstant(store.bestDays * 86400));

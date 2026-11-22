@@ -882,7 +882,7 @@
                 :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
-                :reach-at="store.planStart + store.bestDays * 86400"
+                :reach-at="store.resultsPlanStart() + store.bestDays * 86400"
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
@@ -1836,7 +1836,7 @@ const pricedSoFar = computed(() => store.chainsDone + (store.isRunning ? store.b
 const endDate = computed(() => {
   if (!(store.bestDays > 0)) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return formatMoment((store.planStart + store.bestDays * 86400) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
+  return formatMoment((store.resultsPlanStart() + store.bestDays * 86400) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 });
 /**
  * The rate this machine is actually managing, once it has managed anything. The 15 s assumption is

@@ -12,12 +12,12 @@ export function useSearchSnapshots(goal: 'fastest' | 'date'): void {
   const stronger = useStrongerStore();
   if (goal === 'fastest') {
     watch(
-      () => [store.bestDays, store.bestChain.join(','), store.isRunning, store.chainRunKind, store.planStart] as const,
+      () => [store.bestDays, store.bestChain.join(','), store.isRunning, store.chainRunKind, store.planStart, store.planStartUsed] as const,
       () => {
         if (!(store.bestDays > 0) || !store.bestChain.length) return;
         stronger.lastSearch[store.chainRunKind] = {
           chain: [...store.bestChain],
-          end: store.planStart + store.bestDays * 86400,
+          end: store.resultsPlanStart() + store.bestDays * 86400,
           endTE: store.finalTE,
           exact: true,
           running: store.isRunning,

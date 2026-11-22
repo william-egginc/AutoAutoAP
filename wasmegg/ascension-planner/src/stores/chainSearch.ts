@@ -10204,7 +10204,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stopping: stopRequested.value,
         best:
           bestDays.value > 0
-            ? { chain: [...bestChain.value], te: finalTE.value, at: planStart.value + bestDays.value * 86400 }
+            ? { chain: [...bestChain.value], te: finalTE.value, at: (planStartUsed.value || planStart.value) + bestDays.value * 86400 }
             : null,
       };
     }
@@ -10392,6 +10392,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deferShifts,
     siloTrick,
     planStartUsed,
+    resultsPlanStart,
     scheduleIsEmpty,
     milestones,
     activeMilestones,
