@@ -3320,6 +3320,7 @@ function pricingRecordNow(): PricingRecord | null {
       zone: zone.value,
       deferShifts: store.deferShifts,
       target: store.finalTE,
+      siloTrick: !!store.siloTrick,
     }),
     url: tableUrl.value,
     tableTo: header.value?.to ?? null,

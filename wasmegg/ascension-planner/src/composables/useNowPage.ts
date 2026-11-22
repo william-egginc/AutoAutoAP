@@ -306,6 +306,7 @@ export function pricingSetupFromStores(): string {
     zone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     deferShifts: !!store.deferShifts,
     target: store.finalTE,
+    siloTrick: !!store.siloTrick,
   });
 }
 

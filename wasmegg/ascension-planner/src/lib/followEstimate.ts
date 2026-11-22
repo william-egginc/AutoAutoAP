@@ -222,6 +222,9 @@ export function pricingSetupKey(o: {
   deferShifts: boolean;
   /** The planner's target TE (the store's `finalTE`). */
   target: number;
+  /** Setup's silo trick (the store's `siloTrick`): the build-up tails the record's first ascension is priced from read
+   *  it (code review round 2, 22 Nov 2026, R7.2). A part only when on, so the keys kept with it off stay valid. */
+  siloTrick?: boolean;
 }): string {
   const list = (x: unknown) => (Array.isArray(x) ? x : []);
   return JSON.stringify([
@@ -233,6 +236,7 @@ export function pricingSetupKey(o: {
     o.useHours ? !!o.deferShifts : null,
     o.target,
     resultCode(),
+    ...(o.siloTrick ? ['silo'] : []),
   ]);
 }
 
