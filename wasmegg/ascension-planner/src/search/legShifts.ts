@@ -3,8 +3,9 @@
  * only keeps when each ascension ends" and All planned shifts said "Can't tell"). A version 2 table build already
  * gives every shift AFTER the build-up: H1's and K3's are stored (tableV2.ts `BuildExtras`), and each later one (C4,
  * I2, R2, H2) comes out of the tail's replay, held for the player's hours (tableV2.ts `replayTail`). The finder prices
- * a leg with the same replay (routeFinder.ts `sweepOne`, `sweepReplay` with `only`: the same numbers to the bit), so
- * the shifts here belong to the leg it priced. What is missing are the opening's shifts (from the fresh start to C3):
+ * a leg with the same replay (routeFinder.ts `sweepOne`, `sweepReplay` with `only`: the same numbers to the bit) from
+ * the build as it lagged it for held buys (priceLeg's `replayBuild`; from the table's own build the replay missed every
+ * leg held buys moved, code review round 2, 22 Nov 2026, R6.2), so the shifts here belong to the leg it priced. What is missing are the opening's shifts (from the fresh start to C3):
  * the table does not store them until its next rebuild.
  *
  * Pure: the table's arithmetic only, no simulator.

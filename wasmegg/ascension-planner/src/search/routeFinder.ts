@@ -548,6 +548,9 @@ export function priceLeg(
   wanted?: number;
   /** Seconds into its table hour it starts (non-zero only at once inside the sale): for its shifts' replay. */
   lateBy: number;
+  /** The build as the sweep replayed it, held buys' lag included (`heldBuys`): its shifts' replay starts from this
+   *  one, or misses the leg by the lag (code review round 2, 22 Nov 2026, R6.2). `build` keeps the table's own. */
+  replayBuild: BuildWithExtras;
 } | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
@@ -601,6 +604,11 @@ export function priceLeg(
         rate: b.peakELR,
         ...held,
         lateBy: o.lateBy,
+        // As sweepOne lagged it (the same call, so the same numbers).
+        replayBuild:
+          holdUntil && (b as BuildWithExtras).extras && tail.heldBuys !== false
+            ? heldBuys(b as BuildWithExtras, o.start, holdUntil)
+            : b,
       };
     }
   }
@@ -1377,7 +1385,7 @@ export function priceChain(
     if (!p) return (remember(i, false), null);
     // Its shifts, replayed as the sweep priced it (the same hold and order); kept only when the replay is this leg.
     const sh = o.shifts
-      ? legShifts(p.build, target, {
+      ? legShifts(p.replayBuild, target, {
           start: p.start,
           lateBy: p.lateBy,
           holdUntil: o.holdShifts ? holdUntilFor(shiftHours) : undefined,
