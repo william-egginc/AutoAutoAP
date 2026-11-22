@@ -302,6 +302,7 @@ function ctxOf(s: State): Record<string, unknown> {
     noPrestigeOn: false,
     siloWords: 'until its silos run out',
     stepHours: null,
+    sleepHours: null,
     stepDays: [],
     dateBoxLegs: [],
     waiting: s.waiting,
