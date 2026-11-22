@@ -185,3 +185,35 @@ describe('the panel’s words', () => {
     expect(waitLines(r, show).singles[0].text).toBe('After 197: prestige as soon as you reach it. (Waiting 1h gains only 20m.)');
   });
 });
+
+describe('a wait the player\u2019s hours round up (code review 22 Nov 2026, R2.1)', () => {
+  // Hours 7 AM to 11 PM (made-up clock: T0 is midnight). Stop 197 is reached at 10 PM; any wait of 2 to 9 h
+  // starts the next ascension at 7 AM, and the overnight laying is what wins, so those waits tie.
+  const show = (t: number) => `T${t}`;
+  const reached = 22 * H;
+  const routeSeconds = (w: Waits) => 1000 * H - (w[0] >= 2 && w[0] <= 9 ? 4 * H : 0);
+  const startOf = (w: Waits) => {
+    const t = reached + w[0] * H;
+    const h = (t / H) % 24;
+    return h >= 23 || h < 7 ? t + ((((7 - h) % 24) + 24) % 24) * H : t;
+  };
+  const price = async (sets: Waits[]) =>
+    sets.map(
+      w =>
+        ({
+          chain: [197, 313],
+          seconds: routeSeconds(w),
+          legs: [{ endTime: reached }, { startTime: startOf(w), endTime: startOf(w) + 100 * H }],
+        }) as unknown as ChainResult
+    );
+
+  it('says the start the priced route used (7 AM, wait 9h), not reached + the first tied wait (12 AM)', async () => {
+    const { waitLines } = await import('./delays');
+    const r = await searchWaits([197, 313], price, { maxHours: 12 });
+    expect(r.singles[0].bestHours).toBe(2);
+    expect(r.singles[0].startAt).toBe(31 * H);
+    const lines = waitLines(r, show);
+    expect(lines.singles[0].text).toBe(`After 197 (reached T${22 * H}): prestige at T${31 * H} (wait 9h). Finishes 4h sooner.`);
+    expect(lines.together).toBe(`Together: after 197, prestige at T${31 * H} (wait 9h). Finishes 4h sooner than prestiging at once.`);
+  });
+});
