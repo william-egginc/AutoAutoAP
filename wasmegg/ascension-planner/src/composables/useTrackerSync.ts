@@ -275,14 +275,16 @@ export async function notePlanKept(account: string, reason: 'first' | 'replan'):
 // ----------------------------------------------------------------------------------------- reading
 
 /** The read pass's list (useOverrideSync): ticks and the plan newer than this browser's. */
-async function fromList(records: SyncMeta[], w: { url: string; k: string }): Promise<void> {
-  const account = accountOf(useInitialStateStore().rawBackup);
-  if (!account) return;
+async function fromList(records: SyncMeta[], w: { url: string; k: string }, account: string): Promise<void> {
+  // The account the read began for (code review 22 Nov 2026, rel-state-1); after each call, still the one on screen.
+  const same = () => !!account && accountOf(useInitialStateStore().rawBackup) === account;
+  if (!same()) return;
   for (const r of records.filter(x => x.kind === 'ticks' && SLOT.test(x.slot)).sort((a, b) => Number(b.slot) - Number(a.slot))) {
     const slot = Number(r.slot);
     const m = ticksMeta(account, slot);
     if (!(r.at > Math.max(m.at, m.synced))) continue;
     const got = await getSynced(w.url, w.k, 'ticks', r.slot);
+    if (!same()) return;
     if (!got.ok) continue;
     const cloud = readTicksValue(got.value);
     if (!cloud) continue;
@@ -310,10 +312,10 @@ async function fromList(records: SyncMeta[], w: { url: string; k: string }): Pro
   const here = readAnchoredPlan(account);
   if (here && Math.floor(here.ascensionStart) > slot) return;
   const got = await getSyncedBytes(w.url, w.k, newest.slot);
-  if (!got.ok) return;
+  if (!same() || !got.ok) return;
   writeJson(planMetaKey(account), { slot, at: got.at || newest.at });
   const cloud = await cloudPlanOf(got.bytes);
-  if (!cloud || cloud.rc !== resultCode() || Math.floor(cloud.ascensionStart) !== slot) return;
+  if (!same() || !cloud || cloud.rc !== resultCode() || Math.floor(cloud.ascensionStart) !== slot) return;
   const mineHere = here && Math.floor(here.ascensionStart) === slot ? here : null;
   if (!mineHere || cloud.saveSeconds < mineHere.saveSeconds) adoptPlan(account, cloud);
 }
