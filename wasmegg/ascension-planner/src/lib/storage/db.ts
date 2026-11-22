@@ -147,8 +147,12 @@ export async function savePlanToLibrary(partitionHash: string, plan: PlanData): 
 
     await bounded(tx, new Promise<void>((resolve, reject) => {
         const request = store.put({ ...sanitizedPlan, storageKey, partitionHash });
-        request.onsuccess = () => resolve();
+        // On the COMMIT, as saveMetadata (code review 22 Nov 2026, rel-state-7): a put can succeed and its
+        // transaction still abort.
         request.onerror = () => reject(request.error);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? request.error);
+        tx.onabort = () => reject(tx.error ?? new Error('the write was aborted'));
     }));
 }
 
@@ -190,8 +194,11 @@ export async function deletePlanFromLibrary(partitionHash: string, planId: strin
 
     await bounded(tx, new Promise<void>((resolve, reject) => {
         const request = store.delete(storageKey);
-        request.onsuccess = () => resolve();
+        // On the COMMIT, as saveMetadata (code review 22 Nov 2026, rel-state-7).
         request.onerror = () => reject(request.error);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? request.error);
+        tx.onabort = () => reject(tx.error ?? new Error('the delete was aborted'));
     }));
 }
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { saveMetadata } from './db';
+import { deletePlanFromLibrary, saveMetadata, savePlanToLibrary } from './db';
 
 /** Just enough of IndexedDB for one put: the test fires the put's success and the commit itself. */
 function fakeIDB() {
@@ -43,6 +43,51 @@ describe('saveMetadata', () => {
     tx.onabort?.();
     await expect(p).rejects.toThrow(/aborted/);
   });
+});
+
+/** The plan library's writes, the same rule (code review 22 Nov 2026, rel-state-7): done when the transaction commits. */
+describe('savePlanToLibrary and deletePlanFromLibrary', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  function fakePlans() {
+    const tx: Record<string, unknown> & { oncomplete?: () => void; onabort?: () => void; onerror?: () => void } = {};
+    const request: { onsuccess?: () => void; onerror?: () => void; error: null } = { error: null };
+    tx.objectStore = () => ({ put: () => request, delete: () => request });
+    const db = { transaction: () => tx, objectStoreNames: { contains: () => true } };
+    vi.stubGlobal('indexedDB', {
+      open: () => {
+        const r: { result: unknown; onsuccess?: () => void } = { result: db };
+        queueMicrotask(() => r.onsuccess?.());
+        return r;
+      },
+    });
+    return { tx, request };
+  }
+  const plan = { id: 'p1', timestamp: 1 } as never;
+  for (const [name, run] of [
+    ['savePlanToLibrary', () => savePlanToLibrary('h', plan)],
+    ['deletePlanFromLibrary', () => deletePlanFromLibrary('h', 'p1')],
+  ] as const) {
+    it(`${name}: resolves on the commit, not the request`, async () => {
+      const { tx, request } = fakePlans();
+      let done = false;
+      const p = run().then(() => (done = true));
+      await tick();
+      request.onsuccess?.();
+      await tick();
+      expect(done).toBe(false);
+      tx.oncomplete?.();
+      await p;
+      expect(done).toBe(true);
+    });
+    it(`${name}: rejects when the transaction aborts after the request succeeded`, async () => {
+      const { tx, request } = fakePlans();
+      const p = run();
+      await tick();
+      request.onsuccess?.();
+      tx.onabort?.();
+      await expect(p).rejects.toThrow(/aborted/);
+    });
+  }
 });
 
 /**
