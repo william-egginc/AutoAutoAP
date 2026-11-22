@@ -95,12 +95,38 @@ export interface TailOptions {
   /** THE CLIFF GUARD (R10.1), seconds: a short ascension (up to CLIFF_TE TE) is also priced from this much later and
    *  costs the worse of the two (`guardCliff`). Absent or 0: off. The instant answer sets CLIFF_LAG. */
   cliffGuard?: number;
+  /** With `cliffGuard`, seconds: the guard by the cell (`cellJumps`) instead of by length. An ascension of any length
+   *  is priced again from `cliffGuard` later only when the table cell then has a build whose sale ends more than this
+   *  much later than now (it waits for next week's sale); else it is priced as without the guard. The instant answer
+   *  sets CLIFF_JUMP. Absent: the guard by length (up to CLIFF_TE TE, every one priced twice). */
+  cliffJump?: number;
 }
 
 /** The longest ascension the cliff guard looks at, in TE: above it the build's tail, not its sale, sets the time. */
 export const CLIFF_TE = 5;
 /** The instant answer's cliff guard: about how early its routes run by mid-route (R10 harness, 21 Nov 2026). */
 export const CLIFF_LAG = 24 * 3600;
+/** The instant answer's guard by the cell: a sale end this much later than now (absolute) is a cliff. A missed sale
+ *  moves it about a week; the same sale keeps it where it was. */
+export const CLIFF_JUMP = 12 * 3600;
+
+/**
+ * Whether the table cell `lag` after `start` has a build that ends its sale (or its purchases) more than `jump` later,
+ * in absolute time, than the same sale count's build in this cell: the build no longer makes this sale. A sale count
+ * the later cell lacks counts as a jump. One lookup each, no pricing: the guard by the cell's cheap test.
+ */
+export function cellJumps(table: BuildLookup, te: number, start: number, lag: number, jump: number): boolean {
+  const now = table(te, pacificHourOfWeek(start));
+  if (!now?.length) return false;
+  const later = table(te, pacificHourOfWeek(start + lag));
+  if (!later?.length) return true;
+  for (const b of now) {
+    const l = later.find(x => x.sales === b.sales && x.tier13 === b.tier13) ?? later.find(x => x.sales === b.sales);
+    if (!l) return true;
+    if (lag + l.saleEnd - b.saleEnd > jump || lag + l.waitStart - b.waitStart > jump) return true;
+  }
+  return false;
+}
 
 /**
  * THE CLIFF GUARD (`TailOptions.cliffGuard`; Tables and PC, 21 Nov 2026). A short ascension is mostly "finish this
@@ -121,13 +147,64 @@ function guardCliff(
   deliveryScale: number,
   hours: Availability | undefined,
   tail: TailOptions,
-  shiftHours: Availability | undefined = hours
+  shiftHours: Availability | undefined = hours,
+  /** The ends from `cliffGuard` later for every checkpoint up from `te + 1` (`laterEnds`), when the caller has them. */
+  later?: number[]
 ): number {
   const lag = tail.cliffGuard ?? 0;
-  if (!(lag > 0) || target - te > CLIFF_TE) return end;
-  const once = { ...tail, cliffGuard: 0 };
-  const later = priceLeg(table, te, start + lag, delivered, target, deliveryScale, hours, once, shiftHours);
-  return later ? Math.max(end, later.end - lag) : end;
+  if (!(lag > 0)) return end;
+  // By the cell (`cliffJump`): any length, only where the cell a lag later shows a missed sale. Else by length.
+  if (tail.cliffJump ? !cellJumps(table, te, start, lag, tail.cliffJump) : target - te > CLIFF_TE) return end;
+  const ends =
+    later ?? laterEnds(table, te, start + lag, delivered, target, target, deliveryScale, hours, tail, shiftHours);
+  const e = ends[target - te - 1];
+  return Number.isFinite(e) ? Math.max(end, e - lag) : end;
+}
+
+/**
+ * `priceLeg`'s end from `t` for every checkpoint from `lowest` to `top` at once (index: checkpoint - te - 1; NaN where
+ * none reaches it): one sweep per build instead of one pricing per checkpoint, for the cliff guard's later prices.
+ * The same starts and the same pick as priceLeg (the at-once start first with `inSale: 'atOnce'`).
+ */
+export function laterEnds(
+  table: BuildLookup,
+  te: number,
+  t: number,
+  delivered: number[],
+  lowest: number,
+  top: number,
+  deliveryScale: number,
+  hours: Availability | undefined,
+  tail: TailOptions,
+  shiftHours: Availability | undefined = hours
+): number[] {
+  const { starts, atOnceFirst, holdUntil } = legStarts(table, te, t, hours, tail, shiftHours);
+  const plain = { ...tail, cliffGuard: 0 };
+  const per = starts.map(o => {
+    const ends = new Array<number>(top - te).fill(NaN);
+    for (const b of scaled(o.builds, deliveryScale).map(x => rebase(x, te, delivered))) {
+      const sw = sweepOne(b, top, o.lateBy, lowest, o.start, holdUntil, plain);
+      for (let target = lowest; target <= top; target++) {
+        const i = target - sw.from;
+        if (i < 0 || i >= sw.seconds.length || Number.isNaN(sw.seconds[i])) continue;
+        const end = o.start + sw.seconds[i];
+        const k = target - te - 1;
+        if (!(end >= ends[k])) ends[k] = end;
+      }
+    }
+    return ends;
+  });
+  const out = new Array<number>(top - te).fill(NaN);
+  // `legStarts` puts the at-once start first when it is THE start (`atOnceFirst`).
+  const first = atOnceFirst ? 0 : -1;
+  for (let k = lowest - te - 1; k < top - te; k++) {
+    if (first >= 0 && Number.isFinite(per[first][k])) {
+      out[k] = per[first][k];
+      continue;
+    }
+    for (const ends of per) if (!(ends[k] >= out[k])) out[k] = ends[k];
+  }
+  return out;
 }
 
 /** Remembered `holdUntilOf` per schedule (the settings come to a worker as plain data each step). */
@@ -162,6 +239,7 @@ export function tailOptionsOf(o: TailOptions): TailOptions {
     ...(o.noPrestige?.length ? { noPrestige: o.noPrestige.map(w => ({ from: w.from, to: w.to })) } : {}),
     ...(o.noPrestige?.length && o.siloSeconds !== undefined ? { siloSeconds: o.siloSeconds } : {}),
     ...(o.cliffGuard ? { cliffGuard: o.cliffGuard } : {}),
+    ...(o.cliffGuard && o.cliffJump ? { cliffJump: o.cliffJump } : {}),
   };
 }
 
@@ -871,16 +949,31 @@ export function expandArrivals(
   };
   // Reused for each checkpoint's end counts; copied only when the arrival is kept.
   const scratch = [0, 0, 0, 0, 0];
-  // THE CLIFF GUARD's later prices, once per TE, start, counts and checkpoint (arrivals share them as sweeps do).
-  const cliffMemo = new Map<string, number>();
-  const guarded = (te: number, start: number, eggs: number[], target: number, end: number): number => {
-    const key = `${te}|${start}|${eggs.join(',')}|${target}|${end}`;
-    let g = cliffMemo.get(key);
-    if (g === undefined) {
-      g = guardCliff(table, te, start, eggs, target, end, s.deliveryScale, s.hours, s);
-      cliffMemo.set(key, g);
+  // THE CLIFF GUARD's later prices (`guardCliff`).
+  // The guard by the cell (`cliffJump`): its cheap test, once per TE and start.
+  const jumpMemo = new Map<string, boolean>();
+  const jumps = (te: number, start: number): boolean => {
+    const key = `${te}|${start}`;
+    let j = jumpMemo.get(key);
+    if (j === undefined) {
+      j = cellJumps(table, te, start, s.cliffGuard!, s.cliffJump!);
+      jumpMemo.set(key, j);
     }
-    return g;
+    return j;
+  };
+  const laterMemo = new Map<string, number[]>();
+  const guarded = (te: number, start: number, eggs: number[], target: number, end: number): number => {
+    // Every checkpoint's later end in one sweep per build (`laterEnds`), once per TE, start and counts.
+    const key = `${te}|${start}|${eggs.join(',')}`;
+    let later = laterMemo.get(key);
+    if (!later) {
+      const top = s.cliffJump ? s.top : Math.min(s.top, te + CLIFF_TE);
+      later = laterEnds(table, te, start + s.cliffGuard!, eggs, te + 1, top, s.deliveryScale, s.hours, s);
+      laterMemo.set(key, later);
+    }
+    // The caller has checked the rule (length or `jumps`); the worse of now and later, less the lag.
+    const e = later[target - te - 1];
+    return Number.isFinite(e) ? Math.max(end, e - s.cliffGuard!) : end;
   };
 
   // Waiting: the same arrival again, ready at each of the next waitHours whole hours.
@@ -953,7 +1046,7 @@ export function expandArrivals(
       const legStart = takeEarly ? base : startAt;
       // THE CLIFF GUARD (`guardCliff`), as priceLeg prices it: a short ascension costs the worse of now and later.
       const end =
-        s.cliffGuard && target - te <= CLIFF_TE
+        s.cliffGuard && (s.cliffJump ? jumps(te, legStart) : target - te <= CLIFF_TE)
           ? guarded(te, legStart, delivered, target, legStart + sweep.seconds[i])
           : legStart + sweep.seconds[i];
       const endTE = sweep.endTE[i];
