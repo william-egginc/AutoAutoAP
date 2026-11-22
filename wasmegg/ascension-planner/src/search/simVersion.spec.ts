@@ -69,4 +69,13 @@ describe('SIM_SOURCES coverage (review 15 Nov, T5)', () => {
     ])
       expect(SIM_SOURCES).toContain(f);
   });
+  it('covers the TE thresholds, the artifact modifiers, colleggtibles and the artifact helpers (code review 22 Nov 2026, T1.8)', () => {
+    for (const f of [
+      'src/lib/truthEggs.ts',
+      'src/lib/artifacts/calculator.ts',
+      '../../lib/collegtibles.ts',
+      '../../lib/planners/artifacts/utils.ts',
+    ])
+      expect(SIM_SOURCES).toContain(f);
+  });
 });
