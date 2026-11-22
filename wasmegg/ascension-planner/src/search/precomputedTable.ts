@@ -17,7 +17,15 @@ import { canonicalDelivered, EGG_ORDER, rebase, WEEK_HOURS, type BuildParams } f
 import type { TableGear } from './tableGear';
 import { FORM_G_DELIVERY, type FormGDelivery } from './formG';
 import { jointSimVersion } from './simVersion';
-import { readExtras, V1_FIELDS, V2_FIELDS, writeV2, type BuildExtras, type BuildWithExtras } from './tableV2';
+import {
+  readExtras,
+  scaleBuild,
+  V1_FIELDS,
+  V2_FIELDS,
+  writeV2,
+  type BuildExtras,
+  type BuildWithExtras,
+} from './tableV2';
 
 const FIELDS = 9;
 
@@ -291,7 +299,7 @@ export function compositeTable(low: Table, high: Table, split: number, scale: nu
       const key = te * WEEK_HOURS + hour;
       let hit = scaled.get(key);
       if (!hit) {
-        hit = raw.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        hit = raw.map(b => scaleBuild(b, scale));
         scaled.set(key, hit);
       }
       return hit;

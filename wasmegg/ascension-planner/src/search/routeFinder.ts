@@ -42,7 +42,7 @@ import { holdUntilOf, isAvailable, type Availability } from './availability';
 import { creditedWaitSeconds, noPrestigeAt, prestigeHoldOf } from './noPrestige';
 import type { TimeOffWindow } from './types';
 import type { FirstAscension } from './firstAscension';
-import { replayContinue, sweepReplay, type BuildWithExtras, type ReplaySweep } from './tableV2';
+import { replayContinue, scaleBuild, sweepReplay, type BuildWithExtras, type ReplaySweep } from './tableV2';
 import { openingSpan } from './openingSpan';
 import { legShifts } from './legShifts';
 
@@ -604,7 +604,7 @@ interface Label {
 }
 
 function scaled(builds: BuildParams[], scale: number): BuildParams[] {
-  return scale === 1 ? builds : builds.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+  return scale === 1 ? builds : builds.map(b => scaleBuild(b, scale));
 }
 
 function eggsOf(sweep: TailSweep, i: number): number[] {

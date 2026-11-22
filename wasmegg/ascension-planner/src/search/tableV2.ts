@@ -277,6 +277,28 @@ export function bestReplay(
  *  other counts (`rebase`) or another delivery rate keeps them. */
 export type BuildWithExtras = BuildParams & { extras?: BuildExtras };
 
+/** A build at another delivery rate (the composite's high half, the finder's `deliveryScale`): its peak and, with
+ *  extras, the four rates the held replay credits (code review 22 Nov 2026, T1.2: they stayed unscaled). The form
+ *  G (precomputedTable.ts gearShiftTable) moves them the same way by its own factor, and caps the peak. */
+export function scaleBuild<B extends BuildWithExtras>(b: B, s: number): B {
+  const x = b.extras;
+  return {
+    ...b,
+    peakELR: b.peakELR * s,
+    ...(x
+      ? {
+          extras: {
+            ...x,
+            layRate: x.layRate * s,
+            shipRate: x.shipRate * s,
+            h1Rate: x.h1Rate * s,
+            k3Rate: x.k3Rate * s,
+          },
+        }
+      : {}),
+  };
+}
+
 /** A sweep of held tails (`sweepReplay`): what `TailSweep` gives, plus per checkpoint the egg the
  *  farm is on when the tail ends (EGG_ORDER) and the seconds its shifts waited for the player. */
 export interface ReplaySweep extends TailSweep {
