@@ -31,6 +31,10 @@
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
         <span class="whitespace-nowrap">{{ show(l.reachedAt) }}</span>
         <!-- R1 would come after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <!-- The prestige-window hint (R10, 21 Nov 2026; lib/prestigeWindow.ts, off unless Setup's More options box is ticked). -->
+        <p v-if="windowOf(l)" class="mt-0.5 ml-4 text-body text-slate-700 break-words max-w-prose" data-testid="step-prestige-window">
+          {{ prestigeWindowLine(windowOf(l)!.deadline, zone) }}
+        </p>
         <p v-if="r1Of(l)" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="step-r1-sleep">
           {{ sleepBeforeR1Card(r1Of(l)!, show) }}
         </p>
@@ -52,6 +56,8 @@ import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffWindow } from '@/search/types';
 import { r1OfTableAscension } from '@/lib/sleepBeforeR1View';
 import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
+import { prestigeWindow, usePrestigeHint } from '@/lib/prestigeWindow';
+import { prestigeWindowLine } from '@/lib/prestigeWindowWords';
 
 const props = defineProps<{
   legs: readonly StepLeg[] | null | undefined;
@@ -68,6 +74,9 @@ const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props
 // A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).
 const r1Of = (l: { now: boolean; fresh?: boolean; prestigeAt: number; fromTE: number }) =>
   l.now && !l.fresh ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
+const hintOn = usePrestigeHint();
+const windowOf = (l: { now: boolean; fresh?: boolean; fromTE: number; stopTE: number; sales?: number; prestigeAt: number }) =>
+  hintOn.value ? prestigeWindow({ fromTE: l.fromTE, stopTE: l.stopTE, sales: l.sales, prestigeAt: l.prestigeAt, now: l.now && !l.fresh }) : null;
 /** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
 const show = (t: number) => cardTime(t, props.zone);
 </script>
