@@ -26,7 +26,7 @@ import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './in
 import { instantFirstLegsBase, type BuildUpFlags, type BuildUpTailsResult } from './instantFirstLegs';
 import { cardDeliveryScale } from './instantScale';
 import type { FirstLegsBase } from './priceOnTable';
-import { CLIFF_LAG, type FirstLeg, type PolishOptions, type TailOptions } from './routeFinder';
+import { CLIFF_JUMP, CLIFF_LAG, type FirstLeg, type PolishOptions, type TailOptions } from './routeFinder';
 import type { Availability } from './availabilitySchedule';
 import type { BuildParams } from './precomputedLeg';
 import type { SearchInputs, TimeOffWindow } from './types';
@@ -251,5 +251,7 @@ export function instantPricingOptions(o: {
     ...o.tail,
     // THE CLIFF GUARD (routeFinder.ts `guardCliff`, R10.1): a short ascension costs the worse of now and a day later.
     cliffGuard: o.tail.cliffGuard ?? CLIFF_LAG,
+    // By the cell (routeFinder.ts `cellJumps`): every length, priced twice only where the cell shows a missed sale.
+    cliffJump: o.tail.cliffJump ?? CLIFF_JUMP,
   };
 }
