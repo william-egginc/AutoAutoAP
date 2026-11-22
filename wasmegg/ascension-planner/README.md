@@ -261,7 +261,7 @@ code. That is why the Netlify command is `make -C ../../lib && pnpm build`.
 | `pnpm lint` / `pnpm format` | eslint / prettier over `src/` |
 | `pnpm search:build` | builds the command line into `dist-search/` (`fastsearch.js`, `chain-worker.js`) |
 | `pnpm fastsearch` | `node dist-search/fastsearch.js` |
-| `pnpm generate:pacific-time-table` | regenerates the Pacific time table (`scripts/generatePacificTimeTable.ts`) |
+| `pnpm generate:pacific-time-table` | regenerates the Pacific time table (lib/planners/pacificTimeTable.json, by scripts/generatePacificTimeTable.ts) |
 
 One spec file: `npx vitest run path/to/file.spec.ts`. No spec reaches a real collector. Specs that need a
 private save are skipped without it, and the slowest run only with `AAP_SLOW_SPECS=1`. `pnpm build` prints a
