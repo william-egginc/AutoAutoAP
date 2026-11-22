@@ -3211,6 +3211,7 @@ function cacheKey(): string | null {
     maxAscensions: filters.value.maxAscensions,
     minAscensions: filters.value.minAscensions,
     siloTrick: store.siloTrick,
+    holdShifts: !!store.deferShifts,
   });
 }
 /**
@@ -3559,6 +3560,10 @@ watch(
       store.firstAscension,
       bonus.value,
       useHours.value ? availabilityKey(store.availability) : '',
+      // Held shifts, the no-prestige days and the silo trick move the answer too (code review 22 Nov 2026, math-fast-3).
+      useHours.value ? !!store.deferShifts : '',
+      JSON.stringify(usableTimeOff(store.noPrestige).map(w => [w.from, w.to])),
+      !!store.siloTrick,
       filters.value.maxAscensions,
       filters.value.minAscensions,
       // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for

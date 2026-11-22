@@ -305,6 +305,9 @@ export interface InstantKeyInput {
   /** Setup's silo trick (10 Nov 2026): keyed only when on, so every answer saved without it keeps its key, and one worked out
    *  without it is never shown for a setup with it. */
   siloTrick?: boolean;
+  /** "Make them wait too" (held shifts), 22 Nov 2026 (code review, math-fast-3): keyed only when the hours are used and
+   *  it is off, so every answer saved with it (the default) keeps its key. */
+  holdShifts?: boolean;
 }
 
 /** The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved under those
@@ -351,6 +354,7 @@ export function instantKey(i: InstantKeyInput): string {
     filters: [i.useHours, i.maxAscensions, ...(i.minAscensions != null ? [{ min: i.minAscensions }] : [])],
     ...(i.saveAt != null ? { save: Math.floor(i.saveAt) } : {}),
     ...(i.siloTrick ? { siloTrick: true } : {}),
+    ...(i.useHours && i.holdShifts === false ? { free: true } : {}),
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);

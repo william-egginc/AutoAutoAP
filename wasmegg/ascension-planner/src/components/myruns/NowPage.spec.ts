@@ -430,8 +430,8 @@ describe('source checks', () => {
       return [...body.matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).sort();
     };
     const route = fields(read('../auto/InstantRoute.vue'));
-    // 18 since spec-silotrick (10 Nov 2026): `siloTrick` joined the key.
-    expect(route.length).toBe(18);
+    // 18 since spec-silotrick (10 Nov 2026): `siloTrick` joined the key; 19 since `holdShifts` (code review 22 Nov 2026).
+    expect(route.length).toBe(19);
     expect(fields(read('../../composables/useNowPage.ts'))).toEqual(route);
   });
 
