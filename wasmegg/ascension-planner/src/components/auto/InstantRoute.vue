@@ -2806,9 +2806,10 @@ async function runAltPass(found: FoundRoutes): Promise<void> {
       liveFresh: (t: number, at: number) => store.liveFreshBuilds(t, at),
       buildUpTails: () => store.buildUpTails(),
       alive,
+      tailExtra: { heldBuys: false },
     });
     if (!legs || !alive()) return;
-    const tail = { ...legs.tail, heldBuys: false };
+    const tail = legs.tail;
     const foundB = await findRoutes({
       table: () => null,
       startTE: ctx.te,

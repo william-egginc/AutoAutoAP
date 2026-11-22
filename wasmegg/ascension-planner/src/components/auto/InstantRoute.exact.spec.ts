@@ -93,7 +93,9 @@ describe('two routes (Jordan, 21 Nov 2026, option 1(a)): the pick without the he
     expect(at).toBeGreaterThan(0);
     const body = script.slice(at, at + 4500);
     expect(body).toContain('instantFirstLegs({');
-    expect(body).toMatch(/heldBuys: false/);
+    // Inside the first legs' call (code review 22 Nov 2026, math-exact-4), not only the later legs' tail.
+    const call = body.slice(body.indexOf('instantFirstLegs({'), body.indexOf('});', body.indexOf('instantFirstLegs({')));
+    expect(call).toMatch(/tailExtra: \{ heldBuys: false \}/);
     expect(body.indexOf('findRoutes(')).toBeGreaterThan(body.indexOf('instantFirstLegs('));
     expect(body.indexOf('.polish(')).toBeGreaterThan(body.indexOf('findRoutes('));
     expect(body).toContain('instantPricingOptions({');

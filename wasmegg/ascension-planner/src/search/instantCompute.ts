@@ -195,6 +195,9 @@ export interface InstantLegsDeps {
   liveFresh: (te: number, start: number) => Promise<BuildParams[]>;
   /** False once the caller no longer wants the answer (a newer run): stops before the worker is asked. */
   alive?: () => boolean;
+  /** Merged into the tail the first legs are asked with and handed back: the no-held-buys pass's `{ heldBuys: false }`
+   *  (InstantRoute.vue `runAltPass`; code review 22 Nov 2026, math-exact-4: the first ascension had them still). */
+  tailExtra?: Partial<TailOptions>;
 }
 
 export interface InstantLegs {
@@ -223,7 +226,7 @@ export async function instantFirstLegs(d: InstantLegsDeps): Promise<InstantLegs 
   // No prestige on these days (search/noPrestige.ts): every prestige waits past them, hours ticked or not.
   const days = instantDays(inputs);
   const hours = d.hours;
-  const tail = instantTail(hours, d.deferShifts, parseGearShiftUrl(url)?.g, days);
+  const tail: TailOptions = { ...instantTail(hours, d.deferShifts, parseGearShiftUrl(url)?.g, days), ...(d.tailExtra ?? {}) };
   const firstLegs = await d.pool.firstLegs({ url, deliveryScale: d.scale, ...legsRequest, ...tail, hours });
   return { legsRequest, days, tail, firstLegs };
 }
