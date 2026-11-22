@@ -2595,7 +2595,7 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
           ? NAME_EXHAUSTIVE
           : null;
     // A Fast or Exact answer that records its level (15 Oct 2026): "Exact".
-    const tier = mode === NAME_AROUND && row.level ? TIER_NAMES[row.level] : undefined;
+    const tier = mode === NAME_AROUND && row.level && Object.hasOwn(TIER_NAMES, row.level) ? TIER_NAMES[row.level] : undefined;
     if (tier) return tier;
     return mode ?? (row.effort || 'unknown');
   }
@@ -2617,8 +2617,8 @@ const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', tho
  *  still say 'balanced'. A tier this build does not know is shown as sent. */
 export function effortText(effort: string | undefined): string {
   if (!effort) return 'unknown';
-  const name = TIER_NAMES[effort];
-  return name ?? effort;
+  // Own keys only: `constructor` or `toString` read through the prototype would show native code (code review round 2, C6.7).
+  return Object.hasOwn(TIER_NAMES, effort) ? TIER_NAMES[effort] : effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

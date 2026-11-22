@@ -24,6 +24,7 @@
  * this module's job, via `DecompressionStream`, and the magic-number check means a collector that
  * ever starts sending plain text still works.
  */
+import { UPLOAD_LIMITS, decodeText, inflateCapped } from '@/lib/uploadGuard';
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
@@ -296,8 +297,8 @@ export async function inflateIfGzip(bytes: Uint8Array): Promise<string> {
       'This browser cannot inflate gzip (no DecompressionStream). Chrome, Edge, Firefox 113+ or Safari 16.4+ can.'
     );
   }
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).text();
+  // Capped: a gzip bomb stops with an UploadError once more than the CSV limit comes out (code review round 2, C6.4). Strict UTF-8.
+  return decodeText(await inflateCapped(bytes, UPLOAD_LIMITS.csv.inflated));
 }
 
 export interface ParsedRunCsv {
