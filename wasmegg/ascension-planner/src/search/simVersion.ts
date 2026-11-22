@@ -70,6 +70,12 @@ export const SIM_SOURCES = [
   '../../lib/planners/artifacts/virtue.ts',
   '../../lib/earning_bonus.ts',
   '../../lib/researches.json',
+  // 22 Nov 2026 (code review T1.8): the TE thresholds every cell counts, the artifact modifiers and colleggtibles
+  // the farm's rates come from, and the artifact helpers the generator's build reads.
+  'src/lib/truthEggs.ts',
+  'src/lib/artifacts/calculator.ts',
+  '../../lib/collegtibles.ts',
+  '../../lib/planners/artifacts/utils.ts',
 ];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
@@ -89,8 +95,10 @@ export const SIM_SOURCES = [
  *  boostTransitionsFrom silo fix (engine/apply/math.ts) and the two generator files added above.
  *  15 Nov 2026 (spec-tables1115): re-pasted for --verify-cells on version 2 tables (precompute.ts cellBuilds, shared
  *  with --generate): a refactor, the generated cells byte-identical (maxed TE 489, the old and new generator).
- *  Then for the coverage above (review T5): files added, none changed, so no cell can move. */
-export const SIM_SOURCE_HASH = 'aa286e9136e79a92de508f025f6e35f395686342e30656cfcc3a0835c30da130';
+ *  Then for the coverage above (review T5): files added, none changed, so no cell can move.
+ *  22 Nov 2026 (code review T1.8): re-pasted for four files added to the coverage (truthEggs, the artifact modifier
+ *  calculator, colleggtibles, the planner's artifact helpers), none changed, so no cell can move. No SIM_VERSION bump. */
+export const SIM_SOURCE_HASH = 'e7e2a3d0696d001a097e67ca696d89ef78d22890192b16422bf43b49a5d940fc';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

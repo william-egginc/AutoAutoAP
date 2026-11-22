@@ -4,11 +4,11 @@ import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './ta
 import type { TableEntry } from './tableBracket';
 
 const entries: TableEntry[] = [
-  { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 },
-  { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138 },
-  { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120 },
-  { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120 },
-  { file: 'gear-strong.bin', bonus: 127.93, k: 1, from: 120 },
+  { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120, simVersion: SIM_VERSION },
+  { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+  { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, simVersion: SIM_VERSION },
+  { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120, simVersion: SIM_VERSION },
+  { file: 'gear-strong.bin', bonus: 127.93, k: 1, from: 120, simVersion: SIM_VERSION },
 ];
 
 describe('prefetchPlan', () => {
@@ -27,6 +27,18 @@ describe('prefetchPlan', () => {
       'gear-mine.bin',
       'table-v2.bin',
     ]);
+  });
+  it('a table of another simulator is skipped, as the instant answer skips it (code review 22 Nov 2026, T1.6)', () => {
+    const stale: TableEntry[] = entries.map(e =>
+      e.file === 'acct-own.bin' || e.file === 'gear-weak.bin' ? { ...e, simVersion: '2026-11-09-sim4' } : e
+    );
+    expect(prefetchPlan({ entries: stale, own: 'acct-own.bin', gear: 'gear-mine.bin', player: null, te: 150 })).toEqual([
+      'gear-mine.bin',
+      'table-v2.bin',
+    ]);
+    expect(
+      prefetchPlan({ entries: stale, own: null, gear: null, player: { bonus: 125, k: 0.9 }, te: 150 })
+    ).not.toContain('gear-weak.bin');
   });
   it('a gear table under the first name tried that is listed, as a file or an alias', () => {
     const aliased: TableEntry[] = entries.map(e =>

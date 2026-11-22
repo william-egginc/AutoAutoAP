@@ -93,6 +93,7 @@ export async function computeInstantPricing(req: InstantComputeRequest, p: Insta
     earnings: () => store.readInventory().earnings,
     // Only the own and gear names tables.json lists are asked for (search/tableListing.ts).
     listed: () => fetchListedTableNames(BASE),
+    te,
   });
   if (!alive()) return null;
   if (te < choice.header.from) throw new PlainFailure(`the instant answer starts at ${choice.header.from} TE and your save is at ${te} TE`);

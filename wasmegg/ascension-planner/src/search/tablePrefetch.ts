@@ -23,7 +23,9 @@ export function prefetchPlan(o: {
   player: Gear | null;
   te: number;
 }): string[] {
-  const usable = o.entries.filter(e => e.from <= o.te);
+  // Only files the instant answer would read: from the player's TE, and stamped with this simulator (code review
+  // 22 Nov 2026, T1.6: an own table of another simulator was fetched, then passed over for the form G).
+  const usable = o.entries.filter(e => e.from <= o.te && !tableSimMismatch(e));
   const list = (f: string | string[] | null) => (Array.isArray(f) ? f : f ? [f] : []);
   const own = list(o.own).find(f => usable.some(e => e.file === f));
   if (own) return [own];

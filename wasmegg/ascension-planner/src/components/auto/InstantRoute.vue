@@ -2253,6 +2253,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       earnings: () => store.readInventory().earnings,
       // Only the own and gear names tables.json lists are asked for (search/tableListing.ts).
       listed: async () => listedTableNames(await readTablesJson()),
+      te,
     });
     const { url, header: h, mismatch, gearShifted } = choice;
     stampHash.value = choice.stampHash;

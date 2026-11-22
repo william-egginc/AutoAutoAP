@@ -167,6 +167,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
   const body = new Float64Array(buffer, bodyStart);
   const bad = new Tally();
   const week = header.referenceWeek;
+  // Version 2's extras (code review 22 Nov 2026, T1.9): only the waiting egg for now. The h1At <= k3At <= waitStart
+  // order is left until it has been run against a known-good version 2 table.
+  const waitEggAt = header.version === 2 ? (header.fields?.indexOf('waitEgg') ?? -1) : -1;
   for (let te = header.from; te <= header.to; te++) {
     const canon = canonicalDelivered(te);
     for (let h = 0; h < WEEK_HOURS; h++) {
@@ -214,6 +217,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
           else if (d < canon[e])
             bad.add("delivered below the start's own count", `${at_} ${EGG_ORDER[e]}: ${d} < ${canon[e]}`);
         }
+        // The replay models kindness (1) waiting, and humility (4) when K3 buys nothing (tableV2.ts BuildExtras).
+        if (waitEggAt >= 0 && v[waitEggAt] !== 1 && v[waitEggAt] !== 4)
+          bad.add('waitEgg not kindness (1) or humility (4)', `${at_}: ${v[waitEggAt]}`);
       }
       if (!builds) bad.add('a cell with no builds', where);
     }
