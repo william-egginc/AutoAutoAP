@@ -3538,6 +3538,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
   ms.value = typeof s.ms === 'number' ? s.ms : null;
   answerStart.value = typeof s.answerStart === 'number' ? s.answerStart : 0;
+  answerFirst.value = null; // not kept with it (round 2, ui-instantroute-2): never the last run's; the key holds the setting
   gains.value = Array.isArray(s.gains) ? s.gains : [];
   bracket.value = s.bracket ?? null;
   // Only a line that says which route it was for (26 Oct 2026); shown while that route is in the box (`boxPrestige`).
