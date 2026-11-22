@@ -42,7 +42,7 @@
       :aria-expanded="choicesOpen"
       aria-controls="study-choices"
       data-testid="study-choices-toggle"
-      @click="choicesOpen = !choicesOpen"
+      @click="toggleChoices"
     >
       Choose what to share
       <span aria-hidden="true" class="inline-block transition-transform" :class="choicesOpen ? 'rotate-90' : ''">›</span>
@@ -125,6 +125,7 @@ import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit, type Stu
 import SharingChoices from './SharingChoices.vue';
 import PrivacyTip from './PrivacyTip.vue';
 import { NEVER_WITH_A_RUN } from '@/lib/privacyWords';
+import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 import { consentState } from '@/composables/useConsent';
 import { answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
@@ -136,7 +137,11 @@ const props = defineProps<{
 const emit = defineEmits<{ answered: ['yes' | 'no'] }>();
 
 /** Compact, under sm: the ticks, untick note and credit are open (the "Choose what to share" row). */
-const choicesOpen = ref(false);
+const choicesOpen = ref(foldOpen('studyChoices', { remembered: readFoldToggle('studyChoices') }));
+function toggleChoices(): void {
+  choicesOpen.value = !choicesOpen.value;
+  rememberFoldToggle('studyChoices', choicesOpen.value);
+}
 /** Compact and folded: what is hidden under sm only (`hidden sm:…`); never hidden from sm up or when not compact. */
 const folded = computed(() => !!props.compact && !choicesOpen.value);
 /** The intro's sentences shown from sm up only, when compact. */

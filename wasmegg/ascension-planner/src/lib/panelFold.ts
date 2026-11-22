@@ -28,7 +28,9 @@ export type FoldSection =
   | 'moreFastest' // Fastest to 490 TE's More
   | 'moreByDate' // Highest TE by a date's More
   | 'moreMyRuns' // My Runs' More
-  | 'setupSharing'; // Setup's Sharing and privacy
+  | 'setupSharing' // Setup's Sharing and privacy
+  | 'studyBox' // the opt-in box above the tabs (StudyBox.vue): its form, Hide / Choose what to share
+  | 'studyChoices'; // that form's "Choose what to share ›" row under sm (StudyForm.vue)
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -61,8 +63,14 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   moreFastest: 'folded',
   moreByDate: 'folded',
   moreMyRuns: 'folded',
-  // Closed; its line names every setting in it that sends and its state (lib/layoutWords.ts sharingSummaryWords).
-  setupSharing: 'folded',
+  // Open (21 Nov 2026, Jordan: "a one-time nuance, saved across loads"): Save online, the calendar and the PIN card live
+  // here. The player's own close is remembered per browser; its line names every setting in it that sends and its state
+  // (lib/layoutWords.ts sharingSummaryWords).
+  setupSharing: 'open',
+  // Open on a first load (21 Nov 2026, Jordan: "open on the first load and then not need to be opened"): the player
+  // chooses once; a Hide or a close of the row is remembered per browser and the box stays as they left it.
+  studyBox: 'open',
+  studyChoices: 'open',
 };
 
 /** The screens' "More" folds: the ones Show everything opens. */

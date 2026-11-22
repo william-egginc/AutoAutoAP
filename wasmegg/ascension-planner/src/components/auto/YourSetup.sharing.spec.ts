@@ -1,6 +1,6 @@
 /**
  * Setup's "Sharing and privacy" fold and "Show everything" (the simpler default page, Jordan 9 Nov 2026, Q3 and Q7).
- * Sharing and privacy: one real button over a region hidden until found, closed by default and remembered
+ * Sharing and privacy: one real button over a region hidden until found, open by default (21 Nov 2026) and remembered
  * (lib/panelFold.ts setupSharing), its line naming every setting that sends and its state, the consent and privacy
  * words inside unchanged. Show everything: a tick in More options › How the site shows things (nothing on the default
  * view), remembered in this browser, named in More options' line when on. Read from the source, plus the words.
@@ -27,7 +27,7 @@ describe('Sharing and privacy', () => {
     expect(tpl).toContain('aria-controls="setup-sharing-body"');
     expect(tpl).toContain(':aria-expanded="sharingOpen"');
   });
-  it('closed by default, the player\'s toggle remembered', () => {
+  it('open by default (21 Nov 2026, Jordan), the player\'s toggle remembered', () => {
     expect(src).toContain("const sharingOpen = ref(foldOpen('setupSharing', { remembered: readFoldToggle('setupSharing') }));");
     expect(src).toContain("rememberFoldToggle('setupSharing', sharingOpen.value);");
   });

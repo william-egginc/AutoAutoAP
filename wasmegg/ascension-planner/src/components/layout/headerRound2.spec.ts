@@ -55,9 +55,9 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
   it('the words (Words, 14 Nov 2026)', () => {
     expect(STUDY_STRIP_WORDS).toEqual({ quiet: 'You choose what to share.', choose: 'Choose what to share', no: 'No thanks' });
   });
-  it('shown folded by default: the name, the quiet line, Choose what to share and No thanks, the form mounted but hidden', async () => {
+  it('shown folded (startOpen false: where the player closed it, remembered; open on a first load since 21 Nov 2026): the name, the quiet line, Choose what to share and No thanks, the form mounted but hidden', async () => {
     await setConsentAccount('EI1234567890123456');
-    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const strip = html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
     expect(textOf(strip)).toBe('Help improve the planner . You choose what to share. Choose what to share No thanks');
     expect(html).not.toContain('study-later');
@@ -67,12 +67,12 @@ describe('2. Help improve the planner: one line at the top of every tab', () => 
     const src = read('components/StudyBox.vue');
     expect(src).not.toContain('study-later');
     expect(src).toMatch(/data-testid="study-strip-no-thanks"\s+@click="answerNo"/);
-    expect(src).toMatch(/data-testid="study-choose"[\s\S]{0,200}@click="open = !open"/);
+    expect(src).toMatch(/data-testid="study-choose"[\s\S]{0,200}@click="toggleOpen"/);
     expect(src).toContain("v-if=\"step === 'ask-box'\"");
   });
   it('on a phone the folded strip stays short: the buttons in a row, never stacked full width', async () => {
     await setConsentAccount('EI1234567890123456');
-    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const tag = (id: string) => html.match(new RegExp(`<[a-z]+\\b[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
     expect(tag('study-box-strip')).toContain('flex-wrap');
     expect(tag('study-box-strip')).not.toContain('flex-col');

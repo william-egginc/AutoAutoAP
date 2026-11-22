@@ -24,11 +24,14 @@ const SECTIONS: FoldSection[] = [
   'setupMore',
   // The Build-up tracker's List / Compact toggle (spec-trackercompact): folded = List.
   'buildUpCompact',
-  // The simpler default page (9 Nov 2026): each screen's More and Setup's Sharing and privacy, all closed.
+  // The simpler default page (9 Nov 2026): each screen's More closed; Setup's Sharing and privacy closed then, open since 21 Nov 2026.
   'moreFastest',
   'moreByDate',
   'moreMyRuns',
   'setupSharing',
+  // The opt-in box above the tabs and its Choose what to share row: open on a first load (21 Nov 2026).
+  'studyBox',
+  'studyChoices',
 ];
 
 let mem: Map<string, string>;
@@ -45,7 +48,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('the default split (the review\'s proposal)', () => {
   it('has every section; Jordan\'s defaults (26 Oct 2026; Stepping away? folded since 28 Oct): Every number of ascensions open, the rest folded; What this does folded again since 5 Nov (open 29 Oct to 5 Nov)', () => {
     expect(Object.keys(PANEL_FOLD).sort()).toEqual([...SECTIONS].sort());
-    const open: FoldSection[] = ['countTable'];
+    const open: FoldSection[] = ['countTable', 'setupSharing', 'studyBox', 'studyChoices']; // Sharing and privacy open since 21 Nov 2026 (Jordan)
     for (const s of SECTIONS) expect(PANEL_FOLD[s], s).toBe(open.includes(s) ? 'open' : 'folded');
   });
   it('Setup\'s More options starts closed (Jordan approved the slim Setup with it closed, 5 Nov 2026)', () => {
@@ -68,7 +71,7 @@ describe('the default split (the review\'s proposal)', () => {
 
 describe('foldOpen', () => {
   it('idle, nothing remembered: the table', () => {
-    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'countTable');
+    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'countTable' || s === 'setupSharing' || s === 'studyBox' || s === 'studyChoices');
     for (const s of SECTIONS) expect(foldOpen(s, {}), s).toBe(PANEL_FOLD[s] === 'open');
   });
   it('a long run started opens Stepping away?, even where the table says folded; nothing else', () => {

@@ -342,7 +342,7 @@
       </fieldset>
 
       <!-- SHARING AND PRIVACY (the simpler page, Jordan 9 Nov 2026, Q3): Help improve the planner and Sharing, with What
-           is saved online and the Save online switch, under one closed fold whose line names every setting that sends and
+           is saved online and the Save online switch, under one fold, open by default (21 Nov 2026), whose line names every setting that sends and
            its state (sharingSummaryWords), so nothing that sends is hidden without being named. The words inside are
            unchanged (lib/aboutPage.spec.ts). A real button over a region hidden until found, as More options. -->
       <button
@@ -999,7 +999,7 @@ const moreSummary = computed(() =>
 );
 /** Show everything (Setup › More options; the simpler page): named in More options' line when on. */
 const { on: showEverything, set: setShowEverything } = useShowEverything();
-/** Sharing and privacy: closed by default, this browser's own toggle remembered (lib/panelFold.ts 'setupSharing'). */
+/** Sharing and privacy: open by default (21 Nov 2026), this browser's own toggle remembered (lib/panelFold.ts 'setupSharing'). */
 const sharingOpen = ref(foldOpen('setupSharing', { remembered: readFoldToggle('setupSharing') }));
 function toggleSharing(): void {
   sharingOpen.value = !sharingOpen.value;

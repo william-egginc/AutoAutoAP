@@ -215,8 +215,8 @@ describe('every foldable part reads lib/panelFold.ts', () => {
 
   it('the source: each section is a PanelFold, and the old hand-made folds are gone', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
-    const OWN_BUTTON: FoldSection[] = ['setupMore', 'buildUpCompact', 'moreFastest', 'moreByDate', 'moreMyRuns', 'setupSharing'];
-    const where: Record<Exclude<FoldSection, 'setupMore' | 'buildUpCompact' | 'moreFastest' | 'moreByDate' | 'moreMyRuns' | 'setupSharing'>, string[]> = {
+    const OWN_BUTTON: FoldSection[] = ['setupMore', 'buildUpCompact', 'moreFastest', 'moreByDate', 'moreMyRuns', 'setupSharing', 'studyBox', 'studyChoices'];
+    const where: Record<Exclude<FoldSection, 'setupMore' | 'buildUpCompact' | 'moreFastest' | 'moreByDate' | 'moreMyRuns' | 'setupSharing' | 'studyBox' | 'studyChoices'>, string[]> = {
       whatItDoes: ['StrongerBox.vue'],
       searchSettings: ['ChainSearchPanel.vue', 'DeadlinePanel.vue'],
       acknowledgement: ['FindBar.vue'],

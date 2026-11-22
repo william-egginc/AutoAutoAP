@@ -3,7 +3,7 @@
  * the server, and where App.vue and YourSetup.vue mount them.
  */
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
@@ -17,6 +17,17 @@ import { WITHDRAW_SHORT } from '@/lib/withdrawWords';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
+/** This browser's own remembered fold toggles (lib/panelFold.ts), for the box and its choices row. */
+function stubFolds(saved: Record<string, string> = {}): Map<string, string> {
+  const map = new Map<string, string>(Object.entries(saved));
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+    removeItem: (k: string) => void map.delete(k),
+  });
+  return map;
+}
+afterEach(() => vi.unstubAllGlobals());
 const ALL_ON = { share: true, csv: true, diag: true, checks: true }; // every tick (the box now opens with none)
 
 function mem() {
@@ -211,12 +222,14 @@ describe('another account in the same visit (no reload)', () => {
 });
 
 describe('Setup › Help improve the planner', () => {
-  it('unanswered: Answer now', async () => {
+  it('unanswered: the form is open on a first load (21 Nov 2026), Answer now only if it was put away', async () => {
     await setConsentAccount(A);
     const t = textOf(await setup());
     expect(t).toContain('Help improve the planner');
     expect(t).toContain('Not answered yet.');
-    expect(t).toContain('Answer now');
+    expect(t).not.toContain('Answer now');
+    const src = readFileSync(new URL('./auto/StudySetup.vue', import.meta.url), 'utf8');
+    expect(src).toContain('study-setup-answer');
   });
 
   it('yes: what is on, read live, with Change and Withdraw', async () => {
@@ -404,7 +417,7 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
   const strip = (html: string) => html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
   const formWrap = (html: string) => html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0] ?? '';
 
-  it('folded (the default, and after Hide): one line, the question, Yes, No and Later, the form mounted but hidden', async () => {
+  it('folded (after Hide, remembered in this browser): one line, the question, Yes, No and Later, the form mounted but hidden', async () => {
     await setConsentAccount(A);
     const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const s = strip(html);
@@ -498,7 +511,8 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
     expect(phone(tag(html, 'study-about'))).not.toContain('hidden');
   });
 
-  it('ticks, untick note and credit fold behind one 44 px "Choose what to share ›" row, always open from sm up', async () => {
+  it('ticks, untick note and credit fold behind one 44 px "Choose what to share ›" row, always open from sm up (folded here: the player closed it, remembered)', async () => {
+    stubFolds({ 'aap.fold.studyChoices': '0' });
     await setConsentAccount(A);
     const html = await box();
     const row = tag(html, 'study-choices-toggle');
@@ -520,6 +534,7 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
   });
 
   it('on a phone, folded: Yes to all and No thanks side by side, the same size and weight; Yes and its line wait for the ticks', async () => {
+    stubFolds({ 'aap.fold.studyChoices': '0' });
     await setConsentAccount(A);
     const html = await box();
     const row = html.slice(html.lastIndexOf('<div', html.indexOf('data-testid="study-yes"')));
@@ -549,3 +564,40 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
     expect(html).not.toMatch(/\sid="study-choices"/);
   });
 });
+
+describe('open on the first load, then as the player left it (Jordan, 21 Nov 2026: "open on the first load and then not need to be opened")', () => {
+  it('a first load (nothing remembered): the box shows its form open, and so are its choices on a phone', async () => {
+    stubFolds();
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    expect(html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0]).not.toContain('display:none');
+    expect(tagOf(html, 'study-choose')).toContain('aria-expanded="true"');
+    expect(tagOf(html, 'study-choices-toggle')).toContain('aria-expanded="true"');
+    expect(tagOf(html, 'study-choices')).not.toMatch(/class="[^"]*\bhidden\b/);
+  });
+  it('after the player closed the box it stays closed on the next load', async () => {
+    stubFolds({ 'aap.fold.studyBox': '0' });
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    expect(html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0]).toContain('display:none');
+    expect(tagOf(html, 'study-choose')).toContain('aria-expanded="false"');
+  });
+  it('Hide and the choices row remember the player\'s toggle in this browser', () => {
+    const box = readFileSync(new URL('./StudyBox.vue', import.meta.url), 'utf8');
+    expect(box).toContain("foldOpen('studyBox', { remembered: readFoldToggle('studyBox') })");
+    expect(box).toContain("rememberFoldToggle('studyBox', open.value);");
+    const form = readFileSync(new URL('./StudyForm.vue', import.meta.url), 'utf8');
+    expect(form).toContain("foldOpen('studyChoices', { remembered: readFoldToggle('studyChoices') })");
+    expect(form).toContain("rememberFoldToggle('studyChoices', choicesOpen.value);");
+  });
+  it('Setup\'s Help improve the planner shows the form open while nothing is answered, not a button to open it', async () => {
+    stubFolds();
+    await setConsentAccount(A);
+    const html = await setup();
+    expect(html).toContain('data-testid="study-form"');
+    expect(html).not.toContain('study-setup-answer');
+  });
+});
+function tagOf(html: string, id: string): string {
+  return html.match(new RegExp(`<[a-z]+[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
+}

@@ -27,10 +27,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('More folds', () => {
-  it('one per screen, each closed by default, and Sharing and privacy closed', () => {
+  it('one per screen, each closed by default; Sharing and privacy open by default (21 Nov 2026, Jordan: a one-time choice, remembered)', () => {
     expect([...MORE_SECTIONS]).toEqual(['moreFastest', 'moreByDate', 'moreMyRuns']);
     for (const s of MORE_SECTIONS) expect(PANEL_FOLD[s]).toBe('folded');
-    expect(PANEL_FOLD.setupSharing).toBe('folded');
+    expect(PANEL_FOLD.setupSharing).toBe('open');
+    expect(foldOpen('setupSharing')).toBe(true);
+    // the player's own close is remembered over the default, and an open stays open
+    expect(foldOpen('setupSharing', { remembered: false })).toBe(false);
+    expect(foldOpen('setupSharing', { remembered: true })).toBe(true);
     for (const s of MORE_SECTIONS) expect(foldOpen(s)).toBe(false);
   });
 
@@ -52,7 +56,7 @@ describe('More folds', () => {
   it('Show everything opens every More, over a remembered close, and nothing else', () => {
     for (const s of MORE_SECTIONS) expect(foldOpen(s, { showEverything: true, remembered: false })).toBe(true);
     expect(foldOpen('whatItDoes', { showEverything: true })).toBe(false);
-    expect(foldOpen('setupSharing', { showEverything: true })).toBe(false);
+    expect(foldOpen('setupSharing', { showEverything: true, remembered: false })).toBe(false);
   });
 
   it('Show everything is remembered in this browser, off by default', () => {

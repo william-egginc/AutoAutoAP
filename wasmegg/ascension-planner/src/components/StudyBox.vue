@@ -44,7 +44,7 @@
           :aria-expanded="open"
           aria-controls="study-box-form"
           data-testid="study-choose"
-          @click="open = !open"
+          @click="toggleOpen"
         >
           {{ open ? 'Hide' : STUDY_STRIP_WORDS.choose }}
         </button>
@@ -128,16 +128,22 @@ import {
   studyStep as step,
   useForThisAccount,
 } from '@/composables/useStudy';
+import { foldOpen, readFoldToggle, rememberFoldToggle } from '@/lib/panelFold';
 import StudyForm from './StudyForm.vue';
 
 const props = withDefaults(
-  defineProps<{ /** Open the full form at once (not the default since 14 Nov 2026: one line, Yes opens it). */ startOpen?: boolean }>(),
+  defineProps<{ /** Force the form open or folded (specs); unset: open on a first load, then as the player left it. */ startOpen?: boolean }>(),
   {
-    startOpen: false,
+    startOpen: undefined,
   }
 );
-/** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */
-const open = ref(props.startOpen);
+/** The full form: open on a first load (21 Nov 2026; one line from 14 Nov), then as the player left it in this browser
+ *  (lib/panelFold.ts 'studyBox'); Hide and Choose… fold and unfold it. */
+const open = ref(props.startOpen ?? foldOpen('studyBox', { remembered: readFoldToggle('studyBox') }));
+function toggleOpen(): void {
+  open.value = !open.value;
+  rememberFoldToggle('studyBox', open.value);
+}
 // The first-visit tour waits while this box asks with its form open (composables/useStudy.ts `studyBoxOpen`).
 watchEffect(() => {
   studyBoxOpen.value = step.value === 'ask-box' && open.value;

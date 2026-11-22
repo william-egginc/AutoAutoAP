@@ -58,11 +58,13 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       buildUpTracker: 'folded',
       setupMore: 'folded', // Setup's More options (5 Nov 2026)
       buildUpCompact: 'folded', // the Build-up tracker starts on List (spec-trackercompact, 8 Nov 2026)
-      // the simpler default page (9 Nov 2026): each screen's More and Setup's Sharing and privacy start closed
+      // the simpler default page (9 Nov 2026): each screen's More starts closed; Setup's Sharing and privacy opens (21 Nov 2026, Jordan)
       moreFastest: 'folded',
       moreByDate: 'folded',
       moreMyRuns: 'folded',
-      setupSharing: 'folded',
+      setupSharing: 'open',
+      studyBox: 'open', // the opt-in box and its choices row open on a first load (21 Nov 2026)
+      studyChoices: 'open',
     });
   });
 

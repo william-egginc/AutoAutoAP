@@ -138,7 +138,8 @@ const state = computed<'unanswered' | 'yes' | 'other-account' | 'no' | 'withdraw
   if (rec.answer === 'yes') return rec.accounts[consentState.hash] === 'yes' ? 'yes' : 'other-account';
   return rec.answer;
 });
-const formOpen = ref(false);
+/** Open while nothing is answered (21 Nov 2026: the opt-in is open on a first load, so the choice is made once). */
+const formOpen = ref(studyState.rec.answer === null);
 const changing = ref(false);
 
 /** The day only (no clock time needed), in the player's date style (lib/displayTime.ts). */
