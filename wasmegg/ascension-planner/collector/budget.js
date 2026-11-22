@@ -69,6 +69,31 @@ export async function csvDayRefusal(env, bytes, now, reply) {
   return reply({ error: 'the collector has taken all the CSV bytes it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
 }
 
+/** New accounts one address may start a day in each table (review 22 Nov, C2.3): the collector-wide caps below it are small. */
+export const NEW_KEYS_PER_ADDRESS_DAY = 10;
+
+/** The address as a budget key sees it: an IPv6 address is grouped by its /64, so one customer's whole prefix is one address. */
+export function addressPrefix(ip) {
+  if (!ip || !ip.includes(':')) return ip || 'unknown';
+  const [head, tail = ''] = ip.split('::');
+  const a = head ? head.split(':') : [];
+  const b = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b] : a;
+  return groups.slice(0, 4).map(g => g.toLowerCase().replace(/^0+(?=.)/, '')).join(':');
+}
+
+/**
+ * Before a collector-wide new-key budget is spent: one address's own daily count per table. 0 if there is room, else the
+ * seconds to wait. The address is kept only as a keyed hash in the budget row (gone after 3 days), never the address.
+ */
+export async function addressNewKeyWait(env, request, table, now) {
+  const salt = env.ACCOUNT_KEY_SALT || env.CSV_UPLOAD_KEY || 'none';
+  const raw = new TextEncoder().encode(`newkey-ip-v1:${salt}:${addressPrefix(request.headers.get('cf-connecting-ip') || '')}`);
+  const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+  const r = await spend(env, `newkey-ip|${table}|${hex}`, 1, Number(env.NEW_KEYS_PER_ADDRESS_DAY) || NEW_KEYS_PER_ADDRESS_DAY, now, DAY_MS);
+  return r.ok ? 0 : waitSeconds(r.since, DAY_MS, now);
+}
+
 /** Spend one of a day-wide count. 0 if there is room, else the seconds to wait. */
 export async function dayWait(env, key, cap, now) {
   const r = await spend(env, key, 1, cap, now, DAY_MS);

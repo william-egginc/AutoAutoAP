@@ -214,8 +214,7 @@ async function handleNew(request, env, now, url) {
 
   const live = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM cal_feeds WHERE key = ?').bind(key).first();
   if ((live?.n ?? 0) >= CAL_LINKS_PER_ACCOUNT) return reply({ error: `at most ${CAL_LINKS_PER_ACCOUNT} calendar links: reset one first` }, 409);
-  const all = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM cal_feeds').first();
-  if ((all?.n ?? 0) >= capOf(env.CAL_MAX_FEEDS, CAL_MAX_FEEDS)) return retry(3600, 'calendar links are full right now');
+  // The budgets come before the table-wide COUNT: a request they refuse reads no whole table (review 22 Nov, C2.1).
   const mine = await spend(env, `calnew|${key}`, 1, CAL_NEW_PER_ACCOUNT_DAY, now, DAY_MS);
   if (!mine.ok) return retry(waitSeconds(mine.since, DAY_MS, now), `at most ${CAL_NEW_PER_ACCOUNT_DAY} new calendar links a day`);
   if (env.CSV_UPLOAD_KEY) {
@@ -223,6 +222,8 @@ async function handleNew(request, env, now, url) {
     const addr = await spend(env, `calnew-ip|${ip}`, 1, CAL_NEW_PER_ADDRESS_DAY, now, DAY_MS);
     if (!addr.ok) return retry(waitSeconds(addr.since, DAY_MS, now), 'too many new calendar links from this address today');
   }
+  const all = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM cal_feeds').first();
+  if ((all?.n ?? 0) >= capOf(env.CAL_MAX_FEEDS, CAL_MAX_FEEDS)) return retry(3600, 'calendar links are full right now');
 
   const token = newToken();
   await env.WATCH.prepare('INSERT INTO cal_feeds (token_hash, key, created, last_fetch, fetches) VALUES (?, ?, ?, 0, 0)').bind(await sha256Hex(token), key, now).run();

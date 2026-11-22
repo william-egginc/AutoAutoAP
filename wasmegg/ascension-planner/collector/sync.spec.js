@@ -189,7 +189,8 @@ describe('shape and limits', () => {
   it('the stored bytes are capped: a new record is 429 "full" once the total would pass SYNC_MAX_TOTAL_BYTES; replacing one is free', async () => {
     await putJson('ticks', SLOT, { ticked: ['a'] });
     env.WATCH._db.prepare("INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, 'plan', ?, ?, ?, ?, 'gz', 'AAAA')").run(K2, SLOT, T0, T0, SYNC_MAX_TOTAL_BYTES);
-    const res = await putJson('ticks', '1793100000', { ticked: ['b'] }, { k: 'c'.repeat(64) });
+    // The total is read at most once a minute per isolate (C2.1), and this row went in behind its back: ask after the minute.
+    const res = await putJson('ticks', '1793100000', { ticked: ['b'] }, { k: 'c'.repeat(64), now: T0 + 61_000 });
     expect(res.status).toBe(429);
     expect((await res.json()).error).toMatch(/full/);
     expect((await putJson('ticks', SLOT, { ticked: ['a', 'again'] }, { at: T0 + 10, now: T0 + 10 })).status).toBe(200);

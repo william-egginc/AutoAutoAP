@@ -11,6 +11,8 @@ import { handleAnswers } from './answers.js';
 import { handleSync } from './sync.js';
 import { makeD1 } from './d1shim.js';
 import { handlePin } from './pin.js';
+import { roomForNewKey } from './watch.js';
+import { handleCal } from './cal.js';
 
 const K = 'a'.repeat(64);
 const T0 = Date.UTC(2026, 10, 15, 18, 0, 0);
@@ -105,5 +107,76 @@ describe('review 22 Nov, C2.1: a write the budgets refuse runs no full-table sca
     exhaust('sync-puts-day');
     expect((await put()).status).toBe(429);
     expect(sqls.filter(q => /FROM synced\s*$/.test(q))).toEqual([]);
+  });
+});
+
+describe('review 22 Nov, C2.3: one address cannot start more than 10 new accounts a day in a table', () => {
+  const keyN = n => n.toString(16).padStart(2, '0').repeat(32);
+  const withIp = (ip, init = {}) => ({ ...init, headers: { ...(init.headers || {}), 'cf-connecting-ip': ip } });
+  const json = { 'content-type': 'application/json' };
+  const BUILD = {
+    follow: (k, ip) => handleFollow(new Request('https://c.example/follow', withIp(ip, { method: 'PUT', headers: json, body: JSON.stringify({ k, goal: 'race490', value: FOLLOW }) })), env, T0),
+    prefs: (k, ip) => handlePrefs(new Request('https://c.example/prefs', withIp(ip, { method: 'PUT', headers: json, body: JSON.stringify({ k, kind: 'setup', value: { at: T0 - 1000, targetTE: 100 } }) })), env, T0),
+    sync: (k, ip) =>
+      handleSync(new Request(`https://c.example/sync?k=${k}&kind=ticks&slot=1793000000&at=${T0 - 1000}`, withIp(ip, { method: 'PUT', headers: { 'content-length': String(TICKS.length) }, body: TICKS })), env, T0),
+    answers: (k, ip) =>
+      handleAnswers(new Request(`https://c.example/answers?k=${k}&e=e1&at=${T0 - 1000}`, withIp(ip, { method: 'PUT', headers: { 'content-length': String(gz.length) }, body: gz })), env, T0),
+  };
+  const GLOBAL = { follow: 'cloud-new-keys-day', prefs: 'cloud-new-keys-day', sync: 'sync-new-keys-day', answers: 'answers-new-day' };
+  for (const name of Object.keys(BUILD)) {
+    it(`${name}: the 11th new account from one address is refused without spending the collector-wide count, a fresh address still gets in`, async () => {
+      for (let i = 1; i <= 10; i++) expect((await BUILD[name](keyN(i), '203.0.113.1')).status).toBe(200);
+      const before = used(GLOBAL[name]);
+      const refused = await BUILD[name](keyN(11), '203.0.113.1');
+      expect(refused.status).toBe(429);
+      expect((await refused.json()).retryAfter).toBeGreaterThan(0);
+      expect(used(GLOBAL[name])).toBe(before);
+      expect((await BUILD[name](keyN(11), '198.51.100.7')).status).toBe(200);
+    });
+  }
+  it('an IPv6 address is one address per /64', async () => {
+    for (let i = 1; i <= 10; i++) expect((await BUILD.follow(keyN(i), `2001:db8:1:2:${i}::1`)).status).toBe(200);
+    expect((await BUILD.follow(keyN(11), '2001:db8:1:2:ffff::9')).status).toBe(429);
+    expect((await BUILD.follow(keyN(11), '2001:db8:1:3::9')).status).toBe(200);
+  });
+});
+
+describe('review 22 Nov, C2.1: the synced table total is read once a minute, not on every new record', () => {
+  it('two new records inside a minute run SUM(bytes) once; after the minute it is read again', async () => {
+    const sqls = [];
+    const real = env.WATCH.prepare.bind(env.WATCH);
+    env.WATCH.prepare = sql => (sqls.push(sql), real(sql));
+    const put = (k, now) =>
+      handleSync(new Request(`https://c.example/sync?k=${k}&kind=ticks&slot=1793000000&at=${now - 1000}`, { method: 'PUT', headers: { 'content-length': String(TICKS.length) }, body: TICKS }), env, now);
+    expect((await put('1'.repeat(64), T0)).status).toBe(200);
+    expect((await put('2'.repeat(64), T0 + 5000)).status).toBe(200);
+    expect(sqls.filter(q => /SUM\(bytes\)/.test(q))).toHaveLength(1);
+    expect((await put('3'.repeat(64), T0 + 61_000)).status).toBe(200);
+    expect(sqls.filter(q => /SUM\(bytes\)/.test(q))).toHaveLength(2);
+  });
+});
+
+describe('review 22 Nov, C2.1: watch and calendar refuse before they count a whole table', () => {
+  const spy = () => {
+    const sqls = [];
+    const real = env.WATCH.prepare.bind(env.WATCH);
+    env.WATCH.prepare = sql => (sqls.push(sql), real(sql));
+    return sqls;
+  };
+  it('watch: a new key past the day budget runs no COUNT of the watch table', async () => {
+    const sqls = spy();
+    exhaust('watch-new-day');
+    expect(await roomForNewKey(env, 'k'.repeat(10), T0)).toBe(false);
+    expect(sqls.filter(q => /COUNT\(\*\) AS n FROM watch\s*$/.test(q))).toEqual([]);
+    db().prepare('DELETE FROM follow_rate').run();
+    expect(await roomForNewKey(env, 'k'.repeat(10), T0)).toBe(true);
+    expect(sqls.filter(q => /COUNT\(\*\) AS n FROM watch\s*$/.test(q))).toHaveLength(1);
+  });
+  it('calendar: /cal/new refused by the account\'s day budget runs no COUNT of cal_feeds', async () => {
+    const sqls = spy();
+    exhaust(`calnew|${K}`);
+    const res = await handleCal(new Request('https://c.example/cal/new', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k: K }) }), env, T0);
+    expect(res.status).toBe(429);
+    expect(sqls.filter(q => /COUNT\(\*\) AS n FROM cal_feeds\s*$/.test(q))).toEqual([]);
   });
 });

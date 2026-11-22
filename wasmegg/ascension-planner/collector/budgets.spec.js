@@ -231,6 +231,17 @@ describe('KV and D1 quotas: daily bytes and rows across the anonymous write path
     expect((await res.json()).retryAfter).toBeGreaterThan(0);
     expect(env.SUBMISSIONS._m.has(`csv:${b.id}`)).toBe(false);
   });
+  it('review 22 Nov, C2.6: an exact duplicate that writes nothing spends no part of the day\'s send budget, and is answered when the day is full', async () => {
+    env.SUBMITS_PER_DAY = '2';
+    const first = await submit({}, 11);
+    expect(first.ok).toBe(true);
+    expect((await submit({}, 12)).ok).toBe(true);
+    const day = () => env.WATCH._db.prepare("SELECT n FROM follow_rate WHERE key = 'submits-day'").get()?.n ?? 0;
+    expect(day()).toBe(2);
+    const again = await submit({}, 11);
+    expect(again).toMatchObject({ ok: true, duplicate: 'exact', id: first.id });
+    expect(day()).toBe(2);
+  });
   it('SUBMITS_PER_DAY caps new rows a day for the whole collector (each costs about 3 KV writes): 429, nothing stored', async () => {
     env.SUBMITS_PER_DAY = '2';
     expect((await submit({}, 11)).ok).toBe(true);

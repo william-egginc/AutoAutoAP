@@ -33,8 +33,12 @@ export const WATCH_MAX_BYTES = 2048;
 export const WATCH_MIN_GAP_MS = 60_000;
 export const WATCH_STATUS_GAP_MS = 2_000;
 export const WATCH_STALE_MS = 15 * 60_000;
+import { dayWait } from './budget.js';
+
 export const WATCH_KEEP_MS = 7 * 86_400_000;
 export const MAX_ROWS = 5000;
+/** Brand-new watched runs a day for the whole collector, spent before the table COUNT (review 22 Nov, C2.1): real use is a few hundred. */
+export const WATCH_NEW_PER_DAY = 3000;
 const NTFY = 'https://ntfy.sh';
 
 const STATUSES = new Set(['running', 'finished', 'stopped', 'failed']);
@@ -138,7 +142,7 @@ export async function handleWatch(request, env, now = Date.now()) {
 
   let res;
   if (p.sealed) {
-    if (!(await roomForNewKey(env, p.id))) return reply({ error: 'too many runs are being watched right now' }, 503);
+    if (!(await roomForNewKey(env, p.id, now))) return reply({ error: 'too many runs are being watched right now' }, 503);
     const data = JSON.stringify({ iv: p.sealed.iv, ct: p.sealed.ct, status: p.status });
     // One statement: insert a new id, or update an old one only when MAY_WRITE. `changes` says which
     // happened, so the rate limit costs no read.
@@ -221,9 +225,11 @@ export async function watchCron(env, now = Date.now(), fetchImpl = fetch, opts =
 }
 
 /** At most MAX_ROWS rows: checked only when a key is new, so a run's own updates read nothing. */
-export async function roomForNewKey(env, key) {
+export async function roomForNewKey(env, key, now = Date.now()) {
   const known = await env.WATCH.prepare('SELECT 1 AS x FROM watch WHERE key = ?').bind(key).first();
   if (known) return true;
+  // The day's budget first: the COUNT below reads the whole table, and one sender must not be able to make it run without limit.
+  if (await dayWait(env, 'watch-new-day', Number(env.WATCH_NEW_PER_DAY) || WATCH_NEW_PER_DAY, now)) return false;
   const n = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM watch').first();
   return !n || n.n < MAX_ROWS;
 }

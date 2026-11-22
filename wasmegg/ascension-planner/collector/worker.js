@@ -3331,12 +3331,20 @@ const worker = {
         record.flags = [...(record.flags || []), 'other-simulator'];
       }
       // A day-wide cap on accepted sends (red team C5, quotas 6 Nov): each costs about 3 or 4 of KV's 1,000 free writes a day.
+      // Spent only just before a write (review 22 Nov, C2.6), so a refusal below, or an exact duplicate that stores nothing,
+      // costs none of it; once per request.
       const sendsPerDay = Number(env.SUBMITS_PER_DAY) || SUBMITS_PER_DAY;
-      const sendDay = await spend(env, 'submits-day', 1, sendsPerDay, Date.now(), DAY_MS);
-      if (!sendDay.ok) {
-        const retryAfter = waitSeconds(sendDay.since, DAY_MS, Date.now());
-        return json({ error: 'the collector has taken all the results it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
-      }
+      let sendSpent = false;
+      const sendDayRefusal = async () => {
+        if (sendSpent) return null;
+        const sendDay = await spend(env, 'submits-day', 1, sendsPerDay, Date.now(), DAY_MS);
+        if (!sendDay.ok) {
+          const retryAfter = waitSeconds(sendDay.since, DAY_MS, Date.now());
+          return json({ error: 'the collector has taken all the results it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
+        }
+        sendSpent = true;
+        return null;
+      };
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';
@@ -3478,6 +3486,8 @@ const worker = {
           }
           // Checked on the full hash, not the 12 hex in the metadata, before anything is written.
           if (stored && !stored.nickname && stored.owner === owner) {
+            const over = await sendDayRefusal();
+            if (over) return over;
             stored.nickname = record.nickname;
             await env.SUBMISSIONS.put(exact.key, JSON.stringify(stored), { metadata: await metaOf(stored) });
             await commitSnapshot(
@@ -3494,6 +3504,10 @@ const worker = {
           }
         }
         // The result the old row stood in for is on the board already: the old row goes.
+        if (replaced) {
+          const over = await sendDayRefusal();
+          if (over) return over;
+        }
         await retire(patched);
         await gate.commit();
         return json(reply);
@@ -3517,6 +3531,8 @@ const worker = {
       if (anchor) record.dupOf = anchor.id;
       if (!record.hidden && copies.length && copies.every(c => c.meta.h)) record.hidden = true;
       if (record.hidden) meta.h = 1;
+      const overDay = await sendDayRefusal();
+      if (overDay) return overDay;
       await env.SUBMISSIONS.put(key, JSON.stringify(record), { metadata: meta });
       // On the board before the answer goes back, so the CSV and a "Put my name on it" that follow
       // find the row (see "snapshots" above). A replaced row on the same board leaves in the same

@@ -21,7 +21,7 @@
  */
 import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { CLOUD_PUTS_PER_DAY, DAY_MS, dayWait, spend, waitSeconds } from './budget.js';
+import { CLOUD_PUTS_PER_DAY, DAY_MS, addressNewKeyWait, dayWait, spend, waitSeconds } from './budget.js';
 import { AT_AHEAD_MS, FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const ANSWER_MAX_BYTES = 65_536;
@@ -116,6 +116,10 @@ export async function handleAnswers(request, env, now = Date.now()) {
   const have = await env.WATCH.prepare('SELECT 1 AS x FROM answers WHERE key = ? AND e = ?').bind(k, e).first();
   if (!have) {
     // Red team 6 Nov, C2: a daily cap on new entries (one upsert), then the stored bytes, not only the row count.
+    // A new ACCOUNT (no entry yet under the key) counts against its address; more entries of a known key do not.
+    const known = await env.WATCH.prepare('SELECT 1 AS x FROM answers WHERE key = ? LIMIT 1').bind(k).first();
+    const addrWait = known ? 0 : await addressNewKeyWait(env, request, 'answers', now);
+    if (addrWait) return retry(addrWait, 'too many new accounts from this address today');
     const perDay = Number(env.ANSWERS_NEW_PER_DAY) || ANSWER_NEW_PER_DAY;
     const day = await spend(env, 'answers-new-day', 1, perDay, now, DAY_MS);
     if (!day.ok) return retry(waitSeconds(day.since, DAY_MS, now), 'the cloud save has taken all the new answers it can today');

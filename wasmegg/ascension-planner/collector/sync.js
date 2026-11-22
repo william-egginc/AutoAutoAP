@@ -38,7 +38,7 @@
  */
 import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { dayWait } from './budget.js';
+import { addressNewKeyWait, dayWait } from './budget.js';
 import { readCal } from './cal.js';
 import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
@@ -54,6 +54,27 @@ export const SYNC_PUTS_PER_DAY = 6000;
 export const SYNC_NEW_KEYS_PER_DAY = 100;
 export const SYNC_MAX_KEYS = 3000;
 export const SYNC_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
+
+/**
+ * The table's total bytes, read at most once a minute per isolate (review 22 Nov, C2.1: SUM(bytes) read every row on each new
+ * record). A new record adds its own size to the held figure. Other isolates' writes can make it low for up to a minute, so the
+ * cap can be passed by a minute's writes (bounded by the day's write budget and far under D1's limit), and deletes elsewhere make
+ * it high for up to a minute: the cap is soft by about a minute of writes.
+ */
+const TOTAL_REUSE_MS = 60 * 1000;
+const totals = new WeakMap();
+async function totalBytes(env, now) {
+  const held = totals.get(env.WATCH);
+  if (held && now - held.at < TOTAL_REUSE_MS && now >= held.at) return held.b;
+  const r = await env.WATCH.prepare('SELECT COALESCE(SUM(bytes), 0) AS b FROM synced').first();
+  const b = r?.b ?? 0;
+  totals.set(env.WATCH, { at: now, b });
+  return b;
+}
+function bumpTotal(env, size) {
+  const held = totals.get(env.WATCH);
+  if (held) held.b += size;
+}
 const AT_AHEAD_MS = 600_000;
 const EGGS = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'];
 const KINDS = ['override', 'ticks', 'plan', 'cal', 'callink'];
@@ -249,15 +270,18 @@ export async function handleSync(request, env, now = Date.now()) {
     // above, so a write they refuse runs none of these full-table reads (review 22 Nov, C2.1).
     const mine = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM synced WHERE key = ?').bind(k).first();
     if (!mine?.n) {
+      const addrWait = await addressNewKeyWait(env, request, 'synced', now);
+      if (addrWait) return retry(addrWait, 'too many new accounts from this address today');
       const newKeyWait = await dayWait(env, 'sync-new-keys-day', Number(env.SYNC_NEW_KEYS_PER_DAY) || SYNC_NEW_KEYS_PER_DAY, now);
       if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM synced').first();
       if ((keys?.n ?? 0) >= SYNC_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
     }
-    const total = await env.WATCH.prepare('SELECT COALESCE(SUM(bytes), 0) AS b FROM synced').first();
+    const total = { b: await totalBytes(env, now) };
     if ((total?.b ?? 0) + size > (Number(env.SYNC_MAX_TOTAL_BYTES) || SYNC_MAX_TOTAL_BYTES)) return retry(3600, 'the cloud save is full right now');
   }
 
+  if (!have) bumpTotal(env, size);
   await env.WATCH.prepare(
     `INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(key, kind, slot) DO UPDATE SET at = excluded.at, updated = excluded.updated, bytes = excluded.bytes, enc = excluded.enc, data = excluded.data`

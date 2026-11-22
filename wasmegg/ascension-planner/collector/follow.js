@@ -22,7 +22,7 @@
 
 import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, addressNewKeyWait, dayWait } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 
 export const FOLLOW_MAX_BODY = 6 * 1024;
@@ -271,6 +271,8 @@ export async function handleFollow(request, env, now = Date.now()) {
     const goals = await env.WATCH.prepare('SELECT COUNT(DISTINCT goal) AS n FROM follows WHERE key = ?').bind(k).first();
     if ((goals?.n ?? 0) >= FOLLOW_MAX_GOALS) return retry(3600, `at most ${FOLLOW_MAX_GOALS} goals for one key`);
     if (!goals?.n) {
+      const addrWait = await addressNewKeyWait(env, request, 'follows', now);
+      if (addrWait) return retry(addrWait, 'too many new accounts from this address today');
       const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
       if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM follows').first();

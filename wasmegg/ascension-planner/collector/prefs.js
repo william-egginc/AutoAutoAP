@@ -19,7 +19,7 @@
  */
 import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, addressNewKeyWait, dayWait } from './budget.js';
 import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
 
 const KINDS = ['consent', 'setup'];
@@ -243,6 +243,8 @@ export async function handlePrefs(request, env, now = Date.now()) {
   if (!latest) {
     const other = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM prefs WHERE key = ?').bind(k).first();
     if (!other?.n) {
+      const addrWait = await addressNewKeyWait(env, request, 'prefs', now);
+      if (addrWait) return retry(addrWait, 'too many new accounts from this address today');
       const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
       if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM prefs').first();
