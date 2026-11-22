@@ -179,3 +179,10 @@ describe('when the full CSV goes, page and command line', () => {
     expect(fastsearch).toContain('gzipCsvTo(gunzipLines(full), fileBigCsvSink(');
   });
 });
+
+describe('the failed and stopped lines (code review 22 Nov, C3 with Words): no promise to carry on, the collector starts a fresh upload', () => {
+  it('failed says the board\'s CSV is in and nothing more; stopped says it was stopped', () => {
+    expect(bigCsvMessage({ kind: 'failed', why: 'offline' })).toBe("The full CSV did not upload (offline); the board's CSV is in.");
+    expect(bigCsvMessage({ kind: 'stopped' } as Parameters<typeof bigCsvMessage>[0])).toBe('The full CSV upload was stopped.');
+  });
+});
