@@ -101,11 +101,23 @@ export function parsePlanSave(json: unknown): PlanSave {
 // of it that has to agree. `plan-seam.spec.ts` runs this against AP's `getLocalTimestampInTimezone`
 // on a shared grid of timestamps and zones to check that agreement, rather than just asserting it
 // in a comment.
+//
+// DST change days follow AP's fix (lib/planners/events.ts, red team R2, 6 Nov 2026): the zone's offset a
+// day either side of the naive guess; the same, that is the offset; different, each is kept only if it is
+// the offset at the instant it gives. Both kept (the fall-back hour that happens twice): the first. Neither
+// (the spring-forward gap): the offset from before the change, so 02:30 is 03:30, as Date does.
+function offsetSecondsAt(formatter: Intl.DateTimeFormat, timestampSeconds: number): number {
+  const parts = formatter.formatToParts(new Date(timestampSeconds * 1000));
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
+  const wallClock = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+  return Math.floor(wallClock / 1000) - timestampSeconds;
+}
+
 export function localTimestampInTimezone(dateStr: string, timeStr: string, timezone: string): number | null {
   const [y, m, d] = dateStr.split('-').map(Number);
   const [h, min] = timeStr.split(':').map(Number);
   if (![y, m, d, h, min].every(Number.isFinite)) return null;
-  const guessUTC = Date.UTC(y, m - 1, d, h, min, 0);
+  const guess = Math.floor(Date.UTC(y, m - 1, d, h, min, 0) / 1000);
   try {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
@@ -117,18 +129,11 @@ export function localTimestampInTimezone(dateStr: string, timeStr: string, timez
       second: 'numeric',
       hour12: false,
     });
-    const parts = formatter.formatToParts(new Date(guessUTC));
-    const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
-    const wallClockUTC = Date.UTC(
-      get('year'),
-      get('month') - 1,
-      get('day'),
-      get('hour') % 24,
-      get('minute'),
-      get('second')
-    );
-    const offsetMs = wallClockUTC - guessUTC;
-    return Math.floor((guessUTC - offsetMs) / 1000);
+    const before = offsetSecondsAt(formatter, guess - 86400);
+    const after = offsetSecondsAt(formatter, guess + 86400);
+    if (before === after) return guess - before;
+    const fits = [before, after].map(o => guess - o).filter(t => offsetSecondsAt(formatter, t) === guess - t);
+    return fits.length ? Math.min(...fits) : guess - before;
   } catch {
     // An unrecognized timezone. The visit stays planable, just undated.
     return null;

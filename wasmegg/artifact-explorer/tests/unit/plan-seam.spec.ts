@@ -369,6 +369,9 @@ describe('reading a malformed plan save', () => {
       ['2026-03-01', '12:00', 'UTC'],
       ['2026-03-08', '01:30', 'America/New_York'], // just before the US spring-forward
       ['2026-03-08', '03:30', 'America/New_York'], // just after it
+      ['2026-03-08', '02:30', 'America/New_York'], // inside the spring-forward gap: read as 03:30, as Date does
+      ['2026-03-08', '08:00', 'America/New_York'], // later on the change day (AP's R2 DST fix, 6 Nov 2026)
+      ['2026-11-01', '07:00', 'America/New_York'], // later on the fall-back day
       ['2026-11-01', '01:30', 'America/New_York'], // the US fall-back's repeated hour
       ['2026-03-29', '00:30', 'Europe/London'], // UK spring-forward
       ['2026-01-15', '09:00', 'Australia/Sydney'], // southern-hemisphere DST active
