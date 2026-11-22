@@ -1,7 +1,7 @@
 /**
  * U3.6 of the code review (22 Nov 2026, ui-panels-4): Nearby routes says "the save has to load first" when the real cause is a
  * range that starts above 5 ascensions with no instant answer (the suggested routes only cover 1 to 5). A plain reason comes
- * first, in the Find's issue and in the Settings fold. The words are DRAFT for Words (W2).
+ * first, in the Find's issue and in the Settings fold. The words are Words' (W2).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,7 +13,10 @@ const template = src.slice(0, src.indexOf('<script setup'));
 
 describe('a range above 5 with no instant answer', () => {
   it('has its own reason, plain, and not the save-load one', () => {
-    expect(NEARBY_RANGE_ABOVE_SUGGESTIONS.length).toBeGreaterThan(20);
+    expect(NEARBY_RANGE_ABOVE_SUGGESTIONS).toBe(
+      'Nearby routes can only suggest routes of 1 to 5 ascensions when there is no instant answer to start from. Lower the range, or set the boxes in Custom.'
+    );
+    expect(NEARBY_RANGE_ABOVE_SUGGESTIONS).not.toMatch(/this device|this computer/i);
     expect(NEARBY_RANGE_ABOVE_SUGGESTIONS).not.toMatch(/save has to load/);
   });
   it('suggestedRangeEmpty: a save loaded, no instant routes, and a range starting above what the suggestions cover', () => {
