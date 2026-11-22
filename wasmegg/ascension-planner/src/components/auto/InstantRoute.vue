@@ -1399,6 +1399,7 @@ async function polishInBackground(
     const better = withinAscensions({ ...raw, ...strong }, filterBounds(filters.value));
     const g = polishGains(shown, better, !!props.deadline);
     if (g.length) {
+      polishSwap = true;
       result.value = better;
       if (props.deadline) emitRoutes(better);
     }
@@ -2916,6 +2917,8 @@ const exactShown = computed(() => {
   return s && s.key === exactRequest.value?.key ? s : null;
 });
 
+/** The background polish's own swap of the answer (`polishInBackground`): not a new answer for the box's reset. */
+let polishSwap = false;
 /** Which route the box shows when two were worked out: nothing asked yet, the first route back, or the faster one. */
 const fasterChoice = ref<FasterChoice>('auto');
 /** Follow or Simulate was pressed on the box: it never switches by itself after that. */
@@ -2968,10 +2971,14 @@ function freezeBox(): void {
   boxPressed.value = true;
   fasterChoice.value = pressedChoice(swapped.value);
 }
-// A new answer, or another pick: the box starts again on its own.
+// A new answer, or another pick: the box starts again on its own. Not the background polish's better numbers for the
+// same pick (code review 22 Nov 2026, math-exact-5): Follow or Simulate pressed meanwhile keeps the box as it was.
 watch(
   [result, () => (pickRoute.value ? key(pickRoute.value.chain) : null)],
-  () => {
+  ([, k], [, before]) => {
+    const fromPolish = polishSwap;
+    polishSwap = false;
+    if (fromPolish && k === before) return;
     fasterChoice.value = 'auto';
     boxPressed.value = false;
   }
