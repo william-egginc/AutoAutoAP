@@ -23,6 +23,7 @@ import {
   type AnswerOffer,
   type CloudAnswer,
 } from './answersCloud';
+import { CLOUD_TIMEOUT_MS } from './cloudTimeout';
 
 // Opt-in slow gzip and slow collector, to check the waits below: ANSWERS_SPEC_GZIP_DELAY_MS=50 (the real CompressionStream
 // behind an uneven delay of 0 to twice that, as a slow machine's is) and ANSWERS_SPEC_FETCH_DELAY_MS=50, in the environment.
@@ -374,5 +375,53 @@ describe("the browser's fetch", () => {
   it("the store hands the client a fetch that keeps the browser's own `this`", () => {
     const store = fs.readFileSync(path.resolve(__dirname, '../stores/answers.ts'), 'utf8');
     expect(store).toContain('(u, i) => fetch(u, i as RequestInit)');
+  });
+});
+
+describe('code review 22 Nov, C4.2: an offer is saved under the account it was made for', () => {
+  it('an offer waiting out a running search is dropped, not saved under the other account, when the account changes meanwhile', async () => {
+    const c = collector();
+    let key = K;
+    let busy = true;
+    const w = new AnswersClient({ key: () => key, url: () => URL, busy: () => busy, fetch: () => c.f });
+    w.offer(offer(1000));
+    await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
+    expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(0);
+    key = 'b'.repeat(64);
+    busy = false;
+    expect(await w.flush()).toBe('skipped');
+    await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS * 3);
+    expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(0);
+    expect(c.calls.some(x => x.url.includes(`k=${'b'.repeat(64)}`) && x.method === 'PUT')).toBe(false);
+  });
+});
+
+describe('code review 22 Nov, C4.3: a hung call gives up, and a later call reads again', () => {
+  it('a list read that never answers is [] after the timeout, and the next entries() asks the collector again', async () => {
+    const c = collector();
+    let hang = true;
+    const f: AnswersFetch = (url, init) => (hang ? new Promise(() => {}) : c.f(url, init));
+    const w = new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => f });
+    const first = w.entries();
+    await vi.advanceTimersByTimeAsync(CLOUD_TIMEOUT_MS + 10);
+    expect(await first).toEqual([]);
+    hang = false;
+    await w.entries();
+    expect(c.calls.filter(x => x.method === 'GET').length).toBeGreaterThan(0);
+  });
+  it('a body read that never answers is null after the timeout and is not remembered as the answer', async () => {
+    const c = collector();
+    const seed = new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => c.f });
+    seed.offer(offer(2000));
+    await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
+    await waitFor(() => expect(c.store.size).toBe(1));
+    let hang = true;
+    const f: AnswersFetch = (url, init) => (hang && url.includes('/get?') ? new Promise(() => {}) : c.f(url, init));
+    const w = new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => f });
+    const first = w.newestFor({ goal: 'target 490' });
+    await vi.advanceTimersByTimeAsync(CLOUD_TIMEOUT_MS + 10);
+    expect(await first).toBeNull();
+    hang = false;
+    expect(await w.newestFor({ goal: 'target 490' })).not.toBeNull();
   });
 });

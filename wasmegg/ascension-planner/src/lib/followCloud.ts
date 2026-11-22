@@ -22,6 +22,7 @@
  *
  * Pure apart from `fetch` (injected, the global one by default) and `crypto.subtle`.
  */
+import { timedCall } from './cloudTimeout';
 import { blockedArray, type Availability } from '@/search/availabilitySchedule';
 import { eggDaySeconds } from './eggDay';
 import { encodeWeekMask } from './weekWindow';
@@ -149,10 +150,12 @@ const pad2 = (h: number) => String(h).padStart(2, '0');
  * `fromHour`/`toHour`, null for any time. The days and the time off are not kept (the contract has no field).
  */
 export function hoursOf(a: Availability | null | undefined): CloudHours | null {
-  if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour) || a.fromHour === a.toHour) return null;
+  if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour)) return null;
   if (a.fromHour < 0 || a.fromHour > 23 || a.toHour < 0 || a.toHour > 23) return null;
   const tz = typeof a.timezone === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(a.timezone) ? a.timezone : undefined;
   const mask = Array.isArray(a.days) || Array.isArray(a.blocked) ? blockedArray(a) : null; // a partial setup (no days) says no week
+  // An all-day window (from === to) is any time only when no day or hour is blocked: on chosen days it is a real week (code review 22 Nov, C4.4).
+  if (a.fromHour === a.toHour && !mask) return null;
   const week = mask ? encodeWeekMask(Array.from(mask.blocked, b => b === 0)) : undefined;
   return { start: `${pad2(a.fromHour)}:00`, end: `${pad2(a.toHour)}:00`, ...(tz ? { timezone: tz } : {}), ...(week ? { week } : {}) };
 }
@@ -259,7 +262,7 @@ export function mergeCloud(
 
 // ------------------------------------------------------------------------------------- the calls
 
-export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
+export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }) => Promise<{
   ok: boolean;
   status: number;
   json(): Promise<unknown>;
@@ -284,7 +287,7 @@ export async function getFollows(
 ): Promise<{ ok: true; goals: Record<GoalKey, CloudEntry> } | { ok: false; why: CloudFail }> {
   if (!url || !isKey(k) || !f) return { ok: false, why: 'off' };
   try {
-    const res = await f(`${url}?k=${k}`, { method: 'GET' });
+    const res = await timedCall(signal => f(`${url}?k=${k}`, { method: 'GET', signal }));
     if (!res.ok) return { ok: false, why: failOf(res.status) };
     const body = (await res.json()) as { goals?: Record<string, { value?: unknown; version?: number; updatedAt?: number }> };
     const goals: Record<GoalKey, CloudEntry> = {};
@@ -364,7 +367,7 @@ export async function putFollow(
     const body = JSON.stringify({ k, goal, value });
     if (hasPlayerId(body)) return { ok: false, why: 'rejected' };
     try {
-      const res = await f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body });
+      const res = await timedCall(signal => f(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body, signal }));
       if (!res.ok) {
         let j: unknown = null;
         try {
@@ -399,7 +402,7 @@ export async function getFollowHistory(
   const goal = cloudGoalOf(goalKey);
   if (!url || !isKey(k) || !f || !goal) return { ok: false, why: 'off' };
   try {
-    const res = await f(`${url}/history?k=${k}&goal=${encodeURIComponent(goal)}`, { method: 'GET' });
+    const res = await timedCall(signal => f(`${url}/history?k=${k}&goal=${encodeURIComponent(goal)}`, { method: 'GET', signal }));
     if (!res.ok) return { ok: false, why: failOf(res.status) };
     const body = (await res.json()) as { versions?: { version?: number; updatedAt?: number; value?: unknown }[] };
     const versions: CloudEntry[] = [];

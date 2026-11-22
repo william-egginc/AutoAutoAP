@@ -27,10 +27,10 @@ describe('the followed route saved online: wiring', () => {
 
   it('the URLs hold only the key (and the goal), and a body with an ID is never sent', () => {
     const lib = read('lib/followCloud.ts');
-    const urls = [...lib.matchAll(/await f\(([^,]+),/g)].map(m => m[1].trim());
+    const urls = [...lib.matchAll(/await timedCall\(signal => f\(([^,]+),/g)].map(m => m[1].trim());
     expect(urls).toEqual(['`${url}?k=${k}`', 'url', '`${url}/history?k=${k}&goal=${encodeURIComponent(goal)}`']);
     expect(lib).toContain('const body = JSON.stringify({ k, goal, value });');
-    expect(lib).toMatch(/if \(hasPlayerId\(body\)\) return \{ ok: false, why: 'rejected' \};\s+try \{\s+const res = await f\(url, \{ method: 'PUT'/);
+    expect(lib).toMatch(/if \(hasPlayerId\(body\)\) return \{ ok: false, why: 'rejected' \};\s+try \{\s+const res = await timedCall\(signal => f\(url, \{ method: 'PUT'/);
     expect(lib).toContain('if (hasPlayerId(text)) return null;');
   });
 

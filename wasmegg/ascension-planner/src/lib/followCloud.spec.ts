@@ -3,7 +3,7 @@
  * goals both ways, the value (bounds, 4 KB, never an ID), the three calls with fetch fakes (200, 400, 413, 429, 503,
  * offline), and newer-wins both ways. Ids: placeholders only.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudValue,
   cloudGoalOf,
@@ -27,6 +27,7 @@ import {
   type FetchLike,
 } from './followCloud';
 import { eggDaySeconds } from './eggDay';
+import { CLOUD_TIMEOUT_MS } from './cloudTimeout';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { Followed } from './follow';
 
@@ -247,5 +248,39 @@ describe('words', () => {
     expect(setWithOtherWords({ hours: false, sim: true })).toBe('This route was set with another version of the planner.');
     expect(setWithOtherWords({ hours: true, sim: true })).toBe('This route was set with different awake hours or another version of the planner.');
     expect(setWithOtherWords({ hours: false, sim: false })).toBe('');
+  });
+});
+
+describe('code review 22 Nov, C4.3: a hung follow call gives up as offline', () => {
+  afterEach(() => vi.useRealTimers());
+  const never = (() => new Promise(() => {})) as unknown as FetchLike;
+  const K = 'a'.repeat(64);
+  it('getFollows, putFollow and the history read answer offline after the timeout instead of waiting forever', async () => {
+    vi.useFakeTimers();
+    const get = getFollows('https://c.example/follow', K, never);
+    const put = putFollow('https://c.example/follow', K, 'fastest-490', buildCloudValue(followed())!.value, never);
+    const hist = getFollowHistory('https://c.example/follow', K, 'fastest-490', never);
+    await vi.advanceTimersByTimeAsync(CLOUD_TIMEOUT_MS + 10);
+    expect(await get).toEqual({ ok: false, why: 'offline' });
+    expect(await put).toMatchObject({ ok: false, why: 'offline' });
+    expect(await hist).toEqual({ ok: false, why: 'offline' });
+  });
+});
+
+describe('code review 22 Nov, C4.4: an all-day window on chosen days is not "any time"', () => {
+  // A partial setup (no timezone): cast through unknown, as the other partial setups in this file do.
+  const avail = (a: object) => a as unknown as Availability;
+  it('from === to with a day pick keeps the week (start = end, week set); with no days or every day it is still any time', () => {
+    const weekdays = hoursOf(avail({ fromHour: 5, toHour: 5, days: [1, 2, 3, 4, 5] }));
+    expect(weekdays).toMatchObject({ start: '05:00', end: '05:00' });
+    expect(weekdays?.week).toMatch(/^[A-Za-z0-9_-]{28}$/);
+    expect(hoursOf(avail({ fromHour: 5, toHour: 5 }))).toBe(null);
+    expect(hoursOf(avail({ fromHour: 5, toHour: 5, days: [0, 1, 2, 3, 4, 5, 6] }))).toBe(null);
+    expect(hoursOf(avail({ fromHour: 5, toHour: 5, days: [] }))).toBe(null);
+  });
+  it('two different day picks of the same all-day window differ', () => {
+    const a = hoursOf(avail({ fromHour: 0, toHour: 0, days: [1, 2, 3] }));
+    const b = hoursOf(avail({ fromHour: 0, toHour: 0, days: [4, 5, 6] }));
+    expect(sameHours(a, b)).toBe(false);
   });
 });

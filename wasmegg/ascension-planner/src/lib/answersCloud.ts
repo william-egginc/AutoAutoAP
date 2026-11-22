@@ -15,6 +15,7 @@
  *
  * Pure apart from `fetch` (injected), `CompressionStream`/`DecompressionStream` and timers.
  */
+import { timedCall } from './cloudTimeout';
 import { hasPlayerId } from './followCloud';
 import { INSTANT_RULES } from '@/search/instantTables';
 import { resultCode } from './resultCode';
@@ -151,7 +152,7 @@ export interface AnswersResponse {
 }
 export type AnswersFetch = (
   url: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: Uint8Array }
+  init?: { method?: string; headers?: Record<string, string>; body?: Uint8Array; signal?: AbortSignal }
 ) => Promise<AnswersResponse>;
 
 /** `t490` as itself, `d<unix>` as the deadline's UTC date (`d2027-07-14`): the console lines' goal words. */
@@ -242,6 +243,8 @@ export class AnswersClient {
   private writes: number[] = [];
   private blockedUntil = 0;
   private pending: AnswerOffer | null = null;
+  /** The account key the pending offer was made for: it is saved under that one or not at all (code review 22 Nov, C4.2). */
+  private pendingKey = '';
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** Answers read back on this page load, newest first (My Runs' pricing meanwhile). */
   readonly read: CloudAnswer[] = [];
@@ -269,14 +272,17 @@ export class AnswersClient {
     const sig = `${r.k}|${r.url}`;
     if (this.list && this.listFor === sig) return this.list;
     this.listFor = sig;
-    this.list = (async () => {
+    // A read that failed or timed out is not kept: the next call asks the collector again (code review 22 Nov, C4.3).
+    let failed = false;
+    const p = (async () => {
       try {
         // A plain call: the browser's fetch throws when called as a method of another object.
         const f = r.f;
-        const res = await f(`${r.url}?k=${r.k}`, { method: 'GET' });
+        const res = await timedCall(signal => f(`${r.url}?k=${r.k}`, { method: 'GET', signal }));
         if (!res.ok) {
           this.noted(res.status);
           this.listWhy = `the list answered ${res.status}`;
+          failed = !this.off;
           return [];
         }
         this.listWhy = '';
@@ -290,10 +296,18 @@ export class AnswersClient {
         return out.slice(0, ANSWERS_MAX_ENTRIES);
       } catch {
         this.listWhy = 'the list could not be read (offline or blocked)';
+        failed = true;
         return [];
       }
     })();
-    return this.list;
+    this.list = p;
+    void p.then(() => {
+      if (failed && this.list === p) {
+        this.list = null;
+        this.listFor = '';
+      }
+    });
+    return p;
   }
 
   /** One entry's answer (read once per page load). */
@@ -305,9 +319,10 @@ export class AnswersClient {
       if (!r) return null;
       try {
         const f = r.f;
-        const res = await f(`${r.url}/get?k=${r.k}&e=${encodeURIComponent(e)}`, { method: 'GET' });
+        const res = await timedCall(signal => f(`${r.url}/get?k=${r.k}&e=${encodeURIComponent(e)}`, { method: 'GET', signal }));
         if (!res.ok) {
           this.noted(res.status);
+          if (!this.off) this.bodies.delete(e);
           return null;
         }
         const a = await decodeAnswer(new Uint8Array(await res.arrayBuffer()));
@@ -317,6 +332,7 @@ export class AnswersClient {
         }
         return a;
       } catch {
+        this.bodies.delete(e);
         return null;
       }
     })();
@@ -382,9 +398,10 @@ export class AnswersClient {
   }
 
   /** Save this answer online soon (the newest offer wins). */
-  offer(o: AnswerOffer): void {
+  offer(o: AnswerOffer, key: string = this.env.key()): void {
     if (this.off) return;
     this.pending = o;
+    this.pendingKey = key;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -398,9 +415,14 @@ export class AnswersClient {
     if (!o) return 'skipped';
     const r = this.ready();
     if (!r) return 'skipped';
+    // Made for another account than the one on screen now: dropped, before the busy wait can carry it across.
+    if (this.pendingKey && this.pendingKey !== r.k) {
+      this.pending = null;
+      return 'skipped';
+    }
     // A search running or starting has the page: again once more later.
     if (this.env.busy()) {
-      this.offer(o);
+      this.offer(o, this.pendingKey);
       return 'later';
     }
     const e = entryKeyOf(o);
@@ -431,11 +453,14 @@ export class AnswersClient {
     this.writes.push(now);
     try {
       const f = r.f;
-      const res = await f(`${r.url}?k=${r.k}&e=${encodeURIComponent(e)}&at=${Math.round(o.at)}`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/octet-stream' },
-        body: body.bytes,
-      });
+      const res = await timedCall(signal =>
+        f(`${r.url}?k=${r.k}&e=${encodeURIComponent(e)}&at=${Math.round(o.at)}`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/octet-stream' },
+          body: body.bytes,
+          signal,
+        })
+      );
       if (!res.ok) {
         this.noted(res.status);
         if (res.status === 429) {
