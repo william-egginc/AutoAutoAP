@@ -60,7 +60,7 @@ describe('the box never changes while a search runs', () => {
     // run (none at the target, none below the table, the answer, none while waiting), the polish, applySnapshot, and
     // dropStale (a stale answer of another key goes when the work fails: cached answers first, 27 Oct 2026).
     expect(sets).toHaveLength(7);
-    expect(fn('function dropStale(')).toContain('if (staleAt.value !== null && staleOther) result.value = null;');
+    expect(fn('function dropStale(')).toMatch(/if \(staleAt\.value !== null && staleOther\) \{\s*result\.value = null;/);
     expect(fn('function applySnapshot(')).toContain('result.value = s.result;');
   });
   it('a search result reaches the card only through the pointer and the share box', () => {

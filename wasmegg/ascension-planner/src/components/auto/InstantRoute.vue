@@ -411,7 +411,7 @@
                 ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
                 ><template v-else><b>{{ firstStepShortLead }}</b>{{ ' ' }}{{ firstStepShortRest }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
             </p>
-            <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
+            <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :sleep-hours="sleepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
                  own first prestige is timed by the hours only (search/prestigeBy.ts), so with no-prestige days set it is
                  not drawn (UX fluff review, 5 Nov 2026, item 5: "by Dec 24, 2026 at 2:00 am" with Dec 24 to 26 off). -->
@@ -641,7 +641,7 @@
               ><b>{{ FIRST_STEP_BUILDUP_MISSING_LEAD }}</b>{{ ' ' }}{{ firstStepWarn }}</template
               ><template v-else><b>{{ firstStepShortLead }}</b>{{ ' ' }}{{ firstStepShortRest }}<template v-if="firstStepShortText !== stepCaveat.step">{{ ' ' }}<CardHelp>{{ FIRST_STEP_LABEL }}{{ ' ' }}{{ stepCaveat.step }}</CardHelp></template></template>
           </p>
-          <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
+          <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :sleep-hours="sleepHours" :no-prestige="stepDays" :held-shifts="store.deferShifts" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
                drawn with no-prestige days set, as under By a date's box. -->
           <PrestigeByLine
@@ -1591,7 +1591,11 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     saveSnapshot(runs);
   } catch {
     // Superseded, cut off by a search, or a failure: no line (the answer stands as it is).
-    if (pid === prestigeRuns) prestigeStatus.value = 'error';
+    // Saved all the same (R8.6, ui-instantroute-7): saveSnapshot waits while the line is 'running', and nothing else may follow.
+    if (pid === prestigeRuns) {
+      prestigeStatus.value = 'error';
+      saveSnapshot(runs);
+    }
   }
 }
 /** The route the line running now (or last run) is for (`PrestigeResult.route`). */
@@ -1801,11 +1805,14 @@ const useHours = computed(() => hoursOn.value && filters.value.inHours);
 const openingNote = computed(() =>
   heldOpeningOf((props.deadline ? result.value?.byDate : result.value?.best) ?? null)
 );
+/** What "When each step happens" (InstantSteps.vue) reads: the hours the answer was held to (none when "Works inside my awake hours"
+ *  is unticked: the answer waits for nothing, R8.5, ui-instantroute-5), the no-prestige days as windows. */
+const stepHours = computed(() => (useHours.value && hoursLimited.value ? store.availability : null));
+/** The player's own hours for the "R1 comes after your hours end" line, whether or not the answer was held to them. */
+const sleepHours = computed(() => (hoursLimited.value ? store.availability : null));
+const stepDays = computed(() => timeOffWindows(usableTimeOff(store.noPrestige), zone.value));
 /** Playing hours that limit when a prestige can be made (not any hour): the "prestige at the time shown" note, on the
  *  Prestige by line and under each box (lib/hoursNote.ts). */
-/** What "When each step happens" (InstantSteps.vue) reads: the hours the answer was held to, the no-prestige days as windows. */
-const stepHours = computed(() => (hoursLimited.value ? store.availability : null));
-const stepDays = computed(() => timeOffWindows(usableTimeOff(store.noPrestige), zone.value));
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
 /**
  * THE SLIM CARD (spec-slimcard; wireframes/instant-slim-v1; DRAFT words in lib/instantWords.ts). The one line under the
@@ -2011,6 +2018,15 @@ let stopIdleSleep: (() => void) | null = null;
 onUnmounted(() => {
   stopIdleSleep?.();
   pool?.terminate();
+});
+// In-flight work stops with the card (R8.7, ui-instantroute-8): a polish cut by the unmount is not saved as the final answer, and
+// the bracket spawns no workers after it. A second hook: the first one's body is pinned (InstantRoute.idleSleep.spec.ts).
+onUnmounted(() => {
+  ++runs;
+  ++bracketRuns;
+  ++prestigeRuns;
+  if (prestigeTimer) clearTimeout(prestigeTimer);
+  prestigeTimer = null;
 });
 // A chain search (Smart search, Full sweep, By a date) gets the route workers' memory: each holds a
 // decoded table, and the browser's heap is shared with every chain worker. The pool sleeps once it
@@ -2349,6 +2365,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
+    staleOther = false;
     // What the two-route check re-runs the first legs from (`runAltPass`); the last answer's alternative goes with it.
     altInputs.value = { id, p, url, h, inputs, te, scale, hours };
     altAnswer.value = null;
@@ -2498,7 +2515,8 @@ function routeOf(chain: readonly number[]): Route | null {
   const found = result.value;
   if (!found) return null;
   const want = key(chain);
-  const all = [found.best, found.byDate, ...dateRowsOf(found), ...fastestRowsOf(found)];
+  // The other route first (R8.4, ui-instantroute-4): its own legs win over a held-buys copy of the same chain.
+  const all = [altRoute.value, found.best, found.byDate, ...dateRowsOf(found), ...fastestRowsOf(found)];
   return all.find((r): r is Route => !!r && key(r.chain) === want) ?? null;
 }
 /** "Follow this route": the goal My Runs' Right now follows it for (lib/follow.ts). */
@@ -3522,9 +3540,12 @@ function showStale(id: number): void {
 }
 /** The work failed: a stale answer of another key goes (it is not this setup's); the one on screen before stays. */
 function dropStale(): void {
-  if (staleAt.value !== null && staleOther) result.value = null;
-  staleAt.value = null;
-  staleOlder.value = false;
+  // The mark goes only with the answer (R8.3, ui-instantroute-3): one kept after a failed rework is still the old goal's.
+  if (staleAt.value !== null && staleOther) {
+    result.value = null;
+    staleAt.value = null;
+    staleOlder.value = false;
+  }
   staleOther = false;
 }
 function applySnapshot(s: InstantSnapshot, stale = false): void {
@@ -3556,6 +3577,13 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   // A saved answer put back feeds My Runs too (it is for this key: this save and setup); a stale one never.
   if (!stale) keepPricing();
   // A stale answer is only drawn: the run that is working the fresh one out keeps its own states.
+  // A restored answer has none of the last run's inputs (R8.2, ui-instantroute-6): the what-if would compare the wrong starts.
+  // Not on the stale path: a fresh run may be working while a cached answer is drawn.
+  if (!stale) {
+    whatIfInputs.value = null;
+    answerDays = null;
+    stampHash.value = '';
+  }
   if (!stale) {
     prestigeStatus.value = prestige.value ? 'done' : 'idle';
     bracketStatus.value = 'done';

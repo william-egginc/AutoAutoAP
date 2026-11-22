@@ -64,6 +64,8 @@ const props = defineProps<{
   zone: string;
   /** The hours the answer was held to (null: any time). */
   hours?: Availability | null;
+  /** The player's own hours, for the "R1 comes after your hours end" line only; `hours` when not given (R8.5). */
+  sleepHours?: Availability | null;
   noPrestige?: readonly TimeOffWindow[] | null;
   /** The player's shifts wait for their hours (deferShifts): the plan already waits, so the softer "R1 waits until …" line. */
   heldShifts?: boolean;
@@ -73,7 +75,7 @@ const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props
 /** The warning for an ascension the table starts (never the one the farm is in): R1 bounded by the opening's span. */
 // A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).
 const r1Of = (l: { now: boolean; fresh?: boolean; prestigeAt: number; fromTE: number }) =>
-  l.now && !l.fresh ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
+  l.now && !l.fresh ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.sleepHours !== undefined ? props.sleepHours : props.hours, held: props.heldShifts });
 const hintOn = usePrestigeHint();
 const windowOf = (l: { now: boolean; fresh?: boolean; fromTE: number; stopTE: number; sales?: number; prestigeAt: number }) =>
   hintOn.value ? prestigeWindow({ fromTE: l.fromTE, stopTE: l.stopTE, sales: l.sales, prestigeAt: l.prestigeAt, now: l.now && !l.fresh }) : null;
