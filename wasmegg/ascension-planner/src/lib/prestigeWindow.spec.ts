@@ -15,7 +15,6 @@ import {
 const utc = (y: number, m: number, d: number, h = 0) => Date.UTC(y, m - 1, d, h) / 1000;
 // Thu 3 Dec 2026 12:00 PM PST = 20:00 UTC (Thu 9 PM PST = 05:00 UTC Fri). Pacific is UTC-8 in December.
 const THU_NOON = utc(2026, 12, 3, 20);
-const FRI_2PM = utc(2026, 12, 4, 22);
 const SAT_12AM = utc(2026, 12, 5, 8);
 const SAT_8AM = utc(2026, 12, 5, 16);
 const leg = (
@@ -28,29 +27,33 @@ describe('prestigeWindow (part 3 of the game expert\'s note, 21 Nov 2026)', () =
     expect(prestigeWindow(leg({ fromTE: 239, stopTE: 245 }))).toBeNull();
     expect(prestigeWindow(leg({ fromTE: 240, stopTE: 250 }))).not.toBeNull();
   });
-  it('TE 240 to 319: best Thursday 9 PM to Friday 2 PM Pacific, the hint ends at Friday 2 PM', () => {
-    const w = prestigeWindow(leg({ fromTE: 240, stopTE: 250, sales: 1 }))!;
-    expect(w.deadline).toBe(FRI_2PM);
-    expect(w.opens).toBe(utc(2026, 12, 4, 5));
-    expect(prestigeWindow(leg({ fromTE: 319, stopTE: 330, sales: 1 }))!.deadline).toBe(FRI_2PM);
-  });
-  it('TE 320 and up: best Thursday 9 PM to Saturday 12 AM, the hint ends there (never after Saturday 4 AM)', () => {
-    for (const sales of [1, 2, 3]) {
-      const w = prestigeWindow(leg({ fromTE: 320, stopTE: 330, sales }))!;
-      expect(w.deadline, `${sales}`).toBe(SAT_12AM);
-      expect(w.deadline).toBeLessThanOrEqual(utc(2026, 12, 5, 12));
+  it('TE 240 to 319: a 1-sale leg ends Saturday 12 AM (at Saturday 8 AM it is 1.68 times slower), a 2- or 3-sale leg Saturday 8 AM', () => {
+    for (const fromTE of [240, 319]) {
+      expect(prestigeWindow(leg({ fromTE, stopTE: fromTE + 10, sales: 1 }))!.deadline, `${fromTE} 1`).toBe(SAT_12AM);
+      expect(prestigeWindow(leg({ fromTE, stopTE: fromTE + 10, sales: 2 }))!.deadline, `${fromTE} 2`).toBe(SAT_8AM);
+      expect(prestigeWindow(leg({ fromTE, stopTE: fromTE + 10, sales: 3 }))!.deadline, `${fromTE} 3`).toBe(SAT_8AM);
     }
   });
-  it('2- and 3-sale builds in TE 240 to 319 are fine up to Saturday 8 AM; a 1-sale build gets worse through the sale', () => {
-    expect(prestigeWindow(leg({ sales: 2 }))!.deadline).toBe(SAT_8AM);
-    expect(prestigeWindow(leg({ sales: 3 }))!.deadline).toBe(SAT_8AM);
-    expect(prestigeWindow(leg({ sales: 1 }))!.deadline).toBe(FRI_2PM);
-    // a build whose sales are not known is read as the careful one
-    expect(prestigeWindow({ fromTE: 300, stopTE: 310, prestigeAt: THU_NOON, now: false })!.deadline).toBe(FRI_2PM);
+  it('TE 320 and up: a 1-sale leg ends Saturday 12 AM, a 2- or 3-sale leg Saturday 8 AM; never past Saturday 9 AM', () => {
+    for (const fromTE of [320, 400]) {
+      expect(prestigeWindow(leg({ fromTE, stopTE: fromTE + 10, sales: 1 }))!.deadline, `${fromTE} 1`).toBe(SAT_12AM);
+      for (const sales of [2, 3]) {
+        const w = prestigeWindow(leg({ fromTE, stopTE: fromTE + 10, sales }))!;
+        expect(w.deadline, `${fromTE} ${sales}`).toBe(SAT_8AM);
+        expect(w.deadline).toBeLessThan(utc(2026, 12, 5, 17));
+      }
+    }
+  });
+  it('the window opens Thursday 9 PM Pacific whatever the end', () => {
+    expect(prestigeWindow(leg({ sales: 2 }))!.opens).toBe(utc(2026, 12, 4, 5));
+    expect(prestigeWindow(leg({ sales: 1 }))!.opens).toBe(utc(2026, 12, 4, 5));
+  });
+  it('a build whose sales are not known is read as the careful 1-sale build', () => {
+    expect(prestigeWindow({ fromTE: 300, stopTE: 310, prestigeAt: THU_NOON, now: false })!.deadline).toBe(SAT_12AM);
   });
   it('a prestige past the deadline is shown the next one, a week on', () => {
-    expect(prestigeWindow(leg({ prestigeAt: FRI_2PM }))!.deadline).toBe(FRI_2PM + 7 * 86400);
-    expect(prestigeWindow(leg({ prestigeAt: FRI_2PM - 1 }))!.deadline).toBe(FRI_2PM);
+    expect(prestigeWindow(leg({ prestigeAt: SAT_12AM }))!.deadline).toBe(SAT_12AM + 7 * 86400);
+    expect(prestigeWindow(leg({ prestigeAt: SAT_12AM - 1 }))!.deadline).toBe(SAT_12AM);
   });
   it('only short ascensions (25 TE or less)', () => {
     expect(PRESTIGE_HINT_MAX_GAIN).toBe(25);
