@@ -3408,6 +3408,19 @@ describe('POST /hide: hide from the public, and show again', () => {
     env.SUBMISSIONS._m.set('snap:' + board, raw.replace(`"settleAt":${pub.settleAt}`, `"settleAt":${pub.builtAt}`));
   };
 
+  it('review 22 Nov, C2.2: a KV refusal of the flood-gate counter write does not turn a stored /submit into a 500', async () => {
+    const real = env.SUBMISSIONS.put.bind(env.SUBMISSIONS);
+    env.SUBMISSIONS.put = async (key, ...rest) => {
+      if (String(key).startsWith('gate:')) throw new Error('KV PUT failed: 429 Too Many Requests');
+      return real(key, ...rest);
+    };
+    const res = await postOwned('/submit', SEND, TOKEN_A, '1.1.1.1');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBeTruthy();
+    expect(body.uploadToken).toBeTruthy();
+  });
+
   it('hides one row from /all, /leaderboard and /all?final, keeps it in /mine marked hidden, and in KV', async () => {
     const a = await send(SEND);
     const b = await send({ ...SEND, durationDays: 700, nickname: 'Shown' });

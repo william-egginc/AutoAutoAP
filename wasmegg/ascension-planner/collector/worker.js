@@ -1272,7 +1272,8 @@ async function floodGate(env, request) {
     refused: null,
     // TTL is longer than the window so a stale counter cannot outlive it and lock anyone out; the
     // `until` inside decides, and the TTL only keeps the address from being retained.
-    commit: () => env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 }),
+    // A refused counter write (KV's 429) must not fail a request that has already stored its row: the count just lags (review 22 Nov, C2.2).
+    commit: () => env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 }).catch(() => {}),
   };
 }
 
