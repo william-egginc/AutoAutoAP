@@ -24,7 +24,10 @@ export function instantExactKey(o: {
   firstAscension: string;
   deadline?: number | null;
   planStart: number;
+  /** The pick without the held buys (useInstantExact.ts `ExactRequest.alt`): in the key only when it is another chain. */
+  alt?: number[] | null;
 }): string {
+  const alt = o.alt?.length && o.alt.join('>') !== o.chain.join('>') ? o.alt.join('>') : null;
   return [
     accountOf(o.rawBackup),
     o.backupTime ?? '',
@@ -34,6 +37,7 @@ export function instantExactKey(o: {
     o.firstAscension,
     o.deadline ?? '',
     o.planStart,
+    ...(alt ? [`or ${alt}`] : []),
   ].join('|');
 }
 

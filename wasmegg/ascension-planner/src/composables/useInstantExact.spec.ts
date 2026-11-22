@@ -266,6 +266,125 @@ describe('useInstantExact', () => {
   });
 });
 
+describe('useInstantExact: two routes (Jordan, 21 Nov 2026: B changed the pick)', () => {
+  const alt = [230, 277, 490];
+  it('runs both routes’ prefixes in one batch, a shared prefix once; one total; done gives both, the request’s first and top-level', async () => {
+    const m = mount(req([226, 277, 490], { alt: [226, 300, 490] }));
+    await flush();
+    expect(runs).toHaveLength(1);
+    expect(built).toBe(1);
+    expect(runs[0].chains).toEqual([[226], [226, 277], [226, 277, 490], [226, 300], [226, 300, 490]]);
+    expect(m.state.value).toMatchObject({ status: 'running', done: 0, total: 5 });
+    runs[0].onDone(4, 5);
+    expect(m.state.value).toMatchObject({ status: 'running', done: 4, total: 5 });
+    runs[0].resolve([
+      ...answer([226, 277, 490], [T0 + 100, T0 + 200, T0 + 9000]),
+      ...answer([226, 300, 490], [T0 + 100, T0 + 300, T0 + 5000]).slice(1),
+    ]);
+    await flush();
+    expect(m.state.value).toMatchObject({
+      status: 'done',
+      end: T0 + 9000,
+      legs: [T0 + 100, T0 + 200, T0 + 9000],
+      spare: null,
+      routes: [
+        { chain: [226, 277, 490], end: T0 + 9000, legs: [T0 + 100, T0 + 200, T0 + 9000], spare: null },
+        { chain: [226, 300, 490], end: T0 + 5000, legs: [T0 + 100, T0 + 300, T0 + 5000], spare: null },
+      ],
+      faster: 1,
+    });
+    m.scope.stop();
+  });
+
+  it('faster is the other route only when it ends at least an hour sooner (a tie or less keeps the request’s route)', async () => {
+    const m = mount(req([226, 277, 490], { alt }));
+    await flush();
+    runs[0].resolve([
+      ...answer([226, 277, 490], [T0 + 1, T0 + 2, T0 + 7200]),
+      ...answer(alt, [T0 + 1, T0 + 2, T0 + 3601]),
+    ]);
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', faster: 0 });
+    m.request.value = req([226, 277, 491], { alt });
+    await flush();
+    runs[1].resolve([
+      ...answer([226, 277, 491], [T0 + 1, T0 + 2, T0 + 7200]),
+      ...answer(alt, [T0 + 1, T0 + 2, T0 + 3600]),
+    ]);
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', faster: 1 });
+    m.scope.stop();
+  });
+
+  it('By a date: each route’s spare against the deadline', async () => {
+    const m = mount(req([300, 490], { alt: [310, 490], deadline: T0 + 1000 }));
+    await flush();
+    runs[0].resolve([...answer([300, 490], [T0 + 10, T0 + 1060]), ...answer([310, 490], [T0 + 10, T0 + 400])]);
+    await flush();
+    expect(m.state.value).toMatchObject({
+      status: 'done',
+      spare: -60,
+      routes: [{ spare: -60 }, { spare: 600 }],
+      faster: 0,
+    });
+    m.scope.stop();
+  });
+
+  it('the same stops (or no other route): one route, faster 0', async () => {
+    const m = mount(req([226, 277, 490], { alt: [226, 277, 490] }));
+    await flush();
+    expect(runs[0].chains).toEqual([[226], [226, 277], [226, 277, 490]]);
+    runs[0].resolve(answer([226, 277, 490], [T0 + 1, T0 + 2, T0 + 3]));
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', faster: 0, routes: [{ chain: [226, 277, 490] }] });
+    expect((m.state.value as { routes: unknown[] }).routes).toHaveLength(1);
+    m.scope.stop();
+    const one = mount(req([226, 277, 490], { key: 'other' }));
+    await flush();
+    runs[1].resolve(answer([226, 277, 490], [T0 + 1, T0 + 2, T0 + 3]));
+    await flush();
+    expect(one.state.value).toMatchObject({ status: 'done', faster: 0, routes: [{ end: T0 + 3 }] });
+    one.scope.stop();
+  });
+
+  it('the other route the simulator cannot finish: done with the request’s route alone; the request’s missing: failed', async () => {
+    const m = mount(req([226, 277, 490], { alt }));
+    await flush();
+    runs[0].resolve([
+      ...answer([226, 277, 490], [T0 + 1, T0 + 2, T0 + 9000]),
+      ...answer(alt, [T0 + 1, T0 + 2, T0 + 3]).slice(0, 2),
+    ]);
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', end: T0 + 9000, faster: 0 });
+    expect((m.state.value as { routes: unknown[] }).routes).toHaveLength(1);
+    m.scope.stop();
+    const n = mount(req([226, 277, 491], { alt }));
+    await flush();
+    runs[1].resolve(answer(alt, [T0 + 1, T0 + 2, T0 + 3]));
+    await flush();
+    expect(n.state.value).toMatchObject({ status: 'failed' });
+    n.scope.stop();
+  });
+
+  it('a kept record of two routes comes back with both', async () => {
+    const m = mount(req([226, 277, 490], { alt }));
+    await flush();
+    runs[0].resolve([
+      ...answer([226, 277, 490], [T0 + 1, T0 + 2, T0 + 9000]),
+      ...answer(alt, [T0 + 1, T0 + 2, T0 + 3]),
+    ]);
+    await flush();
+    m.scope.stop();
+    const again = mount(req([226, 277, 490], { alt }));
+    expect(again.state.value).toMatchObject({
+      status: 'done',
+      faster: 1,
+      routes: [{ end: T0 + 9000 }, { end: T0 + 3 }],
+    });
+    again.scope.stop();
+  });
+});
+
 describe('exactWanted', () => {
   const mask: Availability = {
     ...HOURS,
