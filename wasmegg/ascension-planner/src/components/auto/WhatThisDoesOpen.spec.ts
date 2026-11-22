@@ -65,6 +65,7 @@ describe('"What this does" starts folded (5 Nov 2026)', () => {
       setupSharing: 'open',
       studyBox: 'open', // the opt-in box and its choices row open on a first load (21 Nov 2026)
       studyChoices: 'open',
+      goalFilters: 'folded', // the Filters fold on both goal screens (R11, 21 Nov 2026)
     });
   });
 

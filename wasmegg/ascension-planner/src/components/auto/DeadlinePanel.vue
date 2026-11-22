@@ -53,30 +53,32 @@
     <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026), as on Fastest's (FastestRoute.vue). -->
     <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
     <h3 class="text-slate-600 label md:!mt-0">The date</h3>
-    <!-- By Egg Day (Jordan, 20 Nov 2026): the screen opens on Egg Day (lib/byDateForm.ts `startOnEggDay`), its date, time, Pacific and
-         your time in one summary, with a small "Pick another date" link that opens the date, time and zone boxes; "Back to Egg Day"
-         shuts them. It replaces the two big cards, which showed "Another date" picked over Egg Day's own date. -->
-    <div v-if="!showCustomDate" class="space-y-1" data-testid="egg-day-summary" data-region="date">
-      <p class="text-body font-bold text-slate-900">Egg Day {{ eggDayYear }}</p>
-      <p class="text-body text-slate-600">
-        {{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
-        {{ eggDayYear }} tab.
-      </p>
+    <!-- THE DATE ROW (R11, Jordan 21 Nov 2026: "like joo ... pick which day, but have egg day selected by default, people know
+         that's egg day no explanation needed"): date, 12-hour time and zone on one line, prefilled with Egg Day (the screen opens
+         on it, lib/byDateForm.ts `startOnEggDay`). A small Back to Egg Day when the boxes hold anything else. -->
+    <div class="flex flex-wrap items-end gap-3" data-testid="date-row" data-region="date">
+      <label class="space-y-1">
+        <span class="block text-slate-600 label">Date</span>
+        <input
+          v-model="date"
+          type="date"
+          :disabled="store.busy"
+          class="min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-body font-bold"
+        />
+      </label>
+      <label class="space-y-1">
+        <span class="block text-slate-600 label">Time</span>
+        <TimeBox12 v-model="time" :disabled="store.busy" />
+      </label>
+      <label class="space-y-1 max-w-full">
+        <span class="block text-slate-600 label">In</span>
+        <select v-model="zone" :disabled="store.busy" class="min-h-[44px] sm:min-h-0 w-48 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold">
+          <option value="America/Los_Angeles">Pacific time</option>
+          <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
+        </select>
+      </label>
       <button
-        type="button"
-        :disabled="store.busy"
-        class="min-h-[44px] sm:min-h-0 text-body font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50"
-        data-testid="pick-another-date"
-        @click="customDate = true"
-      >
-        Pick another date
-      </button>
-    </div>
-    <div v-else class="space-y-1" data-region="date">
-      <p class="text-body text-slate-600">
-        Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.
-      </p>
-      <button
+        v-if="!isEggDay"
         type="button"
         :disabled="store.busy"
         class="min-h-[44px] sm:min-h-0 text-body font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50"
@@ -86,53 +88,25 @@
         Back to Egg Day
       </button>
     </div>
-    <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
-      <label class="space-y-1">
-        <span class="block text-slate-600 label">Date</span>
-        <input
-          v-model="date"
-          type="date"
-          :disabled="store.busy"
-          class="rounded-lg border-slate-200 text-body font-bold"
-        />
-      </label>
-      <label class="space-y-1">
-        <span class="block text-slate-600 label">Time</span>
-        <input
-          v-model="time"
-          type="time"
-          :disabled="store.busy"
-          class="rounded-lg border-slate-200 text-body font-bold"
-        />
-      </label>
-      <label class="space-y-1 max-w-full">
-        <span class="block text-slate-600 label">In</span>
-        <select v-model="zone" :disabled="store.busy" class="max-w-full rounded-lg border-slate-200 text-body font-bold">
-          <option value="America/Los_Angeles">Pacific time</option>
-          <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
-        </select>
-      </label>
-    </div>
     <p class="text-body text-slate-600 max-w-prose">
-      <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
-           otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
-      <!-- One short line (UX fluff review 2, 5 Nov 2026, item D0b): the picker above already gives the time in your own
-           zone. DRAFT (Words). -->
-      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from the route’s start.</template>
+      <template v-if="deadline">{{ daysFromStartLine(daysAway) }}</template>
       <template v-else>Pick a date and time.</template>
-      Egg Day's own bonuses aren't in the route.
     </p>
+    <!-- Right now, from your save (R11, 21 Nov 2026): the start, with a button to Setup. -->
+    <StartLine />
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card, below the date picker and its line (Jordan, 13 Nov 2026), only
          where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
-    <div v-if="initialState.playerId" class="space-y-2" data-region="filters">
-      <div class="flex justify-start">
-        <FiltersButton />
+    <PanelFold v-if="initialState.playerId" section="goalFilters" title="Filters" :hint="filtersText" data-region="filters">
+      <div class="space-y-2 pt-1">
+        <div class="flex justify-start">
+          <FiltersButton />
+        </div>
+        <!-- The answer's filters (InstantRoute `filters-to`): Works inside my awake hours, Ascensions from/to and its line,
+             Prefer fewer ascensions. In the one closed Filters fold since R11 (21 Nov 2026), with a one-line summary. -->
+        <div id="filters-bydate-answer" class="empty:hidden" data-testid="filters-under"></div>
       </div>
-      <!-- The answer's filters, just below Filters and always shown (Jordan, 12 Nov 2026 pm; InstantRoute `filters-to`):
-           Works inside my awake hours, Ascensions from/to and its line, Prefer fewer ascensions. -->
-      <div id="filters-bydate-answer" class="empty:hidden" data-testid="filters-under"></div>
-    </div>
+    </PanelFold>
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
     <!-- The simpler default page (9 Nov 2026, notes/simpler-design.md): the answer always shown (no Hide; the section's
@@ -150,6 +124,7 @@
         filters-to="filters-bydate-answer"
         now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
+        @filters-line="l => (filtersText = l)"
         @check="checkByDate"
         @check-fast="checkWithFast"
         @routes="onInstantRoutes"
@@ -1141,6 +1116,9 @@ import {
   runAutoWiden,
   type InstantState,
 } from '@/search/autoWiden';
+import TimeBox12 from './TimeBox12.vue';
+import { daysFromStartLine } from '@/lib/daysFromStart';
+import StartLine from './StartLine.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BigBoxNote from './BigBoxNote.vue';
 import { bigBoxNote, type BigBoxInput } from '@/search/bigBox';
@@ -1237,7 +1215,7 @@ import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, typ
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
+import { eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, startOnEggDay, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
@@ -1267,7 +1245,6 @@ function useEggDay(): void {
 }
 /** "Pick another date" opened: its boxes show (holding Egg Day until changed). */
 const { customDate } = kept;
-const showCustomDate = computed(() => customDate.value || !isEggDay.value);
 // Each opening starts on Egg Day (By Egg Day, 20 Nov 2026), unless a run going or being restored owns its date; a My Runs preset
 // (below) and a Science ask or link (applyRequest) are taken after this and still apply.
 startOnEggDay(store.deadlineRunning || store.preparing);
@@ -1552,6 +1529,8 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
 useSearchSnapshots('date');
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
 const moreChanges = ref<string[]>([]);
+/** The closed Filters fold's one-line summary, from the instant answer (lib/filtersLine.ts). */
+const filtersText = ref('');
 const more = ref<InstanceType<typeof MoreFold> | null>(null);
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(deadline.value ?? null, store.finalTE));

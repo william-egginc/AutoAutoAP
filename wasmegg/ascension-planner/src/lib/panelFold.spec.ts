@@ -32,6 +32,8 @@ const SECTIONS: FoldSection[] = [
   // The opt-in box above the tabs and its Choose what to share row: open on a first load (21 Nov 2026).
   'studyBox',
   'studyChoices',
+  // The Filters fold on Fastest and By Egg Day (R11, 21 Nov 2026), closed.
+  'goalFilters',
 ];
 
 let mem: Map<string, string>;

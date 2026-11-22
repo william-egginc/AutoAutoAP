@@ -87,10 +87,9 @@ describe('the Egg Day card: one format for Pacific and your time', () => {
     );
     expect(eggDayWords(2027, 'Europe/Berlin', 'de-DE')).toBe('14. Juli 2027, 9:00 Pacific (18:00 your time)');
   });
-  it('the Deadline panel uses it, not a hand-written "14 July … 9:00 AM"', async () => {
+  it('the Deadline panel has no hand-written "14 July … 9:00 AM" (its date row, R11, shows pickers and no Egg Day sentence)', async () => {
     const fs = await import('node:fs');
     const src = fs.readFileSync(new URL('../components/auto/DeadlinePanel.vue', import.meta.url), 'utf8');
-    expect(src).toContain('{{ eggDayWords(eggDayYear, plannerZone) }}');
     expect(src).not.toContain('9:00 AM Pacific. Answers');
   });
 });

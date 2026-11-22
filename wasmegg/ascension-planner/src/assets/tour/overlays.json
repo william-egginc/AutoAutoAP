@@ -103,7 +103,7 @@
    "dir": "up",
    "x": 700,
    "y": 99,
-   "len": 120
+   "len": 90
   },
   "overText": false,
   "inset": {
@@ -240,7 +240,7 @@
    "dir": "up",
    "x": 580,
    "y": 231,
-   "len": 66
+   "len": 48
   },
   "overText": false,
   "inset": {
@@ -264,18 +264,18 @@
   "cw": 1100,
   "ch": 620,
   "rect": {
-   "x": 63,
-   "y": 336,
-   "w": 506,
-   "h": 60
+   "x": 91,
+   "y": 383,
+   "w": 862,
+   "h": 33
   },
   "ring": {
-   "x": 55,
-   "y": 328,
-   "w": 522,
-   "h": 76
+   "x": 83,
+   "y": 375,
+   "w": 878,
+   "h": 49
   },
-  "mag": "9-filters-desk-mag",
+  "mag": null,
   "tabs": [
    {
     "x": 625,
@@ -286,8 +286,8 @@
   ],
   "arrow": {
    "dir": "left",
-   "x": 579,
-   "y": 366,
+   "x": 963,
+   "y": 400,
    "len": 120
   },
   "overText": false,
@@ -354,29 +354,22 @@
   "ch": 620,
   "rect": {
    "x": 91,
-   "y": 421,
+   "y": 227,
    "w": 862,
    "h": 44
   },
   "ring": {
    "x": 83,
-   "y": 413,
+   "y": 219,
    "w": 878,
    "h": 60
   },
   "mag": null,
-  "tabs": [
-   {
-    "x": 625,
-    "y": 25,
-    "w": 149,
-    "h": 56
-   }
-  ],
+  "tabs": [],
   "arrow": {
    "dir": "up",
    "x": 522,
-   "y": 475,
+   "y": 281,
    "len": 120
   },
   "overText": false,
@@ -2151,22 +2144,22 @@
   "ch": 440,
   "rect": {
    "x": 16,
-   "y": 228,
+   "y": 229,
    "w": 358,
-   "h": 56
+   "h": 54
   },
   "ring": {
    "x": 8,
-   "y": 220,
+   "y": 221,
    "w": 374,
-   "h": 72
+   "h": 70
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "down",
    "x": 195,
-   "y": 218,
+   "y": 219,
    "len": 70
   },
   "overText": true,
@@ -2192,25 +2185,25 @@
   "ch": 560,
   "rect": {
    "x": 16,
-   "y": 172,
+   "y": 100,
    "w": 358,
    "h": 370
   },
   "ring": {
    "x": 8,
-   "y": 164,
+   "y": 92,
    "w": 374,
    "h": 386
   },
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "down",
+   "dir": "up",
    "x": 195,
-   "y": 162,
+   "y": 480,
    "len": 70
   },
-  "overText": false,
+  "overText": true,
   "inset": {
    "sprite": "strip-chain-phone",
    "rect": {
@@ -2566,10 +2559,10 @@
   "mag": null,
   "tabs": [],
   "arrow": {
-   "dir": "right",
-   "x": 316,
-   "y": 400,
-   "len": 70
+   "dir": "down",
+   "x": 350,
+   "y": 366,
+   "len": 53
   },
   "overText": true,
   "inset": {

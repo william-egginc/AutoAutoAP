@@ -25,6 +25,7 @@ describe('D0b: the date line is short (DeadlinePanel.vue)', () => {
     const src = read('DeadlinePanel.vue');
     expect(src).not.toContain("in your planner's time, {{ plural(Math.round(daysAway), 'day') }} after the plan");
     expect(src).not.toContain('The plan is for reaching the TE by then.');
-    expect(src).toContain("{{ plural(Math.round(daysAway), 'day') }} from the route’s start.");
+    // The days line is lib/daysFromStart.ts since R11 ("N days from the route’s start.", under half a day: "Right at ...").
+    expect(src).toContain('daysFromStartLine(daysAway)');
   });
 });

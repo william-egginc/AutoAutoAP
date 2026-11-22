@@ -1005,6 +1005,7 @@ import {
   writeInsideHoursChoice,
   type PolishGain,
 } from '@/search/instantFilters';
+import { filtersLine } from '@/lib/filtersLine';
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
@@ -1213,6 +1214,8 @@ const emit = defineEmits<{
   'by-date': [];
   /** The values inside More that aren't at their default, said in its line (lib/moreChanges.ts). */
   'more-changes': [changes: string[]];
+  /** What the Filters fold holds, in one line (lib/filtersLine.ts), for the screen's closed fold. */
+  'filters-line': [line: string];
   /** A close call's "Check this with Fast": By a date starts a Fast run for this goal. */
   'check-fast': [];
 }>();
@@ -2581,6 +2584,16 @@ const preferMargin = computed<PreferMargin>({
     rememberPreferFewer(preferGoal.value, m);
   },
 });
+/** What the closed Filters fold says it holds (lib/filtersLine.ts), told to the screen that owns the fold. */
+watch(
+  [hoursOn, filters, preferMargin],
+  () =>
+    emit(
+      'filters-line',
+      filtersLine({ inHours: hoursOn.value ? filters.value.inHours : null, bounds: filterBounds(filters.value), prefer: preferMargin.value })
+    ),
+  { immediate: true, deep: true }
+);
 const preferShowBest = ref(false);
 watch(preferMargin, () => {
   preferShowBest.value = false;

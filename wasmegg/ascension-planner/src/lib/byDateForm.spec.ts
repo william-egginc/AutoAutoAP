@@ -160,29 +160,24 @@ describe('By Egg Day: each opening of the screen starts on Egg Day (Jordan, 20 N
     await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
     expect(form().date).toBe('2026-12-01');
   });
-  it('the two big cards are gone: an Egg Day summary, a small "Pick another date" link, and "Back to Egg Day" when the boxes show', () => {
+  it('the date row replaced the summary: pickers on one line, a small "Back to Egg Day", no "Pick another date" (R11, 21 Nov 2026)', () => {
     expect(tpl).not.toContain('Another date</span>');
     expect(tpl).not.toContain('role="radiogroup" aria-label="The date"');
-    expect(tpl).toContain('data-testid="pick-another-date"');
+    expect(tpl).not.toContain('data-testid="pick-another-date"');
+    expect(tpl).not.toContain('data-testid="egg-day-summary"');
+    expect(tpl).toContain('data-testid="date-row"');
     expect(tpl).toContain('data-testid="back-to-egg-day"');
-    expect(tpl).toMatch(/data-testid="back-to-egg-day"[\s\S]{0,400}/);
-    expect(tpl).toContain('data-testid="egg-day-summary"');
   });
-  it('the Egg Day screen shows the summary and the link, not the boxes; a custom date shows the boxes and Back to Egg Day', async () => {
+  it('the Egg Day screen shows the pickers prefilled and no Back link; a custom date (a My Runs preset) shows Back to Egg Day', async () => {
     byDateForm.customDate.value = false;
     const html0 = await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
-    expect(html0).toContain('data-testid="egg-day-summary"');
-    expect(html0).toContain('data-testid="pick-another-date"');
+    expect(html0).toContain('data-testid="date-row"');
+    expect(html0).toContain('type="date"');
     expect(html0).not.toContain('data-testid="back-to-egg-day"');
-    expect(html0).not.toContain('type="date"');
-  });
-  it('a custom date (a My Runs preset) shows the boxes and a Back to Egg Day link, and no summary', async () => {
     const at = Date.UTC(2026, 10, 1, 16) / 1000;
     presetByDate({ deadline: at, zone: 'America/Denver' });
     const html = await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
     expect(html).toContain('data-testid="back-to-egg-day"');
     expect(html).toContain('type="date"');
-    expect(html).not.toContain('data-testid="egg-day-summary"');
-    expect(html).not.toContain('data-testid="pick-another-date"');
   });
 });

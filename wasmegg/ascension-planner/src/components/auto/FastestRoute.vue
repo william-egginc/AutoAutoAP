@@ -41,17 +41,21 @@
     <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
          box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
     <TargetTeBox />
+    <!-- Right now, from your save (R11, 21 Nov 2026): the start, with a button to Setup. -->
+    <StartLine />
 
     <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
          where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
-    <div v-if="initialState.playerId" class="space-y-2" data-region="filters">
-      <div class="flex justify-start">
-        <FiltersButton />
+    <PanelFold v-if="initialState.playerId" section="goalFilters" title="Filters" :hint="filtersText" data-region="filters">
+      <div class="space-y-2 pt-1">
+        <div class="flex justify-start">
+          <FiltersButton />
+        </div>
+        <!-- The answer's filters (InstantRoute `filters-to`): Works inside my awake hours, Ascensions from/to and its line,
+             Prefer fewer ascensions. In the one closed Filters fold since R11 (21 Nov 2026), with a one-line summary. -->
+        <div id="filters-fastest-answer" class="empty:hidden" data-testid="filters-under"></div>
       </div>
-      <!-- The answer's filters, just below Filters and always shown (Jordan, 12 Nov 2026 pm; InstantRoute `filters-to`):
-           Works inside my awake hours, Ascensions from/to and its line, Prefer fewer ascensions. -->
-      <div id="filters-fastest-answer" class="empty:hidden" data-testid="filters-under"></div>
-    </div>
+    </PanelFold>
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
     <!-- The answer, always shown: no Hide since the simpler page (the section's old id kept for the tracker's "Pick a route
@@ -71,6 +75,7 @@
           @unloaded="u => (instantUnloaded = u)"
           @by-date="emit('by-date')"
           @more-changes="c => (moreChanges = c)"
+          @filters-line="l => (filtersText = l)"
         />
       </InstantGuard>
     </div>
@@ -160,6 +165,8 @@ import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import FiltersButton from '@/components/layout/FiltersButton.vue';
+import PanelFold from './PanelFold.vue';
+import StartLine from './StartLine.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomHowItWorks from './CustomHowItWorks.vue';
@@ -201,6 +208,8 @@ useSearchSnapshots('fastest');
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
 const moreChanges = ref<string[]>([]);
+/** The closed Filters fold's one-line summary, from the instant answer (lib/filtersLine.ts). */
+const filtersText = ref('');
 const more = ref<InstanceType<typeof MoreFold> | null>(null);
 /** What to do now's "Show search ›": More open, at the search. */
 function showSearch(): void {
