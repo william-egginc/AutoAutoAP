@@ -589,7 +589,9 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     for (let i = pin; i < cur.length - 1; i++) {
       if (cur.length - 1 >= 2) cands.push([...cur.slice(0, i), ...cur.slice(i + 1)]);
     }
-    let prev = opts.currentTE;
+    // The gap below the first free stop starts at the last locked one (code review 22 Nov 2026, R2.2: it started at
+    // the player's TE, so the stop inserted after a lock was the midpoint of the wrong gap).
+    let prev = pin > 0 ? cur[pin - 1] : opts.currentTE;
     for (let i = pin; i < cur.length; i++) {
       // `i === cur.length - 1` is the gap between the last checkpoint and `final` — the "is one more
       // prestige up there worth it" question. Its midpoint is far above anything sensible
