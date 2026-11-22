@@ -17,8 +17,11 @@ export function tookDuration(seconds: number): string {
     const r = s % 60;
     return r ? `${m} min ${r} s` : `${m} min`;
   }
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
+  // Whole minutes first, then the hours off them: rounding the minutes after the hours gave "1 h 60 min" for 7170 s
+  // (code review round 2, 22 Nov 2026, R6.3).
+  const mins = Math.round(s / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
