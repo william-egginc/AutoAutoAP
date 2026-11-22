@@ -735,6 +735,22 @@
               <SimulationSetup />
             </div>
 
+            <!-- The prestige-window hint (R10, 21 Nov 2026): off by default, this browser's own box (lib/prestigeWindow.ts); words DRAFT for Words. -->
+            <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2" data-testid="prestige-hint">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input
+                  v-model="prestigeHint"
+                  type="checkbox"
+                  class="mt-0.5 rounded border-slate-300 text-indigo-600"
+                  data-testid="prestige-hint-box"
+                />
+                <span class="text-body text-slate-600">
+                  <span class="font-bold text-slate-800">{{ PRESTIGE_HINT_LABEL }}</span>
+                  {{ PRESTIGE_HINT_HELP }}
+                </span>
+              </label>
+            </div>
+
             <!-- Experimental: off for players until there is data to back it, on by default on the beta site (composables/usePrestigeBy.ts). -->
             <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
               <h3 class="text-slate-600 label">Experimental</h3>
@@ -834,6 +850,8 @@ import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
+import { setPrestigeHint, usePrestigeHint } from '@/lib/prestigeWindow';
+import { PRESTIGE_HINT_HELP, PRESTIGE_HINT_LABEL } from '@/lib/prestigeWindowWords';
 import { instantUrlOf } from '@/search/instantRecord';
 import { useFollowStore } from '@/stores/follow';
 import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
@@ -884,6 +902,9 @@ const canShareInstant = !!instantUrlOf(store.submitUrl);
 const follows = useFollowStore();
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
 const prestigeBy = usePrestigeBy();
+/** The prestige-window hint's box (lib/prestigeWindow.ts): this browser's, off by default, shared with the steps list. */
+const prestigeHintOn = usePrestigeHint();
+const prestigeHint = computed({ get: () => prestigeHintOn.value, set: v => setPrestigeHint(v) });
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well. The player's choosing only:
 // `sync`, so a restore (a carry-on's settings, the remembered setup with hold shifts off) is seen as one and
 // left as it was put back (stores/chainSearch.ts `setupMuted`).
@@ -995,6 +1016,7 @@ const moreSummary = computed(() =>
     prestigeBy: prestigeBy.stored.value,
     prestigeByDefault: prestigeBy.beta,
     prestigeByRecord: canShareInstant && prestigeBy.record.value,
+    prestigeHint: prestigeHintOn.value,
   }) + (showEverything.value ? ` · ${SHOW_EVERYTHING_LABEL}` : '')
 );
 /** Show everything (Setup › More options; the simpler page): named in More options' line when on. */

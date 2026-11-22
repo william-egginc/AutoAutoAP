@@ -30,6 +30,8 @@ export interface SetupMoreValues {
   prestigeByDefault: boolean;
   /** Include the prediction in results I share (default off; only counts while the box is on and sharing is offered). */
   prestigeByRecord: boolean;
+  /** The prestige-window hint on the steps list (R10, 21 Nov 2026; off by default, this browser's). */
+  prestigeHint?: boolean;
 }
 
 /** The values under More options that are not their defaults, in the order the fold shows them. */
@@ -45,6 +47,7 @@ export function setupMoreChanged(v: SetupMoreValues): string[] {
   if (v.scienceTab) out.push('Science tab on');
   if (v.prestigeBy !== v.prestigeByDefault) out.push(`Prestige by… ${v.prestigeBy ? 'on' : 'off'}`);
   if (v.prestigeBy && v.prestigeByRecord) out.push('Prestige by… in results I share');
+  if (v.prestigeHint) out.push('Prestige-window hint on'); // DRAFT
   return out;
 }
 
