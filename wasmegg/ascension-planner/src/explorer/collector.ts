@@ -71,6 +71,18 @@ export function normaliseCollectorBase(raw: string): string | null {
 }
 
 /**
+ * The collector a phone watch link reads (code review round 2, C6.3): the one the run REPORTS to, which is the build's submit
+ * collector, never the board's (egg-beta reports to live while its board is the test collector), unless the link itself names
+ * one with `?collector=`. Null when neither exists.
+ */
+export function watchCollectorBase(search = typeof location === 'undefined' ? '' : location.search): string | null {
+  const fromQuery = new URLSearchParams(search).get('collector');
+  if (fromQuery) return normaliseCollectorBase(fromQuery);
+  const configured = ((import.meta.env.VITE_SUBMIT_URL as string | undefined) ?? '').trim();
+  return configured ? stripSubmit(configured) : null;
+}
+
+/**
  * The collector this page should read, or null when nothing has pointed it at one.
  *
  * `search` is injectable so this is testable without a browser location.
