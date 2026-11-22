@@ -299,6 +299,7 @@ function ctxOf(s: State): Record<string, unknown> {
     noPrestigeOn: false,
     siloWords: 'until its silos run out',
     stepHours: null,
+    heldToHours: false,
     sleepHours: null,
     stepDays: [],
     dateBoxLegs: [],
@@ -1336,7 +1337,7 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
     // First step as it is (its hours clause kept); the note (INSTANT_NIGHT_BUY_NOTE) behind the quick-estimate "?".
     expect(script).toContain("const stepCaveat = computed(() => ({ step: firstStep.value, note: nightBuyNote.value ? INSTANT_NIGHT_BUY_NOTE : null }));");
     expect(script).toMatch(
-      /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(hoursLimited\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
+      /const nightBuyNote = computed\(\(\) =>\s*!!firstStep\.value &&\s*!firstStepWarn\.value &&\s*nightBuyNoteShown\(heldToHours\.value \? store\.availability : null, firstStepKind\(firstLegs\.value\?\.\[0\]\?\.label\) === 'buildup'\)\s*\);/
     );
   });
   it('never with the build-up-missing warning, fresh or continue (spec-buildupmissing-continue)', () => {

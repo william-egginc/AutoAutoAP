@@ -130,9 +130,9 @@ describe('the night-buy note on My Runs follows the simulation (spec-nightbuyfix
     expect(count(view, ':awake-hours="nightBuyHours"')).toBe(2);
     expect(view).toMatch(/nightBuyHours = computed\(\(\) => nightBuyHours\w*\(|const nightBuyHours = computed/);
   });
-  it('the instant answer keeps its note: it reads the raw hours, never nightBuyHours', () => {
+  it('the instant answer keeps its note: it reads the raw hours (when the answer was held to them: the tick is on, R8.5), never nightBuyHours', () => {
     const src = fs.readFileSync(path.join(__dirname, '../auto/InstantRoute.vue'), 'utf8');
     expect(src).not.toContain('nightBuyHours');
-    expect(src).toMatch(/nightBuyNoteShown\(\s*hoursLimited\.value \? store\.availability : null/);
+    expect(src).toMatch(/nightBuyNoteShown\(\s*heldToHours\.value \? store\.availability : null/);
   });
 });

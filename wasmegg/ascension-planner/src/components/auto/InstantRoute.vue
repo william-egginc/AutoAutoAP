@@ -407,7 +407,7 @@
               :status="prestigeStatus"
               mismatch=""
               :beta="prestigeFlag.beta"
-              :hours-on="hoursLimited"
+              :hours-on="heldToHours"
               dated
             />
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
@@ -636,7 +636,7 @@
             :status="prestigeStatus"
             mismatch=""
             :beta="prestigeFlag.beta"
-            :hours-on="hoursLimited"
+            :hours-on="heldToHours"
           />
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
@@ -1798,6 +1798,8 @@ const stepDays = computed(() => timeOffWindows(usableTimeOff(store.noPrestige), 
 /** Playing hours that limit when a prestige can be made (not any hour): the "prestige at the time shown" note, on the
  *  Prestige by line and under each box (lib/hoursNote.ts). */
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
+/** The answer was held to the player's hours: the tick is on and the hours limit something (the notes about the held times, R8.5). */
+const heldToHours = computed(() => useHours.value && hoursLimited.value);
 /**
  * THE SLIM CARD (spec-slimcard; wireframes/instant-slim-v1; DRAFT words in lib/instantWords.ts). The one line under the
  * title: an estimate, and the awake hours (when the answer keeps them) and the no-prestige days it keeps.
@@ -1877,7 +1879,7 @@ const firstLegs = computed(() => (props.deadline ? dateBoxLegs.value : (boxLead.
 const nightBuyNote = computed(() =>
   !!firstStep.value &&
   !firstStepWarn.value &&
-  nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
+  nightBuyNoteShown(heldToHours.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
 );
 /** First step as it is, its awake-hours clause kept, and the night-buy note for the "quick estimate ?" marker on the
  *  box's time line (the card clean-up, Jordan 12 Nov 2026). The note's show rule is `nightBuyNote`'s, unchanged. */

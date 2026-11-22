@@ -73,3 +73,13 @@ describe('ui-instantroute-8: unmount cancels in-flight work', () => {
     );
   });
 });
+
+describe('ui-instantroute-5 (the same pass): the night-buy note and the Prestige by hours note follow the tick too', () => {
+  it('both read heldToHours (the tick and the hours), not hoursLimited alone', () => {
+    expect(script).toMatch(/const heldToHours = computed\(\(\) => useHours\.value && hoursLimited\.value\);/);
+    expect(script).toMatch(/nightBuyNoteShown\(heldToHours\.value \? store\.availability : null,/);
+    const lines = template.match(/<PrestigeByLine[^>]*>/gs) ?? [];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const m of lines) expect(m).toContain(':hours-on="heldToHours"');
+  });
+});

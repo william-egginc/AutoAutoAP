@@ -79,7 +79,7 @@ describe('PrestigeByLine', () => {
       expect(u).toContain(':line="boxPrestige?.line ?? null"');
       expect(u).toContain('mismatch=""');
       expect(u).toContain(':beta="prestigeFlag.beta"');
-      expect(u).toContain(':hours-on="hoursLimited"');
+      expect(u).toContain(':hours-on="heldToHours"');
     }
     // The work itself checks the flag before it starts.
     expect(src).toMatch(/if \(!prestigeFlag\.enabled\.value \|\|/);
