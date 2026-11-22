@@ -192,3 +192,20 @@ describe('board submit', () => {
     expect(st.prepareRechecks).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Put my name on it after a run went anonymously (21 Nov 2026)', () => {
+  const sent = { id: 'row1', nickname: '' };
+  it('shows at once, still anonymous, and is the rename once Credit me as has a name', () => {
+    const nick = ref('');
+    const store = fakeStore({
+      sentRecord: sent,
+      nameToClaim: vi.fn((n: string) => (n && n !== sent.nickname ? n : '')),
+    } as never);
+    const anon = useBoardSubmit(store, nick, ref(true));
+    expect(anon.offerName.value).toBe(true);
+    expect(anon.nameToClaim.value).toBe('');
+    nick.value = 'theFliris'; // the radio switched to Credit me as
+    expect(anon.nameToClaim.value).toBe('theFliris');
+    expect(anon.offerName.value).toBe(false);
+  });
+});
