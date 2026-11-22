@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia';
 import { ref, shallowRef, watch } from 'vue';
 
-import { ei, getLocalStorage, getSavedPlayerID, requestFirstContact, setLocalStorage } from 'lib';
+import { ei, getLocalStorage, getSavedPlayerID, setLocalStorage } from 'lib';
 import { isEffortLevel } from 'lib/mission-optimizer/effort';
 import { readPlayerData, type PlayerData } from 'lib/mission-optimizer/player-data';
 import type { OptimizerSolution } from 'lib/mission-optimizer/types';
@@ -13,6 +13,8 @@ import type { HumilityVisit } from 'lib/mission-optimizer/plan/read';
 import { normalizeScheduleSettings } from 'lib/mission-optimizer/schedule-settings';
 
 import { newVisitSettings, type OptimizerVisitSettings } from '@/lib/humilityOptimizer';
+import { plainError } from '@/lib/plainError';
+import { LATEST_SAVE_FAILED, requestSave } from '@/lib/saveLoad';
 import { useInitialStateStore } from './initialState';
 
 const STORAGE_KEY = 'humility_optimizer';
@@ -138,11 +140,12 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     saveLoading.value = true;
     saveError.value = '';
     try {
-      const response = await requestFirstContact(playerId);
-      if (!isFullBackup(response.backup ?? null)) throw new Error('that save has no artifact data in it');
-      takeBackup(response.backup ?? null);
+      // The page's own save fetch: a timeout, and a failure in player words (SaveLoadError).
+      const { backup } = await requestSave(playerId);
+      if (!isFullBackup(backup)) throw new Error('That save has no artifact data in it.');
+      takeBackup(backup);
     } catch (err) {
-      saveError.value = `Could not load your save: ${err instanceof Error ? err.message : String(err)}`;
+      saveError.value = plainError(err, LATEST_SAVE_FAILED);
     } finally {
       saveLoading.value = false;
     }

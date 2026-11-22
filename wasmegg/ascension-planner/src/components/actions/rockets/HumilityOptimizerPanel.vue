@@ -185,7 +185,7 @@
         <p v-else-if="scheduleInvalid" class="text-small text-gray-600">
           Enter the time left in the 2× capacity event to find a ship set.
         </p>
-        <p v-else-if="error" class="text-small text-red-600">Could not compute a ship set: {{ error }}</p>
+        <p v-else-if="error" class="text-small text-red-600">{{ error }}</p>
         <p v-else-if="!shown && computing" role="status" class="flex items-center gap-2 text-small text-gray-600">
           <InlineSpinner class="h-4 w-4 text-gray-600" />
           Finding the best ship set<AnimatedDots />
@@ -389,6 +389,7 @@ import { useHumilityOptimizerStore } from '@/stores/humilityOptimizer';
 import { useInitialStateStore } from '@/stores/initialState';
 import { usePlanStore } from '@/stores/plan';
 import { formatDuration, formatNumber } from '@/lib/format';
+import { plainError } from '@/lib/plainError';
 import { HumilityMissionsError, launchSchedule, resolveLaunches } from '@/lib/humilityMissions';
 import { humilitySourceTag, previewLaunchDurations } from '@/lib/humilityMissionsStage';
 import {
@@ -531,7 +532,7 @@ async function solve() {
     // Null is "no result is coming": superseded, or the worker was torn down.
     if (solutions === null) return;
     const [solution] = finalizeSolutions(solutions, request.input.recipeDag);
-    if (!solution) throw new Error('the optimizer returned no plan');
+    if (!solution) throw new Error("The optimizer didn't return a ship set. Try again.");
     store.solved = {
       visitId: visit.visitId,
       key,
@@ -543,7 +544,7 @@ async function solve() {
     };
   } catch (err) {
     if (mine !== generation) return;
-    error.value = err instanceof Error ? err.message : String(err);
+    error.value = plainError(err, "Couldn't find a ship set. Try again.");
     store.solved = null;
   } finally {
     if (mine === generation) computing.value = false;
@@ -703,7 +704,8 @@ async function stage() {
     await missionsStore.stage(projected.value, { equipEarningsSet: swap });
     store.stagedAnswers[visitId] = { key, swap };
   } catch (err) {
-    stageError.value = err instanceof HumilityMissionsError ? err.message : (err as Error).message;
+    stageError.value =
+      err instanceof HumilityMissionsError ? err.message : plainError(err, "Couldn't stage the ship set. Try again.");
   } finally {
     staging.value = false;
   }

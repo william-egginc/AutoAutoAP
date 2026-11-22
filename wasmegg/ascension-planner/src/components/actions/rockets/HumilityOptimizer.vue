@@ -26,7 +26,7 @@
 
     <div v-if="store.open" class="border-t border-indigo-100 p-3">
       <component :is="panel" v-if="panel" />
-      <p v-else-if="loadError" class="text-small text-red-600">Could not load the optimizer: {{ loadError }}</p>
+      <p v-else-if="loadError" class="text-small text-red-600">{{ loadError }}</p>
       <p v-else role="status" class="flex items-center gap-2 text-small text-gray-600">
         <InlineSpinner />
         Loading the optimizer and its drop data<AnimatedDots />
@@ -42,6 +42,7 @@ import { safeImport } from 'lib/planners/import';
 import InlineSpinner from 'ui/components/planners/InlineSpinner.vue';
 
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import { plainError } from '@/lib/plainError';
 
 import { useHumilityOptimizerStore } from '@/stores/humilityOptimizer';
 
@@ -61,7 +62,7 @@ watch(
     try {
       panel.value = (await safeImport(() => import('./HumilityOptimizerPanel.vue'))).default;
     } catch (err) {
-      loadError.value = err instanceof Error ? err.message : String(err);
+      loadError.value = plainError(err, "Couldn't load the optimizer. Try again.");
     }
   },
   { immediate: true }
