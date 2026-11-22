@@ -1616,19 +1616,28 @@ async function widenAndRun(): Promise<void> {
   await nextTick();
   autoSubmitArmed.value = false;
   autoSubmitted.value = false;
-  await store.startExhaustive(
-    props.playerId,
-    {
-      lo: 0,
-      hi: 0,
-      step: 1,
-      minAsc: w.bands.length + 1,
-      maxAsc: w.bands.length + 1,
-      minGap: sp.minGap,
-      bands: w.bands,
-    },
-    { recheck: false }
-  );
+  // The bookkeeping a fresh click does (U3.3, 22 Nov 2026), kept around the single-box call: start() would run the whole queue.
+  dropCarried();
+  store.lastAutoSend = null;
+  store.beginBestSoFar('fastest', null);
+  try {
+    await store.startExhaustive(
+      props.playerId,
+      {
+        lo: 0,
+        hi: 0,
+        step: 1,
+        minAsc: w.bands.length + 1,
+        maxAsc: w.bands.length + 1,
+        minGap: sp.minGap,
+        bands: w.bands,
+      },
+      { recheck: false }
+    );
+    if (await owesResult()) await sendFinished();
+  } finally {
+    store.endBestSoFar();
+  }
 }
 
 const chainCount = computed(() =>

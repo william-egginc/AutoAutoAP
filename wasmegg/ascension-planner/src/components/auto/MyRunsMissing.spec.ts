@@ -107,6 +107,6 @@ describe('LeaderboardPanel feeds the match', () => {
     expect(src).toContain('myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null');
     const myRuns = src.slice(src.indexOf('<div v-if="myRunsMode"'), src.indexOf('<div v-else class="space-y-4">'));
     expect(myRuns.indexOf('<MyRunsMissing')).toBeGreaterThan(myRuns.indexOf('<MyRunsList'));
-    expect(src).toContain('hasCode.value = !!token;');
+    expect(src).toContain('if (ok) hasCode.value = r.code;'); // the latest /mine read sets it (U3.2, 22 Nov 2026)
   });
 });

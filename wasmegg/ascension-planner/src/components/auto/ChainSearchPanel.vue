@@ -570,7 +570,7 @@
                     <!-- "Night shifts" lived here and has moved into the expander, next to the
                        individual shifts it counts. A bare number said there was a problem and never
                        which shift, which is the only part you can act on. -->
-                    <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
+                    <th v-if="runHours" class="py-2 pr-3 whitespace-nowrap">
                       Waiting for you
                       <HelpTip
                         >Two costs, both charged to the route and both already inside the days column. <b>P</b> is the
@@ -606,7 +606,7 @@
                       <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ leg.key }}</td>
                       <td class="py-1.5 pr-3 text-slate-600">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
                       <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
-                      <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
+                      <td v-if="runHours" class="py-1.5 pr-3 whitespace-nowrap">
                         <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-600"
                           >&mdash;</span
                         >
@@ -629,17 +629,17 @@
                           :aria-expanded="expandedLeg === i"
                           @click="expandedLeg = expandedLeg === i ? -1 : i"
                         >
-                          {{ eggBlocks(leg).length }} eggs<template v-if="store.scheduleEnabled && leg.nightShifts"
+                          {{ eggBlocks(leg).length }} eggs<template v-if="runHours && leg.nightShifts"
                             ><span class="text-amber-700"> · {{ leg.nightShifts }} out</span></template
                           >
                         </button>
                       </td>
                     </tr>
                     <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
-                      <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
+                      <td :colspan="runHours ? 9 : 8" class="px-3 py-3">
                         <p class="text-small font-bold text-slate-600 mb-2">
                           A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} shifts
-                          <span v-if="store.scheduleEnabled" class="text-amber-700"
+                          <span v-if="runHours" class="text-amber-700"
                             >· amber falls outside your awake hours</span
                           >
                         </p>
@@ -1300,10 +1300,12 @@ function stamp(unixSeconds: number | undefined): string {
 /** Which leg's shift list is open. -1 for none; one at a time keeps the table readable. */
 const expandedLeg = ref(-1);
 
+/** The hours the run on screen was priced with (U3.4, 22 Nov 2026: the live Setup may have changed since), else the live ones. */
+const runHours = computed(() => (store.runSettingsUsed ? store.runSettingsUsed.availability : store.availability));
 /** True when this instant falls outside the schedule. Uses the same predicate the search does, so
  *  the highlighting can never disagree with the count in the row above it. */
 function outsideSchedule(unixSeconds: number): boolean {
-  const a = store.availability;
+  const a = runHours.value;
   return a ? !isAvailable(unixSeconds, a) : false;
 }
 

@@ -28,4 +28,9 @@ describe('S8: Setup’s save line is in the strip’s words', () => {
     expect(setup).toContain('return `Save from ${dateAt(at, nowSec, zone.value)}, ${ageAgo(Math.max(0, nowSec - at))}.`;');
     expect(setup).not.toContain('showDateTime(at, zone.value)})');
   });
+  it('the age moves with the minute clock, not a Date.now() read once (ui-panels-7, 22 Nov 2026)', () => {
+    expect(setup).toMatch(/const nowClock = useMinuteClock\(\);/);
+    expect(setup).toMatch(/const nowSec = nowClock\.value;/);
+    expect(setup).not.toContain('const nowSec = Date.now() / 1000;');
+  });
 });

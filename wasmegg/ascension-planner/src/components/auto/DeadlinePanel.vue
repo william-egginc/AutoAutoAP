@@ -234,7 +234,7 @@
         >
           <template v-if="!simpleSummary" #extra
             ><span class="normal-case tracking-normal font-bold text-rose-700" data-test="settings-issue">{{
-              nearbyRangeEmpty ? 'no route in this range' : 'nothing to check yet'
+              nearbyRangeEmpty || suggestedRangeEmpty ? 'no route in this range' : 'nothing to check yet'
             }}</span></template
           >
           <div
@@ -245,6 +245,9 @@
             <p v-else-if="nearbyRangeEmpty" class="font-bold text-rose-700" data-test="nearby-range-empty">
               The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
               range below.
+            </p>
+            <p v-else-if="suggestedRangeEmpty" class="font-bold text-rose-700" data-test="nearby-range-above">
+              {{ NEARBY_RANGE_ABOVE_SUGGESTIONS }}
             </p>
             <p v-else class="font-bold text-rose-700">Nothing to check yet: the save has to load first.</p>
             <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
@@ -1142,6 +1145,7 @@ import { durationLabel } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
+import { NEARBY_RANGE_ABOVE_SUGGESTIONS } from '@/lib/nearbyRangeWords';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ShallowRef } from 'vue';
 import { useTeleportTarget } from '@/composables/useTeleportTarget';
 import { boundsText } from '@/search/instantFilters';
@@ -1700,10 +1704,19 @@ const aroundPlan = computed(() =>
     workerSecondsPerLeg: aroundSecondsPerLeg.value,
   })
 );
+/** A save is loaded, there is no instant answer to centre on, and the range starts above the 1 to 5 the suggested routes cover
+ *  (U3.6, 22 Nov 2026: this said "the save has to load first"). */
+const suggestedRangeEmpty = computed(
+  () =>
+    store.currentTE > 0 &&
+    !Object.keys(instantCentres.value).length &&
+    nearbyRange.value.min > Math.min(5, instantMax.value ?? 5)
+);
 /** Why Nearby routes' Find is greyed out, or ''. */
 const aroundIssue = computed(() => {
   if (!deadline.value) return '';
   if (deadline.value <= store.planStart) return 'The date is before the route starts.';
+  if (suggestedRangeEmpty.value) return NEARBY_RANGE_ABOVE_SUGGESTIONS;
   if (!simpleBoxes.value.chains.length || !rangeOf(simpleBoxes.value.lastBox))
     return 'Nothing to check yet: the save has to load first.';
   if (!aroundPlan.value.sets) return 'No route in these boxes goes up from your TE to the last stop.';

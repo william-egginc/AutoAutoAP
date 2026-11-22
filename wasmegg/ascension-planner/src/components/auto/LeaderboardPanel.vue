@@ -1420,8 +1420,8 @@ async function changeHidden(target: HideTarget, hidden: boolean): Promise<void> 
   hideBusy.value = still;
   if (all) hideAllBusy.value = false;
   if (done.length) {
-    const fresh = await fetchMine();
-    if (fresh) mineRows.value = fresh;
+    const fresh = await readMine();
+    if (fresh.ok && fresh.rows) mineRows.value = fresh.rows;
   }
 }
 
@@ -1794,15 +1794,25 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
  * keeps for the account and never mints one: an account never sent for has nothing to find. Never
  * throws, so a collector without /mine leaves the board exactly as it was.
  */
-async function fetchMine(): Promise<Row[] | null> {
+async function fetchMine(): Promise<{ rows: Row[] | null; code: boolean }> {
   try {
     const token = await ownerCode();
-    hasCode.value = !!token;
-    if (!token) return null;
-    return await fetchMineRows(root.value, token);
+    if (!token) return { rows: null, code: false };
+    return { rows: await fetchMineRows(root.value, token), code: true };
   } catch {
-    return null;
+    return { rows: null, code: false };
   }
+}
+
+/** Counts the /mine reads: after an account switch (or two quick ones) only the latest read may set the rows (U3.2, ui-panels-2). */
+let mineSeq = 0;
+/** `fetchMine` for the account on screen now; `ok` is false when a newer read started meanwhile, and nothing of it is applied. */
+async function readMine(): Promise<{ rows: Row[] | null; ok: boolean }> {
+  const seq = ++mineSeq;
+  const r = await fetchMine();
+  const ok = seq === mineSeq;
+  if (ok) hasCode.value = r.code;
+  return { rows: r.rows, ok };
 }
 
 /**
@@ -1828,7 +1838,7 @@ async function load(): Promise<void> {
   loading.value = true;
   error.value = '';
   // In parallel with /all, and never able to fail the board.
-  const mine = fetchMine();
+  const mine = readMine();
   try {
     let { rows, cut } = await fetchAll('');
     // An old collector's list is in key order -- target, then plan length -- so past its cap the
@@ -1852,7 +1862,8 @@ async function load(): Promise<void> {
     error.value = boardErrorText(failedKind.value, myRunsMode.value ? 'myruns' : 'compare');
     allRows.value = [];
   } finally {
-    mineRows.value = await mine;
+    const m = await mine;
+    if (m.ok) mineRows.value = m.rows;
     loading.value = false;
     loadedOnce.value = true;
   }
@@ -1864,7 +1875,8 @@ watch(
   async () => {
     hideMsg.value = null;
     openHidden.value = '';
-    mineRows.value = await fetchMine();
+    const m = await readMine();
+    if (m.ok) mineRows.value = m.rows;
   }
 );
 

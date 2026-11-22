@@ -850,6 +850,7 @@ import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
+import { useMinuteClock } from '@/composables/useMinuteClock';
 import { setPrestigeHint, usePrestigeHint } from '@/lib/prestigeWindow';
 import { PRESTIGE_HINT_HELP, PRESTIGE_HINT_LABEL } from '@/lib/prestigeWindowWords';
 import { instantUrlOf } from '@/search/instantRecord';
@@ -1041,11 +1042,13 @@ const startTooFar = computed(
   () => store.firstAscension !== 'fresh' && store.firstAscensionFor(store.planStart) === 'fresh'
 );
 
+/** Moves with the minute (ui-panels-7, 22 Nov 2026: a Date.now() inside the computed never moved). */
+const nowClock = useMinuteClock();
 const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;
   if (!at) return 'No save loaded yet.';
   // The one save age on Setup (lib/saveAge.ts `ageAgo`, the style every save-age line uses).
-  const nowSec = Date.now() / 1000;
+  const nowSec = nowClock.value;
   return `Save from ${dateAt(at, nowSec, zone.value)}, ${ageAgo(Math.max(0, nowSec - at))}.`;
 });
 
