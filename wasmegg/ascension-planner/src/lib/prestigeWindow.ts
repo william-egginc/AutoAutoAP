@@ -18,8 +18,8 @@ export const PRESTIGE_HINT_MIN_TE = 240;
 export const PRESTIGE_HINT_MAX_GAIN = 25;
 /** Pacific hours of the week (Monday 0:00 = 0): the windows open Thursday 9 PM and end at these. */
 const WINDOW_OPENS = 3 * 24 + 21;
-const SAT_12AM = 5 * 24;
-const SAT_8AM = 5 * 24 + 8;
+const SAT_MIDNIGHT_HOW = 5 * 24;
+const SAT_EIGHT_HOW = 5 * 24 + 8;
 
 export interface PrestigeWindowLeg {
   fromTE: number;
@@ -44,7 +44,7 @@ export interface PrestigeWindow {
  *  leg gets worse through the sale (1.68 times slower at Saturday 8 AM), so it ends Saturday 12 AM; a 2- or 3-sale leg is
  *  fine up to Saturday 8 AM. The same from TE 240 up; Saturday 9 AM is the hard limit for all. */
 function windowEnd(sales: number | undefined): number {
-  return sales !== undefined && sales >= 2 ? SAT_8AM : SAT_12AM;
+  return sales !== undefined && sales >= 2 ? SAT_EIGHT_HOW : SAT_MIDNIGHT_HOW;
 }
 
 /** The hint for this ascension, or null where it is not shown. */
