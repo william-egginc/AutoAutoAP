@@ -368,7 +368,7 @@
               >
             </div>
             <!-- The route worked out exactly in the background (R10 option C, 21 Nov 2026; ExactLine.vue). -->
-            <ExactLine :state="exactShown" :instant-end="dateBoxOf(result.byDate).end" :zone="zone" :goal="'date'" @start="exact.start()" @stop="exact.stop()" />
+            <ExactLine :state="exactView" :instant-end="dateBoxOf(result.byDate).end" :zone="zone" :goal="'date'" :two="twoShown" @start="exact.start()" @stop="exact.stop()" @toggle-faster="toggleFaster" />
             <!-- A close call (lib/closeCallWords.ts): not shown as reached; points to Custom, or to its confirmed TE. -->
             <p v-if="closeCall" class="text-body text-amber-800" data-testid="box-close-call">{{ closeCall }}</p>
             <!-- The prompt to check it: a Fast run for this goal (Jordan, 15 Nov 2026), for a close call only. -->
@@ -385,7 +385,7 @@
             <!-- The route and when it is reached, one line (the card clean-up, Jordan 12 Nov 2026; lib/instantCardWords.ts
                  routeReachedLine): a one-ascension route's chain is the TE above, so only "Reached …". -->
             <div class="tabular-nums text-body text-slate-800" data-testid="box-route">
-              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(exactDone?.end ?? dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+              {{ routeReachedLine({ chain: dateBoxOf(result.byDate).chain, time: showNear(exactBox?.end ?? dateBoxOf(result.byDate).end) }) }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
@@ -428,7 +428,7 @@
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
                  returns, under both boxes (this one and Fastest's below). -->
             <!-- Follow this route first, the one main button (the simpler default page, 9 Nov 2026), then Simulate. -->
-            <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
+            <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions" @click.capture="freezeBox">
               <FollowButton v-if="boxFollowable" primary main :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
                 :finish="dateBoxOf(result.byDate).end"
                 :end-te="dateBoxOf(result.byDate).endTE"
@@ -611,13 +611,13 @@
             >
           </div>
           <div class="flex flex-wrap items-baseline gap-x-3">
-            <span class="text-headline font-black text-slate-900">{{ showFinish(exactDone?.end ?? boxLead.end) }}</span>
+            <span class="text-headline font-black text-slate-900">{{ showFinish(exactBox?.end ?? boxLead.end) }}</span>
           </div>
           <div class="text-small font-bold text-emerald-800">
-            in {{ headlineGap(boxLead.seconds + (exactDone ? exactDone.end - boxLead.end : 0)) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
+            in {{ headlineGap(boxLead.seconds + (exactBox ? exactBox.end - boxLead.end : 0)) }} · {{ plural(boxLead.legs.length, 'ascension') }}<template v-if="stepCaveat.note">{{ ' ' }}<span class="whitespace-nowrap">{{ '· ' }}<span class="text-small font-normal text-slate-600" data-testid="box-quick-estimate">{{ QUICK_ESTIMATE_MARKER }}</span>{{ ' ' }}<CardHelp>{{ stepCaveat.note }}{{ ' ' }}{{ INSTANT_NIGHT_BUY_TIP }}</CardHelp></span></template>
           </div>
           <!-- The route worked out exactly in the background (R10 option C, 21 Nov 2026; ExactLine.vue). -->
-          <ExactLine :state="exactShown" :instant-end="boxLead.end" :zone="zone" :goal="'fastest'" @start="exact.start()" @stop="exact.stop()" />
+          <ExactLine :state="exactView" :instant-end="boxLead.end" :zone="zone" :goal="'fastest'" :two="twoShown" @start="exact.start()" @stop="exact.stop()" @toggle-faster="toggleFaster" />
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
             <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
@@ -653,7 +653,7 @@
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
           <!-- Follow this route first, the one main button (the simpler default page, 9 Nov 2026), then Simulate. -->
-          <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
+          <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions" @click.capture="freezeBox">
             <FollowButton primary main :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
               :finish="boxLead.end"
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
@@ -1105,6 +1105,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import ExactLine from './ExactLine.vue';
 import { EXACT_COUNTS_NOTE } from '@/lib/exactLineWords';
 import { exactWanted, useInstantExact, type ExactRequest } from '@/composables/useInstantExact';
+import { exactRouteFor, isSwapped, pressedChoice, type FasterChoice } from '@/lib/exactTwoRoute';
 import { EXACT_HOURS, EXACT_PHONE_QUERY, exactDisabled, exactTriggerFor, instantExactKey } from '@/lib/exactOptions';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
@@ -1474,7 +1475,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
   const pid = ++prestigeRuns;
   const mode = props.deadline ? ('date' as const) : ('fastest' as const);
   // The route the box shows (Jordan, 26 Oct 2026): Prefer fewer's pick when it made one, else the best, as before.
-  const shown = boxRoute.value;
+  // (The pick, not a faster route the exact check switched the box to: that one has no prestige line, its box hides it.)
+  const shown = pickRoute.value;
   const picked = preferPicked.value ? shown : null;
   const routeKey = shown ? key(shown.chain) : '';
   prestigeRoute = routeKey;
@@ -2343,6 +2345,10 @@ async function run(force = false, goAhead = false): Promise<void> {
     result.value = answer;
     staleAt.value = null;
     staleOlder.value = false;
+    // What the two-route check re-runs the first legs from (`runAltPass`); the last answer's alternative goes with it.
+    altInputs.value = { id, p, url, h, inputs, te, scale, hours };
+    altAnswer.value = null;
+    altStatus.value = 'idle';
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
     prestigeStatus.value = 'idle';
@@ -2431,13 +2437,13 @@ const tableDate = (r: Route): DatePick => ({
   end: r.end,
   first: firstStopOf(r.legs, r.chain),
 });
-const spareOf = (d: DatePick) => exactDone.value?.spare ?? (props.deadline ?? 0) - d.end;
+const spareOf = (d: DatePick) => exactBox.value?.spare ?? (props.deadline ?? 0) - d.end;
 /** The box's "to spare" and whether it is tight: under a day, or inside the gear caveat's window when the form G's
  *  caveat shows ("Up to about 5 days later than shown", lib/spareLine.ts; Jordan, 26 Oct 2026). */
 const dateSpare = computed(() => {
   const b = result.value?.byDate;
   // An exact route that misses the date has no spare to show: the exact line says it misses (ExactLine.vue).
-  if (exactDone.value && exactDone.value.spare !== null && exactDone.value.spare < 0) return null;
+  if (exactBox.value && exactBox.value.spare !== null && exactBox.value.spare < 0) return null;
   return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
 });
 /** Offer "Check this with Fast" under a close call: none running, no Custom result already settling it. */
@@ -2598,9 +2604,10 @@ const preferShowBest = ref(false);
 watch(preferMargin, () => {
   preferShowBest.value = false;
 });
-const fastestChoice = computed<PreferChoice<Route> | null>(() => {
-  const best = lead.value;
-  if (props.deadline || !result.value || !best) return null;
+/** Fastest's Prefer fewer pick from an answer: the box's own (`fastestChoice`), and the no-B answer's for the two-route check (`runAltPass`). */
+function fastestChoiceOf(found: FoundRoutes): PreferChoice<Route> | null {
+  const best = found.best;
+  if (props.deadline || !best) return null;
   const rowOf = (r: Route): PreferRow<Route> => ({
     item: r,
     ascensions: r.legs.length,
@@ -2608,14 +2615,15 @@ const fastestChoice = computed<PreferChoice<Route> | null>(() => {
     shifts: null,
     first: firstStopOf(r.legs, r.chain),
   });
-  const others = rows.value.filter(r => r !== best).map(rowOf);
+  const others = fastestRowsOf(found).filter(r => r !== best).map(rowOf);
   const top = rowOf(best);
   return choosePreferFewer('fastest', [top, ...others], preferMargin.value, top);
-});
-const dateChoice = computed<PreferChoice<DatePick> | null>(() => {
+}
+const fastestChoice = computed<PreferChoice<Route> | null>(() => (result.value ? fastestChoiceOf(result.value) : null));
+/** By a date's Prefer fewer pick from an answer, the same two uses. */
+function dateChoiceOf(found: FoundRoutes): PreferChoice<DatePick> | null {
   const deadline = props.deadline;
-  const found = result.value;
-  if (!deadline || !found?.byDate) return null;
+  if (!deadline || !found.byDate) return null;
   const best = tableDate(found.byDate);
   const rowOf = (d: DatePick): PreferRow<DatePick> => ({
     item: d,
@@ -2626,10 +2634,11 @@ const dateChoice = computed<PreferChoice<DatePick> | null>(() => {
     shifts: null,
     first: d.first,
   });
-  const others = dateRows.value.map(tableDate).filter(d => key(d.chain) !== key(best.chain));
+  const others = [...dateRowsOf(found)].sort((a, b) => a.legs.length - b.legs.length).map(tableDate).filter(d => key(d.chain) !== key(best.chain));
   const top = rowOf(best);
   return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
-});
+}
+const dateChoice = computed<PreferChoice<DatePick> | null>(() => (result.value ? dateChoiceOf(result.value) : null));
 const preferChoice = computed<PreferChoice<unknown> | null>(() => (props.deadline ? dateChoice.value : fastestChoice.value));
 const preferCopy = computed<PreferCopy>(() =>
   preferFewerCopy<unknown>(preferChoice.value, preferGoal.value, preferMargin.value, show)
@@ -2648,9 +2657,13 @@ watch(
 );
 /** The box leads with another route than the best now. */
 const preferPicked = computed(() => preferChoice.value?.state === 'fewer' && !preferShowBest.value);
-/** Fastest: the route the box shows. */
-const boxLead = computed<Route | null>(() =>
+/** Fastest: the route the player's settings pick (Prefer fewer's, or the best): what the exact check is asked about. */
+const pickLead = computed<Route | null>(() =>
   preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value
+);
+/** Fastest: the route the box shows: the pick, or the faster route the exact check found (two routes, `swapped`). */
+const boxLead = computed<Route | null>(() =>
+  swapped.value && altRoute.value ? altRoute.value : pickLead.value
 );
 /** The answer's green box is on screen (either goal): its caveats then sit in its one line (AnswerCaveatLine), not
  *  in their own boxes around it (Jordan, 25 Oct 2026; the UX review's item 3). */
@@ -2687,39 +2700,157 @@ const gearEffect = computed(() =>
   shiftedTable.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null
 );
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
-function dateBoxOf(fallback: Route): DatePick {
+function datePickOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
   return tableDate(fallback);
+}
+/** The same, or the faster route the exact check found (two routes, `swapped`). */
+function dateBoxOf(fallback: Route): DatePick {
+  return swapped.value && altRoute.value ? tableDate(altRoute.value) : datePickOf(fallback);
 }
 /** The legs of the route the By a date box shows (the box's own route, or the one Prefer fewer chose). */
 const dateBoxLegs = computed(() => {
   const found = result.value;
   if (!found?.byDate) return [];
   const want = key(dateBoxOf(found.byDate).chain);
-  const same = [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want);
+  const same = [found.byDate, ...dateRowsOf(found), ...(altRoute.value ? [altRoute.value] : [])].find(r => key(r.chain) === want);
   return same?.legs ?? [];
 });
 /** The route the box shows, either goal (Prefer fewer's pick or the best): the "Prestige by" line is worked out on it. */
-const boxRoute = computed<Route | null>(() => {
+const pickRoute = computed<Route | null>(() => {
   const found = result.value;
   if (!found) return null;
-  if (!props.deadline) return boxLead.value;
+  if (!props.deadline) return pickLead.value;
   if (!found.byDate) return null;
-  const want = key(dateBoxOf(found.byDate).chain);
+  const want = key(datePickOf(found.byDate).chain);
   return [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want) ?? null;
 });
+/** The route on screen: the pick, or the faster one (two routes). */
+const boxRoute = computed<Route | null>(() => (swapped.value && altRoute.value ? altRoute.value : pickRoute.value));
 /**
  * THE ROUTE WORKED OUT EXACTLY (R10 option C, 21 Nov 2026; composables/useInstantExact.ts, lib/exactOptions.ts). Only for the route the box
  * shows, once the answer has settled (not while its background polish runs: the lead route can still change), and only with hours that
  * want it. The inputs are built once, in the run, never here. A phone gets a button, a desktop starts on its own.
  */
+/**
+ * TWO ROUTES (Jordan, 21 Nov 2026, "go with your picks", option 1(a); lib/exactTwoRoute.ts). The held buys can change which route
+ * the settings pick: the pick without them (the no-B pass, `runAltPass`) goes to the exact check as `alt`, and when it really ends
+ * sooner the box switches to it by itself, with "Show the first route instead", never after Follow or Simulate was pressed on the box.
+ * The pass runs once the answer settles and only when the exact check is wanted; the exact check waits for it, so it starts once.
+ */
+const altInputs = shallowRef<{
+  id: number;
+  p: RoutePool;
+  url: string;
+  h: TableHeader;
+  inputs: ReturnType<typeof store.collectInputs>;
+  te: number;
+  scale: number;
+  hours: Availability | null;
+} | null>(null);
+const altAnswer = shallowRef<FoundRoutes | null>(null);
+/** The answer the pass was for (its result, or a failure of it: no second route). */
+const altFor = shallowRef<FoundRoutes | null>(null);
+const altStatus = ref<'idle' | 'running' | 'done'>('idle');
+let altRuns = 0;
+const altWanted = computed<FoundRoutes | null>(() => {
+  if (exactDisabled() || !boxShown.value || backgroundStatus.value === 'running' || status.value !== 'done') return null;
+  if (!useHours.value || !exactWanted(store.availability, store.deferShifts, EXACT_HOURS)) return null;
+  return altInputs.value && altInputs.value.id === runs ? result.value : null;
+});
+watch(
+  altWanted,
+  found => {
+    if (found && altFor.value !== found && !(altStatus.value === 'running')) void runAltPass(found);
+  },
+  { immediate: true }
+);
+/** The pick without the held buys: the first legs again with `heldBuys: false`, then find, polish and Prefer fewer's pick (the same margin). */
+async function runAltPass(found: FoundRoutes): Promise<void> {
+  const ctx = altInputs.value;
+  if (!ctx) return;
+  const my = ++altRuns;
+  altStatus.value = 'running';
+  altAnswer.value = null;
+  const alive = (): boolean => my === altRuns && ctx.id === runs;
+  try {
+    const legs = await instantFirstLegs({
+      pool: ctx.p,
+      url: ctx.url,
+      header: ctx.h,
+      inputs: ctx.inputs,
+      te: ctx.te,
+      final: target.value,
+      scale: ctx.scale,
+      hours: ctx.hours,
+      deferShifts: store.deferShifts,
+      liveFresh: (t: number, at: number) => store.liveFreshBuilds(t, at),
+      buildUpTails: () => store.buildUpTails(),
+      alive,
+    });
+    if (!legs || !alive()) return;
+    const tail = { ...legs.tail, heldBuys: false };
+    const foundB = await findRoutes({
+      table: () => null,
+      startTE: ctx.te,
+      start: ctx.inputs.planStart,
+      final: target.value,
+      maxAscensions: MAX_ASCENSIONS,
+      firstLegs: legs.firstLegs,
+      deliveryScale: ctx.scale,
+      ...(props.deadline ? { deadline: props.deadline } : {}),
+      ...(ctx.hours ? { hours: ctx.hours } : {}),
+      ...tail,
+      expand: (items, settings) => ctx.p.expand(ctx.url, items, settings),
+    });
+    if (!alive()) return;
+    const polishOptions: PolishOptions = instantPricingOptions({
+      te: ctx.te,
+      start: ctx.inputs.planStart,
+      firstLegs: legs.firstLegs,
+      scale: ctx.scale,
+      ...(props.deadline ? { deadline: props.deadline } : {}),
+      hours: ctx.hours,
+      tail,
+    });
+    const polished = await ctx.p.polish(ctx.url, polishOptions, JSON.parse(JSON.stringify(foundB)));
+    if (!alive()) return;
+    altAnswer.value = withinAscensions({ ...foundB, ...polished }, filterBounds(filters.value));
+  } catch {
+    altAnswer.value = null; // no second route: the exact check runs for the pick alone
+  } finally {
+    if (my === altRuns) {
+      altFor.value = found;
+      altStatus.value = 'done';
+    }
+  }
+}
+/** The route the pick without the held buys makes, by the same Prefer fewer rules and margin; null when it is the same stops. */
+const altRoute = computed<Route | null>(() => {
+  const a = altAnswer.value;
+  if (!a || altFor.value !== result.value) return null;
+  let r: Route | null = null;
+  if (!props.deadline) {
+    const ch = fastestChoiceOf(a);
+    r = ch && ch.state === 'fewer' && !preferShowBest.value ? ch.chosen.item : a.best;
+  } else if (a.byDate) {
+    const ch = dateChoiceOf(a);
+    const want = ch && ch.state === 'fewer' && !preferShowBest.value ? key(ch.chosen.item.chain) : key(a.byDate.chain);
+    r = [a.byDate, ...dateRowsOf(a)].find(x => key(x.chain) === want) ?? null;
+  }
+  const mine = pickRoute.value;
+  return r && mine && key(r.chain) !== key(mine.chain) ? r : null;
+});
 const exactIsPhone = typeof window !== 'undefined' && !!window.matchMedia?.(EXACT_PHONE_QUERY).matches;
 const exactTrigger = ref<'auto' | 'manual'>(exactTriggerFor(exactIsPhone));
 const exactRequest = computed<ExactRequest | null>(() => {
   if (exactDisabled() || !boxShown.value || backgroundStatus.value === 'running') return null;
   if (!useHours.value || !exactWanted(store.availability, store.deferShifts, EXACT_HOURS)) return null;
-  const r = boxRoute.value;
+  // The other route is worked out first (a saved answer has none to work out: it goes on as it is).
+  if (altStatus.value === 'running' || (altInputs.value && altFor.value !== result.value)) return null;
+  const r = pickRoute.value;
   if (!r) return null;
+  const alt = altRoute.value?.chain ?? null;
   const backup = initialState.rawBackup as { approxTime?: number } | null;
   return {
     key: instantExactKey({
@@ -2731,8 +2862,10 @@ const exactRequest = computed<ExactRequest | null>(() => {
       firstAscension: String(store.firstAscension),
       deadline: props.deadline ?? null,
       planStart: answerStart.value,
+      alt,
     }),
     chain: r.chain,
+    alt,
     deadline: props.deadline ?? null,
     inputs: () => ({ ...store.collectInputs(), milestones: [] }),
   };
@@ -2749,6 +2882,50 @@ const exactShown = computed(() => {
   return s && s.key === exactRequest.value?.key ? s : null;
 });
 
+/** Which route the box shows when two were worked out: nothing asked yet, the first route back, or the faster one. */
+const fasterChoice = ref<FasterChoice>('auto');
+/** Follow or Simulate was pressed on the box: it never switches by itself after that. */
+const boxPressed = ref(false);
+const swapped = computed(
+  () =>
+    !!altRoute.value &&
+    isSwapped({ faster: exactDone.value ? exactDone.value.faster : null, choice: fasterChoice.value, pressed: boxPressed.value })
+);
+/** The exact numbers of the route on screen (by its stops): the first route's or the faster one's. */
+const exactBox = computed(() => {
+  const d = exactDone.value;
+  const r = boxRoute.value;
+  return d && r ? exactRouteFor(d, r.chain) : null;
+});
+/** The state the exact line draws: done carries the numbers of the route on screen. */
+const exactView = computed(() => {
+  const s = exactShown.value;
+  const b = exactBox.value;
+  return s && s.status === 'done' && b ? { ...s, end: b.end, legs: b.legs, spare: b.spare } : s;
+});
+/** The two-route line: switched (with its undo), switched back by the player, or only offered (Follow or Simulate came first). */
+const twoShown = computed<'swapped' | 'undone' | 'offered' | null>(() => {
+  const d = exactDone.value;
+  if (!d || d.faster !== 1 || !altRoute.value) return null;
+  return swapped.value ? 'swapped' : boxPressed.value ? 'offered' : 'undone';
+});
+function toggleFaster(): void {
+  fasterChoice.value = swapped.value ? 'first' : 'faster';
+}
+/** A click in the box's actions (Follow this route, Simulate this route): the box stays as it is from now on. */
+function freezeBox(): void {
+  boxPressed.value = true;
+  fasterChoice.value = pressedChoice(swapped.value);
+}
+// A new answer, or another pick: the box starts again on its own.
+watch(
+  [result, () => (pickRoute.value ? key(pickRoute.value.chain) : null)],
+  () => {
+    fasterChoice.value = 'auto';
+    boxPressed.value = false;
+  }
+);
+
 /**
  * THE BOX'S ROUTE CHANGED (Prefer fewer's pick, "Show the fastest instead", or the margin): its line again, from this
  * answer's lines when it had one, else worked out after a short wait (a few clicks on the chips run it once), for
@@ -2757,7 +2934,7 @@ const exactShown = computed(() => {
 const PRESTIGE_DEBOUNCE_MS = 400;
 let prestigeTimer: ReturnType<typeof setTimeout> | null = null;
 watch(
-  () => (boxRoute.value ? key(boxRoute.value.chain) : null),
+  () => (pickRoute.value ? key(pickRoute.value.chain) : null),
   k => {
     if (prestigeTimer) clearTimeout(prestigeTimer);
     prestigeTimer = null;
@@ -3296,6 +3473,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
+  altInputs.value = null; // a saved answer has no inputs to work the other route from
   answerDeadline.value = props.deadline ?? null;
   answerBuildUpMissing.value = s.buildUpMissing === true;
   // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).

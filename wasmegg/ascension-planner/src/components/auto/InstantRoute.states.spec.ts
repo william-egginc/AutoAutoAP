@@ -180,6 +180,12 @@ function ctxOf(s: State): Record<string, unknown> {
     exact: { start: () => {}, stop: () => {}, state: { value: null } },
     exactDone: null,
     exactShown: null,
+    // Two routes (21 Nov 2026): no second route here.
+    exactView: null,
+    exactBox: null,
+    twoShown: null,
+    toggleFaster: () => {},
+    freezeBox: () => {},
     EXACT_COUNTS_NOTE: '',
     dateBoxOf: (r: Route) => ({ chain: r.chain, endTE: last(r), end: r.end }),
     datePickedRow: () => false,

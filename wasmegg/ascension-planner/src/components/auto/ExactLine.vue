@@ -41,6 +41,17 @@
         <span v-else data-testid="exact-was">{{ exactWas(cardTime(instantEnd, zone)) }}</span>
       </p>
       <p v-if="misses" class="text-body font-bold text-amber-800" data-testid="exact-misses">{{ exactMisses(headlineGap(Math.abs(state.spare as number))) }}</p>
+      <p v-if="two" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-slate-700" data-testid="exact-faster">
+        <span>{{ two === 'offered' ? EXACT_FASTER_OFFERED : goal === 'date' ? EXACT_FASTER_DATE : EXACT_FASTER }}</span>
+        <button
+          type="button"
+          class="inline-flex min-h-[44px] sm:min-h-0 items-center text-body font-bold text-indigo-700 underline hover:text-indigo-900"
+          data-testid="exact-toggle-faster"
+          @click="emit('toggle-faster')"
+        >
+          {{ two === 'swapped' ? EXACT_SHOW_FIRST : EXACT_SHOW_FASTER }}
+        </button>
+      </p>
       <p class="text-small text-slate-600" data-testid="exact-steps-note">{{ EXACT_STEPS_NOTE }}</p>
     </template>
   </div>
@@ -54,6 +65,7 @@ import { cardTime } from './instantCardTime';
 import { headlineGap } from '@/lib/format';
 import type { ExactState } from '@/composables/useInstantExact';
 import {
+  EXACT_FASTER, EXACT_FASTER_DATE, EXACT_FASTER_OFFERED, EXACT_SHOW_FASTER, EXACT_SHOW_FIRST,
   EXACT_LONG, EXACT_RUNNING, EXACT_SAME, EXACT_START, EXACT_STEPS_NOTE, EXACT_STOP, EXACT_TAG, EXACT_TAG_HELP, EXACT_WAITING,
   exactMisses, exactProgress, exactWas,
 } from '@/lib/exactLineWords';
@@ -64,10 +76,12 @@ const props = defineProps<{
   instantEnd: number;
   zone: string;
   goal: 'fastest' | 'date';
+  /** Two routes: `swapped` (the box shows the faster one), `offered` (it does not, because Follow or Simulate was pressed first) or `undone` (the player went back to the first). */
+  two?: 'swapped' | 'offered' | 'undone' | null;
   /** Specs: the clock, ms. */
   now?: number;
 }>();
-const emit = defineEmits<{ start: []; stop: [] }>();
+const emit = defineEmits<{ start: []; stop: []; 'toggle-faster': [] }>();
 
 /** What to draw: failed and no state draw nothing. */
 const view = computed(() => {

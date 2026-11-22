@@ -24,7 +24,7 @@ describe('the request', () => {
     expect(body).toContain('boxShown.value');
     expect(body).toMatch(/backgroundStatus\.value === 'running'/);
     expect(body).toContain("exactWanted(store.availability, store.deferShifts, EXACT_HOURS)");
-    expect(body).toContain('boxRoute.value');
+    expect(body).toContain('pickRoute.value'); // the pick; the box may show the faster route (two routes, below)
   });
   it('builds the inputs once, in the run: inside the inputs function, never in the computed', () => {
     const at = script.indexOf('const exactRequest');
@@ -47,11 +47,11 @@ describe('the box', () => {
     expect(tpl).toContain('@stop="exact.stop()"');
   });
   it('Fastest: the headline is the exact finish once done', () => {
-    expect(tpl).toContain('showFinish(exactDone?.end ?? boxLead.end)');
+    expect(tpl).toContain('showFinish(exactBox?.end ?? boxLead.end)');
   });
   it('By a date: the spare, the tight tag and the close call follow the exact spare, and "misses" is not shown as spare', () => {
-    expect(script).toContain('const spareOf = (d: DatePick) => exactDone.value?.spare ?? (props.deadline ?? 0) - d.end;');
-    expect(script).toMatch(/const dateSpare = computed\(\(\) => \{[\s\S]{0,260}exactDone\.value\.spare < 0/);
+    expect(script).toContain('const spareOf = (d: DatePick) => exactBox.value?.spare ?? (props.deadline ?? 0) - d.end;');
+    expect(script).toMatch(/const dateSpare = computed\(\(\) => \{[\s\S]{0,260}exactBox\.value\.spare < 0/);
   });
   it('the "later than shown" caveat is gone once it is exact', () => {
     expect(script).toMatch(/const headCaveat = computed\(\(\) =>\s*exactDone\.value\s*\?\s*null/);
@@ -66,3 +66,62 @@ describe('the box', () => {
   });
 });
 
+
+describe('two routes (Jordan, 21 Nov 2026, option 1(a)): the pick without the held buys, checked next to the pick', () => {
+  it('the no-B pass re-runs the first legs with heldBuys off, then finds, polishes and picks with the same margin', () => {
+    const at = script.indexOf('async function runAltPass');
+    expect(at).toBeGreaterThan(0);
+    const body = script.slice(at, at + 4500);
+    expect(body).toContain('instantFirstLegs({');
+    expect(body).toMatch(/heldBuys: false/);
+    expect(body.indexOf('findRoutes(')).toBeGreaterThan(body.indexOf('instantFirstLegs('));
+    expect(body.indexOf('.polish(')).toBeGreaterThan(body.indexOf('findRoutes('));
+    expect(body).toContain('instantPricingOptions({');
+  });
+  it('runs only after the answer settles and only when the exact check is wanted', () => {
+    const at = script.indexOf('const altWanted');
+    expect(at).toBeGreaterThan(0);
+    const body = script.slice(at, at + 900);
+    expect(body).toMatch(/backgroundStatus\.value === 'running'/);
+    expect(body).toContain("exactWanted(store.availability, store.deferShifts, EXACT_HOURS)");
+    expect(script).toMatch(/watch\(\s*altWanted/);
+  });
+  it('the request is for the pick (pickRoute) with the other as alt, and waits for the pass', () => {
+    const at = script.indexOf('const exactRequest');
+    const body = script.slice(at, script.indexOf('const exact = useInstantExact'));
+    expect(body).toContain('pickRoute.value');
+    expect(body).not.toContain('boxRoute.value');
+    expect(body).toMatch(/altStatus\.value === 'running'/);
+    expect(body).toMatch(/\balt,/);
+    expect(body).toMatch(/instantExactKey\(\{[\s\S]*\balt,/);
+  });
+  it('the alt pick uses the same Prefer fewer rules and margin as the box (one choice function per goal)', () => {
+    expect(script).toContain('function fastestChoiceOf(');
+    expect(script).toContain('function dateChoiceOf(');
+    expect(script).toMatch(/const fastestChoice = computed[\s\S]{0,200}fastestChoiceOf\(/);
+    expect(script).toMatch(/const dateChoice = computed[\s\S]{0,300}dateChoiceOf\(/);
+  });
+});
+
+describe('two routes: the box switches by itself, with an undo, and never after Follow or Simulate', () => {
+  it('one swapped flag from lib/exactTwoRoute.ts picks the route, like Prefer fewer', () => {
+    expect(script).toContain("from '@/lib/exactTwoRoute'");
+    expect(script).toMatch(/isSwapped\(\{/);
+    expect(script).toMatch(/const boxLead = computed<Route \| null>\(\(\) =>\s*swapped\.value/);
+    expect(script).toContain('function datePickOf(');
+  });
+  it('the exact numbers follow the route on screen (by its stops), not the first route', () => {
+    expect(script).toContain('exactRouteFor(');
+    expect(script).toMatch(/const exactBox = computed/);
+    expect(tpl).toContain('exactBox?.end ?? boxLead.end');
+  });
+  it('Follow or Simulate on the box freezes it (a click in the box actions), and a new answer or pick starts again on auto', () => {
+    expect(tpl.match(/data-testid="box-actions"[^>]*@click\.capture="freezeBox"/g) ?? []).toHaveLength(2);
+    expect(script).toMatch(/function freezeBox\(\)[\s\S]{0,300}pressedChoice\(/);
+    expect(script).toMatch(/watch\(\s*\[result, \(\) => \(pickRoute\.value[\s\S]{0,200}fasterChoice\.value = 'auto'/);
+  });
+  it('both exact lines get the two-route state and the toggle', () => {
+    expect(tpl.match(/:two="twoShown"/g) ?? []).toHaveLength(2);
+    expect(tpl.match(/@toggle-faster="toggleFaster"/g) ?? []).toHaveLength(2);
+  });
+});

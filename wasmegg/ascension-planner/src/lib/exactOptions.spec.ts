@@ -43,7 +43,7 @@ describe('instantExactKey', () => {
     ['first ascension', { firstAscension: 'fresh' }],
     ['deadline', { deadline: 1900000000 }],
     ['plan start', { planStart: 1800000200 }],
-    ['account', { rawBackup: { eiUserId: 'EI6543210987654321' } }],
+    ['account', { rawBackup: { eiUserId: 'EI9876543210987654' } }],
     ['other route (B changed the pick)', { alt: [226, 300, 490] }],
   ])('changes with the %s', (_n, patch) => expect(instantExactKey({ ...base, ...patch } as typeof base)).not.toBe(instantExactKey(base)));
   it('no other route, or the same stops, keeps the one-route key (kept records stay good)', () => {

@@ -16,7 +16,7 @@ const src = fs.readFileSync(path.resolve(__dirname, 'ExactLine.vue'), 'utf8');
 const draw = (state: unknown, props: Record<string, unknown> = {}) =>
   renderHtml(ExactLine, { state, instantEnd: END, zone: ZONE, goal: 'fastest', ...props });
 const done = (extra: Record<string, unknown> = {}) => ({
-  key: 'k', status: 'done', end: END + 3 * 86400, legs: [END], spare: null, at: 1, ...extra,
+  key: 'k', status: 'done', routes: [], faster: 0, end: END + 3 * 86400, legs: [END], spare: null, at: 1, ...extra,
 });
 
 describe('each state', () => {
@@ -86,5 +86,45 @@ describe('the words', () => {
       expect(v).not.toMatch(/check exactly|this device|this computer|…|\.\.\./i);
     }
     expect(W.exactWas('Sep 17')).not.toMatch(/check exactly/i);
+  });
+});
+
+describe('two routes (Jordan, 21 Nov 2026, option 1(a)): the box switched to a faster route, or offers it', () => {
+  it('switched: says a faster route was found, and a button to show the first route instead', async () => {
+    const h = await draw(done(), { two: 'swapped' });
+    expect(textOf(h)).toContain(W.EXACT_FASTER);
+    expect(textOf(h)).toContain(W.EXACT_SHOW_FIRST);
+    expect(h).toContain('data-testid="exact-toggle-faster"');
+    expect(h).toMatch(/min-h-\[44px\][^>]*data-testid="exact-toggle-faster"|data-testid="exact-toggle-faster"[^>]*min-h-\[44px\]/);
+  });
+  it('offered (Follow or Simulate was pressed first, so nothing switched): says so and offers the faster route', async () => {
+    const h = await draw(done(), { two: 'offered' });
+    expect(textOf(h)).toContain(W.EXACT_FASTER_OFFERED);
+    expect(textOf(h)).toContain(W.EXACT_SHOW_FASTER);
+    expect(textOf(h)).not.toContain(W.EXACT_SHOW_FIRST);
+  });
+  it('undone (the player went back to the first route): the plain line and a button to show the faster one again', async () => {
+    const h = await draw(done(), { two: 'undone' });
+    expect(textOf(h)).toContain(W.EXACT_FASTER);
+    expect(textOf(h)).not.toContain(W.EXACT_FASTER_OFFERED);
+    expect(textOf(h)).toContain(W.EXACT_SHOW_FASTER);
+  });
+  it('By a date: the same, in the date\'s words (a larger spare)', async () => {
+    const h = await draw(done({ spare: 4000 }), { two: 'swapped', goal: 'date' });
+    expect(textOf(h)).toContain(W.EXACT_FASTER_DATE);
+  });
+  it('no second route: neither line nor button', async () => {
+    const h = await draw(done());
+    expect(h).not.toContain('exact-toggle-faster');
+    expect(textOf(h)).not.toContain(W.EXACT_FASTER);
+  });
+  it('the button emits toggle-faster and is only shown when done', () => {
+    expect(src).toContain("emit('toggle-faster')");
+    expect(src).toMatch(/toggle-faster: \[\]|'toggle-faster': \[\]/);
+  });
+  it('the words carry no "Check exactly" and no typed ellipsis', () => {
+    for (const w of [W.EXACT_FASTER, W.EXACT_FASTER_OFFERED, W.EXACT_FASTER_DATE, W.EXACT_SHOW_FIRST, W.EXACT_SHOW_FASTER]) {
+      expect(w).not.toMatch(/check exactly|\u2026|\.\.\./i);
+    }
   });
 });

@@ -189,7 +189,7 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain("prestige.value = s.prestige && typeof s.prestige.route === 'string' ? s.prestige : null;");
     expect(route).toMatch(/p && boxRoute\.value && p\.route === key\(boxRoute\.value\.chain\) \? p : null/);
     // Again when the box's route changes: once per route (not per margin), after a short wait.
-    expect(route).toMatch(/watch\(\s+\(\) => \(boxRoute\.value \? key\(boxRoute\.value\.chain\) : null\),/);
+    expect(route).toMatch(/watch\(\s+\(\) => \(pickRoute\.value \? key\(pickRoute\.value\.chain\) : null\),/);
     expect(route).toContain('}, PRESTIGE_DEBOUNCE_MS);');
     // The shared record keeps its meaning: the line for the answer's own best route only, else nothing.
     const send = route.slice(route.indexOf('async function withPrestigeBy('));

@@ -48,11 +48,11 @@ describe('no automatic run on the answer', () => {
 
 describe('the box never changes while a search runs', () => {
   it('the box reads the instant answer (or Prefer fewer’s pick of its rows), nothing from a search', () => {
-    expect(fn('function dateBoxOf(')).toMatch(
+    expect(fn('function datePickOf(')).toMatch(
       /if \(preferPicked\.value && dateChoice\.value\) return dateChoice\.value\.chosen\.item;\s+return tableDate\(fallback\);/
     );
     expect(script).toContain('const lead = computed(() => result.value?.best ?? null);');
-    for (const f of ['function dateBoxOf(', 'const fastestChoice', 'const dateChoice', 'function behind(', 'function nearTie('])
+    for (const f of ['function datePickOf(', 'function dateBoxOf(', 'const fastestChoice', 'const dateChoice', 'function behind(', 'function nearTie('])
       expect(fn(f), f).not.toMatch(/store\.(bestChain|deadlineResult|isRunning|deadlineRunning)|searchFound/);
   });
   it('the answer is set only by working it out, its polish, or a saved one put back', () => {
