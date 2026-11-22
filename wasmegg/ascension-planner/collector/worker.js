@@ -318,6 +318,15 @@ function idLikeKey(k) {
   return n === 'id' || n === 'eiid' || n.includes('playerid') || n.includes('userid');
 }
 
+/** A key that names a secret or a token (an owner code posted in the body, an API secret): never kept (code review round 2, C5.2).
+ *  Not "owner": that would catch legitimate keys. */
+function secretLikeKey(k) {
+  const n = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return n.includes('token') || n.includes('secret');
+}
+/** Dropped, never scrubbed: two keys scrubbed to `EI[redacted]` would collide. */
+const dropKey = k => idLikeKey(k) || secretLikeKey(k) || /EI\d{16}/i.test(String(k));
+
 /** JSON-only copy of `v`: id-like keys dropped, EI ids inside strings redacted, depth bounded. */
 function cleanExtra(v, depth = 0) {
   if (v === null || typeof v === 'boolean') return v;
@@ -328,7 +337,7 @@ function cleanExtra(v, depth = 0) {
   if (typeof v === 'object') {
     const out = {};
     for (const [k, x] of Object.entries(v)) {
-      if (idLikeKey(k)) continue;
+      if (dropKey(k)) continue;
       const c = cleanExtra(x, depth + 1);
       if (c !== undefined) out[k] = c;
     }
@@ -341,7 +350,7 @@ function cleanExtra(v, depth = 0) {
 function pickExtras(body, record) {
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    if (k in record || idLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
+    if (k in record || dropKey(k) || k === 'replaces' || k === 'csvRun') continue;
     const c = cleanExtra(v);
     if (c === undefined) continue;
     if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
@@ -661,6 +670,8 @@ function machineInfo(m) {
  * nested array. Anything that does not parse is dropped rather than rejected, same as every other
  * optional block here -- a submission is still worth keeping without its provenance.
  */
+/** The tallest TE a searched range or band may name (src/search/exhaustive.ts MAX_BAND_TE): past it a row is not a real search. */
+const SPACE_MAX_TE = 1000;
 function searchSpace(sp) {
   if (!sp || typeof sp !== 'object') return undefined;
   const mode = sp.mode === 'bands' ? 'bands' : sp.mode === 'range' ? 'range' : undefined;
@@ -687,7 +698,8 @@ function searchSpace(sp) {
     const lo = num(sp.range.lo);
     const hi = num(sp.range.hi);
     const step = num(sp.range.step);
-    if (lo !== undefined && hi !== undefined && step !== undefined && step > 0 && hi >= lo && hi <= MAX.TE) {
+    // A whole step of 1 or more, lo >= 0, hi <= 1000 (the app's guard and the explorer expand a range into values; code review round 2, C5.4).
+    if (lo !== undefined && hi !== undefined && step !== undefined && Number.isInteger(step) && step >= 1 && lo >= 0 && hi >= lo && hi <= SPACE_MAX_TE) {
       out.range = { lo, hi, step };
     }
   }
@@ -697,7 +709,7 @@ function searchSpace(sp) {
         ? b
             .slice(0, MAX.BAND_VALUES)
             .map(v => num(v))
-            .filter(v => v !== undefined && v >= 0 && v <= MAX.TE)
+            .filter(v => v !== undefined && v >= 0 && v <= SPACE_MAX_TE)
         : []
     );
   }
@@ -745,7 +757,7 @@ function proof(p) {
           const c = proofChain(g);
           const n = num(g?.ascensions);
           const priced = num(g?.priced);
-          if (!c || n === undefined || n < 1 || n > MAX.CHAIN) return undefined;
+          if (!c || n === undefined || !Number.isInteger(n) || n < 1 || n > MAX.CHAIN) return undefined;
           return { ascensions: n, priced: priced !== undefined && priced >= 0 ? priced : 0, ...c };
         })
         .filter(Boolean)
@@ -1927,7 +1939,9 @@ function parseSnapshot(raw) {
  *     named one -- is a different sender, and only counts as a copy.
  * Among the eligible, a final copy stands over a provisional one; then the biggest search (the space it enumerated, else the chains it priced;
  * then how much of that it priced, so a finished proof beats the same proof stopped halfway), then
- * the one with a CSV, then the earliest. The name is the earliest named eligible copy's.
+ * the one with a CSV, then the earliest. When the owner has a NAMED copy, only named copies are in that comparison, so an
+ * anonymous copy (its id, machine and run cost) is never served under the owner's name (code review round 2, C5.1); the name
+ * is the earliest named eligible copy's.
  */
 function foldCopies(rows, own) {
   const groups = new Map();
@@ -1947,8 +1961,12 @@ function foldCopies(rows, own) {
     const eligible = firstOwner
       ? byTime.filter(r => own[r.id] === firstOwner)
       : byTime.filter(r => !own[r.id] && (!r.receivedAt || (r.nickname || '') === (first.nickname || '')));
-    let rep = eligible[0];
-    for (const r of eligible.slice(1)) {
+    // The line stands for a NAMED copy when there is one: an anonymous copy of the same result must never be served under the
+    // owner's name (its id, machine and run cost would be tied to it; code review round 2, C5.1).
+    const named = eligible.find(r => r.nickname);
+    const pool = named ? eligible.filter(r => r.nickname) : eligible;
+    let rep = pool[0];
+    for (const r of pool.slice(1)) {
       // A final copy always stands over a provisional one, whatever either searched.
       const d =
         Number(!r.provisional) - Number(!rep.provisional) ||
@@ -1957,7 +1975,6 @@ function foldCopies(rows, own) {
         Number(!!r.hasCsv) - Number(!!rep.hasCsv);
       if (d > 0) rep = r;
     }
-    const named = eligible.find(r => r.nickname);
     const row = { ...rep, copies: copies.length };
     delete row.acct;
     // Every eligible copy has the one owner (or, with none, none), so the named copy's `acct` -- if
@@ -3443,7 +3460,9 @@ const worker = {
       // Has this sender already put this result on this board? One list (see "duplicates").
       const meta = await metaOf(record);
       // Not for a best so far: never an exact copy worth folding, never an anchor, and it saves a list.
-      const copies = record.provisional
+      // Not for a code-less send to the flagged board either: /flagged hides its nicknames, and a duplicate / dupOf answer there would
+      // confirm a guessed name (code review round 2, C5.3). An honest code-less retry stores a second row.
+      const copies = record.provisional || (board === 'flag' && !record.owner)
         ? []
         : (await findCopies(env, `${board}:${record.finalTE}:${durKey(record.durationDays)}:`, meta)).filter(
             c => c.id !== replaced?.id
@@ -4662,7 +4681,7 @@ limitEl.onchange = load;
 //
 // A saved file may carry the account's owner code as ownerToken. The app sends that code as the
 // x-owner-token header and never in the body, and so does this: lifted out, sent as the header,
-// and deleted from what is posted. The collector would drop an unknown body field anyway; taking
+// and deleted from what is posted. The collector keeps an unknown body field only as a private extra, and never one named token or secret; taking
 // it out here means the code never travels as submission data at all. With it, a sweep's upload
 // folds into a result the browser already sent, and can put a name on it, exactly like a send.
 async function uploadOne(f) {

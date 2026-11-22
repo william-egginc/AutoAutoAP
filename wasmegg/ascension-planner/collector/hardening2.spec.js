@@ -378,7 +378,8 @@ describe('simulator gate (RANK_SIMS, red team 6 Nov C9)', () => {
 describe("a row's size in the snapshot is capped", () => {
   const BIG_SPACE = {
     mode: 'bands',
-    bands: Array.from({ length: 32 }, (_, b) => Array.from({ length: 1024 }, (_, i) => 1 + b * 1024 + i)),
+    // Values within 0 to 1000 (C5.4 drops a band value above that), 32 bands of 1,024 of them: still far over the snapshot cap.
+    bands: Array.from({ length: 32 }, (_, b) => Array.from({ length: 1024 }, (_, i) => (b * 7 + i) % 1001)),
     minGap: 1,
     minAscensions: 1,
     maxAscensions: 32,
