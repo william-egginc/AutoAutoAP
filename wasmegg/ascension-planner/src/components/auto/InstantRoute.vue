@@ -1107,7 +1107,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import ExactLine from './ExactLine.vue';
 import { EXACT_COUNTS_NOTE } from '@/lib/exactLineWords';
 import { exactWanted, useInstantExact, type ExactRequest } from '@/composables/useInstantExact';
-import { exactRouteFor, isSwapped, pressedChoice, type FasterChoice } from '@/lib/exactTwoRoute';
+import { exactRouteFor, isSwapped, pressedChoice, type FasterChoice, preferKeepsFirst } from '@/lib/exactTwoRoute';
 import { EXACT_HOURS, EXACT_PHONE_QUERY, exactDisabled, exactTriggerFor, instantExactKey } from '@/lib/exactOptions';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
@@ -2920,10 +2920,27 @@ const exactShown = computed(() => {
 const fasterChoice = ref<FasterChoice>('auto');
 /** Follow or Simulate was pressed on the box: it never switches by itself after that. */
 const boxPressed = ref(false);
+/**
+ * The exact check's `faster`, with Prefer fewer's margin (code review 22 Nov 2026, math-exact-6): in Fastest a faster
+ * route with more ascensions inside the margin does not take the box, as it would not have in the pick.
+ */
+const fasterNow = computed<0 | 1 | null>(() => {
+  const d = exactDone.value;
+  if (!d) return null;
+  if (d.faster !== 1 || props.deadline) return d.faster;
+  const [own, alt] = d.routes;
+  if (!own || !alt) return d.faster;
+  return preferKeepsFirst({
+    margin: preferMargin.value,
+    showBest: preferShowBest.value,
+    own: { ascensions: own.legs.length, end: own.end },
+    alt: { ascensions: alt.legs.length, end: alt.end },
+  })
+    ? 0
+    : 1;
+});
 const swapped = computed(
-  () =>
-    !!altRoute.value &&
-    isSwapped({ faster: exactDone.value ? exactDone.value.faster : null, choice: fasterChoice.value, pressed: boxPressed.value })
+  () => !!altRoute.value && isSwapped({ faster: fasterNow.value, choice: fasterChoice.value, pressed: boxPressed.value })
 );
 /** The exact numbers of the route on screen (by its stops): the first route's or the faster one's. */
 const exactBox = computed(() => {
@@ -2940,7 +2957,7 @@ const exactView = computed(() => {
 /** The two-route line: switched (with its undo), switched back by the player, or only offered (Follow or Simulate came first). */
 const twoShown = computed<'swapped' | 'undone' | 'offered' | null>(() => {
   const d = exactDone.value;
-  if (!d || d.faster !== 1 || !altRoute.value) return null;
+  if (!d || fasterNow.value !== 1 || !altRoute.value) return null;
   return swapped.value ? 'swapped' : boxPressed.value ? 'offered' : 'undone';
 });
 function toggleFaster(): void {
