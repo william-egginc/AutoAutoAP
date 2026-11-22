@@ -213,6 +213,8 @@ const props = defineProps<{
   entry: string;
   /** Extra advice, e.g. about a search that is running. */
   note?: string;
+  /** The egg-beta timed reload shows in its place (App.vue): nothing here, so no full-screen lock behind it (rel-ui-2). Not v-if, which would restart the polling. */
+  suppressed?: boolean;
 }>();
 
 /** 44 px tall on a phone, as before from sm up (components/phoneTapTargets.spec.ts). */
@@ -240,7 +242,7 @@ const advice = computed(() => {
  *  arrives, the reload ask for ten minutes ("Later"). */
 const dismissed = reactive<BannerDismissals>({ small: false, big: null, essential: false });
 /** Which banner shows, if any (none for a small update with no note new to this tab). */
-const shows = computed(() => bannerFor(available.value, release.value, dismissed));
+const shows = computed(() => (props.suppressed ? null : bannerFor(available.value, release.value, dismissed)));
 
 function reload(): void {
   window.location.reload();

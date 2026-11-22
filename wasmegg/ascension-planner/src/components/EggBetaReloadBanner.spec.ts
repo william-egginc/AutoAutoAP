@@ -76,7 +76,8 @@ describe('EggBetaReloadBanner', () => {
       /const EggBetaReloadBanner = __AAP_EGG_BETA_RELOAD__\s*\?\s*defineAsyncComponent\(\(\) => import\('@\/components\/EggBetaReloadBanner\.vue'\)\)\s*:\s*null;/
     );
     expect(app).toMatch(/const eggBetaBusy = computed\(\(\) => myRunsRunning\.value \|\| chainSearchStore\.resultSending\);/);
-    expect(app).toMatch(/<div v-show="!eggBetaActive">\s*<NewVersionBanner/);
+    expect(app).toMatch(/<NewVersionBanner[^>]*:suppressed="eggBetaActive"/);
+    expect(app).not.toMatch(/<div v-show="!eggBetaActive">\s*<NewVersionBanner/);
     expect(app).not.toMatch(/import [^;]*eggBetaReload/);
     const vitestConfig = fs.readFileSync(path.join(__dirname, '../../vitest.config.ts'), 'utf8');
     expect(vitestConfig).toMatch(/__AAP_EGG_BETA_RELOAD__:\s*'false'/);

@@ -102,5 +102,16 @@ describe('the full-screen reload box', () => {
     expect(src).toMatch(/reloadBtn[\s\S]*\.focus\(/);
     expect(src).toContain('window.location.reload()');
   });
+
+  it('suppressed (the egg-beta timed reload shows): no box at all, so nothing behind is made inert (rel-ui-2, 22 Nov 2026)', async () => {
+    state.available.value = true;
+    state.release.value = STRICT;
+    const html = await renderHtml(NewVersionBanner, { pageUrl: './', entry: 'index', suppressed: true });
+    expect(html).not.toContain('update-essential-backdrop');
+    expect(html).not.toContain('alertdialog');
+    expect(html).not.toContain('update-banner');
+    // not shown, not hidden: the polling and the lock both stay with the component's `shows`
+    expect(src).toMatch(/const shows = computed\(\(\) => \(props\.suppressed \? null : bannerFor\(/);
+  });
 });
 

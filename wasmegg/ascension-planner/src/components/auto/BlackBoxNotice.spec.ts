@@ -4,6 +4,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import BlackBoxNotice from './BlackBoxNotice.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { dateStyle } from '@/lib/displayTime';
 
 beforeEach(() => setActivePinia(createPinia()));
 const crash = (over = {}) => ({
@@ -31,5 +33,21 @@ describe('BlackBoxNotice', () => {
     store.lastCrash = crash();
     store.resumable = { complete: true, durations: [], bestChain: [], bestSeconds: 0, updatedAt: Date.now() };
     expect(textOf(await renderHtml(BlackBoxNotice, {}))).toBe('');
+  });
+  it('the crash time goes through the shared formatter, in the plan\'s zone, ISO when the player chose it (rel-ui-6, 22 Nov 2026)', async () => {
+    const store = useChainSearchStore() as any;
+    store.lastCrash = crash();
+    useAutoPlannerStore().timezone = 'America/Los_Angeles';
+    try {
+      dateStyle.value = 'local';
+      const local = textOf(await renderHtml(BlackBoxNotice, {}));
+      expect(local).toMatch(/at Oct 12, 2026, 11:00 AM/); // 18:00 UTC in Los Angeles, no seconds
+      expect(local).not.toMatch(/11:00:00/);
+      dateStyle.value = 'iso';
+      const iso = textOf(await renderHtml(BlackBoxNotice, {}));
+      expect(iso).toMatch(/at 2026-10-12 11:00/);
+    } finally {
+      dateStyle.value = 'local';
+    }
   });
 });

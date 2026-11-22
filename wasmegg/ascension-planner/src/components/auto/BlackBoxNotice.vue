@@ -49,6 +49,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { showDateTime } from '@/lib/displayTime';
 import { downloadFile } from '@/utils/export';
 import { memoryPhrase, stopCause, stopCauseLine, workersNote } from '@/search/blackBox';
 
@@ -60,6 +62,7 @@ const store = useChainSearchStore();
 function toOffer(): void {
   document.getElementById('by-date-unfinished')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+const planner = useAutoPlannerStore();
 const crash = computed(() => store.lastCrash);
 /** The crash was a Nearby routes / Exhaustive search whose saved run has since finished: its own
  *  "A finished run is saved" box says all there is (the user, 12 Oct: two boxes for one run). */
@@ -75,8 +78,9 @@ const memory = computed(() => (crash.value ? memoryPhrase(crash.value.last) : ''
 const workers = computed(() => (crash.value ? workersNote(crash.value.last) : ''));
 /** Reloaded or closed by the player, memory by the evidence, or said neutrally (search/blackBox.ts). */
 const causeLine = computed(() => (crash.value ? stopCauseLine(stopCause(crash.value.last)) : ''));
+/** The shared formatter, in the plan's zone, ISO when the player chose it (rel-ui-6, 22 Nov 2026). */
 function when(ms: number): string {
-  return new Date(ms).toLocaleString();
+  return showDateTime(ms / 1000, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 function download(): void {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
