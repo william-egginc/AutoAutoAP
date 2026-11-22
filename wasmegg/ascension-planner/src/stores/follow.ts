@@ -32,6 +32,8 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountHash } from '@/lib/accountHash';
 import {
+  FOLLOW_GONE_PREFIX,
+  FOLLOW_PREFIX,
   readFollows,
   readGone,
   sameChain,
@@ -172,6 +174,38 @@ export const useFollowStore = defineStore('follow', () => {
     if (!held.has(p)) held.set(p, readFollows(p));
     return held.get(p)!;
   }
+  /**
+   * TWO TABS OF ONE ACCOUNT (code review 22 Nov 2026, rel-state-3): each tab held its own copy and wrote it whole, so a
+   * follow in one tab erased the other's. Every write starts from what storage holds now (`freshMap`), and another
+   * tab's storage event drops the held copy. Where writes never reach storage (a private window: `memOnly`, seen after
+   * a write), the held copy is the only one and is kept.
+   */
+  const memOnly = new Set<string>();
+  function freshMap(p: string): FollowMap {
+    if (!p) return {};
+    if (memOnly.has(p)) return mapOf(p);
+    try {
+      localStorage.getItem(FOLLOW_PREFIX + p);
+    } catch {
+      return mapOf(p);
+    }
+    const m = readFollows(p);
+    held.set(p, m);
+    return m;
+  }
+  /** Hold what was written, and note when storage did not take it (`memOnly`). */
+  function keep(p: string, next: FollowMap): void {
+    held.set(p, next);
+    const stored = readFollows(p);
+    const same = Object.keys(stored).length === Object.keys(next).length && Object.keys(next).every(g => stored[g]?.at === next[g].at);
+    if (!same) memOnly.add(p);
+  }
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function')
+    window.addEventListener('storage', (e: { key: string | null }) => {
+      if (e.key !== null && !e.key.startsWith(FOLLOW_PREFIX) && !e.key.startsWith(FOLLOW_GONE_PREFIX)) return;
+      held.clear();
+      version.value++;
+    });
 
   /**
    * Read the account's saved routes and follow each that is newer than this browser's (lib/followCloud.ts
@@ -218,11 +252,11 @@ export const useFollowStore = defineStore('follow', () => {
     }
     const cloud: Record<GoalKey, CloudValue> = {};
     for (const [g, e] of Object.entries(got.goals)) cloud[g] = e.value;
-    const { map, taken } = mergeCloud(mapOf(p), cloud, readGone(p));
+    const { map, taken } = mergeCloud(freshMap(p), cloud, readGone(p));
     if (taken.length) {
-      let next = mapOf(p);
+      let next = freshMap(p);
       for (const g of taken) next = writeFollow(p, g, map[g], next);
-      held.set(p, next);
+      keep(p, next);
       version.value++;
     }
     cloudStatus.value = 'ok';
@@ -263,9 +297,9 @@ export const useFollowStore = defineStore('follow', () => {
 
   /** Mark a kept follow's save online (only when it is still that follow: same `at`). */
   function markSync(p: string, goalKey: GoalKey, at: number, sync: NonNullable<Followed['sync']>): void {
-    const f = mapOf(p)[goalKey];
+    const f = freshMap(p)[goalKey];
     if (!f || f.at !== at || f.sync === sync) return;
-    held.set(p, writeFollow(p, goalKey, { ...f, sync }, mapOf(p)));
+    keep(p, writeFollow(p, goalKey, { ...f, sync }, freshMap(p)));
     version.value++;
   }
 
@@ -350,9 +384,9 @@ export const useFollowStore = defineStore('follow', () => {
 
   /** A kept follow's `at` moved to `at` (only when it is still that follow: same `at`). True when it moved. */
   function restamp(p: string, goalKey: GoalKey, was: number, at: number): boolean {
-    const f = mapOf(p)[goalKey];
+    const f = freshMap(p)[goalKey];
     if (!f || f.at !== was) return false;
-    held.set(p, writeFollow(p, goalKey, { ...f, at }, mapOf(p)));
+    keep(p, writeFollow(p, goalKey, { ...f, at }, freshMap(p)));
     version.value++;
     return true;
   }
@@ -364,9 +398,9 @@ export const useFollowStore = defineStore('follow', () => {
    */
   function takeNewer(p: string, goalKey: GoalKey, v: CloudValue): void {
     if (!p) return;
-    const { map, taken } = mergeCloud(mapOf(p), { [goalKey]: v }, readGone(p));
+    const { map, taken } = mergeCloud(freshMap(p), { [goalKey]: v }, readGone(p));
     if (!taken.includes(goalKey)) return;
-    held.set(p, writeFollow(p, goalKey, map[goalKey], mapOf(p)));
+    keep(p, writeFollow(p, goalKey, map[goalKey], freshMap(p)));
     version.value++;
   }
 
@@ -398,7 +432,7 @@ export const useFollowStore = defineStore('follow', () => {
       ...setupNow(),
       sync: 'pending',
     };
-    held.set(p, writeFollow(p, goalKey, f, mapOf(p)));
+    keep(p, writeFollow(p, goalKey, f, freshMap(p)));
     writeGone(p, goalKey, null);
     version.value++;
     await saveOnline(goalKey, f);
@@ -415,6 +449,8 @@ export const useFollowStore = defineStore('follow', () => {
   async function autoFollow(goalKey: GoalKey, a: AutoFollow): Promise<boolean> {
     if (!AUTO_FOLLOW_FIRST || !autoFollowsGoal(goalKey) || !a.chain.length || !autoReady.value) return false;
     const p = partition.value;
+    // Another tab may have followed the goal meanwhile (rel-state-3): looked at again in storage.
+    freshMap(p);
     if (followed(goalKey, p) || goneAt(goalKey, p) > 0) return false;
     const busy = `${p}|${goalKey}`;
     if (autoBusy.has(busy)) return false;
@@ -433,7 +469,7 @@ export const useFollowStore = defineStore('follow', () => {
   async function unfollow(goalKey: GoalKey): Promise<void> {
     const p = await partitionNow();
     if (!p || !goalKey) return;
-    held.set(p, writeFollow(p, goalKey, null, mapOf(p)));
+    keep(p, writeFollow(p, goalKey, null, freshMap(p)));
     writeGone(p, goalKey, Date.now());
     version.value++;
   }
