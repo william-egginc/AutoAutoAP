@@ -103,7 +103,8 @@ export function normalizeBoardRow<T>(raw: unknown): T | null {
   r.durationDays = duration !== undefined && duration >= 0 ? duration : 0;
   r.currentTE = num(raw.currentTE) ?? chain[0];
   r.finalTE = num(raw.finalTE) ?? chain[chain.length - 1];
-  r.ascensions = num(raw.ascensions) ?? Math.max(0, chain.length - 1);
+  // The chain holds the stops AFTER the start, so its length is the ascension count (submission.ts sends chain.length; code review round 2, C6.6).
+  r.ascensions = num(raw.ascensions) ?? chain.length;
   r.chainsPriced = Math.max(0, num(raw.chainsPriced) ?? 0);
   r.schema = num(raw.schema) ?? 0;
   for (const k of ['startLocal', 'endLocal', 'timezone', 'effort', 'submittedAt'] as const) r[k] = str(raw[k]) ?? '';
@@ -217,7 +218,7 @@ function normalizeNested(r: Obj): void {
         stoppedEarly: sp.stoppedEarly === true,
       };
       if ('bands' in out) {
-        const ok = Array.isArray(out.bands) && out.bands.every(b => !!nums(b));
+        const ok = Array.isArray(out.bands) && out.bands.every(b => !!nums(b) && (nums(b) as number[]).every(v => v >= 0 && v <= MAX_RANGE_TE));
         if (ok) out.bands = (out.bands as unknown[]).map(b => nums(b));
         else delete out.bands;
       }
@@ -261,7 +262,9 @@ function normalizeNested(r: Obj): void {
           ? pf.byAscensions
               .map(g => {
                 const c = proofChain(g);
-                return c && isObj(g) ? { ...c, ascensions: num(g.ascensions) ?? 0, priced: num(g.priced) ?? 0 } : null;
+                const n = isObj(g) ? num(g.ascensions) : undefined;
+                // A whole count of 1 to 64 only: a 1.5 would give the "one more ascension" chart a slot no row fills (round 2, C6.5).
+                return c && isObj(g) && n !== undefined && Number.isInteger(n) && n >= 1 && n <= 64 ? { ...c, ascensions: n, priced: num(g.priced) ?? 0 } : null;
               })
               .filter(Boolean)
           : [],

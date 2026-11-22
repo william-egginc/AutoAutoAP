@@ -132,3 +132,20 @@ describe('inflateIfGzip', () => {
     await expect(inflateIfGzip(bytes)).resolves.toBe('hello chains');
   });
 });
+
+describe('code review round 2, C6.4: a gzip bomb is refused, not inflated into the tab', () => {
+  it('stops once more than the CSV cap comes out, and still reads an ordinary gzip', async () => {
+    const { gzipSync } = await import('node:zlib');
+    const { UPLOAD_LIMITS } = await import('@/lib/uploadGuard');
+    const cap = UPLOAD_LIMITS.csv.inflated;
+    (UPLOAD_LIMITS.csv as { inflated: number }).inflated = 2 * 1024 * 1024;
+    try {
+      const bomb = new Uint8Array(gzipSync(Buffer.alloc(8 * 1024 * 1024)));
+      await expect(inflateIfGzip(bomb)).rejects.toThrow();
+      const fine = new Uint8Array(gzipSync(Buffer.from('195 490\n')));
+      await expect(inflateIfGzip(fine)).resolves.toContain('195 490');
+    } finally {
+      (UPLOAD_LIMITS.csv as { inflated: number }).inflated = cap;
+    }
+  });
+});

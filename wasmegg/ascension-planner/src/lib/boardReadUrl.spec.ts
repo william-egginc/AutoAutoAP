@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { boardReadBaseOf, TEST_BOARD_LABEL } from './boardSubmitUrl';
-import { resolveCollectorBase } from '@/explorer/collector';
+import { resolveCollectorBase, watchCollectorBase } from '@/explorer/collector';
 
 const LIVE = 'https://live-collector.test/submit';
 const BOARD = 'https://board-collector.test';
@@ -67,5 +67,28 @@ describe('the Test board label', () => {
     expect(label).toContain('data-testid="test-board-label"');
     expect(src('../components/auto/LeaderboardPanel.vue')).toContain('<TestBoardLabel');
     expect(src('../components/MyRunsView.vue')).toContain('<TestBoardLabel');
+  });
+});
+
+describe('code review round 2, C6.3: the phone watch page reads the collector the run reports to', () => {
+  it('watchCollectorBase is the submit collector (never the board one) unless ?collector= names another', () => {
+    vi.stubEnv('VITE_SUBMIT_URL', LIVE);
+    vi.stubEnv('VITE_BOARD_SUBMIT_URL', BOARD);
+    expect(watchCollectorBase('')).toBe('https://live-collector.test');
+    expect(watchCollectorBase('?x=1')).toBe('https://live-collector.test');
+    expect(watchCollectorBase('?collector=https://c.example.dev')).toBe('https://c.example.dev');
+    expect(watchCollectorBase('?collector=javascript:alert(1)')).toBeNull();
+    // The Explorer keeps its board preference.
+    expect(resolveCollectorBase('')).toBe(BOARD);
+  });
+  it('without a submit URL there is no watch collector, board URL or not', () => {
+    vi.stubEnv('VITE_SUBMIT_URL', '');
+    vi.stubEnv('VITE_BOARD_SUBMIT_URL', BOARD);
+    expect(watchCollectorBase('')).toBeNull();
+  });
+  it('phone.ts uses it and no longer imports resolveCollectorBase', () => {
+    const phone = src('../watch/phone.ts');
+    expect(phone).toContain('watchCollectorBase(location.search)');
+    expect(phone).not.toContain('resolveCollectorBase');
   });
 });

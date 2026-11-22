@@ -24,6 +24,7 @@
  * this module's job, via `DecompressionStream`, and the magic-number check means a collector that
  * ever starts sending plain text still works.
  */
+import { UPLOAD_LIMITS, decodeText, inflateCapped } from '@/lib/uploadGuard';
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
@@ -68,6 +69,18 @@ function stripSubmit(url: string): string {
 export function normaliseCollectorBase(raw: string): string | null {
   const trimmed = stripSubmit(raw.trim());
   return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * The collector a phone watch link reads (code review round 2, C6.3): the one the run REPORTS to, which is the build's submit
+ * collector, never the board's (egg-beta reports to live while its board is the test collector), unless the link itself names
+ * one with `?collector=`. Null when neither exists.
+ */
+export function watchCollectorBase(search = typeof location === 'undefined' ? '' : location.search): string | null {
+  const fromQuery = new URLSearchParams(search).get('collector');
+  if (fromQuery) return normaliseCollectorBase(fromQuery);
+  const configured = ((import.meta.env.VITE_SUBMIT_URL as string | undefined) ?? '').trim();
+  return configured ? stripSubmit(configured) : null;
 }
 
 /**
@@ -284,8 +297,8 @@ export async function inflateIfGzip(bytes: Uint8Array): Promise<string> {
       'This browser cannot inflate gzip (no DecompressionStream). Chrome, Edge, Firefox 113+ or Safari 16.4+ can.'
     );
   }
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).text();
+  // Capped: a gzip bomb stops with an UploadError once more than the CSV limit comes out (code review round 2, C6.4). Strict UTF-8.
+  return decodeText(await inflateCapped(bytes, UPLOAD_LIMITS.csv.inflated));
 }
 
 export interface ParsedRunCsv {

@@ -7,7 +7,7 @@
  * secret reads as an incomplete link. It reads every minute WHILE ON SCREEN only (a hidden tab or a
  * locked phone asks nothing), and at once when it comes back into view.
  */
-import { resolveCollectorBase } from '@/explorer/collector';
+import { watchCollectorBase } from '@/explorer/collector';
 import {
   WATCH_REFRESH_MS,
   openHeartbeat,
@@ -173,7 +173,7 @@ function start(): void {
     show(INCOMPLETE, 'bad', INCOMPLETE_NOTE);
     return;
   }
-  base = resolveCollectorBase(location.search);
+  base = watchCollectorBase(location.search);
   if (!base) {
     show('No server to ask', 'bad', "This copy of the planner has no server for watch links, so there's nothing to read.");
     return;
