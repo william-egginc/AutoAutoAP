@@ -1841,13 +1841,15 @@ function settleOnce(env, board, raw) {
   // No snapshot at all is one tag for every moment, so that one is shared only while in flight.
   const tag = head ? `${head.v}:${head.builtAt}:${head.settleAt}` : '';
   const held = byBoard.get(board);
-  if (held && held.tag === tag) {
+  // The stamps are millisecond clocks, so two DIFFERENT snapshots can carry the same ones (a fast machine, or two writes in one
+  // millisecond): the text itself must match too, or the second one is answered with the first one's settle and its lost patch stays lost.
+  if (held && held.tag === tag && held.raw === raw) {
     const age = Date.now() - held.at;
     // In flight: share it. Failed a moment ago: not again yet (one failure must not become a
     // settle on every read). Done: its text stands for this snapshot while KV may still serve it.
     if (!held.done || (held.failed ? age < SETTLE_REUSE_MS : !!tag && age < SETTLE_REUSE_MS)) return held.promise;
   }
-  const entry = { tag, at: Date.now(), done: false, failed: false, promise: null };
+  const entry = { tag, raw, at: Date.now(), done: false, failed: false, promise: null };
   entry.promise = settleSnapshot(env, board, raw).then(
     ({ text }) => {
       entry.done = true;
