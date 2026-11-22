@@ -92,6 +92,42 @@ export interface TailOptions {
   /** With `noPrestige`: what the save's silos hold, seconds (saveAge.ts `siloSeconds`), the cap on the farm's laying
    *  while a no-prestige day holds a prestige (`creditWait`). Absent: uncapped. */
   siloSeconds?: number;
+  /** THE CLIFF GUARD (R10.1), seconds: a short ascension (up to CLIFF_TE TE) is also priced from this much later and
+   *  costs the worse of the two (`guardCliff`). Absent or 0: off. The instant answer sets CLIFF_LAG. */
+  cliffGuard?: number;
+}
+
+/** The longest ascension the cliff guard looks at, in TE: above it the build's tail, not its sale, sets the time. */
+export const CLIFF_TE = 5;
+/** The instant answer's cliff guard: about how early its routes run by mid-route (R10 harness, 21 Nov 2026). */
+export const CLIFF_LAG = 24 * 3600;
+
+/**
+ * THE CLIFF GUARD (`TailOptions.cliffGuard`; Tables and PC, 21 Nov 2026). A short ascension is mostly "finish this
+ * sale's purchases, then prestige", so its price falls off a cliff a few hours later, when the build no longer makes
+ * this sale and waits for next week's. The instant answer's routes run about a day early by mid-route, so a route
+ * that reaches such an ascension just before the cliff in the table reaches it just after in the simulator: bae5's
+ * 285->286 was 75 h from the table's start and 165 h from the simulator's, a day later (notes/short-leg-cliff-
+ * 2026-11-21.md), and the finder chose 9-stop routes through such legs. Guarded, the leg costs what it would from
+ * `cliffGuard` later, less that wait, when that is more: the route no longer leans on a sale it may miss.
+ */
+function guardCliff(
+  table: BuildLookup,
+  te: number,
+  start: number,
+  delivered: number[],
+  target: number,
+  end: number,
+  deliveryScale: number,
+  hours: Availability | undefined,
+  tail: TailOptions,
+  shiftHours: Availability | undefined = hours
+): number {
+  const lag = tail.cliffGuard ?? 0;
+  if (!(lag > 0) || target - te > CLIFF_TE) return end;
+  const once = { ...tail, cliffGuard: 0 };
+  const later = priceLeg(table, te, start + lag, delivered, target, deliveryScale, hours, once, shiftHours);
+  return later ? Math.max(end, later.end - lag) : end;
 }
 
 /** Remembered `holdUntilOf` per schedule (the settings come to a worker as plain data each step). */
@@ -125,6 +161,7 @@ export function tailOptionsOf(o: TailOptions): TailOptions {
     ...(o.openingRows ? { openingRows: o.openingRows } : {}),
     ...(o.noPrestige?.length ? { noPrestige: o.noPrestige.map(w => ({ from: w.from, to: w.to })) } : {}),
     ...(o.noPrestige?.length && o.siloSeconds !== undefined ? { siloSeconds: o.siloSeconds } : {}),
+    ...(o.cliffGuard ? { cliffGuard: o.cliffGuard } : {}),
   };
 }
 
@@ -646,6 +683,9 @@ export function priceLeg(
       };
     }
   }
+  // THE CLIFF GUARD (`guardCliff`): a short ascension costs the worse of now and `cliffGuard` later.
+  if (best && tail.cliffGuard)
+    best.end = guardCliff(table, te, best.start, delivered, target, best.end, deliveryScale, hours, tail, shiftHours);
   return best;
 }
 
@@ -831,6 +871,17 @@ export function expandArrivals(
   };
   // Reused for each checkpoint's end counts; copied only when the arrival is kept.
   const scratch = [0, 0, 0, 0, 0];
+  // THE CLIFF GUARD's later prices, once per TE, start, counts and checkpoint (arrivals share them as sweeps do).
+  const cliffMemo = new Map<string, number>();
+  const guarded = (te: number, start: number, eggs: number[], target: number, end: number): number => {
+    const key = `${te}|${start}|${eggs.join(',')}|${target}|${end}`;
+    let g = cliffMemo.get(key);
+    if (g === undefined) {
+      g = guardCliff(table, te, start, eggs, target, end, s.deliveryScale, s.hours, s);
+      cliffMemo.set(key, g);
+    }
+    return g;
+  };
 
   // Waiting: the same arrival again, ready at each of the next waitHours whole hours.
   if (s.waitHours) {
@@ -900,7 +951,11 @@ export function expandArrivals(
       if (!pick) continue;
       const { sweep, build, i } = pick;
       const legStart = takeEarly ? base : startAt;
-      const end = legStart + sweep.seconds[i];
+      // THE CLIFF GUARD (`guardCliff`), as priceLeg prices it: a short ascension costs the worse of now and later.
+      const end =
+        s.cliffGuard && target - te <= CLIFF_TE
+          ? guarded(te, legStart, delivered, target, legStart + sweep.seconds[i])
+          : legStart + sweep.seconds[i];
       const endTE = sweep.endTE[i];
       const at = Math.min(endTE, top);
       sweep.deliveredInto(i, scratch);
