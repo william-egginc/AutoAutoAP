@@ -75,8 +75,8 @@ const lines = computed(() => instantSteps(props.legs, props.hours ?? null, props
 const r1Of = (l: { now: boolean; fresh?: boolean; prestigeAt: number; fromTE: number }) =>
   l.now && !l.fresh ? null : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
 const hintOn = usePrestigeHint();
-const windowOf = (l: { now: boolean; fresh?: boolean; fromTE: number; stopTE: number; prestigeAt: number }) =>
-  hintOn.value ? prestigeWindow({ fromTE: l.fromTE, stopTE: l.stopTE, prestigeAt: l.prestigeAt, now: l.now && !l.fresh }) : null;
+const windowOf = (l: { now: boolean; fresh?: boolean; fromTE: number; stopTE: number; sales?: number; prestigeAt: number }) =>
+  hintOn.value ? prestigeWindow({ fromTE: l.fromTE, stopTE: l.stopTE, sales: l.sales, prestigeAt: l.prestigeAt, now: l.now && !l.fresh }) : null;
 /** Without this year's year (./instantCardTime.ts; Jordan, 12 Nov 2026 pm). */
 const show = (t: number) => cardTime(t, props.zone);
 </script>

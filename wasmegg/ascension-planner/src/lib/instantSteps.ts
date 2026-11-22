@@ -25,6 +25,8 @@ export interface StepLeg {
   /** Unix seconds: the stop is reached. */
   end: number;
   label?: string;
+  /** The build's sale count (`RouteLeg.sales`), for the prestige-window hint. */
+  sales?: number;
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
   /** Its own times already end it at a time off (the simulated ascension, lib/followSim.ts): not flagged again. */
@@ -46,6 +48,8 @@ export interface StepLine {
   /** TE the ascension is reached from (its stop's TE is `stopTE`). */
   fromTE: number;
   stopTE: number;
+  /** The build's sale count, when the leg carries it (the prestige-window hint). */
+  sales?: number;
   /** The first ascension is the one the farm is in now: no prestige to time. */
   now: boolean;
   /** The first ascension starts FRESH (its leg's label '2-sale', '3-sale-tier13': lib/instantWords.ts firstStepKind): the
@@ -131,6 +135,7 @@ export function instantSteps(
       ...flags,
       asc: i + 1,
       fromTE: l.from,
+      ...(l.sales !== undefined ? { sales: l.sales } : {}),
       stopTE: l.endTE,
       now,
       fresh,
