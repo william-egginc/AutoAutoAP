@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 /** By a date's route card (ByDateRouteCard.vue): the finished answer, and the best so far mid-run. */
 import { formatMoment } from '@/lib/clock';
 import { describe, expect, it } from 'vitest';
@@ -238,5 +240,10 @@ describe('Follow this route on the result cards (23 Oct 2026)', () => {
     expect(html).toMatch(/data-testid="follow-route" data-goal="fastest-490"/);
     expect(textOf(html)).toMatch(/Follow this route Simulate this route Share/);
     expect(await renderHtml(RouteResultCard, { ...base, running: true, follow: f })).not.toContain('follow-route');
+  });
+
+  it('imports nothing it does not use (dead-ui-26, 22 Nov 2026: AnimatedDots)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'ByDateRouteCard.vue'), 'utf8');
+    expect(src).not.toContain('AnimatedDots');
   });
 });

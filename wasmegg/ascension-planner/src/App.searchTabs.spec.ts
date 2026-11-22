@@ -43,7 +43,8 @@ describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
     const fn = between(fastest, 'function openCustom', '\n}');
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeGreaterThan(0);
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeLessThan(fn.indexOf("getElementById('exhaustive')"));
-    expect(fastest).toContain('@check="checkExactly"');
+    // The instant card's `check` emit was never emitted and is gone (ui-instantroute-11, 22 Nov 2026).
+    expect(fastest).not.toContain('@check="checkExactly"');
     expect(fastest).toContain('@check-exactly="checkExactly"');
     expect(fastest).toContain('@open-custom="openCustom"');
   });
@@ -52,7 +53,7 @@ describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
     expect(fn.indexOf("selectSearchTab('by-date', 'exhaustive')")).toBeGreaterThan(0);
     expect(fn.indexOf("selectSearchTab('by-date', 'exhaustive')")).toBeLessThan(fn.indexOf("getElementById('exhaustive')"));
     expect(between(deadline, 'function openInAdvanced', '\n}')).toContain('showExhaustive();');
-    expect(between(deadline, 'function checkByDate', '\n}')).toContain('showExhaustive();');
+    expect(deadline).not.toContain('function checkByDate');
     expect(between(deadline, 'async function widenAndRun', '\n}')).toContain('openInAdvanced();');
   });
   it('the address #/auto/fastest/full opens Custom (Exhaustive), and an option picked by hand sets the address', () => {

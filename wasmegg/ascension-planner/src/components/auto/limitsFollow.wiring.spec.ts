@@ -80,7 +80,6 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
       'function addChain',
       'function applyRequest',
       'function openInAdvanced',
-      'function checkByDate',
       'function setRowAsc',
       'function removeRow',
       'function fillFromSpec',
@@ -89,6 +88,7 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
       expect(at, fn).toBeGreaterThan(0);
       expect(byDate.slice(at, at + 900), fn).toContain('ascFollows.value = false');
     }
+    expect(byDate).not.toContain('checkByDate');
     expect(byDate).toContain('@asc="setRowAsc"');
     expect(byDate).toContain('@remove="removeRow"');
   });

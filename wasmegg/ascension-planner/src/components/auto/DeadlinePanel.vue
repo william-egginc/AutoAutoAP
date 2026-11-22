@@ -125,7 +125,6 @@
         now-to="now-offer-by-date"
         @more-changes="c => (moreChanges = c)"
         @filters-line="l => (filtersText = l)"
-        @check="checkByDate"
         @check-fast="checkWithFast"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
@@ -2011,18 +2010,6 @@ function checkWithFast(): void {
   if (store.busy || instantWait.value || store.integrityBlocked || store.staleBackupBlocked || !canStartAround.value) return;
   stronger.level = 'quick';
   void start(false, 'around');
-}
-
-function checkByDate(chain: number[]): void {
-  const last = chain[chain.length - 1];
-  const te = Math.floor(store.currentTE);
-  mode.value = 'space';
-  // Single-value boxes are Exhaustive's: show them there.
-  showExhaustive();
-  ascFollows.value = false;
-  chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
-  lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
-  suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
 }
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */

@@ -127,8 +127,8 @@
     <!-- Not once the run has failed (R8.1, 22 Nov 2026): an old-date answer kept after the failure leaves `deadlineStale` true, and the spinner hid the error. -->
     <p v-else-if="(status === 'loading' || deadlineStale) && status !== 'error'" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
-      <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template>{{ result && !staleAt && !deadlineStale ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
+      <!-- The words, then the moving dots (spec-dots, 1 Nov 2026). -->
+      <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template></span>
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -1204,7 +1204,6 @@ const props = defineProps<{
 /** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
 const sectionHide = inject(SECTION_HIDE, null);
 const emit = defineEmits<{
-  check: [chain: number[]];
   /** By a date: the route for each number of ascensions, and the ascensions filter's upper and lower ends (null
    *  for none). */
   routes: [byCount: Record<number, number[]>, maxAscensions: number | null, minAscensions: number | null];

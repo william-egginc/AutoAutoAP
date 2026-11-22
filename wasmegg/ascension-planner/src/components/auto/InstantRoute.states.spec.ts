@@ -943,7 +943,9 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
     const html = await draw(at('fastest', false));
     expect(html).not.toContain('data-testid="instant-stale"');
     expect(html.match(/data-part="FollowButton"[^>]*/g)?.join(' ') ?? '').not.toMatch(/stale="true"/);
-    expect(html).toContain('The answer below is the previous one until the new one is ready.');
+    // The old "The answer below is the previous one" line is gone (ui-instantroute-10, 22 Nov 2026): every loading state with an answer is a stale one.
+    expect(html).not.toContain('The answer below is the previous one');
+    expect(source).not.toContain('The answer below is the previous one');
   });
 });
 

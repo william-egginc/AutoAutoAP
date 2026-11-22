@@ -224,7 +224,6 @@
 </template>
 
 <script setup lang="ts">
-import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import Tip from '@/components/Tip.vue';
 import { TIP_SIMULATE } from '@/lib/tipWords';
 import { scrollToShownId } from '@/lib/searchTab';

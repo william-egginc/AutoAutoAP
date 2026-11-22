@@ -70,7 +70,6 @@
           more-to="more-fastest-answer"
           filters-to="filters-fastest-answer"
           now-to="now-offer-fastest"
-          @check="checkExactly"
           @state="st => (instantLoad = st)"
           @unloaded="u => (instantUnloaded = u)"
           @by-date="emit('by-date')"
