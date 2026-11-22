@@ -5,6 +5,8 @@
  * It never switches by itself after Follow or Simulate was pressed on the box. Pure: InstantRoute.vue holds the three refs.
  */
 
+import { choosePreferFewer, type PreferMargin } from '@/search/preferFewer';
+
 /** What the player asked for: nothing yet (`auto`), the first route back (`first`), or the faster one (`faster`). */
 export type FasterChoice = 'auto' | 'first' | 'faster';
 
@@ -39,4 +41,26 @@ export function exactRouteFor(done: ExactDoneLike | null, chain: readonly number
   if (!done) return null;
   const want = chain.join(',');
   return done.routes.find(r => r.chain.join(',') === want) ?? null;
+}
+
+/**
+ * Fastest: whether Prefer fewer keeps the first route against the automatic switch (code review 22 Nov 2026,
+ * math-exact-6). The two exact finishes go through the same rule and margin as the box's pick (search/preferFewer.ts):
+ * when it would lead with the first route (fewer ascensions, inside the margin), the box does not switch. Off, or
+ * "Show the fastest instead": never.
+ */
+export function preferKeepsFirst(o: {
+  margin: PreferMargin;
+  showBest: boolean;
+  own: { ascensions: number; end: number };
+  alt: { ascensions: number; end: number };
+}): boolean {
+  if (o.margin.kind === 'off' || o.showBest) return false;
+  const row = (item: 'own' | 'alt', r: { ascensions: number; end: number }) => ({
+    item,
+    ascensions: r.ascensions,
+    finish: r.end,
+    shifts: null,
+  });
+  return choosePreferFewer('fastest', [row('own', o.own), row('alt', o.alt)], o.margin)?.chosen.item === 'own';
 }

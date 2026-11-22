@@ -87,6 +87,29 @@ describe('the box', () => {
 });
 
 
+describe('Prefer fewer and the automatic switch (code review 22 Nov 2026, math-exact-6)', () => {
+  it('the box and the two-route line go by fasterNow, which asks preferKeepsFirst in Fastest', () => {
+    const at = script.indexOf('const fasterNow');
+    expect(at).toBeGreaterThan(0);
+    const body = script.slice(at, at + 900);
+    expect(body).toContain('preferKeepsFirst({');
+    expect(body).toContain('preferMargin.value');
+    expect(body).toContain('preferShowBest.value');
+    expect(script).toMatch(/isSwapped\(\{ faster: fasterNow\.value,/);
+    expect(script).toMatch(/const twoShown[\s\S]{0,200}fasterNow\.value !== 1/);
+  });
+});
+
+describe('Follow or Simulate during the background polish (code review 22 Nov 2026, math-exact-5)', () => {
+  it('the polish marks its own swap, and the reset skips it while the pick is the same route', () => {
+    expect(script).toMatch(/polishSwap = true;\s*result\.value = better;/);
+    const at = script.indexOf('// A new answer, or another pick: the box starts again on its own.');
+    const body = script.slice(at, at + 700);
+    expect(body).toMatch(/const fromPolish = polishSwap;/);
+    expect(body).toMatch(/if \(fromPolish && k === before\) return;/);
+  });
+});
+
 describe('two routes (Jordan, 21 Nov 2026, option 1(a)): the pick without the held buys, checked next to the pick', () => {
   it('the no-B pass re-runs the first legs with heldBuys off, then finds, polishes and picks with the same margin', () => {
     const at = script.indexOf('async function runAltPass');

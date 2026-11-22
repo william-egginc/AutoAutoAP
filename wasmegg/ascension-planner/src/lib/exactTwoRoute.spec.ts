@@ -4,7 +4,7 @@
  * Simulate was pressed on that box (the player acted on the first route). This is the rule, with no component around it.
  */
 import { describe, expect, it } from 'vitest';
-import { exactRouteFor, isSwapped, pressedChoice, type ExactDoneLike } from './exactTwoRoute';
+import { exactRouteFor, isSwapped, pressedChoice, type ExactDoneLike, preferKeepsFirst } from './exactTwoRoute';
 
 const r = (chain: number[], end: number, spare: number | null = null) => ({ chain, end, legs: [end], spare });
 const done = (faster: 0 | 1): ExactDoneLike => ({
@@ -48,5 +48,23 @@ describe('exactRouteFor: the exact numbers of the route on screen', () => {
   it('a chain the check did not work out: null (the box shows its own estimate)', () => {
     expect(exactRouteFor(done(1), [1, 2])).toBeNull();
     expect(exactRouteFor(null, [100, 200])).toBeNull();
+  });
+});
+
+describe('preferKeepsFirst (code review 22 Nov 2026, math-exact-6): Fastest, Prefer fewer’s margin holds against the automatic switch', () => {
+  const H = 3600;
+  const margin = { kind: 'time', seconds: 12 * H } as const;
+  const own = { ascensions: 3, end: 100 * H };
+  it('3 against 4 ascensions, margin 12 h: the 4-ascension route 2 h sooner does not take the box', () => {
+    expect(preferKeepsFirst({ margin, showBest: false, own, alt: { ascensions: 4, end: 98 * H } })).toBe(true);
+  });
+  it('13 h sooner (past the margin): it does', () => {
+    expect(preferKeepsFirst({ margin, showBest: false, own, alt: { ascensions: 4, end: 87 * H } })).toBe(false);
+  });
+  it('Prefer fewer off, "show the fastest" on, or the other route no longer: the switch as before', () => {
+    const alt = { ascensions: 4, end: 98 * H };
+    expect(preferKeepsFirst({ margin: { kind: 'off' }, showBest: false, own, alt })).toBe(false);
+    expect(preferKeepsFirst({ margin, showBest: true, own, alt })).toBe(false);
+    expect(preferKeepsFirst({ margin, showBest: false, own, alt: { ascensions: 3, end: 98 * H } })).toBe(false);
   });
 });

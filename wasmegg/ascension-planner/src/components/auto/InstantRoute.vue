@@ -1107,7 +1107,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import ExactLine from './ExactLine.vue';
 import { EXACT_COUNTS_NOTE } from '@/lib/exactLineWords';
 import { exactWanted, useInstantExact, type ExactRequest } from '@/composables/useInstantExact';
-import { exactRouteFor, isSwapped, pressedChoice, type FasterChoice } from '@/lib/exactTwoRoute';
+import { exactRouteFor, isSwapped, pressedChoice, type FasterChoice, preferKeepsFirst } from '@/lib/exactTwoRoute';
 import { EXACT_HOURS, EXACT_PHONE_QUERY, exactDisabled, exactTriggerFor, instantExactKey } from '@/lib/exactOptions';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
@@ -1399,6 +1399,7 @@ async function polishInBackground(
     const better = withinAscensions({ ...raw, ...strong }, filterBounds(filters.value));
     const g = polishGains(shown, better, !!props.deadline);
     if (g.length) {
+      polishSwap = true;
       result.value = better;
       if (props.deadline) emitRoutes(better);
     }
@@ -2916,14 +2917,33 @@ const exactShown = computed(() => {
   return s && s.key === exactRequest.value?.key ? s : null;
 });
 
+/** The background polish's own swap of the answer (`polishInBackground`): not a new answer for the box's reset. */
+let polishSwap = false;
 /** Which route the box shows when two were worked out: nothing asked yet, the first route back, or the faster one. */
 const fasterChoice = ref<FasterChoice>('auto');
 /** Follow or Simulate was pressed on the box: it never switches by itself after that. */
 const boxPressed = ref(false);
+/**
+ * The exact check's `faster`, with Prefer fewer's margin (code review 22 Nov 2026, math-exact-6): in Fastest a faster
+ * route with more ascensions inside the margin does not take the box, as it would not have in the pick.
+ */
+const fasterNow = computed<0 | 1 | null>(() => {
+  const d = exactDone.value;
+  if (!d) return null;
+  if (d.faster !== 1 || props.deadline) return d.faster;
+  const [own, alt] = d.routes;
+  if (!own || !alt) return d.faster;
+  return preferKeepsFirst({
+    margin: preferMargin.value,
+    showBest: preferShowBest.value,
+    own: { ascensions: own.legs.length, end: own.end },
+    alt: { ascensions: alt.legs.length, end: alt.end },
+  })
+    ? 0
+    : 1;
+});
 const swapped = computed(
-  () =>
-    !!altRoute.value &&
-    isSwapped({ faster: exactDone.value ? exactDone.value.faster : null, choice: fasterChoice.value, pressed: boxPressed.value })
+  () => !!altRoute.value && isSwapped({ faster: fasterNow.value, choice: fasterChoice.value, pressed: boxPressed.value })
 );
 /** The exact numbers of the route on screen (by its stops): the first route's or the faster one's. */
 const exactBox = computed(() => {
@@ -2940,7 +2960,7 @@ const exactView = computed(() => {
 /** The two-route line: switched (with its undo), switched back by the player, or only offered (Follow or Simulate came first). */
 const twoShown = computed<'swapped' | 'undone' | 'offered' | null>(() => {
   const d = exactDone.value;
-  if (!d || d.faster !== 1 || !altRoute.value) return null;
+  if (!d || fasterNow.value !== 1 || !altRoute.value) return null;
   return swapped.value ? 'swapped' : boxPressed.value ? 'offered' : 'undone';
 });
 function toggleFaster(): void {
@@ -2951,10 +2971,14 @@ function freezeBox(): void {
   boxPressed.value = true;
   fasterChoice.value = pressedChoice(swapped.value);
 }
-// A new answer, or another pick: the box starts again on its own.
+// A new answer, or another pick: the box starts again on its own. Not the background polish's better numbers for the
+// same pick (code review 22 Nov 2026, math-exact-5): Follow or Simulate pressed meanwhile keeps the box as it was.
 watch(
   [result, () => (pickRoute.value ? key(pickRoute.value.chain) : null)],
-  () => {
+  ([, k], [, before]) => {
+    const fromPolish = polishSwap;
+    polishSwap = false;
+    if (fromPolish && k === before) return;
     fasterChoice.value = 'auto';
     boxPressed.value = false;
   }
