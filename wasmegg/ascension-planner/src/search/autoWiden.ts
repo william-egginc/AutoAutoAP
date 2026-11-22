@@ -368,11 +368,6 @@ export function noInstantHeading(tableFrom: number | null): string {
     : 'No instant answer for your TE yet.';
 }
 
-/** The Instant Answer section's folded summary when it settled with none (it said "working out…"). */
-export const NO_INSTANT_SUMMARY = 'none for your TE';
-/** The same, when its file couldn't be loaded (InstantRoute's `unloaded`; QA break-it #5). */
-export const UNLOADED_INSTANT_SUMMARY = 'couldn’t be loaded';
-
 /** Why Get a quick estimate is greyed out, or '' when it can start. In this order: Your setup still
  *  loading, another run (or Find waiting on the instant answer), a save problem, then whatever Nearby
  *  routes' own Find would refuse (`aroundIssue`, or no date yet). */

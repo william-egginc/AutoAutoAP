@@ -22,7 +22,6 @@ import { isWordingOnly, resultCodeInputs } from '@/lib/resultCodeHash';
 import AnimatedDots from './auto/AnimatedDots.vue';
 import PendingText from './auto/PendingText.vue';
 import PanelFold from './auto/PanelFold.vue';
-import CollapsibleSection from './auto/CollapsibleSection.vue';
 import FollowButton from './FollowButton.vue';
 import BuildUpTracker from './myruns/BuildUpTracker.vue';
 
@@ -288,23 +287,6 @@ describe('the labels, drawn', () => {
     expect(html).toContain(DOTS);
     expect(html).toMatch(/disabled/);
     expect(textOf(await renderHtml(FollowButton, { ...base, stale: false }))).toBe('Follow this route');
-  });
-
-  it('a hidden section\'s one line ("working out" while the instant answer is worked out): the words, then the dots', async () => {
-    // Hidden (its Show bar), as this browser remembered it.
-    const was = (globalThis as { localStorage?: unknown }).localStorage;
-    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => '1', setItem: () => {} };
-    try {
-      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant Answer', summary: 'working out', summaryBusy: true });
-      expect(html).toContain('data-testid="show-dots-spec"');
-      expect(textOf(html)).toBe('Instant Answer working out... Show');
-      expect(html).toContain(DOTS);
-      expect(html).not.toContain('…');
-      const done = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant Answer', summary: 'Reaches 490 on Nov 4 · 5 ascensions' });
-      expect(done).not.toContain('animated-dots');
-    } finally {
-      (globalThis as { localStorage?: unknown }).localStorage = was;
-    }
   });
 
   it('a fold\'s hint marked busy gets the dots; a plain one does not', async () => {

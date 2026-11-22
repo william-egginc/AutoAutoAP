@@ -53,21 +53,7 @@
           {{ WORK_IT_OUT_AGAIN }}
         </button>
       </p>
-      <span v-if="(ms !== null && !moreTo) || sectionHide" class="ml-auto inline-flex items-center gap-x-2">
-        <span v-if="ms !== null && !moreTo" class="text-small text-slate-600">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
-        <!-- The section's Hide, in this row (CollapsibleSection.vue `hideInHeading`; spec-uxpass items 8 and 13, 8 Nov
-             2026: it was a lone pill above the card). 44 px on a phone. -->
-        <button
-          v-if="sectionHide"
-          type="button"
-          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-body text-slate-600 underline hover:text-slate-800 sm:min-h-0 sm:min-w-0 sm:px-0"
-          aria-expanded="true"
-          data-testid="hide-instant"
-          @click="sectionHide()"
-        >
-          Hide
-        </button>
-      </span>
+      <span v-if="ms !== null && !moreTo" class="ml-auto inline-flex items-center gap-x-2 text-small text-slate-600">every route checked in {{ (ms / 1000).toFixed(1) }} s</span>
     </div>
     <!-- Work it out again's warning, right under the heading row it sits in. -->
     <InstantRunWarning
@@ -952,8 +938,7 @@ import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { COUNTS_ALL_TIGHT } from '@/lib/countRowsWords';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
-import { computed, inject, nextTick, onUnmounted, reactive, ref, shallowRef, useId, watch } from 'vue';
-import { SECTION_HIDE } from './sectionHide';
+import { computed, nextTick, onUnmounted, reactive, ref, shallowRef, useId, watch } from 'vue';
 import { isNearTarget, useChainSearchStore } from '@/stores/chainSearch';
 import { TARGET_TE_WORDS } from '@/lib/targetTeWords';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
@@ -1201,8 +1186,6 @@ const props = defineProps<{
    *  range and Prefer fewer go there, always shown. Without one they go to More (`moreTo`), else stay on this card. */
   filtersTo?: string;
 }>();
-/** The section's Hide when this card sits in a CollapsibleSection with `hideInHeading` (drawn in the heading row). */
-const sectionHide = inject(SECTION_HIDE, null);
 const emit = defineEmits<{
   /** By a date: the route for each number of ascensions, and the ascensions filter's upper and lower ends (null
    *  for none). */

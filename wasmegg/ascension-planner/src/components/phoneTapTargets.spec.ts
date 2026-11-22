@@ -57,14 +57,6 @@ describe('the instant card on a phone', () => {
     expect(tagWith(src, 'data-testid="instant-max-ascensions"')).toContain('min-h-[44px] sm:min-h-0');
     expect(tagWith(src, 'data-testid="instant-range-widen"')).toContain('min-h-[44px] sm:min-h-0');
   });
-  it('Hide: the button is 44 px round the pill on a phone, centred where the pill was; the pill alone from sm up (26 Oct)', () => {
-    const src = read('auto/CollapsibleSection.vue');
-    const t = tagWith(src, ':data-testid="`hide-${id}`"');
-    // 44 px tall, its top 22 px up: the pill's centre stays on the section's edge, as with -top-2.5 on a 20 px pill.
-    expect(t).toContain('absolute -top-[22px] right-2 z-20 inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-2');
-    expect(t).toContain('sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0');
-    expect(src).toMatch(/<span\s+class="px-2 py-0\.5 rounded-full border border-slate-200 bg-white[^"]*"\s*>Hide<\/span/);
-  });
   it('My Runs: the "?" after Right now\'s save line (SaveHeadHelp, 12 Nov 2026): CardHelp\'s 14 px look and 44 px area', () => {
     const t = tagWith(read('myruns/SaveHeadHelp.vue'), 'data-testid="now-save-help"');
     expect(t).toContain('w-3.5 h-3.5');

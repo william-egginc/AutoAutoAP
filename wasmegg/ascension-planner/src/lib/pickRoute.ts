@@ -14,7 +14,7 @@ export function pickRouteOpen(goals: readonly { key: string; open: MyRunsOpen }[
   return goals?.find(g => g.key === selected)?.open ?? { auto: 'fastest', depth: 'smart', target: 490 };
 }
 
-/** The instant answer's section on Fastest and on By a date (CollapsibleSection id="instant"). Both screens can be in
+/** The instant answer's section on Fastest and on By a date (data-testid="section-instant"). Both screens can be in
  *  the page, one hidden, so the one laid out is the one shown. */
 const INSTANT = '[data-testid="section-instant"]';
 /** Its Follow this route (FollowButton.vue). */

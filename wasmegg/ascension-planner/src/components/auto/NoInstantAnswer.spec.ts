@@ -10,7 +10,6 @@ import { h } from 'vue';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import {
-  NO_INSTANT_SUMMARY,
   QUICK_ESTIMATE_LABEL,
   noInstantHeading,
   quickEstimateIssue,
@@ -181,7 +180,6 @@ describe('notes say one thing', () => {
   });
 
   it('no folded Instant Answer line on the search screens since the simpler page (9 Nov 2026): the answer is never hidden', () => {
-    expect(NO_INSTANT_SUMMARY).toBe('none for your TE');
     // (The card itself says none, or that it couldn't be loaded: InstantRoute.unloaded.spec.ts.)
     for (const src of [panelScript, fastest]) expect(src).not.toContain('instantBusy:');
   });

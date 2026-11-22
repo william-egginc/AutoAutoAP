@@ -200,7 +200,7 @@ const ui = useUIStore();
 const initialState = useInitialStateStore();
 const stronger = useStrongerStore();
 
-// The hidden sections' one-line results (CollapsibleSection.vue).
+// Each search's latest answer in this visit, for the comparison block.
 useSearchSnapshots('fastest');
 /** The line under the tabs, for the player's own target (490 or another). */
 /** The goal this screen follows for (Follow this route, the What to do now line). */

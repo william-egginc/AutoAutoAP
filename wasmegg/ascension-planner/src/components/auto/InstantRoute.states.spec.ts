@@ -11,8 +11,7 @@
  * The parts (NoInstantAnswer, InstantUnloaded, ...) are stand-ins with their own specs; the integrity line is the real
  * one, as it draws nothing when it has nothing to say.
  *
- * The hidden section (CollapsibleSection) keeps its Show bar; and a card that can't be drawn at all is the guard's
- * (InstantGuard.spec.ts). Together: never nothing.
+ * A card that can't be drawn at all is the guard's (InstantGuard.spec.ts). Together: never nothing.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,7 +41,6 @@ import {
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import * as cardWords from '@/lib/instantCardWords';
-import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
@@ -255,7 +253,6 @@ function ctxOf(s: State): Record<string, unknown> {
     optimistic: null,
     own: false,
     ownChanged: '',
-    sectionHide: null,
     plural: (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`,
     pointer: null,
     preferCopy: { chip: '', what: '', line: '', muted: '' },
@@ -591,58 +588,6 @@ describe('the estimate line (spec-r7verify item 5; DRAFT): behind the one line\'
   it('the constant, drawn once (no copy of its words in the template)', () => {
     expect(source.match(/\{\{ INSTANT_ESTIMATE_LINE \}\}/g)).toHaveLength(1);
     expect(source).not.toContain('a Fast search on your save often lands');
-  });
-});
-
-describe('the hidden section keeps its Show bar', () => {
-  const store = new Map<string, string>();
-  const g = globalThis as { localStorage?: unknown };
-  const before = g.localStorage;
-  g.localStorage = {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
-  };
-  afterEach(() => store.clear());
-  const drawSection = () =>
-    renderToString(
-      createSSRApp({
-        render: () =>
-          h(CollapsibleSection, { id: 'instant', title: 'Instant Answer', summary: '314 TE by Jul 14' }, () =>
-            h('section', { 'data-testid': 'card' }, 'the card')
-          ),
-      })
-    );
-
-  it('hidden by the player: one bar with its name, its result and Show; never only a pill', async () => {
-    store.set('aap-section-hidden-instant', '1');
-    const html = await drawSection();
-    expect(html).toContain('data-testid="show-instant"');
-    expect(html).toContain('Instant Answer');
-    expect(html).toContain('314 TE by Jul 14');
-    expect(html).toContain('Show');
-    expect(html).not.toContain('data-testid="hide-instant"');
-  });
-
-  it('open: the Hide pill with the card under it, in the same state', async () => {
-    const html = await drawSection();
-    expect(html).toContain('data-testid="hide-instant"');
-    expect(html).toContain('data-testid="card"');
-    expect(html).not.toContain('data-testid="show-instant"');
-  });
-
-  it('storage blocked: open', async () => {
-    g.localStorage = {
-      getItem: () => {
-        throw new Error('blocked');
-      },
-      setItem: () => {
-        throw new Error('blocked');
-      },
-    };
-    const html = await drawSection();
-    expect(html).toContain('data-testid="card"');
-    g.localStorage = before;
   });
 });
 

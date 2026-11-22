@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { TABLE_LOAD_FAILED, fetchTable, tableLoadFailed } from '@/search/tableFetch';
-import { UNLOADED_INSTANT_SUMMARY } from '@/search/autoWiden';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const instant = read('InstantRoute.vue');
@@ -48,7 +47,6 @@ describe('a missing file', () => {
   });
 
   it("the screens still hear it (the section's folded line went with Hide on the simpler page, 9 Nov 2026: the card says it)", () => {
-    expect(UNLOADED_INSTANT_SUMMARY).toBe('couldn’t be loaded');
     expect(instant).toContain("watch(noTable, u => emit('unloaded', u));");
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const src = read(f);

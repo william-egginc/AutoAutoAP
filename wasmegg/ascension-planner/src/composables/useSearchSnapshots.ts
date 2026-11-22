@@ -1,6 +1,6 @@
 /**
- * Each search's latest answer in this visit (stores/stronger.ts `lastSearch`): for the hidden
- * sections' one-line results (CollapsibleSection.vue) and the comparison block. Called by both search
+ * Each search's latest answer in this visit (stores/stronger.ts `lastSearch`): for the comparison
+ * block. Called by both search
  * screens (FastestRoute.vue, DeadlinePanel.vue); it was SearchCompare's own, which is hidden for now.
  */
 import { watch } from 'vue';
