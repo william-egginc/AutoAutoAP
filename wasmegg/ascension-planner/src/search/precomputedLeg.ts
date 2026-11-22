@@ -100,7 +100,8 @@ export function rebase(b: BuildParams, te: number, delivered: number[]): BuildPa
  * `lateBy`: seconds into the table's hour the ascension really starts. The build's purchases take as
  * long either way, but the sale ends at a fixed moment, so it ends that much sooner after a late
  * start. (Exact at 0, which is what the table was built at; scripts/precompute.ts --verify-table
- * measures it in between.)
+ * measures it in between.) Across a daylight-saving change the finder passes `dstLateBy`'s value, so the
+ * sale ends an hour later or sooner, as it really does.
  */
 export function tailTo(p: BuildParams, target: number, lateBy = 0): Tail | null {
   const delivered = Object.fromEntries(EGG_ORDER.map((e, i) => [e, p.delivered[i]])) as Record<VirtueEgg, number>;
@@ -375,7 +376,9 @@ export const WEEK_HOURS = 168;
  * The Pacific hour of the week an instant falls in, 0 = Monday 00:00 Pacific. The game's weekly
  * events (the research sale, the Monday earnings boost) are at fixed Pacific times, daylight saving
  * included (lib/events.ts), so an ascension started at the same Pacific hour in any week meets them
- * at the same points.
+ * at the same points, except that a wait across a daylight-saving change (the first Sunday of
+ * November, the second of March) is an hour longer or shorter than in the table's week, which has
+ * none: `dstLateBy` moves the sale's end for that (code review 22 Nov 2026, T1.7).
  */
 const offsetByDay = new Map<number, number | null>();
 const offsetAtDayStart = new Map<number, number>();
@@ -391,7 +394,7 @@ const offsetByHour = new Map<number, number>();
 /** Pacific's offset from UTC at an instant. It changes twice a year, on an hour boundary, so it is
  *  asked of the date formatter (slow: it was most of a route search's time) once per day, and per
  *  hour only on the two days it changes. */
-function pacificOffset(unixSeconds: number): number {
+export function pacificOffset(unixSeconds: number): number {
   const day = Math.floor(unixSeconds / 86400);
   let whole = offsetByDay.get(day);
   if (whole === undefined) {
@@ -409,6 +412,18 @@ function pacificOffset(unixSeconds: number): number {
     offsetByHour.set(h, offset);
   }
   return offset;
+}
+
+/**
+ * `lateBy` for a build of a cell started at `start` (`lateBy` seconds into the cell's hour), corrected for a
+ * daylight-saving change between the start and the build's sale end (`saleEnd` after the cell's hour). The cell was
+ * built in a week with no change, so its sale ends `saleEnd` after the hour; across one the real sale end is an
+ * hour later (November: the clocks go back) or sooner (March), and that hour goes into the lateness the sale's end is
+ * moved by (code review 22 Nov 2026, T1.7: cells were an hour off for those builds, some 1-sale ones too).
+ */
+export function dstLateBy(saleEnd: number, start: number, lateBy: number): number {
+  const cell = start - lateBy;
+  return lateBy - (pacificOffset(cell) - pacificOffset(cell + saleEnd));
 }
 
 export function pacificHourOfWeek(unixSeconds: number): number {

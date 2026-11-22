@@ -9,7 +9,7 @@
  *
  * Pure: the table's arithmetic only, no simulator.
  */
-import { EGG_ORDER } from './precomputedLeg';
+import { dstLateBy, EGG_ORDER } from './precomputedLeg';
 import { replayTail, type BuildWithExtras } from './tableV2';
 
 /** One shift: when (unix seconds) and the egg the farm switches TO. */
@@ -42,7 +42,8 @@ export function legShifts(
   if (!build.extras) return null;
   const r = replayTail(build, build.extras, target, {
     start: o.start,
-    lateBy: o.lateBy ?? 0,
+    // As the finder's sweep priced it (routeFinder.ts sweepOne): a daylight-saving change moves the sale's end.
+    lateBy: dstLateBy(build.saleEnd, o.start, o.lateBy ?? 0),
     ...(o.holdUntil ? { holdUntil: o.holdUntil } : {}),
     order: o.order === 'table' ? 'table' : 'simulator',
   });
