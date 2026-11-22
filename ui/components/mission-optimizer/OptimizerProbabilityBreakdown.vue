@@ -1,6 +1,6 @@
 <template>
   <details class="mt-3">
-    <summary class="cursor-pointer text-gray-500 hover:text-gray-700 select-none">
+    <summary class="cursor-pointer text-gray-600 hover:text-gray-700 select-none">
       Probability breakdown<template v-if="heading"> — {{ heading }}</template>
     </summary>
 
@@ -11,7 +11,7 @@
       <div class="pl-3">
         <span class="text-green-700 font-medium">Crafting: {{ formatProbabilityForDisplay(craftProbability) }}</span>
       </div>
-      <div class="pl-6 text-gray-500">
+      <div class="pl-6 text-gray-600">
         This plan can attempt {{ expectedCrafts.toFixed(2) }} craft{{
           expectedCrafts.toFixed(2) === '1.00' ? '' : 's'
         }}, each with a {{ formatProbabilityForDisplay(pCraft) }} chance of turning up a legendary.
@@ -19,17 +19,17 @@
       <div class="pl-3">
         <span class="text-blue-700 font-medium">Direct drops: {{ formatProbabilityForDisplay(dropProbability) }}</span>
       </div>
-      <div class="pl-6 text-gray-500">
+      <div class="pl-6 text-gray-600">
         The missions are expected to drop about {{ formatExpectedCount(lambda) }} legendaries directly.
       </div>
-      <div class="pl-3 text-gray-400">
+      <div class="pl-3 text-gray-600">
         You miss out only if every craft and every drop fails, so together they give
         {{ formatProbabilityForDisplay(bestProbability) }} overall.
       </div>
     </div>
 
     <template v-if="craftChainTree">
-      <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-3 mb-1">
+      <div class="text-xs font-medium text-gray-600 uppercase tracking-wide mt-3 mb-1">
         Craft chain<template v-if="craftChainCost > 0.5"> — <scaled-value :value="craftChainCost" /> GE</template>
       </div>
       <div class="flex items-baseline gap-1 text-xs py-0.5 font-medium text-gray-700 pl-1">
@@ -38,25 +38,25 @@
       <ul class="text-xs">
         <optimizer-recipe-tree-row :node="craftChainTree">
           <template #metrics="{ node }">
-            <span class="font-mono text-xs inline-flex flex-col items-end">
+            <span class="tabular-nums text-xs inline-flex flex-col items-end">
               <span class="whitespace-nowrap">
                 <template v-if="hasInventory && node.metrics.ownedShare > 0.005">
-                  <span class="text-amber-600">{{ formatCount(node.metrics.ownedShare) }} inv</span>
-                  <span class="text-gray-400"> + </span>
+                  <span class="text-amber-700">{{ formatCount(node.metrics.ownedShare) }} inv</span>
+                  <span class="text-gray-600"> + </span>
                 </template>
                 <span class="text-blue-600">{{ node.metrics.droppedShare.toFixed(1) }} drop</span>
                 <template v-if="node.metrics.craftedShare > 0.005">
-                  <span class="text-gray-400"> + </span>
+                  <span class="text-gray-600"> + </span>
                   <span class="text-purple-600">{{ node.metrics.craftedShare.toFixed(1) }} craft</span>
                 </template>
-                <span class="text-gray-400"> → </span>
+                <span class="text-gray-600"> → </span>
                 <span
                   class="font-semibold"
                   :class="
                     node.metrics.ownedShare + node.metrics.droppedShare + node.metrics.craftedShare >=
                     node.metrics.consumedShare - 0.01
                       ? 'text-green-700'
-                      : 'text-amber-600'
+                      : 'text-amber-700'
                   "
                   >{{ node.metrics.consumedShare.toFixed(1) }} used</span
                 >
@@ -71,7 +71,7 @@
     </template>
 
     <template v-if="missionLegendarySources.length > 0">
-      <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-3 mb-1">
+      <div class="text-xs font-medium text-gray-600 uppercase tracking-wide mt-3 mb-1">
         Direct legendary sources (expected drops: {{ formatExpectedCount(lambda) }})
       </div>
       <div
@@ -85,7 +85,7 @@
           <mission-name :mission="contrib.ship" :target="contrib.targetAfxId" :no-link="true" class="inline-block" />
           <double-capacity-badge v-if="contrib.doubled" class="ml-1 align-middle" />
         </span>
-        <span class="font-mono text-blue-700">+{{ formatExpectedCount(contrib.legendaryDrops) }}</span>
+        <span class="tabular-nums text-blue-700">+{{ formatExpectedCount(contrib.legendaryDrops) }}</span>
       </div>
     </template>
   </details>

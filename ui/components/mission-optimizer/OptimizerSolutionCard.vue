@@ -25,7 +25,7 @@
           Chance of a legendary
         </span>
         : {{ formatProbabilityForDisplay(row.perTarget.bestProbability)
-        }}<sup v-if="row.dropDataIsSparse" v-tippy="sparseTooltip" class="text-gray-500 cursor-help ml-0.5">?</sup>
+        }}<sup v-if="row.dropDataIsSparse" v-tippy="sparseTooltip" class="text-gray-600 cursor-help ml-0.5">?</sup>
       </div>
       <div class="text-sm text-green-700" :class="multi ? 'pl-6' : 'pl-3'">
         <span v-tippy="craftTooltip" class="cursor-help border-b border-dotted border-green-400/60">Crafting</span>
@@ -34,7 +34,7 @@
       <div class="text-sm text-green-700" :class="multi ? 'pl-6' : 'pl-3'">
         <span v-tippy="dropTooltip" class="cursor-help border-b border-dotted border-green-400/60">Direct drops</span>
         : {{ formatProbabilityForDisplay(row.perTarget.dropProbability)
-        }}<sup v-if="row.dropDataIsSparse" v-tippy="sparseTooltip" class="text-gray-500 cursor-help ml-0.5">?</sup>
+        }}<sup v-if="row.dropDataIsSparse" v-tippy="sparseTooltip" class="text-gray-600 cursor-help ml-0.5">?</sup>
       </div>
       <div class="text-gray-600" :class="multi ? 'pl-3' : ''">
         Expected crafts: {{ row.perTarget.expectedCrafts.toFixed(1) }}

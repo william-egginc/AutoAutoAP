@@ -7,13 +7,13 @@
       @click="store.open = !store.open"
     >
       <span>
-        <span class="text-xs font-bold uppercase tracking-wider text-indigo-700">Mission optimizer</span>
-        <span class="block text-[11px] text-gray-500 mt-0.5">
+        <span class="label text-indigo-700">Mission optimizer</span>
+        <span class="block text-small text-gray-600 mt-0.5">
           Find the ship set with the best chance of a legendary on this visit, and stage it into the plan.
         </span>
       </span>
       <span
-        class="flex-shrink-0 px-2 py-1 text-xs rounded-md border"
+        class="flex-shrink-0 px-2 py-1 text-small font-bold rounded-md border"
         :class="
           store.open
             ? 'border-gray-300 bg-white text-gray-600'
@@ -26,8 +26,8 @@
 
     <div v-if="store.open" class="border-t border-indigo-100 p-3">
       <component :is="panel" v-if="panel" />
-      <p v-else-if="loadError" class="text-xs text-red-600">Could not load the optimizer: {{ loadError }}</p>
-      <p v-else role="status" class="flex items-center gap-2 text-xs text-gray-500">
+      <p v-else-if="loadError" class="text-small text-red-600">Could not load the optimizer: {{ loadError }}</p>
+      <p v-else role="status" class="flex items-center gap-2 text-small text-gray-600">
         <InlineSpinner />
         Loading the optimizer and its drop data…
       </p>

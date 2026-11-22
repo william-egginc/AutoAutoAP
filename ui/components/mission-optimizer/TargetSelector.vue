@@ -24,7 +24,7 @@
         </button>
         <button
           type="button"
-          class="ml-1 flex-shrink-0 rounded-full p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 focus:outline-none"
+          class="ml-1 flex-shrink-0 rounded-full p-0.5 text-gray-600 hover:text-gray-600 hover:bg-gray-200 focus:outline-none"
           :aria-label="`Remove ${artifact.display}`"
           @click="remove(artifact.id)"
         >
@@ -46,7 +46,7 @@
       @update:model-value="onPick"
     />
 
-    <p v-if="replacingArtifact" class="text-xs text-gray-500">
+    <p v-if="replacingArtifact" class="text-xs text-gray-600">
       Pick a replacement for {{ replacingArtifact.display }}, or
       <button type="button" class="underline hover:text-gray-700 focus:outline-none" @click="cancelReplace">
         cancel

@@ -20,7 +20,7 @@
         />
         <span :class="unitClass">h/day</span>
       </div>
-      <p v-if="modelValue.sleepEnabled" :class="hintClass" class="text-gray-400">{{ sleepHint }}</p>
+      <p v-if="modelValue.sleepEnabled" :class="hintClass" class="text-gray-600">{{ sleepHint }}</p>
 
       <template v-if="modelValue.sleepEnabled">
         <label :for="`${uid}-since-wake`" :class="labelClass" class="mt-2">Since you woke</label>
@@ -69,10 +69,10 @@
       <p v-if="eventRejected" :class="[hintClass, 'text-red-600']">
         Enter the time left as a positive duration (e.g. 48h, 3h30m).
       </p>
-      <p v-else-if="modelValue.doubleCapacityEnabled" :class="hintClass" class="text-gray-400">{{ eventHint }}</p>
+      <p v-else-if="modelValue.doubleCapacityEnabled" :class="hintClass" class="text-gray-600">{{ eventHint }}</p>
     </div>
 
-    <p v-if="timingNote" :class="hintClass" class="text-gray-500">
+    <p v-if="timingNote" :class="hintClass" class="text-gray-600">
       <span v-tippy="timingExplanation" class="cursor-help border-b border-dotted border-gray-400/60">{{
         timingNote
       }}</span>
@@ -190,14 +190,14 @@ export default defineComponent({
     const timingExplanation = computed(() => timingTooltip(timing.value));
 
     const labelClass = computed(() =>
-      props.compact ? 'block text-xs font-medium text-gray-700' : 'block text-sm text-gray-600'
+      props.compact ? 'block text-small font-bold text-gray-700' : 'block text-sm text-gray-600'
     );
     const inputClass = computed(() => [
       'block w-24 rounded-md border border-gray-300 px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400',
-      props.compact ? 'text-xs' : 'sm:text-sm',
+      props.compact ? 'text-base sm:text-body' : 'sm:text-sm',
     ]);
-    const unitClass = computed(() => (props.compact ? 'text-[11px] text-gray-500' : 'text-xs text-gray-500'));
-    const hintClass = computed(() => (props.compact ? 'mt-1 text-[11px] leading-normal' : 'mt-1 text-xs'));
+    const unitClass = computed(() => (props.compact ? 'text-small text-gray-600' : 'text-xs text-gray-600'));
+    const hintClass = computed(() => (props.compact ? 'mt-1 text-small' : 'mt-1 text-xs'));
     const checkboxClass = computed(() =>
       props.compact
         ? 'h-3.5 w-3.5 rounded text-blue-600 border-gray-300'

@@ -16,7 +16,7 @@
 
     <!-- The file round trip through the artifact explorer, for visits solved there. -->
     <details :open="missionsStore.file !== null">
-      <summary class="text-[11px] text-gray-500 hover:text-gray-700 cursor-pointer select-none">
+      <summary class="text-small text-gray-600 hover:text-gray-800 cursor-pointer select-none">
         Solved a visit in the artifact explorer instead? Import its missions file
       </summary>
       <div class="mt-2">

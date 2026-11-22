@@ -6,7 +6,7 @@
       <div :class="headingClass">Totals</div>
       <!-- A sleep-aware plan is a day and night routine: what to launch while awake, and what to have in the air overnight. -->
       <template v-if="sleepHours > 0">
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-gray-600">
           Over all three slots, planned around {{ sleepHours }} {{ sleepHours === 1 ? 'hour' : 'hours' }} of sleep a
           day.
         </p>
@@ -49,7 +49,7 @@ export default defineComponent({
   props: {
     solution: { type: Object as PropType<OptimizerSolution>, required: true },
     // The heading style of the surrounding card, which differs between the two apps.
-    headingClass: { type: String, default: 'text-xs font-medium text-gray-500 uppercase tracking-wide mt-3' },
+    headingClass: { type: String, default: 'text-xs font-medium text-gray-600 uppercase tracking-wide mt-3' },
   },
   setup(props) {
     const totals = computed(() => launchTotals(props.solution));

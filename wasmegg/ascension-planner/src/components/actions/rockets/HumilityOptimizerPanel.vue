@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
-    <p v-if="visitError" class="text-xs text-red-600">{{ visitError }}</p>
-    <p v-else-if="!current" class="text-xs text-gray-500">Shift to Humility to plan this visit's missions.</p>
+    <p v-if="visitError" class="text-small text-red-600">{{ visitError }}</p>
+    <p v-else-if="!current" class="text-small text-gray-600">Shift to Humility to plan this visit's missions.</p>
 
     <template v-else-if="settings">
       <!-- Where the ships, inventory and crafting level come from. -->
@@ -9,21 +9,21 @@
         v-if="!store.player"
         class="rounded-md border border-amber-200 bg-amber-50 p-2.5 flex flex-wrap items-center justify-between gap-2"
       >
-        <p class="text-[11px] text-amber-800 leading-normal">
+        <p class="text-small text-amber-800">
           The optimizer needs your ship levels, inventory and crafting level, which this plan does not carry.
         </p>
         <button
           type="button"
-          class="px-2 py-1 text-xs rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+          class="px-2 py-1 text-body font-bold rounded-md bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-50"
           :disabled="store.saveLoading"
           @click="store.loadSave()"
         >
           {{ store.saveLoading ? 'Loading…' : 'Load my save' }}
         </button>
-        <p v-if="store.saveError" class="w-full text-[11px] text-red-600">{{ store.saveError }}</p>
+        <p v-if="store.saveError" class="w-full text-small text-red-600">{{ store.saveError }}</p>
       </div>
 
-      <p v-else class="text-[11px] text-gray-400 leading-normal">
+      <p v-else class="text-small text-gray-600">
         Ship levels, inventory and crafting level come from your save.
         <button
           type="button"
@@ -38,7 +38,7 @@
 
       <!-- What to aim for -->
       <section>
-        <h4 class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+        <h4 class="label text-gray-600 mb-1.5">
           Legendaries to aim for · H{{ current.visit.visitIndex + 1 }} of {{ current.visitCount }}
         </h4>
         <TargetSelector :model-value="settings.targetIds" label="" @update:model-value="setTargets" />
@@ -47,14 +47,14 @@
       <!-- What the visit has to spend -->
       <section class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
         <div>
-          <label for="humility-optimizer-time" class="block text-xs font-medium text-gray-700">Time on Humility</label>
+          <label for="humility-optimizer-time" class="block text-small font-bold text-gray-700">Time on Humility</label>
           <div class="mt-1 flex items-center gap-1.5">
             <input
               id="humility-optimizer-time"
               type="text"
               :value="settings.duration"
               placeholder="e.g. 3d, 36h"
-              class="block w-24 px-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              class="block w-24 px-2 py-1 text-base sm:text-body border rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               :class="timeRejected ? 'border-red-300' : 'border-gray-300'"
               @change="setDuration(($event.target as HTMLInputElement).value)"
             />
@@ -62,7 +62,7 @@
               v-for="preset in DURATION_PRESETS"
               :key="preset"
               type="button"
-              class="px-1.5 py-1 text-[11px] rounded-md border"
+              class="px-1.5 py-1 text-small rounded-md border"
               :class="
                 settings.duration === preset
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -73,7 +73,7 @@
               {{ preset }}
             </button>
           </div>
-          <p class="mt-1 text-[11px] leading-normal" :class="timeRejected ? 'text-red-600' : 'text-gray-400'">
+          <p class="mt-1 text-small" :class="timeRejected ? 'text-red-600' : 'text-gray-600'">
             {{
               timeRejected
                 ? 'Enter a duration such as 3d or 36h.'
@@ -83,13 +83,13 @@
         </div>
 
         <div>
-          <span class="block text-xs font-medium text-gray-700">Effort</span>
+          <span class="block text-small font-bold text-gray-700">Effort</span>
           <div class="mt-1 inline-flex rounded-md border border-gray-200 bg-white overflow-hidden" role="group">
             <button
               v-for="level in EFFORT_LEVELS"
               :key="level"
               type="button"
-              class="px-2.5 py-1 text-[11px] border-r border-gray-200 last:border-r-0"
+              class="px-2.5 py-1 text-small border-r border-gray-200 last:border-r-0"
               :class="settings.effort === level ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'"
               :aria-pressed="settings.effort === level"
               @click="patch({ effort: level })"
@@ -97,17 +97,17 @@
               {{ EFFORT_META[level].label }}
             </button>
           </div>
-          <p class="mt-1 text-[11px] text-gray-400 leading-normal">{{ EFFORT_META[settings.effort].hint }}</p>
+          <p class="mt-1 text-small text-gray-600">{{ EFFORT_META[settings.effort].hint }}</p>
         </div>
 
         <div>
-          <span class="block text-xs font-medium text-gray-700">Fuel</span>
+          <span class="block text-small font-bold text-gray-700">Fuel</span>
           <div class="mt-1 inline-flex rounded-md border border-gray-200 bg-white overflow-hidden" role="group">
             <button
               v-for="option in FUEL_OPTIONS"
               :key="option.value"
               type="button"
-              class="px-2.5 py-1 text-[11px] border-r border-gray-200 last:border-r-0"
+              class="px-2.5 py-1 text-small border-r border-gray-200 last:border-r-0"
               :class="
                 settings.fuelBudget === option.value ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
               "
@@ -117,7 +117,7 @@
               {{ option.label }}
             </button>
           </div>
-          <p class="mt-1 text-[11px] text-gray-400 leading-normal">
+          <p class="mt-1 text-small text-gray-600">
             <template v-if="settings.fuelBudget === 'banked'">
               {{
                 stagedLaunch
@@ -138,17 +138,17 @@
         </div>
 
         <div>
-          <label for="humility-optimizer-gems" class="block text-xs font-medium text-gray-700">Ship price limit</label>
+          <label for="humility-optimizer-gems" class="block text-small font-bold text-gray-700">Ship price limit</label>
           <select
             id="humility-optimizer-gems"
             :value="settings.gemLimit"
-            class="mt-1 block pl-2 pr-7 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            class="mt-1 block pl-2 pr-7 py-1 text-base sm:text-body border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             @change="patch({ gemLimit: ($event.target as HTMLSelectElement).value as GemLimit })"
           >
             <option value="plan">What this visit earns</option>
             <option value="unlimited">No limit</option>
           </select>
-          <p class="mt-1 text-[11px] text-gray-400 leading-normal">
+          <p class="mt-1 text-small text-gray-600">
             <template v-if="settings.gemLimit === 'plan'">
               <template v-if="!timeInvalid">
                 Only ships costing up to {{ formatNumber(gemBudget, 1) }} gems, the visit's earnings over that time.
@@ -161,7 +161,7 @@
 
         <label
           v-if="store.player"
-          class="sm:col-span-2 flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none"
+          class="sm:col-span-2 flex items-center gap-2 text-small text-gray-600 cursor-pointer select-none"
         >
           <input
             type="checkbox"
@@ -177,33 +177,33 @@
 
       <!-- The answer -->
       <section class="rounded-md border border-gray-200 bg-white p-3">
-        <p v-if="!store.player" class="text-xs text-gray-400">Load your save to find a ship set.</p>
-        <p v-else-if="settings.targetIds.length === 0" class="text-xs text-gray-400">
+        <p v-if="!store.player" class="text-small text-gray-600">Load your save to find a ship set.</p>
+        <p v-else-if="settings.targetIds.length === 0" class="text-small text-gray-600">
           Pick at least one artifact above to find the best ship set for it.
         </p>
-        <p v-else-if="timeInvalid" class="text-xs text-gray-400">Enter the time on Humility to find a ship set.</p>
-        <p v-else-if="scheduleInvalid" class="text-xs text-gray-400">
+        <p v-else-if="timeInvalid" class="text-small text-gray-600">Enter the time on Humility to find a ship set.</p>
+        <p v-else-if="scheduleInvalid" class="text-small text-gray-600">
           Enter the time left in the 2× capacity event to find a ship set.
         </p>
-        <p v-else-if="error" class="text-xs text-red-600">Could not compute a ship set: {{ error }}</p>
-        <p v-else-if="!shown && computing" role="status" class="flex items-center gap-2 text-xs text-gray-500">
-          <InlineSpinner class="h-4 w-4 text-gray-400" />
+        <p v-else-if="error" class="text-small text-red-600">Could not compute a ship set: {{ error }}</p>
+        <p v-else-if="!shown && computing" role="status" class="flex items-center gap-2 text-small text-gray-600">
+          <InlineSpinner class="h-4 w-4 text-gray-600" />
           Finding the best ship set…
         </p>
-        <p v-else-if="!shown" class="text-xs text-gray-400">No ship set yet.</p>
+        <p v-else-if="!shown" class="text-small text-gray-600">No ship set yet.</p>
 
         <div v-else class="relative">
           <div class="space-y-3" :class="stale ? 'opacity-40 pointer-events-none transition-opacity' : ''">
-            <p v-if="totalShips === 0" class="text-xs text-gray-500">
+            <p v-if="totalShips === 0" class="text-small text-gray-600">
               No ship set fits these budgets. Try more time, a full tank, or no ship price limit.
             </p>
 
             <template v-else-if="view && projected">
               <div class="flex flex-wrap items-end gap-x-3 gap-y-1">
-                <span class="text-2xl font-bold text-green-700 leading-none">
+                <span class="text-headline font-bold text-green-700 leading-none">
                   {{ formatProbabilityForDisplay(shown.solution.jointProbability) }}
                 </span>
-                <span class="text-xs text-gray-600 pb-0.5">
+                <span class="text-small text-gray-600 pb-0.5">
                   <template v-if="view.targets.length === 1">
                     chance of a legendary {{ view.targets[0].name }}
                   </template>
@@ -215,11 +215,11 @@
                 <li
                   v-for="target in view.targets"
                   :key="target.nodeId"
-                  class="flex items-center gap-1 text-[11px] text-gray-600"
+                  class="flex items-center gap-1 text-small text-gray-600"
                 >
                   <img :src="target.iconUrl" class="h-4 w-4" alt="" />
                   {{ target.name }}
-                  <span class="font-semibold text-green-700">
+                  <span class="font-bold text-green-700">
                     {{ formatProbabilityForDisplay(target.perTarget.bestProbability) }}
                   </span>
                 </li>
@@ -228,40 +228,40 @@
               <!-- The same timeline and totals the explorer's card shows, here rather than under the breakdown,
                    since what to launch is what staging puts in the plan. -->
               <OptimizerLaunchPlan
-                class="text-sm"
+                class="text-body"
                 :solution="shown.solution"
-                heading-class="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                heading-class="label text-gray-600"
               />
 
-              <dl class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+              <dl class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-small">
                 <div class="rounded bg-gray-50 px-2 py-1.5">
-                  <dt class="text-gray-400">Ships</dt>
-                  <dd class="font-semibold text-gray-800">{{ totalShips }}</dd>
+                  <dt class="text-gray-600">Ships</dt>
+                  <dd class="font-bold text-gray-800">{{ totalShips }}</dd>
                 </div>
                 <div class="rounded bg-gray-50 px-2 py-1.5">
-                  <dt class="text-gray-400">Busiest slot</dt>
-                  <dd class="font-semibold text-gray-800">
+                  <dt class="text-gray-600">Busiest slot</dt>
+                  <dd class="font-bold text-gray-800">
                     {{ formatDuration(projected.makespanSeconds) }}
-                    <span class="font-normal text-gray-400">of {{ formatDuration(shown.timeSeconds) }}</span>
+                    <span class="font-normal text-gray-600">of {{ formatDuration(shown.timeSeconds) }}</span>
                   </dd>
                 </div>
                 <div class="rounded bg-gray-50 px-2 py-1.5">
-                  <dt class="text-gray-400">Ship cost</dt>
-                  <dd class="font-semibold text-gray-800">{{ formatNumber(projected.gemCost, 1) }} gems</dd>
+                  <dt class="text-gray-600">Ship cost</dt>
+                  <dd class="font-bold text-gray-800">{{ formatNumber(projected.gemCost, 1) }} gems</dd>
                 </div>
                 <div class="rounded bg-gray-50 px-2 py-1.5">
-                  <dt class="text-gray-400">Fuel</dt>
-                  <dd class="font-semibold text-gray-800 flex flex-wrap gap-x-2">
+                  <dt class="text-gray-600">Fuel</dt>
+                  <dd class="font-bold text-gray-800 flex flex-wrap gap-x-2">
                     <span v-for="fuel in fuelNeeds" :key="fuel.egg" class="inline-flex items-center gap-0.5">
                       <img :src="eggIcon(fuel.egg)" class="h-3 w-3" :alt="VIRTUE_EGG_NAMES[fuel.egg]" />
                       {{ formatNumber(fuel.amount, 1) }}
                     </span>
-                    <span v-if="fuelNeeds.length === 0" class="font-normal text-gray-400">Humility only</span>
+                    <span v-if="fuelNeeds.length === 0" class="font-normal text-gray-600">Humility only</span>
                   </dd>
                 </div>
               </dl>
 
-              <p v-if="fuelOverflow > 0" class="text-[11px] text-red-600 leading-normal">
+              <p v-if="fuelOverflow > 0" class="text-small text-red-600">
                 This ship set needs {{ formatNumber(fuelToStoreTotal, 1) }} more fuel than is banked, and the tank only
                 has room for {{ formatNumber(current.tankFree, 1) }}.
                 <template v-if="settings.fuelBudget === 'full-tank'">
@@ -270,7 +270,7 @@
                 </template>
                 Make room in the Tank tab, give the visit less time, or plan with the banked fuel.
               </p>
-              <p v-else-if="fuelToStore.length > 0" class="text-[11px] text-amber-700 leading-normal">
+              <p v-else-if="fuelToStore.length > 0" class="text-small text-amber-700">
                 {{ inPlan ? 'Stored for this launch:' : 'Not in the tank yet:' }}
                 <span v-for="fuel in fuelToStore" :key="fuel.egg" class="inline-flex items-center gap-0.5 mr-1.5">
                   <img :src="eggIcon(fuel.egg)" class="h-3 w-3" :alt="VIRTUE_EGG_NAMES[fuel.egg]" />
@@ -282,14 +282,14 @@
                 </template>
               </p>
 
-              <p v-if="current.visit.visitIndex > 0" class="text-[11px] text-gray-400 leading-normal">
+              <p v-if="current.visit.visitIndex > 0" class="text-small text-gray-600">
                 Solved on its own: drops and crafts from earlier Humility visits are not counted, so this may ask for
                 more than you still need.
               </p>
 
               <!-- Applying it -->
               <div class="border-t border-gray-100 pt-3 space-y-2">
-                <p v-if="saving?.withEarningsSet !== undefined" class="text-[11px] text-gray-600 leading-normal">
+                <p v-if="saving?.withEarningsSet !== undefined" class="text-small text-gray-600">
                   Saving for these ships takes {{ formatDuration(saving.seconds) }} on the elr set,
                   {{ formatDuration(saving.withEarningsSet) }} on the earnings set.
                   <label class="ml-1 inline-flex items-center gap-1 cursor-pointer">
@@ -297,35 +297,35 @@
                     Swap to the earnings set for the launch
                   </label>
                 </p>
-                <p v-else-if="saving && saving.seconds >= 60" class="text-[11px] text-gray-600">
+                <p v-else-if="saving && saving.seconds >= 60" class="text-small text-gray-600">
                   The launch waits {{ formatDuration(saving.seconds) }} for the gems these ships cost.
                 </p>
 
                 <div class="flex flex-wrap items-center gap-2">
                   <span
                     v-if="inPlan"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-green-200 bg-green-50 text-green-700"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-body font-bold rounded-md border border-green-200 bg-green-50 text-green-700"
                   >
                     ✓ Staged in the plan
                   </span>
                   <button
                     v-else
                     type="button"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="px-3 py-1.5 text-body font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
                     :disabled="staging || stale || fuelOverflow > 0"
                     @click="stage"
                   >
                     {{ staging ? 'Staging…' : stagedLaunch ? 'Restage with this ship set' : 'Stage into plan' }}
                   </button>
-                  <span v-if="stagedLaunch && !inPlan && fuelOverflow === 0" class="text-[11px] text-amber-700">
+                  <span v-if="stagedLaunch && !inPlan && fuelOverflow === 0" class="text-small text-amber-700">
                     The plan has a different answer staged for this visit. Restaging replaces it.
                   </span>
-                  <span v-else-if="inPlan" class="text-[11px] text-gray-500">
+                  <span v-else-if="inPlan" class="text-small text-gray-600">
                     The launch, its fuel and the wait for the ships are in the action history.
                   </span>
                 </div>
-                <p v-if="stageError" class="text-[11px] text-red-600">{{ stageError }}</p>
-                <p v-if="inPlan && missionsStore.drift.length > 0" class="text-[11px] text-red-600 leading-normal">
+                <p v-if="stageError" class="text-small text-red-600">{{ stageError }}</p>
+                <p v-if="inPlan && missionsStore.drift.length > 0" class="text-small text-red-600">
                   This planner charges different fuel than the optimizer assumed for
                   {{ missionsStore.drift.map(d => VIRTUE_EGG_NAMES[d.egg]).join(', ') }}. The plan uses this planner's
                   amounts.
@@ -333,7 +333,7 @@
               </div>
 
               <details class="border-t border-gray-100 pt-2">
-                <summary class="text-[11px] font-medium text-blue-600 hover:text-blue-700 cursor-pointer select-none">
+                <summary class="text-small font-bold text-blue-600 hover:text-blue-700 cursor-pointer select-none">
                   Full breakdown: odds, crafts and expected drops
                 </summary>
                 <div class="mt-2">
@@ -353,7 +353,7 @@
           </div>
 
           <div v-if="stale && computing" role="status" class="absolute inset-0 flex items-start justify-center pt-6">
-            <InlineSpinner class="h-6 w-6 text-gray-500" />
+            <InlineSpinner class="h-6 w-6 text-gray-600" />
             <span class="sr-only">Finding the best ship set…</span>
           </div>
         </div>
