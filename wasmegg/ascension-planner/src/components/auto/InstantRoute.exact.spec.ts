@@ -45,6 +45,13 @@ describe('the request', () => {
     expect(body.slice(0, body.indexOf('inputs:'))).toMatch(/const start = answerStart\.value/);
     expect(body.slice(0, body.indexOf('inputs:'))).toMatch(/const first = answerFirst\.value/);
   });
+  it('the key has the time off, no-prestige days and silo trick the simulator sees (code review 22 Nov, math-exact-2)', () => {
+    const at = script.indexOf('instantExactKey({');
+    const body = script.slice(at, at + 900);
+    expect(body).toMatch(/timeOff: timeOffWindows\(store\.timeOff, zone\.value\)/);
+    expect(body).toMatch(/noPrestige: timeOffWindows\(store\.noPrestige, zone\.value\)/);
+    expect(body).toMatch(/siloTrick: !!store\.siloTrick/);
+  });
   it('a phone gets the button, a desktop the automatic run', () => {
     expect(script).toContain('EXACT_PHONE_QUERY');
     expect(script).toMatch(/exactTriggerFor\(/);
