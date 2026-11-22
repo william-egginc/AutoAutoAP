@@ -26,7 +26,16 @@ export function instantExactKey(o: {
   planStart: number;
   /** The pick without the held buys (useInstantExact.ts `ExactRequest.alt`): in the key only when it is another chain. */
   alt?: number[] | null;
+  /**
+   * What the simulator sees and the instant answer may not (code review 22 Nov 2026, math-exact-2): the time off and
+   * no-prestige days as windows in the plan's zone (search/timeOff.ts `timeOffWindows`), and the silo trick. Each in
+   * the key only when set, so the keys before them stay good.
+   */
+  timeOff?: readonly { from: number; to: number }[] | null;
+  noPrestige?: readonly { from: number; to: number }[] | null;
+  siloTrick?: boolean;
 }): string {
+  const wins = (ws: readonly { from: number; to: number }[] | null | undefined) => (ws ?? []).map(w => `${w.from}-${w.to}`).join(',');
   const alt = o.alt?.length && o.alt.join('>') !== o.chain.join('>') ? o.alt.join('>') : null;
   return [
     accountOf(o.rawBackup),
@@ -38,6 +47,9 @@ export function instantExactKey(o: {
     o.deadline ?? '',
     o.planStart,
     ...(alt ? [`or ${alt}`] : []),
+    ...(wins(o.timeOff) ? [`off ${wins(o.timeOff)}`] : []),
+    ...(wins(o.noPrestige) ? [`np ${wins(o.noPrestige)}`] : []),
+    ...(o.siloTrick ? ['silo'] : []),
   ].join('|');
 }
 

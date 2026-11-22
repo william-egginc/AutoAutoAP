@@ -2806,9 +2806,10 @@ async function runAltPass(found: FoundRoutes): Promise<void> {
       liveFresh: (t: number, at: number) => store.liveFreshBuilds(t, at),
       buildUpTails: () => store.buildUpTails(),
       alive,
+      tailExtra: { heldBuys: false },
     });
     if (!legs || !alive()) return;
-    const tail = { ...legs.tail, heldBuys: false };
+    const tail = legs.tail;
     const foundB = await findRoutes({
       table: () => null,
       startTE: ctx.te,
@@ -2888,6 +2889,9 @@ const exactRequest = computed<ExactRequest | null>(() => {
       deadline: props.deadline ?? null,
       planStart: start,
       alt,
+      timeOff: timeOffWindows(store.timeOff, zone.value),
+      noPrestige: timeOffWindows(store.noPrestige, zone.value),
+      siloTrick: !!store.siloTrick,
     }),
     chain: r.chain,
     alt,
@@ -3208,6 +3212,7 @@ function cacheKey(): string | null {
     maxAscensions: filters.value.maxAscensions,
     minAscensions: filters.value.minAscensions,
     siloTrick: store.siloTrick,
+    holdShifts: !!store.deferShifts,
   });
 }
 /**
@@ -3556,6 +3561,10 @@ watch(
       store.firstAscension,
       bonus.value,
       useHours.value ? availabilityKey(store.availability) : '',
+      // Held shifts, the no-prestige days and the silo trick move the answer too (code review 22 Nov 2026, math-fast-3).
+      useHours.value ? !!store.deferShifts : '',
+      JSON.stringify(usableTimeOff(store.noPrestige).map(w => [w.from, w.to])),
+      !!store.siloTrick,
       filters.value.maxAscensions,
       filters.value.minAscensions,
       // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
