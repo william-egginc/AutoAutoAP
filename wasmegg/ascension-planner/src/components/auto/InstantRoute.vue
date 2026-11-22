@@ -124,7 +124,8 @@
       Your save is already at {{ Math.floor(store.currentTE) }} TE, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading' || deadlineStale" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-loading">
+    <!-- Not once the run has failed (R8.1, 22 Nov 2026): an old-date answer kept after the failure leaves `deadlineStale` true, and the spinner hid the error. -->
+    <p v-else-if="(status === 'loading' || deadlineStale) && status !== 'error'" class="text-body text-slate-600 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
       <span><template v-if="deadlineStale && !loadingText">{{ DATE_CHANGED_WORKING }}<AnimatedDots /></template><template v-else>{{ loadingText }}<AnimatedDots v-if="loadingText" /></template>{{ result && !staleAt && !deadlineStale ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
