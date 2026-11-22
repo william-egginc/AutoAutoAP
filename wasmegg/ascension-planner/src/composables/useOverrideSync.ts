@@ -331,8 +331,12 @@ function target(): { url: string; k: string } | null {
   if (!SYNC_RECORDS.enabled || !saveOnlineOn()) return null;
   try {
     const url = syncedUrlOf(cloudSubmitUrl(searchStore()?.submitUrl));
-    const k = useFollowStore().cloudKey;
+    const follows = useFollowStore();
+    const k = follows.cloudKey;
     if (!url || !/^[0-9a-f]{64}$/.test(k)) return null;
+    // Only the key of the account on screen (code review 22 Nov 2026, rel-state-1): just after a player switch it is
+    // still the previous account's, and A's override, ticks and plan would be read (or written) for B.
+    if (!follows.keyFor || follows.keyFor !== accountOf(useInitialStateStore().rawBackup)) return null;
     return { url, k };
   } catch {
     return null;
@@ -505,9 +509,13 @@ export async function syncOverrideFromCloud(): Promise<void> {
     if (!w || pausedUntil > Date.now()) return;
     const initial = useInitialStateStore();
     const playerId = initial.playerId;
-    if (!playerId || !accountOf(initial.rawBackup)) return;
+    const account = accountOf(initial.rawBackup);
+    if (!playerId || !account) return;
+    // Still the account the read began for (a player switch while a call is out): nothing of it is used for another.
+    const same = () => accountOf(useInitialStateStore().rawBackup) === account;
     lastReadAt = Date.now();
     const list = await listSynced(w.url, w.k);
+    if (!same()) return;
     if (list.ok) noteServerNow(list.now);
     if (!list.ok) {
       if (list.why === 'missing') markSyncMissing(w.url);
@@ -518,8 +526,9 @@ export async function syncOverrideFromCloud(): Promise<void> {
     await readOverride(list.records, w, playerId);
     // The same list for the other records (composables/useTrackerSync.ts): one GET /sync a pass.
     for (const l of listListeners) {
+      if (!same()) return;
       try {
-        await l(list.records, w);
+        await l(list.records, w, account);
       } catch {
         // quiet
       }
@@ -540,7 +549,7 @@ async function readOverride(records: SyncMeta[], w: { url: string; k: string }, 
 }
 
 /** The read pass's list, handed on (composables/useTrackerSync.ts registers one). */
-type ListListener = (records: SyncMeta[], w: { url: string; k: string }) => Promise<void> | void;
+type ListListener = (records: SyncMeta[], w: { url: string; k: string }, account: string) => Promise<void> | void;
 const listListeners = new Set<ListListener>();
 export function onSyncList(l: ListListener): void {
   listListeners.add(l);
@@ -629,7 +638,7 @@ export function useOverrideSync(): void {
   const initial = useInitialStateStore();
   const planner = useAutoPlannerStore();
   watch(
-    () => `${follows.cloudKey}|${accountOf(initial.rawBackup)}|${planner.teOverrideAccount}|${where()?.url ?? ''}`,
+    () => `${follows.cloudKey}|${follows.keyFor}|${accountOf(initial.rawBackup)}|${planner.teOverrideAccount}|${where()?.url ?? ''}`,
     () => void syncOverrideFromCloud(),
     { immediate: true }
   );

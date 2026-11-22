@@ -25,6 +25,7 @@
  * through the read's own merge, nothing written back, nothing said; an `at` over 10 minutes ahead of its clock is
  * sent again once stamped now (lib/followCloud.ts `putFollow`), and refused again stays pending.
  */
+import { accountOf } from '@/search/runSaves';
 import { defineStore, getActivePinia } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -93,6 +94,12 @@ export const useFollowStore = defineStore('follow', () => {
   const held = new Map<string, FollowMap>();
   /** The account's follow key (lib/followCloud.ts `followKey`): a hash, never the ID. */
   const cloudKey = ref('');
+  /**
+   * The account (search/runSaves.ts `accountOf`) the key above was made for, set on the same line (code review 22 Nov
+   * 2026, rel-state-1). After a player switch the key is the previous account's until the new one is worked out (async):
+   * the synced records (useOverrideSync `target`) go nowhere until the two agree.
+   */
+  const keyFor = ref('');
   /** 'unreachable': the saved routes couldn't be read on the last load (offline, the hour's limit, an error). */
   const cloudStatus = ref<'idle' | 'loading' | 'ok' | 'unreachable'>('idle');
   const saves = ref<Record<GoalKey, SaveState>>({});
@@ -152,6 +159,7 @@ export const useFollowStore = defineStore('follow', () => {
       const k = id ? await followKey(id).catch(() => '') : '';
       if (idOf() !== id) return;
       cloudKey.value = k;
+      keyFor.value = id ? accountOf({ eiUserId: id }) : '';
       hashedFor.value = sig;
       if (h && k) void loadCloud();
       else cloudStatus.value = 'idle';
@@ -563,6 +571,7 @@ export const useFollowStore = defineStore('follow', () => {
     partition,
     version,
     cloudKey,
+    keyFor,
     cloudStatus,
     online,
     offByChoice,

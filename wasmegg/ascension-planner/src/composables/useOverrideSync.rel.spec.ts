@@ -4,12 +4,15 @@
  * does), a record weighed while a search runs never changes the starting TE under it, and a PUT under way when Save
  * online goes off is not sent again ("ahead"). Placeholder IDs only.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, defineStore, setActivePinia } from 'pinia';
 import { ref } from 'vue';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
+import { accountOf } from '@/search/runSaves';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
@@ -111,6 +114,52 @@ describe('account switch', () => {
     await vi.advanceTimersByTimeAsync(OVERRIDE_SYNC_DEBOUNCE_MS);
     expect(syncPuts()).toHaveLength(1);
     expect(c.record(KEY, 'override')).toEqual({ at, value: { ...TE197, saveTE: 198 } });
+  });
+});
+
+describe('account switch: the read (code review 22 Nov 2026, rel-state-1)', () => {
+  const syncGets = () => c.calls.filter(x => x.method === 'GET' && x.url.includes('/sync'));
+  it("the next account is never read under the previous account's key (its override is not offered to B)", async () => {
+    const A = browser();
+    await A.load();
+    A.type(TE197);
+    await vi.advanceTimersByTimeAsync(OVERRIDE_SYNC_DEBOUNCE_MS);
+    expect(c.record(KEY, 'override')).toBeTruthy();
+    const before = syncGets().length;
+    // B loads: the followed routes' key is still A's until B's is worked out (async), and a read starts at once.
+    const s = useInitialStateStore();
+    s.playerId = OTHER_ID;
+    s.rawBackup = raw(OTHER_ID) as never;
+    expect(useFollowStore().cloudKey).toBe(KEY);
+    await syncOverrideFromCloud();
+    expect(syncGets().filter(x => x.url.includes(KEY)).length).toBe(before);
+    expect(cloudOverrideOffer()).toBeNull();
+  });
+  it('the key says which account it was made for, and the read watches it', async () => {
+    const A = browser();
+    await A.load();
+    expect(useFollowStore().keyFor).toBe(accountOf(raw()));
+    const s = useInitialStateStore();
+    s.playerId = OTHER_ID;
+    s.rawBackup = raw(OTHER_ID) as never;
+    await vi.waitFor(() => expect(useFollowStore().keyFor).toBe(accountOf(raw(OTHER_ID))));
+    const src = fs.readFileSync(path.resolve(__dirname, 'useOverrideSync.ts'), 'utf8');
+    expect(src).toMatch(/\$\{follows\.keyFor\}/);
+  });
+  it('an account switch while the list is out: nothing from it is weighed for the new account', async () => {
+    const A = browser();
+    await A.load();
+    A.type(TE197);
+    await vi.advanceTimersByTimeAsync(OVERRIDE_SYNC_DEBOUNCE_MS);
+    // This browser's copy is older than online's, so the read would weigh it, but B is on screen when the list lands.
+    A.mem.clear();
+    const read = syncOverrideFromCloud();
+    const s = useInitialStateStore();
+    s.playerId = OTHER_ID;
+    s.rawBackup = raw(OTHER_ID) as never;
+    await read;
+    expect(cloudOverrideOffer()).toBeNull();
+    expect(syncGets().filter(x => x.url.includes('kind=override'))).toHaveLength(0);
   });
 });
 
