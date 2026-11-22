@@ -14,7 +14,7 @@ export const exactMisses = (gap: string): string => `Misses the date by about ${
 export const EXACT_STEPS_NOTE = 'The steps below are still quick estimates.';
 /** Two routes (Jordan, 21 Nov 2026, option 1(a)): the box switched to the faster route, or offers it after Follow / Simulate. PLACEHOLDERS for Words. */
 export const EXACT_FASTER = 'A faster route was found.';
-export const EXACT_FASTER_OFFERED = 'A faster route was found. Nothing was switched because you already used this one.';
+export const EXACT_FASTER_OFFERED = 'A faster route was found. The box was not switched, because you already used the route shown.';
 export const EXACT_FASTER_DATE = 'A route that makes the date with more to spare was found.';
 export const EXACT_SHOW_FIRST = 'Show the first route instead';
 export const EXACT_SHOW_FASTER = 'Show the faster route';
