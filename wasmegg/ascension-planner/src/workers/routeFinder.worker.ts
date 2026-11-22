@@ -57,8 +57,9 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
         return;
       case 'expand': {
         // One cache per table and settings, kept across a search's steps (and the next search with
-        // the same settings).
-        const key = `${tableUrl}|${JSON.stringify(m.settings)}`;
+        // the same settings). Keyed by this request's URL: `tableUrl` may already be a later request's (code review
+        // 22 Nov 2026, T1.3: a step overtaken while its table loaded kept its sweeps under the other table's key).
+        const key = `${m.url}|${JSON.stringify(m.settings)}`;
         if (key !== cacheKey) {
           cache.clear();
           cacheKey = key;
