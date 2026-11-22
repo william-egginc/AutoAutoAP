@@ -1475,7 +1475,9 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
   const ctx = prestigeInputs;
   const found = result.value;
   // `id`: the answer's run; the line is tied to its own counter too.
-  if (!prestigeFlag.enabled.value || !ctx || ctx.id !== id || !found) return;
+  // Not with no-prestige days: the line is hidden then (UX review 5 Nov), and its estimate would only reach the shared
+  // record (code review round 2, 22 Nov 2026, R6.1).
+  if (!prestigeFlag.enabled.value || noPrestigeOn.value || !ctx || ctx.id !== id || !found) return;
   const pid = ++prestigeRuns;
   const mode = props.deadline ? ('date' as const) : ('fastest' as const);
   // The route the box shows (Jordan, 26 Oct 2026): Prefer fewer's pick when it made one, else the best, as before.

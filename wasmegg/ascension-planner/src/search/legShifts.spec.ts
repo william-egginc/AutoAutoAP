@@ -136,3 +136,28 @@ describe('priceChain with `shifts`', () => {
     expect(r.legs[0].shifts).toBeUndefined();
   });
 });
+
+describe('a leg held buys moved keeps its shifts (code review round 2, 22 Nov 2026, R6.2)', () => {
+  // Evenings only, 5 PM to 11 PM Denver: the sale opens Fri 9 AM PT (10 AM here), outside them, so a build buying
+  // through it is lagged (routeFinder.ts heldBuys) and its replay has to start from the lagged build.
+  const EVENINGS: Availability = { days: [], fromHour: 17, toHour: 23, timezone: 'America/Denver' };
+  const held = holdUntilOf(EVENINGS);
+  it('every evening-start leg priced with shifts carries them', () => {
+    let legs = 0;
+    for (const c of cells) {
+      const start = REFERENCE_WEEK + c.h * 3600 + 7 * 86400;
+      if (held(start) !== start) continue;
+      for (const target of [c.te + 3, c.te + 20].filter(t => t <= 490)) {
+        const r = priceChain(
+          lookup,
+          { startTE: c.te, start, startDelivered: canonicalDelivered(c.te), hours: EVENINGS, holdShifts: true, heldOpening: false, shifts: true },
+          [target]
+        );
+        if (!r) continue;
+        expect(r.legs[0].shifts, `TE ${c.te} hour ${c.h} to ${target}`).toBeDefined();
+        legs++;
+      }
+    }
+    expect(legs).toBeGreaterThan(4);
+  });
+});

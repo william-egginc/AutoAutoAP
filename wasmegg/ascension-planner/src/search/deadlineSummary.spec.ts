@@ -10,6 +10,10 @@ describe('By a date run summary', () => {
     expect(tookDuration(340)).toBe('5 min 40 s');
     expect(tookDuration(600)).toBe('10 min');
     expect(tookDuration(4320)).toBe('1 h 12 min');
+    // Rounds to the minute before splitting the hours off (code review round 2, 22 Nov 2026, R6.3: '1 h 60 min').
+    expect(tookDuration(7170)).toBe('2 h');
+    expect(tookDuration(3599 + 3600)).toBe('2 h');
+    expect(tookDuration(3600 + 89)).toBe('1 h 1 min');
   });
 
   it('says how long Simple took and what it searched', () => {
