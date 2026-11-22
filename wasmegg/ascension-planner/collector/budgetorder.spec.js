@@ -89,3 +89,21 @@ describe('review 22 Nov, C1.2: the PIN reset budget is spent in order', () => {
     expect((await call(e, 'reset', { k: ks[3] }, '198.51.100.77')).status).toBe(200);
   });
 });
+
+describe('review 22 Nov, C2.1: a write the budgets refuse runs no full-table scan', () => {
+  it('sync: a new record refused by the key\'s hour (or the day) reads no unkeyed rows of `synced`', async () => {
+    const sqls = [];
+    const real = env.WATCH.prepare.bind(env.WATCH);
+    env.WATCH.prepare = sql => (sqls.push(sql), real(sql));
+    const put = () =>
+      handleSync(new Request(`https://c.example/sync?k=${K}&kind=ticks&slot=1793000000&at=${T0 - 1000}`, { method: 'PUT', headers: { 'content-length': String(TICKS.length) }, body: TICKS }), env, T0);
+    exhaust(`sync|${K}`);
+    expect((await put()).status).toBe(429);
+    expect(sqls.filter(q => /FROM synced\s*$/.test(q))).toEqual([]);
+    // And the collector's day budget used up: the same.
+    db().prepare('DELETE FROM follow_rate').run();
+    exhaust('sync-puts-day');
+    expect((await put()).status).toBe(429);
+    expect(sqls.filter(q => /FROM synced\s*$/.test(q))).toEqual([]);
+  });
+});

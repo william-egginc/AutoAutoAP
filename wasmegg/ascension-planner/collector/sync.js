@@ -224,17 +224,6 @@ export async function handleSync(request, env, now = Date.now()) {
   if (have) {
     if (have.data === data) return reply({ ok: true, unchanged: true, updatedAt: have.updated });
     if (have.at > at) return reply({ error: 'a newer record is stored (its at is higher); use it', latest: latestOf(have) }, 409);
-  } else {
-    // A new record: the collector's size caps, a read each, only when something new would be created.
-    const mine = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM synced WHERE key = ?').bind(k).first();
-    if (!mine?.n) {
-      const newKeyWait = await dayWait(env, 'sync-new-keys-day', Number(env.SYNC_NEW_KEYS_PER_DAY) || SYNC_NEW_KEYS_PER_DAY, now);
-      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
-      const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM synced').first();
-      if ((keys?.n ?? 0) >= SYNC_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
-    }
-    const total = await env.WATCH.prepare('SELECT COALESCE(SUM(bytes), 0) AS b FROM synced').first();
-    if ((total?.b ?? 0) + size > (Number(env.SYNC_MAX_TOTAL_BYTES) || SYNC_MAX_TOTAL_BYTES)) return retry(3600, 'the cloud save is full right now');
   }
 
   const hourAgo = now - HOUR_MS;
@@ -254,6 +243,20 @@ export async function handleSync(request, env, now = Date.now()) {
   // The collector's day budget comes after the key's hour (review 15 Nov, C2): a write the key's own hour refuses spends nothing shared.
   const putWait = await dayWait(env, 'sync-puts-day', Number(env.SYNC_PUTS_PER_DAY) || SYNC_PUTS_PER_DAY, now);
   if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
+
+  if (!have) {
+    // A new record: the collector's size caps, a read each, only when something new would be created. After the budgets
+    // above, so a write they refuse runs none of these full-table reads (review 22 Nov, C2.1).
+    const mine = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM synced WHERE key = ?').bind(k).first();
+    if (!mine?.n) {
+      const newKeyWait = await dayWait(env, 'sync-new-keys-day', Number(env.SYNC_NEW_KEYS_PER_DAY) || SYNC_NEW_KEYS_PER_DAY, now);
+      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
+      const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM synced').first();
+      if ((keys?.n ?? 0) >= SYNC_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
+    }
+    const total = await env.WATCH.prepare('SELECT COALESCE(SUM(bytes), 0) AS b FROM synced').first();
+    if ((total?.b ?? 0) + size > (Number(env.SYNC_MAX_TOTAL_BYTES) || SYNC_MAX_TOTAL_BYTES)) return retry(3600, 'the cloud save is full right now');
+  }
 
   await env.WATCH.prepare(
     `INSERT INTO synced (key, kind, slot, at, updated, bytes, enc, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
