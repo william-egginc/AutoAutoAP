@@ -295,6 +295,10 @@ export interface RouteLeg {
    *  table has it and its shifts before C3's end may wait for the player. */
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
+  /** A FRESH FIRST ASCENSION HELD PAST THE NEXT HOUR (code review 22 Nov 2026, math-fast-1): the player's hours or a
+   *  no-prestige day made its prestige wait. `ready`: the next whole hour after the plan start, when it could have
+   *  gone (lib/instantSteps.ts says when it goes and why it waits, not "now"). */
+  prestigeHeld?: { ready: number };
   /** With `PolishOptions.shifts` (priceChain): each shift after the build-up, from the table's replay of this leg
    *  (search/legShifts.ts): when, and the egg switched TO. The opening's (fresh start to C3) are not in the table.
    *  Absent on a first ascension from `firstLegs` and on routes priced without asking. */
@@ -335,13 +339,23 @@ export interface FirstLeg {
   /** A fresh first ascension's held opening (RouteLeg.heldOpening, wanted). */
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
+  /** When it starts, where it was priced from: a fresh build on the hour (`freshAt`). Absent: the plan start
+   *  (continue, the build-up, a start at once inside the sale). */
+  start?: number;
+  /** A FRESH FIRST ASCENSION HELD PAST THE NEXT HOUR (code review 22 Nov 2026, math-fast-1): the player's hours or a
+   *  no-prestige day made its prestige wait. `ready`: the next whole hour after the plan start, when it could have
+   *  gone (lib/instantSteps.ts says when it goes and why it waits, not "now"). */
+  prestigeHeld?: { ready: number };
 }
 
 /** A first leg's held-opening fields for its RouteLeg. */
-function heldOf(f: { heldOpening?: 'morning' | 'uncertain'; wanted?: number }): Pick<RouteLeg, 'heldOpening' | 'wanted'> {
+function heldOf(
+  f: Pick<FirstLeg, 'heldOpening' | 'wanted' | 'prestigeHeld'>
+): Pick<RouteLeg, 'heldOpening' | 'wanted' | 'prestigeHeld'> {
   return {
     ...(f.heldOpening ? { heldOpening: f.heldOpening } : {}),
     ...(f.wanted !== undefined ? { wanted: f.wanted } : {}),
+    ...(f.prestigeHeld ? { prestigeHeld: { ready: f.prestigeHeld.ready } } : {}),
   };
 }
 
@@ -973,7 +987,7 @@ export async function findRoutes(
             from: o.startTE,
             to: f.to,
             endTE: f.endTE,
-            start: start.time,
+            start: f.start ?? start.time,
             end: f.end,
             sales: 0,
             tier13: false,
@@ -1227,8 +1241,11 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         ...(pick.label === 'buildup' && bp ? farmEnd(bp.build, pick.delivered) : {}),
         lastEgg: pick.lastEgg,
         rate: pick.rate,
-        // A fresh start on the hour (not at once inside the sale) that waited for its opening.
-        ...(f && f === onHour && pick.label.endsWith('-sale') ? held : {}),
+        // A fresh start on the hour (not at once inside the sale): it starts where it was priced (code review 22 Nov
+        // 2026, math-fast-1), with its held opening, and held past the next hour, when it was ready.
+        ...(f && f === onHour && pick.label.endsWith('-sale')
+          ? { start: freshAt, ...held, ...(freshAt > nextHour(o.start) ? { prestigeHeld: { ready: nextHour(o.start) } } : {}) }
+          : {}),
       });
   }
   return out;
@@ -1328,7 +1345,7 @@ export function priceChain(
         from: o.startTE,
         to: target,
         endTE: f.endTE,
-        start: o.start,
+        start: f.start ?? o.start,
         end: f.end,
         sales: 0,
         tier13: false,
