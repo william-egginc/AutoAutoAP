@@ -103,13 +103,42 @@ export function rebase(b: BuildParams, te: number, delivered: number[]): BuildPa
  * measures it in between.) Across a daylight-saving change the finder passes `dstLateBy`'s value, so the
  * sale ends an hour later or sooner, as it really does.
  */
+/**
+ * KINDNESS AT K3'S SHIFT, ESTIMATED (code review round 2, 22 Nov 2026, T2, math-simcheck-1; Mac-only stopgap). The
+ * simulator shares the goal out at K3's shift (auto/ascension.ts); a table build stores the counts at `waitStart`,
+ * after K3's 60 s and train-car buys, so the first share saw kindness a little high and a build could be priced up to
+ * a day fast (maxed TE 95, Sat 9 AM PT, 2-sale to 100: 1,301,897 s against the simulator's 1,388,269 s). With version
+ * 2's extras and a bare 60 s after the shift (`waitStart - k3At === 60`), kindness's count then is taken as the stored
+ * one less `k3Rate` for that minute, never below a threshold already passed. APPROXIMATE: k3Rate is measured on
+ * humility before the shift. Null (the stored count) for a version 1 build, a longer gap, or H1 waiting for the sale.
+ * Used for the FIRST share only; K3's own need still comes from the stored count, as runK3's does. The exact fix (the
+ * count at the shift as a new extra) needs a table build.
+ */
+export function kindnessAtK3(
+  p: BuildParams & { extras?: { k3At: number; k3Rate: number; waitEgg: number } },
+  thresholds: readonly number[] = TE_BREAKPOINTS
+): number | null {
+  const x = p.extras;
+  if (!x || x.waitEgg === 4 || p.waitStart - x.k3At !== 60) return null;
+  const stored = p.delivered[1] || 0;
+  let passed = 0;
+  for (const th of thresholds) if (stored >= th) passed = th;
+  return Math.max(passed, stored - x.k3Rate * 60);
+}
+
 export function tailTo(p: BuildParams, target: number, lateBy = 0): Tail | null {
   const delivered = Object.fromEntries(EGG_ORDER.map((e, i) => [e, p.delivered[i]])) as Record<VirtueEgg, number>;
   const locked: VirtueEgg[] = [];
   const saleEnd = p.saleEnd - lateBy;
   let t = p.waitStart;
+  const kAt = kindnessAtK3(p);
   for (const egg of WAIT_ORDER) {
-    const targets = distributeTargetTE(delivered, target, locked);
+    // The first share (K3's) from kindness at K3's shift (`kindnessAtK3`, T2), the rest from the counts as they are.
+    const targets = distributeTargetTE(
+      egg === 'kindness' && kAt !== null ? { ...delivered, kindness: kAt } : delivered,
+      target,
+      locked
+    );
     const have = countTEThresholdsPassed(delivered[egg] || 0);
     const need = Math.max(0, targets[egg] - have);
     // K3 waits for the sale to end whatever the goal; the others only for their share.
@@ -255,7 +284,10 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
   if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {}, bytes: SWEEP_OVERHEAD };
 
   const span = Math.max(0, to - now);
-  const all = greedyOrder(d, GREEDY_IDX, span);
+  // Shared from kindness at K3's shift (`kindnessAtK3`, T2): only kindness's own place in the order moves, so the four's
+  // order below, kindness left out, is as before. The counts and K3's need stay the stored ones.
+  const kAt = kindnessAtK3(p);
+  const all = greedyOrder(kAt === null ? d : d.map((v, e) => (e === KIND ? kAt : v)), GREEDY_IDX, span);
   // The four eggs' own order is the same order with kindness taken out: each egg's thresholds are its
   // own, and ties break the same way, so leaving one egg out does not reorder the rest. Of the first
   // m, the four are never asked for more than the five-egg order gave them (kindness only overshoots).

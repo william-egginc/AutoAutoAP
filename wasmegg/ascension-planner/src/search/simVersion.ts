@@ -100,8 +100,11 @@ export const SIM_SOURCES = [
  *  calculator, colleggtibles, the planner's artifact helpers), none changed, so no cell can move. No SIM_VERSION bump.
  *  22 Nov 2026 (code review T1.7): re-pasted for precomputedLeg.ts: pacificOffset exported, dstLateBy added (read by
  *  the finder only), comments. tailTo, sweepTails and the generator's code are as they were, so no cell can move.
- *  No SIM_VERSION bump. */
-export const SIM_SOURCE_HASH = '0ed22518503f4b38cd96cebcf96e77957b606fbd94f2639a0532839ae52ee7fb';
+ *  No SIM_VERSION bump.
+ *  22 Nov 2026 (code review round 2, T2): re-pasted for precomputedLeg.ts kindnessAtK3 and its use in tailTo and
+ *  sweepTails (K3's share from kindness at its shift, a stopgap). It moves how a cell's builds are PRICED, not the
+ *  cells: the generator's builds and every table file are as they were. No SIM_VERSION bump. */
+export const SIM_SOURCE_HASH = '9d3c2d14925fe1373351ada518531de5a25d6c4909c741588d0eeec692bb692b';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

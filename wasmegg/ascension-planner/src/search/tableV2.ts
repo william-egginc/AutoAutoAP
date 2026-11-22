@@ -17,7 +17,7 @@
  *
  * Pure on purpose (no simulator, no Pinia): the site can load it beside the finder.
  */
-import { EGG_ORDER, type BuildParams, type Tail, type TailSweep } from './precomputedLeg';
+import { EGG_ORDER, kindnessAtK3, type BuildParams, type Tail, type TailSweep } from './precomputedLeg';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 
 /** The nine numbers of a version 1 build, in file order. */
@@ -229,11 +229,13 @@ export function replayTail(p: BuildParams, x: BuildExtras, target: number, o: Re
   const first = humility ? H : K;
   const order = [first, ...WAIT_IDX.filter(e => e !== first)];
   const locked = [false, false, false, false, false];
+  const kAt = kindnessAtK3({ ...p, extras: x }, thresholds);
   for (const egg of order) {
     // The hold comes before the goal is shared (auto/ascension.ts), for every shift to another egg,
     // even one that then has nothing to wait for. The first wait's shift was held above.
     if (egg !== first && current !== egg) t += hold(t, current, p.peakELR);
-    const goal = shareGoal(d, target, locked, thresholds);
+    // K3's share from kindness at its shift (precomputedLeg.ts `kindnessAtK3`, T2); the rest as they are.
+    const goal = shareGoal(egg === K && kAt !== null ? d.map((v, e) => (e === K ? kAt : v)) : d, target, locked, thresholds);
     const have = countTE(d[egg], thresholds);
     const need = Math.max(0, goal[egg] - have);
     let wait = egg === first ? Math.max(0, saleEnd - t) : 0;
@@ -410,7 +412,10 @@ export function sweepReplay(
 
   // Step k shares among order[k..4]: how many of the first m TEs handed out among them go to
   // order[k] (the egg that waits at step k).
-  const all = greedyOrderOf(d0, Math.max(0, to - now), thresholds);
+  // Kindness's place in the order from its count at K3's shift (precomputedLeg.ts `kindnessAtK3`, T2), as replayTail
+  // shares K3's goal; the others' order, kindness left out, is as before.
+  const kAt = kindnessAtK3({ ...p, extras: x }, thresholds);
+  const all = greedyOrderOf(kAt === null ? d0 : d0.map((v, e) => (e === K ? kAt : v)), Math.max(0, to - now), thresholds);
   // `prefix[k][m]`: how many of the first m of `all` with order[0..k-1] left out are order[k]. Built in one pass
   // per step with no list in between (Array.from and filter here were a third of what a route worker allocated);
   // for a single checkpoint not built at all, `needOf` counting along `all` instead.
