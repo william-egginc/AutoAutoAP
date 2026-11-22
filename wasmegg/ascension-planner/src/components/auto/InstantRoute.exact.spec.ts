@@ -110,6 +110,14 @@ describe('Follow or Simulate during the background polish (code review 22 Nov 20
   });
 });
 
+describe('a saved answer put back (code review round 2, 22 Nov 2026, ui-instantroute-2)', () => {
+  it('forgets the last run’s first-ascension setting: Simulate and the exact check fall back to the setting for its start', () => {
+    const at = script.indexOf('function applySnapshot(');
+    const body = script.slice(at, script.indexOf('\n}\n', at));
+    expect(body).toMatch(/answerStart\.value = [^\n]*\n\s*answerFirst\.value = null;/);
+  });
+});
+
 describe('two routes (Jordan, 21 Nov 2026, option 1(a)): the pick without the held buys, checked next to the pick', () => {
   it('the no-B pass re-runs the first legs with heldBuys off, then finds, polishes and picks with the same margin', () => {
     const at = script.indexOf('async function runAltPass');
