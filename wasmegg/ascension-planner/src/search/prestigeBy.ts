@@ -30,13 +30,13 @@
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { roundedGap } from '@/lib/format';
-import { isAvailable, nextAvailable, type Availability } from './availability';
-import { pacificHourOfWeek, rebase, type BuildParams } from './precomputedLeg';
+import { type Availability } from './availability';
+import { rebase } from './precomputedLeg';
 import {
   creditWait,
+  legStarts,
   nextHour,
   priceChain,
-  startInSale,
   sweepLeg,
   tailOptionsOf,
   type BuildLookup,
@@ -218,14 +218,13 @@ function highestByDeadline(
   /** The player's hours its shifts wait for with `holdShifts` (also when the prestige is the player's own). */
   shiftHours?: Availability
 ): Outcome | null {
-  const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
-  const at = hours ? nextHour(nextAvailable(nextHour(t), hours)) : nextHour(t);
-  const raw = table(te, pacificHourOfWeek(at));
-  if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
-  const late = at !== t && (!hours || isAvailable(t, hours)) ? startInSale(table, te, t) : null;
-  if (late) options.push({ start: t, ...late });
+  // Where it starts as the finder has it (`legStarts`: the prestige back for the hours and the no-prestige days, the
+  // held opening, the late start in the sale), so the estimate never beats the finder (code review round 2, 22 Nov
+  // 2026, R6.1: it priced from the hours alone, and the estimate beat the finder in 25 of 48 evening starts).
+  const { starts, atOnceFirst, base } = legStarts(table, te, t, hours, tail, shiftHours);
   let best: Outcome | null = null;
-  for (const o of options)
+  for (const o of starts) {
+    if (atOnceFirst && best && o.start !== base) break;
     for (const b of o.builds) {
       const moved = rebase(scale === 1 ? b : { ...b, peakELR: b.peakELR * scale }, te, eggs);
       const sw = sweepLeg(moved, top, o.lateBy, te + 1, o.start, shiftHours, tail);
@@ -239,6 +238,7 @@ function highestByDeadline(
         break;
       }
     }
+  }
   return best;
 }
 
@@ -288,13 +288,15 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
         const m = memo.get(k);
         if (!m) continue;
         at = { t: m.t, te: m.te, eggs: m.eggs };
-        // While that prestige waits for the player the farm lays on (`creditWaits`), as priceChain and the finder have it.
-        if (req.playHours && o.creditWaits !== false) {
-          const c = creditWait(at.te, at.t, at.eggs, m.egg, m.rate, req.playHours);
+        // While that prestige waits for the player the farm lays on (`creditWaits`), as priceChain and the finder have it:
+        // for the hours and for the no-prestige days (R6.1).
+        if ((req.playHours || o.noPrestige?.length) && o.creditWaits !== false) {
+          const c = creditWait(at.te, at.t, at.eggs, m.egg, m.rate, req.playHours, o);
           at = { t: at.t, te: c.te, eggs: c.delivered };
         }
       }
-      // The last ascension starts with a prestige that waits for the hours, unless it is the player's.
+      // The last ascension starts with a prestige that waits for the hours, unless it is the player's; the no-prestige
+      // days hold it either way (`o` carries them to legStarts).
       const hold = prefix.length ? req.playHours : undefined;
       const last = highestByDeadline(
         table,

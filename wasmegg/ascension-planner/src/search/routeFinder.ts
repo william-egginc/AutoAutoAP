@@ -520,6 +520,67 @@ export function startInSale(
  * cell, or from this hour's when the start is inside the sale (`startInSale`), whichever ends
  * sooner. For checks (scripts/precompute.ts); the finder itself does the same on whole sweeps.
  */
+/** One start an ascension can take (`legStarts`): when, how late into its table hour, the cell's builds, and whether
+ *  it waited for its opening. */
+export interface LegStart {
+  start: number;
+  lateBy: number;
+  builds: BuildParams[];
+  held: { heldOpening?: 'morning' | 'uncertain'; wanted?: number };
+}
+
+/**
+ * Where an ascension from (te, t) can start, as the finder prices one (`priceLeg`): the prestige back from outside the
+ * hours and past any no-prestige day (`prestigeBackFor`), on the next whole hour and from where the opening fits
+ * inside the hours (`heldOpeningStart`), plus the late start inside the sale (`startInSale`) when the opening fits
+ * there. In the order to try them; with `atOnceFirst` the at-once one is THE start whenever it reaches the target.
+ * Shared with Prestige by's estimate (prestigeBy.ts), which priced the last ascension without the held opening or the
+ * days and could beat the finder (code review round 2, 22 Nov 2026, R6.1).
+ */
+export function legStarts(
+  table: BuildLookup,
+  te: number,
+  t: number,
+  hours: Availability | undefined,
+  tail: TailOptions = {},
+  shiftHours: Availability | undefined = hours
+): { starts: LegStart[]; atOnceFirst: boolean; base: number; holdUntil: ((t: number) => number) | undefined } {
+  const options: LegStart[] = [];
+  // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
+  // at the moment they are back), or on the next whole hour inside the hours (and past any no-prestige day).
+  const back = prestigeBackFor(hours, tail);
+  const base = back ? back(t) : t;
+  const wanted = back ? nextHour(back(nextHour(base))) : nextHour(t);
+  const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
+  // THE HELD OPENING (`heldOpeningStart`): on the hour from where the opening fits inside the hours.
+  const opening =
+    holdUntil && tail.heldOpening !== false ? heldOpeningStart(wanted, te - (tail.openingRows ?? 0), holdUntil) : null;
+  const at = opening ? opening.start : wanted;
+  // The on-the-hour start waited for its opening (`heldOpeningStart`), or could find none that fits.
+  const held = !opening
+    ? {}
+    : at !== wanted
+      ? { heldOpening: 'morning' as const, wanted }
+      : opening.fits
+        ? {}
+        : { heldOpening: 'uncertain' as const };
+  const raw = table(te, pacificHourOfWeek(at));
+  if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw, held: at === base ? {} : held });
+  const atOnce = tail.inSale === 'atOnce';
+  const late =
+    wanted !== base && (!opening || openingFits(base, te - (tail.openingRows ?? 0), holdUntil!))
+      ? startInSale(table, te, base, atOnce)
+      : null;
+  if (late) options.push({ start: base, ...late, held: {} });
+  const atOnceFirst = atOnce && !!late;
+  return {
+    starts: atOnceFirst ? [options[options.length - 1], ...options.slice(0, -1)] : options,
+    atOnceFirst,
+    base,
+    holdUntil,
+  };
+}
+
 export function priceLeg(
   table: BuildLookup,
   te: number,
@@ -552,39 +613,12 @@ export function priceLeg(
    *  one, or misses the leg by the lag (code review round 2, 22 Nov 2026, R6.2). `build` keeps the table's own. */
   replayBuild: BuildWithExtras;
 } | null {
-  const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
-  // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
-  // at the moment they are back), or on the next whole hour inside the hours (and past any no-prestige day).
-  const back = prestigeBackFor(hours, tail);
-  const base = back ? back(t) : t;
-  const wanted = back ? nextHour(back(nextHour(base))) : nextHour(t);
-  const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
-  // THE HELD OPENING (`heldOpeningStart`): on the hour from where the opening fits inside the hours.
-  const opening =
-    holdUntil && tail.heldOpening !== false ? heldOpeningStart(wanted, te - (tail.openingRows ?? 0), holdUntil) : null;
-  const at = opening ? opening.start : wanted;
-  const raw = table(te, pacificHourOfWeek(at));
-  if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
-  const atOnce = tail.inSale === 'atOnce';
-  const late =
-    wanted !== base && (!opening || openingFits(base, te - (tail.openingRows ?? 0), holdUntil!))
-      ? startInSale(table, te, base, atOnce)
-      : null;
-  if (late) options.push({ start: base, ...late });
+  const { starts, atOnceFirst, base, holdUntil } = legStarts(table, te, t, hours, tail, shiftHours);
   let best: ReturnType<typeof priceLeg> = null;
-  // `inSale: 'atOnce'`: the at-once start is THE start whenever it reaches the target (the on-the-hour one only when
-  // it does not).
-  for (const o of atOnce && late ? [options[options.length - 1], ...options.slice(0, -1)] : options) {
-    if (atOnce && late && best && o.start !== base) break;
-    // The on-the-hour start waited for its opening (`heldOpeningStart`), or could find none that fits.
-    const held =
-      o.start === base || !opening
-        ? {}
-        : at !== wanted
-          ? { heldOpening: 'morning' as const, wanted }
-          : opening.fits
-            ? {}
-            : { heldOpening: 'uncertain' as const };
+  for (const o of starts) {
+    // `inSale: 'atOnce'`: the at-once start is THE start whenever it reaches the target.
+    if (atOnceFirst && best && o.start !== base) break;
+    const held = o.held;
     const moved = scaled(o.builds, deliveryScale).map(b => rebase(b, te, delivered));
     for (const b of moved) {
       const sw = sweepOne(b, target, o.lateBy, target, o.start, holdUntil, tail, true);

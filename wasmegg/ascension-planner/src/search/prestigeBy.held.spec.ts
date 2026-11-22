@@ -137,6 +137,44 @@ describe("Prestige by's estimate with the hours held (math review, 24 Oct 2026)"
   });
 });
 
+describe('the estimate never beats the finder with the held opening on (code review round 2, 22 Nov 2026, R6.1)', () => {
+  // Each fixture TE's builds at every hour, so a start the held opening moves still finds a cell (the finder and the
+  // estimate read the same table, which is all this compares).
+  const byTe = new Map(cells.map(c => [c.te, c.builds]));
+  const everyHour: BuildLookup = te => byTe.get(te) ?? null;
+  it('By a date: a second before the finder reaches the target, the estimate does not either', async () => {
+    let n = 0;
+    let opened = 0;
+    const tail = instantTail(HOURS, true);
+    const evening: { c: Cell; start: number; target: number }[] = [];
+    // 10 PM Mountain (9 PM Pacific) on three evenings of the week after the table's: the opening does not fit before 11.
+    for (const c of cells)
+      for (const day of [0, 2, 4])
+        for (const target of [c.te + 3, c.te + 20].filter(t => t <= 490))
+          evening.push({ c, start: REFERENCE_WEEK + 7 * 86400 + day * 86400 + 21 * 3600, target });
+    for (const { c, start, target } of evening) {
+      const f = await findRoutes({
+        table: everyHour,
+        startTE: c.te,
+        start,
+        startDelivered: canonicalDelivered(c.te),
+        final: target,
+        maxAscensions: 1,
+        hours: HOURS,
+        ...tail,
+      });
+      if (!f.best) continue;
+      n++;
+      if (f.best.legs[0].heldOpening) opened++;
+      const est = estimateAt(everyHour, { ...request(c, start, target, 'date', f.best.end - 1), tail }, 0);
+      expect(est.te, `TE ${c.te} from ${start} to ${target}`).toBeLessThan(target);
+      expect(estimateAt(everyHour, { ...request(c, start, target, 'date', f.best.end), tail }, 0).te).toBe(target);
+    }
+    expect(n).toBeGreaterThan(3);
+    expect(opened).toBeGreaterThan(0);
+  });
+});
+
 describe('the instant answer asks for the estimate held', () => {
   it('passes the answer’s own tail options with the request', () => {
     const src = readFileSync(fileURLToPath(new URL('../components/auto/InstantRoute.vue', import.meta.url)), 'utf8');
