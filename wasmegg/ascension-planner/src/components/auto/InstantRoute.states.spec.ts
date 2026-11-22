@@ -1476,4 +1476,10 @@ describe('By a date: an answer for the old date is never shown under the new dat
     expect(html).not.toContain('data-testid="instant-box"');
     expect(html).toContain('data-testid="instant-loading"');
   });
+  it('a failed run after a new date is picked shows the error, not the working line forever (R8.1, ui-instantroute-1, 22 Nov 2026)', async () => {
+    const html = await draw({ ...base, status: 'error' }, { deadlineStale: true });
+    expect(html).toContain('data-testid="instant-error"');
+    expect(html).not.toContain('data-testid="instant-loading"');
+    expect(html).not.toContain('data-testid="instant-box"');
+  });
 });
