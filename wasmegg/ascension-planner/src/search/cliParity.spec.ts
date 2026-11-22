@@ -127,6 +127,19 @@ describe('tables as the page reads them', () => {
     expect(worker).toContain('table = tableAtUrl(url, u => files.get(u));');
     expect(worker).toContain("reply({ kind: 'first-legs', id: m.id, firstLegs: firstLegsOn(t, m) });");
   });
+  it("a composite's builds carry their extras on both sides of the split (code review 22 Nov 2026, T1.1)", async () => {
+    // The gear half lost them: a player on a gear table got no held shifts, order or buys below the split.
+    const c = await tableAtUrl(compositeUrl('./gear-x.v2.bin', './table-v2.bin', 340, 1), async () => t);
+    const x = (te: number, h: number) =>
+      (c.lookup(te, h) as (BuildParams & { extras?: BuildExtras })[]).map(b => b.extras);
+    for (const [te, h] of [
+      [190, 71],
+      [300, 10],
+      [360, 35],
+      [460, 99],
+    ])
+      expect(x(te, h), `TE ${te}`).toEqual(t.extras!(te, h));
+  });
   it("precompute reads NAME.gz first (own and gear tables are served .gz only) and --pack writes it", () => {
     expect(precompute).toContain("const path = /\\.gz$/.test(file) || !existsSync(`${file}.gz`) ? file : `${file}.gz`;");
     expect(precompute).toContain('const table = readTable(readTableFile(arg(\'route-bin\')!));');

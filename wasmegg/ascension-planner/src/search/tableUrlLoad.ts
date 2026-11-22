@@ -2,7 +2,8 @@
  * A table by its URL, as the route-finder worker reads one (workers/routeFinder.worker.ts), with the file fetch
  * handed in: the page fetches over HTTP (search/tableFetch.ts), the command line reads the folder
  * (scripts/precompute.ts --instant2). One reading of the URL kinds for both:
- *   - a composite (precomputedTable.ts compositeUrl): a gear table below a TE and the maxed one from it;
+ *   - a composite (precomputedTable.ts compositeUrl): a gear table below a TE and the maxed one from it, each
+ *     with its extras (the gear half had none until 22 Nov 2026: no held shifts, order or buys below the split);
  *   - the form G (gearShiftUrl): the maxed table moved to the player's gear;
  *   - one table.
  * A version 2 table's builds carry their extras for the held replay (withExtras; version 1 as it is).
@@ -24,7 +25,7 @@ export function tableAtUrl(url: string, fetchTable: (url: string) => Promise<Tab
   const g = c ? null : parseGearShiftUrl(url);
   return c
     ? Promise.all([fetchTable(c.low), fetchTable(c.high)]).then(([low, high]) =>
-        compositeTable(low, withExtras(high), c.split, c.scale)
+        compositeTable(withExtras(low), withExtras(high), c.split, c.scale)
       )
     : g
       ? fetchTable(g.url).then(t => gearShiftTable(withExtras(t), g))
