@@ -173,7 +173,7 @@ import {
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
-import { maskOfWindow, validBlocked } from '@/search/availabilitySchedule';
+import { availabilityKey, maskOfWindow, validBlocked } from '@/search/availabilitySchedule';
 import {
   MAX_LAST_STOP,
   runDeadlineSearch,
@@ -2052,7 +2052,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`): a few
    * seconds of simulation, so on one background worker, as the integrity check runs. Kept for the
-   * same account, TE, route start and setting, so the instant answer asks once. Empty when the setting
+   * same account, TE, route start and setting, and the same Setup the simulation reads (legContext: the hours when
+   * shifts are held, and the silo trick; code review round 2, 22 Nov 2026, R7.1: they were left out, so a Setup edit
+   * reused tails priced under the old one), so the instant answer asks once. Empty when the setting
    * never builds up (Finish without buying, Prestige now) or without a farm in the save.
    *
    * BUILD-UP MISSING (6 Nov 2026, Jordan's phone): a failure was [] here, silent and kept, and the instant answer then
@@ -2066,7 +2068,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if ((mode !== 'auto' && mode !== 'buildup') || !inputs.currentFarmState || !inputs.context.rawBackup)
       return Promise.resolve({ tails: [] });
     const raw = inputs.context.rawBackup as { approxTime?: number };
-    const key = `${raw.approxTime ?? ''}|${inputs.currentTE}|${inputs.planStart}|${mode}`;
+    // What legContext reads (search/leg.ts): the hours only when shifts are held for them (availabilityKey is '' for
+    // none, as legContext's isConstrained), and the silo trick. Days off and no-prestige days are not read there.
+    const held = inputs.deferShifts ? availabilityKey(inputs.availability) : '';
+    const key = [
+      raw.approxTime ?? '',
+      inputs.currentTE,
+      inputs.planStart,
+      mode,
+      held,
+      inputs.siloTrick ? 'silo' : '',
+    ].join('|');
     if (buildUpTailsMemo?.key === key) return buildUpTailsMemo.tails;
     const tails = (async (): Promise<BuildUpTailsResult> => {
       let pool: ChainSearchPool | null = null;
