@@ -169,34 +169,30 @@ export const HELD_BUYS = { share: 0.3 };
  * The table does not store when each purchase happens, so this is an estimate: the last purchase (`waitStart`, K3's
  * wait begins) lands `HELD_BUYS.share` of the waits at the sales' starts later (the lag), then when the player is
  * next around. The build, H1 and K3 move by the lag; the replay's hold on H1 already waits for the player (a build
- * whose last purchase is at the sale's start while they are away: the simulator to the second). When the purchase
- * then falls after the sale's end, the build misses its sale and is priced a week later (the next sale's), so the
- * finder takes another build. A player around at every sale's start: unchanged.
+ * whose last purchase is at the sale's start while they are away: the simulator to the second). A player around at
+ * every sale's start: unchanged.
+ *
+ * NO WEEK LATE (21 Nov 2026). It also priced a build whose lagged purchase fell past its sale's end a week later (it
+ * missed the sale). The table cannot tell which builds really miss: the same 1.2-2 h before the end with a 2.1 h lag
+ * misses in the simulator at TE 120 (maxed) and makes it at 285 (Carpet bae5, Tables' false week: 48 starts of 56
+ * more than a day late). Same-start legs, work9to5, a start every 3 h for a week (Thu 9 Dec 2027), table minus
+ * simulator, mean absolute error, the week / the lag only / neither: bae5 285 47.3 / 6.0 / 6.1 h, maxed 200 11.6 /
+ * 5.5 / 7.3 h, bae5 352, maxed 285 and wood 285 the same within 0.2 h; maxed 120 (Reliability's legs) the week was
+ * better by 0.7-2.8 h on five of six sets (evenings held out: the lag only, by 0.7 h). A wrong week costs days, a
+ * missed one hours: the lag only.
  */
 export function heldBuys(
   b: BuildWithExtras,
   start: number,
-  lateBy: number,
   holdUntil: (t: number) => number
 ): BuildWithExtras {
   const x = b.extras!;
-  const saleEnd = b.saleEnd - lateBy;
   let away = 0;
   for (let s0 = getNextSaleStart(start); s0 - start < b.waitStart; s0 = getNextSaleStart(s0 + 3600))
     away += holdUntil(s0) - s0;
   const lag = HELD_BUYS.share * away;
-  // When the last purchase is really made: the lag, then when the player is next around.
-  const done = holdUntil(start + b.waitStart + lag) - start;
-  // Inside the sale before, after it now: the next sale's prices (a week on).
-  const missed = b.waitStart <= saleEnd - SALE_MARGIN && done > saleEnd - SALE_MARGIN;
-  if (!missed && !(lag > 0)) return b;
-  const by = missed ? 7 * 86400 : lag;
-  return {
-    ...b,
-    waitStart: b.waitStart + by,
-    ...(missed ? { saleEnd: b.saleEnd + by } : {}),
-    extras: { ...x, h1At: x.h1At + by, k3At: x.k3At + by },
-  };
+  if (!(lag > 0)) return b;
+  return { ...b, waitStart: b.waitStart + lag, extras: { ...x, h1At: x.h1At + lag, k3At: x.k3At + lag } };
 }
 
 /** Every checkpoint's tail from one build: `sweepTails`, or with hours held (or the simulator's order)
@@ -212,7 +208,7 @@ function sweepOne(
   /** Only `top` is wanted (`priceLeg`): a replay works out that checkpoint alone (tableV2.ts `sweepReplay` `only`). */
   only = false
 ): TailSweep {
-  if (holdUntil && b.extras && o.heldBuys !== false) b = heldBuys(b, start, lateBy, holdUntil);
+  if (holdUntil && b.extras && o.heldBuys !== false) b = heldBuys(b, start, holdUntil);
   return replays(b, holdUntil, o)
     ? sweepReplay(b, b.extras!, top, {
         start,
