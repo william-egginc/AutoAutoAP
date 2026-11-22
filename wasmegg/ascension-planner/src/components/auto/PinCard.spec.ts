@@ -231,4 +231,10 @@ describe('the recovery code survives closing Setup (QA, 21 Nov 2026), and a relo
     expect(body).toMatch(/setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 10_?000\)/);
     expect(body).not.toMatch(/link\.click\(\);\s*URL\.revokeObjectURL/);
   });
+
+  it('a lost session (or signing in again) closes the open form: the account changing state resets the step and its boxes (QA PIN pass, 22 Nov 2026)', () => {
+    expect(src).toMatch(
+      /watch\(\s*\(\) => acct\.state\.value,\s*\(\) => \{\s*step\.value = '';\s*a\.value = '';\s*b\.value = '';\s*mismatch\.value = false;\s*askReset\.value = false;\s*\}\s*\);/
+    );
+  });
 });

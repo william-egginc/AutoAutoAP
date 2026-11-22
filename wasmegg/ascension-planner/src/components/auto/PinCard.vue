@@ -203,6 +203,18 @@ const saved = ref(false);
 const copied = ref(false);
 const askReset = ref(false);
 const mismatch = ref(false);
+// The account changing state (a lost session, signing in again, a PIN set or removed) closes any open form: signing in used to land
+// back in the open Change PIN form (QA PIN pass, 22 Nov 2026).
+watch(
+  () => acct.state.value,
+  () => {
+    step.value = '';
+    a.value = '';
+    b.value = '';
+    mismatch.value = false;
+    askReset.value = false;
+  }
+);
 
 const BTN =
   'inline-flex min-h-[44px] sm:min-h-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-body font-bold text-slate-800 hover:bg-slate-50 disabled:opacity-50';
