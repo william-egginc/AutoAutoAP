@@ -19,6 +19,13 @@
  *     5 Nov 2026; routeFinder.ts `FindOptions.deadline`).
  *   - The inputs are built ONCE, in the run (`ExactRequest.inputs`), never in a computed or the render.
  *
+ *   - TWO ROUTES (Jordan, 21 Nov 2026, "go with your picks": option 1(a)). When the held buys (routeFinder.ts `heldBuys`)
+ *     changed the pick, the caller passes the pick without them as `alt`: both routes' prefixes go in the same batch (a
+ *     shared prefix once, one total), and done gives both (`routes`, the request's first) and `faster`, the one that
+ *     really ends sooner (1 only when the other ends at least `FASTER_BY` sooner). `end`, `legs` and `spare` stay the
+ *     request's route. The other route the simulator cannot finish is left out; the request's own missing fails.
+ *     Only a different chain is a second route: the same stops with another buy plan simulate the same.
+ *
  * Which hours want it (`exactWanted`) and where it is shown are the caller's: options until Jordan decides.
  * Never throws.
  */
@@ -32,6 +39,9 @@ export interface ExactRequest {
   key: string;
   /** The route's stops, TE, the last the goal. */
   chain: number[];
+  /** The pick without the held buys, when they changed it (a different chain); the key must cover it
+   *  (lib/exactOptions.ts `instantExactKey`). */
+  alt?: number[] | null;
   /** By a date: the deadline, unix seconds. */
   deadline?: number | null;
   /** Builds the evaluator's inputs from the stores, once, when the run starts. */
@@ -46,7 +56,11 @@ export type ExactState =
   | {
       key: string;
       status: 'done';
-      /** When the route reaches its last stop, unix seconds. */
+      /** The request's route first, then the pick without the held buys when it was asked and finished. */
+      routes: ExactRoute[];
+      /** Which of `routes` really ends sooner: 1 only when it ends at least `FASTER_BY` before the first. */
+      faster: 0 | 1;
+      /** The request's route (routes[0]): when it reaches its last stop, unix seconds. */
       end: number;
       /** Each ascension's exact end, unix seconds (one per stop). */
       legs: number[];
@@ -57,6 +71,15 @@ export type ExactState =
     }
   /** `error`: for the debug log, never shown. */
   | { key: string; status: 'failed'; error: string };
+
+export interface ExactRoute {
+  chain: number[];
+  end: number;
+  legs: number[];
+  spare: number | null;
+}
+/** The other route is the faster only when it ends this much sooner, seconds (less is a tie: the request's stays). */
+export const FASTER_BY = 3600;
 
 /** What simulates the route (a chain worker pool of one). */
 export interface ExactRunner {
@@ -96,7 +119,13 @@ function readRecords(): Done[] {
     return Array.isArray(list)
       ? list.filter(
           (r): r is Done =>
-            !!r && typeof r.key === 'string' && r.status === 'done' && Number.isFinite(r.end) && Array.isArray(r.legs)
+            !!r &&
+            typeof r.key === 'string' &&
+            r.status === 'done' &&
+            Number.isFinite(r.end) &&
+            Array.isArray(r.legs) &&
+            Array.isArray(r.routes) &&
+            (r.faster === 0 || r.faster === 1)
         )
       : [];
   } catch {
@@ -211,7 +240,19 @@ export function useInstantExact(
   }
 
   async function run(req: ExactRequest, id: number): Promise<void> {
-    const total = req.chain.length;
+    const alt = req.alt && req.alt.length && req.alt.join(',') !== req.chain.join(',') ? req.alt : null;
+    // Every prefix of the route, then the other route's not already in, shortest first each.
+    const chains: number[][] = [];
+    const seen = new Set<string>();
+    for (const c of alt ? [req.chain, alt] : [req.chain])
+      for (let i = 1; i <= c.length; i++) {
+        const p = c.slice(0, i);
+        if (!seen.has(p.join(','))) {
+          seen.add(p.join(','));
+          chains.push(p);
+        }
+      }
+    const total = chains.length;
     const startedAt = Date.now();
     state.value = { key: req.key, status: 'running', done: 0, total, startedAt };
     const fail = (error: string): void => {
@@ -238,7 +279,6 @@ export function useInstantExact(
       }
       if (!r) throw new Error('no chain worker');
       runner = r;
-      const chains = req.chain.map((_, i) => req.chain.slice(0, i + 1));
       const results = await r.run(
         inputs,
         chains,
@@ -257,16 +297,26 @@ export function useInstantExact(
         alive
       );
       if (id !== asked) return;
-      const legs = endsOf(req.chain, results);
-      if (!legs) throw new Error('the simulator could not finish the route');
-      const end = legs[legs.length - 1];
       const deadline = req.deadline;
+      const routeOf = (chain: number[]): ExactRoute | null => {
+        const legs = endsOf(chain, results);
+        if (!legs) return null;
+        const end = legs[legs.length - 1];
+        const spare = typeof deadline === 'number' && Number.isFinite(deadline) ? deadline - end : null;
+        return { chain: [...chain], end, legs, spare };
+      };
+      const own = routeOf(req.chain);
+      if (!own) throw new Error('the simulator could not finish the route');
+      const other = alt ? routeOf(alt) : null;
+      const routes = other ? [own, other] : [own];
       const done: Done = {
         key: req.key,
         status: 'done',
-        end,
-        legs,
-        spare: typeof deadline === 'number' && Number.isFinite(deadline) ? deadline - end : null,
+        routes,
+        faster: other && other.end <= own.end - FASTER_BY ? 1 : 0,
+        end: own.end,
+        legs: own.legs,
+        spare: own.spare,
         at: Date.now(),
       };
       keepRecord(done);
