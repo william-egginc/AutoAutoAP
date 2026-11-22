@@ -434,6 +434,7 @@
           :cost-type="shift.costType"
           :start-time="shift.startTime"
           :end-time="shift.endTime"
+          :timezone="timezone"
         />
       </div>
     </div>

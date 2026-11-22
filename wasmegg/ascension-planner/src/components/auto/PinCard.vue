@@ -306,8 +306,11 @@ function downloadCode(): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = 'recovery-code.txt';
+  // In the page while it clicks, and the URL kept a while: Safari starts the download after the click (rel-ui-3, 22 Nov 2026).
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 onMounted(() => void acct.check());

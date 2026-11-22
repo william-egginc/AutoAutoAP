@@ -26,16 +26,16 @@
     <div class="max-w-6xl mx-auto p-4" :class="setupDockShown ? 'sm:max-[1279px]:pr-[4.5rem]' : ''">
       <CustomEggWatcher v-if="isDev" />
 
-      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Hidden while the egg-beta
-           timed reload shows (same place on screen, and it says the same thing with a time). -->
-      <div v-show="!eggBetaActive">
-        <NewVersionBanner
-          page-url="./"
-          entry="index"
-          note="save your results first; a running search stops at the reload"
-          class="mb-4"
-        />
-      </div>
+      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Suppressed while the egg-beta
+           timed reload shows (same place on screen, and it says the same thing with a time): suppressed, not hidden, so the
+           full-screen box cannot lock the page behind it (rel-ui-2, 22 Nov 2026). -->
+      <NewVersionBanner
+        page-url="./"
+        entry="index"
+        note="save your results first; a running search stops at the reload"
+        class="mb-4"
+        :suppressed="eggBetaActive"
+      />
       <!-- A planned update (version.json `reloadPlanned`), on every page, not only one running a long search (R8.1, 18 Nov 2026). -->
       <PlannedUpdateNotice />
       <!-- EGG-BETA ONLY (lib/eggBetaReload.ts): compiled in only when the build had AAP_EGG_BETA_RELOAD_AT, and then
@@ -846,6 +846,7 @@ import { formatMoment } from '@/lib/clock';
 import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { isNewVisitor } from '@/lib/firstTour';
 import TourModal from '@/components/TourModal.vue';
+import { useMinuteClock } from '@/composables/useMinuteClock';
 import { askFullTour, askTourReplay } from '@/composables/useFirstTour';
 import { FOOTER_FULL_TOUR, FOOTER_QUICK_TOUR } from '@/lib/firstTourWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, watchEffect, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
@@ -1642,11 +1643,12 @@ const lastBackupFormatted = computed(() => {
   return formatMoment(date.getTime(), { weekday: true, year: 'never' });
 });
 
+/** The backup's age moves with the minute (rel-ui-5, 22 Nov 2026: "Just now" never changed). */
+const minuteNow = useMinuteClock();
 const lastBackupAge = computed(() => {
   const approxTime = initialStateStore.rawBackup?.approxTime;
   if (approxTime == null) return '';
-  const now = Date.now() / 1000;
-  const diff = Math.max(0, now - approxTime);
+  const diff = Math.max(0, minuteNow.value - approxTime);
 
   if (diff < 60) return 'Just now';
 

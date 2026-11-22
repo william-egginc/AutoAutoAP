@@ -156,12 +156,14 @@ const props = defineProps<{
   costType: 'SE' | 'Virtue';
   startTime: number;
   endTime: number;
+  /** The plan's zone, as the card above shows it (rel-ui-4, 22 Nov 2026); the browser's when unset. */
+  timezone?: string;
 }>();
 
 const formatTime = (ts: number) => {
   // `Math.round`, not a bare `new Date(...)` — see `secondsToDate`'s doc comment (lib/format.ts):
   // `ts` routinely lands a sub-microsecond residue short of a whole second.
-  return formatMoment(Math.round(ts * 1000), { weekday: true, year: 'never' });
+  return formatMoment(Math.round(ts * 1000), { weekday: true, year: 'never', zone: props.timezone || undefined });
 };
 
 const timeTooltipContent = computed(() => {

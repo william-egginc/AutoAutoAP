@@ -224,4 +224,11 @@ describe('the recovery code survives closing Setup (QA, 21 Nov 2026), and a relo
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('installRecoveryLeaveGuard()');
   });
+
+  it('the recovery code Download: anchor in the page while it clicks, the blob URL kept for a while (Safari; rel-ui-3, 22 Nov 2026)', () => {
+    const body = src.slice(src.indexOf('function downloadCode'), src.indexOf('onMounted(() => void acct.check())'));
+    expect(body).toMatch(/document\.body\.appendChild\(link\);\s*link\.click\(\);\s*link\.remove\(\);/);
+    expect(body).toMatch(/setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 10_?000\)/);
+    expect(body).not.toMatch(/link\.click\(\);\s*URL\.revokeObjectURL/);
+  });
 });
