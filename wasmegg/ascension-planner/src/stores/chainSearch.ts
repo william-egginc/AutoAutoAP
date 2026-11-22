@@ -39,7 +39,7 @@ import {
   type SetupValues,
 } from '@/lib/setupMemory';
 import { isKnownZone, type SetupNow } from '@/lib/prefsCloud';
-import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
+import { clampPin, plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
@@ -2717,6 +2717,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       maxPrestiges: maxPrestiges.value,
     });
   });
+
+  /** The lock a run uses: the box's value as a whole number, leaving one stop of the route free, as the box's max
+   *  allows (code review 22 Nov 2026, R2.4: a typed value above it reached the driver, which then moved a locked
+   *  stop). The panel says this number. */
+  const pinUsed = computed(() => clampPin(pin.value, seedChain.value.length));
 
   /**
    * True when what was typed is nothing but the final target (or beyond it): a single ascension
@@ -9765,7 +9770,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         final: finalTE.value,
         currentTE: startInputs.currentTE,
         effort: effort.value,
-        pin: pin.value,
+        pin: clampPin(pin.value, seed.length),
         // Normally the driver's own default (`defaultMaxLast`). Exposed so the cap can be tested
         // rather than assumed: it was measured against 490 targets, and this repo's own f1-f4
         // corpus contains a 320-target optimum whose last checkpoint sits at `final - 43`, which
@@ -10355,6 +10360,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     errorBeforeStart,
     runNotes,
     pin,
+    pinUsed,
     minPrestiges,
     limitsTouched,
     followInstantLimits,
