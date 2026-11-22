@@ -108,6 +108,15 @@ describe('table version 2 file', () => {
     expect(v2.readable).toBe(true);
     expect(v2.errors).toEqual(v1.errors);
   });
+
+  it('the checker flags a waitEgg other than kindness or humility (code review 22 Nov 2026, T1.9)', () => {
+    const one = cells.filter(c => c.te === 300);
+    const bad = one.map(c => ({ ...c, builds: c.builds.map((b, i) => (i ? b : { ...b, extras: { ...b.extras, waitEgg: 2 } })) }));
+    const r = checkStructure(packTable(header(2, 300, 300), bad).buffer as ArrayBuffer);
+    expect(r.errors.join('\n')).toMatch(/waitEgg not kindness \(1\) or humility \(4\)/);
+    const ok = checkStructure(packTable(header(2, 300, 300), one).buffer as ArrayBuffer);
+    expect(ok.errors.join('\n')).not.toMatch(/waitEgg/);
+  });
 });
 
 describe('replayTail', () => {
