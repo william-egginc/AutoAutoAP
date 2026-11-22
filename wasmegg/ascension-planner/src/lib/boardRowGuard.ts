@@ -71,6 +71,11 @@ const OPTIONAL_BOOLEANS = [
   'yours',
   'hidden',
 ] as const;
+/** The tallest TE a searched range may name (exhaustive.ts's MAX_BAND_TE, kept here so this guard can ship without a search-code change). */
+const MAX_RANGE_TE = 1000;
+/** The most steps one range may hold: the explorer expands every row's range into values. */
+const MAX_RANGE_STEPS = 1000;
+
 /** Optional objects (their insides are read with `?.` where they are used). */
 const OPTIONAL_OBJECTS = [
   'run',
@@ -221,7 +226,21 @@ function normalizeNested(r: Obj): void {
         const lo = isObj(rg) ? num(rg.lo) : undefined;
         const hi = isObj(rg) ? num(rg.hi) : undefined;
         const step = isObj(rg) ? num(rg.step) : undefined;
-        if (lo === undefined || hi === undefined || !step || step <= 0) delete out.range;
+        // Whole numbers, step >= 1, 0 <= lo <= hi <= MAX_RANGE_TE and at most MAX_RANGE_STEPS steps: a crafted range (step 0.5,
+        // lo -1e15, hi 1e6) would otherwise freeze every viewer's Insights and explorer.html (code review round 2, C6.1).
+        const sane =
+          lo !== undefined &&
+          hi !== undefined &&
+          step !== undefined &&
+          Number.isInteger(lo) &&
+          Number.isInteger(hi) &&
+          Number.isInteger(step) &&
+          step >= 1 &&
+          lo >= 0 &&
+          lo <= hi &&
+          hi <= MAX_RANGE_TE &&
+          (hi - lo) / step <= MAX_RANGE_STEPS;
+        if (!sane) delete out.range;
         else out.range = { lo, hi, step };
       }
       r.space = out;

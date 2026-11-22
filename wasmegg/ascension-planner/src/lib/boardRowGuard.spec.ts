@@ -277,3 +277,28 @@ describe.runIf(fs.existsSync(FIXTURE))('the simlabel /all fixture (regression)',
     }
   });
 });
+
+describe('code review round 2, C6.1: a crafted space.range cannot freeze the Insights page', () => {
+  const rowWith = (range: unknown) => ({ id: 'r1', chain: [200, 490], durationDays: 100, finalTE: 490, space: { chains: 5, range } }) as unknown;
+  const kept = (range: unknown) => (normalizeBoardRow<CollectorRow>(rowWith(range))!.space as { range?: unknown }).range;
+  it('drops a range with a fractional step, a huge or negative bound, a tiny step, or more than 1000 steps', () => {
+    for (const bad of [
+      { lo: 200, hi: 300, step: 0.5 },
+      { lo: -1e15, hi: 490, step: 1 },
+      { lo: 0, hi: 1e6, step: 1e-6 },
+      { lo: 0, hi: 1e6, step: 1 },
+      { lo: 0, hi: 1001, step: 1 },
+      { lo: 200, hi: 100, step: 1 },
+      { lo: 1.5, hi: 100, step: 1 },
+      { lo: 0, hi: 1000, step: 0.9999 },
+      { lo: 0, hi: 1000, step: 'x' },
+      null,
+    ])
+      expect(kept(bad), JSON.stringify(bad)).toBeUndefined();
+  });
+  it('keeps an honest range: whole numbers, step 1 or more, 0 <= lo <= hi <= 1000, at most 1000 steps', () => {
+    expect(kept({ lo: 200, hi: 300, step: 1 })).toEqual({ lo: 200, hi: 300, step: 1 });
+    expect(kept({ lo: 0, hi: 1000, step: 1 })).toEqual({ lo: 0, hi: 1000, step: 1 });
+    expect(kept({ lo: 185, hi: 490, step: 5 })).toEqual({ lo: 185, hi: 490, step: 5 });
+  });
+});
