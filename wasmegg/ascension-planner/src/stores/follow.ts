@@ -157,6 +157,11 @@ export const useFollowStore = defineStore('follow', () => {
       const id = sig.slice(0, sig.lastIndexOf('|'));
       const h = id ? await accountHash(id).catch(() => '') : '';
       if (idOf() !== id) return;
+      // Another account (code review 22 Nov 2026, rel-state-5): the last one's save words and presses are not its.
+      if (partition.value !== h) {
+        saves.value = {};
+        pressing.value = {};
+      }
       partition.value = h;
       const k = id ? await followKey(id).catch(() => '') : '';
       if (idOf() !== id) return;
@@ -356,6 +361,8 @@ export const useFollowStore = defineStore('follow', () => {
     if (!retry) saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
     // Through the switch: Save online turned off during this PUT, its "ahead" resend never goes.
     const r = await putFollow(url, cloudKey.value, goalKey, built.value, onlineFetch<FetchLike>());
+    // Another account loaded during the PUT (rel-state-5): its kept follow is still marked, its words are not shown.
+    const here = () => partition.value === p;
     // Sent again stamped now (red team C4: the collector refused an `at` over 10 minutes ahead of its clock): the
     // follow here takes that `at`, so it and the saved one agree. Counted as tried, so a read this visit never sends
     // it a third time.
@@ -369,7 +376,7 @@ export const useFollowStore = defineStore('follow', () => {
     if (!r.ok && r.why === 'newer') {
       takeNewer(p, goalKey, r.latest.value);
       const s: SaveState = { state: 'saved', words: '' };
-      if (!retry) saves.value = { ...saves.value, [goalKey]: s };
+      if (!retry && here()) saves.value = { ...saves.value, [goalKey]: s };
       return s;
     }
     const s: SaveState = r.ok
@@ -378,7 +385,7 @@ export const useFollowStore = defineStore('follow', () => {
     // Refused for what it is (400, 413): never tried again. Offline, 5xx, the hour's limit, a clock still ahead: the
     // next load tries once.
     markSync(p, goalKey, at, r.ok ? 'synced' : r.why === 'rejected' || r.why === 'big' ? 'unsyncable' : 'pending');
-    if (!retry || r.ok) saves.value = { ...saves.value, [goalKey]: s };
+    if ((!retry || r.ok) && here()) saves.value = { ...saves.value, [goalKey]: s };
     return s;
   }
 
