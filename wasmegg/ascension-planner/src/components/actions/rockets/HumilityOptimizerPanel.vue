@@ -18,7 +18,7 @@
           :disabled="store.saveLoading"
           @click="store.loadSave()"
         >
-          {{ store.saveLoading ? 'Loading…' : 'Load my save' }}
+          <template v-if="store.saveLoading">Loading<AnimatedDots /></template><template v-else>Load my save</template>
         </button>
         <p v-if="store.saveError" class="w-full text-small text-red-600">{{ store.saveError }}</p>
       </div>
@@ -31,7 +31,7 @@
           :disabled="store.saveLoading"
           @click="store.loadSave()"
         >
-          {{ store.saveLoading ? 'Reloading…' : 'Reload it' }}
+          <template v-if="store.saveLoading">Reloading<AnimatedDots /></template><template v-else>Reload it</template>
         </button>
         <span v-if="store.saveError" class="block text-red-600">{{ store.saveError }}</span>
       </p>
@@ -188,7 +188,7 @@
         <p v-else-if="error" class="text-small text-red-600">Could not compute a ship set: {{ error }}</p>
         <p v-else-if="!shown && computing" role="status" class="flex items-center gap-2 text-small text-gray-600">
           <InlineSpinner class="h-4 w-4 text-gray-600" />
-          Finding the best ship set…
+          Finding the best ship set<AnimatedDots />
         </p>
         <p v-else-if="!shown" class="text-small text-gray-600">No ship set yet.</p>
 
@@ -315,7 +315,8 @@
                     :disabled="staging || stale || fuelOverflow > 0"
                     @click="stage"
                   >
-                    {{ staging ? 'Staging…' : stagedLaunch ? 'Restage with this ship set' : 'Stage into plan' }}
+                    <template v-if="staging">Staging<AnimatedDots /></template
+                    ><template v-else>{{ stagedLaunch ? 'Restage with this ship set' : 'Stage into plan' }}</template>
                   </button>
                   <span v-if="stagedLaunch && !inPlan && fuelOverflow === 0" class="text-small text-amber-700">
                     The plan has a different answer staged for this visit. Restaging replaces it.
@@ -354,7 +355,7 @@
 
           <div v-if="stale && computing" role="status" class="absolute inset-0 flex items-start justify-center pt-6">
             <InlineSpinner class="h-6 w-6 text-gray-600" />
-            <span class="sr-only">Finding the best ship set…</span>
+            <span class="sr-only">Finding the best ship set</span>
           </div>
         </div>
       </section>
@@ -381,6 +382,7 @@ import OptimizerScheduleSettings from 'ui/components/mission-optimizer/Optimizer
 import OptimizerSolutionCard from 'ui/components/mission-optimizer/OptimizerSolutionCard.vue';
 import TargetSelector from 'ui/components/mission-optimizer/TargetSelector.vue';
 
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { useActionsStore } from '@/stores/actions';
 import { useHumilityMissionsStore } from '@/stores/humilityMissions';
 import { useHumilityOptimizerStore } from '@/stores/humilityOptimizer';

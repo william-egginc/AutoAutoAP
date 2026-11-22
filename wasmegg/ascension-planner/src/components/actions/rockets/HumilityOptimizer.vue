@@ -29,7 +29,7 @@
       <p v-else-if="loadError" class="text-small text-red-600">Could not load the optimizer: {{ loadError }}</p>
       <p v-else role="status" class="flex items-center gap-2 text-small text-gray-600">
         <InlineSpinner />
-        Loading the optimizer and its drop data…
+        Loading the optimizer and its drop data<AnimatedDots />
       </p>
     </div>
   </div>
@@ -40,6 +40,8 @@ import { shallowRef, ref, watch, type Component, type ShallowRef } from 'vue';
 
 import { safeImport } from 'lib/planners/import';
 import InlineSpinner from 'ui/components/planners/InlineSpinner.vue';
+
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 
 import { useHumilityOptimizerStore } from '@/stores/humilityOptimizer';
 

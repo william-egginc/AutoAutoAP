@@ -182,6 +182,12 @@ const CONVERTED: [file: string, words: string, then?: string][] = [
   ['explorer/SweepUpload.vue', 'Sending the CSV'],
   ['explorer/SweepUpload.vue', '{{ sendMessage }}', '<AnimatedDots v-if="sending && sendMessage === PREPARING" />'],
   ['explorer/WhatWeKnow.vue', 'Counting the Leaderboard'],
+  // The inline Humility mission optimizer (PipSqueak's, merged from upstream/ae-improvements, 22 Nov 2026).
+  ['components/actions/rockets/HumilityOptimizer.vue', 'Loading the optimizer and its drop data'],
+  ['components/actions/rockets/HumilityOptimizerPanel.vue', '<template v-if="store.saveLoading">Loading'],
+  ['components/actions/rockets/HumilityOptimizerPanel.vue', '<template v-if="store.saveLoading">Reloading'],
+  ['components/actions/rockets/HumilityOptimizerPanel.vue', 'Finding the best ship set'],
+  ['components/actions/rockets/HumilityOptimizerPanel.vue', '<template v-if="staging">Staging'],
 ];
 
 describe('each converted label: its words, then the drawn dots', () => {
