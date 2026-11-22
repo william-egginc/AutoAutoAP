@@ -108,6 +108,19 @@ export function exactWanted(
   return which === 'anyHours' || !isOwnWindow(hours);
 }
 
+/**
+ * Whether the other route counts as faster: it ends at least FASTER_BY sooner. By a date (code review 22 Nov 2026,
+ * math-exact-3) only one ending on the same TE and by the date: a route to a lower TE that ends sooner is not the
+ * better answer to "highest TE by a date" (switching to a higher TE that ends later would be new, Jordan's call).
+ */
+export function fasterOf(own: ExactRoute, other: ExactRoute | null, deadline: number | null | undefined): 0 | 1 {
+  if (!other || !(other.end <= own.end - FASTER_BY)) return 0;
+  if (typeof deadline === 'number' && Number.isFinite(deadline)) {
+    if (other.chain[other.chain.length - 1] !== own.chain[own.chain.length - 1] || other.end > deadline) return 0;
+  }
+  return 1;
+}
+
 export const EXACT_RECORD_KEY = 'aap-instant-exact';
 /**
  * The records' version: 2 from 22 Nov 2026 (code review, math-exact-1). Before, a saved answer put back was simulated
@@ -319,7 +332,7 @@ export function useInstantExact(
         key: req.key,
         status: 'done',
         routes,
-        faster: other && other.end <= own.end - FASTER_BY ? 1 : 0,
+        faster: fasterOf(own, other, deadline),
         end: own.end,
         legs: own.legs,
         spare: own.spare,

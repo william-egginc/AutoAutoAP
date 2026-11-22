@@ -339,6 +339,34 @@ describe('useInstantExact: two routes (Jordan, 21 Nov 2026: B changed the pick)'
     m.scope.stop();
   });
 
+  it('By a date (code review 22 Nov 2026, math-exact-3): the other route counts as faster only ending on the same TE, by the date, an hour sooner', async () => {
+    const H = 3600;
+    // Different last stops: 296 is not 300, however soon.
+    const a = mount(req([250, 280, 300], { alt: [260, 296], deadline: T0 + 100 * H }));
+    await flush();
+    runs[0].resolve([
+      ...answer([250, 280, 300], [T0 + H, T0 + 2 * H, T0 + 50 * H]),
+      ...answer([260, 296], [T0 + H, T0 + 5 * H]),
+    ]);
+    await flush();
+    expect(a.state.value).toMatchObject({ status: 'done', faster: 0 });
+    a.scope.stop();
+    // The same last stop, two hours sooner, by the date: faster.
+    const b = mount(req([300, 490], { alt: [310, 490], deadline: T0 + 100 * H }));
+    await flush();
+    runs[1].resolve([...answer([300, 490], [T0 + H, T0 + 50 * H]), ...answer([310, 490], [T0 + H, T0 + 48 * H])]);
+    await flush();
+    expect(b.state.value).toMatchObject({ status: 'done', faster: 1 });
+    b.scope.stop();
+    // The same last stop and sooner, but after the date: not.
+    const c = mount(req([300, 491], { alt: [310, 491], deadline: T0 + 10 * H }));
+    await flush();
+    runs[2].resolve([...answer([300, 491], [T0 + H, T0 + 50 * H]), ...answer([310, 491], [T0 + H, T0 + 48 * H])]);
+    await flush();
+    expect(c.state.value).toMatchObject({ status: 'done', faster: 0 });
+    c.scope.stop();
+  });
+
   it('the same stops (or no other route): one route, faster 0', async () => {
     const m = mount(req([226, 277, 490], { alt: [226, 277, 490] }));
     await flush();
