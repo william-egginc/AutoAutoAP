@@ -29,8 +29,6 @@ export function moreLineWithChanges(line: string, changed: readonly string[]): s
 // ---------------------------------------------------------------------------------------- "What to do now"
 
 export const NOW_BEFORE_FOLLOW = 'Press Follow this route: My Runs then shows what to buy and when.';
-/** After Follow: "Next: shift to Humility on Nov 14 at 9:52 am." `step` is the next step's own words. */
-export const nowAfterFollow = (step: string): string => `Next: ${step}.`;
 export const NOW_OPEN_MY_RUNS = 'Open My Runs ›';
 /** While a search runs or has a new result: its progress or result, then a link that opens More at the search. */
 export const nowSearchRunning = (kind: string, percent: number): string => `${kind} search running: ${Math.round(percent)}%`;
@@ -104,8 +102,3 @@ export const SAVE_DETAILS_LABEL = 'Your save: its age and details';
 
 /** The workers control, shown only while a search runs. The other "?" texts (Prefer fewer, the awake-hours tick, the ascension range, maxed gear) are today's words, moved behind the "?" unchanged. */
 export const WORKERS_TIP = 'Workers are the parts of your computer a search uses at once. More is faster, and slows what else you do.';
-
-// ---------------------------------------------------------------------------------------- the release note
-
-export const SIMPLER_RELEASE_NOTE =
-  'A simpler page: each screen shows your answer and Follow first, and the rest is under More at the bottom. Setup › More options › Show everything opens it all again.';

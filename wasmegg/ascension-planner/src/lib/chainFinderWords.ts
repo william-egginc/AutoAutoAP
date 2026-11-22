@@ -16,12 +16,6 @@ export const GOAL_SWITCH = {
   label: 'Goal',
 } as const;
 
-/** The old name of Joo's simulator screen, kept only so a spec can pin that it no longer shows. */
-export const SINGLE_RUN_RETIRED = 'Single run';
-
-/** What "Simulate this route" opens, in a sentence ("opens the route in the Auto Planner"). */
-export const AUTO_PLANNER_IN_SENTENCE = 'the Auto Planner';
-
 /**
  * What the goal switch (GoalSwitch.vue) and the Auto Planner's intro read (spec-chainfinder, 12 Nov 2026), built from the
  * words above. Imports nothing from lib/siteNav.ts (which reads CHAIN_FINDER_TAB), so the two never load in a circle.

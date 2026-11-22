@@ -14,7 +14,6 @@ describe('layout words', () => {
   });
   it('what to do now', () => {
     expect(W.NOW_BEFORE_FOLLOW).toBe('Press Follow this route: My Runs then shows what to buy and when.');
-    expect(W.nowAfterFollow('shift to Humility on Nov 14 at 9:52 am')).toBe('Next: shift to Humility on Nov 14 at 9:52 am.');
     expect(W.nowSearchRunning('Fast', 33.6)).toBe('Fast search running: 34%');
     expect(W.NOW_SHOW_SEARCH).toBe('Show search ›');
   });
@@ -47,7 +46,6 @@ describe('layout words', () => {
       expect(t.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(3);
       expect(t.length).toBeLessThan(200);
     }
-    expect(W.SIMPLER_RELEASE_NOTE.length).toBeLessThanOrEqual(200);
   });
   it('is a wording-only file (out of the result code hash)', () => {
     expect(isWordingOnly('src/lib/layoutWords.ts')).toBe(true);

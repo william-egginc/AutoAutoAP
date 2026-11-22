@@ -67,13 +67,6 @@ export function formatClockTime(hour: number, minute = 0, o: ClockOptions = {}):
   return o.zone ? `${s} ${o.zone}` : s;
 }
 
-/** Two whole hours as a range: "7:00 AM–1:00 AM" / "07:00–01:00" (`sep` " to " for a sentence). */
-export function formatClockRange(fromHour: number, toHour: number, o: ClockOptions & { sep?: string } = {}): string {
-  const one = { locale: o.locale, iso: o.iso };
-  const s = `${formatClockTime(fromHour, 0, one)}${o.sep ?? '–'}${formatClockTime(toHour, 0, one)}`;
-  return o.zone ? `${s} ${o.zone}` : s;
-}
-
 /** The clock time of an instant (epoch ms) in `zone` (the viewer's own when unset), to its minute: "3:07 AM" / "03:07".
  *  '' when it can't be read (an unknown zone). */
 export function clockTimeOf(ms: number, zone?: string, o: Omit<ClockOptions, 'zone'> = {}): string {

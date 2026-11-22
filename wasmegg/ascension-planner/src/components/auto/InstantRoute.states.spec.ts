@@ -39,7 +39,6 @@ import {
   firstStepKind,
   firstStepLine,
   FIRST_STEP_HOURS,
-  FIRST_STEP_HOURS_NIGHT_BUY,
 } from '@/lib/instantWords';
 import { INSTANT_NIGHT_BUY_NOTE, INSTANT_NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
 import * as cardWords from '@/lib/instantCardWords';
@@ -1376,7 +1375,6 @@ describe('The night-buy note under First step (spec-nightbuynote; Jordan option 
       const box = html.slice(html.indexOf('data-testid="instant-box"'), html.indexOf('data-testid="box-actions"'));
       const step = box.slice(box.indexOf('data-testid="box-first-step"'));
       expect(textOf(step.slice(0, step.indexOf('</p>')))).toContain(`${BUILD_STEP} ${FIRST_STEP_HOURS}`);
-      expect(textOf(box)).not.toContain(FIRST_STEP_HOURS_NIGHT_BUY);
       expect(count(box, 'data-testid="box-quick-estimate"')).toBe(1);
     });
     it(`${name}: not shown when the page says no (no hours, a fresh start, the ascension you are in)`, async () => {

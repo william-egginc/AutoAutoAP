@@ -120,9 +120,8 @@ describe('the Single run name', () => {
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/^\s*\/\/.*$/gm, '');
     const left = files(SRC)
-      // Joo's planner's own internals, and the Words file that keeps the retired name for specs.
+      // Joo's planner's own internals.
       .filter(f => !f.includes(`${path.sep}components${path.sep}classic${path.sep}`))
-      .filter(f => !f.endsWith(path.join('lib', 'chainFinderWords.ts')))
       .flatMap(f =>
         strip(fs.readFileSync(f, 'utf8'))
           .split('\n')

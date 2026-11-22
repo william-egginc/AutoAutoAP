@@ -13,7 +13,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { clockTimeOf, formatClockRange, formatClockTime } from './timeStyleWords';
+import { clockTimeOf, formatClockTime } from './timeStyleWords';
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -104,7 +104,6 @@ describe('en-US (forced): the writers give "9:00 AM", minutes and capitals', () 
     expect(formatClockTime(10, 0, US)).toBe('10:00 AM');
     expect(formatClockTime(12, 0, US)).toBe('12:00 PM');
     expect(formatClockTime(9, 0, { ...US, zone: 'PT' })).toBe('9:00 AM PT');
-    expect(formatClockRange(7, 1, US)).toBe('7:00 AM–1:00 AM');
     expect(clockTimeOf(Date.UTC(2026, 6, 14, 16, 0), 'America/Los_Angeles', US)).toBe('9:00 AM');
   });
 });

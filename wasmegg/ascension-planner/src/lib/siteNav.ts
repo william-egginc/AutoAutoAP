@@ -121,9 +121,6 @@ export function simulateNote(button = 'Simulate this route'): string {
 }
 /** The button's own tip: lib/tipWords.ts TIP_SIMULATE (was SIMULATE_TITLE here, the button's title, to 9 Nov 2026). */
 
-/** The exhaustive way's full title, as the chooser names it. */
-export const EXHAUSTIVE_TITLE = 'Custom: every route in boxes you set';
-
 /** Fastest's name at the Final target TE ("Fastest to 490 TE" by default; `NAMES.fastest` is that default). */
 export function fastestName(finalTE?: number): string {
   return finalTE !== undefined && finalTE > 0 ? `Fastest to ${finalTE} TE` : NAMES.fastest;

@@ -1,7 +1,6 @@
 /** The words for saving the starting TE, tracker ticks and plan online (7 Nov 2026), pinned word for word. */
 import { describe, expect, it } from 'vitest';
 import {
-  START_TE_USE_SAVE,
   syncDeleted,
   SYNC_DELETE_CONFIRM,
   SYNC_DELETE_LABEL,
@@ -13,7 +12,6 @@ import {
   saveOnlineLineOff,
   SAVE_ONLINE_LINE_ON,
   saveOnlineOffAfterDelete,
-  startTeBannerShort,
   startTeBannerWords,
 } from './syncWords';
 import { isWordingOnly } from './resultCodeHash';
@@ -37,8 +35,6 @@ describe('sync words', () => {
     expect(startTeBannerWords(197, 198, 0)).toBe(
       "Your typed starting TE (197) is lower than your save's TE (198), so the answers here start behind where you are."
     );
-    expect(startTeBannerShort(197, 198, 2)).toBe("Your typed starting TE (197) is lower than your save's (198, counting 2 not yet claimed).");
-    expect(START_TE_USE_SAVE).toBe("Use my save's TE");
     expect(startTeBannerWords(1, 2, 0)).not.toContain('override');
   });
   it('the delete button says it deletes everything saved online, and what stays', () => {

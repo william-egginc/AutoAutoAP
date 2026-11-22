@@ -214,6 +214,23 @@ The instant answer also feeds the full searches:
   (`src/search/deadlineSuggest.ts` `routeSpace`), unless a complete sweep fits the budget.
 - **By a date**'s _Routes to try_ are suggested around the instant answer's route for each count.
 
+## Where the tables come from, and one known limit
+
+- **The instant tables are built by `scripts/precompute.ts`** (see Building a table below), not by
+  anything in `src/buildTable/`. `src/buildTable/cell.ts` (its `paramsOf`, `buildsFrom` and `tailTo`
+  tail math) comes from Joo's table builder, whose `scripts/buildTable.ts` was left out on purpose in
+  merge 905333b20. It never runs here, even though it looks like the instant-table math. Do not read
+  it as the code that made our tables, and do not change our tables to match it. Whether it should be
+  deleted is a question for Joo.
+- **A one-hour limit around a daylight-saving change.** A table cell is keyed by the Pacific hour of the
+  week the ascension starts (`pacificHourOfWeek`), and the shape of the week is fixed. A build whose
+  sale wait crosses a daylight-saving change (the first Sunday of November or the second Sunday of
+  March) can therefore come out an hour off, including some 1-sale builds, because the cell reads the
+  sale end at the Pacific offset of the start (code review, 22 Nov 2026, math-tables-6; the fix, if made,
+  corrects the lateness by the difference between the two offsets).
+  The instant answer is a quick estimate for these dates; the exact check works the date out again on
+  the player's own account.
+
 ## Building a table
 
 `scripts/precompute.ts` is a Node CLI (bundled by `vite.search.config.ts` into `dist-search/`). It

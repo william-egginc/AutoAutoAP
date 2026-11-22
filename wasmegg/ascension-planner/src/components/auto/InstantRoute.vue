@@ -1887,8 +1887,7 @@ const nightBuyNote = computed(() =>
   nightBuyNoteShown(hoursLimited.value ? store.availability : null, firstStepKind(firstLegs.value?.[0]?.label) === 'buildup')
 );
 /** First step as it is, its awake-hours clause kept, and the night-buy note for the "quick estimate ?" marker on the
- *  box's time line (the card clean-up, Jordan 12 Nov 2026; was merged with the clause into one line under First step,
- *  lib/instantWords.ts `mergeFirstStepCaveats`). The note's show rule is `nightBuyNote`'s, unchanged. */
+ *  box's time line (the card clean-up, Jordan 12 Nov 2026). The note's show rule is `nightBuyNote`'s, unchanged. */
 const stepCaveat = computed(() => ({ step: firstStep.value, note: nightBuyNote.value ? INSTANT_NIGHT_BUY_NOTE : null }));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts

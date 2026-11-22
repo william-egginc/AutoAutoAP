@@ -4,7 +4,7 @@
  * "09:00", de-DE "09:00", ja-JP "9:00", en-AU "9:00 am"), and Setup's ISO choice "09:00". The en-US cases force en-US.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { clockTimeOf, formatClockRange, formatClockTime, inTimeStyle } from './timeStyleWords';
+import { clockTimeOf, formatClockTime, inTimeStyle } from './timeStyleWords';
 import { dateStyle } from './displayTime';
 import { hoursShort, hoursWords } from './pricedWith';
 import { setupSummary } from './nowWords';
@@ -49,11 +49,6 @@ describe('en-US (forced): "8:00 AM", minutes and capitals always (Jordan, 12 Nov
     expect(formatClockTime(9.9, 0, US)).toBe('9:00 AM');
     expect(formatClockTime(9, 0, { ...US, zone: 'PT' })).toBe('9:00 AM PT');
   });
-  it('a range: "7:00 AM–1:00 AM", or with " to " for a sentence', () => {
-    expect(formatClockRange(7, 1, US)).toBe('7:00 AM–1:00 AM');
-    expect(formatClockRange(9, 23, { ...US, sep: ' to ' })).toBe('9:00 AM to 11:00 PM');
-    expect(formatClockRange(0, 12, { ...US, zone: 'PT' })).toBe('12:00 AM–12:00 PM PT');
-  });
   it('an instant in a zone, rounded down to its minute', () => {
     const at = Date.UTC(2026, 10, 12, 22, 0, 59); // 2:00:59 PM PST
     expect(clockTimeOf(at, 'America/Los_Angeles', US)).toBe('2:00 PM');
@@ -87,7 +82,6 @@ describe("each person's own style (Jordan, 13 Nov 2026): the locale's short time
     expect(formatClockTime(9, 0, o)).toBe(nine);
     expect(formatClockTime(21, 5, o)).toBe(late);
     expect(formatClockTime(0, 0, o)).toBe(midnight);
-    expect(formatClockRange(9, 21, o)).toBe(`${nine}–${formatClockTime(21, 0, o)}`);
     expect(clockTimeOf(Date.UTC(2026, 10, 12, 21, 5, 59), 'UTC', o)).toBe(late);
     // PT labels: the zone's own wall clock, the label after.
     expect(formatClockTime(9, 0, { ...o, zone: 'PT' })).toBe(`${nine} PT`);
@@ -97,7 +91,6 @@ describe("each person's own style (Jordan, 13 Nov 2026): the locale's short time
   });
   it("Setup's \"Show dates as\" ISO choice: the fixed 24-hour time for everyone who picked it", () => {
     expect(formatClockTime(9, 0, { locale: 'en-US', iso: true })).toBe('09:00');
-    expect(formatClockRange(21, 1, { locale: 'en-US', iso: true })).toBe('21:00–01:00');
     expect(clockTimeOf(Date.UTC(2026, 10, 12, 22, 7), 'America/Los_Angeles', { locale: 'en-US', iso: true })).toBe('14:07');
   });
 });

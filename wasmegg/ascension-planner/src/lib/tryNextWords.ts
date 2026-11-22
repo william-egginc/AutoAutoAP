@@ -7,8 +7,3 @@
 export function exactRacePill(target: number): string {
   return `Exact on Fastest to ${target}`;
 }
-
-/** "Custom on Fastest to 490 (around 5 ascensions)": optional; the plain "Custom (around 5 ascensions)" is fine beside the Exact pill. */
-export function customRacePill(target: number, ascensions: number | null): string {
-  return ascensions ? `Custom on Fastest to ${target} (around ${ascensions} ascensions)` : `Custom on Fastest to ${target}`;
-}

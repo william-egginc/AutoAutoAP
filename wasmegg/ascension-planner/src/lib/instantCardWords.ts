@@ -19,11 +19,6 @@ export const WORK_IT_OUT_AGAIN = 'Work it out again';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** "Reached Nov 20 at 9:00 AM · 2 ascensions". */
-export function reachedLine(o: { time: string; count: number }): string {
-  return `Reached ${o.time} · ${plural(o.count, 'ascension')}`;
-}
-
 // ---- The clean-up's new words ----
 
 /** 1. The saved-from line beside the heading; its "?" holds `savedFromSentence`, and "Work it out again" stays beside it. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FOLLOW_THIS_ROUTE_INSTEAD, fasterAboveLine, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, betterAboveLine, gearEffectLine, reachedLine,
+  FOLLOW_THIS_ROUTE_INSTEAD, fasterAboveLine, QUICK_ESTIMATE_MARKER, WORK_IT_OUT_AGAIN, betterAboveLine, gearEffectLine,
   routeReachedLine, savedAnswerLabel, savedFromSentence,
 } from './instantCardWords';
 
@@ -11,8 +11,6 @@ describe('the instant card words', () => {
       'Saved from Nov 3 at 11:19 AM: same save, setup and filters, so nothing was worked out again (its dates are for a route start of Nov 3 at 12:19 PM).'
     );
     expect(WORK_IT_OUT_AGAIN).toBe('Work it out again');
-    expect(reachedLine({ time: 'Nov 20 at 9:00 AM', count: 1 })).toBe('Reached Nov 20 at 9:00 AM · 1 ascension');
-    expect(reachedLine({ time: 'Nov 20 at 9:00 AM', count: 3 })).toBe('Reached Nov 20 at 9:00 AM · 3 ascensions');
   });
   it('the clean-up words', () => {
     expect(savedAnswerLabel('Nov 3, 12:19 PM')).toBe('Saved answer, Nov 3, 12:19 PM');

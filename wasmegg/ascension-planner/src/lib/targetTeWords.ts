@@ -38,10 +38,6 @@ export const TARGET_TE_WORDS = {
  * the result code hash. Under 170 characters each.
  */
 
-/** The one line that says all three rules; `te` is the player's current TE. "Enter targets from 221 to 490, each higher than the one before." */
-export function targetTeRules(te: number): string {
-  return `Enter targets from ${Math.floor(te) + 1} to 490, each higher than the one before.`;
-}
 /** The separate lines, when UI knows which rule broke. */
 export const TARGET_TE_TOO_HIGH = 'Target TE can be 490 at most.';
 export function targetTeTooLow(te: number): string {

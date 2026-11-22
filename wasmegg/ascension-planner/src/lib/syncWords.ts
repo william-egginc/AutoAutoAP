@@ -35,14 +35,6 @@ export function startTeBannerWords(typed: number, saveTe: number, pending: numbe
   const counting = pending > 0 ? `, counting ${pending} not yet claimed` : '';
   return `Your typed starting TE (${typed}) is lower than your save's TE (${saveTe}${counting}), so the answers here start behind where you are.`;
 }
-/** The one-line form for a phone. */
-export function startTeBannerShort(typed: number, saveTe: number, pending: number): string {
-  const counting = pending > 0 ? `, counting ${pending} not yet claimed` : '';
-  return `Your typed starting TE (${typed}) is lower than your save's (${saveTe}${counting}).`;
-}
-/** The banner's button. */
-export const START_TE_USE_SAVE = "Use my save's TE";
-
 /** The one delete button: everything saved online under the account's code. */
 export const SYNC_DELETE_LABEL = 'Delete everything saved online for this account';
 export const SYNC_DELETE_CONFIRM =
