@@ -383,3 +383,87 @@ describe('rollout and failing closed', () => {
     expect(toml).toMatch(/^PIN_ENABLED = "0"/m);
   });
 });
+
+describe('review 22 Nov, C1: a new PIN is a new epoch of its own', () => {
+  const WEEK = 7 * DAY;
+  const epochOf = res => Number(String(res.session).split('.')[2]);
+  const oldSessionDead = async (session, now) => {
+    const r = routes(K, session, now);
+    expect((await r.syncList()).status).toBe(401);
+    expect((await pin('change', { k: K, pk: PK2 }, S(session), now)).status).toBe(401);
+    expect((await pin('refresh', { k: K }, S(session), now)).status).toBe(401);
+  };
+  const ways = [
+    ['remove', async s1 => ({ at: T0 + 1000, kill: async () => expect((await pin('remove', { k: K }, S(s1.session), T0 + 500)).status).toBe(200) })],
+    ['forget', async s1 => ({ at: T0 + 1000, kill: async () => expect((await routes(K, s1.session, T0 + 500).forget()).status).toBe(200) })],
+    [
+      'a reset that came due (found by a request)',
+      async () => ({
+        at: T0 + WEEK + 5000,
+        kill: async () => {
+          expect((await pin('reset', { k: K }, {}, T0)).status).toBe(200);
+          expect((await status(K, T0 + WEEK + 1000)).status).toBe(200);
+          expect(rowsOf('pin')).toBe(0);
+        },
+      }),
+    ],
+    [
+      'a reset that came due (found by the hourly cron)',
+      async () => ({
+        at: T0 + WEEK + 5000,
+        kill: async () => {
+          expect((await pin('reset', { k: K }, {}, T0)).status).toBe(200);
+          expect(await pinResetsDue(env, T0 + WEEK + 1000)).toBe(1);
+          expect(rowsOf('pin')).toBe(0);
+        },
+      }),
+    ],
+  ];
+  for (const [name, plan] of ways) {
+    it(`set, then ${name}, then set again: the first session stays dead on /sync, /pin/change and /pin/refresh`, async () => {
+      const s1 = await (await pin('set', { k: K, pk: PK }, {}, T0)).json();
+      expect((await routes(K, s1.session, T0 + 100).syncList()).status).toBe(200);
+      const { at, kill } = await plan(s1);
+      await kill();
+      const s2 = await (await pin('set', { k: K, pk: PK2 }, {}, at)).json();
+      expect(s2.session).toBeTruthy();
+      await oldSessionDead(s1.session, at + 1000);
+      expect((await routes(K, s2.session, at + 1000).syncList()).status).toBe(200);
+    });
+  }
+
+  it('change and recover at the same moment never both hand out a live session for the same epoch', async () => {
+    const s1 = await (await pin('set', { k: K, pk: PK }, {}, T0)).json();
+    const recovery = s1.recovery;
+    const [c, r] = await Promise.all([pin('change', { k: K, pk: PK2 }, S(s1.session), T0 + 1000), pin('recover', { k: K, recovery, pk: '3'.repeat(64) }, {}, T0 + 1000)]);
+    const answers = [];
+    for (const res of [c, r]) if (res.status === 200) answers.push(await res.json());
+    expect([200, 401]).toContain(c.status);
+    expect(r.status).toBe(200);
+    const epochs = answers.map(epochOf);
+    expect(new Set(epochs).size).toBe(epochs.length);
+    expect(db().prepare('SELECT epoch FROM pin WHERE key = ?').get(await saltedKeyOf(SALT, K)).epoch).toBe(Math.max(...epochs));
+  });
+
+  it('PIN_ENABLED off with a PIN row (and a pending reset): every /pin route is closed (404), every cloud route 503, the cron does nothing', async () => {
+    const s1 = await (await pin('set', { k: K, pk: PK }, {}, T0)).json();
+    await pin('reset', { k: K }, {}, T0);
+    env.PIN_ENABLED = '0';
+    const bodies = { verify: { k: K, pk: PK }, set: { k: K, pk: PK }, change: { k: K, pk: PK2 }, recover: { k: K, recovery: s1.recovery, pk: PK2 }, remove: { k: K }, refresh: { k: K }, reset: { k: K }, 'reset/cancel': { k: K } };
+    for (const [route, body] of Object.entries(bodies)) expect((await pin(route, body, S(s1.session), T0 + WEEK + 1000)).status, route).toBe(404);
+    expect((await status(K, T0 + WEEK + 1000)).status).toBe(404);
+    for (const [name, call] of Object.entries(routes(K, s1.session, T0 + WEEK + 1000))) expect((await call()).status, name).toBe(503);
+    expect(await pinResetsDue(env, T0 + WEEK + 1000)).toBe(0);
+    expect(rowsOf('pin')).toBe(1);
+  });
+  it('the hourly cron leaves a due reset alone while the PIN is off, and carries it out when it is on again', async () => {
+    await pin('set', { k: K, pk: PK }, {}, T0);
+    await pin('reset', { k: K }, {}, T0);
+    env.PIN_ENABLED = '0';
+    expect(await pinResetsDue(env, T0 + WEEK + 1000)).toBe(0);
+    expect(rowsOf('pin')).toBe(1);
+    env.PIN_ENABLED = '1';
+    expect(await pinResetsDue(env, T0 + WEEK + 2000)).toBe(1);
+    expect(rowsOf('pin')).toBe(0);
+  });
+});

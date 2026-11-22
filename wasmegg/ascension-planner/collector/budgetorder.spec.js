@@ -10,6 +10,7 @@ import { handlePrefs } from './prefs.js';
 import { handleAnswers } from './answers.js';
 import { handleSync } from './sync.js';
 import { makeD1 } from './d1shim.js';
+import { handlePin } from './pin.js';
 
 const K = 'a'.repeat(64);
 const T0 = Date.UTC(2026, 10, 15, 18, 0, 0);
@@ -68,5 +69,23 @@ describe.each(ROUTES)('$name: a write the key\'s hour refuses does not spend the
     db().prepare('INSERT INTO follow_rate (key, since, n) VALUES (?, ?, ?)').run(day, T0 - 1000, 1e9);
     const r = await put();
     expect(r.status).toBe(429);
+  });
+});
+
+describe('review 22 Nov, C1.2: the PIN reset budget is spent in order', () => {
+  const SALT = 'f'.repeat(64);
+  const pinEnv = () => ({ WATCH: makeD1(), ACCOUNT_KEY_SALT: SALT, PIN_ENABLED: '1' });
+  const call = (e, route, body, ip) =>
+    handlePin(new Request(`https://c.example/pin/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip }, body: JSON.stringify(body) }), e, T0);
+  const spent = e => e.WATCH._db.prepare("SELECT n FROM follow_rate WHERE key = 'pinreset-day'").get()?.n ?? 0;
+
+  it('3 good resets and 50 refused ones from one address leave the collector-wide count at 3, and a fresh address still gets in', async () => {
+    const e = pinEnv();
+    const ks = ['1', '2', '3', '4', '5'].map(c => c.repeat(64));
+    for (const k of ks) await call(e, 'set', { k, pk: '1'.repeat(64) }, '203.0.113.1');
+    for (const k of ks.slice(0, 3)) expect((await call(e, 'reset', { k }, '198.51.100.9')).status).toBe(200);
+    for (let i = 0; i < 50; i++) expect((await call(e, 'reset', { k: ks[3] }, '198.51.100.9')).status).toBe(429);
+    expect(spent(e)).toBe(3);
+    expect((await call(e, 'reset', { k: ks[3] }, '198.51.100.77')).status).toBe(200);
   });
 });

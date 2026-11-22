@@ -55,9 +55,11 @@ const recoveryCode = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b
 const proofOf = (env, sk, pk) => hmacHex(env.ACCOUNT_KEY_SALT, `pin-proof-v1:${sk}:${pk}`);
 const recProofOf = (env, sk, code) => hmacHex(env.ACCOUNT_KEY_SALT, `pin-rec-v1:${sk}:${code}`);
 
-async function sessionFor(env, sk, epoch, now) {
+// The MAC covers the row's `created` as well as the epoch: a PIN that is removed, reset or forgotten and then set again restarts
+// at epoch 1, and without `created` an old epoch-1 session would be valid for the new PIN (review 22 Nov 2026, C1.1).
+async function sessionFor(env, sk, epoch, now, created) {
   const exp = now + PIN_SESSION_MS;
-  const mac = await hmacHex(env.ACCOUNT_KEY_SALT, `pin-session-v1:${sk}:${exp}:${epoch}`);
+  const mac = await hmacHex(env.ACCOUNT_KEY_SALT, `pin-session-v1:${sk}:${created}:${exp}:${epoch}`);
   return { session: `v1.${exp}.${epoch}.${mac}`, expires: exp };
 }
 
@@ -66,7 +68,7 @@ async function sessionOk(env, request, sk, row, now) {
   const m = SESSION_RE.exec(request.headers.get('x-aaap-session') || '');
   if (!m) return false;
   if (Number(m[1]) <= now || Number(m[2]) !== row.epoch) return false;
-  return sameText(m[3], await hmacHex(env.ACCOUNT_KEY_SALT, `pin-session-v1:${sk}:${m[1]}:${m[2]}`));
+  return sameText(m[3], await hmacHex(env.ACCOUNT_KEY_SALT, `pin-session-v1:${sk}:${row.created}:${m[1]}:${m[2]}`));
 }
 
 const rowOf = (env, sk) => env.WATCH.prepare('SELECT * FROM pin WHERE key = ?').bind(sk).first();
@@ -100,7 +102,8 @@ export async function pinGuard(env, request, sk, now = Date.now()) {
 
 /** The hourly cron: due resets are carried out even if nobody asks again. */
 export async function pinResetsDue(env, now, limit = 50) {
-  if (!env.WATCH) return 0;
+  // The PIN off means the owner cannot cancel a reset either: nothing is carried out until it is on again (review 22 Nov, C1.4).
+  if (!env.WATCH || !pinOn(env)) return 0;
   let n = 0;
   try {
     const { results } = await env.WATCH.prepare('SELECT key FROM pin WHERE reset_at > 0 AND reset_at <= ? LIMIT ?').bind(now, limit).all();
@@ -189,7 +192,7 @@ export async function handlePin(request, env, now = Date.now()) {
       // The saved (encrypted) copy of those links goes with them (sync.js kind `callink`).
       env.WATCH.prepare("DELETE FROM synced WHERE key = ? AND kind = 'callink'").bind(sk),
     ]);
-    return reply({ ok: true, ...(await sessionFor(env, sk, 1, now)), recovery: code, revokedLinks: revoked?.n ?? 0 });
+    return reply({ ok: true, ...(await sessionFor(env, sk, 1, now, now)), recovery: code, revokedLinks: revoked?.n ?? 0 });
   }
 
   if (!row) return reply({ error: 'no PIN is set', pin: false }, 404);
@@ -214,7 +217,7 @@ export async function handlePin(request, env, now = Date.now()) {
     }
     if (!sameText(await proofOf(env, sk, body.pk), row.proof)) return reply({ error: 'wrong PIN', pin: true }, 401);
     await env.WATCH.prepare('UPDATE pin SET fail_n = 0, fail_first = 0, fail_last = 0 WHERE key = ?').bind(sk).run();
-    return reply(await sessionFor(env, sk, row.epoch, now));
+    return reply(await sessionFor(env, sk, row.epoch, now, row.created));
   }
 
   if (route === 'recover') {
@@ -223,20 +226,26 @@ export async function handlePin(request, env, now = Date.now()) {
     if (!tries.ok) return retry(waitSeconds(tries.since, DAY_MS, now), 'too many recovery tries today');
     if (!sameText(await recProofOf(env, sk, body.recovery), row.rec_proof)) return reply({ error: 'wrong recovery code', pin: true }, 401);
     const code = recoveryCode();
-    const epoch = row.epoch + 1;
-    await env.WATCH.prepare('UPDATE pin SET proof = ?, rec_proof = ?, epoch = ?, fail_n = 0, fail_first = 0, fail_last = 0, reset_at = 0 WHERE key = ?')
-      .bind(await proofOf(env, sk, body.pk), await recProofOf(env, sk, code), epoch, sk)
-      .run();
-    return reply({ ok: true, ...(await sessionFor(env, sk, epoch, now)), recovery: code });
+    // One statement: the epoch moves up from whatever it is NOW (a change at the same moment cannot be overwritten with a stale
+    // epoch+1), and only while the recovery code is still the one that was just proved (review 22 Nov, C1.3).
+    const done = await env.WATCH.prepare(
+      'UPDATE pin SET proof = ?, rec_proof = ?, epoch = epoch + 1, fail_n = 0, fail_first = 0, fail_last = 0, reset_at = 0 WHERE key = ? AND rec_proof = ? RETURNING epoch'
+    )
+      .bind(await proofOf(env, sk, body.pk), await recProofOf(env, sk, code), sk, row.rec_proof)
+      .first();
+    if (!done) return reply({ error: 'wrong recovery code', pin: true }, 401); // 401, not 409: the client reads a 409 here as a reset cooldown
+    return reply({ ok: true, ...(await sessionFor(env, sk, done.epoch, now, row.created)), recovery: code });
   }
 
   if (route === 'reset') {
     if (!only(body, ['k'])) return bad(['send only k']);
     if (row.reset_at) return reply({ ok: true, resetAt: row.reset_at });
     if (row.reset_cooldown > now) return retry(Math.ceil((row.reset_cooldown - now) / 1000), 'a reset was cancelled recently: wait before asking again', 409);
+    // The address's own cap first: a refused address must not spend the whole collector's resets for the day (review 22 Nov, C1.2).
     const a = await spend(env, `pinreset|${await ipHash(env, request)}`, 1, PIN_RESETS_PER_ADDRESS_DAY, now, DAY_MS);
+    if (!a.ok) return retry(waitSeconds(a.since, DAY_MS, now), 'too many resets asked today');
     const all = await spend(env, 'pinreset-day', 1, PIN_RESETS_PER_DAY, now, DAY_MS);
-    if (!a.ok || !all.ok) return retry(Math.max(...[a, all].filter(x => !x.ok).map(x => waitSeconds(x.since, DAY_MS, now))), 'too many resets asked today');
+    if (!all.ok) return retry(waitSeconds(all.since, DAY_MS, now), 'too many resets asked today');
     const resetAt = now + PIN_RESET_MS;
     await env.WATCH.prepare('UPDATE pin SET reset_at = ? WHERE key = ? AND reset_at = 0').bind(resetAt, sk).run();
     return reply({ ok: true, resetAt });
@@ -245,20 +254,23 @@ export async function handlePin(request, env, now = Date.now()) {
   // From here on a good session is required.
   if (!(await sessionOk(env, request, sk, row, now))) return pinRequired();
 
-  if (route === 'refresh') return reply(await sessionFor(env, sk, row.epoch, now));
+  if (route === 'refresh') return reply(await sessionFor(env, sk, row.epoch, now, row.created));
 
   if (route === 'change') {
     if (!only(body, ['k', 'pk']) || !isKey(body.pk)) return bad(['send { k, pk }, pk 64 lowercase hex characters']);
     const epoch = row.epoch + 1;
-    await env.WATCH.prepare('UPDATE pin SET proof = ?, epoch = ?, fail_n = 0, fail_first = 0, fail_last = 0, reset_at = 0 WHERE key = ?')
-      .bind(await proofOf(env, sk, body.pk), epoch, sk)
+    // Only from the epoch this session was read at: a recover or change that got there first wins, and this one is told to look again.
+    const r = await env.WATCH.prepare('UPDATE pin SET proof = ?, epoch = ?, fail_n = 0, fail_first = 0, fail_last = 0, reset_at = 0 WHERE key = ? AND epoch = ?')
+      .bind(await proofOf(env, sk, body.pk), epoch, sk, row.epoch)
       .run();
-    return reply({ ok: true, ...(await sessionFor(env, sk, epoch, now)) });
+    if (!r.meta || !r.meta.changes) return pinRequired(); // the session's epoch is gone: 401 reads as "sign in again" (a 409 would read as a reset cooldown)
+    return reply({ ok: true, ...(await sessionFor(env, sk, epoch, now, row.created)) });
   }
 
   if (route === 'remove') {
     if (!only(body, ['k'])) return bad(['send only k']);
-    await env.WATCH.prepare('DELETE FROM pin WHERE key = ?').bind(sk).run();
+    const r = await env.WATCH.prepare('DELETE FROM pin WHERE key = ? AND epoch = ?').bind(sk, row.epoch).run();
+    if (!r.meta || !r.meta.changes) return pinRequired(); // the session's epoch is gone: 401 reads as "sign in again" (a 409 would read as a reset cooldown)
     return reply({ ok: true });
   }
 
