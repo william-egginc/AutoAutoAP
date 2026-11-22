@@ -119,9 +119,9 @@ describe('PlannedUpdateNotice', () => {
     expect(await render()).toContain('planned-update-notice');
   });
 
-  it('App.vue puts it right after the NewVersionBanner wrapper', () => {
+  it('App.vue puts it right after the NewVersionBanner (no wrapper since rel-ui-2: the banner is suppressed, not hidden)', () => {
     const app = readFileSync(new URL('../App.vue', import.meta.url), 'utf8');
-    expect(app).toMatch(/<NewVersionBanner[\s\S]*?\/>\s*<\/div>\s*(<!--[\s\S]*?-->\s*)?<PlannedUpdateNotice\b/);
+    expect(app).toMatch(/<NewVersionBanner[\s\S]*?\/>\s*(<!--[\s\S]*?-->\s*)?<PlannedUpdateNotice\b/);
     expect(app).toContain("import PlannedUpdateNotice from '@/components/PlannedUpdateNotice.vue'");
   });
 });
