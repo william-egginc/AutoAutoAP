@@ -97,8 +97,11 @@ export const SIM_SOURCES = [
  *  with --generate): a refactor, the generated cells byte-identical (maxed TE 489, the old and new generator).
  *  Then for the coverage above (review T5): files added, none changed, so no cell can move.
  *  22 Nov 2026 (code review T1.8): re-pasted for four files added to the coverage (truthEggs, the artifact modifier
- *  calculator, colleggtibles, the planner's artifact helpers), none changed, so no cell can move. No SIM_VERSION bump. */
-export const SIM_SOURCE_HASH = 'e7e2a3d0696d001a097e67ca696d89ef78d22890192b16422bf43b49a5d940fc';
+ *  calculator, colleggtibles, the planner's artifact helpers), none changed, so no cell can move. No SIM_VERSION bump.
+ *  22 Nov 2026 (code review T1.7): re-pasted for precomputedLeg.ts: pacificOffset exported, dstLateBy added (read by
+ *  the finder only), comments. tailTo, sweepTails and the generator's code are as they were, so no cell can move.
+ *  No SIM_VERSION bump. */
+export const SIM_SOURCE_HASH = '0ed22518503f4b38cd96cebcf96e77957b606fbd94f2639a0532839ae52ee7fb';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

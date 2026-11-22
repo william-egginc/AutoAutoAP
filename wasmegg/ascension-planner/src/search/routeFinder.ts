@@ -13,8 +13,8 @@
  * the same pass.
  *
  * ON THE HOUR. Each fresh ascension starts at the next whole hour (a player can always ascend a few
- * minutes later), where the table was simulated, so its time is the simulator's exactly rather than
- * an estimate. Shifting a start within the hour instead (`lateBy`) is right to a few hundredths of a
+ * minutes later), where the table was simulated, so its time is the simulator's rather than an
+ * estimate (to the hour across a daylight-saving change, which `dstLateBy` puts back: the table's week has none). Shifting a start within the hour instead (`lateBy`) is right to a few hundredths of a
  * percent most of the time, but near a sale an hour's difference can mean catching it or waiting a
  * week (scripts/precompute.ts --grid-error), so the route keeps to what was simulated. A later start
  * never ends sooner, so the simulator's own immediate start can only match or beat these times. The
@@ -29,6 +29,7 @@
 import { SweepCache, type SweepStore } from './sweepCache';
 import {
   canonicalDelivered,
+  dstLateBy,
   lastWaitEgg,
   pacificHourOfWeek,
   rebase,
@@ -208,6 +209,8 @@ function sweepOne(
   /** Only `top` is wanted (`priceLeg`): a replay works out that checkpoint alone (tableV2.ts `sweepReplay` `only`). */
   only = false
 ): TailSweep {
+  // The sale's real end from this start, a daylight-saving change on the way included (T1.7).
+  lateBy = dstLateBy(b.saleEnd, start, lateBy);
   if (holdUntil && b.extras && o.heldBuys !== false) b = heldBuys(b, start, holdUntil);
   return replays(b, holdUntil, o)
     ? sweepReplay(b, b.extras!, top, {
