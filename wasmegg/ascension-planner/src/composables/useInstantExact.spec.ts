@@ -139,6 +139,15 @@ describe('useInstantExact', () => {
     again.scope.stop();
   });
 
+  it('a record kept before the 22 Nov fix (no version: it may be from today’s start, not the answer’s) is not used; it runs again', async () => {
+    const old = { key: req().key, status: 'done', end: T0 + 1, legs: [T0 + 1], spare: null, routes: [], faster: 0 };
+    mem.set(EXACT_RECORD_KEY, JSON.stringify([old]));
+    const m = mount(req());
+    await flush();
+    expect(runs).toHaveLength(1);
+    m.scope.stop();
+  });
+
   it('By a date: the spare is the deadline less the exact end, reached counting (negative: the route misses it)', async () => {
     const end = T0 + 600;
     const hit = mount(req([300], { deadline: end + 3600 }));

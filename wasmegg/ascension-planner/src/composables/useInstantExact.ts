@@ -109,6 +109,11 @@ export function exactWanted(
 }
 
 export const EXACT_RECORD_KEY = 'aap-instant-exact';
+/**
+ * The records' version: 2 from 22 Nov 2026 (code review, math-exact-1). Before, a saved answer put back was simulated
+ * from today's start and kept under the answer's key, so an older record may be another start's finish: dropped.
+ */
+const RECORD_V = 2;
 const KEEP = 20;
 type Done = Extract<ExactState, { status: 'done' }>;
 
@@ -120,6 +125,7 @@ function readRecords(): Done[] {
       ? list.filter(
           (r): r is Done =>
             !!r &&
+            r.v === RECORD_V &&
             typeof r.key === 'string' &&
             r.status === 'done' &&
             Number.isFinite(r.end) &&
@@ -135,7 +141,7 @@ function readRecords(): Done[] {
 function keepRecord(d: Done): void {
   try {
     const rest = readRecords().filter(r => r.key !== d.key);
-    localStorage.setItem(EXACT_RECORD_KEY, JSON.stringify([d, ...rest].slice(0, KEEP)));
+    localStorage.setItem(EXACT_RECORD_KEY, JSON.stringify([{ ...d, v: RECORD_V }, ...rest].slice(0, KEEP)));
   } catch {
     // Storage full or blocked: worked out again next time.
   }
