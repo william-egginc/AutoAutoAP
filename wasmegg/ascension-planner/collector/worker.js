@@ -4021,7 +4021,9 @@ const worker = {
           const v = await env.SUBMISSIONS.get(csvdKey(got.metadata.run, n), 'stream');
           if (v === null || v === undefined) {
             for (const r of rest) if (typeof r.cancel === 'function') await r.cancel().catch(() => {});
-            return json({ error: `this CSV is stored in ${k} deltas and delta ${n} is missing` }, 500);
+            // The 7-day deltas expired (review 22 Nov, C3.3): 404, not a 500 that never ends; the head that can no longer be joined goes.
+            await later(ctx, env.SUBMISSIONS.delete(`csv:${id}`));
+            return json({ error: 'this CSV so far has expired' }, 404);
           }
           rest.push(v);
         }

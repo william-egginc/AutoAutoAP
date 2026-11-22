@@ -497,6 +497,8 @@ describe('GET /csv is cached and its KV reads are limited', () => {
     const first = await get(`/csv?id=${heavy}`, { ip: '3.4.5.6' });
     expect(first.status).not.toBe(429);
     expect(env.READ_LIMITER.keys).toHaveLength(101);
+    // The deltas here were never stored, so that first read found them expired and (C3.3) dropped the head: put it back to test the limiter.
+    await env.SUBMISSIONS.put(`csv:${heavy}`, new Uint8Array([1, 2]).buffer, { metadata: { run, deltas: 256, crc: 0, len: 2 } });
     expect((await get(`/csv?id=${heavy}`, { ip: '3.4.5.6' })).status).toBe(429);
   });
   it('without the binding or a cache, GET /csv works as deployed', async () => {

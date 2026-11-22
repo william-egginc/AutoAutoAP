@@ -20,7 +20,22 @@ function makeD1() {
     async all() { return { results: db.prepare(sql).all(...args).map(r => ({ ...r })), success: true }; },
     async run() { const r = db.prepare(sql).run(...args); return { success: true, meta: { changes: Number(r.changes) } }; },
   });
-  return { prepare: sql => statement(sql), _db: db };
+  return {
+    prepare: sql => statement(sql),
+    async batch(statements) {
+      db.exec('BEGIN');
+      try {
+        const out = [];
+        for (const st of statements) out.push(await st.run());
+        db.exec('COMMIT');
+        return out;
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+    },
+    _db: db,
+  };
 }
 
 function makeKV() {
@@ -306,5 +321,96 @@ describe('CORS', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-methods')).toContain('PUT');
     expect(res.headers.get('access-control-allow-headers')).toContain('x-upload-token');
+  });
+});
+
+describe('review 22 Nov, C3: abandoned and half-finished uploads', () => {
+  const HOUR = 3_600_000;
+  const age = (id, ms) => env.WATCH._db.prepare('UPDATE bigcsv SET created = ? WHERE id = ?').run(Date.now() - ms, id);
+
+  it('C3.1: an upload left open for over 20 hours is aborted and its parts dropped, and /start begins fresh instead of resuming it', async () => {
+    const { id, uploadToken } = await submit();
+    expect((await start(id, uploadToken, PART + 1)).status).toBe(200);
+    expect((await put(id, uploadToken, 1, gzipBytes(PART))).status).toBe(200);
+    const oldUpload = env.WATCH._db.prepare('SELECT upload_id FROM bigcsv WHERE id = ?').get(id).upload_id;
+    age(id, 21 * HOUR);
+    const aborted = [];
+    const real = env.BIGCSV.resumeMultipartUpload;
+    env.BIGCSV.resumeMultipartUpload = (key, uploadId) => {
+      const up = real(key, uploadId);
+      return { ...up, abort: async () => (aborted.push(uploadId), up.abort()) };
+    };
+    const res = await start(id, uploadToken, PART + 1);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ state: 'open', resumed: false, uploaded: [] });
+    expect(aborted).toEqual([oldUpload]);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM bigcsv_parts WHERE id = ?').get(id).n).toBe(0);
+    expect(rows()).toHaveLength(1);
+  });
+  it('C3.1: a young open upload still resumes', async () => {
+    const { id, uploadToken } = await submit();
+    await start(id, uploadToken, PART + 1);
+    await put(id, uploadToken, 1, gzipBytes(PART));
+    age(id, 2 * HOUR);
+    expect(await (await start(id, uploadToken, PART + 1)).json()).toMatchObject({ resumed: true, uploaded: [{ n: 1, size: PART }] });
+  });
+  it('C3.1: open uploads older than a day count toward neither the 3 per account nor the byte budget; a young one does', async () => {
+    const ins = (id, state, ageMs, bytes) =>
+      env.WATCH._db.prepare("INSERT INTO bigcsv (id, upload_id, bytes, part_size, parts, state, owner, created) VALUES (?, 'x', ?, ?, 1, ?, 'aaaaaaaaaaaa', ?)").run(id, bytes, PART, state, Date.now() - ageMs);
+    for (let i = 0; i < BIGCSV_PER_OWNER; i++) ins(`0000000${i}`, 'open', 25 * HOUR, 1);
+    const r = await submit({ durationDays: 730 });
+    expect((await start(r.id, r.uploadToken, PART + 1)).status).toBe(200);
+    env.WATCH._db.prepare('DELETE FROM bigcsv').run();
+    ins('deadbeef', 'open', 25 * HOUR, BIGCSV_BUDGET_BYTES - 1);
+    const r2 = await submit({ durationDays: 731 });
+    expect((await start(r2.id, r2.uploadToken, PART + 1)).status).toBe(200);
+    env.WATCH._db.prepare('DELETE FROM bigcsv').run();
+    ins('deadbeef', 'open', HOUR, BIGCSV_BUDGET_BYTES - 1);
+    const r3 = await submit({ durationDays: 732 });
+    expect((await start(r3.id, r3.uploadToken, PART + 1)).status).toBe(429);
+  });
+  it('C3.1: a part for an upload R2 no longer has answers 404, not 500 and not 409', async () => {
+    const { id, uploadToken } = await submit();
+    await start(id, uploadToken, PART + 1);
+    env.BIGCSV._uploads.clear();
+    const real = env.BIGCSV.resumeMultipartUpload;
+    env.BIGCSV.resumeMultipartUpload = (key, uploadId) => ({
+      ...real(key, uploadId),
+      async uploadPart() {
+        throw new Error('The specified multipart upload does not exist. (NoSuchUpload)');
+      },
+    });
+    expect((await put(id, uploadToken, 1, gzipBytes(PART))).status).toBe(404);
+  });
+  it('C3.2: complete that assembled the object but failed before answering finishes on the retry, and the row is done', async () => {
+    const { id, uploadToken } = await submit();
+    const file = gzipBytes(PART + 99);
+    expect((await start(id, uploadToken, file.length)).status).toBe(200);
+    expect((await put(id, uploadToken, 1, file.slice(0, PART))).status).toBe(200);
+    expect((await put(id, uploadToken, 2, file.slice(PART))).status).toBe(200);
+    const real = env.BIGCSV.resumeMultipartUpload;
+    env.BIGCSV.resumeMultipartUpload = (key, uploadId) => {
+      const up = real(key, uploadId);
+      return {
+        ...up,
+        async complete(list) {
+          await up.complete(list);
+          throw new Error('network error after the object was assembled');
+        },
+      };
+    };
+    const res = await complete(id, uploadToken);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, bytes: file.length });
+    expect(rows()[0].state).toBe('done');
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM bigcsv_parts').get().n).toBe(0);
+  });
+  it('C3.2: complete on a run that is already done answers 200 with its size', async () => {
+    const { id, uploadToken } = await submit();
+    const file = gzipBytes(PART + 5);
+    await fullUpload(id, uploadToken, file);
+    const again = await complete(id, uploadToken);
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual({ ok: true, bytes: file.length });
   });
 });

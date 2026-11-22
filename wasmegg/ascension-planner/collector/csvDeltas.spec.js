@@ -165,12 +165,17 @@ describe('deltas, end to end', () => {
     expect((await putHead(sub.id, 'h\n', 0, { token: sub.uploadToken, delta: sub.deltaToken })).status).toBe(409);
   });
 
-  it('500s when a stored delta has gone missing', async () => {
+  it('C3.3: a stored delta that has expired answers 404 "expired" (never a 500 forever) and the useless head is deleted', async () => {
     const sub = await submitBest();
     await putDelta(textOf('a', 4), 0, { token: sub.deltaToken });
     await putHead(sub.id, 'h\n', 1, { token: sub.uploadToken, delta: sub.deltaToken });
     env.SUBMISSIONS._m.delete(`csvd:${RUN}:0`);
-    expect((await call(`/csv?id=${sub.id}`)).status).toBe(500);
+    const res = await call(`/csv?id=${sub.id}`);
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/expired/);
+    await new Promise(r => setTimeout(r, 0));
+    expect(env.SUBMISSIONS._m.has(`csv:${sub.id}`)).toBe(false);
+    expect((await call(`/csv?id=${sub.id}`)).status).toBe(404);
   });
 });
 

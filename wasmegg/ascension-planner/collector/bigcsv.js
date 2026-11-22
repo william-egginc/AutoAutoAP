@@ -28,6 +28,8 @@ export const BIGCSV_MIN_PART = 5 * 1024 * 1024;
 export const BIGCSV_MAX_PART = 90_000_000;
 export const BIGCSV_MAX_BYTES = 4 * 1024 ** 3;
 export const BIGCSV_MAX_PARTS = 1000;
+/** An open upload older than this is abandoned: /start aborts it and begins fresh (review 22 Nov, C3.1). */
+export const BIGCSV_OPEN_MS = 20 * 3_600_000;
 export const BIGCSV_PER_OWNER = 3;
 export const BIGCSV_DAYS = 90;
 export const BIGCSV_BUDGET_BYTES = 9_000_000_000;
@@ -138,7 +140,17 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
 
   if (path === 'start') {
     if (rec && rec.state === 'done') return reply({ error: 'this run already has its full CSV kept' }, 409);
-    if (rec && rec.state === 'open') return reply(view(rec, await uploadedParts(), { resumed: true }));
+    if (rec && rec.state === 'open') {
+      if (now - rec.created < BIGCSV_OPEN_MS) return reply(view(rec, await uploadedParts(), { resumed: true }));
+      // Left open past OPEN_MS (review 22 Nov, C3.1): its R2 upload is aborted and its parts dropped, and this start begins fresh.
+      try {
+        await env.BIGCSV.resumeMultipartUpload(objectKey(id), rec.upload_id).abort();
+      } catch {
+        /* already gone */
+      }
+      await env.WATCH.prepare('DELETE FROM bigcsv_parts WHERE id = ?').bind(id).run();
+      await env.WATCH.prepare('DELETE FROM bigcsv WHERE id = ?').bind(id).run();
+    }
     const bytes = num(url.searchParams.get('bytes'));
     const partSize = num(url.searchParams.get('partSize'));
     const problems = [];
@@ -157,10 +169,10 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
     const owner = typeof row.owner === 'string' ? row.owner.slice(0, 12) : null;
     const since = now - 30 * DAY_MS;
     if (owner) {
-      const c = await env.WATCH.prepare("SELECT COUNT(*) AS n FROM bigcsv WHERE owner = ? AND state IN ('open','done') AND created > ?").bind(owner, since).first();
+      const c = await env.WATCH.prepare("SELECT COUNT(*) AS n FROM bigcsv WHERE owner = ? AND created > ? AND (state = 'done' OR (state = 'open' AND created > ?))").bind(owner, since, now - DAY_MS).first();
       if ((c?.n ?? 0) >= BIGCSV_PER_OWNER) return retry(7 * 86400, `at most ${BIGCSV_PER_OWNER} full CSVs per account in 30 days`);
     }
-    const used = await env.WATCH.prepare("SELECT COALESCE(SUM(bytes), 0) AS b FROM bigcsv WHERE state IN ('open','done') AND created > ?").bind(now - BIGCSV_DAYS * DAY_MS).first();
+    const used = await env.WATCH.prepare("SELECT COALESCE(SUM(bytes), 0) AS b FROM bigcsv WHERE created > ? AND (state = 'done' OR (state = 'open' AND created > ?))").bind(now - BIGCSV_DAYS * DAY_MS, now - DAY_MS).first();
     if ((used?.b ?? 0) + bytes > BIGCSV_BUDGET_BYTES) return retry(86400, 'the full-CSV store is full right now');
     const mp = await env.BIGCSV.createMultipartUpload(objectKey(id), { customMetadata: { row: id, bytes: String(bytes), parts: String(parts), at: String(now) } });
     // A deleted or abandoned record for this id is replaced.
@@ -188,6 +200,8 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
     return reply({ ok: true });
   }
 
+  // Complete again after it already finished (a retry whose answer was lost): the same answer, not an error.
+  if (rec.state === 'done' && path === 'complete') return reply({ ok: true, bytes: rec.bytes });
   if (rec.state === 'done') return reply({ error: 'this run already has its full CSV kept' }, 409);
 
   if (path === 'part') {
@@ -201,7 +215,14 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
     if (num(declared) !== want) return bad([`part ${n} must be ${want} bytes`]);
     if (!request.body) return bad(['empty body']);
     const up = env.BIGCSV.resumeMultipartUpload(objectKey(id), rec.upload_id);
-    const part = await up.uploadPart(n, request.body);
+    let part;
+    try {
+      part = await up.uploadPart(n, request.body);
+    } catch (e) {
+      // R2 no longer has this upload (it was aborted or expired): not a server fault, and not "already kept" (a 409).
+      if (/NoSuchUpload|does not exist/i.test(String(e && e.message))) return reply({ error: 'this upload is gone: call start again' }, 404);
+      throw e;
+    }
     await env.WATCH.prepare('INSERT OR REPLACE INTO bigcsv_parts (id, n, etag, size) VALUES (?, ?, ?, ?)').bind(id, n, part.etag, want).run();
     return reply({ ok: true, n, size: want });
   }
@@ -213,8 +234,20 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
   if (missing.length) return reply({ error: 'parts missing', missing }, 409);
   const etags = ((await env.WATCH.prepare('SELECT n, etag FROM bigcsv_parts WHERE id = ? ORDER BY n').bind(id).all()).results || []).map(r => ({ partNumber: r.n, etag: r.etag }));
   const up = env.BIGCSV.resumeMultipartUpload(objectKey(id), rec.upload_id);
-  const obj = await up.complete(etags);
-  const size = obj?.size;
+  let size;
+  try {
+    size = (await up.complete(etags))?.size;
+  } catch (e) {
+    // The object may have been assembled before the failure (review 22 Nov, C3.2): if R2 has it at the right size, go on.
+    let head = null;
+    try {
+      head = await env.BIGCSV.get(objectKey(id), { range: { offset: 0, length: 2 } });
+    } catch {
+      head = null;
+    }
+    if (!head || head.size !== rec.bytes) throw e;
+    size = head.size;
+  }
   let magic = null;
   try {
     const head = await env.BIGCSV.get(objectKey(id), { range: { offset: 0, length: 2 } });
@@ -228,7 +261,10 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
     await env.WATCH.prepare('DELETE FROM bigcsv WHERE id = ?').bind(id).run();
     return reply({ error: `the assembled file is wrong (${size} bytes, gzip ${magic && magic[0] === 0x1f ? 'ok' : 'missing'}); start again` }, 422);
   }
-  await env.WATCH.prepare("UPDATE bigcsv SET state = 'done', done = ? WHERE id = ?").bind(now, id).run();
-  await env.WATCH.prepare('DELETE FROM bigcsv_parts WHERE id = ?').bind(id).run();
+  // One batch: a failure between the two cannot leave a done row with parts, or parts gone from an open row.
+  await env.WATCH.batch([
+    env.WATCH.prepare("UPDATE bigcsv SET state = 'done', done = ? WHERE id = ?").bind(now, id),
+    env.WATCH.prepare('DELETE FROM bigcsv_parts WHERE id = ?').bind(id),
+  ]);
   return reply({ ok: true, bytes: size });
 }

@@ -16,7 +16,7 @@ export const CSVD_RUN_BYTES = 32 * 1024 * 1024;
 export const CSV_DAY_BYTES = 32 * 1024 * 1024;
 /** Accepted /submit sends a day for the whole collector (each is about 3 or 4 KV writes of the 1,000 a day). */
 export const SUBMITS_PER_DAY = 100;
-/** Seconds a /csvd delta lives in KV if nothing sweeps it first: the sweep deletes only 20 a day. A run's deltas are stitched into its CSV long before. */
+/** Seconds a /csvd delta lives in KV if nothing sweeps it first: the sweep deletes only 20 a day. Nothing stitches them into a stored file: a CSV so far is joined from head + deltas on each read, and answers 404 once they expire. */
 export const CSVD_TTL_SECONDS = 7 * 86_400;
 /** /csvd writes a day for the whole collector. KV's free plan allows 1,000 writes a day; worst case all paths together stay near 660 (see notes/quotas-2026-11-06.md). */
 export const CSVD_DAY_WRITES = 200;
