@@ -14,6 +14,7 @@ import {
   countUnavailable,
   describeAvailability,
   fromSleepHours,
+  holdUntilOf,
   isAvailable,
   isConstrained,
   localDayOfWeek,
@@ -271,5 +272,21 @@ describe('R2: all day on chosen days, fractional instants, spring-forward wrap',
     expect(isAvailable(at('2026-03-09', '00:30'), a)).toBe(true);
     expect(isAvailable(at('2026-03-08', '23:30'), a)).toBe(true);
     expect(isAvailable(at('2026-03-07', '23:30'), a)).toBe(false);
+  });
+});
+
+describe('a daily window starting in the hour the clocks skip (code review 22 Nov 2026, R2.3)', () => {
+  const LA = 'America/Los_Angeles';
+  const night = { days: [], fromHour: 2, toHour: 4, timezone: LA };
+  it('1:30 AM PST on 14 Mar 2027, window 2 AM to 4 AM: free at 3:00 AM PDT, not 3:30', () => {
+    const t = Date.parse('2027-03-14T09:30:00Z') / 1000; // 1:30 AM PST
+    expect(nextAvailable(t, night)).toBe(Date.parse('2027-03-14T10:00:00Z') / 1000);
+    expect(holdUntilOf(night)(t)).toBe(nextAvailable(t, night));
+  });
+  it('the days either side still wait for 2:00 AM', () => {
+    const before = Date.parse('2027-03-13T09:30:00Z') / 1000; // Sat 1:30 AM PST
+    expect(nextAvailable(before, night)).toBe(Date.parse('2027-03-13T10:00:00Z') / 1000);
+    const after = Date.parse('2027-03-15T08:30:00Z') / 1000; // Mon 1:30 AM PDT
+    expect(nextAvailable(after, night)).toBe(Date.parse('2027-03-15T09:00:00Z') / 1000);
   });
 });

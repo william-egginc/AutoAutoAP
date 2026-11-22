@@ -105,38 +105,6 @@ export function isAvailable(unixSeconds: number, a: Availability): boolean {
   return days.includes(wraps && h < a.toHour ? (dow + 6) % 7 : dow);
 }
 
-/**
- * The next instant strictly after `t` whose local time is exactly `hour:00`.
- *
- * Deliberately NOT `getNextTimeInTimezone` from lib/events. That helper resolves the zone offset at
- * its own GUESSED UTC instant, so on a spring-forward day it lands an hour late: asking for 07:00 on
- * 2027-03-14 in America/Denver returns 08:00 MDT, because the offset is read at 07:00 UTC, still MST
- * and before the 02:00 transition. Harmless where it is used today (whole-hour plan starts a user
- * typed), wrong here, where the result is the thing being minimised.
- */
-function nextLocalHour(tIn: number, hour: number, tz: string): number {
-  // Whole second for the offset read (see localHour). Any integer result past floor(t) is strictly after t.
-  const t = Math.floor(tIn);
-  const wall = t + getTimezoneOffsetAt(tz, t);
-  const intoDay = ((wall % 86400) + 86400) % 86400;
-  let delta = hour * 3600 - intoDay;
-  // Strictly after: standing exactly on the target means the NEXT one is tomorrow's.
-  if (delta <= 0) delta += 86400;
-  let out = t + delta;
-
-  // Correct for a transition crossed on the way. Offsets move by an hour (45 minutes in a couple of
-  // zones), so two rounds is ample; the third is insurance, not a real case.
-  for (let i = 0; i < 3; i++) {
-    const h = localHour(out, tz);
-    if (h === hour) break;
-    let diff = hour - h;
-    if (diff > 12) diff -= 24;
-    if (diff < -12) diff += 24;
-    out += diff * 3600;
-  }
-  return out > t ? out : t + 3600;
-}
-
 /** The last instant `nextAvailable` looks at the calendar for: Intl's last date (8.64e12 s) less the fortnight it
  *  may search ahead. */
 const MAX_DATE_SECONDS = 8.64e12 - 30 * 86400;
@@ -157,21 +125,12 @@ export function nextAvailable(unixSeconds: number, a: Availability): number {
   // build carried on included: "the ascension to 218 TE could not be simulated").
   if (!(Math.abs(unixSeconds) <= MAX_DATE_SECONDS)) return unixSeconds;
   if (!isConstrained(a) || isAvailable(unixSeconds, a)) return unixSeconds;
-  if (a.blocked !== undefined) return nextAvailableInWeek(unixSeconds, a);
-
-  // Every session begins at `fromHour`, so those are the only candidate instants. EXCEPT "From X to X" (all
-  // hours) on chosen days: that is the whole chosen day, which begins at local midnight, not at X o'clock (R2).
-  const startHour = a.fromHour === a.toHour ? 0 : a.fromHour;
-  // Fourteen candidates cover a fortnight, which is more than enough for any weekly pattern that has any available day at
-  // all; a pattern with none would loop forever without the bound.
-  let c = unixSeconds;
-  for (let i = 0; i < 14; i++) {
-    c = nextLocalHour(c, startHour, a.timezone);
-    if (isAvailable(c, a)) return c;
-  }
-  // Give up rather than spin. A caller that gets its input back is no worse off than one with no
-  // schedule at all, which is strictly better than a hung search.
-  return unixSeconds;
+  // A daily window too goes by its week of hours (blockedArray builds it from the window): it used to step to the
+  // next `fromHour` o'clock, which on the day the clocks go forward does not exist when the window starts in the
+  // skipped hour, and landed up to an hour late (code review 22 Nov 2026, R2.3: 2 AM to 4 AM, 1:30 AM PST on
+  // 14 Mar 2027 gave 3:30 AM, not 3:00 AM). No free hour in the week: the input back, rather than a hung search.
+  if (!blockedArray(a)) return unixSeconds;
+  return nextAvailableInWeek(unixSeconds, a);
 }
 
 /**
