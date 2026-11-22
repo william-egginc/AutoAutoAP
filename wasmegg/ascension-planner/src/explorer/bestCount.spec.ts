@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { accountKey, judgeFinishes, searchGrade, type FinishJudgement, type SearchGrade } from './analysis';
+import { accountKey, searchGrade, type FinishJudgement, type SearchGrade } from './analysis';
+import { judgeFinishes } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import { DAY_MS } from '@/lib/leaderboardRank';
 import {
@@ -9,7 +10,6 @@ import {
   countColumns,
   fillBin,
   FILL_BINS,
-  gearText,
   gradeStyle,
   searchWords,
   stepWords,
@@ -376,9 +376,6 @@ describe('bestCountTable', () => {
     expect(order('te')).toEqual(['c', 'a', 'b']);
     expect(order('cte')).toEqual(['b', 'a', 'c']);
     expect(order('delivery')).toEqual(['a', 'c', 'b']);
-    expect(gearText(bestCountTable(all, judge(all), { labels: names }).rows[1])).toBe(
-      'TE 150 · Clothed TE 300.0 · delivery 80%'
-    );
   });
 
   it('puts the chain, finish, search, plans priced and step in the cell’s tooltip', () => {

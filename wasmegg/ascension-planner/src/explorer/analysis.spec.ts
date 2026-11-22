@@ -15,7 +15,6 @@ import {
   groupByAccount,
   groupByCount,
   isProof,
-  judgeFinishes,
   judgeStep,
   leastSquaresSlope,
   median,
@@ -36,6 +35,7 @@ import {
 import type { CollectorRow } from './collector';
 import type { PricedChain } from '@/search/types';
 import { DAY_MS } from '@/lib/leaderboardRank';
+import { judgeFinishes } from '@/test/explorerReference';
 
 /** Only the fields this module reads. The rest of a submission is irrelevant here by design. */
 function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'chain' | 'currentTE' | 'finalTE'>): CollectorRow {

@@ -90,17 +90,6 @@ export function latestWithGear(rows: readonly CollectorRow[], skip?: ReadonlySet
   return latest.find(r => r.delivery?.length || r.deliveryScore) ?? latest[0] ?? null;
 }
 
-/**
- * Every run the Leaderboard's rules call a what-if, at every target present: a plan typed in from a
- * TE the account did not have, or dated ahead. Its TE says nothing about where the account is.
- * `rows` as for `judgeFinishes` (every copy, every target); `now` only feeds its 30-day rule. A page
- * that already judges its own target keeps one `assessFinishes` per target and reads the what-ifs off
- * those (`whatIfIds`) instead, so the players are grouped once per target, not twice for its own.
- */
-export function whatIfRuns(rows: CollectorRow[], now: number): Set<string> {
-  return whatIfIds(targetsPresent(rows).map(({ finalTE }) => assessFinishes(rows, finalTE, now)));
-}
-
 export interface CteSource {
   exact: boolean;
   /** Where the number came from, in player words. */

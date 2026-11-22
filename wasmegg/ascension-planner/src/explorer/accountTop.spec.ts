@@ -3,14 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DAY_MS, localToUtcMs } from '@/lib/leaderboardRank';
 import type { PricedChain } from '@/search/types';
-import { accountKey, judgeFinishes, type FinishJudgement, type RunFinish } from './analysis';
+import { accountKey, type FinishJudgement, type RunFinish } from './analysis';
+import { judgeFinishes, mergeAccountTables } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import {
   accountTables,
   bestPerAscensions,
   createPlanMerger,
   leftOutText,
-  mergeAccountTables,
   type AccountTable,
   type PlanSettings,
 } from './accountTop';

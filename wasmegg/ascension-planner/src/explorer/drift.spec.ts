@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { accountKey, judgeFinishes, type FinishJudgement } from './analysis';
+import { accountKey, type FinishJudgement } from './analysis';
+import { judgeFinishes } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import {
   countSlotIndex,

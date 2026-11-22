@@ -232,14 +232,6 @@ export function saleSummary(
   return { starts, gains: [...gains], cells };
 }
 
-/** `2-sale 67% (n 12)`, or `2-/3-sale 40% each (n 10)` on a tie. */
-export function saleCellText(cell: SaleCell): string {
-  const pct = Math.round(cell.share * 100);
-  if (cell.top.length === 1) return `${cell.top[0]} ${pct}% (n ${cell.n})`;
-  const names = cell.top.map(p => (p === 'continue' ? p : p.replace('-sale', ''))).join('/');
-  return `${names}${cell.top.every(p => p !== 'continue') ? '-sale' : ''} ${pct}% each (n ${cell.n})`;
-}
-
 /** Every plan in the cell with its count, for the cell's title: `3-sale 8, 2-sale 3, 1-sale 1`. */
 export function saleCellBreakdown(cell: SaleCell): string {
   return SALE_PLANS.filter(p => cell.counts[p] > 0)
