@@ -214,8 +214,8 @@ export function bigCsvMessage(r: BigCsvOutcome): string {
           ? 'The full CSV was already kept.'
           : `The full CSV was not kept: ${r.why}.`;
     case 'failed':
-      return `The full CSV did not upload (${r.why}); the board's CSV is in. It carries on from where it stopped next time.`;
+      return `The full CSV did not upload (${r.why}); the board's CSV is in.`;
     case 'stopped':
-      return 'The full CSV upload paused; it carries on from where it stopped next time.';
+      return 'The full CSV upload was stopped.';
   }
 }
