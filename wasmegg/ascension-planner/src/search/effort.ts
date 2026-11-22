@@ -41,9 +41,6 @@ export interface EffortNote {
   typicalTime: string;
   /** What the tier adds over the one below it. */
   adds: string;
-  /** The measured accuracy record, verbatim. Rendered as-is in the UI — do not paraphrase it into
-   *  something that sounds more confident than it is. */
-  accuracy: string;
   /** A warning to surface prominently, or null. */
   warning: string | null;
 }
@@ -60,11 +57,6 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       'Then one quick pass at each other ascension count inside your limits that the instant answer has a ' +
       'route for, and one more and one fewer, carrying on outward while that keeps winning; the best count ' +
       'is then fine-tuned in full.',
-    accuracy:
-      'Measured before Fast checked the other ascension counts (11 Oct): 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
-      'Two later runs on one of those accounts landed about 6 days worse, ' +
-      'so this tier’s spread is much wider than the single 5 h figure suggested. Treat it as ' +
-      '"usually close, occasionally days off", not as a tight bound.',
     warning:
       'Widest spread of the three tiers. Before 11 Oct, two repeat runs on one account landed ~6 days behind; not re-measured since Fast began checking other counts.',
   },
@@ -76,10 +68,6 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       '+ every combination of each neighbouring pair of stops, which moving one at a time can miss. ' +
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
       'The count check adds roughly 10 to 15% more routes.',
-    accuracy:
-      'Matched the best of all 4,913 routes tested in full around it, on 1 account, in a box that kept its first two ' +
-      'stops, its number of ascensions and its final target fixed. ' +
-      'Outside that box, and on the other accounts, there is no proven answer to check against.',
     warning: null,
   },
   thorough: {
@@ -88,9 +76,6 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     cliDuration: '7–13 h',
     typicalTime: 'About 1.5-2.5 hours on an 8-core computer, 45 minutes to 1.5 hours on 16.',
     adds: '+ every combination of each group of three neighbouring stops.',
-    accuracy:
-      'On one account this step found a plan 1.7 days (40 h) faster than the pairs alone; on another it added ' +
-      'nothing. A later fix to the pairs step may have taken some of that gain.',
     warning:
       'Most of this level’s time goes on the extra step (about 8,788 of 11,062 routes on a 7-ascension ' +
       'route), and the one-more-or-fewer check waits until it finishes.',
@@ -118,13 +103,6 @@ export function normalizeEffort(raw: unknown): EffortTier {
 
 /** The order the slider walks, cheapest first. */
 export const EFFORT_ORDER: EffortTier[] = ['quick', 'normal', 'thorough'];
-
-/** How rare a genuinely good chain is — the reason "just try a few by hand" does not work.
- *  From the 4913-chain exhaustive on the main account. */
-export const NEAR_OPTIMAL_SHARE = '21 of 4913 routes (0.43%) are within one day of optimal';
-
-/** Sample size behind every accuracy figure above. Rendered next to them so it is never dropped. */
-export const ACCURACY_SAMPLE = 'n = 3 accounts';
 
 /**
  * Rough chain count for a configuration, ported from autoplan.py's own pre-flight estimate.

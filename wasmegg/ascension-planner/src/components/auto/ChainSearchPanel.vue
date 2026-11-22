@@ -1,5 +1,5 @@
 <template>
-  <div :class="embedded ? 'relative overflow-hidden' : 'section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden'">
+  <div class="relative overflow-hidden">
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-8">
@@ -19,7 +19,7 @@
       >
         <div id="cs-settings" class="pb-5 pt-1 space-y-8">
           <!-- In the Stronger check box: one line; the route to start from is in Start from a different route below. -->
-          <p v-if="embedded" class="text-body text-slate-700 max-w-prose" data-testid="start-line">
+          <p class="text-body text-slate-700 max-w-prose" data-testid="start-line">
             Starts from <span class="tabular-nums font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
               class="text-slate-600"
               >({{ seedSource }})</span
@@ -29,72 +29,11 @@
               (incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions)</template
             >.
           </p>
-          <!-- Effort (picked in the chooser's level bar above when `levelElsewhere`) -->
-          <div v-if="!levelElsewhere" class="space-y-3">
-            <div class="flex items-center justify-between px-1">
-              <span class="flex items-center gap-1.5">
-                <label for="effort-range" class="text-slate-600 label">
-                  Effort
-                </label>
-                <HelpTip
-                  >How many search steps to run. Each level adds steps to the one below, and stopping keeps what the
-                  finished steps found. (The extra step of Exact (wider) comes before the one-more-or-fewer check, so stopping
-                  that level early gives the pairs' answer plus the triples found so far, without that check.)</HelpTip
-                >
-              </span>
-              <span class="text-emerald-700 label">{{ note.label }}</span>
-            </div>
-
-            <input
-              id="effort-range"
-              v-model.number="effortIndex"
-              type="range"
-              min="0"
-              :max="EFFORT_ORDER.length - 1"
-              step="1"
-              :disabled="store.isRunning"
-              class="w-full accent-emerald-600 disabled:opacity-50"
-            />
-            <div class="flex justify-between px-1">
-              <span
-                v-for="tier in EFFORT_ORDER"
-                :key="tier"
-                class="label"
-                :class="tier === store.effort ? 'text-emerald-700' : 'text-slate-300'"
-              >
-                {{ EFFORT_NOTES[tier].label }}
-              </span>
-            </div>
-
-            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-              <p class="text-body text-slate-700">{{ note.adds }}</p>
-              <p class="text-body text-slate-600">
-                <span class="label text-slate-600">Measured accuracy:</span>
-                {{ note.accuracy }}
-              </p>
-              <p class="text-small text-slate-600">
-                Measured on at most three players' accounts, against the best answer found (only one account has a
-                proven best), so there's no confidence percentage: that few cannot honestly be turned into one.
-              </p>
-              <p class="text-body text-slate-600 max-w-prose">
-                <span class="label text-slate-600">Reference time:</span>
-                {{ note.typicalTime }} These come from players' runs (few of them for Fast and Exact (wider); the 8- and
-                16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
-                a different number. The live estimate below is measured on your machine. Keep this tab in front: a
-                hidden tab runs several times slower.
-              </p>
-              <p
-                v-if="note.warning"
-                class="text-body font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5"
-              >
-                {{ note.warning }}
-              </p>
-            </div>
-          </div>
+          <!-- The effort is picked in the chooser's level bar above (SearchModeChooser.vue). -->
 
           <!-- Start from a different route (in the Stronger check box; the user, 12 Oct 2026): by default the
                instant answer's route; or another route it lists, one of yours, or one typed. -->
-          <div v-if="embedded" class="p-4 rounded-xl border border-slate-200 bg-white space-y-2" data-testid="start-from">
+          <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-2" data-testid="start-from">
             <h3 class="text-slate-600 label">Start from a different route</h3>
             <select
               v-model="startPick"
@@ -242,74 +181,8 @@
         <div v-for="(line, i) in store.coarseLog" :key="i" class="whitespace-pre">{{ line }}</div>
       </div>
 
-      <!-- Outside the Stronger check box: the route, TE now, target and routes to price as four cards. -->
-      <div v-if="!embedded" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Editable. This was a read-only readout, so the only way to change the seed was to
-             find the Target TE field in a different card - and a two-element seed cannot reach a
-             7-prestige answer, because descent only MOVES checkpoints and the probe adds one. -->
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <span class="flex items-center gap-1.5">
-            <label for="chain-search-seed" class="text-slate-600 label">
-              Starting route
-            </label>
-            <HelpTip
-              >Where the search begins. It only moves stops and adds at most one, so a seed with too few cannot reach a
-              longer answer. Leave the final target off; it is added for you.</HelpTip
-            >
-          </span>
-          <input
-            id="chain-search-seed"
-            v-model="store.seedOverride"
-            type="text"
-            inputmode="text"
-            autocapitalize="off"
-            autocorrect="off"
-            autocomplete="off"
-            spellcheck="false"
-            :placeholder="store.seedChain.join(' ')"
-            :disabled="store.isRunning"
-            class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
-          />
-          <div class="text-small text-slate-600 mt-1">
-            {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : seedSource }}
-          </div>
-        </div>
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div class="text-slate-600 label">Your TE now</div>
-          <div class="text-body font-bold text-slate-800 mt-1">{{ store.currentTE }}</div>
-        </div>
-        <!-- Editable: the search used to be locked to 490. Anything above the last
-             checkpoint you typed is valid; the seed is re-derived from it. -->
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <label for="chain-search-final-te" class="text-slate-600 label"
-            >Final target TE</label
-          >
-          <FinalTargetInput
-            id="chain-search-final-te"
-            input-class="w-full mt-1 bg-transparent text-body font-bold text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
-          />
-        </div>
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div class="text-small font-bold text-slate-600">
-            Routes to price (max)
-            <HelpTip
-              >An upper bound. The search stops as soon as no stop moves, so a run routinely finishes well short
-              of this.</HelpTip
-            >
-          </div>
-          <div class="text-body font-bold text-slate-800 mt-1">~{{ store.estimateForCurrentSettings }}</div>
-          <div
-            v-if="store.otherCountsPlan.chains"
-            class="text-small text-slate-600 mt-0.5"
-            data-test="other-counts-estimate"
-          >
-            incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions
-          </div>
-        </div>
-      </div>
-
       <!-- An unfinished run that can't carry on, and why (usually a backup that loaded stale once). -->
-      <BlockedRunNotice v-if="!embedded && store.blockedCheckpoint && !store.resumable && !store.isRunning" />
+      <BlockedRunNotice v-if="store.blockedCheckpoint && !store.resumable && !store.isRunning" />
 
       <UnfinishedRuns :player-id="playerId" kind="staged" @resume="run(true)" />
 
@@ -930,10 +803,6 @@
           </p>
         </div>
         <template #keep>
-          <!-- Saved runs: the same list as the Full sweep's (SavedRuns.vue); on Fastest's one page the
-               Exhaustive box below has it. -->
-          <SavedRuns v-if="!embedded" :player-id="playerId" />
-
           <!-- Every chain the run priced, one row per leg. With the result card on screen its Download ▾ has the CSV, so
                this row shows only mid-run (safe then) or without a card (UX fluff review 2, 5 Nov 2026, item C8, as
                Custom's); the download status and a failed download's message stay. -->
@@ -1104,7 +973,7 @@ import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStrongerStore } from '@/stores/stronger';
 import { browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
+import { EFFORT, EFFORT_NOTES, EFFORT_ORDER } from '@/search/effort';
 import { goFurtherBands } from '@/search/goFurther';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
@@ -1116,7 +985,6 @@ import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
-import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import TopRoutes from './TopRoutes.vue';
 import RouteExtras from './RouteExtras.vue';
@@ -1130,7 +998,6 @@ import { checkpointLimits } from '@/search/persistence';
 import { describeCompute } from '@/utils/computeTime';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import { chainCount } from '@/lib/chartThin';
-import type { EffortTier } from '@/search/types';
 import { eggBlocks } from '@/search/routeTimeline';
 import RouteTimeline from './RouteTimeline.vue';
 import DigDeeperLink from './DigDeeperLink.vue';
@@ -1145,11 +1012,6 @@ import { agreeThisVisit } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
-  /** The level (effort) is picked above, in the chooser's level bar (SearchModeChooser.vue): the
-   *  settings here leave it out. */
-  levelElsewhere?: boolean;
-  /** Inside the Stronger check box (StrongerBox.vue): no frame of its own. */
-  embedded?: boolean;
 }>();
 /** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */
 const emit = defineEmits<{ checkExactly: [chain: number[]]; openCustom: [bands: string] }>();
@@ -1248,7 +1110,6 @@ const ownRun = computed(() => store.chainRunKind === 'smart');
  *  route · 3 to 10 ascensions · up to ~4,060 routes". */
 const settingsScope = computed(() =>
   scopeLine([
-    !props.levelElsewhere && `Effort: ${note.value.label}`,
     `from ${store.seedOverride.trim() ? 'your route' : seedSource.value}`,
     `${store.minPrestiges} to ${store.maxPrestiges} ascensions`,
     store.pinUsed > 0 && `first ${store.pinUsed} locked`,
@@ -1279,14 +1140,6 @@ const fastBetterCandidate = computed(() => {
 const fastFollow = computed<ResultFollow | null>(() => {
   const c = fastBetterCandidate.value;
   return c ? { goalKey: `fastest-${store.finalTE}`, source: c.source, finish: c.end, endTE: c.endTE, planStart: c.planStart } : null;
-});
-
-// The slider is an index, not a tier name — `<input type="range">` only speaks numbers.
-const effortIndex = computed({
-  get: () => EFFORT_ORDER.indexOf(store.effort),
-  set: (i: number) => {
-    store.effort = EFFORT_ORDER[Math.max(0, Math.min(EFFORT_ORDER.length - 1, i))] as EffortTier;
-  },
 });
 
 const note = computed(() => EFFORT_NOTES[store.effort]);

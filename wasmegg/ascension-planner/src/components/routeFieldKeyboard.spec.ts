@@ -18,7 +18,7 @@ const inputsWith = (text: string, marker: string) => (text.match(/<input\b[^>]*>
 const FIELDS: [string, string, number][] = [
   ['myruns/RightNowCard.vue', 'data-testid="now-follow-input"', 1],
   ['myruns/RunsExploreBar.vue', 'data-testid="runs-explore-stops"', 1],
-  ['auto/ChainSearchPanel.vue', 'v-model="store.seedOverride"', 2],
+  ['auto/ChainSearchPanel.vue', 'v-model="store.seedOverride"', 1],
 ];
 
 describe('route fields open a keyboard with commas and spaces', () => {

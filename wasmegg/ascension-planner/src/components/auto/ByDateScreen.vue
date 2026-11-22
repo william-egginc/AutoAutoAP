@@ -23,7 +23,7 @@
     <YourSetup screen="by-date" issues-only />
     <!-- The instant answer, the Stronger check (with Nearby routes) and Exhaustive, all on the page
          (DeadlinePanel.vue). Embedded, as on Fastest: no frame of its own round DeadlinePanel's. -->
-    <InsanePanel :player-id="playerId" goal="deadline" embedded @update:goal="onGoal" />
+    <InsanePanel :player-id="playerId" goal="deadline" @update:goal="onGoal" />
   </div>
 </template>
 

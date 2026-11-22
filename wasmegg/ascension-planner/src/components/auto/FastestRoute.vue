@@ -114,8 +114,6 @@
           <StrongerBox goal="fastest" :running="smartRunning" :estimates="levelEstimates">
             <ChainSearchPanel
               :player-id="playerId"
-              embedded
-              level-elsewhere
               @check-exactly="checkExactly"
               @open-custom="openCustom"
             />
@@ -130,7 +128,7 @@
             <ExhaustivePromise goal="fastest">
               <CustomHowItWorks />
             </ExhaustivePromise>
-            <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
+            <InsanePanel :player-id="playerId" goal="fastest" @update:goal="onGoal" />
           </section>
         </template>
       </SearchPanel>

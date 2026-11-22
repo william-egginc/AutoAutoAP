@@ -56,15 +56,6 @@ describe('effort tiers', () => {
   });
 });
 
-describe("Exact's accuracy words (the math review, 24 Oct 2026)", () => {
-  it('says the 4,913 routes were a box with the first two stops, the count and the target fixed', () => {
-    const t = EFFORT_NOTES.normal.accuracy;
-    expect(t).toContain('4,913 routes');
-    expect(t).toContain('kept its first two stops, its number of ascensions and its final target fixed');
-    expect(t).not.toContain('plans');
-  });
-});
-
 describe('"Very high" is retired as a player word (glossary, 25 Oct 2026)', () => {
   it('the Leaderboard says Exact (wider) for a thorough run; the stored level is still thorough', () => {
     expect(effortText('thorough')).toBe('Exact (wider)');

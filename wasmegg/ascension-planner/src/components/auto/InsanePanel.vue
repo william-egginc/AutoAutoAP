@@ -19,7 +19,7 @@
   -- and when it was implemented and measured it cut 0 of 69 chains. Exhaustive means exhaustive.
 -->
 <template>
-  <div :class="embedded ? 'relative overflow-hidden' : 'section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden'">
+  <div class="relative overflow-hidden">
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-6">
@@ -230,26 +230,7 @@
         Two questions. The first is everything below as it always was; the second
         (DeadlinePanel, search/deadline.ts) turns the finish line into a date.
       -->
-      <!-- The site's tabs pick the goal now (Fastest route / Highest TE by a date); this switch is
-           only for the panel on its own. -->
-      <div v-if="!props.goal" class="flex flex-wrap items-center gap-2">
-        <span class="text-small font-bold text-slate-600">What are you after?</span>
-        <button
-          v-for="g in GOALS"
-          :key="g.id"
-          type="button"
-          :disabled="store.busy"
-          class="px-3 py-1.5 rounded-lg border text-body font-bold disabled:opacity-40"
-          :class="
-            goal === g.id
-              ? 'border-slate-800 bg-slate-800 text-white'
-              : 'border-slate-200 text-slate-600 hover:text-slate-700'
-          "
-          @click="goal = g.id"
-        >
-          {{ g.label }}
-        </button>
-      </div>
+      <!-- The site's tabs pick the goal (Fastest route / Highest TE by a date): the `goal` prop. -->
       <!-- Its fold on how the Full sweep works and what it costs is inside Custom's one fold now, "How Custom works" (ExhaustivePromise.vue
            with CustomHowItWorks.vue, FastestRoute.vue; UX fluff review 2, 5 Nov 2026, item C-pre2). -->
 
@@ -316,9 +297,8 @@
       <template v-else>
         <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
         <slot name="mode" />
-        <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
-             leave it out (`hideRoutes`). -->
-        <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+        <!-- The space. These numbers are the whole definition of the search. -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <h3 class="text-slate-600 label">The boxes to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
@@ -1223,12 +1203,8 @@ import { agreeThisVisit, useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
-  /** Set by the site's tabs, which then own the choice: a change here asks them (update:goal). */
-  goal?: 'fastest' | 'deadline';
-  /** Leave out the space to search / The routes to try (a Simple mode that picks the routes itself). */
-  hideRoutes?: boolean;
-  /** Inside a box of the screen's own (FastestRoute.vue's Exhaustive box): no frame of its own. */
-  embedded?: boolean;
+  /** Set by the site's tabs, which own the choice: a change here asks them (update:goal). */
+  goal: 'fastest' | 'deadline';
 }>();
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
@@ -2193,23 +2169,10 @@ onMounted(() => {
 });
 onUnmounted(() => ageTimer && clearInterval(ageTimer));
 
-const GOALS = [
-  { id: 'fastest', label: 'Fastest to a target' },
-  { id: 'deadline', label: 'Highest TE by a date' },
-] as const;
-/** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. With the
- *  site's tabs in charge (the `goal` prop), theirs is the answer and a switch here goes to them. */
-const ownGoal = ref<'fastest' | 'deadline'>(
-  typeof window !== 'undefined' &&
-    (/deadline/.test(window.location.hash) || new URLSearchParams(window.location.search).get('goal') === 'deadline')
-    ? 'deadline'
-    : 'fastest'
-);
 const goal = computed<'fastest' | 'deadline'>({
-  get: () => props.goal ?? ownGoal.value,
+  get: () => props.goal,
   set: g => {
-    ownGoal.value = g;
-    if (props.goal && props.goal !== g) emit('update:goal', g);
+    if (g !== props.goal) emit('update:goal', g);
   },
 });
 

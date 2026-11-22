@@ -257,7 +257,7 @@ describe('the screens (source)', () => {
       expect(s).toContain('<template #custom>');
       expect(s.indexOf('<template #custom>')).toBeLessThan(s.indexOf('<section id="exhaustive"'));
     }
-    expect(fastest).toContain('<InsanePanel :player-id="playerId" goal="fastest" embedded');
+    expect(fastest).toContain('<InsanePanel :player-id="playerId" goal="fastest"');
     expect(deadline).toContain('<RoutesToTry');
   });
   it('one set of run controls shows: each option has its own place, and only the picked one is laid out', () => {

@@ -11,9 +11,9 @@ import { describe, expect, it } from 'vitest';
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 
 describe('By a date: no extra frames on a phone', () => {
-  it('ByDateScreen renders InsanePanel embedded, as FastestRoute does', () => {
-    expect(read('ByDateScreen.vue')).toContain('<InsanePanel :player-id="playerId" goal="deadline" embedded @update:goal="onGoal" />');
-    expect(read('FastestRoute.vue')).toContain('<InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />');
+  it('ByDateScreen renders InsanePanel with no frame prop, as FastestRoute does (its own frame was dead: U2.2, 22 Nov 2026)', () => {
+    expect(read('ByDateScreen.vue')).toContain('<InsanePanel :player-id="playerId" goal="deadline" @update:goal="onGoal" />');
+    expect(read('FastestRoute.vue')).toContain('<InsanePanel :player-id="playerId" goal="fastest" @update:goal="onGoal" />');
   });
   it('DeadlinePanel’s own bordered p-4 frame starts at sm', () => {
     const panel = read('DeadlinePanel.vue');

@@ -12,7 +12,7 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const template = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>'));
 
 describe('the Final target TE boxes in More', () => {
-  for (const [f, n] of [['ChainSearchPanel.vue', 2], ['InsanePanel.vue', 1]] as const) {
+  for (const [f, n] of [['ChainSearchPanel.vue', 1], ['InsanePanel.vue', 1]] as const) {
     it(`${f}: every box is FinalTargetInput (the store's commit), none writes store.finalTE itself`, () => {
       const t = template(read(f));
       expect(t.match(/<FinalTargetInput\b/g)).toHaveLength(n);
