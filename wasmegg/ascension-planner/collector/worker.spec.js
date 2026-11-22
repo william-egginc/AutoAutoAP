@@ -336,6 +336,21 @@ describe('private extras', () => {
     expect(JSON.parse(raw)).toEqual({ diagnostics: { note: 'EI[redacted] crashed', nested: { ok: 1 } } });
   });
 
+  it('C5.2: never stores an owner code or a secret key from the body, and drops (not scrubs) a key that is a player id', async () => {
+    const res = await (
+      await post('/submit', {
+        ...MINIMAL,
+        ownerToken: TOKEN_A,
+        apiSecret: 'shh',
+        authToken: 'tok',
+        diagnostics: { ['EI' + '1'.repeat(16)]: 1, ['EI' + '2'.repeat(16)]: 2, ok: 1, sessionToken: 'z' },
+      })
+    ).json();
+    const raw = env.SUBMISSIONS._m.get(`extra:${res.id}`);
+    expect(raw).not.toContain(TOKEN_A);
+    expect(JSON.parse(raw)).toEqual({ diagnostics: { ok: 1 } });
+  });
+
   it('drops diagnostics over 4 KB and extras over 16 KB, and still takes the submission', async () => {
     const big = await post('/submit', { ...MINIMAL, diagnostics: { blob: 'x'.repeat(5000) } });
     expect(big.status).toBe(200);
@@ -566,6 +581,46 @@ describe('the board keeps different experiments, and folds copies of one result'
     await run({ durationDays: 690 }, '1.1.1.1');
     const board = await (await get('/leaderboard?final=490')).json();
     expect(board.rows.map(r => r.durationDays)).toEqual([690, 700]);
+  });
+
+  // Code review round 2, C5.1: the line stands for the NAMED copy when the owner has one, so the owner's anonymous copy (its id,
+  // machine, run cost) never appears under their name.
+  for (const order of ['named first', 'anonymous first']) {
+    it(`/leaderboard never puts the owner's name on their anonymous copy (${order})`, async () => {
+      const named = () => postOwned('/submit', { ...MINIMAL, nickname: 'Alice', effort: 'balanced', chainsPriced: 100 }, TOKEN_A, '1.1.1.1').then(r => r.json());
+      const anon = () =>
+        postOwned('/submit', { ...MINIMAL, effort: 'thorough', chainsPriced: 20000, run: { minutes: 5, workers: 4, cores: 16 } }, TOKEN_A, '1.1.1.2').then(r => r.json());
+      let n;
+      let a;
+      if (order === 'named first') {
+        n = await named();
+        a = await anon();
+      } else {
+        a = await anon();
+        n = await named();
+      }
+      const board = await (await get('/leaderboard?final=490')).json();
+      expect(board.rows).toHaveLength(1);
+      expect(board.rows[0]).toMatchObject({ id: n.id, nickname: 'Alice', copies: 2 });
+      expect(board.rows[0].acct).toBeTruthy();
+      expect(board.rows[0]).not.toHaveProperty('run');
+      expect(board.rows[0].id).not.toBe(a.id);
+    });
+  }
+
+  it('C5.3: a code-less send to the flagged board never answers with a duplicate or a nickname: Bob and Eve both get new rows', async () => {
+    env.RANK_SIMS = '2026-11-14-sim5';
+    const send = (nickname, ip) => post('/submit', { ...MINIMAL, nickname, simVersion: '2026-10-21-egg-beta2' }, ip).then(r => r.json());
+    const bob = await send('Bob', '1.1.1.1');
+    const eve = await send('Eve', '1.1.1.2');
+    const bob2 = await send('Bob', '1.1.1.3');
+    for (const r of [bob, eve, bob2]) {
+      expect(r.id).toBeTruthy();
+      expect(r).not.toHaveProperty('duplicate');
+      expect(r).not.toHaveProperty('dupOf');
+      expect(r).not.toHaveProperty('nickname');
+    }
+    expect(new Set([bob.id, eve.id, bob2.id]).size).toBe(3);
   });
 
   it('folds the same result found by two searches into one line, counting the copies', async () => {
@@ -1142,6 +1197,22 @@ describe('what an exhaustive run found', () => {
   it('stores the block as sent', async () => {
     await post('/submit', { ...MINIMAL, schema: 5, proof: PROOF });
     expect(stored()[0][1].proof).toEqual(PROOF);
+  });
+
+  it('C5.4: keeps a space range only for a whole step of 1 or more, lo >= 0, hi <= 1000; bands only up to 1000; byAscensions only whole counts', async () => {
+    const space = extra => ({ mode: 'range', chains: 5, chainsPriced: 5, minAscensions: 1, maxAscensions: 2, ...extra });
+    const keptRange = async (range, over = 700) => {
+      await post('/submit', { ...MINIMAL, schema: 5, durationDays: over, space: space({ range }) }, `9.9.${over}.1`);
+      return stored().find(([, r]) => r.durationDays === over)[1].space.range;
+    };
+    expect(await keptRange({ lo: 200, hi: 300, step: 0.5 }, 701)).toBeUndefined();
+    expect(await keptRange({ lo: -1e15, hi: 490, step: 1 }, 702)).toBeUndefined();
+    expect(await keptRange({ lo: 0, hi: 1e6, step: 1 }, 703)).toBeUndefined();
+    expect(await keptRange({ lo: 200, hi: 300, step: 1 }, 704)).toEqual({ lo: 200, hi: 300, step: 1 });
+    await post('/submit', { ...MINIMAL, schema: 5, durationDays: 705, space: space({ mode: 'bands', range: undefined, bands: [[0, 999999, 500]] }) }, '9.9.705.1');
+    expect(stored().find(([, r]) => r.durationDays === 705)[1].space.bands).toEqual([[0, 500]]);
+    await post('/submit', { ...MINIMAL, schema: 5, durationDays: 706, proof: { ...PROOF, byAscensions: [{ ...PROOF.byAscensions[0], ascensions: 1.5 }, PROOF.byAscensions[1]] } }, '9.9.706.1');
+    expect(stored().find(([, r]) => r.durationDays === 706)[1].proof.byAscensions.map(g => g.ascensions)).toEqual([3]);
   });
 
   it('is absent on a submission that carries none, rather than stored empty', async () => {

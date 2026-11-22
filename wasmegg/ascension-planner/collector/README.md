@@ -340,7 +340,7 @@ end. While it runs, the app can send its best so far as a **provisional** row an
   the new row as an ordinary submission, keeps the old one, and says why in `replaceRefused`.
 - A final row is never folded into the row it replaces as an exact copy (a provisional row is a
   different search for the copy check), and `dupOf` never points at a provisional row.
-- On `/leaderboard`, a final copy always stands for a folded line over a provisional one. The page
+- On `/leaderboard`, a final copy always stands for a folded line over a provisional one. The page When the owner has a named copy of the result, only named copies compete to stand for the line, so an anonymous copy (id, machine, run cost) is never shown under the owner's name; that anonymous row stays on `/all`.
   tags a provisional row "in progress (N% searched)".
 - **Rationed**, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional
   send needs an owner code (400 without one: no run could ever replace it), and a sender may send one
@@ -644,8 +644,8 @@ Not stored: IP addresses beyond a rate-limit key that expires within two minutes
 
 **The upload page** on `/` sends a saved file the way the app sends a result: a file that carries
 the account's owner code as a top-level `ownerToken` has it lifted into the `x-owner-token` header
-and deleted from the body before posting. The Worker drops an unknown body field anyway, and never
-treats a code in the body as a claim — only the header counts.
+and deleted from the body before posting. An unknown body field is kept privately as an extra (`extra:<id>`), but any key whose name contains `token` or `secret`, or names a player id, is dropped, so a code in the body is never stored, and it is never
+treated as a claim — only the header counts.
 
 **Still identifying, and the app says so before the button is pressed.** The artifact
 inventory with exact counts is close to a fingerprint among people who know each other; the
