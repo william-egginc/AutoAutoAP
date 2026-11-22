@@ -32,6 +32,19 @@ describe('the request', () => {
     expect(body).toMatch(/inputs: \(\) => \(?\{[\s\S]*store\.collectInputs\(\)/);
     expect(body.slice(0, body.indexOf('inputs:'))).not.toContain('collectInputs');
   });
+  it('simulates from the answer’s own start (code review 22 Nov, math-exact-1): only a fresh, done answer with a start', () => {
+    const at = script.indexOf('const exactRequest');
+    const body = script.slice(at, at + 2200);
+    expect(body).toMatch(/staleAt\.value !== null/);
+    expect(body).toMatch(/status\.value !== 'done'/);
+    expect(body).toMatch(/!answerStart\.value/);
+    const inputs = body.slice(body.indexOf('inputs:'));
+    expect(inputs).toMatch(/planStart: start/);
+    expect(inputs).toMatch(/firstAscension: first \?\? store\.firstAscensionFor\(start\)/);
+    // both read in the computed, so the key and the run are the same answer's
+    expect(body.slice(0, body.indexOf('inputs:'))).toMatch(/const start = answerStart\.value/);
+    expect(body.slice(0, body.indexOf('inputs:'))).toMatch(/const first = answerFirst\.value/);
+  });
   it('a phone gets the button, a desktop the automatic run', () => {
     expect(script).toContain('EXACT_PHONE_QUERY');
     expect(script).toMatch(/exactTriggerFor\(/);

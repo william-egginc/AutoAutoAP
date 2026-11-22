@@ -2867,6 +2867,12 @@ const exactRequest = computed<ExactRequest | null>(() => {
   if (!useHours.value || !exactWanted(store.availability, store.deferShifts, EXACT_HOURS)) return null;
   // The other route is worked out first (a saved answer has none to work out: it goes on as it is).
   if (altStatus.value === 'running' || (altInputs.value && altFor.value !== result.value)) return null;
+  // The answer's own start and first-ascension setting (code review 22 Nov 2026, math-exact-1): a saved answer put back
+  // days later is simulated from the start it was priced from, not today's, or the "exact" finish is another start's.
+  // A stale answer (the fresh one is being worked out) or one with no start kept is not checked.
+  if (staleAt.value !== null || status.value !== 'done' || !answerStart.value) return null;
+  const start = answerStart.value;
+  const first = answerFirst.value;
   const r = pickRoute.value;
   if (!r) return null;
   const alt = altRoute.value?.chain ?? null;
@@ -2880,13 +2886,18 @@ const exactRequest = computed<ExactRequest | null>(() => {
       deferShifts: store.deferShifts,
       firstAscension: String(store.firstAscension),
       deadline: props.deadline ?? null,
-      planStart: answerStart.value,
+      planStart: start,
       alt,
     }),
     chain: r.chain,
     alt,
     deadline: props.deadline ?? null,
-    inputs: () => ({ ...store.collectInputs(), milestones: [] }),
+    inputs: () => ({
+      ...store.collectInputs(),
+      planStart: start,
+      firstAscension: first ?? store.firstAscensionFor(start),
+      milestones: [],
+    }),
   };
 });
 const exact = useInstantExact(exactRequest, runBusy, exactTrigger);
