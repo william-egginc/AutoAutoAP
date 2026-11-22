@@ -150,10 +150,12 @@ const pad2 = (h: number) => String(h).padStart(2, '0');
  * `fromHour`/`toHour`, null for any time. The days and the time off are not kept (the contract has no field).
  */
 export function hoursOf(a: Availability | null | undefined): CloudHours | null {
-  if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour) || a.fromHour === a.toHour) return null;
+  if (!a || !Number.isInteger(a.fromHour) || !Number.isInteger(a.toHour)) return null;
   if (a.fromHour < 0 || a.fromHour > 23 || a.toHour < 0 || a.toHour > 23) return null;
   const tz = typeof a.timezone === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(a.timezone) ? a.timezone : undefined;
   const mask = Array.isArray(a.days) || Array.isArray(a.blocked) ? blockedArray(a) : null; // a partial setup (no days) says no week
+  // An all-day window (from === to) is any time only when no day or hour is blocked: on chosen days it is a real week (code review 22 Nov, C4.4).
+  if (a.fromHour === a.toHour && !mask) return null;
   const week = mask ? encodeWeekMask(Array.from(mask.blocked, b => b === 0)) : undefined;
   return { start: `${pad2(a.fromHour)}:00`, end: `${pad2(a.toHour)}:00`, ...(tz ? { timezone: tz } : {}), ...(week ? { week } : {}) };
 }

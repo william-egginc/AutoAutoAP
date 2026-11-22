@@ -266,3 +266,19 @@ describe('code review 22 Nov, C4.3: a hung follow call gives up as offline', () 
     expect(await hist).toEqual({ ok: false, why: 'offline' });
   });
 });
+
+describe('code review 22 Nov, C4.4: an all-day window on chosen days is not "any time"', () => {
+  it('from === to with a day pick keeps the week (start = end, week set); with no days or every day it is still any time', () => {
+    const weekdays = hoursOf({ fromHour: 5, toHour: 5, days: [1, 2, 3, 4, 5] } as Availability);
+    expect(weekdays).toMatchObject({ start: '05:00', end: '05:00' });
+    expect(weekdays?.week).toMatch(/^[A-Za-z0-9_-]{28}$/);
+    expect(hoursOf({ fromHour: 5, toHour: 5 } as Availability)).toBe(null);
+    expect(hoursOf({ fromHour: 5, toHour: 5, days: [0, 1, 2, 3, 4, 5, 6] } as Availability)).toBe(null);
+    expect(hoursOf({ fromHour: 5, toHour: 5, days: [] } as Availability)).toBe(null);
+  });
+  it('two different day picks of the same all-day window differ', () => {
+    const a = hoursOf({ fromHour: 0, toHour: 0, days: [1, 2, 3] } as Availability);
+    const b = hoursOf({ fromHour: 0, toHour: 0, days: [4, 5, 6] } as Availability);
+    expect(sameHours(a, b)).toBe(false);
+  });
+});
