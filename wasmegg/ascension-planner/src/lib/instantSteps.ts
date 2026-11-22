@@ -29,6 +29,8 @@ export interface StepLeg {
   sales?: number;
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
+  /** routeFinder.ts RouteLeg.prestigeHeld: the first prestige waited past the next hour (hours or a no-prestige day). */
+  prestigeHeld?: { ready: number };
   /** Its own times already end it at a time off (the simulated ascension, lib/followSim.ts): not flagged again. */
   timeOffKnown?: boolean;
 }
@@ -118,8 +120,15 @@ export function instantSteps(
   const inside = (t: number) => away.find(w => w.from <= t && t < w.to);
   return list.map((l, i) => {
     const prev = list[i - 1];
-    // The first leg's prestige waited when it was held to the morning (`heldOpening`); the others from the last stop.
-    const ready = prev ? prev.end : l.heldOpening === 'morning' && l.wanted ? l.wanted : null;
+    // The first leg's prestige waited when it was held past the next hour (`prestigeHeld`, code review 22 Nov 2026) or to
+    // the morning (`heldOpening`); the others from the last stop.
+    const ready = prev
+      ? prev.end
+      : l.prestigeHeld && Number.isFinite(l.prestigeHeld.ready)
+        ? l.prestigeHeld.ready
+        : l.heldOpening === 'morning' && l.wanted
+          ? l.wanted
+          : null;
     const wait = ready !== null ? waitOf(ready, l.start, hours, windows) : null;
     const now = !prev && ready === null;
     const fresh = !prev && firstStepKind(l.label) === 'fresh';

@@ -40,6 +40,8 @@ export interface SnapRoute {
     /** routeFinder.ts RouteLeg's held opening: the prestige into it waited for a morning where its opening fits. */
     heldOpening?: 'morning' | 'uncertain';
     wanted?: number;
+    /** routeFinder.ts RouteLeg.prestigeHeld: the first prestige held past the next hour, when it was ready. */
+    prestigeHeld?: { ready: number };
     /** The current ascension simulated on the live save (lib/followSim.ts `withCurrentSim`): its start, end and
      *  shifts are exact, and `buildEnd` is when its build phase ends. */
     simulated?: boolean;
@@ -566,6 +568,7 @@ export function stepLegsOf(plan: NowPlan): StepLeg[] {
     ...(l.label ? { label: l.label } : {}),
     ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
     ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+    ...(l.prestigeHeld ? { prestigeHeld: l.prestigeHeld } : {}),
     ...(l.timeOff ? { timeOffKnown: true } : {}),
   }));
 }
