@@ -86,6 +86,32 @@ export function resolveCollectorBase(search = typeof location === 'undefined' ? 
   return configured ? stripSubmit(configured) : null;
 }
 
+/** `https://Host/path/` -> `https://host/path`: origin plus path, the form two collector bases are compared in. Null for a bad URL. */
+function baseKey(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    return `${u.origin}${u.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is `base` one of the collectors this build is configured for (VITE_BOARD_SUBMIT_URL, VITE_SUBMIT_URL)? Saved owner codes go
+ * only to those: `?collector=` can name any server, and a code sent there would let it /mine, /hide and /claim that player's
+ * runs on the real board (code review 22 Nov 2026, C4.1).
+ */
+export function isOwnCollector(base: string): boolean {
+  const want = baseKey(stripSubmit(base.trim()));
+  if (!want) return false;
+  for (const configured of [import.meta.env.VITE_BOARD_SUBMIT_URL, import.meta.env.VITE_SUBMIT_URL] as (string | undefined)[]) {
+    const have = configured?.trim() ? baseKey(stripSubmit(configured.trim())) : null;
+    if (have && have === want) return true;
+  }
+  return false;
+}
+
 export interface AllResponse {
   count: number;
   rows: CollectorRow[];
@@ -228,7 +254,8 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
   };
   const byId = new Map<string, CollectorRow>();
   for (const row of await ask()) byId.set(row.id, row);
-  for (const token of tokens) {
+  // A codes-free board for a foreign collector: the anonymous list still works, no code leaves this browser.
+  for (const token of isOwnCollector(base) ? tokens : []) {
     for (const row of await ask(token)) if (row.yours) byId.set(row.id, row);
   }
   return [...byId.values()].filter(r => Array.isArray(r.chain) && Number.isFinite(r.durationDays)).map(onlyFinalCsv);
