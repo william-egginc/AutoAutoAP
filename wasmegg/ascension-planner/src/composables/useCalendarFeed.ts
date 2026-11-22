@@ -16,7 +16,7 @@
  */
 import { computed, ref } from 'vue';
 import { buildCalendarEvents, sameCalendar, type CalEventList, type CalendarInput } from '@/lib/calendarFeedEvents';
-import { CALENDAR_FEED, getCalLink, mintCalendarLink, putCalendar, putCalLink, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
+import { CALENDAR_FEED, calBaseOf, getCalLink, isFeedUrl, mintCalendarLink, putCalendar, putCalLink, revokeCalendarLinks, type CalFail } from '@/lib/calendarCloud';
 import { decryptLink, deriveLinkKey, encryptLink, readLinkRecord } from '@/lib/calLinkCrypt';
 import { SYNC_RECORDS, type SyncFetch } from '@/lib/syncedRecords';
 import * as blackBox from '@/search/blackBox';
@@ -176,8 +176,11 @@ export function createCalendarFeed(o: {
         savedState.value = 'none';
         return;
       }
-      const url = readLinkRecord(r.value) ? await decryptLink(await kp, r.value) : null;
+      const opened = readLinkRecord(r.value) ? await decryptLink(await kp, r.value) : null;
       if (id !== checkId) return;
+      // Only this collector's own feed (code review 22 Nov 2026, sec-client-2): a record planted with another address
+      // (anyone who knows a no-PIN account's ID can write it) is unreadable, never a Subscribe button.
+      const url = opened && isFeedUrl(opened, calBaseOf(t.url)) ? opened : null;
       if (!url) {
         savedState.value = 'unreadable';
         linked.value = true;

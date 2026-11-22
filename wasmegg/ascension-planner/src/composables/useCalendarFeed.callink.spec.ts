@@ -7,6 +7,7 @@ import { createCalendarFeed as create, type CalendarFeedEnv } from './useCalenda
 import type { SyncFetch } from '@/lib/syncedRecords';
 import { CALENDAR_FEED } from '@/lib/calendarCloud';
 import * as blackBox from '@/search/blackBox';
+import { deriveLinkKey, encryptLink } from '@/lib/calLinkCrypt';
 
 const K = 'b'.repeat(64);
 const ID = 'EI1234567890123456';
@@ -197,6 +198,16 @@ describe('another browser', () => {
     await waitFor(b, 'unreadable');
     expect(b.savedState.value).toBe('unreadable');
     expect(b.linked.value).toBe(true);
+    expect(b.link.value).toBeNull();
+    expect(b.linkFromSave.value).toBe(false);
+  });
+  it('a saved link that is not this collector\'s feed (code review 22 Nov 2026, sec-client-2): unreadable, never shown', async () => {
+    const col = collector();
+    col.setRecord(await encryptLink(await deriveLinkKey(ID, ROUNDS), 'https://evil.example/cal/AbCdEfGhIjKlMnOpQrStU1.ics'));
+    const b = createCalendarFeed({ storage: memStore().st, env: env(), fetch: col.f });
+    b.turnOn();
+    await waitFor(b, 'unreadable');
+    expect(b.savedState.value).toBe('unreadable');
     expect(b.link.value).toBeNull();
     expect(b.linkFromSave.value).toBe(false);
   });
