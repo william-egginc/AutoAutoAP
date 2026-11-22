@@ -16,7 +16,6 @@
       :now="now"
       :loading="loading"
       testid="save-line-age"
-      slim
       small
       :load-words="LOAD_LATEST_SAVE"
       :silo-detail="silo && !silo.low && !silo.age ? silo.text : ''"

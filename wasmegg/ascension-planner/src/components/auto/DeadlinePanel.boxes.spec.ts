@@ -153,12 +153,12 @@ describe('compact share boxes', () => {
   const shareTag = (src: string) => src.match(/<ShareResult\b(?:"[^"]*"|[^>"])*>/)?.[0] ?? '';
   it('By a date sends from one button that names the TE', () => {
     const tag = shareTag(template);
-    expect(tag).toMatch(/\bcompact\b/);
+    expect(tag).not.toMatch(/\bcompact\b/); // always compact; the prop is gone (dead-deep-6)
     expect(tag).toMatch(/:send-label="[^"]*TE by this date/);
   });
   for (const file of ['InsanePanel.vue', 'ChainSearchPanel.vue']) {
-    it(`${file} share box is compact`, () => {
-      expect(shareTag(fs.readFileSync(path.join(__dirname, file), 'utf8'))).toMatch(/\bcompact\b/);
+    it(`${file} share box is always compact (no prop)`, () => {
+      expect(shareTag(fs.readFileSync(path.join(__dirname, file), 'utf8'))).not.toMatch(/\bcompact\b/);
     });
   }
 });

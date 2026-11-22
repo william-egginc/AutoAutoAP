@@ -136,10 +136,10 @@ describe('SaveHeadHelp: a "?" that opens the strip', () => {
     expect(id).toBeTruthy();
     expect(html).toMatch(new RegExp(`id="${id}"[^>]*hidden|hidden[^>]*id="${id}"`));
   });
-  it('the panel holds the same strip: test id, slim, small, Load latest save, its events', () => {
+  it('the panel holds the same strip: test id, small, Load latest save, its events', () => {
     const tpl = tplOf(read('components/myruns/SaveHeadHelp.vue'));
     const strip = tpl.slice(tpl.indexOf('<SaveAgeStrip'), tpl.indexOf('/>', tpl.indexOf('<SaveAgeStrip')));
-    for (const part of ['testid="save-line-age"', ':state="state"', ':server="server"', 'slim', 'small', ':load-words="LOAD_LATEST_SAVE"', '@fresh="emit(\'fresh\')"'])
+    for (const part of ['testid="save-line-age"', ':state="state"', ':server="server"', 'small', ':load-words="LOAD_LATEST_SAVE"', '@fresh="emit(\'fresh\')"'])
       expect(strip, part).toContain(part);
     // 44 px on a phone without moving the line: the invisible area round the 14 px "?" (CardHelp's), focus ring.
     const btn = tpl.slice(tpl.lastIndexOf('<button', tpl.indexOf('data-testid="now-save-help"')), tpl.indexOf('>', tpl.indexOf('data-testid="now-save-help"')));

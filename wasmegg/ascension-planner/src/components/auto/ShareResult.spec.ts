@@ -112,20 +112,6 @@ describe('ShareResult compact', () => {
   });
 });
 
-describe('ShareResult not compact', () => {
-  it('is the full box, even when agreed', async () => {
-    for (const optIn of [false, true]) {
-      const html = await renderWith({ optIn, sendLabel: 'Send it' });
-      expect(html).toContain('data-testid="share-consent"');
-      expect(html).not.toContain('data-testid="consent-summary"');
-      expect(html).not.toContain('data-testid="share-ask"');
-      expect(html).not.toContain('data-testid="share-done"');
-      // Agreed: Withdraw and "Remember my choice" are there all the same.
-      expect(html.includes('data-testid="consent-withdraw"')).toBe(optIn);
-    }
-  });
-});
-
 describe('ShareResult source', () => {
   it('opens the choices for a box ticked now (the consent box opens on its own tick)', () => {
     const src = fs.readFileSync(path.join(__dirname, 'ConsentBox.vue'), 'utf8');
@@ -134,6 +120,7 @@ describe('ShareResult source', () => {
     // Withdrawn (from anywhere): back to the full box.
     expect(src).toMatch(/watch\(agreed,\s*v\s*=>\s*\{[^}]*else open\.value = false;/);
     const share = fs.readFileSync(path.join(__dirname, 'ShareResult.vue'), 'utf8');
-    expect(share).toMatch(/<ConsentBox[\s\S]*?consent-id="leaderboard"[\s\S]*?:foldable="compact"/);
+    expect(share).toMatch(/<ConsentBox[\s\S]*?consent-id="leaderboard"/);
+    expect(share).not.toContain(':foldable=');
   });
 });

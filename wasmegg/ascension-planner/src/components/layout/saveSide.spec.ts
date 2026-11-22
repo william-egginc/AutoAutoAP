@@ -38,7 +38,7 @@ describe('SaveSide: the same strip and silo line, small', () => {
   it('the strip keeps its test id, state, Why/Details and Load latest save; small text; the silo line under it', () => {
     const tpl = tplOf(read('components/layout/SaveSide.vue'));
     const strip = tpl.slice(tpl.indexOf('<SaveAgeStrip'), tpl.indexOf('/>', tpl.indexOf('<SaveAgeStrip')));
-    for (const part of ['testid="save-line-age"', ':state="state"', ':server="server"', 'slim', 'small', ':load-words="LOAD_LATEST_SAVE"', '@fresh="load"'])
+    for (const part of ['testid="save-line-age"', ':state="state"', ':server="server"', 'small', ':load-words="LOAD_LATEST_SAVE"', '@fresh="load"'])
       expect(strip, part).toContain(part);
     expect(tpl.indexOf('<SiloLine')).toBeGreaterThan(tpl.indexOf('<SaveAgeStrip'));
   });

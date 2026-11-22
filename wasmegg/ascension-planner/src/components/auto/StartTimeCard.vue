@@ -49,7 +49,7 @@
           <option v-for="c in choices" :key="c.key" :value="c.key">{{ c.label }}</option>
         </select>
       </label>
-      <StartTimeFinder v-if="chosen" :chain="chosen.chain" bare />
+      <StartTimeFinder v-if="chosen" :chain="chosen.chain" />
       <p v-if="newError" class="text-body font-bold text-rose-700" data-testid="start-times-error">{{ newError }}</p>
     </div>
   </section>

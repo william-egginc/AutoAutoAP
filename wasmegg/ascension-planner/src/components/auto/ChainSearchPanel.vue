@@ -851,7 +851,6 @@
           <SentByRunNote v-if="ownRun && store.bestDays > 0 && !store.isRunning && sentByRun" :sending="submitting" />
           <ShareResult
             v-else-if="ownRun && store.bestDays > 0 && !store.isRunning"
-            compact
             :replaces-best-so-far="!!store.provisionalRows.fastest"
             v-model:opt-in="optIn"
             v-model:anonymous="anonymous"

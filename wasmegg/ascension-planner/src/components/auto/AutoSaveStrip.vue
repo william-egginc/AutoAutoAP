@@ -13,7 +13,6 @@
     :now="now"
     :loading="loading"
     :testid="`auto-save-strip-${screen}`"
-    slim
     :load-words="LOAD_LATEST_SAVE"
     @fresh="load"
   />

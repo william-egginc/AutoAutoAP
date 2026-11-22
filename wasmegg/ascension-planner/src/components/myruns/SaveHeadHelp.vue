@@ -28,7 +28,6 @@
         :now="now"
         :loading="loading"
         testid="save-line-age"
-        slim
         small
         :load-words="LOAD_LATEST_SAVE"
         @fresh="emit('fresh')"

@@ -163,7 +163,7 @@ describe('the folded line: each option one click (Jordan, 16 Oct)', () => {
       (st.quickSet as (v: boolean) => void)(false)
     );
     expect(r.models).toEqual([false]);
-    expect(r.withdrawn).toBe(1);
+    expect(r.withdrawn).toBe(0); // the unheard `withdrawn` emit is gone (dead-deep-6); the agreement going off is the model's
   });
 
   it('…but never agrees from the line: a tick there opens the full text, and nothing is agreed', async () => {

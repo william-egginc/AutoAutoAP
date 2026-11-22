@@ -26,7 +26,6 @@
       <div v-if="days > 0" class="text-small font-bold text-emerald-800 tabular-nums">
         {{ days.toFixed(1) }} days{{ ' ' }}·{{ ' ' }}{{ chain.length }} {{ chain.length === 1 ? 'ascension' : 'ascensions' }}
       </div>
-      <div v-if="source" class="text-small font-bold text-emerald-700/80">{{ source }}</div>
       <div class="tabular-nums text-body font-bold text-slate-900 break-words">
         {{ chain.join(' → ') }}
       </div>
@@ -133,9 +132,6 @@ const props = withDefaults(
     /** The run is in Saved runs (store `currentRunSaved`, the flag Save this run below reads): the button says "Saved ✓"
      *  (DRAFT words, as Save this run's; pressing it again refreshes that entry, never a second one). L2, spec-r7qa. */
     saved?: boolean;
-    /** Where the answer came from, when it wasn't this depth: the two share one store, so the
-     *  Smart search screen shows a Full sweep's result until Smart search runs, and vice versa. */
-    source?: string;
     /** A line after the buttons: what the last click did. */
     note?: string;
     /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
@@ -151,7 +147,6 @@ const props = withDefaults(
   }>(),
   {
     claim: '',
-    source: '',
     busy: false,
     canFill: false,
     canSave: false,

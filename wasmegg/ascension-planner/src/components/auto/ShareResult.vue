@@ -11,7 +11,7 @@
 -->
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
-    <h3 class="text-indigo-800 label">{{ heading }}</h3>
+    <h3 class="text-indigo-800 label">Share this result</h3>
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
     <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900 max-w-prose" data-testid="share-replaces">
@@ -20,7 +20,7 @@
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
          opens the consent (nothing is sent by that press); agreed (remembered for the account), the one-line
          summary with Change, the note folded, and the screen's button and status below it. -->
-    <template v-if="compact && !optIn && sendLabel && !asking">
+    <template v-if="!optIn && sendLabel && !asking">
       <button
         type="button"
         class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800"
@@ -37,7 +37,6 @@
       v-else
       v-model="optIn"
       consent-id="leaderboard"
-      :foldable="compact"
       done-testid="share-done"
       box-testid="share-consent"
       label-class="text-body text-indigo-900"
@@ -113,7 +112,6 @@ import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
   defineProps<{
-    heading?: string;
     /** After "(the same file as Download CSV)" in the CSV box: what this screen's CSV holds. */
     csvDetail?: string;
     nicknameMax?: number;
@@ -121,18 +119,14 @@ withDefaults(
     goalWord?: 'target' | 'deadline';
     /** The run sent a best so far that this send replaces (store `provisionalRows`). */
     replacesBestSoFar?: boolean;
-    /** Show the agreed consent as one line (ConsentSummary.vue) instead of the full box. */
-    compact?: boolean;
-    /** With `compact`, and not agreed yet: the screen's one send button, which asks for the consent. */
+    /** Not agreed yet: the screen's one send button, which asks for the consent. */
     sendLabel?: string;
   }>(),
   {
-    heading: 'Share this result',
     csvDetail: '',
     nicknameMax: 40,
     goalWord: 'target',
     replacesBestSoFar: false,
-    compact: false,
     sendLabel: '',
   }
 );

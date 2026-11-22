@@ -1007,7 +1007,6 @@
             />
             <ShareResult
               v-else-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
-              compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"

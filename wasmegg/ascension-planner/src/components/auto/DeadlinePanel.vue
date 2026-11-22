@@ -953,7 +953,6 @@
         >{{ onBoardLine }}</p>
         <ShareResult
           v-else-if="best && collectorConfigured"
-          compact
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
           v-model:opt-in="shareOptIn"

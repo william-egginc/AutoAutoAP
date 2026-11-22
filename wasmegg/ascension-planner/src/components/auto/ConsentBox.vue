@@ -97,7 +97,7 @@
           :data-testid="`${testid}-withdraw`"
           @click="set(false)"
         >
-          {{ withdrawLabel }}
+          Withdraw
         </button>
         <button
           v-if="foldable && !forceOpen && open"
@@ -149,7 +149,6 @@ const props = withDefaults(
     testid?: string;
     doneTestid?: string;
     boxTestid?: string;
-    withdrawLabel?: string;
     /** Said once it was withdrawn here ('' says nothing). */
     withdrawnText?: string;
     labelClass?: string;
@@ -168,7 +167,6 @@ const props = withDefaults(
     testid: 'consent',
     doneTestid: '',
     boxTestid: '',
-    withdrawLabel: 'Withdraw',
     withdrawnText: '',
     labelClass: '',
     inputClass: 'border-indigo-300 text-indigo-600',
@@ -176,7 +174,6 @@ const props = withDefaults(
   }
 );
 const agreed = defineModel<boolean>({ required: true });
-const emit = defineEmits<{ withdrawn: [] }>();
 
 /** Change pressed, or ticked just now: shown in full. */
 const open = ref(false);
@@ -206,7 +203,6 @@ function set(v: boolean): void {
   if (v) open.value = true;
   if (was && !v) {
     withdrawn.value = true;
-    emit('withdrawn');
   }
 }
 
@@ -223,7 +219,6 @@ function quickSet(v: boolean): void {
   agreed.value = v;
   if (was && !v) {
     withdrawn.value = true;
-    emit('withdrawn');
   }
 }
 

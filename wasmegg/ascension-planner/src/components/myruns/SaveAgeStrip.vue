@@ -23,13 +23,13 @@
   inside the closed Details; past a day the action line is "How to sync ›" (lib/saveFreshness.ts `syncLine` is
   words only on green, where the headline gives none).
 
-  The Auto Planner screens show it too (auto/AutoSaveStrip.vue, ux29 item 4): `slim`, their own `testid`, and
+  The Auto Planner screens show it too (auto/AutoSaveStrip.vue, ux29 item 4): their own `testid`, and
   `loadWords` "Load latest save" (Setup's button) in place of the state's own link words.
 -->
 <template>
   <div
     class="min-w-0 rounded-xl border px-3 break-words"
-    :class="[state ? TONE[state.tone] : TONE.green, slim ? 'py-1' : 'py-2', small ? 'text-small' : 'text-body']"
+    :class="[state ? TONE[state.tone] : TONE.green, 'py-1', small ? 'text-small' : 'text-body']"
     :data-testid="testid"
     :data-tone="state?.tone ?? 'none'"
     :data-server="server.kind"
@@ -96,8 +96,6 @@ const props = withDefaults(
     server?: ServerSaveState;
     now?: number;
     testid?: string;
-    /** The Auto Planner screens' slim banner (auto/AutoSaveStrip.vue). */
-    slim?: boolean;
     /** Small text (layout/SaveSide.vue, myruns/SaveHeadHelp.vue; Jordan 12 Nov 2026: "make them small"). Same content. */
     small?: boolean;
     /** The silo line's words, folded into Details on a phone (layout/SaveSide.vue: one merged line below md; a low or past silo line stays its own line). */
@@ -109,7 +107,6 @@ const props = withDefaults(
     server: () => ({ kind: 'unknown' }),
     now: () => Math.floor(Date.now() / 1000),
     testid: 'now-save-strip',
-    slim: false,
     small: false,
     loadWords: '',
     siloDetail: '',
