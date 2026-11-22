@@ -89,6 +89,29 @@ describe('buildUpTails', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it('a Setup edit the simulation reads asks again: the held hours, holding shifts, the silo trick (code review round 2, 22 Nov 2026, R7.1)', async () => {
+    answers = [[tail], [tail], [tail], [tail]];
+    const store = useChainSearchStore();
+    await store.buildUpTails();
+    expect(asked).toHaveBeenCalledTimes(1);
+    // Hours 7 AM to 11 PM with shifts held (the default): C3's shift is held, so the tails differ.
+    store.scheduleEnabled = true;
+    store.availableFrom = 7;
+    store.availableTo = 23;
+    await store.buildUpTails();
+    expect(asked).toHaveBeenCalledTimes(2);
+    // The same again: kept.
+    await store.buildUpTails();
+    expect(asked).toHaveBeenCalledTimes(2);
+    // Shifts no longer held: the hours are not read, so the key is the no-hours one again, asked anew.
+    store.deferShifts = false;
+    await store.buildUpTails();
+    expect(asked).toHaveBeenCalledTimes(3);
+    store.siloTrick = true;
+    await store.buildUpTails();
+    expect(asked).toHaveBeenCalledTimes(4);
+  });
+
   it('an empty build-up is not a failure (nothing left to buy)', async () => {
     answers = [[]];
     const store = useChainSearchStore();
