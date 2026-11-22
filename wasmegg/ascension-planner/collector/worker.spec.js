@@ -3776,6 +3776,31 @@ describe('POST /hide: hide from the public, and show again', () => {
     expect((await allRows()).map(r => r.id)).toEqual([a.id, b.id]);
   });
 
+  it('the settle is not skipped for a different snapshot that has the same stamps (a fast machine: every step in one millisecond)', async () => {
+    // The clock stands still, as it does on a fast machine: every snapshot below carries the same builtAt and settleAt.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(Date.UTC(2026, 10, 22, 12, 0, 0)));
+      const a = await send(SEND);
+      const b = await send({ ...SEND, durationDays: 700 });
+      const raceRaw = env.SUBMISSIONS._m.get('snap:sub');
+      await hide({ ids: [a.id], hidden: true });
+      env.SUBMISSIONS._m.set('snap:sub', raceRaw);
+      settleDue('sub');
+      await get('/all');
+      expect((await allRows()).map(r => r.id)).toEqual([b.id]);
+      // A show whose patch was lost: a different snapshot, the same stamps as the one the settle above started from.
+      const hiddenRaw = env.SUBMISSIONS._m.get('snap:sub');
+      await hide({ ids: [a.id], hidden: false });
+      env.SUBMISSIONS._m.set('snap:sub', hiddenRaw);
+      settleDue('sub');
+      await get('/all');
+      expect((await allRows()).map(r => r.id)).toEqual([a.id, b.id]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a hide and a send at the same moment both land, at the latest by the settle', async () => {
     const a = await send(SEND);
     const [h, s] = await Promise.all([
