@@ -457,7 +457,8 @@
                 :goal-key="followGoal"
                 goal="date"
                 :deadline="deadline ?? null"
-                :candidate="instantCandidate(dateBoxOf(result.byDate))"
+                :followed-finish="followedExactFinish"
+                :candidate="boxCandidate(dateBoxOf(result.byDate))"
               />
             </Teleport>
           </template>
@@ -681,7 +682,8 @@
               :goal-key="followGoal"
               goal="fastest"
               :deadline="null"
-              :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
+              :followed-finish="followedExactFinish"
+              :candidate="boxCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
             />
           </Teleport>
         </div>
@@ -2521,6 +2523,23 @@ watch(result, r => {
 /** The instant answer as the prompt's new result. */
 function instantCandidate(r: { chain: readonly number[]; end: number; endTE: number }) {
   return { chain: [...r.chain], end: r.end, endTE: r.endTE, at: answerAt.value, source: 'instant' as const, planStart: answerStart.value || null };
+}
+/**
+ * THE OFFER ON EXACT FINISHES (orchestrator, 21 Nov 2026: that is the point of the two-route check). When the exact check covered the
+ * followed route (by its stops) and the box's route, both finishes the offer compares are exact; otherwise both stay the quick
+ * estimates, never one of each.
+ */
+const followedExactFinish = computed<{ end: number; endTE: number } | null>(() => {
+  const d = exactDone.value;
+  const f = follows.followed(followGoal.value);
+  if (!d || !f || !exactBox.value) return null;
+  const r = exactRouteFor(d, f.chain);
+  return r ? { end: r.end, endTE: r.chain[r.chain.length - 1] ?? 0 } : null;
+});
+function boxCandidate(r: { chain: readonly number[]; end: number; endTE: number }) {
+  const e = exactBox.value;
+  const f = followedExactFinish.value;
+  return instantCandidate(e && f ? { ...r, end: e.end } : r);
 }
 /** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026). */
 const boxFollowable = computed(() => {

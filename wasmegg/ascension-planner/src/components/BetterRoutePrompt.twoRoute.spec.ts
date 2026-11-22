@@ -74,8 +74,8 @@ describe('the followed first pick, the box on the faster route', () => {
 describe('InstantRoute hands the box\'s own route to the offer', () => {
   const src = fs.readFileSync(path.resolve(__dirname, 'auto/InstantRoute.vue'), 'utf8');
   it('both goals: the candidate is the route on screen (boxLead / dateBoxOf), which is the faster route once the box switched', () => {
-    expect(src).toContain(':candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"');
-    expect(src).toContain(':candidate="instantCandidate(dateBoxOf(result.byDate))"');
+    expect(src).toContain(':candidate="boxCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"');
+    expect(src).toContain(':candidate="boxCandidate(dateBoxOf(result.byDate))"');
     expect(src).toMatch(/const boxLead = computed<Route \| null>\(\(\) =>\s*swapped\.value && altRoute\.value \? altRoute\.value : pickLead\.value/);
   });
   it('auto-follow takes the box at the time the answer is finished (the first pick), never again by itself', () => {
@@ -84,5 +84,51 @@ describe('InstantRoute hands the box\'s own route to the offer', () => {
     expect(body).toContain("backgroundStatus.value === 'running'");
     expect(body).toContain('!!follows.followed(goalKey)');
     expect(body).toMatch(/instantAutoFollowOf\(\{[\s\S]*followed: !!follows\.followed\(goalKey\)/);
+  });
+});
+
+/** The exact check's numbers (R10 option C, orchestrator 21 Nov 2026): both finishes exact when the check covered the followed route. */
+async function offerExact(o: { followedEst: number; candEst: number; followedExact: number | null; candExact: number }) {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  defineStore('chainSearch', () => ({ submitUrl: SUBMIT, availability: null }))();
+  useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+  expect(await useFollowStore().follow(GOAL, FIRST, 'answer', undefined, { finish: o.followedEst, endTE: 490, planStart: now() - H })).toBe(true);
+  const cand = { chain: FASTER, end: o.candExact, endTE: 490, at: CLOCK + 1000, source: 'instant' as const, planStart: now() };
+  const props: Record<string, unknown> = { goalKey: GOAL, goal: 'fastest', deadline: null, candidate: cand, zone: ZONE, line: true };
+  if (o.followedExact !== null) props.followedFinish = { end: o.followedExact, endTE: 490 };
+  return renderHtml(BetterRoutePrompt, props, {}, [pinia]);
+}
+
+describe('with an exact result, both finishes are exact (the followed route\'s too, when the check covered it)', () => {
+  it('the estimates are a tie but the exact finishes differ by 2 h: offered, in the exact times', async () => {
+    const e = firstEnd();
+    const html = await offerExact({ followedEst: e, candEst: e - 10, followedExact: e + 3 * H, candExact: e + H });
+    const words = fasterAboveLine({ better: dateAt(e + H, now(), ZONE), yours: dateAt(e + 3 * H, now(), ZONE) });
+    expect(textOf(html)).toBe(`${words} Keep mine`);
+  });
+  it('the estimates say faster but the exact finishes say it is not: no offer', async () => {
+    const e = firstEnd();
+    const html = await offerExact({ followedEst: e, candEst: e - 2 * H, followedExact: e + 3 * H, candExact: e + 3 * H - 30 });
+    expect(html).not.toContain('data-testid="better-route"');
+  });
+});
+
+describe('InstantRoute gives the offer the exact finishes, and the estimates only without an exact result', () => {
+  const src = fs.readFileSync(path.resolve(__dirname, 'auto/InstantRoute.vue'), 'utf8');
+  const tpl = src.slice(0, src.indexOf('</template>\n\n<script'));
+  it('both goals pass the followed route\'s exact finish and the candidate with the box route\'s exact end', () => {
+    expect(tpl.match(/:followed-finish="followedExactFinish"/g) ?? []).toHaveLength(2);
+    expect(tpl).toContain(':candidate="boxCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"');
+    expect(tpl).toContain(':candidate="boxCandidate(dateBoxOf(result.byDate))"');
+  });
+  it('exact only when the check covered the followed route and the box route: else both stay the quick estimates (never one of each)', () => {
+    const at = src.indexOf('const followedExactFinish');
+    expect(at).toBeGreaterThan(0);
+    const body = src.slice(at, at + 1600);
+    expect(body).toContain('exactRouteFor(');
+    expect(body).toContain('exactBox.value');
+    expect(body).toMatch(/function boxCandidate\(/);
+    expect(body).toMatch(/instantCandidate\(e && f \? \{ \.\.\.r, end: e\.end \} : r\)/);
   });
 });

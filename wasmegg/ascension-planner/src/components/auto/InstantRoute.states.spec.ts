@@ -232,6 +232,9 @@ function ctxOf(s: State): Record<string, unknown> {
     hoursLimited: s.hours,
     idle: idleLine({ due: false, setupLoaded: true, te: 250 }),
     instantCandidate: (r: unknown) => r,
+    // The offer on exact finishes (21 Nov 2026): no exact result here, so the quick estimates.
+    boxCandidate: (r: unknown) => r,
+    followedExactFinish: null,
     instantUrl: 'https://collector.example/instant',
     integrity: { kind: s.hold ? 'checking' : 'none' },
     instantLive: instantLiveText(s.status, !!result),
