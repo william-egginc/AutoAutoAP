@@ -55,6 +55,10 @@ export interface InstantTableDeps {
    *  own or gear name not among them is not asked for (review 15 Nov 2026 P6: every name was, one by one, each a
    *  request). Null, or absent, when tables.json can't be read: every name is asked for, as before. */
   listed?: () => Promise<ReadonlySet<string> | null>;
+  /** The save's TE (whole): an own or gear table that starts above it is passed over, so a player below a gear
+   *  table's first TE gets the form G or the maxed table, not "No instant answer" (code review 22 Nov 2026,
+   *  T1.5). Absent: every table is taken as before (the command line). */
+  te?: number;
 }
 
 export interface InstantTableChoice {
@@ -76,6 +80,7 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   const { pool: p, maxedUrl: TABLE_URL } = d;
   const listed = (await d.listed?.().catch(() => null)) ?? null;
   const isListed = (u: string) => !listed || listed.has(u.slice(u.lastIndexOf('/') + 1));
+  const startsAbove = (t: TableHeader) => d.te !== undefined && d.te < t.from;
   const ownTableUrls = async () => (await d.ownTableUrls()).filter(isListed);
   let url = TABLE_URL;
   let h: TableHeader | null = null;
@@ -91,7 +96,7 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
     const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
     // INSTANT ANSWER V2: only a table made by this simulator; an older one gives way to the form G below.
     if (!changes.length) {
-      if (!tableSimMismatch(oh)) {
+      if (!tableSimMismatch(oh) && !startsAbove(oh)) {
         url = mine;
         h = oh;
       }
@@ -116,8 +121,9 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
         const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
         try {
           const gh = await p.header(both);
-          // INSTANT ANSWER V2: a gear table made by an older simulator gives way to the form G below.
-          if (tableSimMismatch(gh)) break;
+          // INSTANT ANSWER V2: a gear table made by an older simulator, or one that starts above the save's TE,
+          // gives way to the form G below.
+          if (tableSimMismatch(gh) || startsAbove(gh)) break;
           h = gh;
           url = both;
           found = true;

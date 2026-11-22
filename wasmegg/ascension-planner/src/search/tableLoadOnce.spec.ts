@@ -174,6 +174,21 @@ describe('only the names tables.json lists are probed', () => {
     expect(s.count(MAXED)).toBe(1);
   });
 
+  it('a gear table that starts above the save is passed over for the form G (code review 22 Nov 2026, T1.5)', async () => {
+    const { gearTableFiles } = await import('./tableGear');
+    const name = (await gearTableFiles(STAMP))[0];
+    const s = site({ [MAXED]: table('maxed', 100, 400), [`${BASE}${name}`]: table('gear', 200, 201) });
+    const pool = await realWorker();
+    vi.stubGlobal('fetch', s.fetch);
+    const { chooseInstantTable } = await import('./instantCompute');
+    const listed = async () => new Set([MAXED_TABLE_FILE, name]);
+    const below = await chooseInstantTable(await deps(pool, { listed, te: 150 }));
+    expect(below.gearShifted).toBe(true);
+    expect(below.header.from).toBe(100);
+    const at = await chooseInstantTable(await deps(pool, { listed, te: 200 }));
+    expect(at.url).toBe(compositeUrl(`${BASE}${name}`, MAXED, 340, 0.9));
+  });
+
   it('tables.json unreadable (null): every name is probed, as before', async () => {
     const s = site({ [MAXED]: table('maxed') });
     const pool = await realWorker();
