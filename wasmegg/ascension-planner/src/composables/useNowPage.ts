@@ -816,7 +816,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         meta: same
           ? { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }
           : { account: acct ?? '', goal: words, ...run.meta },
-        check: same ? currentSetup(sn.setup) : setupCheck(null, sn.setup, sn.today),
+        // What the row recorded when it has it (Safari read it as other awake hours: shots 1 and 4); none: as before.
+        check: same ? (run.setup ? setupCheck(run.setup, sn.setup, sn.today) : currentSetup(sn.setup)) : setupCheck(run.setup, sn.setup, sn.today),
       });
     }
     const k = keptFor(g);

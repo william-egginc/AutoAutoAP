@@ -4,6 +4,7 @@
  * load (by the row's own id, never a player ID), and the route's legs kept as a search's result. A fetch or read that
  * fails leaves the goal on its estimate (a console line says why). Only with a collector.
  */
+import { rowSetup, type PricedSetup } from '@/lib/currentAnswer';
 import { ref, watch, type Ref } from 'vue';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { boardRunFor, runMetaOf, runSaveSeconds, searchFromRun } from '@/lib/boardRunPlan';
@@ -37,6 +38,8 @@ export interface BoardRunFound {
   save: number | null;
   /** What the row keeps for the pace badge (lib/boardRunPlan.ts `runMetaOf`). */
   meta: ReturnType<typeof runMetaOf>;
+  /** The awake hours and time off the row recorded (lib/currentAnswer.ts `rowSetup`); null for a row that kept none. */
+  setup: PricedSetup | null;
 }
 
 export function useBoardRunLegs(o: {
@@ -68,7 +71,7 @@ export function useBoardRunLegs(o: {
         const legs = await cache.get(key)!;
         const search = searchFromRun(row, legs);
         if (search && found.value[w.goalKey]?.search.at !== search.at)
-          found.value = { ...found.value, [w.goalKey]: { search, save: runSaveSeconds(row), meta: runMetaOf(row, runSaveSeconds(row)) } };
+          found.value = { ...found.value, [w.goalKey]: { search, save: runSaveSeconds(row), meta: runMetaOf(row, runSaveSeconds(row)), setup: rowSetup(row) } };
       }
     },
     { immediate: true }
