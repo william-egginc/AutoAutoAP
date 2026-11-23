@@ -20,11 +20,13 @@ describe('optimizer words', () => {
     expect(CADENCE_HEADING).toBe('How often I will launch');
     expect(CADENCE_NOTE).toMatch(/your preference/i);
     expect(CADENCE_NOTE).toMatch(/not a game rule/i);
+    expect(CADENCE_NOTE).toBe('Your preference, not a game rule: how often you are willing to relaunch.');
   });
 
   it('the Standard permit note is one line and says what is assumed', () => {
     expect(STANDARD_PERMIT_NOTE).toMatch(/Pro permit/);
     expect(STANDARD_PERMIT_NOTE).not.toContain('\n');
+    expect(STANDARD_PERMIT_NOTE).toContain('a ship it picks may not be open to you');
   });
 
   it('alternative titles and the night-launch line', () => {

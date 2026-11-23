@@ -3,11 +3,11 @@
 
 /** What the Low/Medium/High/Max buttons set: how often the player will relaunch, which the game does not ask for. */
 export const CADENCE_HEADING = 'How often I will launch';
-export const CADENCE_NOTE = 'Your preference, not a game rule: how often you are willing to relaunch a slot.';
+export const CADENCE_NOTE = 'Your preference, not a game rule: how often you are willing to relaunch.';
 
 /** Shown to a Standard permit save: the optimizer plans for Pro and does not model Standard. */
 export const STANDARD_PERMIT_NOTE =
-  'This save has the Standard permit. The optimizer plans as if you had the Pro permit (three slots, every ship), so some ships here may not be open to you.';
+  'This save has the Standard permit. The optimizer plans as if you had the Pro permit (three slots, every ship), so a ship it picks may not be open to you.';
 
 export const bestAlternativeTitle = 'Best';
 export const fitsAlternativeTitle = 'Fits your awake hours';

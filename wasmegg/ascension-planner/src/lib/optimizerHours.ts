@@ -99,9 +99,9 @@ export function awakeWindowFor(
 
   let note = '';
   if (!withinCap) {
-    note = `You are awake less than ${24 - MAX_SLEEP_HOURS} hours a day, so the plan is made around ${MAX_SLEEP_HOURS} hours of sleep and a launch can still land in your hours off.`;
+    note = `You are awake less than ${24 - MAX_SLEEP_HOURS} hours a day, so the plan allows at most ${MAX_SLEEP_HOURS} hours of sleep. A launch can still land in your hours off.`;
   } else if (!exact) {
-    note = 'Your hours differ from day to day, so the plan is made around the hours you are awake on every one of those days.';
+    note = 'Your hours differ from day to day, so the plan uses only the hours you are awake on every day of this visit.';
   }
   return { sleepHours, hoursSinceWake: since, awakeFrom: best.from, awakeTo, exact, note };
 }

@@ -60,6 +60,7 @@ describe('awakeWindowFor', () => {
     const w = awakeWindowFor(lateWeekend(), MON_NOON, 6 * DAY)!;
     expect(w).toMatchObject({ sleepHours: 11, exact: false, awakeFrom: 10, awakeTo: 23 });
     expect(w.note).toMatch(/differ/i);
+    expect(w.note).toBe('Your hours differ from day to day, so the plan uses only the hours you are awake on every day of this visit.');
   });
 
   it('a short visit inside the awake hours needs no sleep window at all', () => {
@@ -73,6 +74,7 @@ describe('awakeWindowFor', () => {
     expect(w.sleepHours).toBe(16);
     expect(w.exact).toBe(false);
     expect(w.note).toMatch(/16/);
+    expect(w.note).toBe('You are awake less than 8 hours a day, so the plan allows at most 16 hours of sleep. A launch can still land in your hours off.');
   });
 });
 
