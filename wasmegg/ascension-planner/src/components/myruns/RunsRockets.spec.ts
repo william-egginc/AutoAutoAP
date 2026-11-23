@@ -66,7 +66,9 @@ describe('where it sits', () => {
     expect(card).toMatch(/v-if="\$slots\.rockets"/);
   });
   it('useNowPage reads the stop off the simulated first ascension', () => {
-    expect(page).toContain('humilityStopOf(actionLegs.value[0], now.value, currentEgg.value)');
+    expect(page).toContain('humilityStopOf(actionLegs.value[0] ?? exactFirstLeg.value, now.value, currentEgg.value)');
+    // A followed Fast or Exact run keeps the exact check's legs, for which actionLegs is empty (QA, 23 Nov 2026).
+    expect(page).toContain('actionLegOfSummary(');
     // Jordan's shot 1: a followed plan still on the table ("a rough estimate") has no simulated leg; the row shows anyway.
     expect(page).not.toMatch(/humilityStop = computed\([^\n]*simulated/);
     expect(page).toMatch(/^\s+humilityStop,$/m);

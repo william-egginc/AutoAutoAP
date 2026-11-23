@@ -4,7 +4,7 @@
  * the ascension being followed; nothing for later ascensions (their fuel and farm are not known).
  */
 import { describe, expect, it } from 'vitest';
-import { humilityStopOf, stopDurationText } from './humilityStop';
+import { actionLegOfSummary, humilityStopOf, stopDurationText } from './humilityStop';
 import type { ActionLeg } from './nextAction';
 
 const leg = (shifts: { at: number; egg: string }[], end = 90_000, o: Partial<ActionLeg> = {}): ActionLeg => ({
@@ -72,6 +72,25 @@ describe('a stop with no length (QA, 23 Nov 2026: By a date route whose Humility
     const zero = leg([{ at: 20_000, egg: 'humility' }, { at: 20_000, egg: 'kindness' }], 400_000);
     expect(humilityStopOf(zero, 5000)).toBeNull();
     expect(humilityStopOf(zero, 20_000)).toBeNull();
+  });
+});
+
+// QA 23 Nov 2026 (shots R-myruns-*): a followed Fast or Exact run keeps the exact check's legs (`plan.legs`, every shift of every
+// ascension), and useNowPage's `actionLegs` is empty for such a plan, so the row never showed for a stop still ahead.
+type Summary = Parameters<typeof actionLegOfSummary>[0];
+describe('a plan that kept the exact check\'s legs', () => {
+  const summary = (shifts: { at: number; egg: string }[]) => ({ key: 'x', endTE: 203, durationSeconds: 380_000, maxELR: 0, endTime: 400_000, startTime: 20_000, tier13Unlocked: true, shifts }) as unknown as Summary;
+  it('its first leg reads as an ascension with its shifts, so a Humility stop still ahead is found', () => {
+    const leg = actionLegOfSummary(summary([{ at: 100_000, egg: 'humility' }, { at: 100_000 + 56 * 3600, egg: 'kindness' }]), 203);
+    expect(humilityStopOf(leg, 50_000)).toMatchObject({ arrival: 100_000, end: 100_000 + 56 * 3600, lengthSeconds: 56 * 3600, current: false, approximate: true });
+  });
+  it('is the one on it while the player is there', () => {
+    const leg = actionLegOfSummary(summary([{ at: 100_000, egg: 'humility' }, { at: 300_000, egg: 'kindness' }]), 203);
+    expect(humilityStopOf(leg, 150_000)).toMatchObject({ current: true, arrival: 100_000 });
+  });
+  it('starts at the end less the duration when the summary has no start', () => {
+    const l = { ...summary([]), startTime: undefined } as Summary;
+    expect(actionLegOfSummary(l, 203).start).toBe(400_000 - 380_000);
   });
 });
 

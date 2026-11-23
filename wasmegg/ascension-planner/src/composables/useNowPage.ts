@@ -57,7 +57,7 @@ import { backupSecondsOf, saveState, saveTEByEggOf, saveTEOf } from '@/lib/saveF
 import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import { progressOf } from '@/lib/planPace';
-import { humilityStopOf } from '@/lib/humilityStop';
+import { actionLegOfSummary, humilityStopOf } from '@/lib/humilityStop';
 import {
   SAVE_EGG_ORDER,
   ascensionAt,
@@ -1987,7 +1987,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     });
   });
   /** The Humility stop of the ascension you are in, or the next to come, from its simulated shifts (My runs' rockets row). */
-  const humilityStop = computed(() => humilityStopOf(actionLegs.value[0], now.value, currentEgg.value));
+  /** A followed Fast or Exact run keeps the exact check's legs and no table legs, for which `actionLegs` is empty: its first. */
+  const exactFirstLeg = computed<ActionLeg | undefined>(() => {
+    const p = cardPlan.value?.plan;
+    const first = p?.legs?.[0];
+    return p && first ? actionLegOfSummary(first, p.chain[0]) : undefined;
+  });
+  const humilityStop = computed(() => humilityStopOf(actionLegs.value[0] ?? exactFirstLeg.value, now.value, currentEgg.value));
   /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
    *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
   const nextShiftLines = computed<NextShiftLine[]>(() =>

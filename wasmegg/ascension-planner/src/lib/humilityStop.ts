@@ -2,6 +2,8 @@
 // reads them): the stop they are on, or the next one to come. My runs' rockets row (components/myruns/RunsRockets.vue)
 // opens the optimizer there. v1 reads only that ascension: a later one's tank and farm are not known.
 
+import type { LegSummary } from '@/search/types';
+
 import type { ActionLeg } from './nextAction';
 
 export interface HumilityStop {
@@ -39,4 +41,18 @@ export function humilityStopOf(leg: ActionLeg | null | undefined, now: number, s
 export function stopDurationText(seconds: number): string {
   if (!(seconds > 0)) return '';
   return `${Math.max(1, Math.floor(seconds / 3600))}h`;
+}
+
+/**
+ * A followed Fast or Exact run keeps the exact check's legs (lib/nowPlan.ts `NowPlan.legs`), not the table's: their first as
+ * an ascension for `humilityStopOf`. Priced on an earlier save, so its times are estimates (the row says "about").
+ */
+export function actionLegOfSummary(leg: LegSummary, to: number): ActionLeg {
+  return {
+    to,
+    endTE: leg.endTE,
+    start: leg.startTime ?? leg.endTime - leg.durationSeconds,
+    end: leg.endTime,
+    ...(leg.shifts ? { shifts: leg.shifts.map(sh => ({ at: sh.at, egg: sh.egg })) } : {}),
+  };
 }
