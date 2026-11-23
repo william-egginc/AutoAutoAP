@@ -29,7 +29,7 @@
     <!-- A rule and a heading of its own, so the last line of the totals does not read as slot 1's first. -->
     <div :class="{ 'mt-3 border-t border-gray-200 pt-1': totals.length > 0 }">
       <div :class="headingClass">By slot</div>
-      <optimizer-slot-timeline :solution="solution" />
+      <optimizer-slot-timeline :solution="solution" :clock-of="clockOf" />
     </div>
   </div>
 </template>
@@ -50,6 +50,8 @@ export default defineComponent({
     solution: { type: Object as PropType<OptimizerSolution>, required: true },
     // The heading style of the surrounding card, which differs between the two apps.
     headingClass: { type: String, default: 'text-xs font-medium text-gray-600 uppercase tracking-wide mt-3' },
+    // Prints a launch time from seconds after the plan's start; T+ times when absent (OptimizerSlotTimeline).
+    clockOf: { type: Function as PropType<(seconds: number) => string>, default: undefined },
   },
   setup(props) {
     const totals = computed(() => launchTotals(props.solution));

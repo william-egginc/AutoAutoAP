@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <div>
+    <div v-if="!hideSleep">
       <label class="flex items-center gap-2 cursor-pointer select-none" :class="labelClass">
         <input type="checkbox" :class="checkboxClass" :checked="modelValue.sleepEnabled" @change="onSleepToggle" />
         Sleep
@@ -72,7 +72,7 @@
       <p v-else-if="modelValue.doubleCapacityEnabled" :class="hintClass" class="text-gray-600">{{ eventHint }}</p>
     </div>
 
-    <p v-if="timingNote" :class="hintClass" class="text-gray-600">
+    <p v-if="timingNote && !hideSleep" :class="hintClass" class="text-gray-600">
       <span v-tippy="timingExplanation" class="cursor-help border-b border-dotted border-gray-400/60">{{
         timingNote
       }}</span>
@@ -111,6 +111,8 @@ export default defineComponent({
     modelValue: { type: Object as PropType<ScheduleSettings>, required: true },
     // The ascension planner's panel sets its controls a size smaller than the explorer's sidebar.
     compact: { type: Boolean, default: false },
+    // The ascension planner plans around the player's own awake hours and hides the single sleep window.
+    hideSleep: { type: Boolean, default: false },
   },
   emits: {
     'update:modelValue': (_settings: ScheduleSettings) => true,

@@ -59,15 +59,17 @@ import { formatPlanClock } from 'lib/mission-optimizer/schedule-settings';
 import DoubleCapacityBadge from './DoubleCapacityBadge.vue';
 import MissionName from './MissionName.vue';
 
-const clock = formatPlanClock;
-
 export default defineComponent({
   components: { DoubleCapacityBadge, MissionName },
   props: {
     solution: { type: Object as PropType<OptimizerSolution>, required: true },
+    // Prints a time in seconds from the plan's start; the T+ clock when absent. The ascension planner gives the
+    // plan's real start, so a launch reads "Tue, Jan 5, 9:00 AM".
+    clockOf: { type: Function as PropType<(seconds: number) => string>, default: undefined },
   },
   setup(props) {
     const timeline = computed(() => planTimeline(props.solution));
+    const clock = (seconds: number) => (props.clockOf ? props.clockOf(seconds) : formatPlanClock(seconds));
     return { timeline, clock };
   },
 });

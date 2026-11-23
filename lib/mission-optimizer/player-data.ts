@@ -69,6 +69,9 @@ export function readPlayerData(backup: ei.IBackup): PlayerData | null {
 
   const launchPoints: Partial<Record<Spaceship, number>> = {};
   const hasLaunched: Partial<Record<Spaceship, boolean>> = {};
+  // Launched on the Path itself, which the Henliner is held to: it serves no purpose there as far as is known, and
+  // is the biggest-capacity ship, so a player with home launches of it would be offered it first for no reason.
+  const hasLaunchedOnPath: Partial<Record<Spaceship, boolean>> = {};
 
   const missions = (backup.artifactsDb.missionArchive ?? [])
     .concat(backup.artifactsDb.missionInfos ?? [])
@@ -81,11 +84,17 @@ export function readPlayerData(backup: ei.IBackup): PlayerData | null {
     else if (mission.durationType === DurationType.EPIC) pts = 1.8;
     launchPoints[ship] = (launchPoints[ship] ?? 0) + pts;
     hasLaunched[ship] = true;
+    if (mission.type === ei.MissionInfo.MissionType.VIRTUE) hasLaunchedOnPath[ship] = true;
   }
 
   for (const shipType of spaceshipList) {
     shipsConfig.shipLevels[shipType] = computeShipLevelFromPoints(shipType, launchPoints[shipType] ?? 0);
-    shipsConfig.shipVisibility[shipType] = shipType === Spaceship.CHICKEN_ONE ? true : (hasLaunched[shipType] ?? false);
+    shipsConfig.shipVisibility[shipType] =
+      shipType === Spaceship.CHICKEN_ONE
+        ? true
+        : shipType === Spaceship.ATREGGIES
+          ? (hasLaunchedOnPath[shipType] ?? false)
+          : (hasLaunched[shipType] ?? false);
   }
 
   const inventory = new Inventory(backup.artifactsDb, { virtue: true });

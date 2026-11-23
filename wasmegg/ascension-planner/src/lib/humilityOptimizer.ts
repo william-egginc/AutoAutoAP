@@ -29,6 +29,9 @@ export interface OptimizerVisitSettings extends ScheduleSettings {
   gemLimit: GemLimit;
   // Cap the plan's crafts at the golden eggs the save has to spend.
   capCrafting: boolean;
+  // Plan around the awake hours set in Setup (lib/optimizerHours.ts) instead of the one daily sleep window. Only
+  // does anything while Setup has hours on; the plan then shows the best ship set and the one that fits them.
+  useMyHours: boolean;
 }
 
 export function newVisitSettings(): OptimizerVisitSettings {
@@ -39,6 +42,7 @@ export function newVisitSettings(): OptimizerVisitSettings {
     fuelBudget: 'banked',
     gemLimit: 'plan',
     capCrafting: false,
+    useMyHours: true,
     ...newScheduleSettings(),
   };
 }

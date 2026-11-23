@@ -36,6 +36,10 @@
         <span v-if="store.saveError" class="block text-red-600">{{ store.saveError }}</span>
       </p>
 
+      <p v-if="!initialStateStore.proPermit" class="text-small text-amber-700" data-testid="optimizer-standard-permit">
+        {{ STANDARD_PERMIT_NOTE }}
+      </p>
+
       <!-- What to aim for -->
       <section>
         <h4 class="label text-gray-600 mb-1.5">
@@ -83,7 +87,7 @@
         </div>
 
         <div>
-          <span class="block text-small font-bold text-gray-700">Effort</span>
+          <span class="block text-small font-bold text-gray-700">{{ CADENCE_HEADING }}</span>
           <div class="mt-1 inline-flex rounded-md border border-gray-200 bg-white overflow-hidden" role="group">
             <button
               v-for="level in EFFORT_LEVELS"
@@ -97,7 +101,9 @@
               {{ EFFORT_META[level].label }}
             </button>
           </div>
-          <p class="mt-1 text-small text-gray-600">{{ EFFORT_META[settings.effort].hint }}</p>
+          <p class="mt-1 text-small text-gray-600">
+            {{ EFFORT_META[settings.effort].hint }} {{ CADENCE_NOTE }}
+          </p>
         </div>
 
         <div>
@@ -172,7 +178,39 @@
           Keep the crafting within my golden eggs ({{ formatNumber(store.player.goldenEggs, 1) }})
         </label>
 
-        <OptimizerScheduleSettings class="sm:col-span-2" compact :model-value="settings" @update:model-value="patch" />
+        <div v-if="chainStore.availability" class="sm:col-span-2" data-testid="optimizer-my-hours">
+          <label class="flex items-center gap-2 text-small font-bold text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 rounded text-blue-600 border-gray-300"
+              :checked="settings.useMyHours"
+              @change="patch({ useMyHours: ($event.target as HTMLInputElement).checked })"
+            />
+            Plan around my awake hours
+          </label>
+          <p v-if="settings.useMyHours" class="mt-1 text-small text-gray-600">
+            Your hours from Setup: {{ hoursText }}. Launches go up only while you are awake; a ship that lands at
+            night waits for you.
+          </p>
+          <p v-if="hoursWindow?.note" class="mt-1 text-small text-amber-700" data-testid="optimizer-hours-note">
+            {{ hoursWindow.note }}
+          </p>
+          <p
+            v-if="settings.useMyHours && hoursWindow && !hoursOn"
+            class="mt-1 text-small text-gray-600"
+            data-testid="optimizer-hours-fit"
+          >
+            This visit fits inside your awake hours, so there is no night to plan around.
+          </p>
+        </div>
+        <p v-else-if="noHoursReason" class="sm:col-span-2 text-small text-gray-600">{{ noHoursReason }}</p>
+        <OptimizerScheduleSettings
+          class="sm:col-span-2"
+          compact
+          :hide-sleep="hours !== null"
+          :model-value="settings"
+          @update:model-value="patch"
+        />
       </section>
 
       <!-- The answer -->
@@ -199,6 +237,32 @@
             </p>
 
             <template v-else-if="view && projected">
+              <!-- The two answers side by side; the one picked is shown in full below and is what staging uses. -->
+              <div v-if="alternatives.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="optimizer-alternatives">
+                <button
+                  v-for="alt in alternatives"
+                  :key="alt.id"
+                  type="button"
+                  class="text-left rounded-md border p-2 text-small"
+                  :class="picked === alt.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'"
+                  :aria-pressed="picked === alt.id"
+                  :data-testid="`optimizer-alt-${alt.id}`"
+                  @click="store.pick = alt.id"
+                >
+                  <span class="block font-bold text-gray-800">{{ alt.title }}</span>
+                  <span class="block text-headline font-bold text-green-700 leading-tight">{{ alt.chance }}</span>
+                  <span class="block text-gray-600">
+                    {{ formatNumber(alt.crafts, 1) }} crafts · {{ alt.ships }} ships · fuel {{ formatNumber(alt.fuel, 1) }}
+                  </span>
+                  <span class="block" :class="alt.nightLaunches > 0 ? 'text-amber-700' : 'text-gray-600'">
+                    {{ nightLaunchesText(alt.nightLaunches) }}
+                  </span>
+                </button>
+                <p v-if="bestPending" role="status" class="text-small text-gray-600 flex items-center gap-2">
+                  <InlineSpinner class="h-4 w-4 text-gray-600" />
+                  Finding the best ship set without your hours<AnimatedDots />
+                </p>
+              </div>
               <div class="flex flex-wrap items-end gap-x-3 gap-y-1">
                 <span class="text-headline font-bold text-green-700 leading-none">
                   {{ formatProbabilityForDisplay(shown.solution.jointProbability) }}
@@ -230,6 +294,7 @@
               <OptimizerLaunchPlan
                 class="text-body"
                 :solution="shown.solution"
+                :clock-of="clockOf"
                 heading-class="label text-gray-600"
               />
 
@@ -370,7 +435,8 @@ import { fuelTankSizes, iconURL, virtueShipGemCosts } from 'lib';
 import { finalizeSolutions, formatProbabilityForDisplay, solutionView } from 'lib/mission-optimizer';
 import { createOptimizerClient, type OptimizerClient } from 'lib/mission-optimizer/optimizer-client';
 import { EFFORT_LEVELS, EFFORT_META } from 'lib/mission-optimizer/effort';
-import { gemBudgetFor, PlanSaveError } from 'lib/mission-optimizer/plan/read';
+import { gemBudgetFor, PlanSaveError, type HumilityVisit } from 'lib/mission-optimizer/plan/read';
+import type { PlayerData } from 'lib/mission-optimizer/player-data';
 import { projectSolvedVisit } from 'lib/mission-optimizer/plan/write';
 import { NON_HUMILITY_EGG_IDS } from 'lib/mission-optimizer/plan/schema';
 import { scheduleArgsOf } from 'lib/mission-optimizer/schedule-settings';
@@ -384,8 +450,9 @@ import TargetSelector from 'ui/components/mission-optimizer/TargetSelector.vue';
 
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { useActionsStore } from '@/stores/actions';
+import { useChainSearchStore } from '@/stores/chainSearch';
 import { useHumilityMissionsStore } from '@/stores/humilityMissions';
-import { useHumilityOptimizerStore } from '@/stores/humilityOptimizer';
+import { useHumilityOptimizerStore, type SolvedVisit } from '@/stores/humilityOptimizer';
 import { useInitialStateStore } from '@/stores/initialState';
 import { usePlanStore } from '@/stores/plan';
 import { formatDuration, formatNumber } from '@/lib/format';
@@ -401,6 +468,16 @@ import {
   type OptimizerVisitSettings,
 } from '@/lib/humilityOptimizer';
 import { buildRequest } from '@/lib/humilityOptimizerEngine';
+import { awakeWindowFor, launchClock, launchesInBlockedHours } from '@/lib/optimizerHours';
+import { showSchedule } from '@/lib/displayTime';
+import {
+  bestAlternativeTitle,
+  CADENCE_HEADING,
+  CADENCE_NOTE,
+  fitsAlternativeTitle,
+  nightLaunchesText,
+  STANDARD_PERMIT_NOTE,
+} from '@/lib/optimizerWords';
 import { VIRTUE_EGG_NAMES, type VirtueEgg } from '@/types';
 
 const DURATION_PRESETS = ['1d', '3d', '7d', '14d'];
@@ -414,6 +491,7 @@ const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
 const planStore = usePlanStore();
 const missionsStore = useHumilityMissionsStore();
+const chainStore = useChainSearchStore();
 
 const eggIcon = (egg: VirtueEgg) => iconURL(`egginc/egg_${egg}.png`, 64);
 
@@ -469,6 +547,41 @@ const tankCapacity = computed(() => fuelTankSizes[current.value?.visit.tankLevel
 const gemBudget = computed(() => (current.value ? gemBudgetFor(current.value.visit, timeSeconds.value) : NaN));
 
 // ---------------------------------------------------------------------------
+// The player's awake hours (Setup), as the one sleep window the solver takes
+// ---------------------------------------------------------------------------
+
+// The hours Setup has on, or null. The plan's real start: the visit's arrival plus the time the plan spends
+// there before the launch point; unknown when the save carries no ascension start.
+const hours = computed(() => (settings.value?.useMyHours ? chainStore.availability : null));
+const startUnix = computed(() => {
+  const visit = current.value?.visit;
+  return visit && visit.arrivalTimestamp !== null ? visit.arrivalTimestamp + visit.plannedDurationSeconds : null;
+});
+const hoursWindow = computed(() =>
+  hours.value && startUnix.value !== null && !timeInvalid.value
+    ? awakeWindowFor(hours.value, startUnix.value, timeSeconds.value)
+    : null
+);
+// Both answers are made only when the hours change the plan: a visit that stays inside them has one answer.
+const hoursOn = computed(() => (hoursWindow.value?.sleepHours ?? 0) > 0);
+const hoursText = computed(() => (hours.value ? showSchedule(hours.value) : ''));
+const noHoursReason = computed(() => {
+  if (!settings.value?.useMyHours) return '';
+  if (!chainStore.availability) return 'Turn on your hours in Setup and the plan is made around them.';
+  if (startUnix.value === null) return 'This plan has no start date, so the awake hours cannot be placed on it.';
+  return '';
+});
+// What each solve is asked: the player's own sleep window, or the awake hours in its place.
+function bestSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
+  return hours.value ? { ...asked, sleepEnabled: false } : asked;
+}
+function fitsSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
+  const w = hoursWindow.value;
+  if (!hours.value || !w) return asked;
+  return { ...asked, sleepEnabled: w.sleepHours > 0, sleepHours: w.sleepHours, hoursSinceWake: w.hoursSinceWake };
+}
+
+// ---------------------------------------------------------------------------
 // Solving
 // ---------------------------------------------------------------------------
 
@@ -494,6 +607,8 @@ const questionKey = computed(() => {
     ftl: visit.epicResearchFTLLevel,
     zerog: visit.epicResearchZerogLevel,
     save: store.playerRevision,
+    // What the awake hours came to, so a change to them re-solves.
+    hours: hours.value ? [hoursWindow.value?.sleepHours ?? null, hoursWindow.value?.hoursSinceWake ?? null] : null,
   });
 });
 // The event's "time left" is the one schedule setting that can be typed wrong.
@@ -514,6 +629,25 @@ let client: OptimizerClient | null = null;
 let generation = 0;
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
+async function solveOne(visit: HumilityVisit, asked: OptimizerVisitSettings, player: PlayerData, key: string) {
+  const request = buildRequest(visit, asked, player);
+  if (!request) return null;
+  const solutions = await (client ??= createOptimizerClient()).run(request.input);
+  // Null is "no result is coming": superseded, or the worker was torn down.
+  if (solutions === null) return null;
+  const [solution] = finalizeSolutions(solutions, request.input.recipeDag);
+  if (!solution) throw new Error("The optimizer didn't return a ship set. Try again.");
+  return {
+    visitId: visit.visitId,
+    key,
+    solution,
+    timeSeconds: request.timeSeconds,
+    gemBudget: request.gemBudget,
+    effort: asked.effort,
+    player,
+  };
+}
+
 async function solve() {
   const mine = ++generation;
   const visit = current.value?.visit;
@@ -524,28 +658,26 @@ async function solve() {
     computing.value = false;
     return;
   }
+  const both = hoursOn.value;
+  const fits = fitsSettings(asked);
+  const best = both ? bestSettings(asked) : null;
   try {
-    const request = buildRequest(visit, asked, player);
-    if (!request) return;
-    const solutions = await (client ??= createOptimizerClient()).run(request.input);
-    if (mine !== generation) return;
-    // Null is "no result is coming": superseded, or the worker was torn down.
-    if (solutions === null) return;
-    const [solution] = finalizeSolutions(solutions, request.input.recipeDag);
-    if (!solution) throw new Error("The optimizer didn't return a ship set. Try again.");
-    store.solved = {
-      visitId: visit.visitId,
-      key,
-      solution,
-      timeSeconds: request.timeSeconds,
-      gemBudget: request.gemBudget,
-      effort: asked.effort,
-      player,
-    };
+    // The answer around the awake hours (or the only one) first, so it shows while the best one is found.
+    const first = await solveOne(visit, fits, player, key);
+    if (mine !== generation || !first) return;
+    store.solved = first;
+    if (!both) store.solvedBest = null;
+    computing.value = false;
+    if (best) {
+      const second = await solveOne(visit, best, player, bestKeyOf(key));
+      if (mine !== generation || !second) return;
+      store.solvedBest = second;
+    }
   } catch (err) {
     if (mine !== generation) return;
     error.value = plainError(err, "Couldn't find a ship set. Try again.");
     store.solved = null;
+    store.solvedBest = null;
   } finally {
     if (mine === generation) computing.value = false;
   }
@@ -559,7 +691,10 @@ watch(
     clearTimeout(debounceTimer);
     error.value = '';
     // An answer kept from before the tab was switched away still stands if the question does.
-    computing.value = posed.value && store.solved?.key !== questionKey.value;
+    computing.value =
+      posed.value &&
+      (store.solved?.key !== questionKey.value ||
+        (hoursOn.value && store.solvedBest?.key !== bestKeyOf(questionKey.value)));
     if (computing.value) debounceTimer = setTimeout(solve, 250);
     // From here on the visit keeps what it was asked, whatever another visit's choices do to the defaults.
     if (posed.value && current.value) store.pin(current.value.visit);
@@ -574,11 +709,53 @@ onUnmounted(() => {
 });
 
 // The last answer for this visit, shown dimmed while a newer question is being solved.
-const shown = computed(() => {
+const bestKeyOf = (key: string) => `${key}|best`;
+const bestAnswer = computed(() => {
+  const solved = store.solvedBest;
+  return hoursOn.value && posed.value && solved && solved.visitId === current.value?.visit.visitId ? solved : null;
+});
+const primaryAnswer = computed(() => {
   const solved = store.solved;
   return posed.value && solved && solved.visitId === current.value?.visit.visitId ? solved : null;
 });
-const stale = computed(() => shown.value !== null && shown.value.key !== questionKey.value);
+// Which of the two answers the card shows in full: the one the player picked, while it is there.
+const picked = computed<'hours' | 'best'>(() =>
+  hoursOn.value && store.pick === 'best' && bestAnswer.value ? 'best' : 'hours'
+);
+const shown = computed(() => (picked.value === 'best' ? bestAnswer.value : primaryAnswer.value));
+const stale = computed(
+  () =>
+    shown.value !== null &&
+    shown.value.key !== (picked.value === 'best' ? bestKeyOf(questionKey.value) : questionKey.value)
+);
+// The two answers side by side, each with what it comes to against the player's real hours.
+const bestPending = computed(() => hoursOn.value && !bestAnswer.value && !error.value && posed.value);
+const alternatives = computed(() => {
+  if (!hoursOn.value || !primaryAnswer.value) return [];
+  const rows: { id: 'hours' | 'best'; title: string; answer: SolvedVisit }[] = [
+    { id: 'hours', title: fitsAlternativeTitle, answer: primaryAnswer.value },
+  ];
+  if (bestAnswer.value) rows.unshift({ id: 'best', title: bestAlternativeTitle, answer: bestAnswer.value });
+  return rows.map(row => {
+    const sol = row.answer.solution;
+    const ships = sol.choiceHistory.reduce((sum, c) => sum + c.numShipsLaunched, 0);
+    return {
+      ...row,
+      chance: formatProbabilityForDisplay(sol.jointProbability),
+      crafts: sol.perTarget.reduce((sum, t) => sum + t.expectedCrafts, 0),
+      ships,
+      fuel: sol.fuelUsed,
+      nightLaunches:
+        startUnix.value === null ? 0 : launchesInBlockedHours(sol, startUnix.value, hours.value),
+    };
+  });
+});
+// A launch's real time for the timeline: the plan start plus the offset.
+const clockOf = computed(() => {
+  const start = startUnix.value;
+  const zone = hours.value?.timezone;
+  return hours.value && start !== null && zone ? (seconds: number) => launchClock(start, seconds, zone) : undefined;
+});
 
 const view = computed(() => (shown.value ? solutionView(shown.value.solution, shown.value.player.inventory) : null));
 

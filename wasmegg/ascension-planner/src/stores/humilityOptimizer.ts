@@ -50,6 +50,7 @@ function normalize(stored: Partial<OptimizerVisitSettings> | undefined): Optimiz
     fuelBudget: stored.fuelBudget === 'full-tank' ? 'full-tank' : 'banked',
     gemLimit: stored.gemLimit === 'unlimited' ? 'unlimited' : 'plan',
     capCrafting: stored.capCrafting === true,
+    useMyHours: stored.useMyHours !== false,
     ...normalizeScheduleSettings(stored),
   };
 }
@@ -152,6 +153,11 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
   }
 
   const solved = shallowRef<SolvedVisit | null>(null);
+  // The same question solved without the awake hours (its key is the question's plus '|best'), kept beside
+  // `solved` while the plan is made around them, so the card can show the two side by side.
+  const solvedBest = shallowRef<SolvedVisit | null>(null);
+  // Which of the two the card shows in full and staging uses.
+  const pick = ref<'hours' | 'best'>('hours');
 
   // What was last staged for each visit in this session: the question it answered and whether the
   // earnings set was swapped in. The plan's launch alone cannot tell two answers with the same ships
@@ -169,6 +175,8 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     saveError,
     loadSave,
     solved,
+    solvedBest,
+    pick,
     stagedAnswers,
   };
 });
