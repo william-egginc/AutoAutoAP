@@ -1102,7 +1102,7 @@ contract (key, JSON shapes, errors) is `~/code/aaap-tools/notes/follow-contract.
   versions per goal, 8 goals per key, 20,000 keys, a 6 KB body (`413`) and a 4 KB value (`413`), plus the
   `FOLLOW_LIMIT` edge binding (60 a minute per address for GET and PUT each; none without the binding).
 - **Validation** is a whitelist (`readValue`): chain (1 to 16 whole stops, 0 to 490, increasing), planStart, source,
-  `at` required; finish, endTE, spareSeconds, hours (`{start,end,timezone?}` or null), saveTime, simVersion, build
+  `at` required; finish, endTE, spareSeconds, hours (`{start,end,timezone?,week?}` or null; `week` is the week's awake hours as the client's 28-character code of A-Z a-z 0-9 - _, kept so a custom weekly mask follows the account, refused with `week` named if it is not exactly that, 24 Nov 2026), saveTime, simVersion, build
   optional; a bad field refuses the write with its name (`400`, `problems`), an unknown field is dropped. A value
   equal to the latest is not stored again (`unchanged: true`).
 - **Newer wins** is the client's job: it compares its local `at` with the cloud value's `at`. CORS is as for the rest
@@ -1151,7 +1151,7 @@ live never see a `consent` or `setup` goal.
 
 - **consent** (`readConsent`): `at` required (ms), `answeredAt`, `study` yes/no/later, `ticks` (up to 16 named booleans),
   `credit` name/anonymous, `nickname` (40 characters, only with credit name). **setup** (`readSetup`): `at` required,
-  `hours` (`{start, end, days?, scheduleEnabled?}` or null), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
+  `hours` (`{start, end, days?, scheduleEnabled?, blocked?}` or null; `blocked` is the custom weekly mask, null or at most 168 different whole numbers 0 to 167, Monday 00:00 = 0, about 700 bytes at most; a repeat or a number out of range is refused with `blocked` named), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
   texts each), `targetTE` (1 to 490 or null), `timezone`, `progressSends` (`{ on: true/false, everyHours: whole 1 to 6 }`, optional; a bad shape is refused with the problem named progressSends). Not the "This computer" settings. Unknown fields are dropped;
   a bad field refuses the write (`400`, `problems`); a value over 4 KB is `413`.
 - **Limits:** 30 writes an hour per key (D1 `follow_rate` under `prefs|<key>`, apart from `/follow`'s), 5 versions per

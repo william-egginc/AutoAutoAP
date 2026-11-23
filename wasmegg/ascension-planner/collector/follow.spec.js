@@ -107,6 +107,38 @@ describe('PUT then GET /follow', () => {
   });
 });
 
+// The week's awake hours (R10, lib/weekWindow.ts encodeWeekMask): 28 characters of A-Z a-z 0-9 - _ in hours.week, so a custom
+// weekly mask follows the account to another browser (24 Nov 2026).
+describe('hours.week', () => {
+  const WEEK = 'A_-z09'.padEnd(28, 'B');
+  const storedHours = () => JSON.parse(env.WATCH._db.prepare('SELECT value FROM follows').get().value).hours;
+  it('keeps week beside the daily window, and an old value without it stays as it was', async () => {
+    await send({ ...VALUE, hours: { ...VALUE.hours, week: WEEK } });
+    expect(storedHours()).toEqual({ ...VALUE.hours, week: WEEK });
+    expect(readValue(VALUE).value.hours).toEqual(VALUE.hours);
+    expect(readValue(VALUE).value.hours).not.toHaveProperty('week');
+  });
+  it('fits the value cap with the longest week and zone', () => {
+    const r = readValue({ ...VALUE, hours: { ...VALUE.hours, timezone: 'America/Argentina/ComodRivadavia', week: WEEK } });
+    expect(r.value.hours.week).toBe(WEEK);
+    expect(r.text.length).toBeLessThan(4096);
+  });
+  it.each([
+    ['27 characters', WEEK.slice(1)],
+    ['29 characters', WEEK + 'A'],
+    ['a plus sign', '+'.padEnd(28, 'A')],
+    ['a space', ' '.padEnd(28, 'A')],
+    ['a number', 12345678901234567890123456],
+    ['null', null],
+    ['an empty string', ''],
+  ])('refuses week that is %s, naming week, storing nothing', async (_n, week) => {
+    const res = await put({ k: K, goal: GOAL, value: { ...VALUE, hours: { ...VALUE.hours, week } } });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify((await res.json()).problems)).toMatch(/week/);
+    expect(env.WATCH._db.prepare('SELECT COUNT(*) AS n FROM follows').get().n).toBe(0);
+  });
+});
+
 describe('history and restore', () => {
   it('keeps the last five versions of a goal, newest first, and a restore is a PUT of an old value', async () => {
     for (let i = 1; i <= 7; i++) await send({ ...VALUE, chain: [190 + i, 312], at: T0 + i }, GOAL, K, T0 + i * 1000);

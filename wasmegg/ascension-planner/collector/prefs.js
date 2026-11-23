@@ -94,10 +94,10 @@ export function readSetup(v) {
       !HHMM.test(h.end ?? '') ||
       (days !== undefined && !(Array.isArray(days) && days.length <= 7 && days.every(d => whole(d, 0, 6)))) ||
       (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean') ||
-      (blocked !== undefined && blocked !== null && !(Array.isArray(blocked) && blocked.length <= 168 && blocked.every(i => whole(i, 0, 167))))
+      (blocked !== undefined && blocked !== null && !(Array.isArray(blocked) && blocked.length <= 168 && blocked.every(i => whole(i, 0, 167)) && new Set(blocked).size === blocked.length))
     )
       problems.push(
-        'hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false, blocked?: null or at most 168 whole numbers 0 to 167 }'
+        'hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false, blocked?: null or at most 168 different whole numbers 0 to 167 (hours.blocked) }'
       );
     else
       out.hours = {

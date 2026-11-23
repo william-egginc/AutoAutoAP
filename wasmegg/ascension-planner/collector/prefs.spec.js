@@ -295,12 +295,16 @@ describe('weekly hours in the Setup (hours.blocked)', () => {
     ['a fraction', [0.5]],
     ['text', ['5']],
     ['NaN', [Number.NaN]],
+    ['a repeated hour', [5, 6, 5]],
   ])('refuses blocked that is %s, storing nothing', async (_n, blocked) => {
     const bad = { k: K, kind: 'setup', value: { ...SETUP, hours: { ...WEEK, blocked } } };
     const res = await put(bad);
     expect(res.status).toBe(400);
     expect((await res.json()).problems.length).toBeGreaterThan(0);
     expect(count('prefs')).toBe(0);
+  });
+  it('names blocked in the problem', () => {
+    expect(readSetup({ ...SETUP, hours: { ...WEEK, blocked: [5, 5] } }).problems.join(' ')).toMatch(/blocked/);
   });
   it('keeps nothing else under hours: an unknown field is dropped as before', () => {
     expect(readSetup({ ...SETUP, hours: { ...WEEK, mask: 'x', extra: 1 } }).value.hours).toEqual(WEEK);

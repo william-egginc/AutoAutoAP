@@ -38,6 +38,8 @@ const SOURCES = ['instant', 'fast', 'exact', 'custom', 'manual'];
 /** A version or build stamp: the app's build is an ISO time (colons), a simulator version has none. */
 const STAMP = /^[0-9A-Za-z._:-]{1,40}$/;
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+// The week's awake hours (R10, lib/weekWindow.ts): 21 bytes as 28 characters of the URL-safe base64 alphabet.
+const WEEK_CODE = /^[A-Za-z0-9_-]{28}$/;
 export const PLAYER_ID = /EI\d{16}/i;
 
 const HEADERS = {
@@ -104,10 +106,11 @@ export function readValue(v) {
       Array.isArray(h) ||
       !HHMM.test(h.start ?? '') ||
       !HHMM.test(h.end ?? '') ||
-      (h.timezone !== undefined && !(typeof h.timezone === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(h.timezone)))
+      (h.timezone !== undefined && !(typeof h.timezone === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(h.timezone))) ||
+      (h.week !== undefined && !(typeof h.week === 'string' && WEEK_CODE.test(h.week)))
     )
-      problems.push('hours must be null or { start: "HH:MM", end: "HH:MM", timezone?: IANA name }');
-    else out.hours = { start: h.start, end: h.end, ...(h.timezone !== undefined ? { timezone: h.timezone } : {}) };
+      problems.push('hours must be null or { start: "HH:MM", end: "HH:MM", timezone?: IANA name, week?: 28 characters of A-Z a-z 0-9 - _ (hours.week) }');
+    else out.hours = { start: h.start, end: h.end, ...(h.timezone !== undefined ? { timezone: h.timezone } : {}), ...(h.week !== undefined ? { week: h.week } : {}) };
   } else if (v.hours === null) out.hours = null;
   if (v.saveTime !== undefined) {
     if (!whole(v.saveTime, UNIX_FROM, UNIX_TO)) problems.push('saveTime must be unix seconds between 2020 and 2100');
