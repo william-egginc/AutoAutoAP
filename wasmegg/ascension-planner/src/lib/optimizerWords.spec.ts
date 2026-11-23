@@ -1,6 +1,6 @@
 /**
  * The optimizer card's own words and where they are used (game expert's check and Jordan's hours job, 22 Nov 2026).
- * DRAFT wording: Words owns the final text. Times are 12-hour.
+ * Wording approved by Jordan, 23 Nov 2026. Times are 12-hour.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

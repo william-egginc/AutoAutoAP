@@ -4,7 +4,7 @@
   tap opens the mission optimizer there, READ-ONLY: it is a plan to follow, with the Manual Planner's "Stage into plan"
   left out and a link to stage it there. The stop's own length and dates are the visit's; the fuel and ships are the loaded
   save's, so there is no "Reload it" step. The panel, the solver and the 84 MB loot data load only when the row is
-  opened, as in the Manual Planner (HumilityOptimizer.vue). DRAFT words: Words polishes.
+  opened, as in the Manual Planner (HumilityOptimizer.vue).
 -->
 <template>
   <section v-if="stop && initialStateStore.proPermit" class="rounded-lg border border-indigo-200 bg-indigo-50/40" data-testid="runs-rockets">

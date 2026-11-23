@@ -505,7 +505,7 @@ const planStore = usePlanStore();
 const missionsStore = useHumilityMissionsStore();
 const chainStore = useChainSearchStore();
 
-/** The save in use is the one already loaded; this says so and when it is from (DRAFT words, lib/optimizerWords.ts). */
+/** The save in use is the one already loaded; this says so and when it is from (lib/optimizerWords.ts). */
 const loadedLine = computed(() =>
   loadedSaveLine(store.playerSavedAt > 0 ? formatMoment(store.playerSavedAt * 1000, { year: 'auto' }) : '')
 );

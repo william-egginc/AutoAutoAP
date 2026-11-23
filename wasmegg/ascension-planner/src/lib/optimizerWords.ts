@@ -1,4 +1,4 @@
-// The mission optimizer card's own words (DRAFT: Words owns the final text). Kept apart from the card so a spec can pin
+// The mission optimizer card's own words. Kept apart from the card so a spec can pin
 // them and the loot-heavy panel need not be imported to read them.
 
 /** What the Low/Medium/High/Max buttons set: how often the player will relaunch, which the game does not ask for. */
@@ -14,12 +14,12 @@ export function nightLaunchesText(count: number): string {
   return `${count} ${count === 1 ? 'launch' : 'launches'} in your hours off`;
 }
 
-/** On the Fits card when its chance reads the same as Best's (DRAFT: Words polishes). */
-/** DRAFT (Words to polish): the save the optimizer already uses is the loaded one; `when` is its time as the player reads it. */
+/** The save the optimizer already uses is the loaded one; `when` is its time as the player reads it. */
 export function loadedSaveLine(when: string): string {
   return `Using your loaded save${when ? ` from ${when}` : ''} for your ship levels, inventory and crafting level.`;
 }
 
+/** On the Fits card when its chance reads the same as Best's. */
 export const SAME_CHANCE_AS_BEST = 'Same chance as Best';
 
 /** Whether two chances, as the card prints them, are the same. False while Best is not there yet. */
