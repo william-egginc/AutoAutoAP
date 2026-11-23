@@ -19,14 +19,16 @@
  * "Plan last updated" marker event); the calendar's description is the one fixed line (CALDESC).
  */
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
-import { DAY_MS, spend, waitSeconds } from './budget.js';
+import { DAY_MS, addressPrefix, spend, waitSeconds } from './budget.js';
 import { pinGuard } from './pin.js';
 import { PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const CAL_LINKS_PER_ACCOUNT = 3;
 export const CAL_NEW_PER_ACCOUNT_DAY = 5;
 export const CAL_NEW_PER_ADDRESS_DAY = 20;
-export const CAL_MAX_FEEDS = 500;
+export const CAL_MAX_FEEDS = 20000;
+/** A link never fetched is dropped after this many days (a throwaway key could otherwise hold a slot for 90). */
+export const CAL_UNFETCHED_DAYS = 7;
 export const CAL_FETCHES_PER_DAY = 300;
 export const CAL_EXPIRE_DAYS = 90;
 export const CAL_MAX_BODY = 512;
@@ -156,6 +158,11 @@ const newToken = () => {
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
+async function addressHash(env, text) {
+  const secret = env.CSV_UPLOAD_KEY || env.ACCOUNT_KEY_SALT || 'none';
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(`calnew-ip|${text}`))).slice(0, 12));
+}
 async function keyedHash(env, text) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(env.CSV_UPLOAD_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return hex(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(text))).slice(0, 12));
@@ -217,8 +224,9 @@ async function handleNew(request, env, now, url) {
   // The budgets come before the table-wide COUNT: a request they refuse reads no whole table (review 22 Nov, C2.1).
   const mine = await spend(env, `calnew|${key}`, 1, CAL_NEW_PER_ACCOUNT_DAY, now, DAY_MS);
   if (!mine.ok) return retry(waitSeconds(mine.since, DAY_MS, now), `at most ${CAL_NEW_PER_ACCOUNT_DAY} new calendar links a day`);
-  if (env.CSV_UPLOAD_KEY) {
-    const ip = await keyedHash(env, `calnew-ip|${request.headers.get('cf-connecting-ip') || 'unknown'}`);
+  {
+    // With or without CSV_UPLOAD_KEY (round 1 Q13): the address is hashed with whichever secret there is, IPv6 grouped by its /64.
+    const ip = await addressHash(env, addressPrefix(request.headers.get('cf-connecting-ip') || ''));
     const addr = await spend(env, `calnew-ip|${ip}`, 1, CAL_NEW_PER_ADDRESS_DAY, now, DAY_MS);
     if (!addr.ok) return retry(waitSeconds(addr.since, DAY_MS, now), 'too many new calendar links from this address today');
   }
@@ -287,7 +295,7 @@ async function handleFeed(request, env, now, token) {
 export async function pruneCal(env, now) {
   if (!env.WATCH) return 0;
   const cutoff = now - CAL_EXPIRE_DAYS * DAY_MS;
-  const r = await env.WATCH.prepare('DELETE FROM cal_feeds WHERE (CASE WHEN last_fetch > 0 THEN last_fetch ELSE created END) < ?').bind(cutoff).run();
+  const r = await env.WATCH.prepare('DELETE FROM cal_feeds WHERE (CASE WHEN last_fetch > 0 THEN last_fetch ELSE created END) < ? OR (last_fetch = 0 AND created < ?)').bind(cutoff, now - CAL_UNFETCHED_DAYS * DAY_MS).run();
   // A stored link whose account has no link left (revoked by its token, or expired) is stale: removed.
   await env.WATCH.prepare("DELETE FROM synced WHERE kind = 'callink' AND key NOT IN (SELECT key FROM cal_feeds)").run();
   return r.meta?.changes ?? 0;

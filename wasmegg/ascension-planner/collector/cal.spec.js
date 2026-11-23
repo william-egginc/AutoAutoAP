@@ -3,7 +3,7 @@
  * client builds), a secret link per device, and the .ics a calendar app fetches. D1 is Node's in-memory SQLite, real migrations.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { handleCal, pruneCal, CAL_LINKS_PER_ACCOUNT, CAL_EXPIRE_DAYS } from './cal.js';
+import { handleCal, pruneCal, CAL_LINKS_PER_ACCOUNT, CAL_EXPIRE_DAYS, CAL_MAX_FEEDS, CAL_NEW_PER_ADDRESS_DAY } from './cal.js';
 import { handleForget, handleSync, SYNC_MAX_CAL_BYTES } from './sync.js';
 import { rekeyLegacy, saltedKeyOf } from './acct.js';
 import { makeD1 } from './d1shim.js';
@@ -409,6 +409,8 @@ describe('the clean-up and the route', () => {
   it('pruneCal deletes links not fetched for 90 days (or never fetched for 90 days)', async () => {
     const old = tokenOf((await mint(K, T0)).body.url);
     const fresh = tokenOf((await mint(K2, T0 + 80 * DAY)).body.url);
+    // Fetched once (a never-fetched link goes after 7 days, Jordan 22 Nov), so it is only ever stale by the 90 days.
+    expect((await feed(fresh, { now: T0 + 85 * DAY })).status).toBe(200);
     const n = await pruneCal(env, T0 + 91 * DAY);
     expect(n).toBe(1);
     expect((await feed(old, { now: T0 + 91 * DAY })).status).toBe(404);
@@ -423,5 +425,30 @@ describe('the clean-up and the route', () => {
     const token = tokenOf((await res.json()).url);
     const f = await worker.fetch(new Request(`https://c.example/cal/${token}.ics`), env, { waitUntil() {} });
     expect(f.status).toBe(200);
+  });
+});
+
+describe('code review round 1 Q13 (Jordan, 22 Nov): the link cap, the address limit and the never-fetched prune', () => {
+  const keyN = n => n.toString(16).padStart(2, '0').repeat(32);
+  const ipHeader = ip => ({ 'cf-connecting-ip': ip });
+  it('the collector-wide cap is 20,000 links', () => {
+    expect(CAL_MAX_FEEDS).toBe(20000);
+  });
+  it('the per-address limit on new links applies WITHOUT CSV_UPLOAD_KEY too, and an IPv6 address counts by its /64', async () => {
+    delete env.CSV_UPLOAD_KEY;
+    for (let i = 1; i <= CAL_NEW_PER_ADDRESS_DAY; i++) expect((await post('/cal/new', { k: keyN(i) }, T0, ipHeader('203.0.113.1'))).status).toBe(200);
+    expect((await post('/cal/new', { k: keyN(99) }, T0, ipHeader('203.0.113.1'))).status).toBe(429);
+    expect((await post('/cal/new', { k: keyN(99) }, T0, ipHeader('198.51.100.2'))).status).toBe(200);
+    for (let i = 1; i <= CAL_NEW_PER_ADDRESS_DAY; i++) expect((await post('/cal/new', { k: keyN(100 + i) }, T0, ipHeader(`2001:db8:1:2:${i}::1`))).status).toBe(200);
+    expect((await post('/cal/new', { k: keyN(250) }, T0, ipHeader('2001:db8:1:2:ffff::9'))).status).toBe(429);
+  });
+  it('pruneCal deletes a link never fetched after 7 days, but keeps one that was fetched, and one under 7 days old', async () => {
+    const never = tokenOf((await mint(K, T0)).body.url);
+    const fetched = tokenOf((await mint(K2, T0)).body.url);
+    expect((await feed(fetched, { now: T0 + DAY })).status).toBe(200);
+    expect(await pruneCal(env, T0 + 6 * DAY)).toBe(0);
+    expect(await pruneCal(env, T0 + 8 * DAY)).toBe(1);
+    expect((await feed(never, { now: T0 + 8 * DAY })).status).toBe(404);
+    expect((await feed(fetched, { now: T0 + 8 * DAY })).status).toBe(200);
   });
 });
