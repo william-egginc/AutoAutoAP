@@ -970,7 +970,7 @@
               type="button"
               class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-white/60"
               data-testid="by-date-name-it"
-              @click="namingOpen = true"
+              @click="nameIt"
             >
               Put my name on it
             </button>
@@ -979,6 +979,7 @@
         </template>
         <ShareResult
           v-else-if="best && collectorConfigured"
+          ref="shareBox"
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
           v-model:opt-in="shareOptIn"
@@ -2854,6 +2855,14 @@ const {
 
 /** Put my name on it, with no name chosen yet: the box for the name is shown in place of the on-board line while it is chosen. */
 const namingOpen = keptRef(false);
+const shareBox = ref<InstanceType<typeof ShareResult> | null>(null);
+/** Put my name on it with no name chosen: the box takes the on-board line's place and its setting opens on "Credit me as",
+ *  so the rename button below it is never disabled with no way shown to enable it. */
+async function nameIt(): Promise<void> {
+  namingOpen.value = true;
+  await nextTick();
+  shareBox.value?.openForName();
+}
 watch(resultKey, () => {
   namingOpen.value = false;
 });

@@ -146,4 +146,6 @@ watch(optIn, v => {
  *  open on "Credit me as". */
 const sharing = ref<InstanceType<typeof SharingSummary> | null>(null);
 provide(OPEN_SHARING_FOR_NAME, () => void sharing.value?.openForName());
+/** The screen opens the setting on "Credit me as" itself (DeadlinePanel's Put my name on it). */
+defineExpose({ openForName: () => sharing.value?.openForName() });
 </script>
