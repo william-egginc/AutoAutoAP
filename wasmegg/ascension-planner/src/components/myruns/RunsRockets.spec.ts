@@ -16,7 +16,7 @@ const view = readFileSync(new URL('../MyRunsView.vue', import.meta.url), 'utf8')
 const page = readFileSync(new URL('../../composables/useNowPage.ts', import.meta.url), 'utf8');
 const store = readFileSync(new URL('../../stores/humilityOptimizer.ts', import.meta.url), 'utf8');
 
-const STOP = { arrival: Date.UTC(2027, 4, 14, 5, 4) / 1000, end: Date.UTC(2027, 4, 17, 5, 0) / 1000, lengthSeconds: 71 * 3600 + 56 * 60, current: false };
+const STOP = { arrival: Date.UTC(2027, 4, 14, 5, 4) / 1000, end: Date.UTC(2027, 4, 17, 5, 0) / 1000, lengthSeconds: 71 * 3600 + 56 * 60, current: false, approximate: false };
 const draw = async (props: Record<string, unknown>) =>
   textOf(await renderHtml(RunsRockets, { now: STOP.arrival - 86400, zone: 'America/Denver', ...props }, {}, [createPinia()]));
 
@@ -30,6 +30,11 @@ describe('the row', () => {
     expect(t).toContain('Thu, May 13');
     expect(t).toContain('2d 23h');
     expect(t).toContain('Plan the rockets');
+  });
+  it('a stop from a plan not simulated yet says its dates are about', async () => {
+    const t = await draw({ stop: { ...STOP, approximate: true } });
+    expect(t).toContain('about ');
+    expect(await draw({ stop: STOP })).not.toContain('about ');
   });
   it('the panel is not loaded until the row is opened', () => {
     expect(src).toMatch(/watch\(\s*open,[\s\S]*?import\('@\/components\/actions\/rockets\/HumilityOptimizerPanel\.vue'\)/);
@@ -50,7 +55,9 @@ describe('where it sits', () => {
     expect(view).toMatch(/<\/RightNowCard>\s*(?:<!--[\s\S]*?-->\s*)?<RunsRockets[^>]*:stop="page\.humilityStop\.value"/);
   });
   it('useNowPage reads the stop off the simulated first ascension', () => {
-    expect(page).toContain('humilityStopOf(actionLegs.value[0], now.value)');
+    expect(page).toContain('humilityStopOf(actionLegs.value[0], now.value, currentEgg.value)');
+    // Jordan's shot 1: a followed plan still on the table ("a rough estimate") has no simulated leg; the row shows anyway.
+    expect(page).not.toMatch(/humilityStop = computed\([^\n]*simulated/);
     expect(page).toMatch(/^\s+humilityStop,$/m);
   });
   it('the store can say whether a visit has its own settings', () => {

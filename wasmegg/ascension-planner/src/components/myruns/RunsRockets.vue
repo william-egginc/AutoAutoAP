@@ -86,7 +86,8 @@ const stopLine = computed(() => {
   const s = props.stop;
   if (!s) return '';
   const at = (t: number) => formatMoment(t * 1000, { zone: props.zone, weekday: true, year: 'auto' });
-  return `${s.current ? 'Now on it, until' : at(s.arrival) + ' to'} ${at(s.end)} · ${formatDuration(s.lengthSeconds)}`;
+  const rough = s.approximate ? 'about ' : '';
+  return `${s.current ? 'Now on it, until' : at(s.arrival) + ' to'} ${rough}${at(s.end)} · ${rough}${formatDuration(s.lengthSeconds)}`;
 });
 
 const current = computed(() => (props.stop && store.player ? visitForStop(props.stop, openedAt.value || props.now, store.player) : null));

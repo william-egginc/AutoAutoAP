@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ei, fuelTankSizes } from 'lib';
 import { visitForStop } from './optimizerStop';
 
-const stop = { arrival: 20_000, end: 20_000 + 52 * 3600, lengthSeconds: 52 * 3600, current: false };
+const stop = { arrival: 20_000, end: 20_000 + 52 * 3600, lengthSeconds: 52 * 3600, current: false, approximate: false };
 const fuels = new Map<ei.Egg, number>([
   [ei.Egg.CURIOSITY, 13e12],
   [ei.Egg.INTEGRITY, 450e9],

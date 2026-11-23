@@ -23,7 +23,7 @@ const SHIFTS = [
 
 describe('humilityStopOf', () => {
   it('the next stop before it starts: its arrival and how long the plan stays', () => {
-    expect(humilityStopOf(leg(SHIFTS, 400_000), 5000)).toEqual({ arrival: 20_000, end: 20_000 + 52 * 3600, lengthSeconds: 52 * 3600, current: false });
+    expect(humilityStopOf(leg(SHIFTS, 400_000), 5000)).toEqual({ arrival: 20_000, end: 20_000 + 52 * 3600, lengthSeconds: 52 * 3600, current: false, approximate: false });
   });
   it('the current stop while the player is on it', () => {
     const s = humilityStopOf(leg(SHIFTS, 400_000), 30_000)!;
@@ -32,7 +32,6 @@ describe('humilityStopOf', () => {
   });
   it('none once the plan has left Humility, or without simulated shifts', () => {
     expect(humilityStopOf(leg(SHIFTS, 400_000), 20_000 + 53 * 3600)).toBeNull();
-    expect(humilityStopOf(leg(SHIFTS, 400_000, { simulated: false }), 5000)).toBeNull();
     expect(humilityStopOf(leg([{ at: 1000, egg: 'curiosity' }]), 5000)).toBeNull();
     expect(humilityStopOf(null, 5000)).toBeNull();
   });
@@ -50,6 +49,21 @@ describe('humilityStopOf', () => {
     ];
     expect(humilityStopOf(leg(twice, 90_000), 25_000)!.arrival).toBe(50_000);
     expect(humilityStopOf(leg(twice, 90_000), 15_000)!.arrival).toBe(10_000);
+  });
+});
+
+describe('a plan still on the table (not simulated: "a rough estimate", Jordan 23 Nov 2026 shot 1)', () => {
+  it('still gives the stop, marked approximate: his row was missing because only simulated legs counted', () => {
+    const s = humilityStopOf(leg(SHIFTS, 400_000, { simulated: false }), 30_000)!;
+    expect(s).toMatchObject({ arrival: 20_000, end: 20_000 + 52 * 3600, current: true, approximate: true });
+    expect(humilityStopOf(leg(SHIFTS, 400_000), 30_000)!.approximate).toBe(false);
+  });
+  it('on Humility with no shift to it in the list (the ascension began there): from the ascension start to the next shift', () => {
+    const s = humilityStopOf(leg([{ at: 50_000, egg: 'kindness' }], 400_000, { start: 10_000, simulated: false }), 30_000, 'humility')!;
+    expect(s).toMatchObject({ arrival: 10_000, end: 50_000, current: true });
+  });
+  it('the save says another egg: no invented current stop', () => {
+    expect(humilityStopOf(leg([{ at: 50_000, egg: 'kindness' }], 400_000, { start: 10_000 }), 30_000, 'curiosity')).toBeNull();
   });
 });
 

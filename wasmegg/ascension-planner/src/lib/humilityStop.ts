@@ -12,17 +12,25 @@ export interface HumilityStop {
   lengthSeconds: number;
   /** The player is on it now (`now` is past the arrival, before the end). */
   current: boolean;
+  /** From the table, not the simulation of the save: dates are estimates. */
+  approximate: boolean;
 }
 
 /** The first Humility stop that has not finished at `now`, or null: no simulated shifts, or none left. */
-export function humilityStopOf(leg: ActionLeg | null | undefined, now: number): HumilityStop | null {
-  if (!leg?.simulated || !leg.shifts?.length) return null;
+export function humilityStopOf(leg: ActionLeg | null | undefined, now: number, saveEgg?: string | null): HumilityStop | null {
+  if (!leg?.shifts?.length) return null;
+  const approximate = !leg.simulated;
   const shifts = [...leg.shifts].sort((a, b) => a.at - b.at);
   for (let i = 0; i < shifts.length; i++) {
     if (shifts[i].egg !== 'humility') continue;
     const end = shifts[i + 1]?.at ?? leg.end;
     if (end <= now) continue;
-    return { arrival: shifts[i].at, end, lengthSeconds: end - shifts[i].at, current: now >= shifts[i].at };
+    return { arrival: shifts[i].at, end, lengthSeconds: end - shifts[i].at, current: now >= shifts[i].at, approximate };
+  }
+  // The ascension began on Humility, so no shift goes to it: the save's egg says it is where the player is.
+  if (saveEgg === 'humility' && now >= leg.start && now < leg.end && !shifts.some(sh => sh.at <= now && sh.egg !== 'humility')) {
+    const end = shifts.find(sh => sh.at > now)?.at ?? leg.end;
+    return { arrival: leg.start, end, lengthSeconds: end - leg.start, current: true, approximate };
   }
   return null;
 }
