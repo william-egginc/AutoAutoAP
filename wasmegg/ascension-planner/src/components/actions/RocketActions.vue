@@ -12,7 +12,17 @@
       :tank-level="fuelTankStore.tankLevel"
     />
 
-    <HumilityMissionsImport />
+    <HumilityOptimizer />
+
+    <!-- The file round trip through the artifact explorer, for visits solved there. -->
+    <details :open="missionsStore.file !== null">
+      <summary class="text-small text-gray-600 hover:text-gray-800 cursor-pointer select-none">
+        Solved a visit in the artifact explorer instead? Import its missions file
+      </summary>
+      <div class="mt-2">
+        <HumilityMissionsImport />
+      </div>
+    </details>
 
     <!-- Mission Grid -->
     <MissionGrid :ftl-level="ftlLevel" :earnings-per-second="earningsPerSecond" />
@@ -86,11 +96,14 @@ import { getSimulationContext } from 'lib/planners/engine/adapter';
 
 import FuelTankGraphic from 'ui/components/planners/actions/rockets/FuelTankGraphic.vue';
 import HumilityMissionsImport from 'ui/components/planners/actions/rockets/HumilityMissionsImport.vue';
+import HumilityOptimizer from './rockets/HumilityOptimizer.vue';
+import { useHumilityMissionsStore } from '@/stores/humilityMissions';
 import MissionGrid from 'ui/components/planners/actions/rockets/MissionGrid.vue';
 import MissionSummary from 'ui/components/planners/actions/rockets/MissionSummary.vue';
 
 const fuelTankStore = useFuelTankStore();
 const rocketsStore = useRocketsStore();
+const missionsStore = useHumilityMissionsStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
 const { output: earningsOutput } = useEarnings();

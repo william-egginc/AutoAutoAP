@@ -16,10 +16,14 @@ import {
   planLabelFor,
   PlanSaveError,
   sliceHumilityVisits,
-} from '@/lib/plan/read';
-import { buildHumilityMissionsFile, humilityMissionsFilename, projectSolvedVisit } from '@/lib/plan/write';
-import { HUMILITY_MISSIONS_SCHEMA, type HumilityMissionsFile } from '@/lib/plan/schema';
-import type { LaunchSolution, OptimizerSolution, SlotSummary } from '@/lib/types';
+} from 'lib/mission-optimizer/plan/read';
+import {
+  buildHumilityMissionsFile,
+  humilityMissionsFilename,
+  projectSolvedVisit,
+} from 'lib/mission-optimizer/plan/write';
+import { HUMILITY_MISSIONS_SCHEMA, type HumilityMissionsFile } from 'lib/mission-optimizer/plan/schema';
+import type { LaunchSolution, OptimizerSolution, SlotSummary } from 'lib/mission-optimizer/types';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 
 const FIXTURES = new URL('../fixtures/', import.meta.url).pathname;
@@ -365,6 +369,9 @@ describe('reading a malformed plan save', () => {
       ['2026-03-01', '12:00', 'UTC'],
       ['2026-03-08', '01:30', 'America/New_York'], // just before the US spring-forward
       ['2026-03-08', '03:30', 'America/New_York'], // just after it
+      ['2026-03-08', '02:30', 'America/New_York'], // inside the spring-forward gap: read as 03:30, as Date does
+      ['2026-03-08', '08:00', 'America/New_York'], // later on the change day (AP's R2 DST fix, 6 Nov 2026)
+      ['2026-11-01', '07:00', 'America/New_York'], // later on the fall-back day
       ['2026-11-01', '01:30', 'America/New_York'], // the US fall-back's repeated hour
       ['2026-03-29', '00:30', 'Europe/London'], // UK spring-forward
       ['2026-01-15', '09:00', 'Australia/Sydney'], // southern-hemisphere DST active
@@ -399,7 +406,7 @@ function launch(
 }
 
 function solutionOf(runs: LaunchSolution[], overrides: Partial<OptimizerSolution> = {}): OptimizerSolution {
-  const slots: SlotSummary[] = [{ loadSeconds: 0, rawLoadSeconds: 0, missionCount: 0 }];
+  const slots: SlotSummary[] = [{ loadSeconds: 0, rawLoadSeconds: 0, launches: [] }];
   return {
     bestProbability: 0,
     craftProbability: 0,
@@ -498,6 +505,94 @@ describe('writing a humility missions file', () => {
     });
     expect(solved.launches).toHaveLength(1);
     expect(solved.launches[0].count).toBe(12);
+  });
+
+  // A sleep-aware plan launches one mission both by day and overnight, as two entries. AP flies them the
+  // same way, so they are one line, and the sleep window rides along for whoever reads the file.
+  it('folds the daytime and overnight launches of one mission into one line', () => {
+    const [visit] = sliceHumilityVisits(planSave());
+    const solved = projectSolvedVisit({
+      visit,
+      effort: 'max',
+      gemBudget: 0,
+      solution: solutionOf(
+        [
+          { ...launch(Spaceship.HENERPRISE, DurationType.SHORT, SHIP_IN_A_BOTTLE, 30), nights: 0 },
+          { ...launch(Spaceship.HENERPRISE, DurationType.SHORT, SHIP_IN_A_BOTTLE, 12), nights: 1 },
+        ],
+        { sleepSeconds: 28800, timeUnitsUsed: 864000, runningTimeSeconds: 700000 }
+      ),
+    });
+    expect(solved.launches).toHaveLength(1);
+    expect(solved.launches[0].count).toBe(42);
+    expect(solved.sleepSeconds).toBe(28800);
+    // The wall-clock length of the laid-out plan, nights included: what AP waits the visit out for.
+    expect(solved.makespanSeconds).toBe(864000);
+    expect(solved.rawMakespanSeconds).toBe(700000);
+    expect(solved.effort).toBe('max');
+  });
+
+  it('writes no sleep window for a plan made around the clock', () => {
+    const [visit] = sliceHumilityVisits(planSave());
+    const solved = projectSolvedVisit({
+      visit,
+      effort: 'medium',
+      gemBudget: 0,
+      solution: solutionOf([launch(Spaceship.ATREGGIES, DurationType.EPIC, SHIP_IN_A_BOTTLE, 1)]),
+    });
+    expect('sleepSeconds' in solved).toBe(false);
+  });
+
+  // A doubled launch brings home twice as much, so it is not the same line as the mission at 1x. Its `event` and
+  // `overhang` variants are flown alike, so those are one line.
+  it('marks doubled launches on a line of their own, and writes nothing new for a plan without an event', () => {
+    const [visit] = sliceHumilityVisits(planSave());
+    const base = launch(Spaceship.HENERPRISE, DurationType.SHORT, SHIP_IN_A_BOTTLE, 0);
+    const solved = projectSolvedVisit({
+      visit,
+      effort: 'medium',
+      gemBudget: 0,
+      solution: solutionOf(
+        [
+          { ...base, numShipsLaunched: 5, variant: 'normal' },
+          { ...base, numShipsLaunched: 3, variant: 'event' },
+          { ...base, numShipsLaunched: 1, variant: 'overhang' },
+        ],
+        { eventWindowSeconds: 172800 }
+      ),
+    });
+    expect(solved.launches.map(l => [l.count, l.doubled])).toEqual([
+      [5, undefined],
+      [4, true],
+    ]);
+    expect('doubled' in solved.launches[0]).toBe(false);
+    expect(solved.eventWindowSeconds).toBe(172800);
+
+    const plain = projectSolvedVisit({
+      visit,
+      effort: 'medium',
+      gemBudget: 0,
+      solution: solutionOf([{ ...base, numShipsLaunched: 2 }]),
+    });
+    expect(plain.launches.some(l => 'doubled' in l)).toBe(false);
+    expect('eventWindowSeconds' in plain).toBe(false);
+  });
+
+  it('round-trips a doubled marker through JSON', () => {
+    const [visit] = sliceHumilityVisits(planSave());
+    const base = launch(Spaceship.HENERPRISE, DurationType.SHORT, SHIP_IN_A_BOTTLE, 2);
+    const file = buildHumilityMissionsFile('plan', [
+      projectSolvedVisit({
+        visit,
+        effort: 'medium',
+        gemBudget: 0,
+        solution: solutionOf([{ ...base, variant: 'event' }], { eventWindowSeconds: 3600 }),
+      }),
+    ]);
+    const read = JSON.parse(JSON.stringify(file)) as HumilityMissionsFile;
+    expect(read.visits[0].launches).toEqual([
+      { ship: 'HENERPRISE', duration: 'SHORT', targetAfxId: 25, count: 2, doubled: true },
+    ]);
   });
 
   it('separates the same ship aimed at two targets, which a {ship, duration, count} triple cannot', () => {
