@@ -90,6 +90,12 @@ export function simSetupKey(o: {
   noPrestige: unknown;
   firstAscension: string | null | undefined;
   deferShifts: boolean;
+  /** Setup's silo trick (the store's `siloTrick`): the simulation reads it (search/leg.ts legContext). */
+  siloTrick?: boolean;
+  /** The plan's IANA time zone: the days off and no-prestige days become windows in it. Both added 22 Nov 2026 (code
+   *  review round 2, R7.3: a kept "exact" ascension outlived a change to either); the longer key misses every older
+   *  record once. */
+  zone?: string;
 }): string {
   const list = (x: unknown) => (Array.isArray(x) ? x : []);
   return JSON.stringify([
@@ -100,6 +106,8 @@ export function simSetupKey(o: {
     !!o.deferShifts,
     SIM_RECORD_RULES,
     resultCode(),
+    !!o.siloTrick,
+    o.zone ?? null,
   ]);
 }
 

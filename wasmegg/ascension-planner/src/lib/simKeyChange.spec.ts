@@ -17,4 +17,11 @@ describe('which part of the request changed', () => {
     );
     expect(simKeyChange(base, { ...base })).toBe('nothing');
   });
+
+  it('names the silo trick and the zone (code review round 2, 22 Nov 2026, R7.3)', () => {
+    const o = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup', deferShifts: false };
+    const was = { ...base, setup: simSetupKey({ ...o, zone: 'America/Denver' }) };
+    expect(simKeyChange(was, { ...base, setup: simSetupKey({ ...o, zone: 'America/Denver', siloTrick: true }) })).toBe('setup: silo trick');
+    expect(simKeyChange(was, { ...base, setup: simSetupKey({ ...o, zone: 'America/New_York' }) })).toBe('setup: zone');
+  });
 });

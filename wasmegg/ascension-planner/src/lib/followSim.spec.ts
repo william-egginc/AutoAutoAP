@@ -102,6 +102,13 @@ describe('keys and the leg', () => {
     expect(simKey({ account: 'a', backupTime: 5, route: [1, 2], setup: 's' })).toBe('a|5|1,2|s');
   });
 
+  it('the silo trick and the plan\'s zone are in the key too (code review round 2, 22 Nov 2026, R7.3)', () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [{ date: '2026-11-01' }], firstAscension: 'auto', deferShifts: true, zone: 'America/Denver' };
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, siloTrick: true }));
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, zone: 'America/New_York' }));
+    expect(simSetupKey({ ...base, siloTrick: false })).toBe(simSetupKey(base));
+  });
+
   it('a record kept before the no-empty-build-up rules is never found again (spec-noemptybuild)', () => {
     const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
     // The setup key as it was made before (no rules in it): Jordan's alt kept a 6-shift build-up that bought nothing.

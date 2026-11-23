@@ -1433,6 +1433,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         noPrestige: store.noPrestige,
         firstAscension,
         deferShifts: !!store.deferShifts,
+        siloTrick: !!store.siloTrick,
+        zone: zone.value,
       });
     const backupTime = saveSeconds.value;
     // The two sides' keys (A1 CHOICE): the record of either side says what the choice is.
