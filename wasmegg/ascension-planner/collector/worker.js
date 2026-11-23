@@ -2832,6 +2832,8 @@ async function cappedText(request, max) {
 // that stores an accepted row then reuses, so an accepted send costs what it always did.
 const QUAR = {
   TTL_SECONDS: 180 * 24 * 60 * 60,
+  /** New quarantined records a day for the whole collector (Jordan 22 Nov 2026): 2 KV writes each. */
+  PER_DAY: 50,
   /** Legs vs the total: the total may exceed the legs by the time off (whole dates) and by this much
    *  either way. Live: worst 1.05 d (0.16%), and 2.0 d on rows with 2 days off, which the time off
    *  explains to 0.001 d. */
@@ -3043,6 +3045,21 @@ async function quarantineId(record) {
   return (await sha256hex(`quar|${sender}|${fingerprint(record)}|${searchSig(record)}`)).slice(0, 8);
 }
 
+/** The row kept in a quarantine record, with its biggest optional blocks left out (SNAP_TRIM_ORDER) until it is about 12 KB: a quarantined
+ *  body is only for a human to look at, and `space.bands` alone can be 500 KB. */
+const QUAR_ROW_MAX_BYTES = 12 * 1024;
+function trimQuarRow(record) {
+  let row = { ...record };
+  if (JSON.stringify(row).length <= QUAR_ROW_MAX_BYTES) return record;
+  for (const k of SNAP_TRIM_ORDER) {
+    if (!(k in row)) continue;
+    delete row[k];
+    row.trimmed = true;
+    if (JSON.stringify(row).length <= QUAR_ROW_MAX_BYTES) break;
+  }
+  return row;
+}
+
 /** Store a quarantined send and answer it (see "the answer, two ways"). The gate is committed here. */
 async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
   const id = await quarantineId(record);
@@ -3051,6 +3068,14 @@ async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
   const held = await env.SUBMISSIONS.get(key, 'stream');
   if (held && typeof held.cancel === 'function') await held.cancel().catch(() => {});
   if (held === null || held === undefined) {
+    // A day-wide cap on NEW quarantined records (Jordan 22 Nov, round 2 C2.7): each costs 2 KV writes of the Free plan's 1,000 a day
+    // and its body is kept 180 days. Spent only by a send that would write, so an honest retry of a stored one is still answered.
+    const perDay = Number(env.QUAR_PER_DAY) || QUAR.PER_DAY;
+    const day = await spend(env, 'quar-day', 1, perDay, Date.now(), DAY_MS);
+    if (!day.ok) {
+      const retryAfter = waitSeconds(day.since, DAY_MS, Date.now());
+      return json({ error: 'the collector has taken all the refused results it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
+    }
     let extras = null;
     try {
       const e = pickExtras(body, record);
@@ -3058,7 +3083,7 @@ async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
     } catch {
       extras = null;
     }
-    const value = JSON.stringify({ row: record, reasons, ...(extras ? { extras } : {}) });
+    const value = JSON.stringify({ row: trimQuarRow(record), reasons, ...(extras ? { extras } : {}) });
     await env.SUBMISSIONS.put(key, value, {
       expirationTtl: QUAR.TTL_SECONDS,
       metadata: { r: reasons.map(r => r.code).join(',').slice(0, 200) },

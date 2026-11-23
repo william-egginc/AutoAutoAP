@@ -6,6 +6,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from './worker.js';
+import { makeD1 } from './d1shim.js';
 
 /** KV with TTLs (list shows `expiration` for a key written with one, as real KV does), metadata, and
  *  paging (`pageSize`, so a cursor can be tested without a thousand keys). */
@@ -469,3 +470,34 @@ describe('the cron sweep', () => {
 });
 
 vi.setConfig({ testTimeout: 20000 });
+
+describe('code review round 2, C2.7: quarantined sends have a daily cap (Jordan: 50 a day; QUAR_PER_DAY)', () => {
+  const bad = n => ({ ...GOOD, durationDays: 741.965 + n * 0.001 + 100, endUtc: endAfter(741.965 + n * 0.001 + 100) });
+  it('the (N+1)th NEW quarantined send gets 429 and adds no quar: key; a repeat of one already stored still gets its id', async () => {
+    env.WATCH = makeD1();
+    env.QUAR_PER_DAY = '3';
+    const ids = [];
+    for (let n = 0; n < 3; n++) {
+      const res = await send(bad(n));
+      expect(res.status).toBe(200);
+      ids.push((await res.json()).id);
+    }
+    expect(keysOf('quar:')).toHaveLength(3);
+    const over = await send(bad(3));
+    expect(over.status).toBe(429);
+    expect((await over.json()).retryAfter).toBeGreaterThan(0);
+    expect(keysOf('quar:')).toHaveLength(3);
+    // The trade-off, chosen on purpose: the cap is spent only by a send that would WRITE, so an honest retry of a stored one is answered.
+    const again = await send(bad(0));
+    expect(again.status).toBe(200);
+    expect((await again.json()).id).toBe(ids[0]);
+  });
+  it('a quarantined row with 32 x 1,024 band values is stored under 32 KB', async () => {
+    env.WATCH = makeD1();
+    const space = { mode: 'bands', bands: Array.from({ length: 32 }, (_, b) => Array.from({ length: 1024 }, (_, i) => (b * 7 + i) % 1001)), minGap: 1, minAscensions: 1, maxAscensions: 32, chains: 1e9 };
+    const res = await send({ ...bad(50), space });
+    expect(res.status).toBe(200);
+    const [key] = keysOf('quar:');
+    expect(env.SUBMISSIONS._m.get(key).length).toBeLessThan(32 * 1024);
+  });
+});
