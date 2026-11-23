@@ -94,15 +94,19 @@ export function currentHumilityVisit(
 
   const tag = humilitySourceTag(run.visitId);
   // The plan save's shape, as far as the reader looks. Live actions already carry everything it reads.
-  const save = {
-    version: 1,
-    initialState: { epicResearchLevels },
-    virtueState: clock,
-    actions: actions.filter(action => action.sourceTag !== tag),
-  } as unknown as PlanSave;
-  const visits = sliceHumilityVisits(save);
-  const visit = visits.find(v => v.visitId === run.visitId);
+  const saveOf = (list: readonly Action[]) =>
+    ({
+      version: 1,
+      initialState: { epicResearchLevels },
+      virtueState: clock,
+      actions: list.filter(action => action.sourceTag !== tag),
+    }) as unknown as PlanSave;
+  // The visit itself is read from what comes before the insertion point: the time already spent on Humility, which dates
+  // where the launches start, must not count the actions the plan has there AFTER it (game expert, 23 Nov 2026). How many
+  // visits the plan has, for "H2 of 3", is read from the whole plan.
+  const visit = sliceHumilityVisits(saveOf(actionsBeforeInsertion)).find(v => v.visitId === run.visitId);
   if (!visit) return null;
+  const visits = sliceHumilityVisits(saveOf(actions));
 
   // The tank where the launch will be inserted, not on arrival: anything the player launched by hand
   // earlier in this visit is fuel already gone. What this visit's own staged actions did to it is undone,

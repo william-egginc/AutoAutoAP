@@ -78,6 +78,17 @@ describe('the visit the planner is on', () => {
     expect(current?.visit.plannedDurationSeconds).toBe(86400 + 7200);
   });
 
+  it('counts only the time spent on Humility before the insertion point (game expert, 23 Nov 2026)', () => {
+    // Inserting right after the shift that enters Humility: the 24 h wait that follows is not time already spent, so the
+    // launch window starts at arrival, not a day later. The visit count is still the plan's.
+    const current = read(plan(), 2);
+    expect(current?.visit.visitId).toBe('shift_a1b2c3d');
+    expect(current?.visit.plannedDurationSeconds).toBe(0);
+    expect(current?.visitCount).toBe(2);
+    // At the end of the visit nothing changes.
+    expect(read(plan(), 3)?.visit.plannedDurationSeconds).toBe(86400);
+  });
+
   it('describes the visit without the missions the optimizer staged for it', () => {
     const current = read(withLaunch(humilitySourceTag('shift_a1b2c3d')), 4);
     // Restaging replaces the launch, so its fuel is still there to spend and its time is not yet spent.
