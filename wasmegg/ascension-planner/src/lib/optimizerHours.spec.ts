@@ -125,3 +125,35 @@ describe('launches against the real hours', () => {
     expect(launchesInBlockedHours(solution([0, 18 * 3600]), MON_NOON, null)).toBe(0);
   });
 });
+
+describe("the first launch of each day is never before the wake-up (Jordan's 7 AM to 1 AM, shot 23 Nov 2026: launches at 6:59 AM)", () => {
+  // The solver launches at its own wake-up: the plan start less `hoursSinceWake`, plus whole days. The wake offset was
+  // rounded to the NEAREST minute, so a start with seconds put that instant up to 30 s before the real 7:00.
+  const denver: Availability = { days: [], fromHour: 7, toHour: 1, timezone: 'America/Denver' };
+  // Fri 14 May 2027, 11:04 PM MDT, plus some seconds.
+  const base = Date.parse('2027-05-14T23:04:00-06:00') / 1000;
+
+  it('the solver wake-up instants land at or after 7:00 AM in the awake hours, whatever seconds the start has', () => {
+    for (const sec of [0, 1, 7, 29, 30, 31, 45, 59]) {
+      const start = base + sec;
+      const w = awakeWindowFor(denver, start, 3 * DAY)!;
+      expect(w.awakeFrom).toBe(7);
+      for (let day = 1; day <= 3; day++) {
+        const wake = start - w.hoursSinceWake * 3600 + day * DAY;
+        const wall = new Date((wake - 6 * 3600) * 1000);
+        const secondsIntoDay = wall.getUTCHours() * 3600 + wall.getUTCMinutes() * 60 + wall.getUTCSeconds();
+        expect(secondsIntoDay, `start +${sec}s, day ${day}`).toBeGreaterThanOrEqual(7 * 3600);
+        // ... and not a minute or more late.
+        expect(secondsIntoDay, `start +${sec}s, day ${day}`).toBeLessThan(7 * 3600 + 60);
+      }
+    }
+  });
+
+  it('launches made at those instants are in the awake hours (not counted as hours off)', () => {
+    const start = base + 29;
+    const w = awakeWindowFor(denver, start, 3 * DAY)!;
+    const solution = { slots: [{ launches: [1, 2, 3].map(d => ({ choice: 0, launchAt: d * DAY - w.hoursSinceWake * 3600 })) }] } as never;
+    expect(launchesInBlockedHours(solution, start, denver)).toBe(0);
+  });
+});
+

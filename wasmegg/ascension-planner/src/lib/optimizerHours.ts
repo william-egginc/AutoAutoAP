@@ -92,7 +92,10 @@ export function awakeWindowFor(
   const awakeTo = (best.from + best.len) % 24;
 
   // Since the awake stretch began, at the start: the wall-clock hours into the day, from where the stretch starts.
-  const since = Math.round((((startIntoDay - best.from) % 24) + 24) % 24 * 60) / 60;
+  // Rounded DOWN to the minute, never up or to the nearest: the solver's wake-up is the start less this, so a smaller
+  // number puts it later, and the first launch of a day is then at or after the real wake-up, never a minute before it
+  // (the nearest minute put 7:00 AM launches at 6:59, which read as launches in the hours off).
+  const since = Math.floor((((startIntoDay - best.from) % 24) + 24) % 24 * 60 + 1e-6) / 60;
 
   // Exact: every hour the visit reaches is awake exactly when it is in the stretch, on every day. An awake hour
   // outside it (a gap in the afternoon, a later start on one day) is one the plan cannot use.
