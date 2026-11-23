@@ -161,6 +161,8 @@
           />
         </template>
       </RightNowCard>
+      <!-- The optimizer at the Humility stop, read-only (myruns/RunsRockets.vue). -->
+      <RunsRockets :stop="page.humilityStop.value" :now="page.now.value" :zone="page.zone.value" />
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <!-- Your eggs above More (Jordan, 9 Nov 2026). The Full timeline is gone (17 Nov 2026): each ascension's row in Right now's
@@ -426,6 +428,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useMinuteClock } from '@/composables/useMinuteClock';
 import { useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 import RightNowCard from './myruns/RightNowCard.vue';
+import RunsRockets from './myruns/RunsRockets.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SoulEggWarning from './SoulEggWarning.vue';
 import SavedTile from './myruns/SavedTile.vue';

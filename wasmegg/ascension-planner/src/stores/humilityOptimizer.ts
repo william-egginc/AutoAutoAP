@@ -96,6 +96,11 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     return persisted.value.visits[visit.visitId] ?? persisted.value.template;
   }
 
+  /** Whether the visit has settings of its own (rather than the template's): My runs' row seeds the days once. */
+  function hasSettings(visit: HumilityVisit): boolean {
+    return !!persisted.value.visits[visit.visitId];
+  }
+
   /**
    * Gives the visit its own copy of the settings it is showing. Called once a question is posed for it,
    * so that what it was solved for stays put when another visit's choices move the template.
@@ -179,6 +184,7 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     saveLoading,
     saveError,
     loadSave,
+    hasSettings,
     playerSavedAt,
     solved,
     solvedBest,

@@ -57,6 +57,7 @@ import { backupSecondsOf, saveState, saveTEByEggOf, saveTEOf } from '@/lib/saveF
 import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import { progressOf } from '@/lib/planPace';
+import { humilityStopOf } from '@/lib/humilityStop';
 import {
   SAVE_EGG_ORDER,
   ascensionAt,
@@ -1966,6 +1967,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       timeOff: stepTimeOff.value,
     });
   });
+  /** The Humility stop of the ascension you are in, or the next to come, from its simulated shifts (My runs' rockets row). */
+  const humilityStop = computed(() => humilityStopOf(actionLegs.value[0], now.value));
   /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
    *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
   const nextShiftLines = computed<NextShiftLine[]>(() =>
@@ -2354,6 +2357,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     fullHabRates,
     saveBuildLeft,
     nextStep,
+    humilityStop,
     nextShiftLines,
     ascNow,
     track,

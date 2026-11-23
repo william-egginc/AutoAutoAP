@@ -1,0 +1,60 @@
+/**
+ * My runs' rockets row (Jordan, 23 Nov 2026): at the Humility stop of the ascension being followed, collapsed, opening the
+ * optimizer read-only. The panel and the loot data stay behind the tap.
+ */
+const storage: Record<string, string> = {};
+Object.assign(globalThis, { window: { location: { pathname: '/' } }, localStorage: storage });
+
+import { readFileSync } from 'node:fs';
+import { createPinia } from 'pinia';
+import { describe, expect, it } from 'vitest';
+import { renderHtml, textOf } from '@/test/renderComponent';
+import RunsRockets from './RunsRockets.vue';
+
+const src = readFileSync(new URL('./RunsRockets.vue', import.meta.url), 'utf8');
+const view = readFileSync(new URL('../MyRunsView.vue', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../../composables/useNowPage.ts', import.meta.url), 'utf8');
+const store = readFileSync(new URL('../../stores/humilityOptimizer.ts', import.meta.url), 'utf8');
+
+const STOP = { arrival: Date.UTC(2027, 4, 14, 5, 4) / 1000, end: Date.UTC(2027, 4, 17, 5, 0) / 1000, lengthSeconds: 71 * 3600 + 56 * 60, current: false };
+const draw = async (props: Record<string, unknown>) =>
+  textOf(await renderHtml(RunsRockets, { now: STOP.arrival - 86400, zone: 'America/Denver', ...props }, {}, [createPinia()]));
+
+describe('the row', () => {
+  it('shows nothing without a stop', async () => {
+    expect(await draw({ stop: null })).toBe('');
+  });
+  it('collapsed: names the stop, its dates and its length, and offers the plan', async () => {
+    const t = await draw({ stop: STOP });
+    expect(t).toContain('Plan the rockets for your Humility stop');
+    expect(t).toContain('Thu, May 13');
+    expect(t).toContain('2d 23h');
+    expect(t).toContain('Plan the rockets');
+  });
+  it('the panel is not loaded until the row is opened', () => {
+    expect(src).toMatch(/watch\(\s*open,[\s\S]*?import\('@\/components\/actions\/rockets\/HumilityOptimizerPanel\.vue'\)/);
+    expect(src).not.toMatch(/^import .*HumilityOptimizerPanel/m);
+  });
+  it('seeds the days from the stop, once per stop, and hands the panel the stop', () => {
+    expect(src).toContain('stopDurationText(');
+    expect(src).toMatch(/if \(!store\.hasSettings\(/);
+    expect(src).toContain(':stop="current"');
+  });
+  it('is for Pro Permit saves only, as the Manual Planner card is', () => {
+    expect(src).toContain('initialStateStore.proPermit');
+  });
+});
+
+describe('where it sits', () => {
+  it('MyRunsView puts it under Right now, with the stop and the minute clock', () => {
+    expect(view).toMatch(/<\/RightNowCard>\s*(?:<!--[\s\S]*?-->\s*)?<RunsRockets[^>]*:stop="page\.humilityStop\.value"/);
+  });
+  it('useNowPage reads the stop off the simulated first ascension', () => {
+    expect(page).toContain('humilityStopOf(actionLegs.value[0], now.value)');
+    expect(page).toMatch(/^\s+humilityStop,$/m);
+  });
+  it('the store can say whether a visit has its own settings', () => {
+    expect(store).toContain('function hasSettings(');
+    expect(store).toMatch(/^\s+hasSettings,$/m);
+  });
+});

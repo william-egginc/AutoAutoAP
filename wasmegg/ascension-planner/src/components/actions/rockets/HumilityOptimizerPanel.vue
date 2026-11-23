@@ -102,7 +102,7 @@
           </p>
         </div>
 
-        <div>
+        <div v-if="!readOnly">
           <span class="block text-small font-bold text-gray-700">Fuel</span>
           <div class="mt-1 inline-flex rounded-md border border-gray-200 bg-white overflow-hidden" role="group">
             <button
@@ -139,7 +139,7 @@
           </p>
         </div>
 
-        <div>
+        <div v-if="!readOnly">
           <label for="humility-optimizer-gems" class="block text-small font-bold text-gray-700">Ship price limit</label>
           <select
             id="humility-optimizer-gems"
@@ -350,7 +350,13 @@
               </p>
 
               <!-- Applying it -->
-              <div class="border-t border-gray-100 pt-3 space-y-2">
+              <p v-if="readOnly" class="border-t border-gray-100 pt-3 text-small text-gray-600">
+                This is a plan to follow: nothing is staged from here.
+                <a href="#/manual" class="font-bold text-blue-600 hover:text-blue-700" data-testid="optimizer-open-manual"
+                  >Open in Manual Planner to stage it</a
+                >
+              </p>
+              <div v-if="!readOnly" class="border-t border-gray-100 pt-3 space-y-2">
                 <p v-if="saving?.withEarningsSet !== undefined" class="text-small text-gray-600">
                   Saving for these ships takes {{ formatDuration(saving.seconds) }} on the elr set,
                   {{ formatDuration(saving.withEarningsSet) }} on the earnings set.
@@ -487,6 +493,11 @@ const FUEL_OPTIONS: { value: FuelBudget; label: string }[] = [
   { value: 'full-tank', label: 'Full tank' },
 ];
 
+// The stop My runs hands in (lib/optimizerStop.ts): the visit comes from it, not from the Manual Planner's plan, and
+// nothing is staged. Absent in the Manual Planner.
+const props = defineProps<{ stop?: CurrentVisit | null }>();
+const readOnly = computed(() => !!props.stop);
+
 const store = useHumilityOptimizerStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
@@ -507,6 +518,7 @@ const eggIcon = (egg: VirtueEgg) => iconURL(`egginc/egg_${egg}.png`, 64);
 
 // Read together, so a plan the reader rejects shows its message instead of an empty card.
 const reading = computed<{ current: CurrentVisit | null; error: string }>(() => {
+  if (props.stop) return { current: props.stop, error: '' };
   try {
     const current = currentHumilityVisit(
       actionsStore.actions,
@@ -527,9 +539,12 @@ const reading = computed<{ current: CurrentVisit | null; error: string }>(() => 
 const current = computed(() => reading.value.current);
 const visitError = computed(() => reading.value.error);
 
-const settings = computed<OptimizerVisitSettings | null>(() =>
-  current.value ? store.settingsFor(current.value.visit) : null
-);
+const settings = computed<OptimizerVisitSettings | null>(() => {
+  if (!current.value) return null;
+  const stored = store.settingsFor(current.value.visit);
+  // What the stop earns is not known on My runs, so no price limit; and the fuel is the save's tank as it is.
+  return readOnly.value ? { ...stored, gemLimit: 'unlimited', fuelBudget: 'banked' } : stored;
+});
 
 function patch(change: Partial<OptimizerVisitSettings>) {
   if (current.value) store.update(current.value.visit, change);
@@ -813,7 +828,7 @@ const fuelOverflow = computed(() => {
 // How long the plan waits for the gems before the ships can go, on the set it has on and, where a swap
 // can be offered, on the earnings set. The launch's own duration is that wait plus the flight.
 const saving = computed(() => {
-  if (!projected.value || totalShips.value === 0) return null;
+  if (readOnly.value || !projected.value || totalShips.value === 0) return null;
   try {
     const context = getSimulationContext();
     const durations = previewLaunchDurations(actionsStore.actions, projected.value, context);
@@ -850,7 +865,7 @@ watch(
 
 const stagedLaunch = computed(() => {
   const visit = current.value?.visit;
-  if (!visit) return null;
+  if (!visit || readOnly.value) return null;
   const tag = humilitySourceTag(visit.visitId);
   for (const action of actionsStore.actions) {
     if (action.sourceTag === tag && action.type === 'launch_missions') return action;
