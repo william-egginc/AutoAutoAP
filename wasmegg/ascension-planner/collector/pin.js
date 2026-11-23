@@ -25,6 +25,8 @@ import { PLAYER_ID, isKey, overLimit, reply, retry } from './follow.js';
 
 export const PIN_FREE_TRIES = 5;
 export const PIN_TRIES_PER_DAY = 10;
+/** Wrong recovery codes one account may see a day, from anywhere: a backstop only, far above what an honest owner types. */
+export const PIN_RECOVERY_WRONG_PER_ACCOUNT_DAY = 1000;
 export const PIN_TRY_GAP_MS = 3_600_000;
 export const PIN_SESSION_MS = 30 * DAY_MS;
 export const PIN_RESET_MS = 7 * DAY_MS;
@@ -222,9 +224,16 @@ export async function handlePin(request, env, now = Date.now()) {
 
   if (route === 'recover') {
     if (!only(body, ['k', 'recovery', 'pk']) || !isKey(body.pk) || !/^[A-Z2-7]{16}$/.test(body.recovery || '')) return bad(['send { k, recovery, pk }']);
-    const tries = await spend(env, `pinrec|${sk}`, 1, PIN_TRIES_PER_DAY, now, DAY_MS);
-    if (!tries.ok) return retry(waitSeconds(tries.since, DAY_MS, now), 'too many recovery tries today');
-    if (!sameText(await recProofOf(env, sk, body.recovery), row.rec_proof)) return reply({ error: 'wrong recovery code', pin: true }, 401);
+    // The code is compared FIRST: a correct one always works, whatever anyone has guessed (80 bits make a guess hopeless), so a
+    // griefer who knows the ID cannot lock the owner out. Only a WRONG code spends, counted per ADDRESS (10 a day), with a high
+    // per-account backstop that a correct code never meets (code review round 2, C1.6; Jordan 22 Nov).
+    if (!sameText(await recProofOf(env, sk, body.recovery), row.rec_proof)) {
+      const ip = await spend(env, `pinrec|${await ipHash(env, request)}`, 1, PIN_TRIES_PER_DAY, now, DAY_MS);
+      if (!ip.ok) return retry(waitSeconds(ip.since, DAY_MS, now), 'too many recovery tries today from this address');
+      const acct = await spend(env, `pinrec|${sk}`, 1, PIN_RECOVERY_WRONG_PER_ACCOUNT_DAY, now, DAY_MS);
+      if (!acct.ok) return retry(waitSeconds(acct.since, DAY_MS, now), 'too many wrong recovery codes today');
+      return reply({ error: 'wrong recovery code', pin: true }, 401);
+    }
     const code = recoveryCode();
     // One statement: the epoch moves up from whatever it is NOW (a change at the same moment cannot be overwritten with a stale
     // epoch+1), and only while the recovery code is still the one that was just proved (review 22 Nov, C1.3).

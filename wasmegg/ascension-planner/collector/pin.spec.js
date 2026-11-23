@@ -467,3 +467,27 @@ describe('review 22 Nov, C1: a new PIN is a new epoch of its own', () => {
     expect(rowsOf('pin')).toBe(0);
   });
 });
+
+describe('code review round 2, C1.6: recovery tries are counted per address, and a correct code always works', () => {
+  const BAD = 'A'.repeat(16);
+  it('10 wrong codes from address A leave the right code from address B at 200, and the right code from A too; A\'s 11th wrong code gets 429', async () => {
+    const s1 = await (await pin('set', { k: K, pk: PK }, {}, T0, '203.0.113.1')).json();
+    for (let i = 0; i < 10; i++) expect((await pin('recover', { k: K, recovery: BAD, pk: PK2 }, {}, T0 + i, '198.51.100.1')).status).toBe(401);
+    const eleventh = await pin('recover', { k: K, recovery: BAD, pk: PK2 }, {}, T0 + 100, '198.51.100.1');
+    expect(eleventh.status).toBe(429);
+    expect((await eleventh.json()).retryAfter).toBeGreaterThan(0);
+    // The right code from another address, and from the locked address itself: both work.
+    const fromA = await pin('recover', { k: K, recovery: s1.recovery, pk: PK2 }, {}, T0 + 200, '198.51.100.1');
+    expect(fromA.status).toBe(200);
+    const again = (await fromA.json()).recovery;
+    expect((await pin('recover', { k: K, recovery: again, pk: '3'.repeat(64) }, {}, T0 + 300, '192.0.2.77')).status).toBe(200);
+  });
+  it('a different account is not affected by the first one\'s wrong codes from the same address', async () => {
+    await pin('set', { k: K, pk: PK }, {}, T0, '203.0.113.1');
+    const other = await (await pin('set', { k: K2, pk: PK }, {}, T0, '203.0.113.2')).json();
+    for (let i = 0; i < 10; i++) await pin('recover', { k: K, recovery: BAD, pk: PK2 }, {}, T0 + i, '198.51.100.1');
+    // The cap is per address (it is the same address that guessed): the second account's wrong code is also refused from there,
+    // but its right code is not.
+    expect((await pin('recover', { k: K2, recovery: other.recovery, pk: PK2 }, {}, T0 + 50, '198.51.100.1')).status).toBe(200);
+  });
+});
