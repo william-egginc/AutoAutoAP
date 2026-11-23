@@ -82,8 +82,6 @@ export interface Sure {
   level: SureLevel;
   /** "Instant Answer, 5 days old" (shown after "How sure: Medium"). */
   reason: string;
-  /** The button beside it: a short Fast search (Check exactly for By a date's instant answer until 23 Oct 2026). */
-  action?: 'fast';
 }
 
 function age(days: number): string {
@@ -116,7 +114,7 @@ export function howSure(i: SureInput): Sure {
   if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
-  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}` };
+  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}; a newer save may well confirm it` };
   if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)
@@ -151,9 +149,9 @@ export function howSure(i: SureInput): Sure {
   // Medium.
   if (i.how === 'instant')
     return i.goal === 'fastest'
-      ? { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
-      : { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}`, action: 'fast' };
-  if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
+      ? { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}; a short search usually finds a sooner route` }
+      : { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}` };
+  if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route` };
   if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'simulator check done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)
     return { level: 'medium', reason: `${what} done; only ${hours(i.spareHours)} to spare` };

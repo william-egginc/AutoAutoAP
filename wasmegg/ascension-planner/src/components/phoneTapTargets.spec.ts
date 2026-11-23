@@ -136,11 +136,10 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     const form = fs.readFileSync(path.resolve(__dirname, '../../../../ui/components/PlayerIdForm.vue'), 'utf8');
     expect(form).toContain('aria-label="Edit name"');
   });
-  it('My Runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
+  it('My Runs: the links (Load a fresh one, Work it out again, See the routes, Work out my plan)', () => {
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-why-summary"')).toContain(SUMMARY);
     const tile = read('myruns/SavedTile.vue');
-    expect(tagWith(tile, 'v-if="tile.sure.action && !runFastAbove"')).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('open', screenOpen)\"")).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('routes')\"")).toContain(TAP);
     const now = read('myruns/RightNowCard.vue');

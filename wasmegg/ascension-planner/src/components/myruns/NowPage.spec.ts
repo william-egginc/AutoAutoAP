@@ -214,7 +214,7 @@ const tile = (o: Partial<Tile> = {}): Tile => ({
     how: 'instant',
   },
   olderSave: true,
-  sure: { level: 'medium', reason: 'Instant Answer, 5 days old', action: 'fast' },
+  sure: { level: 'medium', reason: 'Instant Answer, 5 days old' },
   ...o,
 });
 
@@ -235,28 +235,11 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('248 TE');
     expect(t).toContain('16h 48m spare · 161 198 218 248');
     expect(t).toContain('Calculated Oct 10 at 2:40 PM (5d ago) · from your save of Oct 10 at 2:20 PM · instant answer');
-    expect(t).toContain('How sure: Medium Instant Answer, 5 days old. Run Fast ›');
+    expect(t).toContain('How sure: Medium Instant Answer, 5 days old.');
+    expect(t).not.toContain('Run Fast');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
     expect(t).toContain('See the routes ›');
-  });
-
-  it("Right now's Run Fast is on the page: How sure gives the reason, no second Run Fast (ux review 26 Oct, row 15)", async () => {
-    const t = textOf(
-      await renderHtml(SavedTile, {
-        tile: tile(),
-        goal: 'date',
-        title: 'Egg Day 2027',
-        target: 490,
-        now: NOW,
-        zone: ZONE,
-        standing: '',
-        standingLabel: 'Egg Day',
-        runFastAbove: true,
-      })
-    );
-    expect(t).toContain('How sure: Medium Instant Answer, 5 days old.');
-    expect(t).not.toContain('Run Fast');
   });
 
   it('nothing yet: says so, with its screen', async () => {

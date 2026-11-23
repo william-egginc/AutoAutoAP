@@ -32,9 +32,6 @@
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
         <span class="block">
           {{ cap(tile.sure.reason) }}.
-          <button v-if="tile.sure.action && !runFastAbove" type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', actionOpen)">
-            Run Fast ›
-          </button>
         </span>
       </div>
       <p v-if="tile.olderSave" class="mt-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-body text-amber-900" data-testid="now-tile-older">
@@ -79,7 +76,6 @@ import { secondaryLine } from '@/lib/currentAnswer';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
-import { fastOpen } from '@/lib/recalc';
 
 const props = defineProps<{
   tile: Tile;
@@ -94,9 +90,6 @@ const props = defineProps<{
   standingLabel: string;
   /** Another date than Egg Day (the goal picked on Right now, 24 Oct 2026): its screen. Absent: Egg Day's. */
   open?: MyRunsOpen | null;
-  /** Right now's Run Fast button is on the page for this same goal: How sure gives no second one (ux review
-   *  26 Oct, row 15: one Run Fast on My Runs). */
-  runFastAbove?: boolean;
   /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`), amber
    *  under a quarter left; given only when the answer is the route Right now follows. Null or absent: none. */
   soulEggsAfter?: { text: string; amber: boolean } | null;
@@ -145,5 +138,4 @@ const secondaryText = computed(() => {
 const screenOpen = computed<MyRunsOpen>(() =>
   props.open ?? (props.goal === 'date' ? { auto: 'by-date', byDate: { eggDay: true } } : { auto: 'fastest', depth: 'smart', target: props.target })
 );
-const actionOpen = computed<MyRunsOpen>(() => fastOpen(screenOpen.value));
 </script>
