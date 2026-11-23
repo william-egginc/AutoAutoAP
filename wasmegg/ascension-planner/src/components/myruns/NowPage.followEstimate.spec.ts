@@ -309,6 +309,30 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     }
   });
 
+  it('(e2) a starting-TE override in Setup: nothing worked out here (it would never be used), and the card says why (code review round 2, 22 Nov 2026, R7.4)', async () => {
+    let asked = 0;
+    // Counts every time a computation would start (the factory is asked for one per run).
+    setInstantComputer(() => {
+      asked++;
+      return null;
+    });
+    setInstantComputeTiming({ delayMs: 0 });
+    const { page, scope, te } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { pricing: false });
+    // Setup's start moved 5 TE above the save's (a computation may already have started for the save's own TE).
+    const init = useInitialStateStore();
+    init.initialTeEarned = { ...init.initialTeEarned, curiosity: (init.initialTeEarned.curiosity ?? 0) + 5 };
+    const before = asked;
+    await vi.waitFor(() =>
+      expect(page.follow.value?.instantFailure).toBe(`Setup starts at ${te + 5} TE and your save is at ${te} TE`)
+    );
+    expect(page.follow.value?.estimating).toBe('nosource');
+    await new Promise(r => setTimeout(r, 50));
+    expect(asked).toBe(before);
+    expect(calls).toHaveLength(0);
+    scope.stop();
+    setInstantComputeTiming(null);
+  });
+
   it("(f) the goal has no instant answer of this save, another goal's does: priced with that one's inputs", async () => {
     const { page, scope, now, eggDayAt } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { snapFor: 'race' });
     await vi.waitFor(() => expect(calls).toHaveLength(1));

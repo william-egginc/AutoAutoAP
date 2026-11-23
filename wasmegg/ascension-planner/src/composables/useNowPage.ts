@@ -994,7 +994,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     return out;
   });
+  /** Setup's starting TE when it is not the save's (a start override): useInstantCompute prices from it, but the
+   *  records are only ever read at the save's own TE (`pickPricing`), so one worked out here would never be used and
+   *  would be redone on every visit (code review round 2, 22 Nov 2026, R7.4). Null without an override. */
+  const overrideTE = computed(() => {
+    const set = Math.floor(store.currentTE);
+    return hasSave.value && set !== Math.floor(teSoFar.value) ? set : null;
+  });
   const instantNeed = computed<InstantComputeRequest | null>(() => {
+    if (overrideTE.value !== null) return null;
     const needs = [...recordNeeds.value.values()];
     const acct = account.value;
     const setup = pricingSetup.value;
@@ -1017,6 +1025,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   );
   /** A goal's state while its record is worked out here, or why it couldn't be. */
   function instantStateFor(goalKey: GoalKey): Pick<FollowCard, 'estimating' | 'instantFailure'> | null {
+    // Not worked out under a starting-TE override (`overrideTE`): the card says why. Asked only where the card has no
+    // price to show (the record is not even listed as needed then: its sources are read at the override's TE).
+    if (overrideTE.value !== null)
+      return {
+        estimating: 'nosource',
+        instantFailure: `Setup starts at ${overrideTE.value} TE and your save is at ${Math.floor(teSoFar.value)} TE`,
+      };
     const st = instantCompute.value;
     const req = instantNeed.value;
     if (!st || !req || st.key !== req.key || !recordNeeds.value.has(goalKey)) return null;
