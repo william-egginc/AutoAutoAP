@@ -174,6 +174,8 @@
           Keep the crafting within my golden eggs ({{ formatNumber(store.player.goldenEggs, 1) }})
         </label>
 
+        <p v-if="outLine" class="sm:col-span-2 text-small text-amber-700" data-testid="optimizer-ships-out">{{ outLine }}</p>
+
         <div v-if="chainStore.availability" class="sm:col-span-2" data-testid="optimizer-my-hours">
           <label class="flex items-center gap-2 text-small font-bold text-gray-700 cursor-pointer select-none">
             <input
@@ -435,6 +437,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { stopDurationText } from '@/lib/humilityStop';
+import { outNowLine } from '@/lib/missionsOut';
 
 import { fuelTankSizes, iconURL, virtueShipGemCosts } from 'lib';
 import { finalizeSolutions, formatProbabilityForDisplay, solutionView } from 'lib/mission-optimizer';
@@ -497,7 +500,7 @@ const FUEL_OPTIONS: { value: FuelBudget; label: string }[] = [
 
 // The stop My runs hands in (lib/optimizerStop.ts): the visit comes from it, not from the Manual Planner's plan, and
 // nothing is staged. Absent in the Manual Planner.
-const props = defineProps<{ stop?: CurrentVisit | null }>();
+const props = defineProps<{ stop?: CurrentVisit | null; zone?: string }>();
 const readOnly = computed(() => !!props.stop);
 
 const store = useHumilityOptimizerStore();
@@ -604,6 +607,15 @@ const delayLine = computed(() => {
   if (!startDelay.value || startUnix.value === null || !zone) return '';
   const at = (t: number) => formatMoment(t * 1000, { zone, weekday: true, year: 'never' });
   return startsInHoursOffLine(at(startUnix.value), at(fitsStartUnix.value!));
+});
+// Ships the save has out: still out when this plan starts, when each returns, and which land after the stop ends. Said
+// only for a plan that starts about when the save was taken; the solver plans all three slots as free (lib/missionsOut.ts).
+const outLine = computed(() => {
+  const from = startUnix.value;
+  if (from === null || timeInvalid.value || !store.outNow.length) return '';
+  if (from < store.playerSavedAt - 3600) return '';
+  const zone = props.zone || chainStore.availability?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return outNowLine(store.outNow, { from, to: from + timeSeconds.value }, zone);
 });
 const hoursOn = computed(() => (hoursWindow.value?.sleepHours ?? 0) > 0);
 // The effort in force: Max with the awake hours on, until the player picks one.

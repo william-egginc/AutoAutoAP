@@ -29,7 +29,7 @@
 
     <div v-if="open" class="border-t border-indigo-100 p-3">
       <template v-if="current">
-        <component :is="panel" v-if="panel" :stop="current" />
+        <component :is="panel" v-if="panel" :stop="current" :zone="zone" />
         <p v-else-if="loadError" class="text-small text-red-600">{{ loadError }}</p>
         <p v-else role="status" class="flex items-center gap-2 text-small text-gray-600">
           <InlineSpinner />

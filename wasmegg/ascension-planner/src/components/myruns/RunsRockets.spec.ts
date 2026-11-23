@@ -51,8 +51,19 @@ describe('the row', () => {
 });
 
 describe('where it sits', () => {
-  it('MyRunsView puts it under Right now, with the stop and the minute clock', () => {
-    expect(view).toMatch(/<\/RightNowCard>\s*(?:<!--[\s\S]*?-->\s*)?<RunsRockets[^>]*:stop="page\.humilityStop\.value"/);
+  it('MyRunsView passes it into Right now\'s rockets slot, with the stop and the minute clock', () => {
+    expect(view).toMatch(/<template #rockets>\s*(?:<!--[\s\S]*?-->\s*)?<RunsRockets[^>]*:stop="page\.humilityStop\.value"/);
+    expect(view).not.toMatch(/<\/RightNowCard>\s*(?:<!--[\s\S]*?-->\s*)?<RunsRockets/);
+  });
+  it('the slot is right under the Next step box, before the Build-up tracker (Jordan, 23 Nov, shot 7)', () => {
+    const card = readFileSync(new URL('./RightNowCard.vue', import.meta.url), 'utf8');
+    const next = card.indexOf('data-testid="now-next"');
+    const rockets = card.indexOf('<slot name="rockets"');
+    const buildUp = card.indexOf('<slot name="buildUp"');
+    expect(next).toBeGreaterThan(0);
+    expect(rockets).toBeGreaterThan(next);
+    expect(rockets).toBeLessThan(buildUp);
+    expect(card).toMatch(/v-if="\$slots\.rockets"/);
   });
   it('useNowPage reads the stop off the simulated first ascension', () => {
     expect(page).toContain('humilityStopOf(actionLegs.value[0], now.value, currentEgg.value)');

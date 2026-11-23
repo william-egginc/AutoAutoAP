@@ -29,3 +29,25 @@ describe('a plan that starts in the hours off', () => {
     expect(panel).toMatch(/hoursWindow\.value\?\.startDelaySeconds/);
   });
 });
+
+describe('ships already out (Jordan 23 Nov, shot 6)', () => {
+  const store = readFileSync(new URL('../stores/humilityOptimizer.ts', import.meta.url), 'utf8');
+  const rockets = readFileSync(new URL('../components/myruns/RunsRockets.vue', import.meta.url), 'utf8');
+  it('the store keeps the save\'s Path missions out, read when the save is taken', () => {
+    expect(store).toContain('missionsOut(backup, 0)');
+    expect(store).toMatch(/^\s+outNow,$/m);
+  });
+  it('the card says which ships are still out, outside the hours block so it shows without Setup hours', () => {
+    expect(panel).toContain('data-testid="optimizer-ships-out"');
+    expect(panel.indexOf('optimizer-ships-out')).toBeLessThan(panel.indexOf('optimizer-my-hours'));
+    expect(panel).toContain('outNowLine(');
+  });
+  it('My runs hands the panel its zone for the times', () => {
+    expect(rockets).toMatch(/:stop="current" :zone="zone"/);
+  });
+  it('the solver is not asked anything new: the request stays one capacity for all slots', () => {
+    const engine = readFileSync(new URL('./humilityOptimizerEngine.ts', import.meta.url), 'utf8');
+    expect(engine).toContain('timeCapacityPerSlot: timeSeconds');
+    expect(engine).not.toMatch(/outNow|missionsOut/);
+  });
+});

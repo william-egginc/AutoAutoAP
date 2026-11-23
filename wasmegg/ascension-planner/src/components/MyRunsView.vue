@@ -125,6 +125,10 @@
         </template>
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
+        <!-- The optimizer at the Humility stop, read-only, right under Next step (myruns/RunsRockets.vue). -->
+        <template #rockets>
+          <RunsRockets :stop="page.humilityStop.value" :now="page.now.value" :zone="page.zone.value" />
+        </template>
         <template #buildUp>
           <BuildUpTracker
             v-if="!(tracker.state.value === 'notBuilding' && !tracker.finishChosen.value)"
@@ -161,8 +165,6 @@
           />
         </template>
       </RightNowCard>
-      <!-- The optimizer at the Humility stop, read-only (myruns/RunsRockets.vue). -->
-      <RunsRockets :stop="page.humilityStop.value" :now="page.now.value" :zone="page.zone.value" />
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <!-- Your eggs above More (Jordan, 9 Nov 2026). The Full timeline is gone (17 Nov 2026): each ascension's row in Right now's

@@ -571,6 +571,9 @@
       </p>
     </div>
 
+    <!-- The rockets for the Humility stop (myruns/RunsRockets.vue): right under Next step (Jordan, 23 Nov 2026). -->
+    <div v-if="$slots.rockets" class="mt-2" data-testid="now-rockets-slot"><slot name="rockets" /></div>
+
     <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
     <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
 

@@ -10,6 +10,7 @@ import { isEffortLevel } from 'lib/mission-optimizer/effort';
 import { readPlayerData, type PlayerData } from 'lib/mission-optimizer/player-data';
 import type { OptimizerSolution } from 'lib/mission-optimizer/types';
 import type { HumilityVisit } from 'lib/mission-optimizer/plan/read';
+import { missionsOut, type MissionOut } from '@/lib/missionsOut';
 import { normalizeScheduleSettings } from 'lib/mission-optimizer/schedule-settings';
 
 import { newVisitSettings, type OptimizerVisitSettings } from '@/lib/humilityOptimizer';
@@ -127,6 +128,8 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
   const playerRevision = ref(0);
   // When the save the player data was read from was taken, unix seconds; 0 when it does not say.
   const playerSavedAt = ref(0);
+  // The Path missions the save has out, with their returns (lib/missionsOut.ts); the page says which are still out then.
+  const outNow = shallowRef<MissionOut[]>([]);
   const saveLoading = ref(false);
   const saveError = ref('');
 
@@ -136,6 +139,7 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     if (!data) return;
     player.value = data;
     playerSavedAt.value = backup.settings?.lastBackupTime || backup.approxTime || 0;
+    outNow.value = missionsOut(backup, 0);
     playerRevision.value++;
   }
 
@@ -186,6 +190,7 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     loadSave,
     hasSettings,
     playerSavedAt,
+    outNow,
     solved,
     solvedBest,
     pick,
