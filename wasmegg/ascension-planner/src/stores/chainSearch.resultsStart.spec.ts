@@ -38,9 +38,4 @@ describe('the cards date the finish from it', () => {
     expect(card('ChainSearchPanel.vue')).toContain(':reach-at="store.resultsPlanStart() + store.bestDays * 86400"');
     expect(card('InsanePanel.vue')).toContain(':reach-at="store.resultsPlanStart() + store.bestDays * 86400"');
   });
-  it('the saved-answers snapshots too', () => {
-    const s = read('../composables/useSearchSnapshots.ts');
-    expect(s).toContain('end: store.resultsPlanStart() + store.bestDays * 86400');
-    expect(s).not.toMatch(/store\.planStart \+/);
-  });
 });

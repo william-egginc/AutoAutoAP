@@ -3128,7 +3128,7 @@ watch(
   },
   { immediate: true }
 );
-// The lead route for the comparison block (SearchCompare.vue, stores/stronger.ts).
+// The lead route, kept for By a date's default box count (stores/stronger.ts `instant`).
 const strongerStore = useStrongerStore();
 
 /**

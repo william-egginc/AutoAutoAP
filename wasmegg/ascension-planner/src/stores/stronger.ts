@@ -1,6 +1,6 @@
 /**
  * The "Stronger check" box under the instant answer (StrongerBox.vue; the user, 12 Oct 2026): how
- * much stronger, and what the parts of the page publish for the comparison block (SearchCompare.vue).
+ * much stronger, and the instant answer's lead route that By a date reads for its default box count.
  *
  * LEVELS, the same bar on Fastest and By a date. Light: the stronger check alone (the instant answer's
  * routes priced ascending at once on your hours, then your earlier routes priced on this save, and by a
@@ -33,7 +33,7 @@ export interface LevelEstimate {
   line: string;
 }
 
-/** A route as the comparison block shows it: where it ends and when. */
+/** The instant answer's lead route: where it ends and when. */
 export interface CompareRoute {
   chain: number[];
   /** Unix second the target (Fastest) or the last stop (By a date) is reached. */
@@ -42,10 +42,7 @@ export interface CompareRoute {
   endTE: number;
   /** By a date: seconds to spare before the date. */
   spare?: number;
-  /** Simulated on the player's account (not the instant answer's table). */
   exact?: boolean;
-  /** When this result was found, ms (searches). */
-  at?: number;
 }
 
 export const useStrongerStore = defineStore('stronger', () => {
@@ -57,20 +54,9 @@ export const useStrongerStore = defineStore('stronger', () => {
       /* this visit only */
     }
   });
-  /** The stronger check's own best that beats the instant answer ("Best now"), per goal. */
-  const strongerBest = ref<{ fastest: CompareRoute | null; date: CompareRoute | null }>({ fastest: null, date: null });
   /** The instant answer's lead route, per goal (InstantRoute.vue). */
   const instant = ref<{ fastest: CompareRoute | null; date: CompareRoute | null }>({ fastest: null, date: null });
-  /** Each search's last answer in this visit (SearchCompare.vue keeps them), so a later run of the
-   *  other search doesn't wipe the comparison: Fastest's Smart search ('smart') and Full sweep ('full'),
-   *  By a date's routes around the answer ('around') and boxes ('boxes'). */
-  const lastSearch = ref<Record<'smart' | 'full' | 'around' | 'boxes', (CompareRoute & { running?: boolean }) | null>>({
-    smart: null,
-    full: null,
-    around: null,
-    boxes: null,
-  });
   // Light's status, its at-once prices and result, Check exactly's progress and the earlier routes Light priced went
   // with Light and Check exactly (23 Oct 2026).
-  return { level, strongerBest, instant, lastSearch };
+  return { level, instant };
 });

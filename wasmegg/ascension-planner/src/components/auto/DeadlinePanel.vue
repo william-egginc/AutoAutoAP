@@ -198,8 +198,6 @@
       :unfinished="!!store.deadlineUnfinished"
     >
     <div id="more-bydate-answer" class="space-y-3"></div>
-    <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
-    <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
     <!-- The search panel (SearchPanel.vue, 22 Oct 2026): Fast | Exact | Custom. Both of
          its parts stay mounted (v-show): the teleport targets below (#bd-around-*, #bd-exh-*) must be on the
@@ -1219,9 +1217,6 @@ import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { choiceForEffort, type SearchChoice } from '@/lib/searchOption';
 import { scrollToShownId, selectSearchTab } from '@/lib/searchTab';
-import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
-import SearchCompare from './SearchCompare.vue';
-import { SHOW_COMPARE } from '@/lib/features';
 import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { formatInZone } from '@/search/csv';
 import {
@@ -1565,8 +1560,6 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
   }
   return legs ? w / legs : fallbackWorkerSecondsPerLeg(1);
 }
-// Each search's latest answer (stores/stronger.ts lastSearch), for the comparison block.
-useSearchSnapshots('date');
 /** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
 const moreChanges = ref<string[]>([]);
 /** The closed Filters fold's one-line summary, from the instant answer (lib/filtersLine.ts). */

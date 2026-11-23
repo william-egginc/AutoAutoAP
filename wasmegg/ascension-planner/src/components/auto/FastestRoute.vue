@@ -89,8 +89,6 @@
       :unfinished="!!store.crashedRun"
     >
     <div id="more-fastest-answer" class="space-y-3"></div>
-    <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
-    <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
     <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
     <div
@@ -156,10 +154,7 @@ import { revealMore } from '@/composables/useMoreReveal';
 import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
-import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import type { InstantState } from '@/search/autoWiden';
-import SearchCompare from './SearchCompare.vue';
-import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import FiltersButton from '@/components/layout/FiltersButton.vue';
 import PanelFold from './PanelFold.vue';
@@ -198,8 +193,6 @@ const ui = useUIStore();
 const initialState = useInitialStateStore();
 const stronger = useStrongerStore();
 
-// Each search's latest answer in this visit, for the comparison block.
-useSearchSnapshots('fastest');
 /** The line under the tabs, for the player's own target (490 or another). */
 /** The goal this screen follows for (Follow this route, the What to do now line). */
 const goalKey = computed(() => screenGoalKey(null, store.finalTE));
