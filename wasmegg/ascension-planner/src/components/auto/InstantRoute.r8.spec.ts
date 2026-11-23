@@ -83,3 +83,12 @@ describe('ui-instantroute-5 (the same pass): the night-buy note and the Prestige
     for (const m of lines) expect(m).toContain(':hours-on="heldToHours"');
   });
 });
+
+describe('ui-instantroute-5 (the same pass): First step\'s hours wording follows the tick', () => {
+  it('both First step sentences (the long one and the card\'s short one) read heldToHours, never hoursLimited alone', () => {
+    const hoursArgs = script.match(/^\s*hours: [^\n]*,$/gm) ?? [];
+    const firstStepArgs = hoursArgs.filter(l => /hoursLimited|heldToHours/.test(l) && !/hoursWords/.test(l));
+    expect(firstStepArgs.length).toBe(2);
+    for (const l of firstStepArgs) expect(l).toContain('heldToHours.value');
+  });
+});

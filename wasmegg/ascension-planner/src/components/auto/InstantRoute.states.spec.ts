@@ -716,7 +716,7 @@ describe('the hours note: a clause at the end of First step since spec-slimcard 
   }
   it('First step is told when the hours limit the prestiges (hoursLimited), and the Prestige by line keeps HOURS_NOTE', () => {
     expect(source).not.toContain('HOURS_NOTE }}');
-    expect(source).toContain('hours: hoursLimited.value,');
+    expect(source).toContain('hours: heldToHours.value,');
     expect(source).not.toContain('a prestige even a few minutes off');
     expect(HOURS_NOTE).toBe(
       'With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
@@ -1232,7 +1232,7 @@ describe('First step when the build-up could not be worked out (spec-buildupmiss
     // the date always named (sameDay false), the "?" only when the full sentence says more.
     const short = script.slice(script.indexOf('const firstStepShortText = computed'), script.indexOf('\n});', script.indexOf('const firstStepShortText = computed')));
     expect(short).toMatch(/firstStepShort\(\{[^}]*buildUpMissing: answerBuildUpMissing\.value,/s);
-    expect(short).toContain('hours: hoursLimited.value,');
+    expect(short).toContain('hours: heldToHours.value,');
     expect(short).toContain('cardTime(t, zone.value, { at: true })');
     expect(short).toContain('prestigeDate: b ? near(b.prestigeAt) : null,');
     expect(short).toContain('sameDay: false,');

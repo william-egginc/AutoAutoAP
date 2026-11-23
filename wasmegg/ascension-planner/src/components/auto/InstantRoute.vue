@@ -1833,7 +1833,7 @@ const firstStep = computed(() => {
     prestigeDate: b ? showAt(b.prestigeAt) : null,
     prestigeTime: b && dateStyle.value !== 'iso' ? formatClock(b.prestigeAt * 1000, zone.value) || null : null,
     sameDay: !!b && day(a.reachedAt) !== '' && day(a.reachedAt) === day(b.prestigeAt),
-    hours: hoursLimited.value,
+    hours: heldToHours.value,
     buildUpMissing: answerBuildUpMissing.value,
   });
   return line.slice(FIRST_STEP_LABEL.length + 1);
@@ -1858,7 +1858,7 @@ const firstStepShortText = computed(() => {
     prestigeDate: b ? near(b.prestigeAt) : null,
     prestigeTime: null,
     sameDay: false,
-    hours: hoursLimited.value,
+    hours: heldToHours.value,
     buildUpMissing: answerBuildUpMissing.value,
   });
   return short;
