@@ -47,6 +47,8 @@ function normalize(stored: Partial<OptimizerVisitSettings> | undefined): Optimiz
     targetIds: Array.isArray(stored.targetIds) ? stored.targetIds.filter(id => typeof id === 'string') : [],
     duration: typeof stored.duration === 'string' ? stored.duration : base.duration,
     effort: isEffortLevel(stored.effort) ? stored.effort : base.effort,
+    // Before the flag existed, a level other than the default can only have been picked.
+    effortChosen: stored.effortChosen === true || (stored.effortChosen === undefined && isEffortLevel(stored.effort) && stored.effort !== base.effort),
     fuelBudget: stored.fuelBudget === 'full-tank' ? 'full-tank' : 'banked',
     gemLimit: stored.gemLimit === 'unlimited' ? 'unlimited' : 'plan',
     capCrafting: stored.capCrafting === true,

@@ -25,6 +25,8 @@ export interface OptimizerVisitSettings extends ScheduleSettings {
   // As typed, e.g. '3d' or '36h'. Empty until the player says how long they will stay.
   duration: string;
   effort: EffortLevel;
+  // The player picked the effort. Until then it follows the awake hours: Max with them on, Medium without (effortFor).
+  effortChosen: boolean;
   fuelBudget: FuelBudget;
   gemLimit: GemLimit;
   // Cap the plan's crafts at the golden eggs the save has to spend.
@@ -34,11 +36,17 @@ export interface OptimizerVisitSettings extends ScheduleSettings {
   useMyHours: boolean;
 }
 
+/** The effort in force: the player's pick, else Max while the plan is made around their awake hours, else Medium. */
+export function effortFor(settings: Pick<OptimizerVisitSettings, 'effort' | 'effortChosen'>, hoursOn: boolean): EffortLevel {
+  return settings.effortChosen ? settings.effort : hoursOn ? 'max' : 'medium';
+}
+
 export function newVisitSettings(): OptimizerVisitSettings {
   return {
     targetIds: [],
     duration: '',
     effort: 'medium',
+    effortChosen: false,
     fuelBudget: 'banked',
     gemLimit: 'plan',
     capCrafting: false,

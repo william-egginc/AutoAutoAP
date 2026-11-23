@@ -90,15 +90,15 @@
               :key="level"
               type="button"
               class="px-2.5 py-1 text-small border-r border-gray-200 last:border-r-0"
-              :class="settings.effort === level ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'"
-              :aria-pressed="settings.effort === level"
-              @click="patch({ effort: level })"
+              :class="effort === level ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'"
+              :aria-pressed="effort === level"
+              @click="patch({ effort: level, effortChosen: true })"
             >
               {{ EFFORT_META[level].label }}
             </button>
           </div>
           <p class="mt-1 text-small text-gray-600">
-            {{ EFFORT_META[settings.effort].hint }} {{ CADENCE_NOTE }}
+            {{ EFFORT_META[effort].hint }} {{ CADENCE_NOTE }}
           </p>
         </div>
 
@@ -459,6 +459,7 @@ import { humilitySourceTag, previewLaunchDurations } from '@/lib/humilityMission
 import {
   currentHumilityVisit,
   durationSeconds,
+  effortFor,
   type CurrentVisit,
   type FuelBudget,
   type GemLimit,
@@ -562,6 +563,8 @@ const hoursWindow = computed(() =>
 );
 // Both answers are made only when the hours change the plan: a visit that stays inside them has one answer.
 const hoursOn = computed(() => (hoursWindow.value?.sleepHours ?? 0) > 0);
+// The effort in force: Max with the awake hours on, until the player picks one.
+const effort = computed(() => (settings.value ? effortFor(settings.value, !!hours.value) : 'medium'));
 const hoursText = computed(() => (hours.value ? showSchedule(hours.value) : ''));
 const noHoursReason = computed(() => {
   if (!settings.value?.useMyHours) return '';
@@ -571,12 +574,12 @@ const noHoursReason = computed(() => {
 });
 // What each solve is asked: the player's own sleep window, or the awake hours in its place.
 function bestSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
-  return hours.value ? { ...asked, sleepEnabled: false } : asked;
+  return { ...asked, effort: effort.value, ...(hours.value ? { sleepEnabled: false } : {}) };
 }
 function fitsSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
   const w = hoursWindow.value;
-  if (!hours.value || !w) return asked;
-  return { ...asked, sleepEnabled: w.sleepHours > 0, sleepHours: w.sleepHours, hoursSinceWake: w.hoursSinceWake };
+  if (!hours.value || !w) return { ...asked, effort: effort.value };
+  return { ...asked, effort: effort.value, sleepEnabled: w.sleepHours > 0, sleepHours: w.sleepHours, hoursSinceWake: w.hoursSinceWake };
 }
 
 // ---------------------------------------------------------------------------
@@ -592,6 +595,7 @@ const questionKey = computed(() => {
   return JSON.stringify({
     visit: visit.visitId,
     settings: asked,
+    effort: effort.value,
     // A full tank is solved against the tank's size, whatever it holds.
     fuel: asked.fuelBudget === 'banked' ? [...visit.fuelByEgg] : null,
     tank: visit.tankLevel,
