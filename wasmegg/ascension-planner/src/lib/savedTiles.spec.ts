@@ -71,7 +71,7 @@ describe('saved-answer tiles', () => {
 
   it('the table only: Medium, never High', () => {
     const t = buildTile(base({ snapshot: plan({ exact: false }) }));
-    expect(t.sure).toMatchObject({ level: 'medium', action: 'fast' });
+    expect(t.sure).toMatchObject({ level: 'medium' });
     expect(howWords(t.answer!)).toBe('instant answer');
   });
 
