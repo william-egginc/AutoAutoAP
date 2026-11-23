@@ -114,7 +114,7 @@ export function howSure(i: SureInput): Sure {
   if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
-  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}; a newer save may well confirm it` };
+  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}, not yet checked against a newer save` };
   if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)

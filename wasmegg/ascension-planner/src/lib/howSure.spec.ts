@@ -62,7 +62,7 @@ describe('how sure', () => {
     expect(howSure(date({ ...high, olderSimulator: true })).reason).toBe('priced by an older simulator');
     expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your awake hours changed');
     expect(howSure(date({ ...high, spareHours: 1.2 })).reason).toBe('only 1.2 h to spare');
-    expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('simulator check, 20 days old; a newer save may well confirm it');
+    expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('simulator check, 20 days old, not yet checked against a newer save');
     expect(howSure(date({ ...high, teMoved: true })).reason).toBe('your TE has moved since');
   });
 });
@@ -73,10 +73,11 @@ describe('how sure has no button, and old does not read as wrong (Jordan, 22 Nov
       for (const goal of [date, fast])
         expect(howSure(goal({ how, ageDays: 3, level: 'quick' }))).not.toHaveProperty('action');
   });
-  it('a stale reason says a newer save may confirm it, and never calls the answer old-therefore-wrong', () => {
+  it('a stale reason says it is not yet checked against a newer save, and never calls the answer old-therefore-wrong', () => {
     const r = howSure(date({ how: 'instant', ageDays: 30 })).reason;
-    expect(r).toBe('instant answer, 30 days old; a newer save may well confirm it');
+    expect(r).toBe('instant answer, 30 days old, not yet checked against a newer save');
     expect(r).not.toMatch(/unreliable|out of date|outdated|wrong|stale/i);
+    expect(r).not.toMatch(/may well|probably|likely/i);
   });
 });
 
