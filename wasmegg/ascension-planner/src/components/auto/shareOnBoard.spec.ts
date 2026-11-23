@@ -101,7 +101,8 @@ describe("By a date's Share this result", () => {
   });
   it('the panel shows the line in place of the share box, so there is no Send button', () => {
     const src = fs.readFileSync('src/components/auto/DeadlinePanel.vue', 'utf8');
-    const line = src.indexOf('v-else-if="best && collectorConfigured && onBoardLine"');
+    // A <template> since Put my name on it (22 Nov 2026): the line, then its name buttons, both inside it.
+    const line = src.indexOf('v-else-if="best && collectorConfigured && onBoardLine && !namingOpen"');
     expect(line).toBeGreaterThan(0);
     // Before the box (the box is the v-else-if after it), and its words are the line itself.
     expect(line).toBeLessThan(src.indexOf('<ShareResult'));

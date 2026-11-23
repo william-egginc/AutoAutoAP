@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import {
   CADENCE_HEADING,
   CADENCE_NOTE,
-  STANDARD_PERMIT_NOTE,
   bestAlternativeTitle,
   fitsAlternativeTitle,
   nightLaunchesText,
@@ -23,12 +22,6 @@ describe('optimizer words', () => {
     expect(CADENCE_NOTE).toMatch(/your preference/i);
     expect(CADENCE_NOTE).toMatch(/not a game rule/i);
     expect(CADENCE_NOTE).toBe('Your preference, not a game rule: how often you are willing to relaunch.');
-  });
-
-  it('the Standard permit note is one line and says what is assumed', () => {
-    expect(STANDARD_PERMIT_NOTE).toMatch(/Pro permit/);
-    expect(STANDARD_PERMIT_NOTE).not.toContain('\n');
-    expect(STANDARD_PERMIT_NOTE).toContain('a ship it picks may not be open to you');
   });
 
   it('alternative titles and the night-launch line', () => {
@@ -52,8 +45,11 @@ describe('optimizer words', () => {
     expect(panel).toContain("from '@/lib/optimizerWords'");
     expect(panel).toContain('{{ CADENCE_HEADING }}');
     expect(panel).toContain('{{ CADENCE_NOTE }}');
-    expect(panel).toContain('!initialStateStore.proPermit');
-    expect(panel).toContain('{{ STANDARD_PERMIT_NOTE }}');
+    // Standard permit saves do not see the optimizer at all (Jordan, 22 Nov 2026), so the card carries no note for them.
+    expect(panel).not.toContain('proPermit');
+    expect(panel).not.toContain('optimizer-standard-permit');
+    expect(readFileSync(new URL('./optimizerWords.ts', import.meta.url), 'utf8')).not.toContain('STANDARD_PERMIT');
+    expect(readFileSync(new URL('../components/actions/RocketActions.vue', import.meta.url), 'utf8')).toMatch(/<HumilityOptimizer\s+v-if="initialStateStore\.proPermit"/);
     expect(panel).toContain('nightLaunchesText(alt.nightLaunches)');
     expect(panel).toContain('{{ SAME_CHANCE_AS_BEST }}');
     expect(panel).toContain('alt.sameAsBest');

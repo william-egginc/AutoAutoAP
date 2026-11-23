@@ -327,6 +327,41 @@ export function useByDateShare(
     { immediate: true }
   );
 
+  /**
+   * Put my name on it, for an answer already on the board (Jordan, 22 Nov 2026): the account's own row for it, as the board
+   * has it, with the name a rename of it this visit has since put on it. A row with no id (an older collector) is never offered.
+   */
+  const effectiveNickname = computed(() => (identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40)));
+  const claimed = ref<{ id: string; name: string } | null>(null);
+  const boardRow = computed(() => {
+    const row = store.deadlineOnBoard(best.value);
+    if (!row) return null;
+    return claimed.value && claimed.value.id === row.id ? { ...row, nickname: claimed.value.name } : row;
+  });
+  /** The name the rename would put on the row, or '' when there is nothing to rename. */
+  const nameToClaim = computed(() => store.claimableName(boardRow.value, effectiveNickname.value));
+  /** The row is on the board with no name and none is chosen: the button opens the sharing setting on "Credit me as". */
+  const offerName = computed(() => {
+    const row = boardRow.value;
+    return !!row?.id && !row.nickname && !nameToClaim.value;
+  });
+  const claiming = ref(false);
+  async function claim(): Promise<void> {
+    const id = boardRow.value?.id;
+    const name = nameToClaim.value;
+    if (!id || !name || claiming.value) return;
+    claiming.value = true;
+    try {
+      const res = await store.claimName(id, name);
+      shareOk.value = res.ok;
+      shareMessage.value = res.ok ? `Done: ${res.message}` : `Not renamed: ${res.message}`;
+      // The rows read on load still say no name; this visit's rename is what the line goes by.
+      if (res.ok) claimed.value = { id, name };
+    } finally {
+      claiming.value = false;
+    }
+  }
+
   /** The leaderboard tab this answer goes on: Egg Day has its own. */
   const shareTab = computed(() => {
     const y = result.value ? eggDayYearOf(result.value.deadline) : null;
@@ -381,6 +416,10 @@ export function useByDateShare(
     shareTab,
     share,
     onBoardLine,
+    nameToClaim,
+    offerName,
+    claiming,
+    claim,
   };
 }
 

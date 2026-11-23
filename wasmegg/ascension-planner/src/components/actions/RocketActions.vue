@@ -12,7 +12,8 @@
       :tank-level="fuelTankStore.tankLevel"
     />
 
-    <HumilityOptimizer />
+    <!-- Standard permit saves do not get the optimizer: it plans for the Pro permit (three slots, every ship). -->
+    <HumilityOptimizer v-if="initialStateStore.proPermit" />
 
     <!-- The file round trip through the artifact explorer, for visits solved there. -->
     <details :open="missionsStore.file !== null">

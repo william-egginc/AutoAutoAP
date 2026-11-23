@@ -4860,6 +4860,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const clean = cleanName(name);
     return clean && clean !== (rec.nickname ?? '') ? clean : '';
   }
+  /**
+   * The same for a row read off the board (By a date's `deadlineOnBoard`: the account's own rows, which By a date's sends
+   * are not remembered as): the name Put my name on it would put on it, or '' when it has no id, the box is empty, or the
+   * row already carries the name.
+   */
+  function claimableName(row: { id?: string; nickname?: string } | null, name: string): string {
+    if (!row?.id) return '';
+    const clean = cleanName(name);
+    return clean && clean !== (row.nickname ?? '') ? clean : '';
+  }
 
   // ------------------------------------------------------------------------- already on the board, on load
   //
@@ -10420,6 +10430,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineOnBoard,
     pendingOnBoard,
     nameToClaim,
+    claimableName,
     chainsEstimated,
     bestChain,
     bestDays,

@@ -36,10 +36,6 @@
         <span v-if="store.saveError" class="block text-red-600">{{ store.saveError }}</span>
       </p>
 
-      <p v-if="!initialStateStore.proPermit" class="text-small text-amber-700" data-testid="optimizer-standard-permit">
-        {{ STANDARD_PERMIT_NOTE }}
-      </p>
-
       <!-- What to aim for -->
       <section>
         <h4 class="label text-gray-600 mb-1.5">
@@ -479,7 +475,6 @@ import {
   nightLaunchesText,
   SAME_CHANCE_AS_BEST,
   sameChanceAsBest,
-  STANDARD_PERMIT_NOTE,
 } from '@/lib/optimizerWords';
 import { VIRTUE_EGG_NAMES, type VirtueEgg } from '@/types';
 

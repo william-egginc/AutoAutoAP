@@ -949,11 +949,36 @@
         <SentByRunNote v-if="best && collectorConfigured && sentByRun" :sending="sharing" />
         <!-- Already on the board, known on load from the account's own rows (Jordan, 27 Oct 2026): said in place
              of the box, so there is no Send for a result already there. -->
-        <p
-          v-else-if="best && collectorConfigured && onBoardLine"
-          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-body text-emerald-800"
-          data-testid="share-on-board"
-        >{{ onBoardLine }}</p>
+        <template v-else-if="best && collectorConfigured && onBoardLine && !namingOpen">
+          <p
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-body text-emerald-800"
+            data-testid="share-on-board"
+          >{{ onBoardLine }}</p>
+          <!-- Put my name on it (Jordan, 22 Nov 2026), as Fastest has it: with a name chosen it renames the row on the
+               board; with none chosen it opens the sharing setting on "Credit me as". -->
+          <div v-if="nameToClaim || offerName" class="flex flex-wrap gap-2">
+            <button
+              v-if="nameToClaim"
+              type="button"
+              :disabled="claiming"
+              class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-white/60 disabled:opacity-40"
+              data-testid="by-date-claim"
+              @click="claim"
+            >
+              <template v-if="claiming">Renaming<AnimatedDots /></template><template v-else>Put my name on it</template>
+            </button>
+            <button
+              v-else
+              type="button"
+              class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-white/60"
+              data-testid="by-date-name-it"
+              @click="namingOpen = true"
+            >
+              Put my name on it
+            </button>
+          </div>
+          <ShareStatus :message="shareMessage" :ok="shareOk" :partial="sharePartial" />
+        </template>
         <ShareResult
           v-else-if="best && collectorConfigured"
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
@@ -976,7 +1001,20 @@
             <p class="text-body text-indigo-900/80">
               Only named answers are ranked. Anonymous ones are listed below the ranking.
             </p>
+            <!-- Naming a row already on the board (namingOpen): the sharing setting above is where the name is chosen; this
+                 is the rename, not a second send. -->
             <button
+              v-if="onBoardLine"
+              type="button"
+              :disabled="claiming || !nameToClaim"
+              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800 disabled:opacity-40"
+              data-testid="by-date-claim"
+              @click="claim"
+            >
+              <template v-if="claiming">Renaming<AnimatedDots /></template><template v-else>Put my name on it</template>
+            </button>
+            <button
+              v-else
               type="button"
               :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
               class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800 disabled:opacity-40"
@@ -2810,12 +2848,22 @@ const {
   shareTab,
   share,
   onBoardLine,
+  nameToClaim,
+  offerName,
+  claiming,
+  claim,
 } = useByDateShare(
   store,
   shareIdentity,
   computed(() => store.deadlineResult),
   computed(() => store.deadlineResult?.routes[0] ?? null)
 );
+
+/** Put my name on it, with no name chosen yet: the box for the name is shown in place of the on-board line while it is chosen. */
+const namingOpen = keptRef(false);
+watch(resultKey, () => {
+  namingOpen.value = false;
+});
 
 /** Download CSV: every leg of every route priced (composables/useRunDownloads.ts). */
 const { downloadByDateCsv, downloadXlsx, downloadError } = useRunDownloads(store);
