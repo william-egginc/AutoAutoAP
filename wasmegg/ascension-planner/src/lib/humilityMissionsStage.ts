@@ -19,6 +19,7 @@ import {
   fuelShortfalls,
   humilityVisitInsertIndex,
   humilityVisitRuns,
+  isStopWait,
   HumilityMissionsError,
   launchSchedule,
   resolveLaunches,
@@ -154,10 +155,6 @@ export function stageHumilityVisit(
     context,
     base
   );
-  // The stop's own wait for TE gives way to the missions and the rest of the window (humilityMissions.ts `launchIndex`).
-  const own = humilityVisitRuns(actions).find(r => r.visitId === visit.visitId);
-  if (own && own.launchIndex <= own.endIndex)
-    actions = simulate([...actions.slice(0, own.launchIndex), ...actions.slice(own.endIndex + 1)], context, base);
   let launchIndex = humilityVisitInsertIndex(actions, visit.visitId);
   if (launchIndex === null)
     throw new HumilityMissionsError(`This plan no longer has the visit ${visit.label} was solved for.`);
@@ -283,7 +280,11 @@ export function stageHumilityVisit(
   for (const step of result) validateTank(step.endState.fuelTankAmounts, step.endState.tankLevel);
   const launchedIndex = result.findIndex(step => step.id === launch.id);
   const launched = result[launchedIndex];
-  const remaining = Math.max(0, visit.makespanSeconds - launched.totalTimeSeconds);
+  // A stop that ends in its own Wait for TE keeps it, after the missions: it ends when its TE lands (QA, 23 Nov 2026: a timed
+  // wait in its place cut the stop to the busiest slot's length and lost a TE). Any other stop is waited out to the window.
+  const ownRun = humilityVisitRuns(result).find(r => r.visitId === visit.visitId);
+  const keepsOwnWait = !!ownRun && result.slice(launchedIndex + 1, ownRun.endIndex + 1).some(isStopWait);
+  const remaining = keepsOwnWait ? 0 : Math.max(0, visit.makespanSeconds - launched.totalTimeSeconds);
   if (remaining === 0) return { actions: result, initialEgg };
   // The rest of the window is waited out on the set the plan had on, after any swap is undone.
   const tailIndex = launchedIndex + (swap ? 2 : 1);

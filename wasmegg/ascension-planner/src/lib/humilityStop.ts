@@ -24,7 +24,7 @@ export function humilityStopOf(leg: ActionLeg | null | undefined, now: number, s
   for (let i = 0; i < shifts.length; i++) {
     if (shifts[i].egg !== 'humility') continue;
     const end = shifts[i + 1]?.at ?? leg.end;
-    if (end <= now) continue;
+    if (end <= now || end <= shifts[i].at) continue;
     return { arrival: shifts[i].at, end, lengthSeconds: end - shifts[i].at, current: now >= shifts[i].at, approximate };
   }
   // The ascension began on Humility, so no shift goes to it: the save's egg says it is where the player is.

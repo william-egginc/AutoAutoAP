@@ -67,6 +67,14 @@ describe('a plan still on the table (not simulated: "a rough estimate", Jordan 2
   });
 });
 
+describe('a stop with no length (QA, 23 Nov 2026: By a date route whose Humility stop is 0 s)', () => {
+  it('is no stop: nothing to plan in no time, before it or on it', () => {
+    const zero = leg([{ at: 20_000, egg: 'humility' }, { at: 20_000, egg: 'kindness' }], 400_000);
+    expect(humilityStopOf(zero, 5000)).toBeNull();
+    expect(humilityStopOf(zero, 20_000)).toBeNull();
+  });
+});
+
 describe('stopDurationText', () => {
   it('whole hours the duration field reads back, at least one', () => {
     expect(stopDurationText(52 * 3600)).toBe('52h');

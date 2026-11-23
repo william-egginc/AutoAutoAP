@@ -142,7 +142,8 @@ export interface HumilityVisitRun {
   endIndex: number;
   /**
    * Where the launch goes: after the run's actions, but before a "Wait for TE" that closes it. An Auto Planner plan's
-   * Humility stop is that wait, and the missions are what happens inside the stop, so they replace it (staging). A wait
+   * Humility stop is that wait, and the missions are what happens inside the stop, so they go in before it and the wait
+   * stays: the stop still ends when its TE lands (staging; QA, 23 Nov 2026). A wait
    * held for the player's hours before the shift out is not that wait and stays.
    */
   launchIndex: number;

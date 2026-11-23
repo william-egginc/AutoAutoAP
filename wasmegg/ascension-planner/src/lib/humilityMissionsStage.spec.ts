@@ -357,14 +357,30 @@ function planWithWait(): Action[] {
   return [...plan(), teWait(), shift('curiosity', 'out')];
 }
 
+// QA on d97a8c70c (23 Nov 2026): replacing the stop's Wait for TE with the missions plus a timed wait SHORTENED the stop (the
+// busiest slot's length, not the stop's), so its last TE was lost. The missions go in before the wait, which stays: the stop
+// ends when its TE lands, as it did.
+const teGainAndEnd = (actions: Action[]) => {
+  const out = actions.findIndex(a => a.id === 'out');
+  const seconds = actions.slice(0, out + 1).reduce((sum, a) => sum + (a.totalTimeSeconds ?? 0), 0);
+  return { te: actions[out].endState.te, seconds, out };
+};
+
 describe('a visit that ends in a Wait for TE', () => {
-  it('the launch goes where that wait starts, and the wait is replaced by the missions and the rest of the window', () => {
+  const planned = () => simulate(planWithWait(), getSimulationContext(), baseState());
+  it('the missions go in before the wait and the wait stays: same TE, and the stop ends no earlier', () => {
+    const before = teGainAndEnd(planned());
     const result = stage(planWithWait());
-    expect(result.some(a => a.type === 'wait_for_te')).toBe(false);
+    const after = teGainAndEnd(result);
+    expect(result.filter(a => a.type === 'wait_for_te')).toHaveLength(1);
     const launch = result.findIndex(a => a.type === 'launch_missions');
-    expect(result[launch].endState.currentEgg).toBe('humility');
-    expect(result[launch + 1].type).toBe('wait_for_time');
-    expect(result[launch + 2].id).toBe('out');
+    expect(result[launch + 1].type).toBe('wait_for_te');
+    expect(after.te).toBe(before.te);
+    expect(after.seconds).toBeGreaterThanOrEqual(before.seconds - 1);
+  });
+  it('no timed wait is added after the launch: the Wait for TE is what fills the window', () => {
+    const result = stage(planWithWait());
+    expect(result.some(a => a.type === 'wait_for_time' && a.sourceTag === humilitySourceTag('humility'))).toBe(false);
   });
   it('restaging is stable: the same plan back, no second wait', () => {
     const once = stage(planWithWait());
@@ -379,7 +395,7 @@ describe('a visit that ends in a Wait for TE', () => {
     expect(result[launch - 1].sourceTag).toBe(humilitySourceTag('humility'));
   });
   it('the launch point is before the wait, not after it', () => {
-    const actions = simulate(planWithWait(), getSimulationContext(), baseState());
+    const actions = planned();
     const at = humilityVisitInsertIndex(actions, 'humility')!;
     expect(actions[at].type).toBe('wait_for_te');
   });

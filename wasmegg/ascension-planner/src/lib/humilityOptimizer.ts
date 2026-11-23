@@ -74,7 +74,7 @@ export interface CurrentVisit {
   /** How many Humility visits the plan has, for "H2 of 3". */
   visitCount: number;
   /**
-   * Seconds of the stop's own closing Wait for TE (Auto Planner plans: the stop is that wait). The missions replace it
+   * Seconds of the stop's own closing Wait for TE (Auto Planner plans: the stop is that wait). The missions go in before it
    * when staged, so it is the stop's length for "Time on Humility" and is not time spent before the launch.
    */
   trailingWaitSeconds: number;
@@ -97,7 +97,7 @@ export function currentHumilityVisit(
   const run = runs[runs.length - 1];
   if (!run || run.endIndex !== actionsBeforeInsertion.length - 1) return null;
   const tag0 = humilitySourceTag(run.visitId);
-  // The launch goes where the stop's closing wait starts (staging replaces that wait), so the visit is read to there.
+  // The launch goes where the stop's closing wait starts (staging puts the missions before it and keeps it), so the visit is read to there.
   const trailing = actionsBeforeInsertion.slice(run.launchIndex).filter(action => action.sourceTag !== tag0);
   const trailingWaitSeconds = trailing.reduce((sum, action) => sum + (action.totalTimeSeconds ?? 0), 0);
   const upto = actionsBeforeInsertion.slice(0, run.launchIndex);
