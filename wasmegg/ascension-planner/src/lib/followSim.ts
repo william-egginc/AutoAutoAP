@@ -260,9 +260,19 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
   const only = plan.chain.length === 1;
   // The table's rate is its own variant's: the simulated leg's peak replaces it, or none.
   const { peakELR: _tableRate, ...rest } = first;
+  // The later legs start when this one ends (code review round 2, 22 Nov 2026, R7.6; Jordan said yes): moved, with
+  // the finish, by as much as the simulated ascension ends later or sooner than the table's. Kept as they were they
+  // overlapped it, and the date check read the table's finish. Moving is the quick price; re-pricing the tail would
+  // be more exact but needs a worker. Under a minute: left as it was.
+  const delta = leg.endTime - first.end;
+  const move = !only && Math.abs(delta) > 60;
+  const later = plan.tableLegs!.slice(1).map(l => (move ? shiftLeg(l, delta) : l));
+  const end = only ? leg.endTime : move ? plan.end + delta : plan.end;
   return {
     ...plan,
-    ...(only ? { end: leg.endTime, endTE: leg.endTE } : {}),
+    ...(only ? { end: leg.endTime, endTE: leg.endTE } : move ? { end } : {}),
+    ...(move && plan.accountEnd !== undefined && Number.isFinite(plan.accountEnd) ? { accountEnd: plan.accountEnd + delta } : {}),
+    ...((only || move) && plan.deadline ? { spareHours: (plan.deadline - end) / 3600 } : {}),
     tableLegs: [
       {
         ...rest,
@@ -276,8 +286,23 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
         ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
         ...(leg.timeOff ? { timeOff: { ...leg.timeOff } } : {}),
       },
-      ...plan.tableLegs!.slice(1),
+      ...later,
     ],
+  };
+}
+
+/** A table leg moved `delta` seconds: its start, end, shifts and the times it carries. */
+function shiftLeg<L extends { start: number; end: number; shifts?: { at: number; egg: string }[]; wanted?: number; prestigeHeld?: { ready: number } }>(
+  l: L,
+  delta: number
+): L {
+  return {
+    ...l,
+    start: l.start + delta,
+    end: l.end + delta,
+    ...(l.shifts ? { shifts: l.shifts.map(x => ({ ...x, at: x.at + delta })) } : {}),
+    ...(l.wanted !== undefined ? { wanted: l.wanted + delta } : {}),
+    ...(l.prestigeHeld ? { prestigeHeld: { ready: l.prestigeHeld.ready + delta } } : {}),
   };
 }
 

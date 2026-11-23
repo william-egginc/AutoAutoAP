@@ -163,11 +163,23 @@ describe('withCurrentSim', () => {
     meta: null,
     whatIf: null,
   } as NowPlan;
-  it('the first ascension becomes the simulated one; the later ones keep the table\'s', () => {
+  it('the first ascension becomes the simulated one; the later ones move by as much as it ends later (code review round 2, 22 Nov 2026, R7.6)', () => {
     const p = withCurrentSim(plan, leg);
     expect(p.tableLegs![0]).toMatchObject({ simulated: true, start: T0, end: T0 + 30 * H, shifts: leg.shifts, buildEnd: T0 });
-    expect(p.tableLegs![1]).toBe(plan.tableLegs![1]);
-    expect(p.end).toBe(plan.end);
+    // The simulated ascension ends 6 h after the table's (T0 + 24 h): leg 2 starts 6 h later, never before it ends.
+    expect(p.tableLegs![1]).toMatchObject({ start: T0 + 31 * H, end: T0 + 86 * H, shifts: [{ at: T0 + 56 * H, egg: 'humility' }] });
+    expect(p.tableLegs![1].start).toBeGreaterThanOrEqual(p.tableLegs![0].end);
+    expect(p.end).toBe(plan.end + 6 * H);
+    // Under a minute apart: as it was.
+    const near = withCurrentSim(plan, { ...leg, endTime: T0 + 24 * H + 30 });
+    expect(near.tableLegs![1]).toBe(plan.tableLegs![1]);
+    expect(near.end).toBe(plan.end);
+  });
+  it('By a date: a delay that crosses the date moves the finish past it, and the spare hours with it (R7.6)', () => {
+    const dated = { ...plan, goal: 'date', deadline: T0 + 82 * H, spareHours: 2 } as NowPlan;
+    const p = withCurrentSim(dated, leg);
+    expect(p.end).toBe(T0 + 86 * H);
+    expect(p.spareHours).toBe(-4);
   });
   it('a one-stop route ends with it; another stop or exact legs leave the plan as it was', () => {
     const one = { ...plan, chain: [226], tableLegs: [plan.tableLegs![0]], end: T0 + 24 * H, endTE: 226 };

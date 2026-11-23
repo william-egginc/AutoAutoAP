@@ -689,7 +689,7 @@ import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWord
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
-import { secondaryLine } from '@/lib/currentAnswer';
+import { planFinish, secondaryLine } from '@/lib/currentAnswer';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
@@ -962,7 +962,15 @@ const lateMark = computed(() => lateMarker(lateKind.value));
 /** The follow line's "after Egg Day starts": not again when the goal pill above already says it ("following · lands about
  *  Jul 15, 2027, after Egg Day starts"; spec-tidy, open item from spec-uxpass). */
 const followLate = computed(() => {
-  if (!props.follow?.missesDate) return false;
+  // From the finish Right now shows (planFinish: the simulated first ascension moves it, lib/followSim.ts
+  // withCurrentSim), as followMiss reads it; the follow state's `missesDate` was worked out before the simulation
+  // (code review round 2, 22 Nov 2026, R7.6). Without a date plan on the card, that as before.
+  const c = props.card;
+  const late =
+    c && c.goal.goal === 'date'
+      ? !!followMissOf({ goal: 'date', deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish: planFinish(c.plan) })
+      : !!props.follow?.missesDate;
+  if (!late) return false;
   const o = selectedOption.value;
   return !(o?.follow && optionSub(o).includes(lateMark.value));
 });

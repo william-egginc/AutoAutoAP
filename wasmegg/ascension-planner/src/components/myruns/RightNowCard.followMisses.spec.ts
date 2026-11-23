@@ -138,6 +138,21 @@ describe('a followed By a date route that now misses its date', () => {
   });
 });
 
+describe("the follow line's late mark reads the finish on the card (code review round 2, 22 Nov 2026, R7.6)", () => {
+  const followLine = (html: string) => {
+    const at = html.indexOf('data-testid="now-follow"');
+    return at < 0 ? '' : textOf(html.slice(at, html.indexOf('</p>', at)));
+  };
+  it('the simulated first ascension pushed the finish past the date: marked, though missesDate was worked out before', async () => {
+    const html = await render(JUL17, { follow: followCard(JUL11, { price: 'exact' }) });
+    expect(followLine(html)).toContain('after Egg Day starts');
+  });
+  it('the finish on the card is in time: not marked, though missesDate said late', async () => {
+    const html = await render(JUL11, { follow: followCard(JUL17) });
+    expect(followLine(html)).not.toContain('after Egg Day starts');
+  });
+});
+
 describe('the button', () => {
   const src = fs.readFileSync(path.resolve(__dirname, 'RightNowCard.vue'), 'utf8');
   it('runs the same goal on the latest save (recalc), and nothing else', () => {
