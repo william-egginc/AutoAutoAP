@@ -23,14 +23,14 @@
               <span class="h-px flex-1 bg-fuchsia-300"></span>
             </li>
 
-            <li v-else class="flex items-center gap-1.5 text-gray-800">
+            <li v-else class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-gray-800">
               <span
                 class="w-2 h-2 rounded-full flex-shrink-0"
                 :class="row.overnight ? 'bg-indigo-500' : 'bg-green-500'"
               ></span>
               <span class="flex-shrink-0 tabular-nums">{{ row.count }}×</span>
-              <!-- What gives way at phone width: the name wraps inside itself, and the badge goes under it rather
-                   than push the time, which keeps the right edge. -->
+              <!-- What gives way at phone width: the clock goes under the name (the row wraps) rather than take half the
+                   row from it, and from sm it is back at the right edge; the badge goes under the name too. -->
               <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-1">
                 <mission-name
                   class="min-w-0"
@@ -40,7 +40,7 @@
                 />
                 <double-capacity-badge v-if="row.doubled" />
               </span>
-              <span class="flex-shrink-0 text-xs text-gray-600 tabular-nums whitespace-nowrap">{{
+              <span class="w-full pl-[1.625rem] text-xs text-gray-600 tabular-nums whitespace-nowrap sm:ml-auto sm:w-auto sm:flex-shrink-0 sm:pl-0">{{
                 clock(row.launchAt)
               }}</span>
             </li>
