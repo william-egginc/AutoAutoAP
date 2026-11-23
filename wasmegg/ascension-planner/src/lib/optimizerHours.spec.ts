@@ -44,11 +44,31 @@ describe('awakeWindowFor', () => {
     expect(awakeWindowFor(daily(7, 23), MON_NOON + 30 * 60, 3 * DAY)!.hoursSinceWake).toBe(5.5);
   });
 
+  // Jordan 23 Nov 2026, shot 3: the plan started at 1:04 AM, four minutes into his hours off, and Fits said "3 launches in your
+  // hours off": the solver reads a start past the awake stretch as "up in the night" and launches at once.
+  it('a start in the hours off waits for the wake-up: the window starts there, shorter by the wait', () => {
+    const at = Date.UTC(2027, 0, 5, 23, 4) / 1000;
+    const w = awakeWindowFor(daily(7, 23), at, 3 * DAY)!;
+    expect(w.startDelaySeconds).toBe(7 * 3600 + 56 * 60);
+    expect(w).toMatchObject({ sleepHours: 8, hoursSinceWake: 0 });
+    expect(w.horizonSeconds).toBe(3 * DAY - (7 * 3600 + 56 * 60));
+  });
+  it('the minute the hours end is already the hours off; a minute earlier is not', () => {
+    expect(awakeWindowFor(daily(7, 23), Date.UTC(2027, 0, 5, 23, 0) / 1000, DAY)!.startDelaySeconds).toBe(8 * 3600);
+    expect(awakeWindowFor(daily(7, 23), Date.UTC(2027, 0, 5, 22, 59) / 1000, DAY)!.startDelaySeconds).toBe(0);
+  });
+  it('a start in the hours with no delay keeps the horizon as typed', () => {
+    const w = awakeWindowFor(daily(7, 23), MON_NOON, 3 * DAY)!;
+    expect(w).toMatchObject({ startDelaySeconds: 0, horizonSeconds: 3 * DAY });
+  });
+
   it('a window past midnight: 6 PM to 2 AM is 16 hours of sleep... capped, so the 8 awake hours hold', () => {
     const w = awakeWindowFor(daily(18, 2), MON_NOON, 2 * DAY)!;
     expect(w).toMatchObject({ sleepHours: 16, awakeFrom: 18, awakeTo: 2, exact: true });
-    // 12:00 is 18 hours since the 18:00 wake-up of the day before.
-    expect(w.hoursSinceWake).toBe(18);
+    // 12:00 is in the hours off (asleep since 2 AM): the window starts at the 18:00 wake-up, 6 hours on.
+    expect(w).toMatchObject({ hoursSinceWake: 0, startDelaySeconds: 6 * 3600 });
+    // Started at 8 PM, two hours into the evening, it is awake and nothing waits.
+    expect(awakeWindowFor(daily(18, 2), Date.UTC(2027, 0, 4, 20, 0) / 1000, 2 * DAY)).toMatchObject({ hoursSinceWake: 2, startDelaySeconds: 0 });
   });
 
   it('hours that differ by day: a visit that only covers weekdays is still exact', () => {

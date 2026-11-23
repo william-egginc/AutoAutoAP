@@ -19,6 +19,11 @@ export function loadedSaveLine(when: string): string {
   return `Using your loaded save${when ? ` from ${when}` : ''} for your ship levels, inventory and crafting level.`;
 }
 
+/** Under the hours when the plan starts in them: "Your plan starts at 1:04 AM, in your hours off. The first launch is at 7:00 AM." DRAFT: Words polishes. */
+export function startsInHoursOffLine(startsAt: string, firstLaunch: string): string {
+  return `Your plan starts at ${startsAt}, in your hours off. The first launch is at ${firstLaunch}.`;
+}
+
 /** On the Fits card when its chance reads the same as Best's. */
 export const SAME_CHANCE_AS_BEST = 'Same chance as Best';
 

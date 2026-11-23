@@ -138,8 +138,19 @@ export function fuelDrift(visit: HumilityMissionsVisit, ours: Record<VirtueEgg, 
  */
 export interface HumilityVisitRun {
   visitId: string;
-  /** Index of the run's last action; the launch goes after it. */
+  /** Index of the run's last action. */
   endIndex: number;
+  /**
+   * Where the launch goes: after the run's actions, but before a "Wait for TE" that closes it. An Auto Planner plan's
+   * Humility stop is that wait, and the missions are what happens inside the stop, so they replace it (staging). A wait
+   * held for the player's hours before the shift out is not that wait and stays.
+   */
+  launchIndex: number;
+}
+
+/** A planned wait for TE: what a stop's own length is, as against a hold for the player's hours. */
+export function isStopWait(action: Action): boolean {
+  return action.type === 'wait_for_te' && !(action.payload as { heldForPlayer?: boolean }).heldForPlayer;
 }
 
 export function humilityVisitRuns(actions: readonly Action[]): HumilityVisitRun[] {
@@ -148,9 +159,19 @@ export function humilityVisitRuns(actions: readonly Action[]): HumilityVisitRun[
     if (action.endState?.currentEgg !== 'humility') return;
     const current = runs[runs.length - 1];
     if (current && current.endIndex === index - 1) current.endIndex = index;
-    else runs.push({ visitId: action.id, endIndex: index });
+    else runs.push({ visitId: action.id, endIndex: index, launchIndex: index + 1 });
   });
+  for (const run of runs) {
+    let at = run.endIndex + 1;
+    // The trailing waits only: a wait the plan starts the run with stays before the launch.
+    while (at - 1 > actionsIndexOf(actions, run.visitId) && isStopWait(actions[at - 1])) at--;
+    run.launchIndex = at;
+  }
   return runs;
+}
+
+function actionsIndexOf(actions: readonly Action[], id: string): number {
+  return actions.findIndex(action => action.id === id);
 }
 
 export function humilityVisitIds(actions: readonly Action[]): string[] {
@@ -180,7 +201,7 @@ export function fileMatchesPlan(file: HumilityMissionsFile, planVisitIds: readon
 /** Insert after the visit's actions so their fuel and research apply; null if missing. */
 export function humilityVisitInsertIndex(actions: readonly Action[], visitId: string): number | null {
   const run = humilityVisitRuns(actions).find(r => r.visitId === visitId);
-  return run ? run.endIndex + 1 : null;
+  return run ? run.launchIndex : null;
 }
 
 export interface FuelShortfall {

@@ -67,6 +67,17 @@ describe('the visit the planner is on', () => {
     expect(read(plan())?.tankFree).toBe(0);
   });
 
+  it('a stop that ends in its own Wait for TE: the time before it is the start, the wait is the stop\'s length (Jordan 23 Nov, H1 10d 15h)', () => {
+    const actions = plan();
+    const wait = { ...actions[2], type: 'wait_for_te', totalTimeSeconds: 10 * 86400 + 15 * 3600, payload: { egg: 'humility' } } as unknown as Action;
+    const withWait = [actions[0], actions[1], { ...actions[1], id: 'habs', type: 'wait_for_full_habs', totalTimeSeconds: 600 } as unknown as Action, wait, ...actions.slice(3)];
+    const whole = read(withWait, 4)!;
+    const bare = read(withWait.filter(a => a !== wait), 3)!;
+    expect(whole.trailingWaitSeconds).toBe(10 * 86400 + 15 * 3600);
+    expect(whole.visit.plannedDurationSeconds).toBe(bare.visit.plannedDurationSeconds);
+    expect(bare.trailingWaitSeconds).toBe(0);
+  });
+
   it('is nothing while the insertion point is on another egg', () => {
     expect(read(plan(), 5)).toBeNull();
     expect(read(plan(), 1)).toBeNull();

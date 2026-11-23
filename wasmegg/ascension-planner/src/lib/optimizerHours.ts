@@ -30,6 +30,13 @@ export interface AwakeWindow {
   exact: boolean;
   /** One line for the player when it is not exact; '' otherwise. */
   note: string;
+  /**
+   * Seconds from `startUnix` to the wake-up when the plan starts in the hours off: nothing can be launched before it, so
+   * the window (and the solve) start there. 0 when the start is in the awake hours or there is no sleep.
+   */
+  startDelaySeconds: number;
+  /** The horizon the solve is asked, shorter than the one given by the delay. */
+  horizonSeconds: number;
 }
 
 function localWallSeconds(unixSeconds: number, timezone: string): number {
@@ -44,7 +51,8 @@ function localWallSeconds(unixSeconds: number, timezone: string): number {
 export function awakeWindowFor(
   availability: Availability | null | undefined,
   startUnix: number,
-  horizonSeconds: number
+  horizonSeconds: number,
+  depth = 0
 ): AwakeWindow | null {
   if (!isConstrained(availability) || !blockedArray(availability)) return null;
   const hours = Math.min(MAX_SAMPLE_HOURS, Math.max(1, Math.ceil(horizonSeconds / HOUR)));
@@ -84,7 +92,7 @@ export function awakeWindowFor(
   }
 
   if (!anyBlocked) {
-    return { sleepHours: 0, hoursSinceWake: 0, awakeFrom: 0, awakeTo: 0, exact: true, note: '' };
+    return { sleepHours: 0, hoursSinceWake: 0, awakeFrom: 0, awakeTo: 0, exact: true, note: '', startDelaySeconds: 0, horizonSeconds };
   }
 
   const sleepWanted = 24 - best.len;
@@ -100,6 +108,13 @@ export function awakeWindowFor(
   // Exact: every hour the visit reaches is awake exactly when it is in the stretch, on every day. An awake hour
   // outside it (a gap in the afternoon, a later start on one day) is one the plan cannot use.
   const withinCap = sleepWanted <= MAX_SLEEP_HOURS;
+  // A start past the end of the awake stretch is in the hours off. The solver would read it as "up in the night" and launch
+  // at once, so the plan starts at the wake-up instead (the same window, shifted, and the wait staged before the launch).
+  if (since >= best.len && withinCap && depth === 0) {
+    const delay = Math.ceil((24 - since) * 60) * 60;
+    const later = awakeWindowFor(availability, startUnix + delay, Math.max(HOUR, horizonSeconds - delay), 1);
+    return later && { ...later, startDelaySeconds: delay };
+  }
   const exact = withinCap && samples.every(s => s.awake === usable[s.hod]);
 
   // The clocks change between the start and the end of the visit.
@@ -116,7 +131,7 @@ export function awakeWindowFor(
   } else if (!exact) {
     note = 'Your hours differ from day to day, so the plan uses only the hours you are awake on every day of this visit.';
   }
-  return { sleepHours, hoursSinceWake: since, awakeFrom: best.from, awakeTo, exact, note };
+  return { sleepHours, hoursSinceWake: since, awakeFrom: best.from, awakeTo, exact, note, startDelaySeconds: 0, horizonSeconds };
 }
 
 /** A launch's moment as the player reads it: the plan start plus the offset, in the plan's zone, 12-hour ("Tue, Jan 5, 9:00 AM"). */

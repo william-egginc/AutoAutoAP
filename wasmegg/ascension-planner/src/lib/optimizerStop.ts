@@ -41,5 +41,5 @@ export function visitForStop(
     epicResearchFTLLevel: player.shipsConfig.epicResearchFTLLevel,
     epicResearchZerogLevel: player.shipsConfig.epicResearchZerogLevel,
   };
-  return { visit, tankFree: Math.max(0, (fuelTankSizes[player.tankLevel] ?? 0) - stored), visitCount: 1 };
+  return { visit, tankFree: Math.max(0, (fuelTankSizes[player.tankLevel] ?? 0) - stored), visitCount: 1, trailingWaitSeconds: 0 };
 }

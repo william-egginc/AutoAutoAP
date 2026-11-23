@@ -18,6 +18,7 @@ import { fuelForLaunches, launchCost } from 'lib/planners/rockets/launches';
 import {
   fuelShortfalls,
   humilityVisitInsertIndex,
+  humilityVisitRuns,
   HumilityMissionsError,
   launchSchedule,
   resolveLaunches,
@@ -135,6 +136,8 @@ export function previewLaunchDurations(
 export interface StageOptions {
   /** Equip the earnings set for the launch and put the elr set back after it. */
   equipEarningsSet?: boolean;
+  /** Seconds to wait before the launch: the plan's start is in the player's hours off, so the first launch is at their next wake-up. */
+  leadSeconds?: number;
 }
 
 /** Build and validate a replacement without mutating the live plan. */
@@ -151,6 +154,10 @@ export function stageHumilityVisit(
     context,
     base
   );
+  // The stop's own wait for TE gives way to the missions and the rest of the window (humilityMissions.ts `launchIndex`).
+  const own = humilityVisitRuns(actions).find(r => r.visitId === visit.visitId);
+  if (own && own.launchIndex <= own.endIndex)
+    actions = simulate([...actions.slice(0, own.launchIndex), ...actions.slice(own.endIndex + 1)], context, base);
   let launchIndex = humilityVisitInsertIndex(actions, visit.visitId);
   if (launchIndex === null)
     throw new HumilityMissionsError(`This plan no longer has the visit ${visit.label} was solved for.`);
@@ -258,16 +265,18 @@ export function stageHumilityVisit(
 
   const { payload, cost } = launchPayload(launches, context);
   const launch = action('launch_missions', payload, cost);
+  const lead = options.leadSeconds && options.leadSeconds > 0 ? [action('wait_for_time', { totalTimeSeconds: Math.round(options.leadSeconds) })] : [];
   const swap = options.equipEarningsSet && canSwapToEarningsSet(previous);
   insert(
     launchIndex,
     swap
       ? [
+          ...lead,
           action('equip_artifact_set', { setName: 'earnings' }),
           launch,
           action('equip_artifact_set', { setName: 'elr' }),
         ]
-      : [launch]
+      : [...lead, launch]
   );
 
   const result = simulate(weave(filled), context, base);

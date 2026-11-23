@@ -188,6 +188,7 @@
             Your hours from Setup: {{ hoursText }}. Launches go up only while you are awake; a ship that lands at
             night waits for you.
           </p>
+          <p v-if="delayLine" class="mt-1 text-small text-gray-600" data-testid="optimizer-hours-delay">{{ delayLine }}</p>
           <p v-if="hoursWindow?.note" class="mt-1 text-small text-amber-700" data-testid="optimizer-hours-note">
             {{ hoursWindow.note }}
           </p>
@@ -433,6 +434,7 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
+import { stopDurationText } from '@/lib/humilityStop';
 
 import { fuelTankSizes, iconURL, virtueShipGemCosts } from 'lib';
 import { finalizeSolutions, formatProbabilityForDisplay, solutionView } from 'lib/mission-optimizer';
@@ -480,7 +482,7 @@ import {
   CADENCE_HEADING,
   CADENCE_NOTE,
   fitsAlternativeTitle,
-  loadedSaveLine,
+  loadedSaveLine, startsInHoursOffLine,
   nightLaunchesText,
   SAME_CHANCE_AS_BEST,
   sameChanceAsBest,
@@ -552,6 +554,16 @@ function patch(change: Partial<OptimizerVisitSettings>) {
 const setTargets = (targetIds: string[]) => patch({ targetIds });
 const setDuration = (duration: string) => patch({ duration: duration.trim() });
 
+// The days start from the stop's own length (its closing Wait for TE), once per visit; what the player types stays.
+watch(
+  current,
+  c => {
+    if (!c || readOnly.value || c.trailingWaitSeconds <= 0 || store.hasSettings(c.visit)) return;
+    store.update(c.visit, { duration: stopDurationText(c.trailingWaitSeconds) });
+  },
+  { immediate: true }
+);
+
 const timeSeconds = computed(() => (settings.value ? durationSeconds(settings.value.duration) : NaN));
 const timeInvalid = computed(() => !Number.isFinite(timeSeconds.value));
 // Typed, and not a duration: an empty field is only unanswered.
@@ -583,7 +595,16 @@ const hoursWindow = computed(() =>
     ? awakeWindowFor(hours.value, startUnix.value, timeSeconds.value)
     : null
 );
+// A plan that starts in the hours off waits for the wake-up: the Fits answer starts there, and the Best one does not.
+const startDelay = computed(() => hoursWindow.value?.startDelaySeconds ?? 0);
+const fitsStartUnix = computed(() => (startUnix.value === null ? null : startUnix.value + startDelay.value));
 // Both answers are made only when the hours change the plan: a visit that stays inside them has one answer.
+const delayLine = computed(() => {
+  const zone = hours.value?.timezone;
+  if (!startDelay.value || startUnix.value === null || !zone) return '';
+  const at = (t: number) => formatMoment(t * 1000, { zone, weekday: true, year: 'never' });
+  return startsInHoursOffLine(at(startUnix.value), at(fitsStartUnix.value!));
+});
 const hoursOn = computed(() => (hoursWindow.value?.sleepHours ?? 0) > 0);
 // The effort in force: Max with the awake hours on, until the player picks one.
 const effort = computed(() => (settings.value ? effortFor(settings.value, !!hours.value) : 'medium'));
@@ -601,7 +622,9 @@ function bestSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
 function fitsSettings(asked: OptimizerVisitSettings): OptimizerVisitSettings {
   const w = hoursWindow.value;
   if (!hours.value || !w) return { ...asked, effort: effort.value };
-  return { ...asked, effort: effort.value, sleepEnabled: w.sleepHours > 0, sleepHours: w.sleepHours, hoursSinceWake: w.hoursSinceWake };
+  // Started at the wake-up: the horizon is what is left of the time asked, in whole minutes, rounded down.
+  const duration = w.startDelaySeconds > 0 ? `${Math.max(1, Math.floor(w.horizonSeconds / 60))}m` : asked.duration;
+  return { ...asked, duration, effort: effort.value, sleepEnabled: w.sleepHours > 0, sleepHours: w.sleepHours, hoursSinceWake: w.hoursSinceWake };
 }
 
 // ---------------------------------------------------------------------------
@@ -632,7 +655,7 @@ const questionKey = computed(() => {
     zerog: visit.epicResearchZerogLevel,
     save: store.playerRevision,
     // What the awake hours came to, so a change to them re-solves.
-    hours: hours.value ? [hoursWindow.value?.sleepHours ?? null, hoursWindow.value?.hoursSinceWake ?? null] : null,
+    hours: hours.value ? [hoursWindow.value?.sleepHours ?? null, hoursWindow.value?.hoursSinceWake ?? null, hoursWindow.value?.startDelaySeconds ?? null] : null,
   });
 });
 // The event's "time left" is the one schedule setting that can be typed wrong.
@@ -771,14 +794,15 @@ const alternatives = computed(() => {
       crafts: sol.perTarget.reduce((sum, t) => sum + t.expectedCrafts, 0),
       ships,
       fuel: sol.fuelUsed,
-      nightLaunches:
-        startUnix.value === null ? 0 : launchesInBlockedHours(sol, startUnix.value, hours.value),
+      nightLaunches: (row.id === 'hours' ? fitsStartUnix.value : startUnix.value) === null
+        ? 0
+        : launchesInBlockedHours(sol, (row.id === 'hours' ? fitsStartUnix.value : startUnix.value)!, hours.value),
     };
   });
 });
 // A launch's real time for the timeline: the plan start plus the offset.
 const clockOf = computed(() => {
-  const start = startUnix.value;
+  const start = picked.value === 'best' ? startUnix.value : fitsStartUnix.value;
   const zone = hours.value?.timezone;
   return hours.value && start !== null && zone ? (seconds: number) => launchClock(start, seconds, zone) : undefined;
 });
@@ -904,7 +928,7 @@ async function stage() {
   try {
     const swap = swapSet.value;
     const { visitId, key } = shown.value!;
-    await missionsStore.stage(projected.value, { equipEarningsSet: swap });
+    await missionsStore.stage(projected.value, { equipEarningsSet: swap, leadSeconds: picked.value === 'best' ? 0 : startDelay.value });
     store.stagedAnswers[visitId] = { key, swap };
   } catch (err) {
     stageError.value =

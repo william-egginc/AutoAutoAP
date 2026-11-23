@@ -73,6 +73,11 @@ export interface CurrentVisit {
   tankFree: number;
   /** How many Humility visits the plan has, for "H2 of 3". */
   visitCount: number;
+  /**
+   * Seconds of the stop's own closing Wait for TE (Auto Planner plans: the stop is that wait). The missions replace it
+   * when staged, so it is the stop's length for "Time on Humility" and is not time spent before the launch.
+   */
+  trailingWaitSeconds: number;
 }
 
 /**
@@ -91,6 +96,11 @@ export function currentHumilityVisit(
   const runs = humilityVisitRuns(actionsBeforeInsertion);
   const run = runs[runs.length - 1];
   if (!run || run.endIndex !== actionsBeforeInsertion.length - 1) return null;
+  const tag0 = humilitySourceTag(run.visitId);
+  // The launch goes where the stop's closing wait starts (staging replaces that wait), so the visit is read to there.
+  const trailing = actionsBeforeInsertion.slice(run.launchIndex).filter(action => action.sourceTag !== tag0);
+  const trailingWaitSeconds = trailing.reduce((sum, action) => sum + (action.totalTimeSeconds ?? 0), 0);
+  const upto = actionsBeforeInsertion.slice(0, run.launchIndex);
 
   const tag = humilitySourceTag(run.visitId);
   // The plan save's shape, as far as the reader looks. Live actions already carry everything it reads.
@@ -104,7 +114,7 @@ export function currentHumilityVisit(
   // The visit itself is read from what comes before the insertion point: the time already spent on Humility, which dates
   // where the launches start, must not count the actions the plan has there AFTER it (game expert, 23 Nov 2026). How many
   // visits the plan has, for "H2 of 3", is read from the whole plan.
-  const visit = sliceHumilityVisits(saveOf(actionsBeforeInsertion)).find(v => v.visitId === run.visitId);
+  const visit = sliceHumilityVisits(saveOf(upto)).find(v => v.visitId === run.visitId);
   if (!visit) return null;
   const visits = sliceHumilityVisits(saveOf(actions));
 
@@ -117,7 +127,7 @@ export function currentHumilityVisit(
   let tank = actionsBeforeInsertion[runStart].endState;
   const staged = new Map<VirtueEgg, number>();
   let stagedAtTank = new Map<VirtueEgg, number>();
-  for (let i = 1; i <= run.endIndex; i++) {
+  for (let i = 1; i < run.launchIndex; i++) {
     const action = actionsBeforeInsertion[i];
     if (action.sourceTag === tag) {
       const before = actionsBeforeInsertion[i - 1].endState.fuelTankAmounts;
@@ -138,5 +148,5 @@ export function currentHumilityVisit(
   for (const egg of Object.keys(tank.fuelTankAmounts) as VirtueEgg[]) stored += without(egg);
   const tankFree = Math.max(0, (fuelTankSizes[tank.tankLevel] ?? 0) - stored);
 
-  return { visit: { ...visit, fuelByEgg, tankLevel: tank.tankLevel }, tankFree, visitCount: visits.length };
+  return { visit: { ...visit, fuelByEgg, tankLevel: tank.tankLevel }, tankFree, visitCount: visits.length, trailingWaitSeconds };
 }

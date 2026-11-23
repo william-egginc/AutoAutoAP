@@ -10,7 +10,7 @@ import { useHumilityMissionsStore } from '@/stores/humilityMissions';
 import { simulate } from 'lib/planners/engine/simulate';
 import { humilitySourceTag, previewLaunchDurations, stageHumilityVisit } from './humilityMissionsStage';
 import { fuelForLaunches } from 'lib/planners/rockets/launches';
-import { resolveLaunches, type HumilityMissionsVisit } from './humilityMissions';
+import { humilityVisitInsertIndex, resolveLaunches, type HumilityMissionsVisit } from './humilityMissions';
 
 vi.hoisted(() => vi.stubGlobal('localStorage', { getItem: () => null, setItem() {}, removeItem() {} }));
 beforeEach(() => setActivePinia(createPinia()));
@@ -344,6 +344,49 @@ describe('staging a Humility visit', () => {
     const before = JSON.stringify({ actions: actions.actions, snapshot: actions._initialSnapshot });
     await expect(useHumilityMissionsStore().stage(v)).rejects.toThrow(/overflow/);
     expect(JSON.stringify({ actions: actions.actions, snapshot: actions._initialSnapshot })).toBe(before);
+  });
+});
+
+// Jordan 23 Nov 2026 (shots 2-3): an Auto Planner plan's Humility stop IS a "Wait for TE" to its target. The launches belong
+// inside that stop, so staging replaces the trailing wait with the missions and the rest of the window, and the stop keeps
+// the length it had.
+function teWait(): Action<'wait_for_te'> {
+  return createSimAction('wait_for_te', { egg: 'humility', targetTE: 5, teGained: 1, eggsToLay: 1e12, timeSeconds: 3600, startEggsDelivered: 0, startTE: 4 });
+}
+function planWithWait(): Action[] {
+  return [...plan(), teWait(), shift('curiosity', 'out')];
+}
+
+describe('a visit that ends in a Wait for TE', () => {
+  it('the launch goes where that wait starts, and the wait is replaced by the missions and the rest of the window', () => {
+    const result = stage(planWithWait());
+    expect(result.some(a => a.type === 'wait_for_te')).toBe(false);
+    const launch = result.findIndex(a => a.type === 'launch_missions');
+    expect(result[launch].endState.currentEgg).toBe('humility');
+    expect(result[launch + 1].type).toBe('wait_for_time');
+    expect(result[launch + 2].id).toBe('out');
+  });
+  it('restaging is stable: the same plan back, no second wait', () => {
+    const once = stage(planWithWait());
+    const twice = stage(once);
+    expect(twice.map(a => a.type)).toEqual(once.map(a => a.type));
+  });
+  it('a lead wait is staged before the launch, tagged, when asked (the hours are off at the start)', () => {
+    const result = stageHumilityVisit(planWithWait(), visit(), baseState(), getSimulationContext(), { leadSeconds: 5400 }).actions;
+    const launch = result.findIndex(a => a.type === 'launch_missions');
+    expect(result[launch - 1].type).toBe('wait_for_time');
+    expect(result[launch - 1].totalTimeSeconds).toBe(5400);
+    expect(result[launch - 1].sourceTag).toBe(humilitySourceTag('humility'));
+  });
+  it('the launch point is before the wait, not after it', () => {
+    const actions = simulate(planWithWait(), getSimulationContext(), baseState());
+    const at = humilityVisitInsertIndex(actions, 'humility')!;
+    expect(actions[at].type).toBe('wait_for_te');
+  });
+  it('a wait held for the player\'s hours before the shift out stays where it is', () => {
+    const held = { ...teWait(), payload: { ...teWait().payload, heldForPlayer: true } } as Action;
+    const actions = simulate([...plan(), held, shift('curiosity', 'out')], getSimulationContext(), baseState());
+    expect(humilityVisitInsertIndex(actions, 'humility')).toBe(actions.findIndex(a => a.id === 'out'));
   });
 });
 

@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  startsInHoursOffLine,
   CADENCE_HEADING,
   CADENCE_NOTE,
   bestAlternativeTitle,
@@ -73,3 +74,11 @@ describe('the loaded-save line (Jordan, 23 Nov 2026: "and loaded?")', () => {
   });
 });
 
+
+describe('startsInHoursOffLine', () => {
+  it('names the start in the hours off and the first launch', () => {
+    expect(startsInHoursOffLine('Tue, Nov 24, 1:04 AM', 'Tue, Nov 24, 7:00 AM')).toBe(
+      'Your plan starts at Tue, Nov 24, 1:04 AM, in your hours off. The first launch is at Tue, Nov 24, 7:00 AM.'
+    );
+  });
+});
