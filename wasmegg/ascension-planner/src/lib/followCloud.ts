@@ -26,6 +26,7 @@ import { timedCall } from './cloudTimeout';
 import { blockedArray, type Availability } from '@/search/availabilitySchedule';
 import { eggDaySeconds } from './eggDay';
 import { encodeWeekMask } from './weekWindow';
+import { blockedOfWeekCode } from './hoursCodec';
 import { screenGoalKey, type Followed, type FollowFrom, type FollowMap } from './follow';
 import type { GoalKey } from './planGoals';
 import { pinSessions } from './pinSession';
@@ -50,9 +51,9 @@ export interface CloudHours {
   end: string;
   timezone?: string;
   /**
-   * The week's awake hours as lib/weekWindow.ts's 28-character code (R10). Kept in this browser only: the collector's
-   * `hours` has no field for it (buildCloudValue never sends it), so a route read back from online has none, and a
-   * side with none says nothing about the week (`sameHours`).
+   * The week's awake hours as lib/weekWindow.ts's 28-character code (R10). The collector keeps it with the route since
+   * 23 Nov 2026 (one hours format); a route written before that, or read from an older collector, has none, and a side
+   * with none says nothing about the week (`sameHours`).
    */
   week?: string;
 }
@@ -200,6 +201,8 @@ export function buildCloudValue(f: Followed): { value: CloudValue; trimmed: bool
       start: f.hours.start,
       end: f.hours.end,
       ...(f.hours.timezone && /^[A-Za-z0-9_+\-/]{1,64}$/.test(f.hours.timezone) ? { timezone: f.hours.timezone } : {}),
+      // The week code (one hours format): the collector keeps it since 23 Nov 2026; a malformed one is left out.
+      ...(blockedOfWeekCode(f.hours.week) ? { week: f.hours.week } : {}),
     };
   if (whole(f.saveTime, UNIX_FROM, UNIX_TO)) value.saveTime = f.saveTime;
   if (typeof f.simVersion === 'string' && STAMP.test(f.simVersion)) value.simVersion = f.simVersion;

@@ -4,6 +4,8 @@
  * 7 am to 1 am (6 ascensions, Sep 22 2028), the hours changed in between. Pure.
  */
 import { describe, expect, it } from 'vitest';
+import { maskOfWindow } from '@/search/availabilitySchedule';
+import { blockedOfWeekCode, weekCodeOfBlocked } from './hoursCodec';
 import {
   compareAnswers,
   currentSetup,
@@ -237,5 +239,22 @@ describe('the setup is recorded where answers are kept', () => {
     expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)');
     expect(page).toContain('otherSnapshots: others');
     expect(page).toContain('setupNow: setupNow.value');
+  });
+});
+
+describe('one hours format: the match check reads the week, not how it was carried', () => {
+  const daily = { days: [], fromHour: 7, toHour: 1, timezone: 'America/Denver' };
+  const asMask = { ...daily, blocked: maskOfWindow([], 7, 1) };
+  it('a daily window and the same week as a mask are the current setup', () => {
+    expect(setupCheck({ availability: asMask, timeOff: [] }, { availability: daily, timeOff: [] }, '2026-11-23').fit).toBe('current');
+  });
+  it('a week that differs by one hour is other hours', () => {
+    const other = { ...daily, blocked: [...maskOfWindow([], 7, 1), 5 * 24 + 8] };
+    expect(setupCheck({ availability: other, timeOff: [] }, { availability: daily, timeOff: [] }, '2026-11-23').hours).toBe(true);
+  });
+  it('a week read back from a code is the same as the one it was made from', () => {
+    const back = { ...daily, blocked: blockedOfWeekCode(weekCodeOfBlocked([...maskOfWindow([], 7, 1), 5 * 24 + 8])) ?? [] };
+    const other = { ...daily, blocked: [...maskOfWindow([], 7, 1), 5 * 24 + 8] };
+    expect(setupCheck({ availability: back, timeOff: [] }, { availability: other, timeOff: [] }, '2026-11-23').fit).toBe('current');
   });
 });

@@ -23,6 +23,7 @@ import { followKey, followUrlOf, hasPlayerId, isAheadRefusal, putOnceMore, readL
 import type { TimeOffDates } from '@/search/timeOff';
 import { validBlocked } from '@/search/availabilitySchedule';
 import { pinSessions } from './pinSession';
+import { blockedOfWeekCode, weekCodeOfBlocked } from './hoursCodec';
 
 export { hasPlayerId };
 /** The same key as the followed routes (one code per account). */
@@ -89,6 +90,9 @@ export interface CloudHours {
    *  Setup with none is the value it always was. Read back, hours without it mean no mask: the newest Setup wins, an
    *  older client's daily window included. */
   blocked?: number[] | null;
+  /** The same weekly hours as lib/weekWindow.ts's 28-character code (one hours format, 23 Nov 2026), written beside
+   *  `blocked` for the clients that only read that. Read first; the collector keeps both as sent, never compared. */
+  week?: string;
 }
 
 /** "Send my progress every N hours" as the Setup value would keep it (`SYNC_PROGRESS_SENDS`; not in the contract). */
@@ -194,7 +198,8 @@ export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour'
   if (from === null || to === null) return { hours: null };
   const days = weekdays(s.days) ?? [];
   const mask = Array.isArray(s.blocked) ? validBlocked(s.blocked) : [];
-  const blocked = mask.length ? { blocked: mask } : {};
+  const week = weekCodeOfBlocked(mask);
+  const blocked = mask.length ? { blocked: mask, ...(week ? { week } : {}) } : {};
   return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days, scheduleEnabled: !!s.scheduleEnabled, ...blocked } };
 }
 export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days' | 'blocked'>> {
@@ -206,7 +211,8 @@ export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<Se
     toHour: Number(v.hours.end.slice(0, 2)),
   };
   if (v.hours.days) out.days = [...v.hours.days];
-  const mask = Array.isArray(v.hours.blocked) ? validBlocked(v.hours.blocked) : [];
+  // The week code first (one hours format), else the blocked list an older client wrote.
+  const mask = blockedOfWeekCode(v.hours.week) ?? (Array.isArray(v.hours.blocked) ? validBlocked(v.hours.blocked) : []);
   out.blocked = mask.length ? mask : null;
   return out;
 }
@@ -282,6 +288,7 @@ export function prefsProblems(kind: PrefsKind, v: unknown): string[] {
       else if (h.days !== undefined && (!Array.isArray(h.days) || h.days.length > 7 || weekdays(h.days)?.length !== h.days.length))
         p.push('hours.days');
       else if (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean') p.push('hours.scheduleEnabled');
+      else if (h.week !== undefined && !blockedOfWeekCode(h.week)) p.push('hours.week');
     }
     for (const f of ['timeOff', 'noPrestigeDays'] as const) {
       const list = x[f];
@@ -331,6 +338,7 @@ export function readSetupValue(v: unknown): CloudSetup | null {
       if (typeof h.scheduleEnabled === 'boolean') out.hours.scheduleEnabled = h.scheduleEnabled;
       if (h.blocked === null) out.hours.blocked = null;
       else if (Array.isArray(h.blocked)) out.hours.blocked = validBlocked(h.blocked as number[]);
+      if (blockedOfWeekCode(h.week)) out.hours.week = h.week as string;
     }
   }
   if (Array.isArray(x.timeOff)) out.timeOff = ranges(x.timeOff as CloudRange[]);

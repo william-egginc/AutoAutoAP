@@ -284,3 +284,18 @@ describe('code review 22 Nov, C4.4: an all-day window on chosen days is not "any
     expect(sameHours(a, b)).toBe(false);
   });
 });
+
+describe('one hours format (Jordan 23 Nov 2026): the followed route\'s week goes online', () => {
+  const avail = (a: object) => a as unknown as Availability;
+  const awake = avail({ days: [1, 2, 3, 4, 5], fromHour: 7, toHour: 23, timezone: 'America/Denver' });
+  it('the value keeps the 28-character week code the collector now accepts', () => {
+    const h = hoursOf(awake)!;
+    expect(h.week).toMatch(/^[A-Za-z0-9_-]{28}$/);
+    const v = buildCloudValue(followed({ hours: h }))!.value;
+    expect(v.hours).toMatchObject({ start: '07:00', end: '23:00', week: h.week });
+  });
+  it('a malformed week is dropped from the value, not sent', () => {
+    const v = buildCloudValue(followed({ hours: { start: '07:00', end: '23:00', week: 'not a code' } }))!.value;
+    expect(v.hours).not.toHaveProperty('week');
+  });
+});

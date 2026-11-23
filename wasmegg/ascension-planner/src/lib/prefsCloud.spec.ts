@@ -3,6 +3,7 @@
  * the key, the values both ways, the contract's checks, the calls with a fake fetch. Ids: placeholders only.
  */
 import { describe, expect, it } from 'vitest';
+import { weekCodeOfBlocked } from './hoursCodec';
 import {
   PREFS_MAX_VALUE_BYTES,
   buildConsentValue,
@@ -250,5 +251,33 @@ describe('the calls', () => {
       expect(c.url).not.toMatch(ID_SHAPED);
       expect(c.body ?? '').not.toMatch(ID_SHAPED);
     }
+  });
+});
+
+describe('one hours format (Jordan 23 Nov 2026): the week code travels with the blocked list', () => {
+  const blocked = [0, 1, 2, 3, 4, 5, 6, 24, 25, 26];
+  const withMask = (o: Partial<SetupNow> = {}) => setup({ blocked, ...o } as Partial<SetupNow>);
+  it('Setup writes `week` beside `blocked` when there is a weekly mask, and neither without', () => {
+    const h = scheduleToCloud(withMask()).hours!;
+    expect(h.blocked).toEqual(blocked);
+    expect(h.week).toBe(weekCodeOfBlocked(blocked));
+    expect(scheduleToCloud(setup()).hours).not.toHaveProperty('week');
+  });
+  it('reads `week` first: a code and a different blocked list gives the code\'s week', () => {
+    const code = weekCodeOfBlocked([10, 11, 12])!;
+    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00', blocked, week: code } }).blocked).toEqual([10, 11, 12]);
+  });
+  it('reads blocked alone (a value from a client before the code), and neither as no mask', () => {
+    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00', blocked } }).blocked).toEqual(blocked);
+    expect(scheduleFromCloud({ hours: { start: '07:00', end: '23:00' } }).blocked).toBeNull();
+  });
+  it('a value read back keeps the code, and a bad code is dropped, not trusted', () => {
+    const code = weekCodeOfBlocked(blocked)!;
+    const v = readSetupValue({ at: AT, hours: { start: '07:00', end: '23:00', blocked, week: code } })!;
+    expect(v.hours?.week).toBe(code);
+    expect(readSetupValue({ at: AT, hours: { start: '07:00', end: '23:00', week: 'nope' } })!.hours).not.toHaveProperty('week');
+  });
+  it('a built Setup value with a mask passes the same checks the collector makes', () => {
+    expect(prefsProblems('setup', buildSetupValue(withMask(), AT))).toEqual([]);
   });
 });

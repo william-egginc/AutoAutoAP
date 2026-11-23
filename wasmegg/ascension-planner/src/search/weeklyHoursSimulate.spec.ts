@@ -238,9 +238,9 @@ describe('the store hands the mask on', () => {
       expect(sameHours(hoursOf(SPLIT), hoursOf({ ...SPLIT }))).toBe(true);
     });
 
-    it("the week is never sent to the collector, and a route with no week (read back from online) reads as the same", () => {
+    it("the week goes to the collector since 23 Nov 2026 (one hours format), and a route with no week (an older one read back) reads as the same", () => {
       const f = { chain: [0, 100], from: 'saved', at: Date.now(), source: 'fast', planStart: Math.floor(Date.now() / 1000), hours: hoursOf(SPLIT) } as never;
-      expect(JSON.stringify(buildCloudValue(f)?.value.hours)).not.toContain('week');
+      expect(buildCloudValue(f)?.value.hours?.week).toBe(hoursOf(SPLIT)?.week);
       const { week: _w, ...noWeek } = hoursOf(SPLIT)!;
       expect(sameHours(noWeek, hoursOf(SPLIT))).toBe(true);
       expect(sameHours(noWeek, hoursOf({ ...WINDOW, blocked: maskOfWindow([], 6, 22) }))).toBe(true);
