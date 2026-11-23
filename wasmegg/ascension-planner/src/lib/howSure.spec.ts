@@ -75,7 +75,7 @@ describe('how sure has no button, and old does not read as wrong (Jordan, 22 Nov
   });
   it('a stale reason says a newer save may confirm it, and never calls the answer old-therefore-wrong', () => {
     const r = howSure(date({ how: 'instant', ageDays: 30 })).reason;
-    expect(r).toBe('Instant Answer, 30 days old; a newer save may well confirm it');
+    expect(r).toBe('instant answer, 30 days old; a newer save may well confirm it');
     expect(r).not.toMatch(/unreliable|out of date|outdated|wrong|stale/i);
   });
 });

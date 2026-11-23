@@ -123,7 +123,7 @@ describe('saved-answer tiles', () => {
     );
     expect(t.answer?.source).toBe('lastChecked');
     expect(t.sure?.level).toBe('medium');
-    expect(t.sure?.action).toBe('fast');
+    expect(t.sure).not.toHaveProperty('action');
   });
 
   it('reads a board row’s level and save time', () => {
