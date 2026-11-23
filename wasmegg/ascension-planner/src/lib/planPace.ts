@@ -277,6 +277,18 @@ export type PaceState =
   /** The save's farm is on another egg than the plan's at the save's time: no fair comparison. */
   | { kind: 'cant'; why: 'other-egg'; saveEgg: string; planEgg: string; saveTime: number };
 
+/**
+ * Is the save still on the route the plan took (How sure, 22 Nov 2026)? On it: ahead, behind (by any hours: the route is
+ * the same, only the timing slipped), on schedule, or the goal reached. Off it: the farm is on another egg than the
+ * plan's then, or below where the plan began. Anything it cannot tell (the plan's own save, no save, an older save, no
+ * timeline) is 'unknown'.
+ */
+export function pathOfPace(s: PaceState): 'on' | 'off' | 'unknown' {
+  if (s.kind === 'ahead' || s.kind === 'behind' || s.kind === 'on-schedule' || s.kind === 'done') return 'on';
+  if (s.kind === 'cant' && (s.why === 'other-egg' || s.why === 'below-start')) return 'off';
+  return 'unknown';
+}
+
 /** Where the save stands against the plan's line. `save` null: no save loaded (or still loading). */
 export function planPace(line: PaceLine | NoLine, save: SaveProgress | null): PaceState {
   if (!save) return { kind: 'no-save' };

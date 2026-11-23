@@ -43,7 +43,8 @@ import {
   type BoardRow,
 } from './leaderboardRank';
 import { howSure, type SearchLevel, type Sure } from './howSure';
-import type { NowPlan } from './nowPlan';
+import { onTrack, type NowPlan } from './nowPlan';
+import { pathOfPace } from './planPace';
 import {
   CURRENT_SAVE_SECONDS,
   SAME_SAVE_SECONDS,
@@ -95,6 +96,8 @@ export interface TileAnswer {
   /** An instant answer an older build worked out (NowPlan `olderCode`, Release 7). */
   olderCode?: boolean;
   hoursChanged?: boolean;
+  /** The loaded save against this answer's planned route (How sure's `path`): 'unknown' unless a newer save and the plan's legs allow the check. */
+  path?: 'on' | 'off' | 'unknown';
   /** A board run this browser didn't send (not on /mine): a "looks like yours" row from another browser or site. */
   otherBrowser?: boolean;
   /** Its legs (each shift), when the source kept them: By a date's saved answers. */
@@ -155,7 +158,16 @@ export interface TileInput {
   deadline: number | null;
   nowMs: number;
   /** The loaded save. */
-  save: { seconds: number; te: number } | null;
+  save: {
+    seconds: number;
+    te: number;
+    /** What the loaded save shows for the route check (lib/planPace.ts): each egg's TE, whole TE, the egg the farm is
+     *  on. Absent: no route check, How sure keeps its age rules. */
+    teByEgg?: readonly number[];
+    progress?: number;
+    onVirtue?: boolean;
+    egg?: string | null;
+  } | null;
   snapshot: NowPlan | null;
   lastChecked: { at: number; chain: number[]; end: number; endTE: number } | null;
   history: readonly CheckEntry[];
@@ -195,6 +207,14 @@ export function rowSaveSeconds(row: BoardRow): number | null {
 
 function candidates(i: TileInput): TileAnswer[] {
   const out: TileAnswer[] = [];
+  // A kept snapshot's route against the loaded save (lib/planPace.ts, the same check as Right now's chip).
+  const pathOf = (s: NowPlan): 'on' | 'off' | 'unknown' => {
+    const v = i.save;
+    if (!v || !v.teByEgg) return 'unknown';
+    return pathOfPace(
+      onTrack(s, { seconds: v.seconds, teByEgg: v.teByEgg, progress: v.progress, onVirtue: v.onVirtue, egg: v.egg ?? null })
+    );
+  };
   const saveNow = i.save?.seconds ?? null;
   const goalOk = (deadline: number | undefined | null, target: number | undefined) =>
     i.goal === 'date' ? deadline === i.deadline : !deadline && target === i.target;
@@ -227,6 +247,7 @@ function candidates(i: TileInput): TileAnswer[] {
     ...(s.olderCode ? { olderCode: true } : {}),
     setup: own ? ownSetup : setup,
     hoursChanged: setup?.fit === 'other',
+    path: pathOf(s),
   });
   const s = i.snapshot;
   if (s && s.goal === i.goal) out.push(fromSnap(s, true, ownSetup));
@@ -391,6 +412,7 @@ function finish(
     ageDays: ageMs / 86_400_000,
     olderSimulator: pick.olderSimulator,
     olderCode: pick.olderCode,
+    path: pick.path,
     hoursChanged: pick.hoursChanged,
     teMoved: i.save != null && pick.fromTE != null && Math.floor(pick.fromTE) !== Math.floor(i.save.te),
     te: pick.endTE,

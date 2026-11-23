@@ -133,3 +133,45 @@ describe('saved-answer tiles', () => {
     expect(rowSaveSeconds(row({ backupAgeHours: undefined }))).toBeNull();
   });
 });
+
+describe('a newer save on the planned route (How sure, 22 Nov 2026)', () => {
+  const T0 = SAVE - 10 * 86400;
+  const DAY = 86400;
+  const T1 = T0 + 3 * DAY;
+  const old = plan({
+    exact: false,
+    calculatedAt: T0 * 1000,
+    planStart: T0,
+    chain: [161, 198],
+    endTE: 198,
+    tableLegs: [
+      { from: 140, to: 161, endTE: 161, start: T0, end: T0 + 2 * DAY },
+      { from: 161, to: 198, endTE: 198, start: T0 + 2 * DAY, end: T0 + 6 * DAY },
+    ] as never,
+    meta: { account: 'a', goal: 'g', backupTime: T0 } as never,
+  });
+  const at = (progress: number) =>
+    base({
+      nowMs: T1 * 1000 + 3600_000,
+      snapshot: null,
+      otherSnapshots: [{ plan: old, recorded: null }],
+      save: { seconds: T1, te: Math.floor(progress), teByEgg: [progress, 0, 0, 0, 0], progress, onVirtue: true, egg: null },
+    });
+  it('on the plan (or behind it): confirmed, not Low for its age', () => {
+    for (const p of [172, 165]) {
+      const t = buildTile(at(p));
+      expect(t.sure?.level).toBe('medium');
+      expect(t.sure?.reason).toBe('confirmed by your newer save: you are on the planned route');
+    }
+  });
+  it('below where the plan began: off the route, a new search is needed', () => {
+    const t = buildTile(at(120));
+    expect(t.sure).toEqual({ level: 'low', reason: 'your save is off the planned route; a new search is needed' });
+  });
+  it('no per-egg save progress given: the old rules', () => {
+    const i = at(172);
+    const t = buildTile({ ...i, save: { seconds: T1, te: 172 } });
+    expect(t.sure?.reason).not.toContain('confirmed');
+  });
+});
+

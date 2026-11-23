@@ -15,8 +15,9 @@
  * Pure. Every threshold is a named constant here, and nowhere else.
  */
 
-/** A save or answer older than this many days is Low (a table-only answer is Medium until then). */
-export const STALE_DAYS = 14;
+/** A save or answer older than this many days is Low, unless a newer save is on the planned route (a table-only
+ *  answer is Medium until then; Jordan, 22 Nov 2026: over a week is the limit). */
+export const STALE_DAYS = 7;
 /** By a date: under this many hours to spare is Low. */
 export const LOW_SPARE_HOURS = 2;
 /** By a date: High needs at least this many hours to spare. */
@@ -45,6 +46,9 @@ export const LEVEL_WORDS: Record<SearchLevel, string> = {
 /** "a Fast", "an Exact", "an Instant Answer": the article for a level word. */
 const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
 
+/** DRAFT words: the reason when a newer save on the planned route stands in for a new search. */
+export const ON_PATH_REASON = 'confirmed by your newer save: you are on the planned route';
+
 export interface SureInput {
   goal: 'fastest' | 'date';
   /** How the answer shown was priced: the instant answer's table only, Check exactly, or a search. */
@@ -72,6 +76,10 @@ export interface SureInput {
    *  instant answer is next opened. */
   olderCode?: boolean;
   hoursChanged?: boolean;
+  /** A newer save against the route the answer planned (planPace `pathOfPace`): 'on' it is still on that route (the
+   *  answer counts as confirmed by it, whatever its age and the TE moving), 'off' it has left it (a new search is
+   *  needed); 'unknown' or absent: no newer save, or nothing to compare. */
+  path?: 'on' | 'off' | 'unknown';
   /** The loaded save's TE is not the one the answer started from. */
   teMoved?: boolean;
   /** By a date: the answer's TE, for the words. */
@@ -114,8 +122,11 @@ export function howSure(i: SureInput): Sure {
   if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
-  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}, not yet checked against a newer save` };
-  if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
+  // DRAFT words (22 Nov 2026, for the Words review): a newer save settles the question the age and the TE move would raise.
+  if (i.path === 'off') return { level: 'low', reason: 'your save is off the planned route; a new search is needed' };
+  const onPath = i.path === 'on';
+  if (!onPath && i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}, not yet checked against a newer save` };
+  if (!onPath && i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)
     return { level: 'high', reason: 'Custom checked every route in its boxes' };
@@ -147,6 +158,7 @@ export function howSure(i: SureInput): Sure {
       };
   }
   // Medium.
+  if (i.how === 'instant' && onPath) return { level: 'medium', reason: ON_PATH_REASON };
   if (i.how === 'instant')
     return i.goal === 'fastest'
       ? { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}; a short search usually finds a sooner route` }

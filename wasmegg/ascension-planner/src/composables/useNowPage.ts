@@ -2198,7 +2198,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       target: g.target,
       deadline: g.deadline,
       nowMs,
-      save: hasSave.value ? { seconds: saveSeconds.value, te: saveTEOf(raw.value) } : null,
+      save: hasSave.value
+        ? (() => {
+            const p = progressOf(raw.value, saveSeconds.value);
+            return {
+              seconds: saveSeconds.value,
+              te: saveTEOf(raw.value),
+              teByEgg: [...teByEgg.value],
+              progress: p?.progress,
+              onVirtue: onVirtue.value !== false,
+              egg: p?.egg ?? null,
+            };
+          })()
+        : null,
       snapshot: gi >= 0 ? drivingOf(g, keys.value[gi].d.key, instantSnapKey(k)).plan : planOf(g, snapOf(instantSnapKey(k))),
       lastChecked: lastCheckedOf(k && k.startsWith(ANSWER_PREFIX) ? k : null),
       history: history.value,
