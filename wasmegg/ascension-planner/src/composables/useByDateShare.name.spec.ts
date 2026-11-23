@@ -109,8 +109,8 @@ describe('DeadlinePanel shows it', () => {
   });
   it('with no name chosen the click opens "Credit me as" itself, so the disabled button is never left unexplained (QA, 22 Nov 2026)', () => {
     expect(panel).toContain('@click="nameIt"');
-    expect(panel).toMatch(/<ShareResult\s+v-else-if="best && collectorConfigured"\s+ref="shareBox"/);
-    expect(panel).toMatch(/async function nameIt\(\)[\s\S]*?namingOpen\.value = true;[\s\S]*?await nextTick\(\);[\s\S]*?shareBox\.value\?\.openForName\(\)/);
+    expect(panel).toMatch(/<ShareResult\s+v-else-if="best && collectorConfigured"\s+:ref="bindShareBox"/);
+    expect(panel).toMatch(/async function nameIt\(\)[\s\S]*?namingOpen\.value = true;[\s\S]*?await nextTick\(\);[\s\S]*?shareBox\?\.openForName\(\)/);
     const box = read('../components/auto/ShareResult.vue');
     expect(box).toMatch(/defineExpose\(\{[^}]*openForName/);
   });

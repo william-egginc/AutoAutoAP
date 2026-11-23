@@ -979,7 +979,7 @@
         </template>
         <ShareResult
           v-else-if="best && collectorConfigured"
-          ref="shareBox"
+          :ref="bindShareBox"
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
           v-model:opt-in="shareOptIn"
@@ -2855,13 +2855,18 @@ const {
 
 /** Put my name on it, with no name chosen yet: the box for the name is shown in place of the on-board line while it is chosen. */
 const namingOpen = keptRef(false);
-const shareBox = ref<InstanceType<typeof ShareResult> | null>(null);
+/** The Share box, by a function ref: the box sits inside the screen's v-for, where a ref object would get an array of them
+ *  (QA, 22 Nov 2026: "openForName is not a function"). */
+let shareBox: InstanceType<typeof ShareResult> | null = null;
+function bindShareBox(el: unknown): void {
+  shareBox = (el as InstanceType<typeof ShareResult> | null) ?? null;
+}
 /** Put my name on it with no name chosen: the box takes the on-board line's place and its setting opens on "Credit me as",
  *  so the rename button below it is never disabled with no way shown to enable it. */
 async function nameIt(): Promise<void> {
   namingOpen.value = true;
   await nextTick();
-  shareBox.value?.openForName();
+  shareBox?.openForName();
 }
 watch(resultKey, () => {
   namingOpen.value = false;
