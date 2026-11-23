@@ -120,6 +120,8 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
   const player = shallowRef<PlayerData | null>(null);
   // Bumped with every save taken, so an answer solved against an older one is known to be stale.
   const playerRevision = ref(0);
+  // When the save the player data was read from was taken, unix seconds; 0 when it does not say.
+  const playerSavedAt = ref(0);
   const saveLoading = ref(false);
   const saveError = ref('');
 
@@ -128,6 +130,7 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     const data = readPlayerData(backup);
     if (!data) return;
     player.value = data;
+    playerSavedAt.value = backup.settings?.lastBackupTime || backup.approxTime || 0;
     playerRevision.value++;
   }
 
@@ -176,6 +179,7 @@ export const useHumilityOptimizerStore = defineStore('humilityOptimizer', () => 
     saveLoading,
     saveError,
     loadSave,
+    playerSavedAt,
     solved,
     solvedBest,
     pick,

@@ -24,14 +24,14 @@
       </div>
 
       <p v-else class="text-small text-gray-600">
-        Ship levels, inventory and crafting level come from your save.
+        {{ loadedLine }}
         <button
           type="button"
           class="text-blue-600 hover:text-blue-700 disabled:opacity-50"
           :disabled="store.saveLoading"
           @click="store.loadSave()"
         >
-          <template v-if="store.saveLoading">Reloading<AnimatedDots /></template><template v-else>Reload it</template>
+          <template v-if="store.saveLoading">Reloading<AnimatedDots /></template><template v-else>Load a newer copy</template>
         </button>
         <span v-if="store.saveError" class="block text-red-600">{{ store.saveError }}</span>
       </p>
@@ -467,12 +467,14 @@ import {
 } from '@/lib/humilityOptimizer';
 import { buildRequest } from '@/lib/humilityOptimizerEngine';
 import { awakeWindowFor, launchClock, launchesInBlockedHours } from '@/lib/optimizerHours';
+import { formatMoment } from '@/lib/clock';
 import { showSchedule } from '@/lib/displayTime';
 import {
   bestAlternativeTitle,
   CADENCE_HEADING,
   CADENCE_NOTE,
   fitsAlternativeTitle,
+  loadedSaveLine,
   nightLaunchesText,
   SAME_CHANCE_AS_BEST,
   sameChanceAsBest,
@@ -491,6 +493,11 @@ const initialStateStore = useInitialStateStore();
 const planStore = usePlanStore();
 const missionsStore = useHumilityMissionsStore();
 const chainStore = useChainSearchStore();
+
+/** The save in use is the one already loaded; this says so and when it is from (DRAFT words, lib/optimizerWords.ts). */
+const loadedLine = computed(() =>
+  loadedSaveLine(store.playerSavedAt > 0 ? formatMoment(store.playerSavedAt * 1000, { year: 'auto' }) : '')
+);
 
 const eggIcon = (egg: VirtueEgg) => iconURL(`egginc/egg_${egg}.png`, 64);
 

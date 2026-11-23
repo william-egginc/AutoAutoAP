@@ -11,6 +11,7 @@ import {
   fitsAlternativeTitle,
   nightLaunchesText,
   SAME_CHANCE_AS_BEST,
+  loadedSaveLine,
   sameChanceAsBest,
 } from './optimizerWords';
 
@@ -58,3 +59,17 @@ describe('optimizer words', () => {
     expect(panel).not.toContain('Every launch is in your awake hours');
   });
 });
+
+describe('the loaded-save line (Jordan, 23 Nov 2026: "and loaded?")', () => {
+  it('says the save in use is the one already loaded, and when it is from', () => {
+    expect(loadedSaveLine('Nov 22 at 9:40 PM')).toBe('Using your loaded save, from Nov 22 at 9:40 PM: ship levels, inventory and crafting level.');
+    expect(loadedSaveLine('')).toBe('Using your loaded save: ship levels, inventory and crafting level.');
+  });
+  it('the card shows it, with the button as a newer copy and not a step', () => {
+    expect(panel).toContain('{{ loadedLine }}');
+    expect(panel).toContain('Load a newer copy');
+    expect(panel).not.toContain('Reload it');
+    expect(panel).not.toContain('come from your save.');
+  });
+});
+
