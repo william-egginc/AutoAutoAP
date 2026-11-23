@@ -126,6 +126,32 @@ describe('useBuildUpTracker', () => {
     back.scope.stop();
   });
 
+  it('a newer save whose priced start moved keeps the first plan, its ticks and its key; a new prestige does not (code review round 2, 22 Nov 2026, R7.5)', async () => {
+    const asc = ref<{ resets: number | null; firstStop: number | null; first: boolean } | null>({ resets: 7, firstStop: 226, first: true });
+    const { r, t, scope } = setup({ ascension: asc });
+    r.fresh.value = fixturePlan();
+    await nextTick();
+    const k = t.result.value!.checkIns[0].keys[0];
+    t.toggleTick(k, true);
+    // S2: a newer save, priced an hour later, so the page's estimate of the start moved with it.
+    r.saveSeconds.value = mt(10, 30, 13, 0);
+    r.ascensionStart.value = mt(10, 30, 13, 4);
+    r.fresh.value = { ...fixturePlan(), actions: fixturePlan().actions.slice(0, 3) };
+    await nextTick();
+    expect(t.plan.value?.saveSeconds).toBe(mt(10, 30, 12, 5));
+    expect(t.ticks.value.has(k)).toBe(true);
+    expect(t.ascensionKey.value).toBe(A1);
+    // A new prestige to the same first stop: another ascension (resets + 1), the page's estimate again.
+    asc.value = { resets: 8, firstStop: 226, first: true };
+    await nextTick();
+    expect(t.ascensionKey.value).toBe(mt(10, 30, 13, 4));
+    // Not the route's first ascension: the page's estimate (a leg's end), as before.
+    asc.value = { resets: 7, firstStop: 226, first: false };
+    await nextTick();
+    expect(t.ascensionKey.value).toBe(mt(10, 30, 13, 4));
+    scope.stop();
+  });
+
   // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026): Jordan's alt, a build-up of 6 shifts that bought nothing.
   const BUYS = new Set(['research', 'vehicle', 'trainCar', 'hab', 'silo']);
   const buysNothing = (variantKey = 'buildup'): BuildUpPlan => ({

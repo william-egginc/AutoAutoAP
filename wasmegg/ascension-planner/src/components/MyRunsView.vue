@@ -416,6 +416,7 @@ import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
 import { useCalendarFeedPush } from '@/composables/useCalendarFeed';
 import { calLinesFromNextShifts } from '@/lib/calendarNextShifts';
 import { ascensionStartOf } from '@/lib/buildUpTracker';
+import { inFirstAscension } from '@/lib/trackerAscension';
 import { nextBuyBefore } from '@/lib/nextAction';
 import { isConstrained } from '@/search/availability';
 import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
@@ -541,6 +542,16 @@ const tracker = useBuildUpTracker({
   followed: computed(() => !!page.follow.value),
   building: computed(() => page.phase.value?.phase === 'building'),
   ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  // Which ascension the save is in (lib/trackerAscension.ts, R7.5): its count, the route's first stop, the first or not.
+  ascension: computed(() => {
+    const p = page.cardPlan.value?.plan ?? null;
+    const resets = (initial.rawBackup as { virtue?: { resets?: number | null } } | null)?.virtue?.resets;
+    return {
+      resets: typeof resets === 'number' ? resets : null,
+      firstStop: p?.chain[0] ?? null,
+      first: inFirstAscension(p, page.now.value),
+    };
+  }),
   saveSeconds: page.saveSeconds,
   zone: page.zone,
   hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
@@ -563,7 +574,8 @@ useCalendarFeedPush({
   // Producing, nothing to buy (notBuilding): no tracker lines, but the Next shifts still know the shifts and the prestige.
   fallbackLines: computed(() => (tracker.state.value === 'notBuilding' ? calLinesFromNextShifts(page.nextShiftLines.value) : null)),
   ticks: tracker.ticks,
-  ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  // The tracker's own key, so the calendar's uids hold with its plan (R7.5).
+  ascensionStart: tracker.ascensionKey,
   zone: page.zone,
   hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
 });

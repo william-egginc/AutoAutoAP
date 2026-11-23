@@ -48,6 +48,11 @@ import {
   type AnchoredPlan,
   type TrackerResult,
 } from '@/lib/buildUpTracker';
+import { keptAscensionStart, type TrackerAscension } from '@/lib/trackerAscension';
+
+/** A kept plan with the ascension it was kept for (lib/trackerAscension.ts): two extra fields stored with it (the record
+ *  is written and read whole, lib/buildUpTracker.ts `writeAnchoredPlan`), absent on plans kept before. */
+type KeptPlan = AnchoredPlan & { resets?: number; firstStop?: number };
 import { tierUnlocks as tierUnlocksOf, type TierUnlock } from '@/lib/buildUpTiers';
 import { buildUpStages, type BuildUpStages } from '@/lib/buildUpStages';
 import {
@@ -95,6 +100,9 @@ export interface BuildUpTrackerInputs {
   building: Ref<boolean>;
   /** The current ascension's start (lib/buildUpTracker.ts `ascensionStartOf`), null when not known. */
   ascensionStart: Ref<number | null>;
+  /** Which ascension the save is in (lib/trackerAscension.ts): in the first, the kept plan's key holds while it
+   *  matches (R7.5). Absent: the page's estimate as before. */
+  ascension?: Ref<TrackerAscension | null>;
   /** The loaded save's backup time, unix seconds. */
   saveSeconds: Ref<number>;
   zone: Ref<string>;
@@ -196,7 +204,17 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     { immediate: true }
   );
   /** The ascension the tracker is about: the plan's, else the kept plan's own. */
-  const ascKey = computed(() => i.ascensionStart.value ?? anchored.value?.ascensionStart ?? i.fresh.value?.startedAt ?? null);
+  // In the route's first ascension the page's estimate moves with every newer save (it is when the answer was priced):
+  // the kept plan's key holds while the save is in the same ascension (`keptAscensionStart`, code review round 2,
+  // 22 Nov 2026, R7.5).
+  const ascKey = computed(
+    () =>
+      keptAscensionStart(anchored.value as KeptPlan | null, i.ascension?.value ?? null, i.saveSeconds.value) ??
+      i.ascensionStart.value ??
+      anchored.value?.ascensionStart ??
+      i.fresh.value?.startedAt ??
+      null
+  );
   /** The kept plan when it is this ascension's. */
   const plan = computed<AnchoredPlan | null>(() => {
     const a = anchored.value;
@@ -223,7 +241,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
         buildUpLog('the simulated plan buys nothing: not kept, nothing to buy');
         return;
       }
-      const a: AnchoredPlan = { ascensionStart: k, ...anchorOf(p), plan: p };
+      const a: KeptPlan = { ascensionStart: k, ...anchorOf(p), ...ascensionOf(), plan: p };
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
       const stored = perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a));
@@ -242,6 +260,11 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
    * the save on screen's own (no Re-plan: the save was "not newer than the plan's"). A plan worked out before carries
    * none: the page's save then, as before.
    */
+  /** The ascension the plan is kept for (`TrackerAscension`), stored with it: what `keptAscensionStart` compares. */
+  function ascensionOf(): { resets?: number; firstStop?: number } {
+    const s = i.ascension?.value;
+    return s && s.resets !== null && s.firstStop !== null ? { resets: s.resets, firstStop: s.firstStop } : {};
+  }
   function anchorOf(p: BuildUpPlan): { saveSeconds: number; anchorFarm?: SaveFarm } {
     if (p.from) return { saveSeconds: p.from.backupTime, ...(p.from.farm ? { anchorFarm: p.from.farm } : {}) };
     const f = saveFarm.value;
@@ -492,7 +515,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       replanError.value = '';
       return;
     }
-    const a: AnchoredPlan = { ascensionStart: k, ...anchorOf(p), plan: p };
+    const a: KeptPlan = { ascensionStart: k, ...anchorOf(p), ...ascensionOf(), plan: p };
     const zone = i.zone.value;
     const hours = i.hours.value;
     const now = dayOf(i.now.value);
@@ -654,6 +677,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   const siloWarnings = computed(() => (result.value?.lines ?? []).filter(l => l.kind === 'warning' && /silo/i.test(l.text)).length);
 
   return {
+    /** The ascension the tracker is about (its key): the calendar feed's too, so its uids hold as the plan does. */
+    ascensionKey: ascKey,
     state,
     open,
     playerToggle,
