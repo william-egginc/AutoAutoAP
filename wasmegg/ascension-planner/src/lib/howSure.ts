@@ -47,7 +47,7 @@ export const LEVEL_WORDS: Record<SearchLevel, string> = {
 const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
 
 /** DRAFT words: the reason when a newer save on the planned route stands in for a new search. */
-export const ON_PATH_REASON = 'confirmed by your newer save: you are on the planned route';
+export const ON_PATH_REASON = 'your newer save is on the planned route';
 
 export interface SureInput {
   goal: 'fastest' | 'date';
@@ -123,7 +123,7 @@ export function howSure(i: SureInput): Sure {
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
   // DRAFT words (22 Nov 2026, for the Words review): a newer save settles the question the age and the TE move would raise.
-  if (i.path === 'off') return { level: 'low', reason: 'your save is off the planned route; a new search is needed' };
+  if (i.path === 'off') return { level: 'low', reason: 'your newer save is off the planned route, so it needs a new search' };
   const onPath = i.path === 'on';
   if (!onPath && i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}, not yet checked against a newer save` };
   if (!onPath && i.teMoved) return { level: 'low', reason: 'your TE has moved since' };

@@ -82,7 +82,7 @@ describe('how sure has no button, and old does not read as wrong (Jordan, 22 Nov
 });
 
 describe('a newer save on the planned route confirms the answer (Jordan, 22 Nov 2026)', () => {
-  const confirmed = 'confirmed by your newer save: you are on the planned route';
+  const confirmed = 'your newer save is on the planned route';
   it('on path: an old answer is not Low for its age and the TE having moved is no reason, on both goals', () => {
     for (const goal of [date, fast]) {
       const r = howSure(goal({ how: 'instant', ageDays: 30, teMoved: true, path: 'on', spareHours: 30, runnerUpHours: 99 }));
@@ -95,7 +95,7 @@ describe('a newer save on the planned route confirms the answer (Jordan, 22 Nov 
   });
   it('off the route: Low, and it says a new search is needed', () => {
     const r = howSure(date({ how: 'instant', ageDays: 2, path: 'off' }));
-    expect(r).toEqual({ level: 'low', reason: 'your save is off the planned route; a new search is needed' });
+    expect(r).toEqual({ level: 'low', reason: 'your newer save is off the planned route, so it needs a new search' });
   });
   it('unknown, or not given: the old rules, with the 7-day limit and the TE having moved', () => {
     expect(howSure(date({ how: 'instant', ageDays: 8, path: 'unknown' })).reason).toBe(

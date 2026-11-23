@@ -161,12 +161,12 @@ describe('a newer save on the planned route (How sure, 22 Nov 2026)', () => {
     for (const p of [172, 165]) {
       const t = buildTile(at(p));
       expect(t.sure?.level).toBe('medium');
-      expect(t.sure?.reason).toBe('confirmed by your newer save: you are on the planned route');
+      expect(t.sure?.reason).toBe('your newer save is on the planned route');
     }
   });
   it('below where the plan began: off the route, a new search is needed', () => {
     const t = buildTile(at(120));
-    expect(t.sure).toEqual({ level: 'low', reason: 'your save is off the planned route; a new search is needed' });
+    expect(t.sure).toEqual({ level: 'low', reason: 'your newer save is off the planned route, so it needs a new search' });
   });
   it('no per-egg save progress given: the old rules', () => {
     const i = at(172);
