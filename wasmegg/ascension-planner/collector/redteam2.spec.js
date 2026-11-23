@@ -107,15 +107,15 @@ describe('C13: two writers for one version number', () => {
     expect(res.status).toBe(200);
     expect(rows('prefs')).toBe(1);
   });
-  it('follow: a second failure answers 503 (try again), still not a thrown 500', async () => {
+  it('follow: a second failure answers 500 (try again; a 503 would read as "feature off"), not a thrown error', async () => {
     fail.n = 2;
     const res = await putFollow(followValue(T0));
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(500);
     expect(rows('follows')).toBe(0);
   });
-  it('prefs: a second failure answers 503 (try again)', async () => {
+  it('prefs: a second failure answers 500 (try again)', async () => {
     fail.n = 2;
-    expect((await putPrefs('consent', consentValue(T0))).status).toBe(503);
+    expect((await putPrefs('consent', consentValue(T0))).status).toBe(500);
   });
 });
 

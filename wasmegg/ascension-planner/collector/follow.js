@@ -141,7 +141,7 @@ export const AT_AHEAD_MS = 600_000;
 
 /**
  * The version insert, tried twice: two writers can both compute MAX(version)+1 and the loser hits the primary key.
- * A second failure is a plain "try again" (503), never a thrown 500. `run` returns the D1 result.
+ * A second failure is a plain "try again" (500: a 503 would read as "feature off" to the client), never a thrown error. `run` returns the D1 result.
  */
 export async function insertTwice(run) {
   for (let i = 0; i < 2; i++) {
@@ -310,7 +310,7 @@ export async function handleFollow(request, env, now = Date.now()) {
       .bind(k, goal, valueText, now, k, goal)
       .run()
   );
-  if (!ins) return reply({ error: 'could not store it, try again' }, 503);
+  if (!ins) return reply({ error: 'could not store it, try again' }, 500);
   const top = await env.WATCH.prepare('SELECT MAX(version) AS v FROM follows WHERE key = ? AND goal = ?').bind(k, goal).first();
   const version = top?.v ?? 1;
   await env.WATCH.prepare('DELETE FROM follows WHERE key = ? AND goal = ? AND version <= ?')

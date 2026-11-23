@@ -281,7 +281,7 @@ export async function handlePrefs(request, env, now = Date.now()) {
       .bind(k, kind, valueText, now, k, kind)
       .run()
   );
-  if (!ins) return reply({ error: 'could not store it, try again' }, 503);
+  if (!ins) return reply({ error: 'could not store it, try again' }, 500);
   const top = await env.WATCH.prepare('SELECT MAX(version) AS v FROM prefs WHERE key = ? AND kind = ?').bind(k, kind).first();
   const version = top?.v ?? 1;
   await env.WATCH.prepare('DELETE FROM prefs WHERE key = ? AND kind = ? AND version <= ?').bind(k, kind, version - FOLLOW_VERSIONS).run();

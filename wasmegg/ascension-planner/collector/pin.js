@@ -82,7 +82,8 @@ export async function deleteAccount(env, sk) {
 
 /**
  * The guard every cloud handler calls right after it has the account key. null = go on; otherwise the answer to send.
- * No `pin` table yet (migration not applied) and no flag: no PIN exists, go on. Any other D1 error: 503, never "assume no PIN".
+ * No `pin` table yet (migration not applied) and no flag: no PIN exists, go on. Any other D1 error is thrown (the Worker's catch-all answers 500: a
+ * transient error must not read as "feature off" to the client; Jordan 22 Nov, round 1 C2.5), never "assume no PIN".
  */
 export async function pinGuard(env, request, sk, now = Date.now()) {
   if (!env.WATCH) return null;
@@ -91,7 +92,7 @@ export async function pinGuard(env, request, sk, now = Date.now()) {
     row = await rowOf(env, sk);
   } catch (e) {
     if (/no such table/i.test(String(e && e.message))) return pinOn(env) ? unavailable() : null;
-    return unavailable();
+    throw e;
   }
   if (!row) return null;
   if (!pinOn(env)) return unavailable();
@@ -169,11 +170,8 @@ export async function handlePin(request, env, now = Date.now()) {
     throw e;
   }
   let row;
-  try {
-    row = await rowOf(env, sk);
-  } catch {
-    return unavailable();
-  }
+  // A D1 error here is thrown, not answered 503 (a 503 reads as "feature off" to the client for the whole page load): 500.
+  row = await rowOf(env, sk);
   if (row && row.reset_at && row.reset_at <= now) {
     await deleteAccount(env, sk);
     row = null;

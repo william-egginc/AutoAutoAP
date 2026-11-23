@@ -357,11 +357,16 @@ describe('rollout and failing closed', () => {
     env.PIN_ENABLED = '1';
     expect((await routes(K, session).syncList()).status).toBe(200);
   });
-  it('a D1 error reading the pin row is 503, not "no PIN"', async () => {
+  it('a D1 error reading the pin row is thrown (500 at the Worker), never "no PIN" and never a 503 that reads as "feature off"', async () => {
     const real = env.WATCH.prepare;
     env.WATCH = { ...env.WATCH, prepare: sql => (/FROM pin /.test(sql) ? { bind: () => ({ first: async () => { throw new Error('D1_ERROR: boom'); } }) } : real(sql)) };
-    const res = await pinGuard(env, new Request('https://c.example/x'), await saltedKeyOf(SALT, K), T0);
-    expect(res.status).toBe(503);
+    await expect(pinGuard(env, new Request('https://c.example/x'), await saltedKeyOf(SALT, K), T0)).rejects.toThrow(/boom/);
+  });
+  it('through the Worker, that D1 error is a 500 on a cloud route (not 503, which the client reads as "off")', async () => {
+    const real = env.WATCH.prepare;
+    env.WATCH = { ...env.WATCH, prepare: sql => (/FROM pin /.test(sql) ? { bind: () => ({ first: async () => { throw new Error('D1_ERROR: boom'); } }) } : real(sql)) };
+    const res = await worker.fetch(new Request(`https://c.example/sync?k=${K}`), env, { waitUntil() {} });
+    expect(res.status).toBe(500);
   });
   it('an old client (no session header) against a PIN account gets 401 on every route and loses nothing', async () => {
     const { session } = await setPin();
