@@ -40,7 +40,7 @@ const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const SESSION_RE = /^v1\.(\d{10,16})\.(\d{1,9})\.([0-9a-f]{64})$/;
 const TABLES = ['follows', 'prefs', 'answers', 'synced', 'cal_feeds', 'pin'];
 
-export const isPinRequest = url => url.pathname.startsWith('/pin/') && /^\/pin\/(status|set|verify|refresh|change|remove|recover|reset|reset\/cancel)$/.test(url.pathname);
+export const isPinRequest = url => url.pathname.startsWith('/pin/') && /^\/pin\/(status|set|verify|refresh|change|remove|recover|reset|reset\/cancel|admin\/clear)$/.test(url.pathname);
 export const pinOn = env => env.PIN_ENABLED === '1';
 
 const bad = problems => reply({ error: 'rejected', problems }, 400);
@@ -170,6 +170,21 @@ export async function handlePin(request, env, now = Date.now()) {
     throw e;
   }
   let row;
+  // THE OWNER'S ADMIN ROUTE (Jordan 22 Nov: "give me ability to reset PIN, but not view"): with the secret PIN_ADMIN_TOKEN in the
+  // x-admin-token header it removes the account's PIN row so the first set can be made again. It answers only {ok, cleared}: it never
+  // reads or returns a PIN, a proof, a recovery code or a session, and it leaves the account's saved data alone. The token is compared
+  // FIRST (the right one always works); only a WRONG one spends, 10 a day per address. No secret set: the route does not exist.
+  if (route === 'admin/clear') {
+    if (!env.PIN_ADMIN_TOKEN) return reply({ error: 'not found' }, 404);
+    if (!only(body, ['k'])) return bad(['send only k']);
+    if (!sameText(request.headers.get('x-admin-token') || '', env.PIN_ADMIN_TOKEN)) {
+      const wrong = await spend(env, `pinadmin|${await ipHash(env, request)}`, 1, PIN_TRIES_PER_DAY, now, DAY_MS);
+      if (!wrong.ok) return retry(waitSeconds(wrong.since, DAY_MS, now), 'too many wrong admin tokens today from this address');
+      return reply({ error: 'admin token required' }, 401);
+    }
+    const gone = await env.WATCH.prepare('DELETE FROM pin WHERE key = ?').bind(sk).run();
+    return reply({ ok: true, cleared: !!(gone.meta && gone.meta.changes) });
+  }
   // A D1 error here is thrown, not answered 503 (a 503 reads as "feature off" to the client for the whole page load): 500.
   row = await rowOf(env, sk);
   if (row && row.reset_at && row.reset_at <= now) {

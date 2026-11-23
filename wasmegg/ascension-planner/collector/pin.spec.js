@@ -2,6 +2,7 @@
  * Optional PIN (pin.js, notes/pin-cloud-design-2026-11-17.md). Made-up codes only: no real account anywhere in this file.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { saltedKeyOf } from './acct.js';
 import { handleFollow } from './follow.js';
@@ -494,5 +495,66 @@ describe('code review round 2, C1.6: recovery tries are counted per address, and
     // The cap is per address (it is the same address that guessed): the second account's wrong code is also refused from there,
     // but its right code is not.
     expect((await pin('recover', { k: K2, recovery: other.recovery, pk: PK2 }, {}, T0 + 50, '198.51.100.1')).status).toBe(200);
+  });
+});
+
+describe('the owner-only admin route (Jordan 22 Nov: "give me ability to reset PIN, but not view")', () => {
+  const ADMIN = 'adm-' + 'x'.repeat(40);
+  const clear = (body, headers = {}, ip = '203.0.113.9', now = T0) => pin('admin/clear', body, headers, now, ip);
+  beforeEach(() => {
+    env.PIN_ADMIN_TOKEN = ADMIN;
+  });
+  it('with the right token it removes the PIN (first-set possible again), answers only {ok, cleared}, and keeps the account\'s data', async () => {
+    const s1 = await (await pin('set', { k: K, pk: PK }, {}, T0)).json();
+    await routes(K, s1.session, T0 + 10).syncPut();
+    expect(rowsOf('synced')).toBe(1);
+    const res = await clear({ k: K }, { 'x-admin-token': ADMIN });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ ok: true, cleared: true });
+    expect(rowsOf('pin')).toBe(0);
+    expect(rowsOf('synced')).toBe(1);
+    expect((await (await status(K, T0 + 20)).json()).pin).toBe(false);
+    // First set again, with a new PIN: the old session is dead on the new PIN.
+    const s2 = await (await pin('set', { k: K, pk: PK2 }, {}, T0 + 30)).json();
+    expect(s2.session).toBeTruthy();
+    expect((await pin('change', { k: K, pk: PK }, S(s1.session), T0 + 40)).status).toBe(401);
+    // Clearing an account with no PIN is fine, and says so.
+    await clear({ k: K }, { 'x-admin-token': ADMIN }, '203.0.113.9', T0 + 50);
+    expect(await (await clear({ k: K }, { 'x-admin-token': ADMIN }, '203.0.113.9', T0 + 60)).json()).toEqual({ ok: true, cleared: false });
+  });
+  it('a missing or wrong token is 401 and clears nothing; 10 wrong tries an address a day, then 429; no secret set means no such route', async () => {
+    await pin('set', { k: K, pk: PK }, {}, T0);
+    expect((await clear({ k: K })).status).toBe(401);
+    expect((await clear({ k: K }, { 'x-admin-token': 'nope' })).status).toBe(401);
+    expect(rowsOf('pin')).toBe(1);
+    for (let i = 0; i < 8; i++) await clear({ k: K }, { 'x-admin-token': 'nope' });
+    expect((await clear({ k: K }, { 'x-admin-token': 'nope' })).status).toBe(429);
+    // Only WRONG tokens spend (as with the recovery code): the right one still works from the same address.
+    expect((await clear({ k: K }, { 'x-admin-token': ADMIN })).status).toBe(200);
+    await pin('set', { k: K, pk: PK }, {}, T0 + 5);
+    expect((await clear({ k: K }, { 'x-admin-token': ADMIN }, '198.51.100.4')).status).toBe(200);
+    await pin('set', { k: K, pk: PK }, {}, T0 + 6, '192.0.2.50');
+    delete env.PIN_ADMIN_TOKEN;
+    expect((await clear({ k: K }, { 'x-admin-token': ADMIN }, '198.51.100.5')).status).toBe(404);
+  });
+  it('is routed by the Worker like the other /pin routes', async () => {
+    await pin('set', { k: K, pk: PK }, {}, T0);
+    const res = await worker.fetch(
+      new Request('https://c.example/pin/admin/clear', { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-token': ADMIN, 'cf-connecting-ip': '203.0.113.9' }, body: JSON.stringify({ k: K }) }),
+      env,
+      { waitUntil() {} }
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, cleared: true });
+  });
+  it('with PIN_ENABLED off the route is closed too, and nothing ever returns a PIN, a proof, a code or a session', async () => {
+    await pin('set', { k: K, pk: PK }, {}, T0);
+    env.PIN_ENABLED = '0';
+    expect((await clear({ k: K }, { 'x-admin-token': ADMIN })).status).toBe(404);
+    env.PIN_ENABLED = '1';
+    const text = JSON.stringify(await (await clear({ k: K }, { 'x-admin-token': ADMIN })).json());
+    expect(text).not.toMatch(/proof|session|recovery|pk|epoch/i);
+    expect(readFileSync(new URL('./pin.js', import.meta.url), 'utf8')).not.toMatch(/admin\/clear[\s\S]{0,600}(proof|rec_proof)\s*[:,]/);
   });
 });
