@@ -123,13 +123,30 @@ describe('POST /v: what a build id is', () => {
 });
 
 describe('POST /v: counting', () => {
-  it('keeps only (UTC day, build, n): one row per build a day, counted up', async () => {
+  it('keeps only (UTC day, build, n): one row per build a day, written ONCE (a repeat is a read, never a write; n stays 1)', async () => {
+    // Workers Free sizing (Jordan, 22 Nov 2026: he only needs the version once a day): one D1 write per build per day at most.
+    let wrote = 0;
+    const real = env.WATCH.prepare.bind(env.WATCH);
+    env.WATCH.prepare = sql => {
+      const st = real(sql);
+      if (/INSERT INTO build_counts/.test(sql)) {
+        const orig = st.bind.bind(st);
+        st.bind = (...a) => {
+          const b = orig(...a);
+          const r = b.run.bind(b);
+          b.run = async () => { const out = await r(); wrote += (out.meta && out.meta.changes) || 0; return out; };
+          return b;
+        };
+      }
+      return st;
+    };
     for (let i = 0; i < 3; i++) expect(await (await send(B)).json()).toEqual({ ok: true, counted: true });
     await send('explorer-Dk_3-a9Q');
     await send(` ${B}\n`); // surrounding white space is not part of the id
+    expect(wrote).toBe(2); // one row per build: 5 sends, 2 writes
     expect(rows()).toEqual([
       { day: '2026-10-24', build: 'explorer-Dk_3-a9Q', n: 1 },
-      { day: '2026-10-24', build: B, n: 4 },
+      { day: '2026-10-24', build: B, n: 1 },
     ]);
   });
 
@@ -161,7 +178,11 @@ describe('POST /v: counting', () => {
       expect(JSON.stringify(env.WATCH._db.prepare(`SELECT * FROM ${t.name}`).all())).not.toContain(IP);
   });
 
-  it(`counts at most ${BUILD_DAY_CAP} different builds a day; ones already counted still count, and the next day starts over`, async () => {
+  it('the cap is 20 different builds a day (Workers Free: at most 20 writes a day from here)', () => {
+    expect(BUILD_DAY_CAP).toBe(20);
+  });
+
+  it(`counts at most ${BUILD_DAY_CAP} different builds a day; ones already counted still answer counted, and the next day starts over`, async () => {
     const id = i => `index-${String(i).padStart(8, '0')}`;
     for (let i = 0; i < BUILD_DAY_CAP; i++) expect((await (await send(id(i))).json()).counted).toBe(true);
     expect(await (await send(id(BUILD_DAY_CAP))).json()).toEqual({ ok: true, counted: false });
@@ -169,7 +190,7 @@ describe('POST /v: counting', () => {
     const today = env.WATCH._db
       .prepare('SELECT COUNT(*) AS c, SUM(n) AS s FROM build_counts WHERE day = ?')
       .get('2026-10-24');
-    expect({ ...today }).toEqual({ c: BUILD_DAY_CAP, s: BUILD_DAY_CAP + 1 });
+    expect({ ...today }).toEqual({ c: BUILD_DAY_CAP, s: BUILD_DAY_CAP });
     expect((await (await send(id(BUILD_DAY_CAP), T0 + DAY)).json()).counted).toBe(true);
   });
 });
@@ -193,7 +214,7 @@ describe('POST /v: the per-address edge limit (BUILD_LIMIT)', () => {
     const slow = await send(B);
     expect(slow.status).toBe(429);
     expect(slow.headers.get('retry-after')).toBe('60');
-    expect(rows()).toEqual([{ day: '2026-10-24', build: B, n: 2 }]);
+    expect(rows()).toEqual([{ day: '2026-10-24', build: B, n: 1 }]);
     expect([...env.BUILD_LIMIT.keys.keys()]).toEqual([`v|${IP}`]);
   });
 

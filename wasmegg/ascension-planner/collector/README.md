@@ -644,7 +644,8 @@ Not stored: IP addresses beyond a rate-limit key that expires within two minutes
 
 **The upload page** on `/` sends a saved file the way the app sends a result: a file that carries
 the account's owner code as a top-level `ownerToken` has it lifted into the `x-owner-token` header
-and deleted from the body before posting. The Worker drops an unknown body field anyway, and never
+and deleted from the body before posting. An unknown body field is not simply dropped: it is kept in the private extras (`extra:<id>`, 180 days, never served), but
+never one named with `token` or `secret` or an EI id, and never an owner code in a body (22 Nov 2026). The Worker never
 treats a code in the body as a claim — only the header counts.
 
 **Still identifying, and the app says so before the button is pressed.** The artifact
@@ -1118,7 +1119,7 @@ old builds are still open. The code is `buildcount.js`; the page side is `src/li
 |---|---|
 | `POST /v` | body: the build id as plain text (`index-BGv8tSVu`, the hashed entry script the page loaded); `{ ok, counted }` |
 
-- **What is kept:** one row per (UTC day, build) in D1 `build_counts` (`day`, `build`, `n`), migration
+- **What is kept:** one row per (UTC day, build) in D1 `build_counts` (`day`, `build`, `n`; since 22 Nov 2026 `n` stays 1: it says "seen that day", not how many), migration
   `migrations/0003_buildcount.sql`. No address, no header, no time beyond the day. The cron deletes days more than
   30 days back on its hourly clean-up (minutes 0 to 4, beside the watch rows').
 - **What the page sends:** the build id alone, with no referrer and no cookies (`no-cors` keepalive POST), at most
@@ -1128,8 +1129,8 @@ old builds are still open. The code is `buildcount.js`; the page side is `src/li
 - **Validation:** the body must be exactly one id, `^[a-z]{1,16}-[A-Za-z0-9_-]{6,16}$` (33 characters at most, so a
   player ID's 18 cannot fit), else `400`; a body over 64 bytes is `413`.
 - **Limits:** the `BUILD_LIMIT` edge binding, 10 a minute per address (the address is the binding's key only, never
-  stored; none without the binding), and at most 200 different builds a day: past that a new build is not counted
-  (`counted: false`), builds already seen that day still are. A count is one upsert.
+  stored; none without the binding), and at most 20 different builds a day: past that a new build is not recorded
+  (`counted: false`), builds already seen that day answer `counted: true`. **Workers Free sizing (22 Nov 2026, the owner: "I only need to know the version once a day"):** one D1 write per build per day at most, so 20 writes a day however many requests arrive; a repeat is a read.
 - **Reading it:** `npx wrangler@4 d1 execute aaap-watch --remote --command "SELECT day, build, n FROM build_counts ORDER BY day DESC, n DESC"`.
 - **Deploy:** apply the migration first (`wrangler d1 migrations apply aaap-watch --remote`), then deploy the Worker.
   The migration only creates a table.

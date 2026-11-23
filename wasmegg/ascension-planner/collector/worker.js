@@ -318,6 +318,15 @@ function idLikeKey(k) {
   return n === 'id' || n === 'eiid' || n.includes('playerid') || n.includes('userid');
 }
 
+/** A key that carries a secret or a player ID (round 2 C5.2, 22 Nov 2026): a name with `token` or `secret` in it (an owner
+ *  code sent in the body is `ownerToken`; "owner" alone is NOT matched, it is a legitimate word), or one that IS an EI id.
+ *  Dropped, never scrubbed: two scrubbed keys would collide. */
+function secretLikeKey(k) {
+  const raw = String(k);
+  const n = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return n.includes('token') || n.includes('secret') || /EI\d{16}/i.test(raw);
+}
+
 /** JSON-only copy of `v`: id-like keys dropped, EI ids inside strings redacted, depth bounded. */
 function cleanExtra(v, depth = 0) {
   if (v === null || typeof v === 'boolean') return v;
@@ -328,7 +337,7 @@ function cleanExtra(v, depth = 0) {
   if (typeof v === 'object') {
     const out = {};
     for (const [k, x] of Object.entries(v)) {
-      if (idLikeKey(k)) continue;
+      if (idLikeKey(k) || secretLikeKey(k)) continue;
       const c = cleanExtra(x, depth + 1);
       if (c !== undefined) out[k] = c;
     }
@@ -341,7 +350,7 @@ function cleanExtra(v, depth = 0) {
 function pickExtras(body, record) {
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    if (k in record || idLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
+    if (k in record || idLikeKey(k) || secretLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
     const c = cleanExtra(v);
     if (c === undefined) continue;
     if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
@@ -4702,8 +4711,9 @@ limitEl.onchange = load;
 //
 // A saved file may carry the account's owner code as ownerToken. The app sends that code as the
 // x-owner-token header and never in the body, and so does this: lifted out, sent as the header,
-// and deleted from what is posted. The collector would drop an unknown body field anyway; taking
-// it out here means the code never travels as submission data at all. With it, a sweep's upload
+// and deleted from what is posted. An unknown body field is NOT simply dropped (it goes to the private extras, minus any
+// key with token, secret or an EI id in its name, since 22 Nov 2026); taking it out here means the code never travels as
+// submission data at all. With it, a sweep's upload
 // folds into a result the browser already sent, and can put a name on it, exactly like a send.
 async function uploadOne(f) {
   const raw = await f.text();

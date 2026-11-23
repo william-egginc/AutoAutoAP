@@ -4,23 +4,23 @@
  *
  *   POST /v      body: the build id as plain text, e.g. `index-BGv8tSVu` (the hashed entry script the page loaded)
  *
- * WHAT IS KEPT. One row per (UTC day, build) in D1 `build_counts` with a count `n`: no address, no time beyond
+ * WHAT IS KEPT. One row per (UTC day, build) in D1 `build_counts` with `n` (stays 1 since 22 Nov 2026: "seen today", not a tally; Workers Free sizing): no address, no time beyond
  * the day, no header, no other field. Rows older than 30 days are deleted by the cron (`buildCountSweep`).
  *
  * WHAT IS REFUSED. A body that is not exactly one build id (`BUILD_ID`: a lowercase entry name, a dash and a
  * 6 to 16 character hash; 33 characters at most, so a player ID's 18 cannot fit) is `400`; a body over 64 bytes is
- * `413`. Past `BUILD_DAY_CAP` different builds in one day a new build is not counted (`counted: false`), so junk
- * cannot fill the table; builds already seen that day still count.
+ * `413`. Past `BUILD_DAY_CAP` (20) different builds in one day a new build is not recorded (`counted: false`), so junk
+ * cannot fill the table; builds already seen that day answer `counted: true`.
  *
  * THE RATE LIMIT is the `BUILD_LIMIT` edge binding, per address, counted at the edge: the address is a key for
  * the binding only, never written anywhere. A missing binding means no per-address limit, as for the others.
  *
- * COST. A count is one upsert: its WHERE reads the (day, build) row and, only for a build new that day, the
- * day's rows (at most BUILD_DAY_CAP). A browser sends at most once a day per build.
+ * COST. At most ONE D1 write per build per day (BUILD_DAY_CAP builds: 20 writes a day however many requests arrive);
+ * every other request is a read.
  */
 
 export const BUILD_MAX_BODY = 64;
-export const BUILD_DAY_CAP = 200;
+export const BUILD_DAY_CAP = 20;
 export const BUILD_KEEP_DAYS = 30;
 /** `index-BGv8tSVu`: the entry's name (vite.config.ts rollupOptions.input), a dash, the content hash. */
 export const BUILD_ID = /^[a-z]{1,16}-[A-Za-z0-9_-]{6,16}$/;
@@ -70,18 +70,20 @@ export async function handleBuildCount(request, env, now = Date.now()) {
 
   const day = utcDay(now);
   try {
-    // One statement: a build already counted today adds one; a new one is inserted only while the day has fewer
-    // than BUILD_DAY_CAP builds (`changes` 0 means it was over the cap).
+    // Workers Free (Jordan, 22 Nov 2026: "I only need to know the version once a day"): ONE D1 write per build per day, no
+    // tally. A build already seen today is a conflict that does nothing (no row written); a new one is inserted only while the
+    // day has fewer than BUILD_DAY_CAP builds. `changes` 0 then means seen already or over the cap: one read tells them apart.
     const r = await env.WATCH.prepare(
       `INSERT INTO build_counts (day, build, n)
        SELECT ?, ?, 1
-       WHERE EXISTS (SELECT 1 FROM build_counts WHERE day = ? AND build = ?)
-          OR (SELECT COUNT(*) FROM build_counts WHERE day = ?) < ?
-       ON CONFLICT(day, build) DO UPDATE SET n = n + 1`
+       WHERE (SELECT COUNT(*) FROM build_counts WHERE day = ?) < ?
+       ON CONFLICT(day, build) DO NOTHING`
     )
-      .bind(day, build, day, build, day, BUILD_DAY_CAP)
+      .bind(day, build, day, BUILD_DAY_CAP)
       .run();
-    return reply({ ok: true, counted: !!(r.meta && r.meta.changes) });
+    if (r.meta && r.meta.changes) return reply({ ok: true, counted: true });
+    const seen = await env.WATCH.prepare('SELECT 1 AS x FROM build_counts WHERE day = ? AND build = ?').bind(day, build).first();
+    return reply({ ok: true, counted: !!seen });
   } catch {
     return reply({ error: 'could not count it' }, 503);
   }

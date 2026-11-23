@@ -118,6 +118,27 @@ async function reasonsOf(body) {
   return j.quarantined ? j.reasons : [];
 }
 
+describe('C5.2: a quarantined send keeps no owner code, secret or ID-shaped key in its extras', () => {
+  it('stores {diagnostics: {ok: 1}} only', async () => {
+    const IDKEY = 'EI' + '1'.repeat(16);
+    const res = await send({
+      ...GOOD,
+      backupAgeHours: -5,
+      currentTE: 184,
+      backupTE: 185,
+      ownerToken: TOKEN,
+      diagnostics: { [IDKEY]: 1, ok: 1 },
+    });
+    expect((await res.json()).quarantined).toBe(true);
+    const k = keysOf('quar:');
+    expect(k.length).toBe(1);
+    const raw = env.SUBMISSIONS._m.get(k[0]);
+    expect(raw).not.toContain(TOKEN);
+    expect(raw).not.toContain('1'.repeat(16));
+    expect(JSON.parse(raw).extras).toEqual({ diagnostics: { ok: 1 } });
+  });
+});
+
 describe('the backdated-start reason tells the player what is wrong', () => {
   it('says how early the plan starts and the two TEs', async () => {
     const res = await send({ ...GOOD, backupAgeHours: -5, currentTE: 184, backupTE: 185 });
