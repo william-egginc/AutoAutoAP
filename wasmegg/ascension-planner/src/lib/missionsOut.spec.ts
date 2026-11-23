@@ -39,9 +39,15 @@ describe('outNowLine', () => {
   const at = (h: number) => NOW + h * 3600;
   it('names the returns that fall inside the stop, and those after it ends', () => {
     const t = outNowLine([{ ship: 0, returnAt: at(2) }, { ship: 0, returnAt: at(3) }, { ship: 0, returnAt: at(30) }], { from: NOW, to: at(18) }, 'UTC');
-    expect(t).toContain('2 ships are back');
-    expect(t).toContain('1 ship returns after this stop ends');
-    expect(t).toContain('The plan below treats all three slots as free from the start');
+    expect(t).toContain('3 ships are still out when this stop starts: 2 are back by ');
+    expect(t).toContain('; 1 returns after this stop ends, at ');
+    expect(t).toContain('The plan below treats all three slots as free from the start, so its first launches may be too early.');
+  });
+  it('one ship, and several after the stop', () => {
+    expect(outNowLine([{ ship: 0, returnAt: at(2) }], { from: NOW, to: at(18) }, 'UTC')).toMatch(/^1 ship is still out when this stop starts: 1 is back by [^;]*\. The plan below/);
+    expect(outNowLine([{ ship: 0, returnAt: at(30) }, { ship: 0, returnAt: at(31) }], { from: NOW, to: at(18) }, 'UTC')).toMatch(
+      /^2 ships are still out when this stop starts: 2 return after this stop ends, the first at [^;]*\. The plan below/
+    );
   });
   it('says nothing when every ship is back before the plan starts', () => {
     expect(outNowLine([{ ship: 0, returnAt: NOW - 5 }], { from: NOW, to: at(18) }, 'UTC')).toBe('');
