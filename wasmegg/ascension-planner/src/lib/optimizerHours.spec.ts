@@ -89,6 +89,7 @@ describe('a clock change inside the visit', () => {
     const w = awakeWindowFor(denver(7, 23), start, 6 * DAY)!;
     expect(w).toMatchObject({ awakeFrom: 8, awakeTo: 23, sleepHours: 9, exact: false });
     expect(w.note).toMatch(/clocks change/i);
+    expect(w.note).toBe('The clocks change during this visit. The plan stays clear of the hour that moves, so every launch still falls in your awake hours.');
   });
 
   it('clocks go forward (Sun 14 Mar 2027): the day ends an hour sooner, and a note says why', () => {

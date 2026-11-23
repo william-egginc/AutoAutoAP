@@ -109,7 +109,7 @@ export function awakeWindowFor(
   if (!withinCap) {
     note = `You are awake less than ${24 - MAX_SLEEP_HOURS} hours a day, so the plan allows at most ${MAX_SLEEP_HOURS} hours of sleep. A launch can still land in your hours off.`;
   } else if (!exact && clocksChange) {
-    note = 'The clocks change during this visit, so the plan keeps clear of the hour that moves and every launch still falls in your awake hours.';
+    note = 'The clocks change during this visit. The plan stays clear of the hour that moves, so every launch still falls in your awake hours.';
   } else if (!exact) {
     note = 'Your hours differ from day to day, so the plan uses only the hours you are awake on every day of this visit.';
   }
