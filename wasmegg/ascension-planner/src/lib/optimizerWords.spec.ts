@@ -62,8 +62,8 @@ describe('optimizer words', () => {
 
 describe('the loaded-save line (Jordan, 23 Nov 2026: "and loaded?")', () => {
   it('says the save in use is the one already loaded, and when it is from', () => {
-    expect(loadedSaveLine('Nov 22 at 9:40 PM')).toBe('Using your loaded save, from Nov 22 at 9:40 PM: ship levels, inventory and crafting level.');
-    expect(loadedSaveLine('')).toBe('Using your loaded save: ship levels, inventory and crafting level.');
+    expect(loadedSaveLine('Nov 22 at 9:40 PM')).toBe('Using your loaded save from Nov 22 at 9:40 PM for your ship levels, inventory and crafting level.');
+    expect(loadedSaveLine('')).toBe('Using your loaded save for your ship levels, inventory and crafting level.');
   });
   it('the card shows it, with the button as a newer copy and not a step', () => {
     expect(panel).toContain('{{ loadedLine }}');

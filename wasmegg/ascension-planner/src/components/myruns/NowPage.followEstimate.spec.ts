@@ -323,7 +323,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     init.initialTeEarned = { ...init.initialTeEarned, curiosity: (init.initialTeEarned.curiosity ?? 0) + 5 };
     const before = asked;
     await vi.waitFor(() =>
-      expect(page.follow.value?.instantFailure).toBe(`Setup starts at ${te + 5} TE and your save is at ${te} TE`)
+      expect(page.follow.value?.instantFailure).toBe(`your Setup has a typed starting TE of ${te + 5}, and your save is at ${te} TE`)
     );
     expect(page.follow.value?.estimating).toBe('nosource');
     await new Promise(r => setTimeout(r, 50));

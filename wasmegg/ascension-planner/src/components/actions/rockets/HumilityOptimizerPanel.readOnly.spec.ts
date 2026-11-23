@@ -21,7 +21,7 @@ describe('the panel with a stop', () => {
   it('has no staging: the launch buttons and their wait are hidden, and a link says where to stage it', () => {
     expect(panel).toMatch(/<div v-if="!readOnly" class="border-t border-gray-100 pt-3 space-y-2">/);
     expect(panel).toContain('data-testid="optimizer-open-manual"');
-    expect(panel).toContain('Open in Manual Planner to stage it');
+    expect(panel).toContain('Open the Manual Planner to stage it');
     expect(panel).toMatch(/const saving = computed\(\(\) => \{\s*if \(readOnly\.value/);
   });
 });

@@ -1030,7 +1030,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (overrideTE.value !== null)
       return {
         estimating: 'nosource',
-        instantFailure: `Setup starts at ${overrideTE.value} TE and your save is at ${Math.floor(teSoFar.value)} TE`,
+        instantFailure: `your Setup has a typed starting TE of ${overrideTE.value}, and your save is at ${Math.floor(teSoFar.value)} TE`,
       };
     const st = instantCompute.value;
     const req = instantNeed.value;

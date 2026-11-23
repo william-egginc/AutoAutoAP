@@ -17,7 +17,7 @@ export function nightLaunchesText(count: number): string {
 /** On the Fits card when its chance reads the same as Best's (DRAFT: Words polishes). */
 /** DRAFT (Words to polish): the save the optimizer already uses is the loaded one; `when` is its time as the player reads it. */
 export function loadedSaveLine(when: string): string {
-  return `Using your loaded save${when ? `, from ${when}` : ''}: ship levels, inventory and crafting level.`;
+  return `Using your loaded save${when ? ` from ${when}` : ''} for your ship levels, inventory and crafting level.`;
 }
 
 export const SAME_CHANCE_AS_BEST = 'Same chance as Best';

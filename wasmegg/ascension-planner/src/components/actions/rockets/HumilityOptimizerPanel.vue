@@ -353,7 +353,7 @@
               <p v-if="readOnly" class="border-t border-gray-100 pt-3 text-small text-gray-600">
                 This is a plan to follow: nothing is staged from here.
                 <a href="#/manual" class="font-bold text-blue-600 hover:text-blue-700" data-testid="optimizer-open-manual"
-                  >Open in Manual Planner to stage it</a
+                  >Open the Manual Planner to stage it</a
                 >
               </p>
               <div v-if="!readOnly" class="border-t border-gray-100 pt-3 space-y-2">
