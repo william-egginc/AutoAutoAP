@@ -306,6 +306,26 @@ describe('weekly hours in the Setup (hours.blocked)', () => {
   it('names blocked in the problem', () => {
     expect(readSetup({ ...SETUP, hours: { ...WEEK, blocked: [5, 5] } }).problems.join(' ')).toMatch(/blocked/);
   });
+  it('keeps hours.week (28 characters of A-Z a-z 0-9 - _) beside blocked, both as sent, and week alone', async () => {
+    const wk = 'A_-z09'.padEnd(28, 'B');
+    expect(readSetup({ ...SETUP, hours: { ...WEEK, week: wk } }).value.hours).toEqual({ ...WEEK, week: wk });
+    const { blocked: _b, ...noBlocked } = WEEK;
+    expect(readSetup({ ...SETUP, hours: { ...noBlocked, week: wk } }).value.hours).toEqual({ ...noBlocked, week: wk });
+    await send('setup', { ...SETUP, hours: { ...WEEK, week: wk } });
+    expect(await hoursOf()).toEqual({ ...WEEK, week: wk });
+    expect(JSON.stringify(readSetup({ ...SETUP, hours: { ...WEEK, week: wk, blocked: Array.from({ length: 168 }, (_, i) => i) } }).value).length).toBeLessThan(4096);
+  });
+  it('does not compare week with blocked: both are kept as the client sent them', () => {
+    const r = readSetup({ ...SETUP, hours: { ...WEEK, week: 'B'.repeat(28) } });
+    expect(r.value.hours.blocked).toEqual(WEEK.blocked);
+    expect(r.value.hours.week).toBe('B'.repeat(28));
+  });
+  it.each([['27 characters', 'A'.repeat(27)], ['29 characters', 'A'.repeat(29)], ['a plus sign', '+'.repeat(28)], ['a number', 5], ['null', null], ['empty', '']])(
+    'refuses week that is %s, naming week',
+    (_n, week) => {
+      expect(readSetup({ ...SETUP, hours: { ...WEEK, week } }).problems.join(' ')).toMatch(/week/);
+    }
+  );
   it('keeps nothing else under hours: an unknown field is dropped as before', () => {
     expect(readSetup({ ...SETUP, hours: { ...WEEK, mask: 'x', extra: 1 } }).value.hours).toEqual(WEEK);
   });

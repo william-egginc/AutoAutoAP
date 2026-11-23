@@ -39,7 +39,7 @@ const SOURCES = ['instant', 'fast', 'exact', 'custom', 'manual'];
 const STAMP = /^[0-9A-Za-z._:-]{1,40}$/;
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 // The week's awake hours (R10, lib/weekWindow.ts): 21 bytes as 28 characters of the URL-safe base64 alphabet.
-const WEEK_CODE = /^[A-Za-z0-9_-]{28}$/;
+export const WEEK_CODE = /^[A-Za-z0-9_-]{28}$/;
 export const PLAYER_ID = /EI\d{16}/i;
 
 const HEADERS = {

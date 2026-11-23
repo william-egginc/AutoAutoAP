@@ -20,7 +20,7 @@
 import { pinGuard } from './pin.js';
 import { AccountKeyError, accountKey, accountKeyDown } from './acct.js';
 import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, addressNewKeyWait, dayWait } from './budget.js';
-import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
+import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, WEEK_CODE, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
 
 const KINDS = ['consent', 'setup'];
 const STUDY = ['yes', 'no', 'later'];
@@ -85,6 +85,7 @@ export function readSetup(v) {
   else if (v.hours !== undefined) {
     const h = v.hours;
     const days = h?.days;
+    const week = h?.week; // the week's awake hours, lib/weekWindow.ts's 28-character code (the same as follow's hours.week)
     const blocked = h?.blocked; // R10 weekly hours: the blocked hours of the week, Monday 00:00 = 0 (Availability.blocked)
     if (
       !h ||
@@ -94,10 +95,11 @@ export function readSetup(v) {
       !HHMM.test(h.end ?? '') ||
       (days !== undefined && !(Array.isArray(days) && days.length <= 7 && days.every(d => whole(d, 0, 6)))) ||
       (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean') ||
+      (week !== undefined && !(typeof week === 'string' && WEEK_CODE.test(week))) ||
       (blocked !== undefined && blocked !== null && !(Array.isArray(blocked) && blocked.length <= 168 && blocked.every(i => whole(i, 0, 167)) && new Set(blocked).size === blocked.length))
     )
       problems.push(
-        'hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false, blocked?: null or at most 168 different whole numbers 0 to 167 (hours.blocked) }'
+        'hours must be null or { start: "HH:MM", end: "HH:MM", days?: weekday numbers 0 to 6 (at most 7), scheduleEnabled?: true/false, blocked?: null or at most 168 different whole numbers 0 to 167 (hours.blocked), week?: exactly 28 characters of A-Z a-z 0-9 - _ (hours.week) }'
       );
     else
       out.hours = {
@@ -105,6 +107,7 @@ export function readSetup(v) {
         end: h.end,
         ...(days !== undefined ? { days: days.slice() } : {}),
         ...(h.scheduleEnabled !== undefined ? { scheduleEnabled: h.scheduleEnabled } : {}),
+        ...(week !== undefined ? { week } : {}),
         ...(blocked !== undefined ? { blocked: blocked === null ? null : blocked.slice() } : {}),
       };
   }
