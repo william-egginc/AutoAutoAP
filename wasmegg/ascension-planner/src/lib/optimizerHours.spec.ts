@@ -78,6 +78,34 @@ describe('awakeWindowFor', () => {
   });
 });
 
+describe('a clock change inside the visit', () => {
+  // The solver counts fixed 24-hour days from the start, so a launch it puts at "7:00 AM" after the clocks change
+  // shows on the wall clock an hour off. The window is made around the hours awake on both sides of the change.
+  const denver = (fromHour: number, toHour: number): Availability => ({ days: [], fromHour, toHour, timezone: 'America/Denver' });
+
+  it('clocks go back (Sun 7 Nov 2027): a 7 AM wake-up becomes 8 AM, one more hour of sleep, and a note says why', () => {
+    // Fri 5 Nov 2027, 6:30 PM MDT.
+    const start = Date.parse('2027-11-05T18:30:00-06:00') / 1000;
+    const w = awakeWindowFor(denver(7, 23), start, 6 * DAY)!;
+    expect(w).toMatchObject({ awakeFrom: 8, awakeTo: 23, sleepHours: 9, exact: false });
+    expect(w.note).toMatch(/clocks change/i);
+  });
+
+  it('clocks go forward (Sun 14 Mar 2027): the day ends an hour sooner, and a note says why', () => {
+    // Fri 12 Mar 2027, 6:30 PM MST.
+    const start = Date.parse('2027-03-12T18:30:00-07:00') / 1000;
+    const w = awakeWindowFor(denver(7, 23), start, 6 * DAY)!;
+    expect(w).toMatchObject({ awakeFrom: 7, awakeTo: 22, sleepHours: 9, exact: false });
+    expect(w.note).toMatch(/clocks change/i);
+  });
+
+  it('a visit that ends before the change is untouched', () => {
+    const start = Date.parse('2027-11-05T18:30:00-06:00') / 1000;
+    const w = awakeWindowFor(denver(7, 23), start, DAY)!;
+    expect(w).toMatchObject({ awakeFrom: 7, awakeTo: 23, sleepHours: 8, exact: true, note: '' });
+  });
+});
+
 describe('launches against the real hours', () => {
   const solution = (launchAts: number[]) =>
     ({ slots: [{ launches: launchAts.map(launchAt => ({ choice: 0, launchAt })) }] }) as never;

@@ -53,10 +53,14 @@ export function awakeWindowFor(
   const sampled = new Array<boolean>(24).fill(false);
   const always = new Array<boolean>(24).fill(true);
   const samples: { hod: number; awake: boolean }[] = [];
+  // The solver counts fixed 24-hour days from the start, so an hour is read in that model's time (the start's hour of
+  // the day plus the hours since), while whether the player is awake is read off the real clock at that instant. A
+  // clock change inside the visit then shows up as hours that are not awake every time, and the window keeps clear of them.
+  const startWall = localWallSeconds(startUnix, availability.timezone);
+  const startIntoDay = (((startWall % 86400) + 86400) % 86400) / HOUR;
   for (let k = 0; k < hours; k++) {
     const t = startUnix + k * HOUR;
-    const wall = localWallSeconds(t, availability.timezone);
-    const hod = Math.floor((((wall % 86400) + 86400) % 86400) / HOUR);
+    const hod = Math.floor(startIntoDay + k) % 24;
     const awake = isAvailable(t, availability);
     sampled[hod] = true;
     if (!awake) always[hod] = false;
@@ -88,18 +92,24 @@ export function awakeWindowFor(
   const awakeTo = (best.from + best.len) % 24;
 
   // Since the awake stretch began, at the start: the wall-clock hours into the day, from where the stretch starts.
-  const wall = localWallSeconds(startUnix, availability.timezone);
-  const intoDay = (((wall % 86400) + 86400) % 86400) / HOUR;
-  const since = Math.round((((intoDay - best.from) % 24) + 24) % 24 * 60) / 60;
+  const since = Math.round((((startIntoDay - best.from) % 24) + 24) % 24 * 60) / 60;
 
   // Exact: every hour the visit reaches is awake exactly when it is in the stretch, on every day. An awake hour
   // outside it (a gap in the afternoon, a later start on one day) is one the plan cannot use.
   const withinCap = sleepWanted <= MAX_SLEEP_HOURS;
   const exact = withinCap && samples.every(s => s.awake === usable[s.hod]);
 
+  // The clocks change between the start and the end of the visit.
+  const endUnix = startUnix + hours * HOUR;
+  const clocksChange =
+    getTimezoneOffsetAt(availability.timezone, Math.floor(startUnix)) !==
+    getTimezoneOffsetAt(availability.timezone, Math.floor(endUnix));
+
   let note = '';
   if (!withinCap) {
     note = `You are awake less than ${24 - MAX_SLEEP_HOURS} hours a day, so the plan allows at most ${MAX_SLEEP_HOURS} hours of sleep. A launch can still land in your hours off.`;
+  } else if (!exact && clocksChange) {
+    note = 'The clocks change during this visit, so the plan keeps clear of the hour that moves and every launch still falls in your awake hours.';
   } else if (!exact) {
     note = 'Your hours differ from day to day, so the plan uses only the hours you are awake on every day of this visit.';
   }

@@ -11,6 +11,8 @@ import {
   bestAlternativeTitle,
   fitsAlternativeTitle,
   nightLaunchesText,
+  SAME_CHANCE_AS_BEST,
+  sameChanceAsBest,
 } from './optimizerWords';
 
 const panel = readFileSync(new URL('../components/actions/rockets/HumilityOptimizerPanel.vue', import.meta.url), 'utf8');
@@ -37,6 +39,15 @@ describe('optimizer words', () => {
     expect(nightLaunchesText(3)).toBe('3 launches in your hours off');
   });
 
+  it('the Fits card says so when it shows the same chance as Best', () => {
+    expect(SAME_CHANCE_AS_BEST).toBe('Same chance as Best');
+    // Compared as shown: two chances that read alike are the same chance to the player.
+    expect(sameChanceAsBest('0.6%', '0.6%')).toBe(true);
+    expect(sameChanceAsBest('0.6%', '0.5%')).toBe(false);
+    // Nothing to compare against while Best is still being found.
+    expect(sameChanceAsBest(null, '0.6%')).toBe(false);
+  });
+
   it('the panel uses them: the effort heading, the permit note, the alternatives', () => {
     expect(panel).toContain("from '@/lib/optimizerWords'");
     expect(panel).toContain('{{ CADENCE_HEADING }}');
@@ -44,6 +55,8 @@ describe('optimizer words', () => {
     expect(panel).toContain('!initialStateStore.proPermit');
     expect(panel).toContain('{{ STANDARD_PERMIT_NOTE }}');
     expect(panel).toContain('nightLaunchesText(alt.nightLaunches)');
+    expect(panel).toContain('{{ SAME_CHANCE_AS_BEST }}');
+    expect(panel).toContain('alt.sameAsBest');
     // The old heading and the inline strings are gone.
     expect(panel).not.toMatch(/block text-small font-bold text-gray-700">Effort</);
     expect(panel).not.toContain('Every launch is in your awake hours');

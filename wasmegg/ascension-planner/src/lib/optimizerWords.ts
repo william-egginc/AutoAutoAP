@@ -17,3 +17,11 @@ export function nightLaunchesText(count: number): string {
   if (count === 0) return 'Every launch is in your awake hours';
   return `${count} ${count === 1 ? 'launch' : 'launches'} in your hours off`;
 }
+
+/** On the Fits card when its chance reads the same as Best's (DRAFT: Words polishes). */
+export const SAME_CHANCE_AS_BEST = 'Same chance as Best';
+
+/** Whether two chances, as the card prints them, are the same. False while Best is not there yet. */
+export function sameChanceAsBest(bestChance: string | null, fitsChance: string): boolean {
+  return bestChance !== null && bestChance === fitsChance;
+}

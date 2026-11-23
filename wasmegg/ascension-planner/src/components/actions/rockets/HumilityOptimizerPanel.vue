@@ -251,6 +251,7 @@
                 >
                   <span class="block font-bold text-gray-800">{{ alt.title }}</span>
                   <span class="block text-headline font-bold text-green-700 leading-tight">{{ alt.chance }}</span>
+                  <span v-if="alt.sameAsBest" class="block text-gray-600">{{ SAME_CHANCE_AS_BEST }}</span>
                   <span class="block text-gray-600">
                     {{ formatNumber(alt.crafts, 1) }} crafts · {{ alt.ships }} ships · fuel {{ formatNumber(alt.fuel, 1) }}
                   </span>
@@ -476,6 +477,8 @@ import {
   CADENCE_NOTE,
   fitsAlternativeTitle,
   nightLaunchesText,
+  SAME_CHANCE_AS_BEST,
+  sameChanceAsBest,
   STANDARD_PERMIT_NOTE,
 } from '@/lib/optimizerWords';
 import { VIRTUE_EGG_NAMES, type VirtueEgg } from '@/types';
@@ -736,12 +739,14 @@ const alternatives = computed(() => {
     { id: 'hours', title: fitsAlternativeTitle, answer: primaryAnswer.value },
   ];
   if (bestAnswer.value) rows.unshift({ id: 'best', title: bestAlternativeTitle, answer: bestAnswer.value });
+  const bestChance = bestAnswer.value ? formatProbabilityForDisplay(bestAnswer.value.solution.jointProbability) : null;
   return rows.map(row => {
     const sol = row.answer.solution;
     const ships = sol.choiceHistory.reduce((sum, c) => sum + c.numShipsLaunched, 0);
     return {
       ...row,
       chance: formatProbabilityForDisplay(sol.jointProbability),
+      sameAsBest: row.id === 'hours' && sameChanceAsBest(bestChance, formatProbabilityForDisplay(sol.jointProbability)),
       crafts: sol.perTarget.reduce((sum, t) => sum + t.expectedCrafts, 0),
       ships,
       fuel: sol.fuelUsed,
