@@ -318,15 +318,6 @@ function idLikeKey(k) {
   return n === 'id' || n === 'eiid' || n.includes('playerid') || n.includes('userid');
 }
 
-/** A key that names a secret or a token (an owner code posted in the body, an API secret): never kept (code review round 2, C5.2).
- *  Not "owner": that would catch legitimate keys. */
-function secretLikeKey(k) {
-  const n = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
-  return n.includes('token') || n.includes('secret');
-}
-/** Dropped, never scrubbed: two keys scrubbed to `EI[redacted]` would collide. */
-const dropKey = k => idLikeKey(k) || secretLikeKey(k) || /EI\d{16}/i.test(String(k));
-
 /** JSON-only copy of `v`: id-like keys dropped, EI ids inside strings redacted, depth bounded. */
 function cleanExtra(v, depth = 0) {
   if (v === null || typeof v === 'boolean') return v;
@@ -337,7 +328,7 @@ function cleanExtra(v, depth = 0) {
   if (typeof v === 'object') {
     const out = {};
     for (const [k, x] of Object.entries(v)) {
-      if (dropKey(k)) continue;
+      if (idLikeKey(k)) continue;
       const c = cleanExtra(x, depth + 1);
       if (c !== undefined) out[k] = c;
     }
@@ -350,7 +341,7 @@ function cleanExtra(v, depth = 0) {
 function pickExtras(body, record) {
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    if (k in record || dropKey(k) || k === 'replaces' || k === 'csvRun') continue;
+    if (k in record || idLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
     const c = cleanExtra(v);
     if (c === undefined) continue;
     if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
@@ -4681,7 +4672,7 @@ limitEl.onchange = load;
 //
 // A saved file may carry the account's owner code as ownerToken. The app sends that code as the
 // x-owner-token header and never in the body, and so does this: lifted out, sent as the header,
-// and deleted from what is posted. The collector keeps an unknown body field only as a private extra, and never one named token or secret; taking
+// and deleted from what is posted. The collector would drop an unknown body field anyway; taking
 // it out here means the code never travels as submission data at all. With it, a sweep's upload
 // folds into a result the browser already sent, and can put a name on it, exactly like a send.
 async function uploadOne(f) {

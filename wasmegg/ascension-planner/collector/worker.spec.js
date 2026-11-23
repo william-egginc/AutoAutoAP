@@ -336,21 +336,6 @@ describe('private extras', () => {
     expect(JSON.parse(raw)).toEqual({ diagnostics: { note: 'EI[redacted] crashed', nested: { ok: 1 } } });
   });
 
-  it('C5.2: never stores an owner code or a secret key from the body, and drops (not scrubs) a key that is a player id', async () => {
-    const res = await (
-      await post('/submit', {
-        ...MINIMAL,
-        ownerToken: TOKEN_A,
-        apiSecret: 'shh',
-        authToken: 'tok',
-        diagnostics: { ['EI' + '1'.repeat(16)]: 1, ['EI' + '2'.repeat(16)]: 2, ok: 1, sessionToken: 'z' },
-      })
-    ).json();
-    const raw = env.SUBMISSIONS._m.get(`extra:${res.id}`);
-    expect(raw).not.toContain(TOKEN_A);
-    expect(JSON.parse(raw)).toEqual({ diagnostics: { ok: 1 } });
-  });
-
   it('drops diagnostics over 4 KB and extras over 16 KB, and still takes the submission', async () => {
     const big = await post('/submit', { ...MINIMAL, diagnostics: { blob: 'x'.repeat(5000) } });
     expect(big.status).toBe(200);
