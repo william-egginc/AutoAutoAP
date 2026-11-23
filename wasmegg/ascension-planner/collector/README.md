@@ -1061,7 +1061,7 @@ Branch spec-collector2 (from egg-beta2-int 8fd474e0). Specs: `hardening2.spec.js
 
 - **More edge limits** (no KV cost, before any read): `SUBMIT_LIMITER` (1103, 20 a minute per address, a key
   each for `/submit`, `/claim`, `/hide`; in front of `floodGate`, which spends a read even to refuse),
-  `READ_LIMITER` (1104, 120 a minute: a `GET /all` or `/leaderboard` that misses the edge cache, and `GET /csv`,
+  `READ_LIMITER` (1104, 120 a minute: a `GET /all` or `/leaderboard` that misses the edge cache, `GET /mine` and `GET /flagged` (each under its own key, before any KV read; code review round 2, C2.9), and `GET /csv`,
   which counts one more per two extra reads a file in parts or deltas needs, at most 100), and `WATCH_LIMIT`
   (1001, now on: 20 a minute, POST and GET counted apart).
 - **Ranked only with its evidence:** with `RANK_NEEDS_EVIDENCE = "1"` (wrangler.toml `[vars]`), a row without

@@ -506,3 +506,21 @@ describe('GET /csv is cached and its KV reads are limited', () => {
     expect(res.headers.get('content-type')).toBe('application/gzip');
   });
 });
+
+describe('code review round 2, C2.9: /mine and /flagged are read-limited per address (READ_LIMITER), before any KV read', () => {
+  it('a refused /mine or /flagged is 429 with no SUBMISSIONS.get; each has its own key; no binding means no limit', async () => {
+    env.READ_LIMITER = makeLimiter(0);
+    const before = env.SUBMISSIONS.counts?.get ?? 0;
+    let gets = 0;
+    const realGet = env.SUBMISSIONS.get.bind(env.SUBMISSIONS);
+    env.SUBMISSIONS.get = async (...a) => (gets++, realGet(...a));
+    const mine = await worker.fetch(new Request('https://c.example/mine', { headers: { 'x-owner-token': 'a'.repeat(32), 'cf-connecting-ip': '5.5.5.5' } }), env);
+    const flagged = await worker.fetch(new Request('https://c.example/flagged', { headers: { 'cf-connecting-ip': '5.5.5.5' } }), env);
+    expect(mine.status).toBe(429);
+    expect(flagged.status).toBe(429);
+    expect(gets).toBe(before);
+    expect(env.READ_LIMITER.keys).toEqual(['mine|5.5.5.5', 'flagged|5.5.5.5']);
+    delete env.READ_LIMITER;
+    expect((await worker.fetch(new Request('https://c.example/flagged', { headers: { 'cf-connecting-ip': '5.5.5.5' } }), env)).status).toBe(200);
+  });
+});

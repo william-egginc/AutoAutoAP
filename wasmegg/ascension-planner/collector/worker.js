@@ -4209,6 +4209,9 @@ const worker = {
     // picked out of its text without parsing the board. Never cached -- at the edge or in the
     // browser -- since the answer is per caller and says who sent what.
     if (url.pathname === '/mine' && request.method === 'GET') {
+      // The edge read limit first, under its own key, so a page load that asks for /all and /mine does not spend the board's 120 (code review round 2, C2.9).
+      const slowMine = await edgeLimited(env, request, 'READ_LIMITER', 'mine');
+      if (slowMine) return slowMine;
       const tokens = (request.headers.get('x-owner-token') || '')
         .split(',')
         .map(t => t.trim())
@@ -4294,6 +4297,8 @@ const worker = {
     // row's owner code (the app keeps one per account in the browser that submitted) gets that row
     // with its nickname and `yours: true`; everybody else gets it without.
     if (url.pathname === '/flagged' && request.method === 'GET') {
+      const slowFlagged = await edgeLimited(env, request, 'READ_LIMITER', 'flagged');
+      if (slowFlagged) return slowFlagged;
       const mine = await ownerHash(request.headers.get('x-owner-token'));
       const mine12 = mine ? mine.slice(0, OWNER_HEX) : null;
       // From the flag board's snapshot (1 read, no list). Not edge-cached: the answer depends on
