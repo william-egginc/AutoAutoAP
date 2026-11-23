@@ -1,6 +1,6 @@
 /**
  * Setup's More options box for the prestige-window hint (R10, 21 Nov 2026): off by default, this browser's own, named in the
- * More options line when on. Words own the label (lib/prestigeWindowWords.ts, DRAFT).
+ * More options line when on. Words own the label (lib/prestigeWindowWords.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';

@@ -84,3 +84,14 @@ describe('the box is off by default and remembered in this browser', () => {
     expect(prestigeHintStored()).toBe(false);
   });
 });
+
+describe('prestige-window hint words (Jordan OK pending, 23 Nov 2026)', () => {
+  it('the label and help say what the code does: 25 TE or less, from TE 240, Saturday 12:00 AM or 8:00 AM Pacific', async () => {
+    const w = await import('./prestigeWindowWords');
+    expect(w.PRESTIGE_HINT_LABEL).toBe('Show when to start short ascensions');
+    expect(w.PRESTIGE_HINT_HELP).toContain(`${PRESTIGE_HINT_MAX_GAIN} TE or less`);
+    expect(w.PRESTIGE_HINT_HELP).toContain(`TE ${PRESTIGE_HINT_MIN_TE} or more`);
+    expect(w.PRESTIGE_HINT_HELP).toContain('Saturday 12:00 AM Pacific, or 8:00 AM');
+    expect(w.PRESTIGE_HINT_HELP).not.toMatch(/quarter|this device|this computer/i);
+  });
+});
