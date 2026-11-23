@@ -1,6 +1,6 @@
 /**
  * STARTING FRESH WOULD BE SOONER (spec-r7verify, 1 Nov 2026; lib/freshSooner.ts): the threshold, which legs and settings
- * show the line, the kept override (per account and stop, throwing storage) and the words (DRAFT). Fixed clock.
+ * show the line, the kept override (per account and stop, throwing storage) and the words. Fixed clock.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -91,12 +91,12 @@ describe('the kept override', () => {
   });
 });
 
-describe('words (DRAFT)', () => {
+describe('words', () => {
   const f = freshSooner(leg('buildup', NOW + 30 * D, NOW + 23.5 * D))!;
   it('N and both dates, the shared formatter in the zone given', () => {
     const t = freshSoonerLine(f, NOW, ZONE);
-    expect(t).toBe(`Starting fresh would end this ascension 6d 12h sooner: ${dateAt(NOW + 23.5 * D, NOW, ZONE)} vs ${dateAt(NOW + 30 * D, NOW, ZONE)}.`);
-    expect(t).toMatch(/sooner: Nov 25 at 1:00 (am|AM) vs Dec 1 at 1:00 (pm|PM)\.$/);
+    expect(t).toBe(`Starting fresh would end this ascension 6d 12h sooner: ${dateAt(NOW + 23.5 * D, NOW, ZONE)} instead of ${dateAt(NOW + 30 * D, NOW, ZONE)}.`);
+    expect(t).toMatch(/sooner: Nov 25 at 1:00 (am|AM) instead of Dec 1 at 1:00 (pm|PM)\.$/);
   });
   it('hours under two days', () => {
     expect(freshSoonerLine(freshSooner(leg('buildup', NOW + D, NOW + D - 5 * 3600))!, NOW, ZONE)).toContain('5h sooner');

@@ -192,7 +192,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
     expect(card.state).toBe('setup-changed');
     const tile = buildTile({ ...tileInput(MINE, B, A, ANY), snapshot: null, history: [entry(A, ANY)] });
     expect(tile.answer?.chain).toEqual(A.chain);
-    expect(tile.sure?.reason).toBe('priced before your awake hours changed');
+    expect(tile.sure?.reason).toBe('priced for your earlier awake hours');
   });
 
   it('across goals the setup still comes first: a current-setup Egg Day plan leads an other-hours Fastest one', () => {

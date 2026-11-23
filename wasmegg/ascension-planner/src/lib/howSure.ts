@@ -117,9 +117,8 @@ export function howSure(i: SureInput): Sure {
   const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
-  // DRAFT words (Release 7 recalc, for the Words review).
-  if (i.olderCode) return { level: 'low', reason: 'worked out by an older version of this page' };
-  if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
+  if (i.olderCode) return { level: 'low', reason: 'worked out by an older version of this page, and not yet redone' };
+  if (i.hoursChanged) return { level: 'low', reason: 'priced for your earlier awake hours' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
   // A newer save settles the question the age and the TE move would raise.

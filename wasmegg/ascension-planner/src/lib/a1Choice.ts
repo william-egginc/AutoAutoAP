@@ -18,7 +18,7 @@
  *     ascension you are in heads to on the followed route), an override over Your setup's value, which it never
  *     changes. Every read and write in try/catch.
  *
- * Pure apart from the storage it is handed. Player words are DRAFT (Words).
+ * Pure apart from the storage it is handed.
  */
 import type { FirstAscension } from '@/search/firstAscension';
 import { CONTINUE_MAX_SECONDS } from '@/search/rules';
@@ -140,20 +140,20 @@ export function writeA1Pick(account: string, stop: number, side: A1Side, st: Sto
   }
 }
 
-// ------------------------------------------------------------------------------------------------ words (DRAFT)
+// ------------------------------------------------------------------------------------------------ words
 
-/** The two options' labels (DRAFT): "Keep building (buys 3 things, ends Dec 13 at 10:50 AM)" and "Finish without
+/** The two options' labels: "Keep building (buys 3 things, ends Dec 13 at 10:50 AM)" and "Finish without
  *  buying (ends Dec 12 at 10:50 AM)", in the player's zone, 12-hour clock as the shared formatter writes it (lib/eventWhen.ts `dateAt`). */
 export function a1ChoiceWords(c: A1Candidates, nowSeconds: number, zone: string): { keep: string; finish: string; legend: string } {
   const things = `${c.buys} thing${c.buys === 1 ? '' : 's'}`;
   return {
-    legend: 'Keep building ends this ascension later. Pick one:',
+    legend: 'Keeping the build-up going ends this ascension later. Pick one:',
     keep: `Keep building (buys ${things}, ends ${dateAt(c.buildEnd, nowSeconds, zone)})`,
     finish: `Finish without buying (ends ${dateAt(c.contEnd, nowSeconds, zone)})`,
   };
 }
 
-/** The Build-up tracker's line when the side followed is finishing without buying and a build-up exists (DRAFT). */
+/** The Build-up tracker's line when the side followed is finishing without buying and a build-up exists. */
 export function a1TrackerWords(picked: boolean): string {
   return picked
     ? 'You chose to finish without buying: nothing to buy until your next prestige. Pick Keep building on Right now to see the build-up list.'

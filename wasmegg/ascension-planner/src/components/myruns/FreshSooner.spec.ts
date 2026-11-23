@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import FreshSooner from './FreshSooner.vue';
 
-const LINE = 'Starting fresh would end this ascension 6d 12h sooner: Dec 27 at 8:31 PM vs Jan 2, 2027 at 8:58 PM.';
+const LINE = 'Starting fresh would end this ascension 6d 12h sooner: Dec 27 at 8:31 PM instead of Jan 2, 2027 at 8:58 PM.';
 
 describe('FreshSooner', () => {
   it('the line and Switch to Soonest, a real button described by the line', async () => {
@@ -22,7 +22,7 @@ describe('FreshSooner', () => {
 
   it('followed: the quieter line with Undo (the line wins when both)', async () => {
     const html = await renderHtml(FreshSooner, { line: '', followed: true });
-    expect(textOf(html)).toBe('Following Soonest for this ascension. Setup is unchanged. Undo');
+    expect(textOf(html)).toBe('Following Soonest for this ascension only. Your Setup is unchanged. Undo');
     expect(html).toMatch(/aria-describedby="now-fastest-line"[^>]*data-testid="now-undo-fastest"/);
     expect(textOf(await renderHtml(FreshSooner, { line: LINE, followed: true }))).not.toContain('Undo');
   });

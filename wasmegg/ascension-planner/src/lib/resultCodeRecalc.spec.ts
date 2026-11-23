@@ -312,7 +312,7 @@ describe('(f) a saved answer’s How sure (worked out on read, from the kept ans
     const s = snapOf('A');
     setResultCode('B');
     expect(planFromSnapshot(s, 'fastest')).toMatchObject({ olderCode: true });
-    expect(tile(s).sure).toMatchObject({ level: 'low', reason: 'worked out by an older version of this page' });
+    expect(tile(s).sure).toMatchObject({ level: 'low', reason: 'worked out by an older version of this page, and not yet redone' });
   });
 
   it('the same build: How sure as before (the instant answer is Medium at best)', () => {

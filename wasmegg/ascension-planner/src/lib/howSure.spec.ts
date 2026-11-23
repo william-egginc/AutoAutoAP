@@ -60,7 +60,7 @@ describe('how sure', () => {
   it('Low first: older simulator, other hours, little spare, old, TE moved', () => {
     const high = { exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: 3 };
     expect(howSure(date({ ...high, olderSimulator: true })).reason).toBe('priced by an older simulator');
-    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your awake hours changed');
+    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced for your earlier awake hours');
     expect(howSure(date({ ...high, spareHours: 1.2 })).reason).toBe('only 1.2 h to spare');
     expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('simulator check, 20 days old, not yet checked against a newer save');
     expect(howSure(date({ ...high, teMoved: true })).reason).toBe('your TE has moved since');
@@ -108,7 +108,7 @@ describe('a newer save on the planned route confirms the answer (Jordan, 22 Nov 
     const on = { path: 'on' as const, ageDays: 30 };
     expect(howSure(date({ ...on, olderSimulator: true })).reason).toBe('priced by an older simulator');
     expect(howSure(date({ ...on, olderCode: true })).level).toBe('low');
-    expect(howSure(date({ ...on, hoursChanged: true })).reason).toBe('priced before your awake hours changed');
+    expect(howSure(date({ ...on, hoursChanged: true })).reason).toBe('priced for your earlier awake hours');
     expect(howSure(date({ ...on, spareHours: 1.2 })).reason).toBe('only 1.2 h to spare');
     expect(howSure(date({ ...on, path: 'off', olderSimulator: true })).reason).toBe('priced by an older simulator');
   });

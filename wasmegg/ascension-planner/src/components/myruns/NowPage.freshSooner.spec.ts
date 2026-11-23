@@ -213,7 +213,7 @@ describe('the line: a forced build-up ending over an hour after a fresh start', 
       expect(page.a1Choice.value).toBeNull();
       const t = textOf(await cardHtml(page));
       expect(t).toContain(
-        `Starting fresh would end this ascension 6d 12h sooner: ${dateAt(now + 5.5 * D, page.now.value, ZONE)} vs ${dateAt(now + 12 * D, page.now.value, ZONE)}.`
+        `Starting fresh would end this ascension 6d 12h sooner: ${dateAt(now + 5.5 * D, page.now.value, ZONE)} instead of ${dateAt(now + 12 * D, page.now.value, ZONE)}.`
       );
       expect(t).toContain('Switch to Soonest');
       expect(page.simWorking.value).toBeNull();
@@ -244,7 +244,7 @@ describe('the line: a forced build-up ending over an hour after a fresh start', 
     expect(freshAsks).toHaveLength(1);
     expect(useChainSearchStore().firstAscensionChoice).toBe('buildup');
     const t = textOf(await cardHtml(page));
-    expect(t).toContain('Following Soonest for this ascension.');
+    expect(t).toContain('Following Soonest for this ascension only.');
     expect(t).not.toContain('Starting fresh would end');
     // Undo: back to the setting's record, nothing simulated again.
     page.switchToFastest(false);

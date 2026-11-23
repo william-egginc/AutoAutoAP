@@ -231,7 +231,7 @@ describe('(1) a buying build-up that ends later: both offered, the sooner (finis
     expect(t).toContain(w.keep);
     expect(t).toContain(w.finish);
     expect(w.finish).toContain(dateAt(now + 6 * D, page.now.value, ZONE));
-    expect(t).toMatch(/Next step Keep building ends this ascension later. Pick one:/);
+    expect(t).toMatch(/Next step Keeping the build-up going ends this ascension later. Pick one:/);
     expect(t).not.toContain('Keep building: ');
     // The two sides kept apart.
     expect(simSetups().sort()).toEqual(['buildup, build unfinished', 'continue, build unfinished']);

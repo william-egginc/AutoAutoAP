@@ -1591,7 +1591,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     { immediate: true }
   );
   /** Right now's A1 choice (A1Choice.vue): shown only when both sides exist and differ (the build-up buys and ends
-   *  later); its two labels (DRAFT) and the side followed. */
+   *  later); its two labels and the side followed. */
   const a1Choice = computed(() => {
     const d = a1.value;
     if (!d || !d.known || !d.show || !d.cand) return null;
@@ -1699,7 +1699,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   });
   const freshBusy = computed(() => searchBusy.value || !forcedBuildUp.value?.settled);
   const { state: freshSim } = useCurrentSim(freshRequest, freshBusy);
-  /** The line (DRAFT) and the button "Switch to Soonest" (`switchToFastest`): the fresh start ends more than an hour
+  /** The line and the button "Switch to Soonest" (`switchToFastest`): the fresh start ends more than an hour
    *  sooner than the forced build-up followed. Null otherwise, and while the fresh start is being priced. */
   const freshLine = computed(() => {
     const f = forcedBuildUp.value;
