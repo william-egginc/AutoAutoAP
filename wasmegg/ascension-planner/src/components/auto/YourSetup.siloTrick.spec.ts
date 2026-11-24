@@ -94,15 +94,24 @@ describe('Setup: the Silo trick checkbox', () => {
     expect(html).toMatch(/id="your-setup-silo-trick-help"[^>]*>[^<]*Go offline after Sunday/);
   });
 
-  it('in view, in the Awake hours card, before No prestige days and the More options region', () => {
+  it('in view, in its own row after When the route starts, outside the Awake hours card, before Sharing and More options (R10, 23 Nov 2026)', () => {
     const awake = template.indexOf('Awake hours</h3>');
     const box = template.indexOf('id="your-setup-silo-trick"');
-    const fieldsetEnd = template.indexOf('</fieldset>', awake);
+    const awakeEnd = template.indexOf('</fieldset>', awake);
+    const route = template.indexOf('When the route starts</h3>');
+    const routeEnd = template.indexOf('</fieldset>', route);
     expect(awake).toBeGreaterThan(0);
-    expect(box).toBeGreaterThan(awake);
-    expect(box).toBeLessThan(fieldsetEnd);
-    expect(box).toBeLessThan(template.indexOf('data-testid="setup-no-prestige-days"'));
+    expect(box).toBeGreaterThan(awakeEnd);
+    expect(box).toBeGreaterThan(routeEnd);
+    expect(box).toBeLessThan(template.indexOf('<!-- SHARING AND PRIVACY'));
     expect(box).toBeLessThan(template.indexOf('id="setup-more-body"'));
+  });
+
+  it('its own fieldset, disabled with the other route settings while a search runs', () => {
+    const at = template.indexOf('data-testid="setup-silo-trick"');
+    const tag = template.slice(template.lastIndexOf('<fieldset', at), template.indexOf('>', at));
+    expect(tag).toContain(':disabled="locked"');
+    expect(template.lastIndexOf('<fieldset', at)).toBeGreaterThan(template.indexOf('When the route starts</h3>'));
   });
 
   it('shown whichever awake-hours choice (not only with My awake hours)', async () => {
@@ -113,7 +122,7 @@ describe('Setup: the Silo trick checkbox', () => {
 
   it('type: tokens only, no px sizes, caps, medium/semibold or mono', () => {
     const at = template.indexOf('data-testid="setup-silo-trick"');
-    const block = template.slice(template.lastIndexOf('<div', at), template.indexOf('</div>', at));
+    const block = template.slice(at, template.indexOf('</fieldset>', at));
     expect(block).toMatch(/text-body/);
     expect(block).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
   });

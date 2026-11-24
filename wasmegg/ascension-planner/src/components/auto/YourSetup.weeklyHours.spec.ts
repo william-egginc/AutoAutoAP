@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest';
 
 const src = fs.readFileSync(path.resolve(__dirname, 'YourSetup.vue'), 'utf8');
 const tpl = src.slice(src.indexOf('<template>'), src.indexOf('</template>\n\n<script'));
-const awake = tpl.slice(tpl.indexOf('<h3 class="text-slate-600 label">Awake hours</h3>'), tpl.indexOf('data-testid="setup-silo-trick"'));
+const awakeAt = tpl.indexOf('<h3 class="text-slate-600 label">Awake hours</h3>');
+const awake = tpl.slice(awakeAt, tpl.indexOf('</fieldset>', awakeAt));
 
 describe('Setup’s Awake hours', () => {
   it('draws the weekly grid bound to store.weekBlocked, with today’s window as a preset', () => {

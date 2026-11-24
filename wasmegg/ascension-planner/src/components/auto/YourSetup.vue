@@ -257,22 +257,6 @@
             </button>
           </p>
         </div>
-        <!-- SILO TRICK (Jordan, 10 Nov 2026: "a setting in Setup, off by default"; spec-silotrick): in view, with the hours
-             and the shifts they hold, not under More options. The store remembers it with the rest of Setup
-             (lib/setupMemory.ts); words lib/siloTrickWords.ts. A link into Setup can land on the box (SetupDock `openSetupAt`). -->
-        <div class="border-t border-slate-200 pt-2" data-testid="setup-silo-trick">
-          <label class="flex min-h-[44px] items-start gap-3 py-1.5 cursor-pointer">
-            <input
-              id="your-setup-silo-trick"
-              v-model="store.siloTrick"
-              type="checkbox"
-              class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-24 rounded border-slate-300 text-indigo-600"
-              aria-describedby="your-setup-silo-trick-help"
-            />
-            <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
-          </label>
-          <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-600 max-w-prose">{{ SILO_TRICK_HELP }}</p>
-        </div>
       </fieldset>
 
       <!-- No prestige days and Time off side by side from md up: with awake hours, the three kinds of "not now". -->
@@ -339,6 +323,23 @@
             ascension starts fresh, as in the {{ NAMES.classic }}.
           </p>
         </div>
+      </fieldset>
+
+      <!-- SILO TRICK (Jordan, 10 Nov 2026: "a setting in Setup, off by default"; spec-silotrick): in view, its own row after When the route starts (R10, 23 Nov 2026: it
+           is not about hours), not under More options. The store remembers it with the rest of Setup
+           (lib/setupMemory.ts); words lib/siloTrickWords.ts. A link into Setup can land on the box (SetupDock `openSetupAt`). -->
+      <fieldset :disabled="locked" class="rounded-xl border border-slate-200 px-4 py-1 min-w-0" :class="screen === 'classic' ? 'opacity-60' : ''" data-testid="setup-silo-trick">
+        <label class="flex min-h-[44px] items-start gap-3 py-1.5 cursor-pointer">
+          <input
+            id="your-setup-silo-trick"
+            v-model="store.siloTrick"
+            type="checkbox"
+            class="mt-0.5 h-5 w-5 shrink-0 scroll-mt-24 rounded border-slate-300 text-indigo-600"
+            aria-describedby="your-setup-silo-trick-help"
+          />
+          <span class="text-body font-bold text-slate-800">{{ SILO_TRICK_LABEL }}</span>
+        </label>
+        <p id="your-setup-silo-trick-help" class="ml-8 text-body text-slate-600 max-w-prose">{{ SILO_TRICK_HELP }}</p>
       </fieldset>
 
       <!-- SHARING AND PRIVACY (the simpler page, Jordan 9 Nov 2026, Q3): Help improve the planner and Sharing, with What
@@ -609,6 +610,12 @@
               </dl>
             </div>
 
+            <!-- What artifacts it will use: the same on every screen. Right under Your save file (R10, 23 Nov 2026): the plan's inputs
+                 come before This computer. -->
+            <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 min-w-0">
+              <SimulationSetup />
+            </div>
+
             <!-- This computer -->
             <div
               class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
@@ -730,11 +737,6 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- What artifacts it will use: the same on every screen. -->
-            <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
-              <SimulationSetup />
-            </div>
-
             <!-- The prestige-window hint (R10, 21 Nov 2026): off by default, this browser's own box (lib/prestigeWindow.ts); words DRAFT for Words. -->
             <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2" data-testid="prestige-hint">
               <label class="flex items-start gap-3 cursor-pointer">
