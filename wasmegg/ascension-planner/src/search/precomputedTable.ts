@@ -278,12 +278,14 @@ export function parseCompositeUrl(url: string): { low: string; high: string; spl
   return { low: parts[0], high: parts[1], split: Number(parts[2]), scale: Number(parts[3]) };
 }
 
-/** The two as one: the low table's rows below `split` (and all it has, when it reaches higher), the
- *  high table's above that with their peak delivery rate scaled to the player's (so the route search
+/** The two as one: the low table's rows (all it has, below `split` or past it), the
+ *  high table's above them with their peak delivery rate scaled to the player's (so the route search
  *  runs at a scale of 1). `gearTo` in the header says where the gear table's own rows end. */
 export function compositeTable(low: Table, high: Table, split: number, scale: number, maxCells = DECODED_CELLS): Table {
   const scaled = new LruCache<number, BuildParams[]>(maxCells);
-  const top = Math.max(split - 1, low.header.to);
+  // Every row the low table has (a full gear table reaches past the split), and no further: a table that stops below the
+  // split (a delivery set's, TE 150-260, found by an exact stamp: 24 Nov 2026) left 261-339 with no builds at all.
+  const top = low.header.to;
   return {
     header: {
       ...low.header,

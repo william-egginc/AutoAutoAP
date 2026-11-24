@@ -153,3 +153,40 @@ describe('the delivery url: the delivery table moved to the player, the maxed on
     expect(t.header.gearShift).toEqual({ g: 0, geo: 0.9, cap: 1000, k: 0.9 });
   });
 });
+
+describe('a gear table shorter than the split (an exact-stamp match on a 150-260 table, 24 Nov 2026)', () => {
+  const tbl = (tag: number, from: number, to: number): Table => ({
+    header: {
+      version: 2,
+      from,
+      to,
+      cteBonus: 128,
+      k3: { research: {}, delivery: [], peak: 100 },
+    } as unknown as TableHeader,
+    lookup: (te, hour) =>
+      te < from || te > to || hour !== 0
+        ? null
+        : [
+            {
+              sales: 1,
+              tier13: false,
+              waitStart: tag,
+              saleEnd: 0,
+              peakELR: 100,
+              delivered: [1],
+            } as unknown as BuildParams,
+          ],
+  });
+  it('reads it to its own last TE, then the maxed one (it read nothing from 261 to 339)', () => {
+    const both = compositeTable(tbl(1, 150, 260), tbl(2, 55, 489), 340, 1);
+    expect(both.lookup(260, 0)![0].waitStart).toBe(1);
+    expect(both.lookup(261, 0)![0].waitStart).toBe(2);
+    expect(both.lookup(339, 0)![0].waitStart).toBe(2);
+    expect(both.header.gearTo).toBe(260);
+  });
+  it('a full gear table is read all the way, as before', () => {
+    const both = compositeTable(tbl(1, 75, 489), tbl(2, 55, 489), 340, 1);
+    expect(both.lookup(400, 0)![0].waitStart).toBe(1);
+    expect(both.header.gearTo).toBe(489);
+  });
+});

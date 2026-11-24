@@ -9,6 +9,7 @@ import type { TableHeader } from './precomputedTable';
 import { parseDeliveryUrl, parseGearShiftUrl } from './precomputedTable';
 import { SIM_VERSION } from './simVersion';
 import type { LoadoutSlot } from './csv';
+import { listedTableNames } from './tableListing';
 import type { SearchInputs } from './types';
 
 const LEL: LoadoutSlot[] = [
@@ -159,5 +160,42 @@ describe('chooseInstantTable: a delivery set table', () => {
     const c = await choose(200);
     expect(c.playerGear?.delivery).toBe('T4L-T4E-T4L');
     expect(c.playerGear && 'noTable' in c.playerGear).toBe(false);
+  });
+
+  // tables.json says what a file is: one by another simulator, or starting above the save, is not downloaded at all
+  // (QA, 24 Nov 2026: a save at TE 147 downloaded the 150-260 table just to refuse it).
+  const entries = (dFrom: number, dSim: string, gearSim?: string) =>
+    listedTableNames([
+      { file: 'table-v2.bin', bonus: 128.7, k: 1, from: 55, simVersion: SIM_VERSION },
+      {
+        file: 'gear-ffffffffffffffffffffffff.v2.bin',
+        bonus: 128.7,
+        k: 0.94,
+        from: dFrom,
+        simVersion: dSim,
+        aliases: [dFile],
+      },
+      ...(gearSim
+        ? [{ file: 'gear-111111111111111111111111.v2.bin', bonus: 128.7, k: 0.94, from: 75, simVersion: gearSim }]
+        : []),
+    ]) as Set<string>;
+  it('below the first TE tables.json gives: not downloaded', async () => {
+    listed = entries(150, SIM_VERSION);
+    await formG(147);
+    expect(asked.some(u => u.includes(dFile))).toBe(false);
+  });
+  it('another simulator in tables.json: not downloaded', async () => {
+    listed = entries(150, '2026-11-09-sim4');
+    await formG(200);
+    expect(asked.some(u => u.includes(dFile))).toBe(false);
+  });
+  it('inside it, by this simulator: read as before', async () => {
+    listed = entries(150, SIM_VERSION);
+    expect(parseDeliveryUrl((await choose(200)).url)).not.toBeNull();
+  });
+  it('the board gear name, listed by an older simulator: not downloaded either', async () => {
+    listed = entries(150, SIM_VERSION, '2026-11-03-sim3');
+    await choose(200);
+    expect(asked.some(u => u.includes('gear-111111111111111111111111'))).toBe(false);
   });
 });
