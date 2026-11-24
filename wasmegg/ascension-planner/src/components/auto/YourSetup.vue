@@ -610,12 +610,6 @@
               </dl>
             </div>
 
-            <!-- What artifacts it will use: the same on every screen. Right under Your save file (R10, 23 Nov 2026): the plan's inputs
-                 come before This computer. -->
-            <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 min-w-0">
-              <SimulationSetup />
-            </div>
-
             <!-- This computer -->
             <div
               class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
@@ -737,6 +731,12 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- What artifacts it will use: the same on every screen. Full width, directly under the two columns (R10, 23 Nov 2026,
+                 Jordan): save file, artifacts, then the rest. -->
+            <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
+              <SimulationSetup />
+            </div>
+
             <!-- The prestige-window hint (R10, 21 Nov 2026): off by default, this browser's own box (lib/prestigeWindow.ts); words DRAFT for Words. -->
             <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2" data-testid="prestige-hint">
               <label class="flex items-start gap-3 cursor-pointer">

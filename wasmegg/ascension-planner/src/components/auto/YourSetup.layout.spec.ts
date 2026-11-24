@@ -27,11 +27,11 @@ describe('Your setup: the cards flow in columns, not grid rows', () => {
     expect(columns).not.toMatch(/\bgrid-cols-1 md:grid-cols-2\b/);
   });
 
-  it('the three cards under More options, in order: the plan\u2019s inputs (save file, artifacts) before This computer (R10, 23 Nov 2026)', () => {
-    const marks = ['Your save file</h3>', '<SimulationSetup />', 'data-testid="setup-this-computer"'].map(m => columns.indexOf(m));
+  it('the two cards under More options, in order, each kept whole and spaced', () => {
+    const marks = ['Your save file</h3>', 'data-testid="setup-this-computer"'].map(m => columns.indexOf(m));
     expect(marks.every((v, i) => v > 0 && (i === 0 || v > marks[i - 1]))).toBe(true);
     expect(columns).not.toContain('When the route starts</h3>');
-    expect(columns.match(/class="mb-4 break-inside-avoid rounded-xl/g)).toHaveLength(3);
+    expect(columns.match(/class="mb-4 break-inside-avoid rounded-xl/g)).toHaveLength(2);
     // The Memory fold is inside This computer, so it grows that card's column only.
     expect(columns.indexOf('Memory · detail kept for')).toBeGreaterThan(columns.indexOf('data-testid="setup-this-computer"'));
   });
@@ -54,7 +54,11 @@ describe('Your setup: the cards flow in columns, not grid rows', () => {
 
   it('the full-width cards stay in the grid after the columns', () => {
     const rest = template.slice(gridAfter);
-    expect(rest).not.toContain('<SimulationSetup />');
+    expect(columns).not.toContain('<SimulationSetup />');
+    // Full width, first in the grid, directly under the two columns (R10, 23 Nov 2026, Jordan: full width): save file, artifacts, then the rest.
+    expect(rest.indexOf('<SimulationSetup />')).toBeGreaterThan(0);
+    expect(rest.indexOf('<SimulationSetup />')).toBeLessThan(rest.indexOf('data-testid="prestige-hint"'));
+    expect(rest.slice(rest.lastIndexOf('<div', rest.indexOf('<SimulationSetup />')), rest.indexOf('<SimulationSetup />'))).toContain('md:col-span-2');
     expect(rest).toContain('data-testid="experimental"');
     expect(rest).not.toContain('break-inside-avoid');
   });
