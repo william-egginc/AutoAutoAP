@@ -14,7 +14,7 @@
  * checks the result (one te file per start TE, 168 rows each, none empty) and writes MANIFEST.txt.
  * Stopped part-way, run it again: the generator keeps the start TEs already done.
  *
- * verify rebuilds a sample of start TEs (all of `from`..100, every 10th, and 489; --all for every
+ * verify rebuilds a sample of start TEs (all of `from`..100, every 10th, and `to`; --all for every
  * one) into DIR-verify and compares them byte for byte with DIR, and DIR's files with its MANIFEST.
  */
 import { createHash } from 'node:crypto';
@@ -159,7 +159,8 @@ if (mode === 'build') {
   }
   const tes = opt('tes') ? opt('tes').split(',').map(Number) : rest.includes('--all')
     ? Array.from({ length: table.to - table.from + 1 }, (_, i) => table.from + i)
-    : [...new Set([...Array.from({ length: 101 - table.from }, (_, i) => table.from + i), ...Array.from({ length: 38 }, (_, i) => 110 + 10 * i), 489])];
+    : [...new Set([...Array.from({ length: 101 - table.from }, (_, i) => table.from + i), ...Array.from({ length: 38 }, (_, i) => 110 + 10 * i), table.to])]
+      .filter(te => te >= table.from && te <= table.to); // a board gear table ends at 339 (23 Nov 2026)
   const mine = `${back}-verify`;
   mkdirSync(mine, { recursive: true });
   generate(mine, ['--tes', tes.join(',')]);

@@ -23,7 +23,7 @@
    "combo": "maxed",
    "from": 55,
    "to": 489,
-   "status": "todo",
+   "status": "done",
    "reference": true
   },
   {
@@ -32,7 +32,7 @@
    "combo": "all-common",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "paused"
   },
   {
    "name": "gear-036f74b4",
@@ -40,7 +40,7 @@
    "combo": "gear-036f74b4",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-574bbea7",
@@ -48,7 +48,7 @@
    "combo": "gear-574bbea7",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-56e34c28",
@@ -56,7 +56,7 @@
    "combo": "gear-56e34c28",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-808f643d",
@@ -64,7 +64,7 @@
    "combo": "gear-808f643d",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-7d2b5fcc",
@@ -72,7 +72,7 @@
    "combo": "gear-7d2b5fcc",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-058afe6c",
@@ -80,7 +80,7 @@
    "combo": "gear-058afe6c",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "built"
   },
   {
    "name": "gear-5003fbad",
@@ -88,7 +88,7 @@
    "combo": "gear-5003fbad",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "gear-fb5db948",
@@ -96,22 +96,22 @@
    "combo": "gear-fb5db948",
    "from": 75,
    "to": 489,
-   "status": "todo"
+   "status": "dropped"
   },
   {
    "name": "carpet-0b85c7a1-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-0b85c7a1-board",
-   "from": 75,
-   "to": 489,
+   "from": 150,
+   "to": 260,
    "status": "todo"
   },
   {
    "name": "carpet-f9b40271-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-f9b40271-board",
-   "from": 75,
-   "to": 489,
+   "from": 150,
+   "to": 260,
    "status": "todo"
   },
   {
