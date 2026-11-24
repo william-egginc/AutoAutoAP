@@ -955,6 +955,7 @@ import {
   instantDays,
   instantFirstLegs,
   instantPricingOptions,
+  type PlayerGear,
 } from '@/search/instantCompute';
 import { listedTableNames } from '@/search/tableListing';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
@@ -2267,6 +2268,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     stampHash.value = '';
     deliveryUsed.value = '';
     playerDelivery.value = '';
+    keptGear.value = null;
     const choice = await chooseInstantTable({
       pool: p,
       maxedUrl: TABLE_URL,
@@ -2282,6 +2284,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     stampHash.value = choice.stampHash;
     deliveryUsed.value = choice.deliveryKey ?? '';
     playerDelivery.value = choice.playerDeliveryKey ?? '';
+    keptGear.value = choice.playerGear ?? null;
     if (id !== runs) return;
     header.value = h;
     tableUrl.value = url;
@@ -3597,6 +3600,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
     stampHash.value = '';
     deliveryUsed.value = '';
     playerDelivery.value = '';
+    keptGear.value = null;
   }
   if (!stale) {
     prestigeStatus.value = prestige.value ? 'done' : 'idle';
@@ -3870,6 +3874,9 @@ const stampHash = ref('');
  *  Kept for the record, not sent yet: the live collector takes neither until its next deploy. */
 const deliveryUsed = ref('');
 const playerDelivery = ref('');
+/** The player's gear as the record could say it (search/instantCompute.ts `playerGear`: sets, slotted stones, no
+ *  delivery table), kept beside the record and not sent until the consent wording is settled (24 Nov 2026). */
+const keptGear = ref<PlayerGear | null>(null);
 /** Share the result on screen. Ticked for a result found in this visit with "Share my search results" on. */
 const shareThis = ref(false);
 /** What the last share did, for the line beside the boxes. */

@@ -26,8 +26,11 @@ describe('the record says own, gear or maxed, nothing else', () => {
   it('the delivery set is kept, not sent', () => {
     const gear = script.slice(script.indexOf('    gear: {'), script.indexOf('    stall: {'));
     expect(gear.length).toBeGreaterThan(100);
-    expect(gear).not.toMatch(/deliveryUsed|playerDelivery|deliveryKey|delivery:/);
+    expect(gear).not.toMatch(
+      /deliveryUsed|playerDelivery|deliveryKey|delivery:|keptGear|playerGear|Stones|noTable|earnings:/
+    );
     expect(script).toContain("deliveryUsed.value = choice.deliveryKey ?? '';");
     expect(script).toContain("playerDelivery.value = choice.playerDeliveryKey ?? '';");
+    expect(script).toContain('keptGear.value = choice.playerGear ?? null;');
   });
 });

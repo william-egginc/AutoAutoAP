@@ -331,3 +331,48 @@ export function deliveryKey(slots: readonly LoadoutSlot[] | null | undefined): s
 export async function deliveryTableFile(key: string): Promise<string> {
   return (await gearFile(`delivery ${key}`)).replace(/\.bin$/, '.v2.bin');
 }
+
+/** `T4L-T4L-T4L-T4L` (necklace / totem / cube / ankh: tier and rarity, X for one not worn) for an earnings set as words,
+ *  or null without a set. For the instant answer record (Jordan, 24 Nov 2026), not a table name. */
+export function earningsKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  if (!slots?.length) return null;
+  return ['Demeters necklace', 'Lunar totem', 'Puzzle cube', 'Tungsten ankh']
+    .map(name => {
+      const label = slots.find(s => s.artifact.slice(s.artifact.indexOf(' ') + 1) === name)?.artifact;
+      return label ? label.slice(0, label.indexOf(' ')) : 'X';
+    })
+    .join('-');
+}
+
+/** Two letters a stone type, as one letter would clash (Tachyon / Terra, Shell / Soul, Lunar / Life). */
+const STONE_CODES: Record<string, string> = {
+  Tachyon: 'Ta',
+  Quantum: 'Qu',
+  Lunar: 'Lu',
+  Terra: 'Te',
+  Shell: 'Sh',
+  Life: 'Li',
+  Soul: 'So',
+  Dilithium: 'Di',
+  Prophecy: 'Pr',
+  Clarity: 'Cl',
+};
+
+/** The stones slotted in a set (every slot, a delivery set's stone holder included; spares never), counted by type with
+ *  no tier, most first: `Qu5-Ta5-Te1`. Null when none is slotted, or when it would be over the collector's 48 characters
+ *  (left out, never cut). For the instant answer record (Jordan, 24 Nov 2026). */
+export function stonesKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  const counts = new Map<string, number>();
+  for (const s of slots ?? [])
+    for (const stone of s.stones) {
+      const type = stone.replace(/^T\d+ /, '').replace(/ stone$/, '');
+      const code = STONE_CODES[type] ?? type.replace(/[^A-Za-z]/g, '').slice(0, 2);
+      counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+  if (!counts.size) return null;
+  const key = [...counts]
+    .sort(([a, n], [b, m]) => m - n || a.localeCompare(b))
+    .map(([code, n]) => `${code}${n}`)
+    .join('-');
+  return /^[A-Za-z0-9_-]{1,48}$/.test(key) ? key : null;
+}

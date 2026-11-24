@@ -117,6 +117,8 @@ describe('chooseInstantTable: a delivery set table', () => {
     expect(c.gearShifted).toBe(true);
     expect(c.deliveryKey).toBe('T4L-T4E-T4L');
     expect(c.playerDeliveryKey).toBe('T4L-T4E-T4L');
+    // What the record could say (kept, not sent): their sets and slotted stones, and that a table has their set.
+    expect(c.playerGear).toEqual({ delivery: 'T4L-T4E-T4L', deliveryStones: 'Qu1-Ta1', noTable: false });
     expect(c.header.gearTo).toBe(260);
   });
   it('at its first and last TE too', async () => {
@@ -139,14 +141,23 @@ describe('chooseInstantTable: a delivery set table', () => {
   it('not listed: the form G from the maxed table', async () => {
     listed = new Set(['table-v2.bin']);
     await formG(200);
+    expect((await choose(200)).playerGear?.noTable).toBe(true);
     expect(asked.some(u => u.includes(dFile))).toBe(false);
   });
   it('the save below its first TE, or above its last: the form G', async () => {
     await formG(149);
     await formG(261);
+    // A table has their set all the same.
+    expect((await choose(149)).playerGear?.noTable).toBe(false);
   });
   it('a table by another simulator: the form G', async () => {
     dHeader = { ...dHeader, simVersion: '2026-11-09-sim4' } as TableHeader;
     await formG(200);
+  });
+  it('tables.json unreadable: whether a table has their set is unknown, so noTable is left out', async () => {
+    listed = null as unknown as Set<string>;
+    const c = await choose(200);
+    expect(c.playerGear?.delivery).toBe('T4L-T4E-T4L');
+    expect(c.playerGear && 'noTable' in c.playerGear).toBe(false);
   });
 });

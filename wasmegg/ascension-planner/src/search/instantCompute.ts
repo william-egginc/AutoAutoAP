@@ -19,7 +19,17 @@
 import type { TableHeader } from './precomputedTable';
 import { compositeUrl, deliveryUrl, gearRowsOfUrl, gearShiftUrl, parseGearShiftUrl } from './precomputedTable';
 import { isTableStall, probeFirst } from './tableFetch';
-import { deliveryKey, deliveryTableFile, gearChanges, gearStamp, gearTableFiles, legacyGearTableName, type TableGear } from './tableGear';
+import {
+  deliveryKey,
+  deliveryTableFile,
+  earningsKey,
+  gearChanges,
+  gearStamp,
+  gearTableFiles,
+  legacyGearTableName,
+  stonesKey,
+  type TableGear,
+} from './tableGear';
 import { tableSimMismatch } from './simVersion';
 import { instantDeliveryScale, saveSiloSeconds } from './leg';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './instantGear';
@@ -77,6 +87,20 @@ export interface InstantTableChoice {
   /** The player's own delivery set, whether or not a table has it (Jordan, 24 Nov 2026: to see which are wanted);
    *  absent without a save or when their best set lacks one of the three. Not sent yet. */
   playerDeliveryKey?: string;
+  /** What the instant answer record could say about the player's gear (Jordan, 24 Nov 2026), under the collector's
+   *  names (gear.delivery, gear.earnings, gear.deliveryStones, gear.earningsStones, gear.noTable; collector 8aa9bc925):
+   *  their delivery and earnings sets' keys, the stones slotted in each (tableGear.ts `stonesKey`), and whether no
+   *  delivery table is listed for their set (left out when tables.json can't be read). Each left out when unknown.
+   *  Kept, not sent: it waits on the consent wording. */
+  playerGear?: PlayerGear;
+}
+
+export interface PlayerGear {
+  delivery?: string;
+  earnings?: string;
+  deliveryStones?: string;
+  earningsStones?: string;
+  noTable?: boolean;
 }
 
 /**
@@ -153,9 +177,10 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   let gearShifted = false;
   let delivery: string | undefined;
   const playerKey = deliveryKey(stamp?.deliveryFull);
+  const playerFile = playerKey ? await deliveryTableFile(playerKey) : null;
   const key = url === TABLE_URL ? playerKey : null;
   if (key) {
-    const lowUrl = `${d.base}${await deliveryTableFile(key)}`;
+    const lowUrl = `${d.base}${playerFile}`;
     if (isListed(lowUrl) && listed) {
       try {
         const lh = await p.header(lowUrl);
@@ -195,6 +220,21 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
     gearShifted,
     ...(delivery ? { deliveryKey: delivery } : {}),
     ...(playerKey ? { playerDeliveryKey: playerKey } : {}),
+    ...(stamp ? { playerGear: playerGearOf(stamp, playerKey, playerFile && listed ? !listed.has(playerFile) : null) } : {}),
+  };
+}
+
+/** The record's gear keys from a stamp (`InstantTableChoice.playerGear`): each left out when unknown. */
+function playerGearOf(stamp: TableGear, delivery: string | null, noTable: boolean | null): PlayerGear {
+  const earnings = earningsKey(stamp.earnings);
+  const deliveryStones = stonesKey(stamp.deliveryFull);
+  const earningsStones = stonesKey(stamp.earnings);
+  return {
+    ...(delivery ? { delivery } : {}),
+    ...(earnings ? { earnings } : {}),
+    ...(deliveryStones ? { deliveryStones } : {}),
+    ...(earningsStones ? { earningsStones } : {}),
+    ...(noTable !== null ? { noTable } : {}),
   };
 }
 
