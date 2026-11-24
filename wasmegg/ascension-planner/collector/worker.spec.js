@@ -3384,6 +3384,120 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect((await good.json()).problems.join(' ')).not.toContain('record.gear.answer');
     expect(instKeys()).toEqual([]);
   });
+  // gear.delivery (24 Nov 2026): the PLAYER's own delivery key (metronome/compass/gusset tier+rarity; no stones, no ID), sent every time.
+  it('takes gear.delivery (letters, digits, _ and -, 1 to 24) beside any answer, and stores it as sent; absent stays absent', async () => {
+    for (const [answer, delivery] of [['own', 'LEL'], ['maxed', 'a_b-9'], ['delivery:LEL', 'x'.repeat(24)]]) {
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer, delivery } }, TOKEN_A);
+      expect(res.status).toBe(200);
+      const { id } = await res.json();
+      const stored = JSON.parse([...env.SUBMISSIONS._m.entries()].find(([k]) => k.startsWith('inst:') && k.endsWith(`:${id}`))[1]);
+      expect(stored.gear.delivery).toBe(delivery);
+      expect(stored.gear.answer).toBe(answer);
+    }
+    const plain = await postOwned('/instant', RECORD, TOKEN_A);
+    const { id } = await plain.json();
+    const stored = JSON.parse([...env.SUBMISSIONS._m.entries()].find(([k]) => k.startsWith('inst:') && k.endsWith(`:${id}`))[1]);
+    expect(stored.gear).not.toHaveProperty('delivery');
+  });
+  it.each(['', 'x y', 'a:b', 'x'.repeat(25), 'é', 'LEL\n', 5, null, { a: 1 }, 'EI1234567890123456', 'xEI1234567890123456x'])(
+    'refuses gear.delivery %j, naming it, storing nothing',
+    async delivery => {
+      const before = instKeys().length;
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, delivery } }, TOKEN_A);
+      expect(res.status).toBe(400);
+      expect((await res.json()).problems.join(' ')).toContain('record.gear.delivery');
+      expect(instKeys().length).toBe(before);
+    }
+  );
+  it('refuses a delivery answer whose key looks like a player ID', async () => {
+    const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer: 'delivery:EI1234567890123456' } }, TOKEN_A);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.join(' ')).toContain('record.gear.answer');
+  });
+
+  it('the live post-check body for gear.delivery: only {v, gear:{answer, delivery}} lists record.gear.delivery iff it is bad, and writes nothing', async () => {
+    const probe = async delivery => postOwned('/instant', { v: 1, gear: { answer: 'own', delivery } }, TOKEN_A);
+    const bad = await probe('a b');
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).problems.join(' ')).toContain('record.gear.delivery');
+    const good = await probe('LEL');
+    expect(good.status).toBe(400);
+    expect((await good.json()).problems.join(' ')).not.toContain('record.gear.delivery');
+    expect(instKeys()).toEqual([]);
+  });
+  // gear.earnings and gear.noTable (24 Nov 2026): the player's EARNINGS set key (necklace/totem/cube/ankh, e.g. T4L-T4L-T4L-T4L), and a plain flag
+  // that no delivery table exists for their set. Their CTE is the record's existing clothedTE (not repeated).
+  it('takes gear.earnings (same key form) and gear.noTable true/false, stored as sent; absent stays absent', async () => {
+    const read = id => JSON.parse([...env.SUBMISSIONS._m.entries()].find(([k]) => k.startsWith('inst:') && k.endsWith(`:${id}`))[1]);
+    for (const gear of [{ earnings: 'T4L-T4L-T4L-T4L', noTable: true }, { earnings: 'a_b-9', noTable: false, delivery: 'LEL' }]) {
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, ...gear } }, TOKEN_A);
+      expect(res.status).toBe(200);
+      const stored = read((await res.json()).id);
+      expect(stored.gear.earnings).toBe(gear.earnings);
+      expect(stored.gear.noTable).toBe(gear.noTable);
+    }
+    const plain = read((await (await postOwned('/instant', RECORD, TOKEN_A)).json()).id);
+    expect(plain.gear).not.toHaveProperty('earnings');
+    expect(plain.gear).not.toHaveProperty('noTable');
+  });
+  it.each(['', 'x y', 'a:b', 'x'.repeat(25), 'é', 5, null, 'EI1234567890123456'])('refuses gear.earnings %j, naming it, storing nothing', async earnings => {
+    const before = instKeys().length;
+    const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, earnings } }, TOKEN_A);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.join(' ')).toContain('record.gear.earnings');
+    expect(instKeys().length).toBe(before);
+  });
+  it.each(['yes', 1, 0, null, 'true'])('refuses gear.noTable %j, naming it, storing nothing', async noTable => {
+    const before = instKeys().length;
+    const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, noTable } }, TOKEN_A);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.join(' ')).toContain('record.gear.noTable');
+    expect(instKeys().length).toBe(before);
+  });
+  it('the live post-check body for earnings and noTable: only {v, gear} lists them iff bad, and writes nothing', async () => {
+    const probe = async gear => postOwned('/instant', { v: 1, gear: { answer: 'own', ...gear } }, TOKEN_A);
+    const bad = await (await probe({ earnings: 'a b', noTable: 'x' })).json();
+    expect(bad.problems.join(' ')).toContain('record.gear.earnings');
+    expect(bad.problems.join(' ')).toContain('record.gear.noTable');
+    const good = await (await probe({ earnings: 'T4L-T4L-T4L-T4L', noTable: true })).json();
+    expect(good.problems.join(' ')).not.toMatch(/record\.gear\.(earnings|noTable)/);
+    expect(instKeys()).toEqual([]);
+  });
+
+  // gear.deliveryStones / gear.earningsStones (24 Nov 2026): the stones SLOTTED in the 3 delivery / 4 earnings artifacts, as a short count key by type
+  // (e.g. Q5-T6). Never spare or inventory stones (the client's job); 1 to 48 of letters, digits, _ and -, no EI id.
+  it('takes gear.deliveryStones and gear.earningsStones (1 to 48), stored as sent; absent stays absent', async () => {
+    const read = id => JSON.parse([...env.SUBMISSIONS._m.entries()].find(([k]) => k.startsWith('inst:') && k.endsWith(`:${id}`))[1]);
+    for (const gear of [{ deliveryStones: 'Q5-T6', earningsStones: 'L3-D2-S1' }, { deliveryStones: 'x'.repeat(48), earningsStones: 'a_b-9' }]) {
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, ...gear } }, TOKEN_A);
+      expect(res.status).toBe(200);
+      const stored = read((await res.json()).id);
+      expect(stored.gear.deliveryStones).toBe(gear.deliveryStones);
+      expect(stored.gear.earningsStones).toBe(gear.earningsStones);
+    }
+    const plain = read((await (await postOwned('/instant', RECORD, TOKEN_A)).json()).id);
+    expect(plain.gear).not.toHaveProperty('deliveryStones');
+    expect(plain.gear).not.toHaveProperty('earningsStones');
+  });
+  it.each(['deliveryStones', 'earningsStones'])('refuses a bad %s, naming it, storing nothing', async field => {
+    for (const bad of ['', 'x y', 'a:b', 'x'.repeat(49), 'é', 5, null, 'EI1234567890123456', 'Q5-EI1234567890123456']) {
+      const before = instKeys().length;
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, [field]: bad } }, TOKEN_A);
+      expect(res.status).toBe(400);
+      expect((await res.json()).problems.join(' ')).toContain(`record.gear.${field}`);
+      expect(instKeys().length).toBe(before);
+    }
+  });
+  it('the live post-check body for the stones: only {v, gear} lists them iff bad, and writes nothing', async () => {
+    const probe = async gear => postOwned('/instant', { v: 1, gear: { answer: 'own', ...gear } }, TOKEN_A);
+    const bad = await (await probe({ deliveryStones: 'a b', earningsStones: 'a b' })).json();
+    expect(bad.problems.join(' ')).toContain('record.gear.deliveryStones');
+    expect(bad.problems.join(' ')).toContain('record.gear.earningsStones');
+    const good = await (await probe({ deliveryStones: 'Q5-T6', earningsStones: 'L3-D2-S1' })).json();
+    expect(good.problems.join(' ')).not.toMatch(/record\.gear\.(delivery|earnings)Stones/);
+    expect(instKeys()).toEqual([]);
+  });
+
   it('refuses a known field out of bounds, saying where', async () => {
     const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer: 'mine' } }, TOKEN_A);
     expect(res.status).toBe(400);

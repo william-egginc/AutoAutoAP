@@ -2627,11 +2627,27 @@ const EXACT_LEG = IV.obj(
 );
 const BRACKET_SIDE = IV.obj({ gear: IV.str(120), end: IV.orNull(IUNIX), te: ITE }, ['gear']);
 
-// gear.answer: which instant answer was used: own / gear / maxed, or (R10, 24 Nov 2026) the delivery-set table that answered, 'delivery:<key>'.
+// A delivery key (R10 delivery-set tables, 24 Nov 2026): the metronome / compass / gusset tier and rarity as the app spells it, 1 to 24 of letters, digits, _ and -.
+// Never an ID: a key that holds an EI id is refused (an 18-character id would otherwise fit).
+const DELIVERY_KEY = /^[A-Za-z0-9_-]{1,24}$/;
+const deliveryKey = k => typeof k === 'string' && DELIVERY_KEY.test(k) && !/EI\d{16}/i.test(k);
+// gear.answer: which instant answer was used: own / gear / maxed, or the delivery-set table that answered, 'delivery:<key>'.
 const GEAR_ANSWER = (v, p, pr) =>
-  v === 'own' || v === 'gear' || v === 'maxed' || (typeof v === 'string' && /^delivery:[A-Za-z0-9_-]{1,24}$/.test(v))
+  v === 'own' || v === 'gear' || v === 'maxed' || (typeof v === 'string' && v.startsWith('delivery:') && deliveryKey(v.slice(9)))
     ? v
     : (pr.push(`${p} must be one of own, gear, maxed, or delivery:<key> (key: letters, digits, _ or -, 1 to 24)`), undefined);
+// gear.earnings: the PLAYER's own earnings set (necklace / totem / cube / ankh tier and rarity, e.g. T4L-T4L-T4L-T4L), same form as the delivery key.
+const GEAR_EARNINGS = (v, p, pr) => (deliveryKey(v) ? v : (pr.push(`${p} must be an earnings key: letters, digits, _ or -, 1 to 24`), undefined));
+// gear.deliveryStones / gear.earningsStones: the stones SLOTTED in the player's 3 delivery / 4 earnings artifacts, a short count key by stone type
+// (e.g. Q5-T6); the client never sends spare or inventory stones. 1 to 48 of letters, digits, _ and -, and never an EI id.
+const GEAR_STONES = (v, p, pr) =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,48}$/.test(v) && !/EI\d{16}/i.test(v)
+    ? v
+    : (pr.push(`${p} must be a stone count key: letters, digits, _ or -, 1 to 48`), undefined);
+// gear.noTable (true/false): no delivery table exists for the player's set (answered by the maxed table instead).
+// gear.delivery: the PLAYER's own delivery key, sent every time (even with no table for it), so the maintainer sees which sets are in demand.
+const GEAR_DELIVERY = (v, p, pr) => (deliveryKey(v) ? v : (pr.push(`${p} must be a delivery key: letters, digits, _ or -, 1 to 24`), undefined));
+
 const INSTANT_RECORD = IV.obj(
   {
     v: IV.int(1, 1),
@@ -2652,6 +2668,11 @@ const INSTANT_RECORD = IV.obj(
       {
         stamp: IV.hex(24),
         answer: GEAR_ANSWER,
+        delivery: GEAR_DELIVERY,
+        earnings: GEAR_EARNINGS,
+        deliveryStones: GEAR_STONES,
+        earningsStones: GEAR_STONES,
+        noTable: IV.bool,
         ownChanged: IV.str(80),
         earningsShort: IV.num(-1000, 1000),
         deliveryScale: IV.num(0, 100),
