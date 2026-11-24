@@ -3353,6 +3353,37 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect((await bad.json()).problems.join(' ')).toContain('firstLeg');
   });
 
+  // R10 delivery-set tables (24 Nov 2026): gear.answer may also name the delivery table that answered, 'delivery:<key>'.
+  it("takes gear.answer 'delivery:<key>' (letters, digits, _ and -, 1 to 24) and stores it as sent", async () => {
+    for (const key of ['LEL', 'a_b-9', 'x'.repeat(24)]) {
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer: `delivery:${key}` } }, TOKEN_A);
+      expect(res.status).toBe(200);
+      const { id } = await res.json();
+      const stored = JSON.parse([...env.SUBMISSIONS._m.entries()].find(([k]) => k.startsWith('inst:') && k.endsWith(`:${id}`))[1]);
+      expect(stored.gear.answer).toBe(`delivery:${key}`);
+    }
+  });
+  it.each(['delivery:', 'delivery:x y', 'delivery:a:b', `delivery:${'x'.repeat(25)}`, 'Delivery:LEL', ' delivery:LEL', 'delivery:LEL\n', 'deliveryLEL', 'delivery:é'])(
+    'refuses gear.answer %j, naming it',
+    async answer => {
+      const before = instKeys().length;
+      const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer } }, TOKEN_A);
+      expect(res.status).toBe(400);
+      expect((await res.json()).problems.join(' ')).toContain('record.gear.answer');
+      expect(instKeys().length).toBe(before);
+    }
+  );
+
+  it('the live post-check body: only {v, gear.answer} lists record.gear.answer in its problems iff the answer is bad, and writes nothing', async () => {
+    const probe = async answer => (await postOwned('/instant', { v: 1, gear: { answer } }, TOKEN_A));
+    const bad = await probe('mine');
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).problems.join(' ')).toContain('record.gear.answer');
+    const good = await probe('delivery:LEL');
+    expect(good.status).toBe(400);
+    expect((await good.json()).problems.join(' ')).not.toContain('record.gear.answer');
+    expect(instKeys()).toEqual([]);
+  });
   it('refuses a known field out of bounds, saying where', async () => {
     const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer: 'mine' } }, TOKEN_A);
     expect(res.status).toBe(400);

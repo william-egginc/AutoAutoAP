@@ -670,7 +670,7 @@ answer and its exact check, for the analyst:
 
 - plan start, save time and backup age, timezone, current TE, the save's TE, Clothed TE;
 - `gear`: which instant answer was used (`own`, `gear` = built on gear exactly like theirs, or
-  `maxed` = the maxed one adjusted), the gear stamp's hash (the 24 hex of the `gear-<hex>.bin` that
+  `maxed` = the maxed one adjusted; from R10 (24 Nov 2026) also `delivery:<key>`, the delivery-set table that answered, key of letters, digits, `_` or `-`, 1 to 24; anything else refuses the record, `record.gear.answer` named), the gear stamp's hash (the 24 hex of the `gear-<hex>.bin` that
   would fit this account), `ownChanged` (their own existed but their gear changed), how far the
   earnings set and delivery are from the answer's, whether the "Your gear isn't the gear the instant
   answer was built on" note showed (`adjusted`), and the closest stronger and weaker gear's results

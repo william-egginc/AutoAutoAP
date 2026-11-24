@@ -2627,6 +2627,11 @@ const EXACT_LEG = IV.obj(
 );
 const BRACKET_SIDE = IV.obj({ gear: IV.str(120), end: IV.orNull(IUNIX), te: ITE }, ['gear']);
 
+// gear.answer: which instant answer was used: own / gear / maxed, or (R10, 24 Nov 2026) the delivery-set table that answered, 'delivery:<key>'.
+const GEAR_ANSWER = (v, p, pr) =>
+  v === 'own' || v === 'gear' || v === 'maxed' || (typeof v === 'string' && /^delivery:[A-Za-z0-9_-]{1,24}$/.test(v))
+    ? v
+    : (pr.push(`${p} must be one of own, gear, maxed, or delivery:<key> (key: letters, digits, _ or -, 1 to 24)`), undefined);
 const INSTANT_RECORD = IV.obj(
   {
     v: IV.int(1, 1),
@@ -2646,7 +2651,7 @@ const INSTANT_RECORD = IV.obj(
     gear: IV.obj(
       {
         stamp: IV.hex(24),
-        answer: IV.oneOf(['own', 'gear', 'maxed']),
+        answer: GEAR_ANSWER,
         ownChanged: IV.str(80),
         earningsShort: IV.num(-1000, 1000),
         deliveryScale: IV.num(0, 100),
