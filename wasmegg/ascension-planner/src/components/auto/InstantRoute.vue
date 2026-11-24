@@ -1086,8 +1086,23 @@ import Tip from '@/components/Tip.vue';
 import { TIP_SIMULATE } from '@/lib/tipWords';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
-import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
-import { compositeUrl, formGBelowReach, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
+import {
+  GEAR_RULE,
+  deliveryKey,
+  deliveryTableFile,
+  gearStamp,
+  gearTableFiles,
+  legacyGearTableName,
+  ownTableNames,
+} from '@/search/tableGear';
+import {
+  compositeUrl,
+  formGBelowReach,
+  gearRowsOfUrl,
+  parseCompositeUrl,
+  parseDeliveryUrl,
+  parseGearShiftUrl,
+} from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import ExactLine from './ExactLine.vue';
@@ -1229,16 +1244,18 @@ const tableUrl = ref(TABLE_URL);
 /** Built on this player's gear (their own table, or a board gear combination's exactly like theirs):
  *  no adjustment, and none of the maxed table's caveats. */
 const own = computed(() => tableUrl.value !== TABLE_URL && !shiftedTable.value);
-/** INSTANT ANSWER V2: the maxed table moved to the player's gear (search/instantGear.ts, the form G). */
-const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value));
+/** INSTANT ANSWER V2: the maxed table moved to the player's gear (search/instantGear.ts, the form G), or a delivery
+ *  set's table moved to it (23 Nov 2026): either is already at the player's delivery, with the form G's caveats. */
+const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value) || !!parseDeliveryUrl(tableUrl.value));
 /** The form G is below its reach at the player's TE (search/precomputedTable.ts formGBelowReach; review 15 Nov 2026,
  *  T2): the answer is a close call whatever its spare, and the caveat says it is likely later than shown. */
 const belowReach = computed(() => {
-  const s = parseGearShiftUrl(tableUrl.value);
+  const s = parseGearShiftUrl(tableUrl.value) ?? parseDeliveryUrl(tableUrl.value)?.low;
   return !!s && !!header.value && formGBelowReach({ from: header.value.from, gearShift: s }, Math.floor(store.currentTE));
 });
-/** A gear combination's table below GEAR_TABLE_TO, the maxed one from it. */
-const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value));
+/** A gear combination's table below GEAR_TABLE_TO, the maxed one from it; or a delivery set's table below its last TE,
+ *  the maxed one from it (recorded as 'gear': the collector takes only own / gear / maxed). */
+const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value) || !!parseDeliveryUrl(tableUrl.value));
 /** What changed since the player's own table was made, when it no longer fits their save. */
 const ownChanged = ref('');
 
@@ -1517,7 +1534,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     hours: HORIZON_HOURS,
     ...(hours ? { playHours: hours } : {}),
     // Held as the answer and the lookups below are (`instantTail`), so the estimate and the lookups price alike.
-    tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, daysOf(inputs)),
+    tail: instantTail(hours, store.deferShifts, gearRowsOfUrl(url), daysOf(inputs)),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
@@ -1540,7 +1557,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
           deliveryScale: ctx.scale,
           ...(deadline ? { deadline } : {}),
           ...(hours ? { hours } : {}),
-          ...instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, daysOf(inputs)),
+          ...instantTail(hours, store.deferShifts, gearRowsOfUrl(url), daysOf(inputs)),
         };
         const f = await findRoutes({
           ...base,
@@ -2248,6 +2265,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     // The player's own table when there is one built on the gear their save has now; else a gear table, the form G or
     // the maxed one (search/instantCompute.ts `chooseInstantTable`, the same choice My Runs makes).
     stampHash.value = '';
+    deliveryUsed.value = '';
+    playerDelivery.value = '';
     const choice = await chooseInstantTable({
       pool: p,
       maxedUrl: TABLE_URL,
@@ -2261,6 +2280,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     });
     const { url, header: h, mismatch, gearShifted } = choice;
     stampHash.value = choice.stampHash;
+    deliveryUsed.value = choice.deliveryKey ?? '';
+    playerDelivery.value = choice.playerDeliveryKey ?? '';
     if (id !== runs) return;
     header.value = h;
     tableUrl.value = url;
@@ -3360,6 +3381,9 @@ async function currentTables(): Promise<string | null> {
     const k3 = entries.find(e => e.file === MAXED_TABLE_FILE)?.k3 as TableHeader['k3'] | undefined;
     const stamp = k3 ? gearStamp(store.collectInputs(), store.readInventory().earnings, k3.research) : null;
     if (stamp) names.push(...(await gearTableFiles(stamp)));
+    // A delivery set's table (23 Nov 2026): a saved answer is worked out again when it comes or changes.
+    const dKey = deliveryKey(stamp?.deliveryFull);
+    if (dKey) names.push(await deliveryTableFile(dKey));
     names.push(MAXED_TABLE_FILE);
     return tablesIdentity(entries, names);
   } catch {
@@ -3571,6 +3595,8 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
     whatIfInputs.value = null;
     answerDays = null;
     stampHash.value = '';
+    deliveryUsed.value = '';
+    playerDelivery.value = '';
   }
   if (!stale) {
     prestigeStatus.value = prestige.value ? 'done' : 'idle';
@@ -3839,6 +3865,11 @@ const SHARE_WHAT =
   'your save; never shown on the Leaderboard.';
 /** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
+/** The delivery set whose table answered (search/instantCompute.ts `deliveryKey`), '' otherwise; and the player's own
+ *  delivery set whether or not a table has it (`playerDeliveryKey`: Jordan, 24 Nov 2026, to see which are wanted).
+ *  Kept for the record, not sent yet: the live collector takes neither until its next deploy. */
+const deliveryUsed = ref('');
+const playerDelivery = ref('');
 /** Share the result on screen. Ticked for a result found in this visit with "Share my search results" on. */
 const shareThis = ref(false);
 /** What the last share did, for the line beside the boxes. */

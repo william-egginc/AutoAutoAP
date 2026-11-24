@@ -5,6 +5,8 @@
  *   - a composite (precomputedTable.ts compositeUrl): a gear table below a TE and the maxed one from it, each
  *     with its extras (the gear half had none until 22 Nov 2026: no held shifts, order or buys below the split);
  *   - the form G (gearShiftUrl): the maxed table moved to the player's gear;
+ *   - a delivery set's table (deliveryUrl, 23 Nov 2026): it moved to the player's gear below its split, the maxed
+ *     one (moved too, unless the player is as good as maxed) from it;
  *   - one table.
  * A version 2 table's builds carry their extras for the held replay (withExtras; version 1 as it is).
  */
@@ -12,6 +14,7 @@ import {
   compositeTable,
   gearShiftTable,
   parseCompositeUrl,
+  parseDeliveryUrl,
   parseGearShiftUrl,
   withExtras,
   type Table,
@@ -21,6 +24,18 @@ import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import type { FirstLeg } from './routeFinder';
 
 export function tableAtUrl(url: string, fetchTable: (url: string) => Promise<Table>): Promise<Table> {
+  const dl = parseDeliveryUrl(url);
+  if (dl) {
+    const { url: highUrl, ...high } = dl.high;
+    return Promise.all([fetchTable(dl.low.url), fetchTable(highUrl)]).then(([low, max]) =>
+      compositeTable(
+        gearShiftTable(withExtras(low), dl.low),
+        high.g === undefined ? withExtras(max) : gearShiftTable(withExtras(max), high as typeof dl.low),
+        dl.split,
+        1
+      )
+    );
+  }
   const c = parseCompositeUrl(url);
   const g = c ? null : parseGearShiftUrl(url);
   return c

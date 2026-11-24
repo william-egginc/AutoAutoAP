@@ -344,13 +344,46 @@ export function parseGearShiftUrl(
   const rest = url.slice('gearshift:'.length);
   const bar = rest.lastIndexOf('|');
   if (bar < 0) return null;
-  const nums = rest
-    .slice(bar + 1)
-    .split(',')
-    .map(Number);
+  const shift = parseGearShiftKey(rest.slice(bar + 1));
+  return shift && { url: rest.slice(0, bar), ...shift };
+}
+
+/** The numbers of a gear shift key (search/instantGear.ts `gearShiftKey`), or null when it is not one. */
+function parseGearShiftKey(key: string): { g: number; geo: number; cap: number; k: number; geoEr?: number } | null {
+  const nums = key.split(',').map(Number);
   const [g, geo, cap, k, geoEr] = nums;
   if (nums.length < 4 || nums.length > 5 || !nums.every(Number.isFinite)) return null;
-  return { url: rest.slice(0, bar), g, geo, cap, k, ...(geoEr !== undefined && geoEr !== 1 ? { geoEr } : {}) };
+  return { g, geo, cap, k, ...(geoEr !== undefined && geoEr !== 1 ? { geoEr } : {}) };
+}
+
+/**
+ * A delivery set's table moved to the player's gear (the form G from it: search/tableGear.ts `deliveryKey`), and the
+ * maxed table from `split` (its last TE + 1) up, moved too unless the player is as good as maxed (`highKey` empty):
+ * `delivery:LOW_URL~LOW_KEY~HIGH_URL~HIGH_KEY~SPLIT`. Neither a composite (no `|`) nor a form G url.
+ */
+export function deliveryUrl(lowUrl: string, lowKey: string, highUrl: string, highKey: string, split: number): string {
+  return `delivery:${[lowUrl, lowKey, highUrl, highKey, split].join('~')}`;
+}
+
+export function parseDeliveryUrl(url: string): {
+  low: { url: string; g: number; geo: number; cap: number; k: number; geoEr?: number };
+  high: { url: string; g?: number; geo?: number; cap?: number; k?: number; geoEr?: number };
+  split: number;
+} | null {
+  if (!url.startsWith('delivery:')) return null;
+  const parts = url.slice('delivery:'.length).split('~');
+  if (parts.length !== 5) return null;
+  const [lowUrl, lowKey, highUrl, highKey, split] = parts;
+  const low = parseGearShiftKey(lowKey);
+  const high = highKey ? parseGearShiftKey(highKey) : {};
+  if (!low || !high || !Number.isFinite(Number(split))) return null;
+  return { low: { url: lowUrl, ...low }, high: { url: highUrl, ...high }, split: Number(split) };
+}
+
+/** The form G's row shift of a url's moved table (the delivery table's for a delivery url), for the tail's opening
+ *  (search/instantGear.ts `instantTail` gearRows); undefined for a table read as it is. */
+export function gearRowsOfUrl(url: string): number | undefined {
+  return parseGearShiftUrl(url)?.g ?? parseDeliveryUrl(url)?.low.g;
 }
 
 /**

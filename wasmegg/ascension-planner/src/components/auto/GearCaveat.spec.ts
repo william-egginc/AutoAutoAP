@@ -105,7 +105,7 @@ describe('InstantRoute wiring', () => {
     );
     expect(src).not.toMatch(/<p v-if="ownChanged"/);
     expect(src).toMatch(/<GearCaveat\s+:gear-shift="shiftedTable"/);
-    expect(src).toContain('const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value));');
+    expect(src).toContain('const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value) || !!parseDeliveryUrl(tableUrl.value));');
   });
 });
 

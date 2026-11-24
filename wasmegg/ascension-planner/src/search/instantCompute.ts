@@ -17,9 +17,9 @@
  * No Vue, no stores: what it reads from the page comes in as functions.
  */
 import type { TableHeader } from './precomputedTable';
-import { compositeUrl, gearShiftUrl, parseGearShiftUrl } from './precomputedTable';
+import { compositeUrl, deliveryUrl, gearRowsOfUrl, gearShiftUrl, parseGearShiftUrl } from './precomputedTable';
 import { isTableStall, probeFirst } from './tableFetch';
-import { gearChanges, gearStamp, gearTableFiles, legacyGearTableName } from './tableGear';
+import { deliveryKey, deliveryTableFile, gearChanges, gearStamp, gearTableFiles, legacyGearTableName, type TableGear } from './tableGear';
 import { tableSimMismatch } from './simVersion';
 import { instantDeliveryScale, saveSiloSeconds } from './leg';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './instantGear';
@@ -68,8 +68,15 @@ export interface InstantTableChoice {
   mismatch: string;
   /** The gear stamp's legacy hash, for an instant answer record ('' without a stamp). */
   stampHash: string;
-  /** The maxed table moved to the player's gear (the form G): already at their delivery. */
+  /** The maxed table moved to the player's gear (the form G), or a delivery set's table moved to it: already at their
+   *  delivery. */
   gearShifted: boolean;
+  /** The delivery set whose table answered (search/tableGear.ts `deliveryKey`, e.g. `T4L-T4E-T4L`), for the record
+   *  code to read; absent otherwise. Not sent yet: the live collector takes only own / gear / maxed (worker.js). */
+  deliveryKey?: string;
+  /** The player's own delivery set, whether or not a table has it (Jordan, 24 Nov 2026: to see which are wanted);
+   *  absent without a save or when their best set lacks one of the three. Not sent yet. */
+  playerDeliveryKey?: string;
 }
 
 /**
@@ -86,13 +93,16 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   let h: TableHeader | null = null;
   let mismatch = '';
   let stampHash = '';
+  // The player's gear (search/tableGear.ts), at their own table's research when they have one, else the maxed one's:
+  // their delivery set's key comes from it either way (`playerDeliveryKey`).
+  let stamp: TableGear | null = null;
   // Under its `.v2` name, else the plain one: one this page can't read is none (tableFetch.ts probeFirst).
   // No table of their own (the usual case): the maxed one. A stall stops here.
   const ownHit = await probeFirst(await ownTableUrls().catch(() => []), u => p.header(u));
   const mine = ownHit?.url ?? null;
   const oh = ownHit?.header ?? null;
   if (oh?.gear && mine) {
-    const stamp = gearStamp(d.inputs(), d.earnings(), oh.gear.research);
+    stamp = gearStamp(d.inputs(), d.earnings(), oh.gear.research);
     const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
     // INSTANT ANSWER V2: only a table made by this simulator; an older one gives way to the form G below.
     if (!changes.length) {
@@ -106,7 +116,7 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   // No table of their own: one built on a board gear combination exactly like theirs, if there is
   // one (search/tableGear.ts gearTableName), below GEAR_TABLE_TO; the maxed one from there.
   if (url === TABLE_URL && h.k3) {
-    const stamp = gearStamp(d.inputs(), d.earnings(), h.k3.research);
+    stamp = gearStamp(d.inputs(), d.earnings(), h.k3.research);
     if (stamp) {
       // The gear stamp's hash, for an instant answer record: the legacy name's, which analysis
       // matches to the deployed files (tableGear.ts legacyGearTableName).
@@ -137,9 +147,37 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
       if (!found) h = await p.header(TABLE_URL);
     }
   }
+  // DELIVERY-SET TABLES (Jordan, 23 Nov 2026): no own or board gear table, but one built on their delivery set
+  // (metronome / compass / gusset, no stones: tableGear.ts `deliveryKey`), listed, by this simulator and with the save
+  // inside its TEs: it moved to their gear (the form G from it), and the maxed table (moved too) above its last TE.
+  let gearShifted = false;
+  let delivery: string | undefined;
+  const playerKey = deliveryKey(stamp?.deliveryFull);
+  const key = url === TABLE_URL ? playerKey : null;
+  if (key) {
+    const lowUrl = `${d.base}${await deliveryTableFile(key)}`;
+    if (isListed(lowUrl) && listed) {
+      try {
+        const lh = await p.header(lowUrl);
+        const inside = !startsAbove(lh) && (d.te === undefined || d.te <= lh.to);
+        const low = !tableSimMismatch(lh) && inside ? instantGearShift(d.inputs(), lh) : null;
+        if (low) {
+          const high = instantGearShift(d.inputs(), h);
+          const highKey = high && !nearMaxedGear(high) ? gearShiftKey(high) : '';
+          const both = deliveryUrl(lowUrl, gearShiftKey(low), TABLE_URL, highKey, lh.to + 1);
+          h = await p.header(both);
+          url = both;
+          gearShifted = true;
+          delivery = key;
+        }
+      } catch (e) {
+        // Not there after all. Stalled: the maxed one (already in) answers.
+        if (!isTableStall(e)) throw e;
+      }
+    }
+  }
   // INSTANT ANSWER V2: no own or gear table of this simulator: the maxed table moved to the player's
   // gear (search/instantGear.ts, the form G), unless they are as good as maxed.
-  let gearShifted = false;
   if (url === TABLE_URL) {
     const shift = instantGearShift(d.inputs(), h);
     if (shift && !nearMaxedGear(shift)) {
@@ -149,7 +187,15 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
       gearShifted = true;
     }
   }
-  return { url, header: h, mismatch, stampHash, gearShifted };
+  return {
+    url,
+    header: h,
+    mismatch,
+    stampHash,
+    gearShifted,
+    ...(delivery ? { deliveryKey: delivery } : {}),
+    ...(playerKey ? { playerDeliveryKey: playerKey } : {}),
+  };
 }
 
 /**
@@ -226,7 +272,7 @@ export async function instantFirstLegs(d: InstantLegsDeps): Promise<InstantLegs 
   // No prestige on these days (search/noPrestige.ts): every prestige waits past them, hours ticked or not.
   const days = instantDays(inputs);
   const hours = d.hours;
-  const tail: TailOptions = { ...instantTail(hours, d.deferShifts, parseGearShiftUrl(url)?.g, days), ...(d.tailExtra ?? {}) };
+  const tail: TailOptions = { ...instantTail(hours, d.deferShifts, gearRowsOfUrl(url), days), ...(d.tailExtra ?? {}) };
   const firstLegs = await d.pool.firstLegs({ url, deliveryScale: d.scale, ...legsRequest, ...tail, hours });
   return { legsRequest, days, tail, firstLegs };
 }

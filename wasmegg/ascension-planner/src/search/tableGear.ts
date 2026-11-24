@@ -305,3 +305,29 @@ export function gearChanges(table: TableGear, mine: TableGear): string[] {
   if (!same(colleggtibleEffects(table.colleggtibles), colleggtibleEffects(mine.colleggtibles))) out.push('colleggtibles');
   return out;
 }
+
+/**
+ * DELIVERY-SET TABLES (Jordan, 23 Nov 2026: "just the artifacts is how you distinguish them"). A table built on one
+ * delivery set (Carpet's combinations: the best earnings set, everything else maxed) is found by the three delivery
+ * artifacts alone, metronome / compass / gusset at their tier and rarity: no stones, and not the fourth slot, which is
+ * the stone holder. The rest of the player's gear (earnings, stones, epic research, colleggtibles) is the form G's to
+ * move, from that table rather than the maxed one (search/instantCompute.ts `chooseInstantTable`).
+ */
+const DELIVERY_ARTIFACTS = ['Quantum metronome', 'Interstellar compass', 'Gusset'] as const;
+
+/** `T4L-T4E-T4L` (metronome / compass / gusset) for a delivery set as words (csv.ts `describeLoadoutSlots`), or null
+ *  when it lacks one of the three. Dashes, as the collector takes it ([A-Za-z0-9_-]{1,24}, collector 5a156536e). */
+export function deliveryKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  if (!slots?.length) return null;
+  const parts = DELIVERY_ARTIFACTS.map(name => {
+    const label = slots.find(s => s.artifact.slice(s.artifact.indexOf(' ') + 1) === name)?.artifact;
+    return label ? label.slice(0, label.indexOf(' ')) : null;
+  });
+  return parts.every(p => p) ? parts.join('-') : null;
+}
+
+/** The name a delivery set's table is served under (a copy of the built table, listed as its alias in aliases.json):
+ *  a version 2 gear name, so tables.json and the page's file rules take it as any gear table. */
+export async function deliveryTableFile(key: string): Promise<string> {
+  return (await gearFile(`delivery ${key}`)).replace(/\.bin$/, '.v2.bin');
+}
