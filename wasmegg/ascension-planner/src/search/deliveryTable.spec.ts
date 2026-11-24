@@ -50,12 +50,21 @@ describe('deliveryKey: the delivery artifacts, no stones', () => {
       'T4E-T4L-T4L'
     );
   });
-  it('none without all three (no save, or a set without one of them)', () => {
+  it('none without a set, or with none of the three', () => {
     expect(deliveryKey(null)).toBeNull();
     expect(deliveryKey([])).toBeNull();
+    expect(deliveryKey([slot('T4L Lunar totem'), slot('T4L Puzzle cube'), slot('T4L Demeters necklace')])).toBeNull();
+  });
+  // X FOR ONE NOT WORN (orchestrator for Jordan, 24 Nov 2026, as earningsKey): Carpet's 09f8b316 set at full research
+  // drops its T4C compass for a puzzle cube, so its table and every player with that gear need a key without a compass.
+  it('X for a delivery artifact not in the set', () => {
+    expect(
+      deliveryKey([slot('T2E Gusset'), slot('T3E Quantum metronome'), slot('T4L Puzzle cube'), slot('T4L Lunar totem')])
+    ).toBe('T3E-X-T2E');
     expect(
       deliveryKey([slot('T4L Quantum metronome'), slot('T4L Interstellar compass'), slot('T4L Lunar totem')])
-    ).toBeNull();
+    ).toBe('T4L-T4L-X');
+    expect(deliveryKey([slot('T4E Interstellar compass'), slot('T4L Puzzle cube')])).toBe('X-T4E-X');
   });
 });
 
@@ -70,6 +79,25 @@ describe('the key as the collector takes it (collector 5a156536e: [A-Za-z0-9_-]{
           slot(`${m} Gusset`),
         ])!;
         expect(key).toMatch(/^[A-Za-z0-9_-]{1,24}$/);
+        expect(`delivery:${key}`.length).toBeLessThanOrEqual(33);
+        expect(key).not.toMatch(/EI\d{16}/);
+      }
+  });
+  it('with an X for one not worn too', () => {
+    for (const m of [...every, null])
+      for (const c of [...every, null]) {
+        const set = [
+          m && slot(`${m} Quantum metronome`),
+          c && slot(`${c} Interstellar compass`),
+          slot('T4L Puzzle cube'),
+        ];
+        const key = deliveryKey(set.filter((s): s is LoadoutSlot => !!s));
+        if (!m && !c) {
+          expect(key).toBeNull();
+          continue;
+        }
+        expect(key).toMatch(/^[A-Za-z0-9_-]{1,24}$/);
+        expect(key).toMatch(/-X$/);
         expect(`delivery:${key}`.length).toBeLessThanOrEqual(33);
         expect(key).not.toMatch(/EI\d{16}/);
       }

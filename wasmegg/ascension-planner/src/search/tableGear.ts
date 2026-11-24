@@ -315,15 +315,17 @@ export function gearChanges(table: TableGear, mine: TableGear): string[] {
  */
 const DELIVERY_ARTIFACTS = ['Quantum metronome', 'Interstellar compass', 'Gusset'] as const;
 
-/** `T4L-T4E-T4L` (metronome / compass / gusset) for a delivery set as words (csv.ts `describeLoadoutSlots`), or null
- *  when it lacks one of the three. Dashes, as the collector takes it ([A-Za-z0-9_-]{1,24}, collector 5a156536e). */
+/** `T4L-T4E-T4L` (metronome / compass / gusset) for a delivery set as words (csv.ts `describeLoadoutSlots`), X for one
+ *  not in it (`T3E-X-T2E`, as `earningsKey`: orchestrator for Jordan, 24 Nov 2026, Carpet's 09f8b316 set drops its T4C
+ *  compass for a cube at full research), or null without a set or with none of the three. Dashes, as the collector
+ *  takes it ([A-Za-z0-9_-]{1,24}, collector 5a156536e). */
 export function deliveryKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
   if (!slots?.length) return null;
   const parts = DELIVERY_ARTIFACTS.map(name => {
     const label = slots.find(s => s.artifact.slice(s.artifact.indexOf(' ') + 1) === name)?.artifact;
     return label ? label.slice(0, label.indexOf(' ')) : null;
   });
-  return parts.every(p => p) ? parts.join('-') : null;
+  return parts.some(p => p) ? parts.map(p => p ?? 'X').join('-') : null;
 }
 
 /** The name a delivery set's table is served under (a copy of the built table, listed as its alias in aliases.json):
