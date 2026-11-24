@@ -17,17 +17,18 @@ const entry = (name: string) => {
 };
 
 describe('sim5 tables.json (Jordan, 23 Nov 2026: delivery sets)', () => {
-  it('every delivery set (Carpet\'s 12, realistic stones) is TE 150-260, to build', () => {
+  // SECOND PASS (Jordan, 24 Nov 2026: "then extend each table to TE 339"): the same 12 tables, 261-339 added.
+  it('every delivery set (Carpet\'s 12, realistic stones) is TE 150-339, to build', () => {
     for (const set of ['f9b40271', '0b85c7a1', 'f8b400de', '9a66a47c', '9da8f087', 'bae50cd3', '9f92d93c', '6fa77610', '1b9d300e', '09f8b316', '529b409d', '4f9b3be4'])
-      expect(entry(`carpet-${set}-board`), set).toEqual([150, 260, 'todo']);
+      expect(entry(`carpet-${set}-board`), set).toEqual([150, 339, 'todo']);
   });
   it('the named-save board tables and the stale stamps are dropped', () => {
     for (const n of ['gear-036f74b4', 'gear-574bbea7', 'gear-56e34c28', 'gear-7d2b5fcc', 'gear-808f643d', 'gear-5003fbad', 'gear-fb5db948'])
       expect(entry(n)?.[2], n).toBe('dropped');
   });
-  it('maxed is done and all-common is paused, both at their full range', () => {
+  it('maxed is done and all-common is to build again (its TE 75-223, after the extensions), both at their full range', () => {
     expect(entry('maxed')).toEqual([55, 489, 'done']);
-    expect(entry('gear-af39bd7c')).toEqual([75, 489, 'paused']);
+    expect(entry('gear-af39bd7c')).toEqual([75, 489, 'todo']);
   });
 });
 
