@@ -50,7 +50,7 @@ export type ConsentId =
    *  delivery table answered and the player's delivery and earnings sets and slotted stones. Its own box, so a player who
    *  ticked "Share my search results" before is asked once more; until they agree only the old fields are sent. */
   | 'shareGearDetail'
-  /** "Tell the planner which table answered" (R10.1, 25 Nov 2026): the anonymous ping to the collector's /tablepick (lib/tablePick.ts).
+  /** "Tell the maintainer which table answered" (R10.1, 25 Nov 2026): the anonymous ping to the collector's /tablepick (lib/tablePick.ts).
    *  ON until the player says no; a stored No or a Withdraw stays off. Covers only this ping. */
   | 'shareTableUse';
 

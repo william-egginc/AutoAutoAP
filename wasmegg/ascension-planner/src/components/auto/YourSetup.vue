@@ -457,7 +457,7 @@
             route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
             can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My Runs.
           </p>
-          <!-- "Tell the planner which table answered" (R10.1; `shareTableUse`, lib/tablePick.ts): on until the player says no, this ping only. -->
+          <!-- "Tell the maintainer which table answered" (R10.1; `shareTableUse`, lib/tablePick.ts): on until the player says no, this ping only. -->
           <div data-testid="table-pick" class="space-y-2">
             <label class="flex items-start gap-3 cursor-pointer">
               <input
@@ -939,7 +939,7 @@ const instantDuringSearch = useInstantDuringSearch();
 const { on: shareInstantOn } = useInstantShare();
 /** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
 const { agreed: shareBaselineOn } = useConsent('shareBaseline');
-/** "Tell the planner which table answered" (`shareTableUse`, R10.1): on until the player says no (lib/tablePick.ts). */
+/** "Tell the maintainer which table answered" (`shareTableUse`, R10.1): on until the player says no (lib/tablePick.ts). */
 const { agreed: tablePickOn } = useConsent('shareTableUse');
 const tablePickWhatOpen = ref(false);
 const canShareInstant = !!instantUrlOf(store.submitUrl);

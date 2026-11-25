@@ -73,13 +73,13 @@ export function sharingSummaryWords(o: {
   /** The two share ticks, when the account can share (omit them otherwise). */
   searchResults?: boolean;
   instantWithRuns?: boolean;
-  /** The table-answered ping (R10.1; DRAFT for Words). Omit it when there is no collector. */
+  /** The table-answered ping (R10.1; Words' wording). Omit it when there is no collector. */
   tablePick?: boolean;
 }): string {
   const help = o.help === 'yes' ? 'yes' : o.help === 'no' ? 'no thanks' : 'not answered';
   const onOff = (b: boolean) => (b ? 'on' : 'off');
   const base = `Help improve: ${help} · Save online: ${onOff(o.saveOnline)}`;
-  const table = o.tablePick === undefined ? '' : ` · Table answered: ${onOff(o.tablePick)}`;
+  const table = o.tablePick === undefined ? '' : ` · Which table answered: ${onOff(o.tablePick)}`;
   if (o.searchResults === undefined || o.instantWithRuns === undefined) return `${base}${table}`;
   return `${base} · Search results: ${onOff(o.searchResults)} · Instant Answer with runs: ${onOff(o.instantWithRuns)}${table}`;
 }
