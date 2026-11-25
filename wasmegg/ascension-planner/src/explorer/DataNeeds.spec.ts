@@ -24,4 +24,9 @@ describe('DataNeeds Any other gear card', () => {
     expect(src).toContain('Your delivery set (metronome, compass and gusset) already has an instant answer, which the page moves');
     expect(src).not.toContain('built on it, which the page moves');
   });
+  it('own and gear fall back to the closest table that covers your TE, not the maxed answer (Jordan, 25 Nov 2026)', () => {
+    const src = readFileSync(new URL('./DataNeeds.vue', import.meta.url), 'utf8');
+    expect(src.split('otherwise it moves the closest table that covers your TE to your gear.').length - 1).toBe(2);
+    expect(src).not.toContain('otherwise it moves the maxed answer to your gear');
+  });
 });
