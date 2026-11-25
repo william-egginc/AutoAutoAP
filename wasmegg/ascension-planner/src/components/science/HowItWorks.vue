@@ -387,7 +387,7 @@
           </li>
           <li>
             <b>Share this result</b> (optional, under a Fast, Exact or Custom result): that result's route and times
-            beside the instant answer's, with which table answered and the artifacts you have set with their stones (never
+            beside the instant answer's, with which instant answer was used and the artifacts you have set with their stones (never
             spare stones), to measure how accurate the instant answer is and which sets still have no table. Private,
             never on the Leaderboard, at most once an hour per save. The table and artifact details go only after you agree
             to them.

@@ -3867,7 +3867,7 @@ const instantUrl = instantUrlOf(store.submitUrl);
 const SHARE_WHAT =
   "Sends this search result's route and times, the instant answer's for the same goal, your TE and Clothed TE, a summary " +
   'of your gear, your plan start, timezone, save time and settings, where your save was loaded from (its claimed and ' +
-  'pending TE, eggs and a short code for the save), which table answered, your delivery and earnings artifacts with ' +
+  'pending TE, eggs and a short code for the save), which instant answer was used, your delivery and earnings artifacts with ' +
   'the stones set in them (only once you have agreed to those), with an anonymous code for your account. Never your spare stones, player ID or your save; ' +
   'never shown on the Leaderboard.';
 /** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */

@@ -686,7 +686,7 @@ answer and its exact check, for the analyst:
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
 - the app build and how long the check took;
-- which table answered (or that none exists for the player's set), and the delivery artifacts (metronome,
+- which instant answer was used, and the delivery artifacts (metronome,
   compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them. Spare stones
   are never sent. They go only when the account has agreed to them (the consent `shareGearDetail`, default off,
   remembered per account): ticking "Share my search results" now agrees, and players who ticked it before are asked

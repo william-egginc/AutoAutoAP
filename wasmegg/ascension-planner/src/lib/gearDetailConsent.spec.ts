@@ -1,6 +1,6 @@
 /**
  * The share box's one-time re-ask (R10, 24 Nov 2026, Jordan): a player who ticked "Share my search results" before the
- * gear fields existed is asked once more before the page sends them (which table answered, the delivery and earnings
+ * gear fields existed is asked once more before the page sends them (which instant answer was used, the delivery and earnings
  * sets, the stones slotted in each). One box: the consent id `shareGearDetail`, off until agreed. The words are a
  * placeholder until Words' rev 3 line is approved (lib/gearReaskWords.ts).
  */
@@ -77,7 +77,7 @@ describe('the words are Jordan’s, from lib/gearReaskWords.ts', () => {
   it('the approved line and answers, no placeholder left', () => {
     expect(words).not.toMatch(/PLACEHOLDER/);
     expect(GEAR_REASK_LINE).toBe(
-      "You already share your search results with the planner's maintainer. We would also like to send which table answered, your delivery artifacts (metronome, compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them. Never your spare stones, never your player ID. Send these too?"
+      "You already share your search results with the planner's maintainer. We would also like to send which instant answer was used, your delivery artifacts (metronome, compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them. Never your spare stones, never your player ID. Send these too?"
     );
     expect(GEAR_REASK_YES).toBe('Yes, send these too');
     expect(GEAR_REASK_NO).toBe('No, keep sharing as before');

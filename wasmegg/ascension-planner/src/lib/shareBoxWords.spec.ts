@@ -16,7 +16,7 @@ describe('the share box wording', () => {
     for (const p of ['src/components/auto/InstantShareCheck.vue', 'src/components/auto/YourSetup.vue', 'public/about.html']) {
       const t = read(p);
       expect(t, p).toContain(ARTIFACTS);
-      expect(t, p).toMatch(/which table answered( it)? \(or that none exists for your set\)/);
+      expect(t, p).toContain('which instant answer was used');
       expect(t, p).toMatch(/never your spare stones/i);
     }
   });
