@@ -457,6 +457,39 @@
             route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
             can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My Runs.
           </p>
+          <!-- "Tell the planner which table answered" (R10.1; `shareTableUse`, lib/tablePick.ts): on until the player says no, this ping only. -->
+          <div data-testid="table-pick" class="space-y-2">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input
+                v-model="tablePickOn"
+                type="checkbox"
+                class="mt-0.5 rounded border-slate-300 text-indigo-600"
+                aria-describedby="table-pick-what-body"
+              />
+              <span class="text-body text-slate-600">
+                <span class="font-bold text-slate-800">{{ TABLE_PICK_LABEL }}</span>
+                {{ TABLE_PICK_HINT }}
+              </span>
+            </label>
+            <button
+              type="button"
+              :class="WHAT_IS_SENT"
+              :aria-expanded="tablePickWhatOpen"
+              aria-controls="table-pick-what-body"
+              data-testid="table-pick-what"
+              @click="tablePickWhatOpen = !tablePickWhatOpen"
+            >
+              What is sent{{ ' ' }}<span aria-hidden="true" class="inline-block transition-transform" :class="tablePickWhatOpen ? 'rotate-90' : ''">›</span>
+            </button>
+            <p
+              id="table-pick-what-body"
+              :hidden.attr="tablePickWhatOpen ? undefined : 'until-found'"
+              class="ml-7 text-body text-slate-600 max-w-prose"
+              @beforematch="tablePickWhatOpen = true"
+            >
+              {{ TABLE_PICK_WHAT }}
+            </p>
+          </div>
           <!-- The long-run alert has no switch (lib/runBeacon.ts RUN_BEACON_SENDS; Jordan, 16 Nov 2026): one plain line says it. -->
           <p class="text-body text-slate-600 max-w-prose" data-testid="run-beacon-line">{{ BEACON_SETUP_LINE }}</p>
           <!-- The three "saved online" notices and the Before you send line, word for word (lib/aboutPage.spec.ts pins them
@@ -839,6 +872,7 @@ import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
 import { useShowEverything } from '@/composables/useShowEverything';
 import { BEACON_SETUP_LINE } from '@/lib/runBeaconWords';
+import { TABLE_PICK_HINT, TABLE_PICK_LABEL, TABLE_PICK_WHAT } from '@/lib/tablePickWords';
 import { SHARING_FOLD_TITLE, SHOW_EVERYTHING_LABEL, SHOW_EVERYTHING_LINE, sharingSummaryWords } from '@/lib/layoutWords';
 import { studyState } from '@/composables/useStudy';
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
@@ -905,6 +939,9 @@ const instantDuringSearch = useInstantDuringSearch();
 const { on: shareInstantOn } = useInstantShare();
 /** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
 const { agreed: shareBaselineOn } = useConsent('shareBaseline');
+/** "Tell the planner which table answered" (`shareTableUse`, R10.1): on until the player says no (lib/tablePick.ts). */
+const { agreed: tablePickOn } = useConsent('shareTableUse');
+const tablePickWhatOpen = ref(false);
 const canShareInstant = !!instantUrlOf(store.submitUrl);
 /** The followed route saved online: Sharing's note when it couldn't be read on load. */
 const follows = useFollowStore();
@@ -1042,7 +1079,7 @@ const sharingLine = computed(() => {
   return sharingSummaryWords({
     help,
     saveOnline: !!saveOnlineState.value,
-    ...(canShareInstant ? { searchResults: !!shareInstantOn.value, instantWithRuns: !!shareBaselineOn.value } : {}),
+    ...(canShareInstant ? { searchResults: !!shareInstantOn.value, instantWithRuns: !!shareBaselineOn.value, tablePick: !!tablePickOn.value } : {}),
   });
 });
 const startTooFar = computed(
