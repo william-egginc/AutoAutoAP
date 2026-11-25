@@ -45,7 +45,11 @@ export type ConsentId =
   | 'scienceSweep'
   /** "Share my instant baseline with my runs" (My Runs, 23 Oct 2026): each run sent to the board carries the instant
    *  answer for its goal and save (lib/instantBaseline.ts), shown on the board beside it. */
-  | 'shareBaseline';
+  | 'shareBaseline'
+  /** "Share more of my gear with my search results" (revision 3, 24 Nov 2026): the instant answer record also says which
+   *  delivery table answered and the player's delivery and earnings sets and slotted stones. Its own box, so a player who
+   *  ticked "Share my search results" before is asked once more; until they agree only the old fields are sent. */
+  | 'shareGearDetail';
 
 export interface ConsentRecord {
   agreed: boolean;
@@ -68,6 +72,7 @@ export const CONSENT_DEFAULTS: Record<ConsentId, { agreed: boolean; remember: bo
   autoSend: { agreed: false, remember: true },
   scienceSweep: { agreed: false, remember: false },
   shareBaseline: { agreed: false, remember: true },
+  shareGearDetail: { agreed: false, remember: true },
 };
 
 export const CONSENT_PREFIX = 'aap-consent:';

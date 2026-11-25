@@ -1,8 +1,7 @@
 /**
- * The instant answer record's gear.answer stays one of own / gear / maxed (orchestrator, 24 Nov 2026): the live
- * collector refuses a whole record with any other value (collector/worker.js). A delivery set's table (23 Nov 2026)
- * answers as 'gear', and the delivery set it read is kept beside the record, not in it, until Jordan decides on a value
- * for it and the collector takes it first.
+ * The instant answer record's gear.answer is own / gear / maxed, and `delivery:<key>` only after the gear-detail consent
+ * (collector 8aa9bc925 takes it; the earlier collector refused a whole record with any other value). A delivery set's
+ * table (23 Nov 2026) answers as 'gear' in the app; the record says which table with the new consent.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,14 +22,12 @@ describe('the record says own, gear or maxed, nothing else', () => {
       /const gearTable = computed\(\(\) => !!parseCompositeUrl\(tableUrl\.value\) \|\| !!parseDeliveryUrl\(tableUrl\.value\)\)/
     );
   });
-  it('the delivery set is kept, not sent', () => {
+  it('the delivery fields are sent only through gearDetailOf, behind the gear-detail consent', () => {
     const gear = script.slice(script.indexOf('    gear: {'), script.indexOf('    stall: {'));
-    expect(gear.length).toBeGreaterThan(100);
-    expect(gear).not.toMatch(
-      /deliveryUsed|playerDelivery|deliveryKey|delivery:|keptGear|playerGear|Stones|noTable|earnings:/
-    );
+    expect(gear).toContain('...gearDetailOf(');
+    expect(gear).toContain("consentAgreed('shareGearDetail')");
+    expect(gear).not.toMatch(/deliveryKey|noTable|Stones|earnings:/);
     expect(script).toContain("deliveryUsed.value = choice.deliveryKey ?? '';");
-    expect(script).toContain("playerDelivery.value = choice.playerDeliveryKey ?? '';");
     expect(script).toContain('keptGear.value = choice.playerGear ?? null;');
   });
 });

@@ -90,8 +90,16 @@ export interface InstantRecord {
   gear: {
     /** The gear stamp's hash: the 24 hex of the gear instant answer that would fit this account. */
     stamp?: string;
-    /** 'own': built on this account; 'gear': built on gear exactly like it; 'maxed': the maxed one, adjusted. */
-    answer: 'own' | 'gear' | 'maxed';
+    /** 'own': built on this account; 'gear': built on gear exactly like it; 'maxed': the maxed one, adjusted;
+     *  `delivery:<key>`: a delivery set's table (only with the gear-detail consent, search/gearRecordSend.ts). */
+    answer: 'own' | 'gear' | 'maxed' | `delivery:${string}`;
+    /** With the gear-detail consent: the delivery and earnings sets' keys, the stones slotted in each, and whether no
+     *  delivery table is listed for the player's set (collector 8aa9bc925). */
+    delivery?: string;
+    earnings?: string;
+    deliveryStones?: string;
+    earningsStones?: string;
+    noTable?: boolean;
     /** The account's own instant answer exists but its gear has changed since (what changed). */
     ownChanged?: string;
     /** Clothed TE the earnings set is short of the answer's, and delivery against it (1 = the same). */

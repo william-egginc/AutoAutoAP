@@ -957,6 +957,8 @@ import {
   instantPricingOptions,
   type PlayerGear,
 } from '@/search/instantCompute';
+import { consentAgreed } from '@/composables/useConsent';
+import { gearDetailOf } from '@/search/gearRecordSend';
 import { listedTableNames } from '@/search/tableListing';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import {
@@ -3871,11 +3873,11 @@ const SHARE_WHAT =
 const stampHash = ref('');
 /** The delivery set whose table answered (search/instantCompute.ts `deliveryKey`), '' otherwise; and the player's own
  *  delivery set whether or not a table has it (`playerDeliveryKey`: Jordan, 24 Nov 2026, to see which are wanted).
- *  Kept for the record, not sent yet: the live collector takes neither until its next deploy. */
+ *  Sent with the record only after the gear-detail consent (`shareGearDetail`; search/gearRecordSend.ts). */
 const deliveryUsed = ref('');
 const playerDelivery = ref('');
-/** The player's gear as the record could say it (search/instantCompute.ts `playerGear`: sets, slotted stones, no
- *  delivery table), kept beside the record and not sent until the consent wording is settled (24 Nov 2026). */
+/** The player's gear as the record says it (search/instantCompute.ts `playerGear`: sets, slotted stones, no
+ *  delivery table), sent only after the gear-detail consent (`shareGearDetail`, 24 Nov 2026). */
 const keptGear = ref<PlayerGear | null>(null);
 /** Share the result on screen. Ticked for a result found in this visit with "Share my search results" on. */
 const shareThis = ref(false);
@@ -4003,7 +4005,10 @@ function buildRecord(f: SearchFound): InstantRecord | null {
     ...(initialState.rawBackup ? { backupTE: round(store.backupTE, 2) } : {}),
     ...(parts ? { clothedTE: round(parts.total, 2) } : {}),
     gear: {
-      answer: answerTable.value,
+      ...gearDetailOf(
+        { answer: answerTable.value, deliveryUsed: deliveryUsed.value, kept: keptGear.value },
+        consentAgreed('shareGearDetail')
+      ),
       ...(stampHash.value ? { stamp: stampHash.value } : {}),
       ...(ownChanged.value ? { ownChanged: ownChanged.value.slice(0, 80) } : {}),
       earningsShort: round(bonusShort.value, 2),
