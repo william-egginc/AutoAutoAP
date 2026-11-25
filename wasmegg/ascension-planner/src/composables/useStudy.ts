@@ -14,7 +14,7 @@
  *  - Storage in try/catch: blocked, the answer holds for this visit.
  */
 import { computed, reactive, readonly, ref, watch } from 'vue';
-import { consentAgreed, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
+import { consentAgreed, consentRecord, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
 import { useShareExtras } from './useShareExtras';
 import { useAccountName } from './useShareResult';
 import { onCreditChange, useShareNameStore } from '@/stores/shareName';
@@ -293,6 +293,17 @@ watch(
     if (step !== 'withdraw') return;
     turnOff();
     save(afterWithdrawApplied(fresh(), consentState.hash));
+  },
+  { flush: 'sync', immediate: true }
+);
+
+// A browser-wide No (R10.1, Jordan 25 Nov 2026): the first-visit banner's No thanks is this browser's answer, so an account
+// that loads after it starts with the table-answered ping off, unless it has already chosen that for itself.
+watch(
+  () => [consentState.account, consentState.loaded, consentState.hash, state.rec.answer] as const,
+  ([account, loaded, hash, answer]) => {
+    if (!account || !loaded || !hash || answer !== 'no') return;
+    if (consentRecord('shareTableUse').at === 0) setConsent('shareTableUse', false, true);
   },
   { flush: 'sync', immediate: true }
 );
