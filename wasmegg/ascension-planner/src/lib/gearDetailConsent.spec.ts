@@ -14,6 +14,7 @@ import {
   declineGearDetail,
   gearReaskNeeded,
 } from './gearDetailConsent';
+import { GEAR_REASK_LINE, GEAR_REASK_NO, GEAR_REASK_YES } from './gearReaskWords';
 
 function mem(): StorageLike {
   const m = new Map<string, string>();
@@ -71,9 +72,17 @@ describe('ticking the box from now on is one answer (the box says what is sent)'
   });
 });
 
-describe('the words are a placeholder, kept out of the component', () => {
+describe('the words are Jordan’s, from lib/gearReaskWords.ts', () => {
   const words = fs.readFileSync(path.join(__dirname, 'gearReaskWords.ts'), 'utf8');
-  it('lib/gearReaskWords.ts says it is a placeholder', () => {
-    expect(words).toMatch(/PLACEHOLDER/);
+  it('the approved line and answers, no placeholder left', () => {
+    expect(words).not.toMatch(/PLACEHOLDER/);
+    expect(GEAR_REASK_LINE).toBe(
+      "You already share your search results with the planner's maintainer. We would also like to send which table answered, your delivery artifacts (metronome, compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them. Never your spare stones, never your player ID. Send these too?"
+    );
+    expect(GEAR_REASK_YES).toBe('Yes, send these too');
+    expect(GEAR_REASK_NO).toBe('No, keep sharing as before');
+  });
+  it('says nothing about changing it in Setup: the box there is one tick, so that sentence would not be true', () => {
+    expect(GEAR_REASK_LINE).not.toMatch(/change this/i);
   });
 });
