@@ -27,4 +27,12 @@ describe('the share box wording', () => {
   it('the collector README says spare stones are never sent', () => {
     expect(read('collector/README.md')).toContain('Spare stones are never sent');
   });
+  it('About and Setup say the table and artifact details go only after the player agrees (Option A, 24 Nov 2026)', () => {
+    for (const p of ['public/about.html', 'src/components/auto/YourSetup.vue']) {
+      const t = read(p);
+      expect(t, p).toContain('The table and artifact details go only after you agree to them');
+      expect(t, p).toContain('asks you once more');
+    }
+    expect(read('collector/README.md')).toContain('shareGearDetail');
+  });
 });

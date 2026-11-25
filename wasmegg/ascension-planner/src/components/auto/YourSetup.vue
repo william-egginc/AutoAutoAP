@@ -419,7 +419,8 @@
             your spare stones), and the app version. It goes
             with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
             the planner's maintainer for 6 months, never shown on the Leaderboard. The same box is under a search's result,
-            with "Share this result" for just one.
+            with "Share this result" for just one. The table and artifact details go only after you agree to them: if you
+            ticked this box before they were added, the page asks you once more, and sends none of them until you say yes.
           </p>
           <GearReask />
           <!-- "Share my instant baseline with my runs" (the `shareBaseline` consent, lib/instantBaseline.ts): the same
