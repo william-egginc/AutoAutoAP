@@ -30,7 +30,7 @@ const ships = (n: number) => `${n} ${n === 1 ? 'ship' : 'ships'}`;
  * The line beside the plan: how many ships are still out when it starts, when they return, those that land after the
  * stop ends said apart. '' when every ship is back by the start:
  * "3 ships are still out when this stop starts: 2 are back by Tue, 9:00 AM; 1 returns after this stop ends, at Wed, 3:00 PM.
- * The plan below treats all three slots as free from the start, so its first launches may be too early."
+ * The plan below treats all three ship slots as free from the start, so its first launches may be earlier than your ships allow."
  */
 export function outNowLine(list: readonly MissionOut[], window: { from: number; to: number }, zone: string): string {
   const busy = list.filter(m => m.returnAt > window.from);
@@ -44,5 +44,5 @@ export function outNowLine(list: readonly MissionOut[], window: { from: number; 
     parts.push(
       `${after.length} ${after.length === 1 ? 'returns' : 'return'} after this stop ends, ${after.length === 1 ? 'at' : 'the first at'} ${at(after[0].returnAt)}`
     );
-  return `${ships(busy.length)} ${busy.length === 1 ? 'is' : 'are'} still out when this stop starts: ${parts.join('; ')}. The plan below treats all three slots as free from the start, so its first launches may be too early.`;
+  return `${ships(busy.length)} ${busy.length === 1 ? 'is' : 'are'} still out when this stop starts: ${parts.join('; ')}. The plan below treats all three ship slots as free from the start, so its first launches may be earlier than your ships allow.`;
 }

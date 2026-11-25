@@ -8,7 +8,7 @@ import { pacificHourOfWeek } from '@/search/precomputedLeg';
 
 export const PRESTIGE_HINT_LABEL = 'Show when to start short ascensions';
 export const PRESTIGE_HINT_HELP =
-  'On a short ascension (25 TE or less, starting at TE 240 or more), the steps say when to start by: before the sale ends, which is Saturday 12:00 AM Pacific, or 8:00 AM when the route’s build uses two or more sales. Starting after that can make it take noticeably longer. Off by default, and kept in this browser only.';
+  'For a short ascension (25 TE or less, starting at TE 240 or more), the steps say the latest time to start. Start before the sale ends, Saturday 12:00 AM Pacific (8:00 AM when the route’s build uses two or more sales), or the ascension can take noticeably longer. Off by default, and kept in this browser only.';
 
 const PACIFIC = 'America/Los_Angeles';
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
