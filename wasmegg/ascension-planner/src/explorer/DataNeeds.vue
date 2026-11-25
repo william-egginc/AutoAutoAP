@@ -420,7 +420,7 @@ function ownership(need: DataNeed): { owned: boolean; ownedLabel: string; covera
       own: 'Your account already has an instant answer built from its own runs. The page uses it only if it was built with the current simulator; otherwise it moves the maxed answer to your gear.',
       gear: 'Your gear already has an instant answer of its own. The page uses it only if it was built with the current simulator; otherwise it moves the maxed answer to your gear.',
       delivery:
-        'Your delivery set (metronome, compass and gusset) has an instant answer built on it, which the page moves to the rest of your gear. One finished run from you would let us build one for your exact gear.',
+        'Your delivery set (metronome, compass and gusset) already has an instant answer, which the page moves to the rest of your gear. One finished run from you would let us build one for your exact gear.',
       none: "Your gear doesn't have an instant answer of its own yet: one finished run from you would let us build it.",
     };
     return { owned: props.gearCoverage === 'none', ownedLabel: 'Your gear', coverageText: text[props.gearCoverage] };
