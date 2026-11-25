@@ -110,7 +110,7 @@
    "name": "carpet-f9b40271-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-f9b40271-board",
-   "from": 75,
+   "from": 150,
    "to": 339,
    "status": "todo"
   },
@@ -118,7 +118,7 @@
    "name": "carpet-f8b400de-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-f8b400de-board",
-   "from": 75,
+   "from": 150,
    "to": 339,
    "status": "todo"
   },
@@ -126,7 +126,7 @@
    "name": "carpet-9da8f087-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-9da8f087-board",
-   "from": 75,
+   "from": 150,
    "to": 339,
    "status": "todo"
   },
@@ -134,7 +134,7 @@
    "name": "carpet-9a66a47c-board",
    "combos": "carpet_combos_board.json",
    "combo": "carpet-9a66a47c-board",
-   "from": 75,
+   "from": 150,
    "to": 339,
    "status": "todo"
   },

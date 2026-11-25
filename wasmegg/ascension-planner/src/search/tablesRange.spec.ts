@@ -19,9 +19,15 @@ const entry = (name: string) => {
 describe('sim5 tables.json (Jordan, 23 Nov 2026: delivery sets)', () => {
   // SECOND PASS (Jordan, 24 Nov 2026: "then extend each table to TE 339"): the same 12 tables, 261-339 added.
   // THIRD PASS (Jordan, 24 Nov 2026 9:50 PM: "extend all 12 down to about TE 75"): 75-149 added below.
-  it('every delivery set (Carpet\'s 12, realistic stones) is TE 75-339, to build', () => {
-    for (const set of ['f9b40271', '0b85c7a1', 'f8b400de', '9a66a47c', '9da8f087', 'bae50cd3', '9f92d93c', '6fa77610', '1b9d300e', '09f8b316', '529b409d', '4f9b3be4'])
+  it('the 8 weak and middle delivery sets are TE 75-339, to build', () => {
+    for (const set of ['0b85c7a1', 'bae50cd3', '9f92d93c', '6fa77610', '1b9d300e', '09f8b316', '529b409d', '4f9b3be4'])
       expect(entry(`carpet-${set}-board`), set).toEqual([75, 339, 'todo']);
+  });
+  // ON HOLD (orchestrator for Jordan, 25 Nov 2026 ~12 AM): the board has almost no one on the four strongest sets below
+  // TE 150, so they stay at 150-339 until Jordan decides.
+  it('the four strongest delivery sets stay TE 150-339 for now', () => {
+    for (const set of ['f9b40271', 'f8b400de', '9a66a47c', '9da8f087'])
+      expect(entry(`carpet-${set}-board`), set).toEqual([150, 339, 'todo']);
   });
   it('the named-save board tables and the stale stamps are dropped', () => {
     for (const n of ['gear-036f74b4', 'gear-574bbea7', 'gear-56e34c28', 'gear-7d2b5fcc', 'gear-808f643d', 'gear-5003fbad', 'gear-fb5db948'])
