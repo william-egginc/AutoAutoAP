@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { WITHDRAW_CONSENTS, WITHDRAW_TURNS_OFF } from '@/lib/study';
 import { consentAgreed, consentRecord, resetConsents, setConsent, setConsentAccount, CONSENT_DEFAULTS, type StorageLike } from './useConsent';
-import { answerYes, resetStudy, withdrawStudy } from './useStudy';
+import { answerNo, answerYes, resetStudy, withdrawStudy } from './useStudy';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
@@ -59,6 +59,30 @@ describe('shareTableUse', () => {
     expect(consentAgreed('shareTableUse')).toBe(true);
     setConsent('keepSharingChecks', true);
     setConsent('keepSharingChecks', false);
+    expect(consentAgreed('shareTableUse')).toBe(true);
+  });
+
+  it('No thanks on the first-visit banner is that No: it turns this account\u2019s ping off, and the other choices are untouched', async () => {
+    await setConsentAccount(A);
+    expect(answerNo()).toBe(true);
+    expect(consentAgreed('shareTableUse')).toBe(false);
+    expect(consentRecord('shareTableUse').at).toBeGreaterThan(0);
+    expect(consentAgreed('keepSharingChecks')).toBe(false);
+    expect(consentAgreed('sendCsv')).toBe(true);
+    resetConsents(st);
+    await setConsentAccount(A);
+    expect(consentAgreed('shareTableUse')).toBe(false);
+  });
+
+  it('a stale tab’s No thanks after a Yes changes nothing (the yes wins, as before)', async () => {
+    await setConsentAccount(A);
+    answerYes({ share: false, csv: false, diag: false, checks: true }, 'anon', '');
+    expect(answerNo()).toBe(false);
+    expect(consentAgreed('shareTableUse')).toBe(true);
+  });
+
+  it('No thanks with no account on screen yet writes no consent', () => {
+    expect(answerNo()).toBe(true);
     expect(consentAgreed('shareTableUse')).toBe(true);
   });
 });

@@ -145,12 +145,12 @@ describe('the box', () => {
     expect(await storedFor(B)).toEqual({});
   });
 
-  it('No thanks changes nothing, keeps an agreement given under a share button, and never asks again', async () => {
+  it('No thanks changes no sharing choice (only the table-answered ping goes off, R10.1), keeps an agreement given under a share button, and never asks again', async () => {
     await setConsentAccount(A);
     setConsent('leaderboard', true);
     const before = await storedFor(A);
     answerNo();
-    expect(await storedFor(A)).toEqual(before);
+    expect(await storedFor(A)).toEqual({ ...before, shareTableUse: expect.objectContaining({ agreed: false }) });
     expect(consentAgreed('leaderboard')).toBe(true);
     expect(studyStep.value).toBe('none');
     await setConsentAccount(B);
