@@ -191,7 +191,8 @@ export function yesToAll(credit: StudyCredit, nickname: string): void {
 }
 
 /**
- * No thanks: never asked again in this browser; no account's choices change.
+ * No thanks: never asked again in this browser; no account's sharing choices change (all are off already), and the
+ * account on screen's table-answered ping, on by default, goes off.
  * Two tabs: a Yes already recorded (in any tab) wins. A box left open in a stale tab must not turn this
  * browser's yes into a no while the consents that yes set stay on (Setup would then say nothing is shared),
  * so the stored record is read first and No thanks is only written when there is no yes at that moment.
@@ -200,6 +201,9 @@ export function yesToAll(credit: StudyCredit, nickname: string): void {
 export function answerNo(): boolean {
   if (fresh().answer === 'yes') return false;
   save(afterNo(state.rec, Date.now()));
+  // A No stays off (R10.1, Jordan 25 Nov 2026): the account on screen stops the table-answered ping, the one choice that is
+  // on before anyone answers. Its other choices are untouched.
+  if (consentState.account && consentState.hash) setConsent('shareTableUse', false, true);
   return true;
 }
 
