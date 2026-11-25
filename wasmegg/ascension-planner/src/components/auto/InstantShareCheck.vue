@@ -59,11 +59,13 @@
         </p>
       </template>
     </ConsentBox>
+    <GearReask />
   </div>
 </template>
 
 <script setup lang="ts">
 import ConsentBox from './ConsentBox.vue';
+import GearReask from './GearReask.vue';
 
 defineProps<{
   shareThis: boolean;

@@ -18,7 +18,15 @@ export interface InstantShare {
 
 export function createInstantShare(): InstantShare {
   return {
-    on: computed({ get: () => consentAgreed('keepSharingChecks'), set: v => setConsent('keepSharingChecks', v) }),
+    // One box (R10, 24 Nov 2026): ticking it answers the gear fields too, unticking withdraws both. A player who ticked
+    // before is asked once more (lib/gearDetailConsent.ts).
+    on: computed({
+      get: () => consentAgreed('keepSharingChecks'),
+      set: v => {
+        setConsent('keepSharingChecks', v);
+        setConsent('shareGearDetail', v);
+      },
+    }),
   };
 }
 

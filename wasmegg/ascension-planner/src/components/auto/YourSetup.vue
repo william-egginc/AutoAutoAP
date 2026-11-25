@@ -419,6 +419,7 @@
             the planner's maintainer for 6 months, never shown on the Leaderboard. The same box is under a search's result,
             with "Share this result" for just one.
           </p>
+          <GearReask />
           <!-- "Share my instant baseline with my runs" (the `shareBaseline` consent, lib/instantBaseline.ts): the same
                box as on My Runs. -->
           <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
@@ -869,6 +870,7 @@ import WorkerSlider from './WorkerSlider.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
+import GearReask from './GearReask.vue';
 import StudySetup from './StudySetup.vue';
 import SaveOnlineSetup from './SaveOnlineSetup.vue';
 import CalendarFeedSetup from './CalendarFeedSetup.vue';
