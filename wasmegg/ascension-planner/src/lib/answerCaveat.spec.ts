@@ -193,9 +193,10 @@ describe('InstantRoute wiring', () => {
     const date = template.slice(template.indexOf('routeReachedLine({ chain: dateBoxOf(result.byDate).chain'));
     expect(date.indexOf('<AnswerCaveatLine')).toBeLessThan(date.indexOf('<PreferFewerNote'));
   });
+  // Only the maxed table's form G (QA R10 75c, 25 Nov 2026): not a delivery set's or the nearest table's answer.
   it('the gear effect only for the gear shift (it leads whenever it shows), in instantCardWords\' words, the days from answerCaveat', () => {
     expect(src).toContain(
-      'const gearEffect = computed(() =>\n  shiftedTable.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null\n);'
+      'const gearEffect = computed(() =>\n  maxedShifted.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null\n);'
     );
   });
   it('with the box on screen, the bound, the low-TE note and the gear box are not shown on their own', () => {

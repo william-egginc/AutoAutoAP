@@ -282,6 +282,7 @@ function ctxOf(s: State): Record<string, unknown> {
     shareTo: '#search-share-by-date',
     shareEl: null,
     shiftedTable: true,
+    maxedShifted: true,
     belowReach: false,
     show: (unix: number) => `t${unix}`,
     showNear: (unix: number) => `n${unix}`,
