@@ -21,7 +21,7 @@ import { onCreditChange, useShareNameStore } from '@/stores/shareName';
 import { rememberRunSends } from '@/lib/runSends';
 import {
   STUDY_KEY,
-  WITHDRAW_CONSENTS,
+  WITHDRAW_TURNS_OFF,
   accountStep,
   afterNo,
   afterNotThisAccount,
@@ -158,7 +158,7 @@ function applyTicks(ticks: StudyTicks): void {
 }
 
 function turnOff(): void {
-  for (const id of WITHDRAW_CONSENTS) if (consentAgreed(id)) setConsent(id, false, true);
+  for (const id of WITHDRAW_TURNS_OFF) if (consentAgreed(id)) setConsent(id, false, true);
   useShareExtras().sendDiagnostics.value = false;
 }
 

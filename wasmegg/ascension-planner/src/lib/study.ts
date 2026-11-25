@@ -139,6 +139,10 @@ export function consentsFor(ticks: StudyTicks): [ConsentId, boolean][] {
 /** The consents Withdraw turns off (the CSV choice is left as it is: with sharing off it cannot go). The gear fields go with the search results (R10, 25 Nov 2026). */
 export const WITHDRAW_CONSENTS: ConsentId[] = ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks', 'shareGearDetail'];
 
+/** What Withdraw turns off: the sharing choices above, and the table-answered ping (`shareTableUse`, on by default, so it is
+ *  not one of the choices that decide whether Withdraw is offered). */
+export const WITHDRAW_TURNS_OFF: ConsentId[] = [...WITHDRAW_CONSENTS, 'shareTableUse'];
+
 /**
  * What the account with this hash needs:
  *  - 'ask-box': never answered in this browser, so the full box.

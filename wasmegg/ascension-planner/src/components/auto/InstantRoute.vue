@@ -1121,6 +1121,7 @@ import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
+import { sendTablePick, tablePickUrlOf } from '@/lib/tablePick';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { simMismatchWords } from '@/lib/simMismatchWords';
 import { resultCode, sameResultCode } from '@/lib/resultCode';
@@ -2294,6 +2295,18 @@ async function run(force = false, goAhead = false): Promise<void> {
     header.value = h;
     tableUrl.value = url;
     ownChanged.value = mismatch;
+    // Which table answered, anonymously and once a day (lib/tablePick.ts; the Setup tick `shareTableUse`). Not awaited.
+    sendTablePick(
+      {
+        kind: deliveryUsed.value ? 'delivery' : answerTable.value,
+        answered: deliveryUsed.value,
+        delivery: playerDelivery.value,
+        noTable: keptGear.value?.noTable,
+        te,
+        build: appBuildId(),
+      },
+      { url: tablePickUrlOf(store.submitUrl) }
+    );
     // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;

@@ -399,6 +399,11 @@
             to them.
           </li>
           <li>
+            <b>Which table answered</b> (on by default, Setup &gt; Sharing): the kind of table that answered, your delivery set
+            and your TE range, with no account code. Only daily counts, kept in case we need them later. Never on the
+            Leaderboard.
+          </li>
+          <li>
             <b>Calendar link</b> (optional, Setup): a private link for Google or Apple Calendar. The collector keeps a fingerprint
             of the link (never the link itself), your account's scrambled key, when the link was made and last fetched, and a rough
             fetch count. It also keeps the planned events your planner saved online for it: each has a time, a kind (shift, buy,

@@ -73,12 +73,15 @@ export function sharingSummaryWords(o: {
   /** The two share ticks, when the account can share (omit them otherwise). */
   searchResults?: boolean;
   instantWithRuns?: boolean;
+  /** The table-answered ping (R10.1; DRAFT for Words). Omit it when there is no collector. */
+  tablePick?: boolean;
 }): string {
   const help = o.help === 'yes' ? 'yes' : o.help === 'no' ? 'no thanks' : 'not answered';
   const onOff = (b: boolean) => (b ? 'on' : 'off');
   const base = `Help improve: ${help} · Save online: ${onOff(o.saveOnline)}`;
-  if (o.searchResults === undefined || o.instantWithRuns === undefined) return base;
-  return `${base} · Search results: ${onOff(o.searchResults)} · Instant Answer with runs: ${onOff(o.instantWithRuns)}`;
+  const table = o.tablePick === undefined ? '' : ` · Table answered: ${onOff(o.tablePick)}`;
+  if (o.searchResults === undefined || o.instantWithRuns === undefined) return `${base}${table}`;
+  return `${base} · Search results: ${onOff(o.searchResults)} · Instant Answer with runs: ${onOff(o.instantWithRuns)}${table}`;
 }
 export const SHOW_EVERYTHING_LABEL = 'Show everything';
 export const SHOW_EVERYTHING_LINE = 'Every More fold starts open, like the old page.';

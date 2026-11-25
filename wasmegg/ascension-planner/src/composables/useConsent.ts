@@ -49,7 +49,10 @@ export type ConsentId =
   /** "Share more of my gear with my search results" (revision 3, 24 Nov 2026): the instant answer record also says which
    *  delivery table answered and the player's delivery and earnings sets and slotted stones. Its own box, so a player who
    *  ticked "Share my search results" before is asked once more; until they agree only the old fields are sent. */
-  | 'shareGearDetail';
+  | 'shareGearDetail'
+  /** "Tell the planner which table answered" (R10.1, 25 Nov 2026): the anonymous ping to the collector's /tablepick (lib/tablePick.ts).
+   *  ON until the player says no; a stored No or a Withdraw stays off. Covers only this ping. */
+  | 'shareTableUse';
 
 export interface ConsentRecord {
   agreed: boolean;
@@ -73,6 +76,7 @@ export const CONSENT_DEFAULTS: Record<ConsentId, { agreed: boolean; remember: bo
   scienceSweep: { agreed: false, remember: false },
   shareBaseline: { agreed: false, remember: true },
   shareGearDetail: { agreed: false, remember: true },
+  shareTableUse: { agreed: true, remember: true },
 };
 
 export const CONSENT_PREFIX = 'aap-consent:';
