@@ -686,6 +686,11 @@ answer and its exact check, for the analyst:
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
 - the app build and how long the check took;
+- which table answered (or that none exists for the player's set), and the delivery artifacts (metronome,
+  compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them. Spare stones
+  are never sent. The page works these out but does not send them yet; the live collector takes neither until its
+  next deploy, and the field names are set with that code. Jordan OK'd the wording 24 Nov 2026, and players who
+  already ticked "Share my search results" are asked once more;
 - `start` (22 Oct 2026): where the check started, the same block as a board row's (above). Checked on its
   own like `prestigeBy`: a block that does not check out is dropped and `startDropped: true` says so; the
   record is never refused for it;

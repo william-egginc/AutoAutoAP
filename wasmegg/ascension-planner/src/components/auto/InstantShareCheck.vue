@@ -54,8 +54,10 @@
       <template #after>
         <p class="text-small text-slate-600">
           Sends this result and the instant answer for the same goal to the planner's maintainer when a search
-          finishes, to make the instant answer more accurate. Never your player ID, never shown on the board. At most
-          once an hour per save.
+          finishes, to make the instant answer more accurate. Also sent: which table answered (or that none exists for
+          your set), your delivery artifacts (metronome, compass, gusset) and earnings artifacts (necklace, totem,
+          cube, ankh) with the stones set in them, and your clothed TE. Never your spare stones, never your player ID,
+          never shown on the board. At most once an hour per save.
         </p>
       </template>
     </ConsentBox>

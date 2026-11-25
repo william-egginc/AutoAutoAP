@@ -414,7 +414,9 @@
             once an hour per save, this browser sends its result's route and times beside the instant answer's for the
             same goal, your TE and Clothed TE, a summary of your gear, your plan start, timezone, save time and
             settings, where your save was loaded from (its claimed and pending TE, eggs and a short code for the
-            save), and the app version. It goes
+            save), which table answered (or that none exists for your set), your delivery artifacts (metronome,
+            compass, gusset) and earnings artifacts (necklace, totem, cube, ankh) with the stones set in them (never
+            your spare stones), and the app version. It goes
             with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
             the planner's maintainer for 6 months, never shown on the Leaderboard. The same box is under a search's result,
             with "Share this result" for just one.
