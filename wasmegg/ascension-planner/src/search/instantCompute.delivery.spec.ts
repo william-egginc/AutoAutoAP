@@ -164,7 +164,7 @@ describe('chooseInstantTable: a delivery set table', () => {
 
   // tables.json says what a file is: one by another simulator, or starting above the save, is not downloaded at all
   // (QA, 24 Nov 2026: a save at TE 147 downloaded the 150-260 table just to refuse it).
-  const entries = (dFrom: number, dSim: string, gearSim?: string) =>
+  const entries = (dFrom: number, dSim: string, gearSim?: string, dTo?: number) =>
     listedTableNames([
       { file: 'table-v2.bin', bonus: 128.7, k: 1, from: 55, simVersion: SIM_VERSION },
       {
@@ -172,6 +172,7 @@ describe('chooseInstantTable: a delivery set table', () => {
         bonus: 128.7,
         k: 0.94,
         from: dFrom,
+        ...(dTo !== undefined ? { to: dTo } : {}),
         simVersion: dSim,
         aliases: [dFile],
       },
@@ -182,6 +183,12 @@ describe('chooseInstantTable: a delivery set table', () => {
   it('below the first TE tables.json gives: not downloaded', async () => {
     listed = entries(150, SIM_VERSION);
     await formG(147);
+    expect(asked.some(u => u.includes(dFile))).toBe(false);
+  });
+  // QA R10, 24 Nov 2026: a save at TE 340 downloaded the 150-339 table just to refuse it (assembled sets list `to`).
+  it('above the last TE tables.json gives: not downloaded', async () => {
+    listed = entries(150, SIM_VERSION, undefined, 260);
+    await formG(261);
     expect(asked.some(u => u.includes(dFile))).toBe(false);
   });
   it('another simulator in tables.json: not downloaded', async () => {

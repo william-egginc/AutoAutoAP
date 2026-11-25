@@ -31,6 +31,7 @@ import {
   type TableGear,
 } from './tableGear';
 import { tableSimMismatch } from './simVersion';
+import { coversTe } from './tableBracket';
 import { instantDeliveryScale, saveSiloSeconds } from './leg';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './instantGear';
 import { instantFirstLegsBase, type BuildUpFlags, type BuildUpTailsResult } from './instantFirstLegs';
@@ -114,11 +115,15 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   // What tables.json says a listed file is, read before it is downloaded: one by another simulator, or that starts
   // above the save's TE, is refused without fetching it (QA, 24 Nov 2026).
   const refusedByListing = (u: string) => {
-    const e = (listed as { entry?: (n: string) => { from?: number; simVersion?: string } | undefined } | null)?.entry?.(
-      u.slice(u.lastIndexOf('/') + 1)
-    );
+    const e = (
+      listed as { entry?: (n: string) => { from?: number; to?: number; simVersion?: string } | undefined } | null
+    )?.entry?.(u.slice(u.lastIndexOf('/') + 1));
     if (!e) return false;
-    return !!tableSimMismatch(e) || (d.te !== undefined && e.from !== undefined && d.te < e.from);
+    // Above its last TE too, when tables.json gives one (QA R10, 24 Nov 2026).
+    return (
+      !!tableSimMismatch(e) ||
+      (d.te !== undefined && e.from !== undefined && !coversTe({ from: e.from, to: e.to }, d.te))
+    );
   };
   const startsAbove = (t: TableHeader) => d.te !== undefined && d.te < t.from;
   const ownTableUrls = async () => (await d.ownTableUrls()).filter(isListed);
