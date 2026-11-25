@@ -87,4 +87,12 @@ describe('Science › How it works', () => {
     const html = await renderHtml(HowItWorks, {});
     expect(html).not.toMatch(/EI\d{16}/);
   });
+  it('says four kinds of answer, with the closest delivery-set table before the maxed one (nearest table, 25 Nov 2026)', async () => {
+    const text = textOf(await renderHtml(HowItWorks, {}));
+    expect(text).toContain('There are four kinds of answer');
+    expect(text).toContain('A delivery-set table moved to your gear');
+    expect(text).toContain('whose table covers your TE');
+    expect(text).toContain('when no delivery-set table covers your TE');
+    expect(text).not.toContain('For weaker gear it moves the maxed answer');
+  });
 });

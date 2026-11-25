@@ -42,7 +42,7 @@
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
         second or two, ascending on the hour. <b>A Fast, Exact or Custom search</b> then prices routes through the full
         simulator on your save. Run Fast for the most accurate answer: its times are the simulator's own numbers for
-        your save. The instant answer is usually close. For weaker gear it moves the maxed answer to your gear (form G); a first look on sim5 found it within 0.9% of an exact build on 3 gear sets. Before form G, on maxed gear for an account with weaker gear it could be
+        your save. The instant answer is usually close. For other gear it moves the closest table to your gear (form G); a first look on sim5 found it within 0.9% of an exact build on 3 gear sets. Before form G, on maxed gear for an account with weaker gear it could be
         days too hopeful (sections 3 and 6).
       </p>
       <p>
@@ -173,7 +173,7 @@
         </p>
         <p>
           <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator (the answer says so when it isn't). Some
-          accounts and gear sets also have one of their own. It uses the best one it has and says which. There are three
+          accounts and gear sets also have one of their own. It uses the best one it has and says which. There are four
           kinds of answer:
         </p>
         <ul class="hw-list">
@@ -187,9 +187,15 @@
             your gear, the page can use the nearer one, even one built from another account's runs.
           </li>
           <li>
-            <b>The maxed answer moved to your gear</b> (the adjusted answer, "form G"), for everyone else. Your weaker earnings
-            set, colleggtibles and lab upgrade count as a lower TE, and the waits run at your own delivery rate. Your
-            first ascension is worked out from your own save.
+            <b>A delivery-set table moved to your gear</b> (the adjusted answer, "form G"), when nothing is built for your
+            exact gear. Tables are built for sets of metronome, compass and gusset. The page takes the set whose gear is
+            closest to yours and whose table covers your TE; above that table's last TE it carries on with the next
+            closest table that reaches it. Your weaker earnings set, colleggtibles and lab upgrade count as a lower TE,
+            and the waits run at your own delivery rate. Your first ascension is worked out from your own save.
+          </li>
+          <li>
+            <b>The maxed answer moved to your gear</b> (also form G), when no delivery-set table covers your TE. It
+            carries the same adjustments, and the page says it is the maxed answer.
           </li>
         </ul>
         <p>

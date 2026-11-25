@@ -165,7 +165,7 @@
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
             set matters only while research is still being bought: nothing from about TE 340 up, most around TE 190-216,
             where the planner starts trying tier 13. The site uses an instant answer built for your own gear when there is a current one.
-            Otherwise it moves the maxed answer to your gear (the adjusted answer), and tells you which.
+            Otherwise it moves the closest delivery-set table that covers your TE to your gear, or the maxed answer when none does (the adjusted answer), and tells you which.
           </p>
           <p v-else-if="f.id === 'sale'">
             Every build ends at the Saturday 9:00 AM (Pacific) sale. A third sale week pays on long jumps below about TE
