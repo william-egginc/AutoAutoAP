@@ -9,6 +9,7 @@
  * precompute.ts --manifest), which lists each deployed table by file only: an account's own table is
  * described by its gear, never by whose it is.
  */
+import type { TableHeader } from './precomputedTable';
 
 /**
  * The maxed table's file in precompute/ (with `.gz` beside it). A version 2 table, under its own name: pages
@@ -49,6 +50,12 @@ export interface TableEntry {
   builtAt?: string;
   /** On the maxed table's entry only: its waiting research and delivery set (TableHeader.k3). */
   k3?: { research: Record<string, number>; delivery: unknown[] };
+  /** On a delivery-set table's entry (R10, 25 Nov 2026): the header fields the form G reads (search/instantGear.ts
+   *  `instantGearShift`), written by the set's assembly from the file's header, so the instant answer can score every
+   *  such table for the player without downloading it (search/nearestTable.ts). Absent: the table is not scored. */
+  formGHeader?: Pick<TableHeader, 'cteBonus' | 'epicResearch' | 'colleggtibleEffects' | 'formG'> & {
+    k3: { research: Record<string, number>; delivery: unknown[]; peak: number };
+  };
 }
 
 /**

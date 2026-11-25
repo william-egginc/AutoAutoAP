@@ -31,6 +31,8 @@ import {
   type TableGear,
 } from './tableGear';
 import { tableSimMismatch } from './simVersion';
+import { nearestCandidates, nearestChain, type NearestTable } from './nearestTable';
+import type { TableEntry } from './tableBracket';
 import { coversTe } from './tableBracket';
 import { instantDeliveryScale, saveSiloSeconds } from './leg';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from './instantGear';
@@ -195,7 +197,48 @@ export async function chooseInstantTable(d: InstantTableDeps): Promise<InstantTa
   const playerKey = deliveryKey(stamp?.deliveryFull);
   const playerFile = playerKey ? await deliveryTableFile(playerKey) : null;
   const key = url === TABLE_URL ? playerKey : null;
-  if (key) {
+  // THE NEAREST TABLE (R10, Jordan 25 Nov 2026: search/nearestTable.ts): when tables.json carries what the form G reads
+  // for its delivery-set tables, the one the form G moves least for this player at their TE, the nearest past its last
+  // TE, and so on to the maxed one, scored from tables.json alone. Without those fields: their key's table, below.
+  let scored = false;
+  const entries = (listed as { list?: readonly Partial<TableEntry>[] } | null)?.list;
+  if (url === TABLE_URL && entries && d.te !== undefined) {
+    const maxedFile = TABLE_URL.slice(TABLE_URL.lastIndexOf('/') + 1);
+    const tables = nearestCandidates(entries, {
+      maxedFile,
+      playerFiles: new Set(playerFile ? [playerFile] : []),
+      simOk: e => !tableSimMismatch(e),
+      shiftOf: th => instantGearShift(d.inputs(), th),
+    });
+    if (tables.length) {
+      scored = true;
+      const maxedShift = instantGearShift(d.inputs(), h);
+      const maxed: NearestTable = { file: maxedFile, from: h.from, to: h.to, shift: maxedShift, exact: false, maxed: true };
+      const chain = nearestChain(tables, maxed, d.te);
+      if (chain.length && !chain[0].maxed) {
+        const parts = chain[chain.length - 1].maxed ? chain : [...chain, maxed];
+        const keyOf = (t: NearestTable) =>
+          t.maxed ? (maxedShift && !nearMaxedGear(maxedShift) ? gearShiftKey(maxedShift) : '') : gearShiftKey(t.shift as Parameters<typeof gearShiftKey>[0]);
+        const urlOf = (t: NearestTable) => (t.maxed ? TABLE_URL : `${d.base}${t.file}`);
+        const more = parts.slice(2).map((t, i) => ({ url: urlOf(t), key: keyOf(t), split: parts[i + 1].to + 1 }));
+        const joined = deliveryUrl(urlOf(parts[0]), keyOf(parts[0]), urlOf(parts[1]), keyOf(parts[1]), parts[0].to + 1, more);
+        try {
+          const jh = await p.header(joined);
+          // As listed: read from the files themselves, by this simulator and reaching the save's TE.
+          if (!tableSimMismatch(jh) && !startsAbove(jh) && d.te <= (jh.gearTo ?? jh.to)) {
+            h = jh;
+            url = joined;
+            gearShifted = true;
+            if (chain[0].exact) delivery = playerKey ?? undefined;
+          }
+        } catch (e) {
+          // Not there after all. Stalled: the maxed one (already in) answers.
+          if (!isTableStall(e)) throw e;
+        }
+      }
+    }
+  }
+  if (key && !scored) {
     const lowUrl = `${d.base}${playerFile}`;
     if (isListed(lowUrl) && listed && !refusedByListing(lowUrl)) {
       try {

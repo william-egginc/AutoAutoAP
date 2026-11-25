@@ -824,7 +824,7 @@
         <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue), when no answer box
              carries it in its caveat line. -->
         <GearCaveat
-          :gear-shift="shiftedTable"
+          :gear-shift="maxedShifted"
           :below-reach="belowReach"
           :gear-differs="gearDiffers"
           :optimistic="optimistic"
@@ -1259,6 +1259,9 @@ const belowReach = computed(() => {
 /** A gear combination's table below GEAR_TABLE_TO, the maxed one from it; or a delivery set's table below its last TE,
  *  the maxed one from it (recorded as 'gear': the collector takes only own / gear / maxed). */
 const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value) || !!parseDeliveryUrl(tableUrl.value));
+/** The maxed table moved to the player's gear (the form G) alone: the gear caveat says so (QA R10, 25 Nov 2026: a delivery
+ *  set's or the nearest table's answer is not "the fully maxed one adjusted"). */
+const maxedShifted = computed(() => !!parseGearShiftUrl(tableUrl.value));
 /** What changed since the player's own table was made, when it no longer fits their save. */
 const ownChanged = ref('');
 
@@ -2729,7 +2732,7 @@ const headCaveat = computed(() =>
     : answerCaveat([
     gearCaveat(
       {
-        gearShift: shiftedTable.value,
+        gearShift: maxedShifted.value,
         belowReach: belowReach.value,
         gearDiffers: gearDiffers.value,
         optimistic: optimistic.value,
@@ -2748,7 +2751,7 @@ const headCaveat = computed(() =>
 /** The gear warning cut to its effect on the card (Jordan, 12 Nov 2026): only for the gear shift (the form G), which
  *  leads the caveats whenever it shows; its line and the Why list go behind the "?" (AnswerCaveatLine `effect`). */
 const gearEffect = computed(() =>
-  shiftedTable.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null
+  maxedShifted.value && headCaveat.value ? (belowReach.value ? BELOW_REACH_EFFECT : gearEffectLine(GEAR_CAVEAT_DAYS)) : null
 );
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
 function datePickOf(fallback: Route): DatePick {

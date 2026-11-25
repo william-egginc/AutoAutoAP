@@ -11,8 +11,11 @@ import type { TableEntry } from './tableBracket';
  *  2026). A Set of the names, so a caller that only asks `has` reads it as before. */
 export class ListedTables extends Set<string> {
   private readonly byName = new Map<string, Partial<TableEntry>>();
+  /** Every entry, in tables.json's order: the nearest table scores them (search/nearestTable.ts). */
+  readonly list: readonly Partial<TableEntry>[];
   constructor(entries: readonly Partial<TableEntry>[]) {
     super();
+    this.list = entries;
     for (const e of entries)
       for (const n of [e.file, ...(e.aliases ?? [])]) {
         if (!n) continue;

@@ -6,7 +6,8 @@
  *     with its extras (the gear half had none until 22 Nov 2026: no held shifts, order or buys below the split);
  *   - the form G (gearShiftUrl): the maxed table moved to the player's gear;
  *   - a delivery set's table (deliveryUrl, 23 Nov 2026): it moved to the player's gear below its split, the maxed
- *     one (moved too, unless the player is as good as maxed) from it;
+ *     one (moved too, unless the player is as good as maxed) from it; with more (the nearest table's chain, R10,
+ *     25 Nov 2026), each moved table read to its own last TE, then the next;
  *   - one table.
  * A version 2 table's builds carry their extras for the held replay (withExtras; version 1 as it is).
  */
@@ -26,15 +27,21 @@ import type { FirstLeg } from './routeFinder';
 export function tableAtUrl(url: string, fetchTable: (url: string) => Promise<Table>): Promise<Table> {
   const dl = parseDeliveryUrl(url);
   if (dl) {
-    const { url: highUrl, ...high } = dl.high;
-    return Promise.all([fetchTable(dl.low.url), fetchTable(highUrl)]).then(([low, max]) =>
-      compositeTable(
-        gearShiftTable(withExtras(low), dl.low),
-        high.g === undefined ? withExtras(max) : gearShiftTable(withExtras(max), high as typeof dl.low),
-        dl.split,
-        1
-      )
-    );
+    // Each table moved by its own numbers (one with none, the maxed one as good as maxed, as it is), then joined from the
+    // last up: each to its own last TE, the rest from there.
+    const parts = [dl.low, dl.high, ...(dl.more ?? [])];
+    const splits = [dl.split, ...(dl.more ?? []).map(m => m.split)];
+    return Promise.all(parts.map(p => fetchTable(p.url))).then(tables => {
+      const moved = tables.map((t, i) => {
+        const s = parts[i];
+        return s.g === undefined
+          ? withExtras(t)
+          : gearShiftTable(withExtras(t), { g: s.g, geo: s.geo!, cap: s.cap!, k: s.k!, ...(s.geoEr !== undefined ? { geoEr: s.geoEr } : {}) });
+      });
+      let joined = moved[moved.length - 1];
+      for (let i = moved.length - 2; i >= 0; i--) joined = compositeTable(moved[i], joined, splits[i], 1);
+      return joined;
+    });
   }
   const c = parseCompositeUrl(url);
   const g = c ? null : parseGearShiftUrl(url);

@@ -362,24 +362,50 @@ function parseGearShiftKey(key: string): { g: number; geo: number; cap: number; 
  * A delivery set's table moved to the player's gear (the form G from it: search/tableGear.ts `deliveryKey`), and the
  * maxed table from `split` (its last TE + 1) up, moved too unless the player is as good as maxed (`highKey` empty):
  * `delivery:LOW_URL~LOW_KEY~HIGH_URL~HIGH_KEY~SPLIT`. Neither a composite (no `|`) nor a form G url.
+ * THE NEAREST TABLE'S CHAIN (R10, 25 Nov 2026: search/nearestTable.ts): `high` may itself be a delivery table, with
+ * each further table after it as `~URL~KEY~SPLIT` (`more`, its key empty for the maxed one as good as maxed); each
+ * table is read to its own last TE, then the next. Without `more` the url is the two-table one, as before.
  */
-export function deliveryUrl(lowUrl: string, lowKey: string, highUrl: string, highKey: string, split: number): string {
-  return `delivery:${[lowUrl, lowKey, highUrl, highKey, split].join('~')}`;
+export function deliveryUrl(
+  lowUrl: string,
+  lowKey: string,
+  highUrl: string,
+  highKey: string,
+  split: number,
+  more: readonly { url: string; key: string; split: number }[] = []
+): string {
+  return `delivery:${[lowUrl, lowKey, highUrl, highKey, split, ...more.flatMap(m => [m.url, m.key, m.split])].join('~')}`;
 }
 
+type ShiftNumbers = { g: number; geo: number; cap: number; k: number; geoEr?: number };
+
 export function parseDeliveryUrl(url: string): {
-  low: { url: string; g: number; geo: number; cap: number; k: number; geoEr?: number };
-  high: { url: string; g?: number; geo?: number; cap?: number; k?: number; geoEr?: number };
+  low: { url: string } & ShiftNumbers;
+  high: { url: string } & Partial<ShiftNumbers>;
   split: number;
+  /** The chain's further tables, each from its `split` (absent on a two-table url). */
+  more?: ({ url: string; split: number } & Partial<ShiftNumbers>)[];
 } | null {
   if (!url.startsWith('delivery:')) return null;
   const parts = url.slice('delivery:'.length).split('~');
-  if (parts.length !== 5) return null;
+  if (parts.length < 5 || (parts.length - 5) % 3 !== 0) return null;
   const [lowUrl, lowKey, highUrl, highKey, split] = parts;
   const low = parseGearShiftKey(lowKey);
   const high = highKey ? parseGearShiftKey(highKey) : {};
   if (!low || !high || !Number.isFinite(Number(split))) return null;
-  return { low: { url: lowUrl, ...low }, high: { url: highUrl, ...high }, split: Number(split) };
+  const more: ({ url: string; split: number } & Partial<ShiftNumbers>)[] = [];
+  for (let i = 5; i < parts.length; i += 3) {
+    const [u, key, at] = parts.slice(i, i + 3);
+    const shift = key ? parseGearShiftKey(key) : {};
+    if (!shift || !at || !Number.isFinite(Number(at))) return null;
+    more.push({ url: u, ...shift, split: Number(at) });
+  }
+  return {
+    low: { url: lowUrl, ...low },
+    high: { url: highUrl, ...high },
+    split: Number(split),
+    ...(more.length ? { more } : {}),
+  };
 }
 
 /** The form G's row shift of a url's moved table (the delivery table's for a delivery url), for the tail's opening
