@@ -34,5 +34,6 @@ describe('the share box wording', () => {
       expect(t, p).toContain('asks you once more');
     }
     expect(read('collector/README.md')).toContain('shareGearDetail');
+    expect(read('src/components/science/HowItWorks.vue')).toContain('The table and artifact details go only after you agree to them.');
   });
 });
