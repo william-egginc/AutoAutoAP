@@ -104,8 +104,16 @@ describe('InstantRoute wiring', () => {
       'Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer for fully maxed gear instead.'
     );
     expect(src).not.toMatch(/<p v-if="ownChanged"/);
-    expect(src).toMatch(/<GearCaveat\s+:gear-shift="shiftedTable"/);
+    expect(src).toMatch(/<GearCaveat\s+:gear-shift="maxedShifted"/);
     expect(src).toContain('const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value) || !!parseDeliveryUrl(tableUrl.value));');
+  });
+  // QA R10 75c (25 Nov 2026): a delivery set's or the nearest table's answer (a delivery url) said "Your gear isn't one
+  // the instant answers were built for, so this answer is the fully maxed one adjusted": the gear caveat, its line and
+  // its effect are for the maxed table's form G only.
+  it('the gear caveat only for the form G from the maxed table, not a delivery or nearest table', () => {
+    expect(src).toContain('const maxedShifted = computed(() => !!parseGearShiftUrl(tableUrl.value));');
+    expect(src).toMatch(/gearCaveat\(\s*\{\s*gearShift: maxedShifted\.value,/);
+    expect(src).toContain('maxedShifted.value && headCaveat.value ? (belowReach.value');
   });
 });
 
@@ -124,7 +132,7 @@ describe('InstantRoute wiring', () => {
   it('one GearCaveat in place of the old gear box, on both screens (under the shared result)', () => {
     expect(t.match(/<GearCaveat\b/g)).toHaveLength(1);
     expect(t).toMatch(
-      /<GearCaveat\s+:gear-shift="shiftedTable"\s+:below-reach="belowReach"\s+:gear-differs="gearDiffers"\s+:optimistic="optimistic"/
+      /<GearCaveat\s+:gear-shift="maxedShifted"\s+:below-reach="belowReach"\s+:gear-differs="gearDiffers"\s+:optimistic="optimistic"/
     );
     expect(t).not.toContain('v-if="gearDiffers"');
     expect(t).not.toContain("Your gear isn't the gear the instant answer was built on");

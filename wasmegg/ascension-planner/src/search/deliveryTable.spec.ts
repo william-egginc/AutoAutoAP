@@ -218,3 +218,72 @@ describe('a gear table shorter than the split (an exact-stamp match on a 150-260
     expect(both.header.gearTo).toBe(489);
   });
 });
+
+// THE NEAREST TABLE'S CHAIN (R10, Jordan 25 Nov 2026: search/nearestTable.ts): the nearest delivery table at the save's
+// TE, the nearest covering the TE past its last, and so on to the maxed one, as one delivery url: the two-table url
+// with a (url, key, split) more for each further table. A two-table url reads as before.
+describe('the delivery url with more tables (the nearest-table chain)', () => {
+  const d = 'https://x/precompute/gear-dddddddddddddddddddddddd.v2.bin';
+  const n = 'https://x/precompute/gear-nnnnnnnnnnnnnnnnnnnnnnnn.v2.bin';
+  const m = 'https://x/precompute/table-v2.bin';
+  const header = (from: number, to: number): TableHeader =>
+    ({ version: 2, from, to, cteBonus: 128, k3: { research: {}, delivery: [], peak: 100 } }) as unknown as TableHeader;
+  const table = (tag: number, from: number, to: number): Table => ({
+    header: header(from, to),
+    lookup: (te, hour) =>
+      te < from || te > to || hour !== 0
+        ? null
+        : [{ sales: 1, tier13: false, waitStart: tag, saleEnd: 0, peakELR: 100, delivered: [1] } as unknown as BuildParams],
+  });
+  const dKey = '0.0000,1.000000,1000.0000000,1.000000';
+  const nKey = '0.0000,0.900000,1000.0000000,0.900000';
+  const mKey = '0.0000,0.800000,1000.0000000,0.800000';
+  it('round-trips: the first two as low and high, the rest as more, each with where it starts', () => {
+    const url = deliveryUrl(d, dKey, n, nKey, 150, [{ url: m, key: mKey, split: 340 }]);
+    expect(parseCompositeUrl(url)).toBeNull();
+    expect(parseGearShiftUrl(url)).toBeNull();
+    const p = parseDeliveryUrl(url)!;
+    expect(p.low).toEqual({ url: d, g: 0, geo: 1, cap: 1000, k: 1 });
+    expect(p.high).toEqual({ url: n, g: 0, geo: 0.9, cap: 1000, k: 0.9 });
+    expect(p.split).toBe(150);
+    expect(p.more).toEqual([{ url: m, g: 0, geo: 0.8, cap: 1000, k: 0.8, split: 340 }]);
+  });
+  it('the last (maxed) one unmoved when the player is as good as maxed', () => {
+    const p = parseDeliveryUrl(deliveryUrl(d, dKey, n, nKey, 150, [{ url: m, key: '', split: 340 }]))!;
+    expect(p.more).toEqual([{ url: m, split: 340 }]);
+  });
+  it('a two-table url is as it was (no more), and the same string as before', () => {
+    expect(deliveryUrl(d, dKey, m, mKey, 150)).toBe(`delivery:${[d, dKey, m, mKey, 150].join('~')}`);
+    expect(deliveryUrl(d, dKey, m, mKey, 150, [])).toBe(deliveryUrl(d, dKey, m, mKey, 150));
+    expect(parseDeliveryUrl(deliveryUrl(d, dKey, m, mKey, 150))!.more).toBeUndefined();
+  });
+  it('a broken more is not a delivery url', () => {
+    expect(parseDeliveryUrl(`${deliveryUrl(d, dKey, n, nKey, 150)}~${m}~${mKey}`)).toBeNull();
+    expect(parseDeliveryUrl(`${deliveryUrl(d, dKey, n, nKey, 150)}~${m}~x,y~340`)).toBeNull();
+    expect(parseDeliveryUrl(`${deliveryUrl(d, dKey, n, nKey, 150)}~${m}~${mKey}~many`)).toBeNull();
+  });
+  it('loads as each moved table to its own last TE, then the next (tableAtUrl)', async () => {
+    const files: Record<string, Table> = { [d]: table(1, 75, 149), [n]: table(2, 75, 339), [m]: table(3, 55, 489) };
+    const url = deliveryUrl(d, dKey, n, nKey, 150, [{ url: m, key: mKey, split: 340 }]);
+    const t = await tableAtUrl(url, async u => files[u]);
+    expect(t.lookup(110, 0)![0].waitStart).toBe(1);
+    expect(t.lookup(149, 0)![0].waitStart).toBe(1);
+    expect(t.lookup(150, 0)![0].waitStart).toBe(2);
+    expect(t.lookup(339, 0)![0].waitStart).toBe(2);
+    expect(t.lookup(340, 0)![0].waitStart).toBe(3);
+    expect(t.lookup(150, 0)![0].peakELR).toBeCloseTo(90, 9);
+    expect(t.lookup(400, 0)![0].peakELR).toBeCloseTo(80, 9);
+    expect(t.header.gearTo).toBe(149);
+    expect(t.header.to).toBe(489);
+    expect(t.header.gearShift).toEqual({ g: 0, geo: 1, cap: 1000, k: 1 });
+  });
+  it('each file fetched once', async () => {
+    const asked: string[] = [];
+    const files: Record<string, Table> = { [d]: table(1, 75, 149), [n]: table(2, 75, 339), [m]: table(3, 55, 489) };
+    await tableAtUrl(deliveryUrl(d, dKey, n, nKey, 150, [{ url: m, key: '', split: 340 }]), async u => {
+      asked.push(u);
+      return files[u];
+    });
+    expect(asked.sort()).toEqual([d, m, n].sort());
+  });
+});
