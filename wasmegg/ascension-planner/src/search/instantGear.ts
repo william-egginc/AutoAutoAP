@@ -40,7 +40,8 @@ import type { Availability } from './availability';
 import type { TailOptions } from './routeFinder';
 
 export interface GearShift {
-  /** Clothed-TE points below the table (never below 0): the row shift. */
+  /** Clothed-TE points below the table: the row shift. Negative when the player's earnings are stronger than the table's
+   *  set (a delivery-set table's board set: FORM G UPWARD, Jordan 24 Nov 2026); the maxed table is never beaten. */
   g: number;
   /** sqrt(lambda sigma): the peak delivery rate's scale below full research. */
   geo: number;
@@ -117,7 +118,7 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
       : 0;
   const lab =
     cteFromLabUpgrade(tableEpic['cheaper_research'] ?? 0) - cteFromLabUpgrade(ctx.epicResearchLevels['cheaper_research'] ?? 0);
-  const g = Math.max(0, artifacts + colleggtibles + lab);
+  const g = artifacts + colleggtibles + lab;
   return {
     g,
     geo: Math.sqrt(lambda * sigma),
@@ -133,7 +134,7 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
 
 /** A player as good as the maxed table (the old single scale is then exact): no shift needed. */
 export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'> & { kFull?: number }): boolean {
-  return s.g < 0.05 && Math.abs(s.geo - 1) < 0.005 && Math.abs(s.k - 1) < 0.005 && Math.abs((s.kFull ?? s.k) - 1) < 0.005;
+  return Math.abs(s.g) < 0.05 && Math.abs(s.geo - 1) < 0.005 && Math.abs(s.k - 1) < 0.005 && Math.abs((s.kFull ?? s.k) - 1) < 0.005;
 }
 
 /**

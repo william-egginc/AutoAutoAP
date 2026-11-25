@@ -411,7 +411,8 @@ export function gearShiftTable(
   shift: { g: number; geo: number; cap: number; k: number; geoEr?: number },
   maxCells = DECODED_CELLS
 ): Table {
-  const g = Math.max(0, shift.g);
+  // g < 0 (FORM G UPWARD, Jordan 24 Nov 2026): earnings stronger than the table's set read the rows above, TE - g.
+  const g = shift.g;
   const gf = Math.floor(g);
   const gc = Math.ceil(g);
   const w = g - gf;
@@ -489,7 +490,9 @@ export function gearShiftTable(
       const lo = gc === gf ? hi : moved(te, te - gc, hour);
       let out: BuildWithExtras[] | null;
       if (hi && lo) out = blend(hi, lo);
-      else if (hi) out = hi;
+      else if (hi || lo) out = (hi ?? lo)!;
+      // Above the table's last row once shifted up (g < 0): the last row, moved onto this TE (a little slow, never fast).
+      else if (te - g > maxed.header.to) out = moved(te, maxed.header.to, hour);
       // Below the table's first row once shifted: the first row, moved onto this TE (formGBelowReach).
       else out = moved(te, maxed.header.from, hour);
       cache.set(key, out);
