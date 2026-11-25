@@ -34,8 +34,8 @@ describe('Setup › Sharing: the table tick', () => {
     expect(src).toMatch(/agreed: tablePickOn/);
   });
   it('the closed fold line names it with its state', () => {
-    expect(sharingSummaryWords({ help: 'no', saveOnline: true, searchResults: false, instantWithRuns: false, tablePick: true })).toMatch(/· Table answered: on$/);
-    expect(sharingSummaryWords({ help: 'no', saveOnline: true, tablePick: false })).toMatch(/· Table answered: off$/);
+    expect(sharingSummaryWords({ help: 'no', saveOnline: true, searchResults: false, instantWithRuns: false, tablePick: true })).toMatch(/· Which table answered: on$/);
+    expect(sharingSummaryWords({ help: 'no', saveOnline: true, tablePick: false })).toMatch(/· Which table answered: off$/);
     expect(read('YourSetup.vue')).toMatch(/tablePick: /);
   });
 });
