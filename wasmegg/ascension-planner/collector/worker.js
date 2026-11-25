@@ -73,6 +73,7 @@ import { handleAnswers, isAnswersRequest, pruneAnswers } from './answers.js';
 import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, CSVD_TTL_SECONDS, SUBMITS_PER_DAY, csvDayRefusal, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { handleRuns, isRunsRequest, pruneRuns } from './runs.js';
+import { handleTablePick, isTablePickRequest } from './tablepick.js';
 import { rekeyLegacy } from './acct.js';
 import { handleCal, isCalRequest, pruneCal } from './cal.js';
 import { handlePin, isPinRequest, pinResetsDue } from './pin.js';
@@ -3328,6 +3329,8 @@ const worker = {
     if (isFollowRequest(url)) return handleFollow(request, env);
     // "Long-run alert" (runs.js): a page announces a long search and its end, anonymously; D1 only.
     if (isRunsRequest(url)) return handleRuns(request, env, ctx);
+    // "Which table answered" ping (tablepick.js): anonymous daily counts, D1 only (migration 0011).
+    if (isTablePickRequest(url)) return handleTablePick(request, env);
     // Synced records (sync.js): the starting-TE override and the Build-up tracker's ticks and plan, per account; D1 only.
     if (isSyncRequest(url)) return handleSync(request, env);
     // Calendar feeds (cal.js): a secret link per device, the .ics a calendar app fetches; D1 only.
