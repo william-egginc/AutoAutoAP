@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-11-25T23:00:00Z', note: 'Release 10: instant answers for more gear sets, a mission optimizer that plans around your awake hours, and honest times for short ascensions', level: 'big' },
   { at: '2026-11-20T23:00:00Z', note: 'Simpler By Egg Day goal, clearer tour, Instant Answer and My Runs labels' },
   { at: '2026-11-17T22:00:15Z', note: 'Your calendar link is saved with your account, scrambled on your device first, so all your browsers show the same link. Reset link and Delete everything saved online remove it' },
   { at: '2026-11-17T22:00:14Z', note: 'Your eggs’ “to goal” view has a picker (A1 · A2 · A3 · goal) to see each egg’s times for any ascension. Where the instant answer keeps no shifts, a note says to run a search from Try next' },
