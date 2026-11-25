@@ -136,8 +136,8 @@ export function consentsFor(ticks: StudyTicks): [ConsentId, boolean][] {
   ];
 }
 
-/** The consents Withdraw turns off (the CSV choice is left as it is: with sharing off it cannot go). */
-export const WITHDRAW_CONSENTS: ConsentId[] = ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks'];
+/** The consents Withdraw turns off (the CSV choice is left as it is: with sharing off it cannot go). The gear fields go with the search results (R10, 25 Nov 2026). */
+export const WITHDRAW_CONSENTS: ConsentId[] = ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks', 'shareGearDetail'];
 
 /**
  * What the account with this hash needs:
