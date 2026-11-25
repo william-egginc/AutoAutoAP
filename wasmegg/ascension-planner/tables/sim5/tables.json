@@ -298,14 +298,6 @@
    "from": 75,
    "to": 149,
    "status": "todo"
-  },
-  {
-   "name": "board-t3e-t4c-t2e",
-   "combos": "board_combos_75b.json",
-   "combo": "board-t3e-t4c-t2e",
-   "from": 75,
-   "to": 149,
-   "status": "todo"
   }
  ]
 }
