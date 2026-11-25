@@ -141,6 +141,26 @@ describe('prefetchPlan: a delivery-set table (QA batch 11, 24 Nov 2026)', () => 
   });
 });
 
+describe('prefetchPlan: a table that ends below the TE (QA R10, 24 Nov 2026)', () => {
+  const topped: TableEntry[] = [
+    ...entries,
+    { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.9437, from: 150, to: 339, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-lle.v2.bin', bonus: 128.71, k: 0.963, from: 150, to: 339, aliases: ['gear-dlle.v2.bin'], simVersion: SIM_VERSION },
+  ];
+  const player = { bonus: 128.71, k: 0.95 };
+  it('its delivery table is not fetched above its last TE, nor a neighbour that ends below the TE', () => {
+    const plan = prefetchPlan({ entries: topped, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 340 });
+    expect(plan).not.toContain('gear-dlel.v2.bin');
+    expect(plan).not.toContain('gear-lle.v2.bin');
+    expect(plan[0]).toBe('table-v2.bin');
+  });
+  it('inside its range, as before', () => {
+    expect(
+      prefetchPlan({ entries: topped, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 339 })
+    ).toEqual(['gear-dlel.v2.bin', 'table-v2.bin']);
+  });
+});
+
 describe('gearCoverage', () => {
   const entries = [
     { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },

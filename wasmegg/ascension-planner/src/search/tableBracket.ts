@@ -20,6 +20,12 @@ export const MAXED_TABLE_FILE = 'table-v2.bin';
 /** The version 1 maxed table, still deployed for older pages: never read here, and left out of the nearest tables. */
 export const LEGACY_MAXED_TABLE_FILE = 'table.bin';
 
+/** Whether a listed table has rows for start TE `te`: from..to, `to` unknown read as no top (QA R10, 24 Nov 2026: a
+ *  save above a 150-339 table's last TE still fetched it, and the bracket priced on a neighbour ending below the TE). */
+export function coversTe(e: Pick<TableEntry, 'from' | 'to'>, te: number): boolean {
+  return e.from <= te && (e.to === undefined || te <= e.to);
+}
+
 export interface TableEntry {
   /** File name in precompute/ (MAXED_TABLE_FILE is the maxed table). */
   file: string;
@@ -27,6 +33,9 @@ export interface TableEntry {
   k: number;
   /** The lowest start TE it has. */
   from: number;
+  /** The highest start TE it has (written by the set's assembly from the file's header since 25 Nov 2026); absent in
+   *  an older tables.json, read then as no known top. */
+  to?: number;
   /** The same file deployed under other names too: a gear table's canonical name beside the legacy
    *  one it was first deployed under (tableGear.ts gearTableName, scripts/precompute.ts --manifest). */
   aliases?: string[];

@@ -1001,7 +1001,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { sleepWhenIdle } from '@/search/routePoolIdle';
-import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
+import { MAXED_TABLE_FILE, coversTe, describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSafari, isSmallDevice, releaseRouteWorkers, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
   answerInputsKey,
@@ -1692,7 +1692,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
     const res = await fetch(`${import.meta.env.BASE_URL}precompute/tables.json`, { cache: 'no-cache' });
     if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) return;
     // Only tables of this simulator: an older one's price is not comparable with the answer on screen (23 Oct 2026).
-    entries = ((await res.json()) as TableEntry[]).filter(e => e.from <= legs.startTE && !tableSimMismatch(e));
+    entries = ((await res.json()) as TableEntry[]).filter(e => coversTe(e, legs.startTE) && !tableSimMismatch(e));
   } catch {
     return;
   }

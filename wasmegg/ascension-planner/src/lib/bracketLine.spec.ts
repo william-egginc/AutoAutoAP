@@ -98,7 +98,8 @@ describe('InstantRoute wiring', () => {
   });
   it('the bracket is priced as the answer (held tail), on tables of this simulator only', () => {
     expect(src).toContain('tail: instantTail(hours, store.deferShifts, undefined, answerDays),');
-    expect(src).toContain('e.from <= legs.startTE && !tableSimMismatch(e)');
+    // Tables that cover the start TE, from..to (QA R10, 24 Nov 2026: tableBracket.ts coversTe).
+    expect(src).toContain('coversTe(e, legs.startTE) && !tableSimMismatch(e)');
     // "What if you had maxed gear?" too.
     expect(src).toContain('tail: instantTail(w.hours, store.deferShifts, undefined, answerDays),');
   });

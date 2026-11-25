@@ -8,7 +8,7 @@
  */
 import { isSmallDevice } from './device';
 import { tableSimMismatch } from './simVersion';
-import { MAXED_TABLE_FILE, isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
+import { MAXED_TABLE_FILE, coversTe, isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
 
 /** The files to fetch for a player, in order: their own table if the site has one; else the table of
  *  their gear and the maxed one; else the maxed one and then the nearest tables above and below. */
@@ -29,7 +29,7 @@ export function prefetchPlan(o: {
 }): string[] {
   // Only files the instant answer would read: from the player's TE, and stamped with this simulator (code review
   // 22 Nov 2026, T1.6: an own table of another simulator was fetched, then passed over for the form G).
-  const usable = o.entries.filter(e => e.from <= o.te && !tableSimMismatch(e));
+  const usable = o.entries.filter(e => coversTe(e, o.te) && !tableSimMismatch(e));
   const list = (f: string | string[] | null) => (Array.isArray(f) ? f : f ? [f] : []);
   const own = list(o.own).find(f => usable.some(e => e.file === f));
   if (own) return [own];

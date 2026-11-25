@@ -176,3 +176,14 @@ describe('tables.json names by version (scripts/precompute.ts --manifest, --pack
     expect(entries.map(e => e.file)).toContain(`acct-${HEX}.bin`);
   });
 });
+
+describe('coversTe: a listed table covers a start TE inside from..to (QA R10, 24 Nov 2026)', () => {
+  it('from..to inclusive; no `to` (an older tables.json) means no known top', async () => {
+    const { coversTe } = await import('./tableBracket');
+    const e = { file: 'gear-a.v2.bin', bonus: 128.71, k: 0.94, from: 150, to: 339 };
+    expect([149, 150, 339, 340].map(te => coversTe(e, te))).toEqual([false, true, true, false]);
+    const { to: _t, ...open } = e;
+    void _t;
+    expect(coversTe(open, 489)).toBe(true);
+  });
+});
