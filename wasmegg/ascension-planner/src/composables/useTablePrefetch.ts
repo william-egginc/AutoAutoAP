@@ -10,7 +10,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from 'lib/planners/artifacts/utils';
 import { instantDeliveryScale } from '@/search/leg';
-import { gearStamp, gearTableFiles, ownTableNames } from '@/search/tableGear';
+import { deliveryKey, deliveryTableFile, gearStamp, gearTableFiles, ownTableNames } from '@/search/tableGear';
 import { prefetchAllowed, prefetchFiles, prefetchPlan } from '@/search/tablePrefetch';
 import { MAXED_TABLE_FILE, type TableEntry } from '@/search/tableBracket';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -57,15 +57,18 @@ export function useTablePrefetch(): void {
       const stamp = gearStamp(inputs, earnings, k3.research);
       // Every name the instant answer tries, in its order: each `.v2` name, then the plain one (tableGear.ts).
       const gear = stamp ? await gearTableFiles(stamp) : null;
+      // The table built on their delivery set, under its alias: what the answer reads when no gear table is listed.
+      const dKey = deliveryKey(stamp?.deliveryFull);
+      const delivery = dKey ? await deliveryTableFile(dKey) : null;
       const own = await ownTableNames(id);
-      const key = `${own[0]}|${gear?.[0] ?? ''}`;
+      const key = `${own[0]}|${gear?.[0] ?? ''}|${delivery ?? ''}`;
       if (done().includes(key)) return;
       markDone(key);
       const player = {
         bonus: earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(earnings)) : 0,
         k: instantDeliveryScale(inputs, k3),
       };
-      await prefetchFiles(base, prefetchPlan({ entries, own, gear, player, te }));
+      await prefetchFiles(base, prefetchPlan({ entries, own, gear, delivery, player, te }));
     } catch {
       // A prefetch that fails changes nothing: the panel fetches what it needs when it opens.
     } finally {

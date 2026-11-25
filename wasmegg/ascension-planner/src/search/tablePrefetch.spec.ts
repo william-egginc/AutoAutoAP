@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SIM_VERSION } from './simVersion';
 import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './tablePrefetch';
@@ -108,6 +110,37 @@ describe('prefetchFiles', () => {
   });
 });
 
+describe('prefetchPlan: a delivery-set table (QA batch 11, 24 Nov 2026)', () => {
+  const withDelivery: TableEntry[] = [
+    ...entries,
+    { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.9437, from: 150, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-lle.v2.bin', bonus: 128.71, k: 0.963, from: 150, aliases: ['gear-dlle.v2.bin'], simVersion: SIM_VERSION },
+  ];
+  const player = { bonus: 125, k: 0.95 };
+  it('the delivery table under its alias and the maxed one, no neighbours: what the instant answer reads', () => {
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: ['gear-none.bin'], delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).toEqual(['gear-dlel.v2.bin', 'table-v2.bin']);
+  });
+  it('an own or exact gear table still comes first', () => {
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: 'gear-mine.bin', delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).toEqual(['gear-mine.bin', 'table-v2.bin']);
+  });
+  it('a delivery table not listed, starting above the TE or of another simulator: the maxed one and the neighbours', () => {
+    const neighbours = prefetchPlan({ entries: withDelivery, own: null, gear: null, delivery: 'gear-dzzz.v2.bin', player, te: 200 });
+    expect(neighbours[0]).toBe('table-v2.bin');
+    expect(neighbours.length).toBeGreaterThan(1);
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 140 })
+    ).not.toContain('gear-dlel.v2.bin');
+    const stale = withDelivery.map(e => (e.file === 'gear-lel.v2.bin' ? { ...e, simVersion: '2026-11-09-sim4' } : e));
+    expect(
+      prefetchPlan({ entries: stale, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).not.toContain('gear-dlel.v2.bin');
+  });
+});
+
 describe('gearCoverage', () => {
   const entries = [
     { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },
@@ -120,6 +153,15 @@ describe('gearCoverage', () => {
     expect(gearCoverage(entries, 'acct-bbb.bin', ['gear-zzz.bin', 'gear-old.bin'])).toBe('gear');
     expect(gearCoverage(entries, null, ['gear-zzz.bin'])).toBe('none');
     expect(gearCoverage(entries, 'acct-bbb.bin', [])).toBe('none');
+  });
+  it('a delivery-set table under its alias is delivery coverage, after own and gear (QA batch 11, 24 Nov 2026)', () => {
+    const withDelivery = [...entries, { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.94, from: 150, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION }];
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-zzz.bin'], 'gear-dlel.v2.bin')).toBe('delivery');
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-zzz.bin'], 'gear-dzzz.v2.bin')).toBe('none');
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-new.bin'], 'gear-dlel.v2.bin')).toBe('gear');
+    expect(gearCoverage(withDelivery, 'acct-aaa.bin', [], 'gear-dlel.v2.bin')).toBe('own');
+    const old = withDelivery.map(e => ({ ...e, simVersion: '2020-01-01-old' }));
+    expect(gearCoverage(old, 'acct-bbb.bin', [], 'gear-dlel.v2.bin')).toBe('none');
   });
   it('a file stamped with another simulator, or not stamped, is not coverage: the instant answer would skip it', () => {
     const old = entries.map(e => ({ ...e, simVersion: '2020-01-01-old' }));
@@ -169,5 +211,21 @@ describe('.v2 names (an own or gear table of version 2 beside the version 1 one 
     expect(gearCoverage(both.filter(e => e.file !== 'acct-own.v2.bin'), own, [])).toBe('own');
     expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], gear)).toBe('gear');
     expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], ['gear-z.v2.bin', 'gear-z.bin'])).toBe('none');
+  });
+});
+
+describe('the composables pass the save\'s delivery-set table (QA batch 11, 24 Nov 2026)', () => {
+  const src = (f: string) => readFileSync(join(__dirname, '../composables', f), 'utf8');
+  it('useTablePrefetch: the delivery table file from the stamp, into prefetchPlan', () => {
+    const s = src('useTablePrefetch.ts');
+    expect(s).toMatch(/deliveryTableFile\(/);
+    expect(s).toMatch(/deliveryKey\(stamp\??\.deliveryFull\)/);
+    expect(s).toMatch(/prefetchPlan\(\{[^}]*\bdelivery\b/);
+  });
+  it('useGearCoverage: the same, into gearCoverage', () => {
+    const s = src('useGearCoverage.ts');
+    expect(s).toMatch(/deliveryTableFile\(/);
+    expect(s).toMatch(/deliveryKey\(stamp\??\.deliveryFull\)/);
+    expect(s).toMatch(/gearCoverage\(entries, own, gear, delivery\)/);
   });
 });

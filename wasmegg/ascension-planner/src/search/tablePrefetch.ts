@@ -19,6 +19,10 @@ export function prefetchPlan(o: {
    *  then the plain ones, each as v3, v2 canonical, then legacy). */
   own: string | string[] | null;
   gear: string | string[] | null;
+  /** The file of the table built on their delivery set, under its alias (tableGear.ts `deliveryTableFile`), when they
+   *  have a delivery key: what the instant answer reads when no own or gear table is listed (QA batch 11, 24 Nov 2026:
+   *  without it the neighbours below were fetched for nothing, as the answer then skips them). */
+  delivery?: string | null;
   /** Their earnings bonus and delivery k, for the nearest tables; null when unknown. */
   player: Gear | null;
   te: number;
@@ -33,6 +37,7 @@ export function prefetchPlan(o: {
   const listed = (f: string) => usable.some(e => e.file === f || e.aliases?.includes(f));
   const gear = list(o.gear).find(listed);
   if (gear) return [gear, MAXED_TABLE_FILE];
+  if (o.delivery && listed(o.delivery)) return [o.delivery, MAXED_TABLE_FILE];
   const out = [MAXED_TABLE_FILE];
   if (o.player && !isMaxed(o.player)) {
     const { above, below } = pickBracket(usable, o.player);
@@ -81,13 +86,21 @@ export async function prefetchFiles(
 /** Whether the instant answer has a table of this player's own: 'own' (built from their account),
  *  'gear' (built on a board account with exactly their gear, under either of `gearTableNames`), or
  *  'none' (it estimates from the maxed table and its neighbours). The Science tab's gear cards say it. */
-export type GearCoverage = 'own' | 'gear' | 'none';
-export function gearCoverage(all: TableEntry[], own: string | string[] | null, gear: string[]): GearCoverage {
+export type GearCoverage = 'own' | 'gear' | 'delivery' | 'none';
+/** 'delivery': no table of their own or of their exact gear, but one built on their delivery set (`delivery`, its
+ *  alias), which the instant answer moves to the rest of their gear (QA batch 11, 24 Nov 2026). */
+export function gearCoverage(
+  all: TableEntry[],
+  own: string | string[] | null,
+  gear: string[],
+  delivery: string | null = null
+): GearCoverage {
   // Only files the instant answer would use: one stamped with another simulator (or none) is skipped there
   // (InstantRoute.vue `tableSimMismatch`), so it must not read as "has an instant answer" here.
   const entries = all.filter(e => !tableSimMismatch(e));
   const owns = Array.isArray(own) ? own : own ? [own] : [];
   if (owns.some(f => entries.some(e => e.file === f))) return 'own';
   if (gear.some(f => entries.some(e => e.file === f || e.aliases?.includes(f)))) return 'gear';
+  if (delivery && entries.some(e => e.file === delivery || e.aliases?.includes(delivery))) return 'delivery';
   return 'none';
 }

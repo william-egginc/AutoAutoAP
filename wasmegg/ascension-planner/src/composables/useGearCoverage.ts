@@ -8,7 +8,7 @@
 import { ref, watch, type Ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
-import { gearStamp, gearTableFiles, ownTableNames } from '@/search/tableGear';
+import { deliveryKey, deliveryTableFile, gearStamp, gearTableFiles, ownTableNames } from '@/search/tableGear';
 import { gearCoverage, type GearCoverage } from '@/search/tablePrefetch';
 import { MAXED_TABLE_FILE, type TableEntry } from '@/search/tableBracket';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -28,8 +28,11 @@ export function useGearCoverage(active: () => boolean): Ref<GearCoverage | null>
       const stamp = k3 ? gearStamp(store.collectInputs(), store.readInventory().earnings, k3.research) : null;
       // Every name the instant answer tries: each `.v2` name, then the plain one (tableGear.ts).
       const gear = stamp ? await gearTableFiles(stamp) : [];
+      // The table built on their delivery set, under its alias (QA batch 11, 24 Nov 2026).
+      const dKey = deliveryKey(stamp?.deliveryFull);
+      const delivery = dKey ? await deliveryTableFile(dKey) : null;
       const own = await ownTableNames(id);
-      if (doneFor === id) coverage.value = gearCoverage(entries, own, gear);
+      if (doneFor === id) coverage.value = gearCoverage(entries, own, gear, delivery);
     } catch {
       // Unknown: the card says nothing about the player's own gear.
     }
