@@ -85,4 +85,33 @@ describe('shareTableUse', () => {
     expect(answerNo()).toBe(true);
     expect(consentAgreed('shareTableUse')).toBe(true);
   });
+
+  it('a browser-wide No: a later account on the same browser starts with the ping off, and can tick it back on', async () => {
+    await setConsentAccount(A);
+    answerNo();
+    await setConsentAccount(B);
+    expect(consentAgreed('shareTableUse')).toBe(false);
+    expect(consentRecord('shareTableUse').at).toBeGreaterThan(0);
+    setConsent('shareTableUse', true);
+    expect(consentAgreed('shareTableUse')).toBe(true);
+    await setConsentAccount(A);
+    await setConsentAccount(B);
+    expect(consentAgreed('shareTableUse')).toBe(true); // B’s own later choice is not overridden
+  });
+
+  it('a browser whose answer is Yes (or none) leaves a later account on', async () => {
+    await setConsentAccount(A);
+    answerYes({ share: false, csv: false, diag: false, checks: true }, 'anon', '');
+    await setConsentAccount(B);
+    expect(consentAgreed('shareTableUse')).toBe(true);
+  });
+
+  it('a No answered in an earlier visit applies to the account that loads next', async () => {
+    await setConsentAccount(A);
+    answerNo();
+    resetConsents(st);
+    resetStudy(st);
+    await setConsentAccount(B);
+    expect(consentAgreed('shareTableUse')).toBe(false);
+  });
 });
