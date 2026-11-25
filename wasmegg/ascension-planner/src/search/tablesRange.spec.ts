@@ -29,6 +29,14 @@ describe('sim5 tables.json (Jordan, 23 Nov 2026: delivery sets)', () => {
     for (const set of ['f9b40271', 'f8b400de', '9a66a47c', '9da8f087'])
       expect(entry(`carpet-${set}-board`), set).toEqual([150, 339, 'todo']);
   });
+  // NEW SETS (Jordan via the orchestrator, 25 Nov 2026 ~9 AM): two more weak delivery sets at TE 75-149 only, one board
+  // account each at TE 79-88; weak-class median stones (one wearer is no median). Above 149 they use maxed + form G.
+  it('the two new weak delivery sets are TE 75-149, to build, from board_combos_75b.json', () => {
+    for (const key of ['t3r-t4r-t2e', 't3e-t4c-t2e']) {
+      expect(entry(`board-${key}`), key).toEqual([75, 149, 'todo']);
+      expect(LIST.tables.find(x => x.name === `board-${key}`)).toMatchObject({ combos: 'board_combos_75b.json', combo: `board-${key}` });
+    }
+  });
   it('the named-save board tables and the stale stamps are dropped', () => {
     for (const n of ['gear-036f74b4', 'gear-574bbea7', 'gear-56e34c28', 'gear-7d2b5fcc', 'gear-808f643d', 'gear-5003fbad', 'gear-fb5db948'])
       expect(entry(n)?.[2], n).toBe('dropped');

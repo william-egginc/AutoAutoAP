@@ -10,7 +10,8 @@
   "carpet_combos_4f9b.json": "186b34e0b1aab07d7410b73dd59d114ceb4b128592a221ec844b684351f93926",
   "gear_combos.json": "fd487bac57b4295005edd3dbc2bb8c674b77a60ac5aeb0f2096d42d6fda0d105",
   "synthetic_combos.json": "3060f12dd6fbdc15ff83a8658a81c5d0c83b07717b9b90f2e40b6473a980f97a",
-  "maxed_combos.json": "0dddf1cd85bdc3e1401f3caffaec8b80f0a5de8fb15da73b570e8be7443b4bd9"
+  "maxed_combos.json": "0dddf1cd85bdc3e1401f3caffaec8b80f0a5de8fb15da73b570e8be7443b4bd9",
+  "board_combos_75b.json": "31a31b475d72bd57708fa87d7af9deed04109d5d5c549e5257bb3ef6fd2b95c2"
  },
  "flags": [
   "--generate",
@@ -288,6 +289,22 @@
    "combo": "carpet-4f9b3be4",
    "from": 75,
    "to": 489,
+   "status": "todo"
+  },
+  {
+   "name": "board-t3r-t4r-t2e",
+   "combos": "board_combos_75b.json",
+   "combo": "board-t3r-t4r-t2e",
+   "from": 75,
+   "to": 149,
+   "status": "todo"
+  },
+  {
+   "name": "board-t3e-t4c-t2e",
+   "combos": "board_combos_75b.json",
+   "combo": "board-t3e-t4c-t2e",
+   "from": 75,
+   "to": 149,
    "status": "todo"
   }
  ]
