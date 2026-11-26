@@ -57,6 +57,36 @@ describe('tablesIdentity', () => {
     expect(tablesIdentity([maxed, ownV1, gear], both)).toContain(`${GEAR2}=gear-legacy.v2.bin,`);
   });
 
+  // THE NEAREST TABLE (R10.1, 25 Nov 2026): the answer may read any delivery-set table tables.json scores
+  // (search/nearestTable.ts, entries with formGHeader), not just the player's own, gear or delivery-key one. A saved
+  // answer is worked out again when one of those comes, goes or is rebuilt, so a closer table reaches it.
+  describe('the nearest-table candidates (entries with formGHeader)', () => {
+    const fg = { cteBonus: 128.71, k3: { research: { a: 1 }, delivery: [], peak: 3.2e12 } };
+    const near: TableEntry = { file: 'gear-nnnnnnnnnnnnnnnnnnnnnnnn.v2.bin', bonus: 128.71, k: 1, from: 75, to: 339, simVersion: '2026-11-14-sim5', builtAt: '2026-11-25T10:00:00Z', formGHeader: fg };
+    const base = tablesIdentity([maxed, ownV2, near], names);
+    it('a new one changes it, though the player tries no name of it', () => {
+      const added: TableEntry = { ...near, file: 'gear-lllllllllllllllllllllllll.v2.bin' };
+      expect(tablesIdentity([maxed, ownV2, near, added], names)).not.toBe(base);
+    });
+    it('one gone, rebuilt, restamped, with another range or form G header changes it', () => {
+      expect(tablesIdentity([maxed, ownV2], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, builtAt: '2026-11-26T10:00:00Z' }], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, simVersion: '2026-12-01-sim6' }], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, to: 489 }], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, from: 100 }], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, formGHeader: { ...fg, k3: { ...fg.k3, peak: 3.3e12 } } }], names)).not.toBe(base);
+      expect(tablesIdentity([maxed, ownV2, { ...near, formGHeader: { ...fg, cteBonus: 126.38 } }], names)).not.toBe(base);
+    });
+    it('the same in any order; an entry without formGHeader (not scored) changes nothing', () => {
+      expect(tablesIdentity([near, ownV2, maxed], names)).toBe(base);
+      expect(tablesIdentity([maxed, ownV2, near, other], names)).toBe(base);
+    });
+    it('a tables.json with none is as before (no answer worked out again for it)', () => {
+      expect(tablesIdentity([maxed, ownV2], names)).not.toContain('near=');
+      expect(base).toContain('near=');
+    });
+  });
+
   it('null when tables.json could not be read', () => {
     expect(tablesIdentity(null, names)).toBeNull();
   });
