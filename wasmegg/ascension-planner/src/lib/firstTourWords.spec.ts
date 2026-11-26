@@ -67,6 +67,15 @@ describe('first tour words', () => {
       expect(alt.replace(/490/g, '')).not.toMatch(/\d/);
     }
   });
+  it('26 Nov 2026: alt text says only what the picture shows (UI tour fixes cb4973a2d): "enlarged" only where a magnified copy is drawn on desk and phone, My Runs not dimmed, Goals shows both choices', () => {
+    for (const [id, alt] of Object.entries(FIRST_TOUR_ALT)) {
+      if (id !== 'closing') expect(alt, id).not.toMatch(/enlarged/);
+    }
+    expect(FIRST_TOUR_ALT.closing).toMatch(/enlarged/);
+    expect(FIRST_TOUR_ALT.myrunsPage).toMatch(/not dimmed/);
+    expect(FIRST_TOUR_ALT.goalTarget).toMatch(/both the Target TE and By Egg Day/);
+    expect(FIRST_TOUR_ALT.result).toMatch(/heading down through its card/);
+  });
   it("Jordan, 16 Nov 2026: the Chain Finder and My Runs slides end 'Click Next to learn more about ...' (their pictures show the whole page, dimmed, with the tab ringed)", () => {
     expect(FIRST_TOUR_STEPS.tabChain.body).toMatch(/ Click Next to learn more about Chain Finder\.$/);
     // 18 Nov 2026 (Jordan): the Quick tour's My Runs card drops the line (its next slide is Setup); the Full tour keeps it.
