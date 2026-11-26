@@ -489,21 +489,7 @@
    "len": 120
   },
   "overText": false,
-  "inset": {
-   "sprite": "strip-myruns-desk",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 387,
-    "h": 40
-   },
-   "ring": {
-    "x": 319,
-    "y": 10,
-    "w": 74,
-    "h": 35
-   }
-  },
+  "inset": null,
   "dim": false
  },
  "followedRoute-desk": {
@@ -2087,16 +2073,16 @@
  "result-phone": {
   "base": "8-result-base-phone",
   "cw": 390,
-  "ch": 660,
+  "ch": 580,
   "rect": {
    "x": 16,
-   "y": 100,
+   "y": 17,
    "w": 358,
    "h": 474
   },
   "ring": {
    "x": 8,
-   "y": 92,
+   "y": 9,
    "w": 374,
    "h": 490
   },
@@ -2105,25 +2091,11 @@
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 584,
+   "y": 501,
    "len": 70
   },
   "overText": true,
-  "inset": {
-   "sprite": "strip-chain-phone",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 9,
-    "y": 40,
-    "w": 109,
-    "h": 35
-   }
-  }
+  "inset": null
  },
  "prefer-phone": {
   "base": "12-prefer-base-phone",

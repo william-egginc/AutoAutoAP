@@ -89,3 +89,13 @@ describe('tour slides', () => {
     for (const s of TOUR_SLIDES) for (const u of [s.desk.src, s.phone.src]) expect(u).toMatch(/\.webp/);
   });
 });
+
+describe('a slide\'s picture shape is its real crop (R10.3, 26 Nov 2026)', () => {
+  it('the phone picture of a taller crop reports its own height, so the dialog caps its width and the caption fits the phone', () => {
+    const by = (id: keyof typeof TOUR_FILES) => buildSlide(id, TOUR_FILES[id]);
+    const r = by('result');
+    expect(r.phone.height).toBeGreaterThan(440);
+    expect(r.phone.height).toBeLessThanOrEqual(600);
+    expect(by('follow').phone.height).toBe(440);
+  });
+});

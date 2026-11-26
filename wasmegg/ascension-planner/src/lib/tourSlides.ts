@@ -99,7 +99,8 @@ const overlayOf = (key: string): SlideOverlay | null => {
 /** A slide of the tour from the generator's output: live (a shared base picture + overlay) or baked. Exported for the full tour. */
 export function buildSlide<Id extends string>(id: Id, bakedStem: string, key: string = id): { id: Id; desk: TourPicture; phone: TourPicture; overlay?: { desk: SlideOverlay; phone: SlideOverlay } } {
   const d = raw[`${key}-desk`], p = raw[`${key}-phone`];
-  if (d && p) return { id, desk: desk(tourUrl(d.base)), phone: phone(tourUrl(p.base)), overlay: { desk: overlayOf(`${key}-desk`)!, phone: overlayOf(`${key}-phone`)! } };
+  // The picture's own shape: a taller crop (the Instant Answer's phone picture) reports its height, so the dialog caps its width by it.
+  if (d && p) return { id, desk: { ...desk(tourUrl(d.base)), height: Math.round((720 * d.ch) / d.cw) }, phone: { ...phone(tourUrl(p.base)), height: p.ch }, overlay: { desk: overlayOf(`${key}-desk`)!, phone: overlayOf(`${key}-phone`)! } };
   return { id, desk: desk(tourUrl(`${bakedStem}-desk`)), phone: phone(tourUrl(`${bakedStem}-phone`)) };
 }
 

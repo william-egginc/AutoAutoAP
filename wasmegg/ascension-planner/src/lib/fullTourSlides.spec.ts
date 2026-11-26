@@ -13,12 +13,12 @@ import { TOUR_FILES, TOUR_SLIDES, buildSlide, sharesPicture } from './tourSlides
 const src = (f: string) => readFileSync(path.resolve(__dirname, '..', f), 'utf8');
 
 describe('the full tour slides', () => {
-  it("forty-two slides, one per step, in the tour's order, 720x406 desk and 390x440 phone (spec-tour-v4: the v3 style, plus everything inside More)", () => {
+  it("forty-two slides, one per step, in the tour's order, 720x406 desk and 390x440 phone, but the Instant Answer slide's 390x580 (R10.3) (spec-tour-v4: the v3 style, plus everything inside More)", () => {
     expect(FULL_TOUR_STEPS).toHaveLength(42);
     expect(FULL_TOUR_SLIDES.map(s => s.id)).toEqual([...FULL_TOUR_STEPS]);
     for (const s of FULL_TOUR_SLIDES) {
       expect([s.desk.width, s.desk.height]).toEqual([720, 406]);
-      expect([s.phone.width, s.phone.height]).toEqual([390, 440]);
+      expect([s.phone.width, s.phone.height]).toEqual([390, s.id === 'result' ? 580 : 440]);
     }
   });
   it("the slides it shares with the first tour use the first tour's pictures and overlays (no second copy)", () => {

@@ -33,6 +33,7 @@ interface Ov {
   mag: string | null;
   tabs: Rect[];
   arrow: { dir: 'left' | 'right' | 'up' | 'down'; x: number; y: number; len: number };
+  dim?: boolean;
 }
 const read = (n: string) => JSON.parse(readFileSync(new URL(`../assets/tour/${n}`, import.meta.url), 'utf8'));
 const overlays: Record<string, Ov> = read('overlays.json');
@@ -136,10 +137,10 @@ describe('tour picture overlays (v4)', () => {
   it('the page badge (17 Nov 2026): every slide whose picture is on a page has the little tab strip, that page\'s tab ringed; the Setup dialog slides have none', () => {
     const none = ['setupAwake', 'setupInside', 'setupTimeOff'];
     // R9 H3 (18 Nov 2026): on these phone slides no corner of the crop was clear of every ring, arrow and copy, so they have no badge.
-    const noRoomOnPhone = ['tabMyruns', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'r2gearSets', 'r5yourRuns', 'r6boardRuns'];
+    const noRoomOnPhone = ['result' /* R10.3: the 580 px crop is nearly all ring */, 'tabMyruns', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'r2gearSets', 'r5yourRuns', 'r6boardRuns'];
     for (const [name, o] of entries) {
       const id = name.replace(/-(desk|phone)$/, '');
-      if (none.includes(id) || (name.endsWith('-phone') && noRoomOnPhone.includes(id))) expect(o.inset, name).toBeNull();
+      if (none.includes(id) || o.dim === false || (name.endsWith('-phone') && noRoomOnPhone.includes(id))) expect(o.inset, name).toBeNull();
       else {
         expect(o.inset, name).toBeTruthy();
         expect(o.inset!.sprite, name).toMatch(/^f?strip-(manual|auto|chain|myruns|compare|science)-(desk|phone)$/);
@@ -188,5 +189,16 @@ describe('the three tour fixes of 26 Nov 2026 (Jordan)', () => {
       expect(ovs[`myrunsPage-${f}`].dim, f).toBe(false);
       for (const [k, o] of Object.entries(ovs)) if (k !== `myrunsPage-${f}` && k.endsWith(f)) expect(o.dim, k).toBeUndefined();
     }
+  });
+});
+
+describe('R10.3 tour minors (26 Nov 2026, QA r10.2)', () => {
+  const ovs = JSON.parse(readFileSync(new URL('../assets/tour/overlays.json', import.meta.url), 'utf8')) as Record<string, Ov & { dim?: boolean; inset: unknown }>;
+  it('an undimmed slide (My Runs) has no tab-row inset: the real tabs carry the ring alone, not shown twice over the Home button', () => {
+    for (const [k, o] of Object.entries(ovs)) if (o.dim === false) expect(o.inset, k).toBeNull();
+  });
+  it('the Instant Answer phone picture is short enough for its caption to fit a 390x844 phone (crop at most 600 px tall)', () => {
+    expect(ovs['result-phone'].ch).toBeLessThanOrEqual(600);
+    expect(ovs['result-phone'].ch).toBeGreaterThan(500);
   });
 });

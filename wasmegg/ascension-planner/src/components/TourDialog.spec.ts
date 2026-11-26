@@ -59,7 +59,7 @@ describe('TourDialog: the slideshow', () => {
       const html = await renderHtml(TourDialog, slide(i));
       const s = TOUR_SLIDES[i];
       expect(html.match(/<picture/g)?.length).toBe(1);
-      expect(html).toContain(`<source media="(max-width: 639px)" srcset="${s.phone.src}" width="390" height="440"`);
+      expect(html).toContain(`<source media="(max-width: 639px)" srcset="${s.phone.src}" width="390" height="${s.phone.height}"`);
       expect(html).toMatch(new RegExp(`<img[^>]*src="${s.desk.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
       expect(html).toMatch(/<img[^>]*loading="lazy"/);
       expect(html).toMatch(/<img[^>]*decoding="async"/);
