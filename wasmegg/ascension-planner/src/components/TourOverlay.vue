@@ -10,10 +10,10 @@
 -->
 <template>
   <div class="tov absolute inset-0 overflow-hidden rounded-xl" aria-hidden="true" data-testid="tour-overlay">
-    <div class="tov-move tov-ring absolute" :style="box(overlay.ring)" data-testid="tour-ring"></div>
+    <div class="tov-move tov-ring absolute" :class="overlay.dim === false ? 'tov-nodim' : ''" :style="box(overlay.ring)" data-testid="tour-ring"></div>
     <div
       class="tov-move tov-tab absolute"
-      :style="{ ...box(tab), opacity: overlay.tabs.length ? 1 : 0, backgroundImage: `url(${base})`, backgroundSize: `${(overlay.cw / tab.w) * 100}% ${(overlay.ch / tab.h) * 100}%`, backgroundPosition: `${place(tab.x, overlay.cw - tab.w)}% ${place(tab.y, overlay.ch - tab.h)}%` }"
+      :style="{ ...box(tab), opacity: overlay.tabs.length && overlay.dim !== false ? 1 : 0, backgroundImage: `url(${base})`, backgroundSize: `${(overlay.cw / tab.w) * 100}% ${(overlay.ch / tab.h) * 100}%`, backgroundPosition: `${place(tab.x, overlay.cw - tab.w)}% ${place(tab.y, overlay.ch - tab.h)}%` }"
       data-testid="tour-tab-ring"
     ></div>
     <img
@@ -116,6 +116,9 @@ const arrowStyle = computed(() => {
   border: 3px solid #4f46e5;
   border-radius: 12px;
   box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.58);
+}
+.tov-nodim {
+  box-shadow: none;
 }
 .tov-tab {
   box-sizing: border-box;

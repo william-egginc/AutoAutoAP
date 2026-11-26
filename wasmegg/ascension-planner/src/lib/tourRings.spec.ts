@@ -104,7 +104,7 @@ describe('tour picture overlays (v4)', () => {
   });
 
   it('Jordan: a thing under a top tab (Chain Finder or My Runs) is shown with that tab ringed lightly, at least on a desk, wherever the tab fits in the picture', () => {
-    const under = ['goalTarget', 'goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My Runs slide rings the My Runs tab itself)
+    const under = ['goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My Runs slide rings the My Runs tab itself)
     for (const id of under) expect(overlays[`${id}-desk`].tabs.length, `${id}-desk`).toBeGreaterThan(0);
   });
 
@@ -119,7 +119,6 @@ describe('tour picture overlays (v4)', () => {
     for (const f of ['desk', 'phone']) {
       expect(new Set(['tabManual', 'tabAuto', 'tabChain'].map(id => base(id, f))).size, f).toBe(3);
       expect(base('tabMyruns', f), f).toBe(base('myrunsPage', f));
-      expect(base('tabChain', f), f).not.toBe(base('goalTarget', f));
     }
   });
 
@@ -127,11 +126,9 @@ describe('tour picture overlays (v4)', () => {
     const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
     for (const f of ['desk', 'phone']) {
       expect(base('goalDate', f), f).toBeTruthy();
-      expect(base('goalDate', f), f).not.toBe(base('goalTarget', f));
       // Desk: the filters slide shares Target TE's picture. Phone (17 Nov 2026, Words' long Setup button text wraps to two lines at
       // 390 px): the switch and the button no longer fit one 440 px crop, so the filters slide has its own picture, 9-filters-base-phone.
-      if (f === 'desk') expect(base('filters', f), f).toBe(base('goalTarget', f));
-      else expect(base('filters', f), f).toBe('9-filters-base-phone');
+      expect(base('filters', f), f).toBe(`9-filters-base-${f}`);
       expect(base('full-tabInsights', f), f).not.toBe(base('full-tabLeaderboard', f));
     }
   });
@@ -162,6 +159,34 @@ describe('tour picture overlays (v4)', () => {
     for (const f of ['desk', 'phone']) {
       expect(Object.keys(baked)).toContain(`load-${f}`);
       expect(baked[`load-${f}`].targets.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
+describe('the three tour fixes of 26 Nov 2026 (Jordan)', () => {
+  const rings = JSON.parse(readFileSync(new URL('../assets/tour/rings.json', import.meta.url), 'utf8')) as Record<string, { targets: { sels: string[]; rect: Rect; ring: Rect; arrow: { dir: string } }[] }>;
+  const ovs = JSON.parse(readFileSync(new URL('../assets/tour/overlays.json', import.meta.url), 'utf8')) as Record<string, Ov & { dim?: boolean }>;
+  it('Goals boxes TWO things, Target TE and By Egg Day, each with its own ring and arrow (a baked picture, so no live overlay)', () => {
+    for (const f of ['desk', 'phone']) {
+      expect(ovs[`goalTarget-${f}`], f).toBeUndefined();
+      const t = rings[`goalTarget-${f}`].targets;
+      expect(t, f).toHaveLength(2);
+      expect(t[0].sels[0], f).toContain('data-goal="fastest"');
+      expect(t[1].sels[0], f).toContain('data-goal="by-date"');
+      for (const x of t) expect(x.arrow.dir, f).toBeTruthy();
+    }
+  });
+  it('The Instant Answer ring frames the heading AND the card: on a desk it starts above the card top and is taller than the card alone, on a phone the crop is taller', () => {
+    const d = ovs['result-desk'], p = ovs['result-phone'];
+    // The card alone was 274 px (1100-px page) tall; with the heading it is about 330. The picture is the clean page: no Filters row inside the ring.
+    expect(d.rect.h).toBeGreaterThan(300);
+    expect(p.ch).toBeGreaterThan(560);
+    for (const o of [d, p]) expect(o.ring.y).toBeGreaterThan(0);
+  });
+  it('My Runs is one page: its slide is not dimmed (dim false in the overlay), the others are', () => {
+    for (const f of ['desk', 'phone']) {
+      expect(ovs[`myrunsPage-${f}`].dim, f).toBe(false);
+      for (const [k, o] of Object.entries(ovs)) if (k !== `myrunsPage-${f}` && k.endsWith(f)) expect(o.dim, k).toBeUndefined();
     }
   });
 });

@@ -65,9 +65,11 @@ describe('tour slides', () => {
     expect(sharesPicture(by('tabManual'), by('tabAuto'))).toBe(false);
     // A sub-tab slide shows that sub-tab SELECTED (17 Nov 2026, Jordan): By a date is its own picture, Target TE's is the filters slide's.
     expect(sharesPicture(by('goalTarget'), by('goalDate'))).toBe(false);
-    // The filters slide shares Target TE's picture on a desk; on a phone the wrapped Setup button needs its own (so, as a pair, no).
-    expect(by('goalTarget').desk.src).toBe(by('filters').desk.src);
-    expect(by('goalTarget').phone.src).not.toBe(by('filters').phone.src);
+    // Goals boxes BOTH switches (26 Nov 2026, Jordan), so it is a baked picture of its own, shared with no slide.
+    expect(by('goalTarget').overlay).toBeUndefined();
+    expect(sharesPicture(by('goalTarget'), by('filters'))).toBe(false);
+    expect(by('goalTarget').desk.src).toMatch(/6-goal-target-desk/);
+    expect(by('goalTarget').phone.src).toMatch(/6-goal-target-phone/);
     expect(sharesPicture(by('tabMyruns'), by('myrunsPage'))).toBe(true);
     expect(sharesPicture(by('load'), by('goalTarget'))).toBe(false);
     expect(sharesPicture(null, by('tabAuto'))).toBe(false);

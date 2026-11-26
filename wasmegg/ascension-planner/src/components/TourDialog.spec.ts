@@ -140,7 +140,7 @@ describe('TourDialog: phones (orchestrator, 16 Nov 2026: 23 dots pushed Back/Nex
 
 describe('TourDialog: the live overlay (spec-tour-v4, Jordan, 16 Nov 2026)', () => {
   it('a live slide draws the overlay twice, desk (from 640 px) and phone (below), each with its ring, arrow and tab ring', async () => {
-    const i = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
+    const i = TOUR_SLIDES.findIndex(s => s.id === 'result');
     const html = await renderHtml(TourDialog, slide(i));
     expect(html.match(/data-testid="tour-overlay"/g)).toHaveLength(2);
     expect(html.match(/data-testid="tour-ring"/g)).toHaveLength(2);
@@ -150,17 +150,27 @@ describe('TourDialog: the live overlay (spec-tour-v4, Jordan, 16 Nov 2026)', () 
     expect(html.match(/<picture/g)?.length).toBe(1);
   });
   it('the slides that share a page picture render the very same <img> source, so the browser keeps it while the overlay slides', async () => {
-    const a = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
-        const src = (h: string) => /<img[^>]*src="([^"]+)"/.exec(h)![1];
-    // The filters slide is in the full tour now; it shares Target TE's picture on a desk.
-    expect(src(await renderHtml(TourDialog, slide(a)))).toBe(src(await renderHtml(TourDialog, slide(a, { slide: buildSlide('filters', TOUR_FILES.filters) }))));
+    const a = TOUR_SLIDES.findIndex(s => s.id === 'myrunsPage');
+    const src = (h: string) => /<img[^>]*src="([^"]+)"/.exec(h)![1];
+    // The My Runs tab slide is in the full tour; it shares the My Runs page's picture.
+    expect(src(await renderHtml(TourDialog, slide(a)))).toBe(src(await renderHtml(TourDialog, slide(a, { slide: buildSlide('tabMyruns', TOUR_FILES.tabMyruns) }))));
+  });
+  it('Goals is a baked picture (two boxes in it): no overlay', async () => {
+    const i = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
+    expect(await renderHtml(TourDialog, slide(i))).not.toContain('data-testid="tour-overlay"');
+  });
+  it('the My Runs slide draws its ring with no dim; the Instant Answer slide dims', async () => {
+    const my = await renderHtml(TourDialog, slide(TOUR_SLIDES.findIndex(s => s.id === 'myrunsPage')));
+    expect(my).toMatch(/class="[^"]*tov-nodim[^"]*"[^>]*data-testid="tour-ring"/);
+    const res = await renderHtml(TourDialog, slide(TOUR_SLIDES.findIndex(s => s.id === 'result')));
+    expect(res).not.toContain('tov-nodim');
   });
   it('a baked slide (Load your save: two things) has no overlay', async () => {
     // The load slide is only in the full tour now (19 Nov 2026), so it is built here the way the filters slide is.
     expect(await renderHtml(TourDialog, slide(0, { slide: buildSlide('load', TOUR_FILES.load) }))).not.toContain('data-testid="tour-overlay"');
   });
   it('the overlay is hidden from a screen reader (the caption and alt say it all)', async () => {
-    const i = TOUR_SLIDES.findIndex(s => s.id === 'goalTarget');
+    const i = TOUR_SLIDES.findIndex(s => s.id === 'result');
     expect(await renderHtml(TourDialog, slide(i))).toMatch(/data-testid="tour-overlay"/);
     expect(readFileSync(new URL('./TourOverlay.vue', import.meta.url), 'utf8')).toContain('aria-hidden="true" data-testid="tour-overlay"');
   });

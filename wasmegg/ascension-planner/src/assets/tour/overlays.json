@@ -163,54 +163,6 @@
    }
   }
  },
- "goalTarget-desk": {
-  "base": "6-goal-target-base-desk",
-  "cw": 1100,
-  "ch": 620,
-  "rect": {
-   "x": 335,
-   "y": 173,
-   "w": 161,
-   "h": 48
-  },
-  "ring": {
-   "x": 327,
-   "y": 165,
-   "w": 177,
-   "h": 64
-  },
-  "mag": null,
-  "tabs": [
-   {
-    "x": 625,
-    "y": 37,
-    "w": 149,
-    "h": 56
-   }
-  ],
-  "arrow": {
-   "dir": "right",
-   "x": 325,
-   "y": 197,
-   "len": 120
-  },
-  "overText": false,
-  "inset": {
-   "sprite": "strip-chain-desk",
-   "rect": {
-    "x": 8,
-    "y": 8,
-    "w": 387,
-    "h": 40
-   },
-   "ring": {
-    "x": 232,
-    "y": 10,
-    "w": 91,
-    "h": 35
-   }
-  }
- },
  "goalDate-desk": {
   "base": "7-goal-date-base-desk",
   "cw": 1100,
@@ -260,7 +212,7 @@
   }
  },
  "filters-desk": {
-  "base": "6-goal-target-base-desk",
+  "base": "9-filters-base-desk",
   "cw": 1100,
   "ch": 620,
   "rect": {
@@ -313,15 +265,15 @@
   "ch": 620,
   "rect": {
    "x": 108,
-   "y": 174,
+   "y": 154,
    "w": 828,
-   "h": 271
+   "h": 312
   },
   "ring": {
    "x": 100,
-   "y": 166,
+   "y": 146,
    "w": 844,
-   "h": 287
+   "h": 328
   },
   "mag": null,
   "tabs": [],
@@ -551,7 +503,8 @@
     "w": 74,
     "h": 35
    }
-  }
+  },
+  "dim": false
  },
  "followedRoute-desk": {
   "base": "4-tab-myruns-base-desk",
@@ -2042,54 +1995,6 @@
   "overText": true,
   "inset": null
  },
- "goalTarget-phone": {
-  "base": "6-goal-target-base-phone",
-  "cw": 390,
-  "ch": 440,
-  "rect": {
-   "x": 21,
-   "y": 200,
-   "w": 148,
-   "h": 48
-  },
-  "ring": {
-   "x": 13,
-   "y": 192,
-   "w": 164,
-   "h": 64
-  },
-  "mag": null,
-  "tabs": [
-   {
-    "x": 17,
-    "y": 66,
-    "w": 180,
-    "h": 56
-   }
-  ],
-  "arrow": {
-   "dir": "up",
-   "x": 95,
-   "y": 258,
-   "len": 70
-  },
-  "overText": true,
-  "inset": {
-   "sprite": "strip-chain-phone",
-   "rect": {
-    "x": 8,
-    "y": 364,
-    "w": 217,
-    "h": 68
-   },
-   "ring": {
-    "x": 9,
-    "y": 396,
-    "w": 109,
-    "h": 35
-   }
-  }
- },
  "goalDate-phone": {
   "base": "7-goal-date-base-phone",
   "cw": 390,
@@ -2182,25 +2087,25 @@
  "result-phone": {
   "base": "8-result-base-phone",
   "cw": 390,
-  "ch": 560,
+  "ch": 660,
   "rect": {
    "x": 16,
    "y": 100,
    "w": 358,
-   "h": 370
+   "h": 474
   },
   "ring": {
    "x": 8,
    "y": 92,
    "w": 374,
-   "h": 386
+   "h": 490
   },
   "mag": null,
   "tabs": [],
   "arrow": {
    "dir": "up",
    "x": 195,
-   "y": 480,
+   "y": 584,
    "len": 70
   },
   "overText": true,
@@ -2409,7 +2314,8 @@
    "len": 70
   },
   "overText": true,
-  "inset": null
+  "inset": null,
+  "dim": false
  },
  "followedRoute-phone": {
   "base": "4-tab-myruns-base-phone",

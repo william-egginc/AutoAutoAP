@@ -71,6 +71,8 @@ export interface SlideOverlay {
    *  ringed lightly (`sprite` drawn in `rect`, the ring round the tab in `ring`). */
   inset: { sprite: string; rect: TourRect; ring: TourRect } | null;
   arrow: { dir: 'left' | 'right' | 'up' | 'down'; x: number; y: number; len: number };
+  /** false: the picture is not dimmed (My Runs is a single page, so its slide shows the whole page in white, with the tab ring and arrow only). */
+  dim?: boolean;
 }
 export interface SlideForm {
   picture: TourPicture;
@@ -88,11 +90,11 @@ export interface TourSlide {
 const desk = (src: string): TourPicture => ({ src, width: 720, height: 406 });
 const phone = (src: string): TourPicture => ({ src, width: 390, height: 440 });
 
-type RawOverlay = { base: string; cw: number; ch: number; rect: TourRect; ring: TourRect; mag: string | null; tabs: TourRect[]; inset?: { sprite: string; rect: TourRect; ring: TourRect } | null; arrow: SlideOverlay['arrow'] };
+type RawOverlay = { base: string; cw: number; ch: number; rect: TourRect; ring: TourRect; mag: string | null; tabs: TourRect[]; inset?: { sprite: string; rect: TourRect; ring: TourRect } | null; arrow: SlideOverlay['arrow']; dim?: boolean };
 const raw = overlayData as Record<string, RawOverlay>;
 const overlayOf = (key: string): SlideOverlay | null => {
   const o = raw[key];
-  return o ? { cw: o.cw, ch: o.ch, rect: o.rect, ring: o.ring, sprite: o.mag ? tourUrl(o.mag) : null, tabs: o.tabs, inset: o.inset ? { ...o.inset, sprite: tourUrl(o.inset.sprite) } : null, arrow: o.arrow } : null;
+  return o ? { cw: o.cw, ch: o.ch, rect: o.rect, ring: o.ring, sprite: o.mag ? tourUrl(o.mag) : null, tabs: o.tabs, inset: o.inset ? { ...o.inset, sprite: tourUrl(o.inset.sprite) } : null, arrow: o.arrow, ...(o.dim === false ? { dim: false } : {}) } : null;
 };
 /** A slide of the tour from the generator's output: live (a shared base picture + overlay) or baked. Exported for the full tour. */
 export function buildSlide<Id extends string>(id: Id, bakedStem: string, key: string = id): { id: Id; desk: TourPicture; phone: TourPicture; overlay?: { desk: SlideOverlay; phone: SlideOverlay } } {
