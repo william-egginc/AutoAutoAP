@@ -55,7 +55,23 @@ export function tablesIdentity(entries: readonly TableEntry[] | null, names: rea
       const e = entries.find(x => x.file === n || x.aliases?.includes(n));
       return `${n}=${e ? entryIdentity(e) : '-'}`;
     }),
+    // THE NEAREST TABLE (R10.1, 25 Nov 2026): the answer may read any table tables.json lets it score
+    // (search/nearestTable.ts: the entries with formGHeader), so each one's coming, going or rebuild counts too, and a
+    // closer table reaches a saved answer. Left out when there are none: such a tables.json gives the identity as before.
+    ...nearestIdentity(entries),
   ].join('|');
+}
+
+/** The scored tables' part of `tablesIdentity`: each entry with formGHeader by file, with what moves its answers (its
+ *  simulator, build time, TE range and the form G's numbers from it); none when tables.json has none. */
+function nearestIdentity(entries: readonly TableEntry[]): string[] {
+  const near = entries
+    .filter(e => e.formGHeader)
+    .map(e =>
+      [e.file, e.simVersion ?? '', e.builtAt ?? '', e.from, e.to ?? '', e.formGHeader!.cteBonus, e.formGHeader!.k3.peak].join(',')
+    )
+    .sort();
+  return near.length ? [`near=${near.join(';')}`] : [];
 }
 
 /** A saved answer, as far as this check reads it. */
