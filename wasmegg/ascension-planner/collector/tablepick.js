@@ -10,7 +10,7 @@
  *         te: the largest of 0, 50, 75, 100, 125, 150, 200, 250, 300, 340, 400 at or below the player's TE,
  *         build: the page's build stamp }
  *     A good ping, and one dropped by a cap, answer 204 (the page ignores the answer). A bad one is a 400 and writes nothing.
- *   GET /tablepick/report[?days=N|all]   owner only (x-admin-token = TABLEPICK_ADMIN_TOKEN, else RUNS_ADMIN_TOKEN; 404 without
+ *   GET /tablepick/report[?days=N|all][&bands=coarse|fine]   owner only (x-admin-token = TABLEPICK_ADMIN_TOKEN, else RUNS_ADMIN_TOKEN; 404 without
  *     either): counts only, summed over the window (never a day), cells under 3 hidden.
  *
  * NO PLAYER ID, NO OWNER CODE, NO ADDRESS, NO STAMP HASH. Storage is D1 (migration 0011): one counter per (day, kind, answered,
@@ -39,6 +39,13 @@ const BANDS = [
   { label: '150-339', from: 150 },
   { label: '340+', from: 340 },
 ];
+/** `?bands=fine`: one band per stored edge (0-49, 50-74, 75-99 ... 340-399, 400+). */
+const FINE_BANDS = TE_EDGES.map((from, i) => ({
+  label: i === TE_EDGES.length - 1 ? `${from}+` : `${from}-${TE_EDGES[i + 1] - 1}`,
+  from,
+}));
+/** The kinds the report's cells show: own is the baseline, gear and maxed are the ones with no table of their own for the set. */
+const CELL_KINDS = ['own', 'gear', 'maxed'];
 const MIN_CELL = 3;
 
 const HEADERS = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'no-store' };
@@ -106,6 +113,9 @@ async function report(request, env, now, url) {
     days = n;
     since = dayOf(now - (n - 1) * DAY_MS);
   }
+  const bandsRaw = url.searchParams.get('bands') ?? 'coarse';
+  if (bandsRaw !== 'coarse' && bandsRaw !== 'fine') return bad(['bands must be coarse or fine']);
+  const bands = bandsRaw === 'fine' ? FINE_BANDS : BANDS;
   const { results } = await env.WATCH.prepare(
     'SELECT kind, own, no_table, te, SUM(n) AS n FROM table_picks WHERE day >= ? GROUP BY kind, own, no_table, te'
   )
@@ -117,15 +127,15 @@ async function report(request, env, now, url) {
   for (const r of results || []) {
     kinds[r.kind] = (kinds[r.kind] ?? 0) + r.n;
     total += r.n;
-    if (r.kind !== 'maxed') continue;
-    const band = [...BANDS].reverse().find(x => r.te >= x.from).label;
+    if (!CELL_KINDS.includes(r.kind)) continue;
+    const band = [...bands].reverse().find(x => r.te >= x.from).label;
     const noTable = r.no_table === 1 ? 'yes' : r.no_table === 0 ? 'no' : 'unknown';
-    const k = `${r.own}|${band}|${noTable}`;
-    cells.set(k, { own: r.own, band, noTable, n: (cells.get(k)?.n ?? 0) + r.n });
+    const k = `${r.kind}|${r.own}|${band}|${noTable}`;
+    cells.set(k, { kind: r.kind, own: r.own, band, noTable, n: (cells.get(k)?.n ?? 0) + r.n });
   }
-  const all = [...cells.values()].sort((a, b) => b.n - a.n || a.own.localeCompare(b.own) || a.band.localeCompare(b.band));
+  const all = [...cells.values()].sort((a, b) => b.n - a.n || a.kind.localeCompare(b.kind) || a.own.localeCompare(b.own) || a.band.localeCompare(b.band));
   const fallback = all.filter(c => c.n >= MIN_CELL);
-  return reply({ days, total, kinds, fallback, hiddenCells: all.length - fallback.length, note: `answers shown (about browser-days), not players; cells under ${MIN_CELL} hidden; maxed = the main table` });
+  return reply({ days, bands: bandsRaw, total, kinds, fallback, hiddenCells: all.length - fallback.length, note: `answers shown (about browser-days), not players; cells under ${MIN_CELL} hidden; own = the player's own table, gear = the gear-shifted table, maxed = the main table` });
 }
 
 /** `POST /tablepick`, `GET /tablepick/report`. */

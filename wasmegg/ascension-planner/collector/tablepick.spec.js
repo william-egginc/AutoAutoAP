@@ -204,9 +204,48 @@ describe('the report (owner only)', () => {
     expect(b.total).toBe(14);
     expect(b.kinds).toEqual({ own: 1, gear: 0, delivery: 3, maxed: 10 });
     // 100-124 and 125-149 roll up into the 75-149 band: 8 pings on one key
-    expect(b.fallback).toEqual([{ own: 'T4E-T4L-T4L', band: '75-149', noTable: 'yes', n: 8 }]);
+    expect(b.fallback).toEqual([{ kind: 'maxed', own: 'T4E-T4L-T4L', band: '75-149', noTable: 'yes', n: 8 }]);
     expect(b.hiddenCells).toBeGreaterThanOrEqual(1);
     expect(JSON.stringify(b)).not.toMatch(/T3E-T4R-T4E/);
+  });
+  it('shows kind own, gear and maxed side by side (kind in the cell), never delivery; sorted by n, under 3 hidden', async () => {
+    await seed(5, ping({ kind: 'gear', te: 125, delivery: 'T4E-T4L-T4L', noTable: true }));
+    await seed(4, ping({ kind: 'maxed', te: 125, delivery: 'T4E-T4L-T4L', noTable: true, build: 'b2' }));
+    await seed(7, ping({ kind: 'own', te: 125, delivery: 'T4E-T4L-T4L', noTable: false, build: 'b3' }));
+    await seed(6, ping({ kind: 'delivery', answered: 'T4L-T4E-T4L', delivery: 'T4L-T4E-T4L', noTable: false, te: 125 }));
+    await seed(2, ping({ kind: 'gear', te: 125, delivery: 'T1C-T1C-T1C', noTable: true }));
+    const b = await (await report()).json();
+    expect(b.fallback).toEqual([
+      { kind: 'own', own: 'T4E-T4L-T4L', band: '75-149', noTable: 'no', n: 7 },
+      { kind: 'gear', own: 'T4E-T4L-T4L', band: '75-149', noTable: 'yes', n: 5 },
+      { kind: 'maxed', own: 'T4E-T4L-T4L', band: '75-149', noTable: 'yes', n: 4 },
+    ]);
+    expect(b.hiddenCells).toBe(1);
+    expect(b.kinds).toEqual({ own: 7, gear: 7, delivery: 6, maxed: 4 });
+    expect(JSON.stringify(b)).not.toMatch(/T1C-T1C-T1C|T4L-T4E-T4L/);
+    expect(b.bands).toBe('coarse');
+  });
+  it('?bands=fine uses the stored edges (0-49, 50-74, 75-99 ... 400+); coarse stays the default; anything else is a 400', async () => {
+    await seed(3, ping({ kind: 'gear', te: 100 }));
+    await seed(4, ping({ kind: 'gear', te: 125, build: 'b2' }));
+    await seed(3, ping({ kind: 'maxed', te: 400, build: 'b3' }));
+    const fine = await (await report('?bands=fine')).json();
+    expect(fine.bands).toBe('fine');
+    expect(fine.fallback).toEqual([
+      { kind: 'gear', own: 'T4E-T4L-T4L', band: '125-149', noTable: 'yes', n: 4 },
+      { kind: 'gear', own: 'T4E-T4L-T4L', band: '100-124', noTable: 'yes', n: 3 },
+      { kind: 'maxed', own: 'T4E-T4L-T4L', band: '400+', noTable: 'yes', n: 3 },
+    ]);
+    const coarse = await (await report('?bands=coarse')).json();
+    expect(coarse.fallback.map(c => c.band)).toEqual(['75-149', '340+']);
+    expect((await (await report()).json()).bands).toBe('coarse');
+    const res = await report('?bands=wide');
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(await res.json())).toMatch(/bands/);
+  });
+  it('fine bands still show no day, build or address', async () => {
+    await seed(5, ping({ kind: 'gear' }));
+    expect(JSON.stringify(await (await report('?bands=fine')).json())).not.toMatch(/2026-11-25|build|1\.1\.1\.1/);
   });
   it('never shows a day, a build or an address', async () => {
     await seed(5, ping());
