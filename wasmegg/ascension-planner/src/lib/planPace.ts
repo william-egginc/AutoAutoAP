@@ -1,7 +1,7 @@
 /**
  * Plan vs actual, the simple version (R6, ~/code/aaap-tools/specialists/ui-r6-plan.md): how many hours earlier
  * (ahead) or later (behind) than a plan the latest save reached the progress it shows. One module for every place
- * that says it: My runs' saved runs and saved answers (components/myruns/PaceBadge.vue) and Right now's chip
+ * that says it: My Runs' saved runs and saved answers (components/myruns/PaceBadge.vue) and Right now's chip
  * (lib/nowPlan.ts `onTrack` is a thin wrapper), so they can never disagree.
  *
  *   progressOf  the save's progress: its whole TE per egg (pending counted), summed, and the egg the farm is on.
@@ -9,7 +9,7 @@
  *               TE is known (`planTEAt`), else leg by leg ("rough"); and the egg the plan is on at any moment.
  *   planPace    whole TE against whole TE at the save's time, and how many hours apart the plan and the save are.
  *
- * TE counts only whole, claimed TE (Jordan's My runs rule, 22 Oct 2026): no credit for the way to the next TE on
+ * TE counts only whole, claimed TE (Jordan's My Runs rule, 22 Oct 2026): no credit for the way to the next TE on
  * either side. The fraction once added on the save's side (and never on the plan's when it had left that egg) read
  * "3 days ahead" for a save 8 h behind (~/code/aaap-tools/notes/myruns-review-2026-10-22.md, bug 1). A save on another
  * egg than the plan is on at that moment can't be compared fairly: "Can't compare right now".
@@ -277,6 +277,18 @@ export type PaceState =
   /** The save's farm is on another egg than the plan's at the save's time: no fair comparison. */
   | { kind: 'cant'; why: 'other-egg'; saveEgg: string; planEgg: string; saveTime: number };
 
+/**
+ * Is the save still on the route the plan took (How sure, 22 Nov 2026)? On it: ahead, behind (by any hours: the route is
+ * the same, only the timing slipped), on schedule, or the goal reached. Off it: the farm is on another egg than the
+ * plan's then, or below where the plan began. Anything it cannot tell (the plan's own save, no save, an older save, no
+ * timeline) is 'unknown'.
+ */
+export function pathOfPace(s: PaceState): 'on' | 'off' | 'unknown' {
+  if (s.kind === 'ahead' || s.kind === 'behind' || s.kind === 'on-schedule' || s.kind === 'done') return 'on';
+  if (s.kind === 'cant' && (s.why === 'other-egg' || s.why === 'below-start')) return 'off';
+  return 'unknown';
+}
+
 /** Where the save stands against the plan's line. `save` null: no save loaded (or still loading). */
 export function planPace(line: PaceLine | NoLine, save: SaveProgress | null): PaceState {
   if (!save) return { kind: 'no-save' };
@@ -395,11 +407,11 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
     case 'cant':
       switch (s.why) {
         case 'older-save':
-          return out('Your loaded save is older than this plan', 'warn', 'Load your latest save to compare.');
+          return out('Your loaded save is older than this route', 'warn', 'Load your latest save to compare.');
         case 'not-started':
           return out(`Starts ${dateAt(s.start, nowSeconds, zone)}: nothing to compare yet`, 'plain', '');
         case 'below-start':
-          return out('', 'warn', 'Your TE is below where this plan starts.');
+          return out('', 'warn', 'Your TE is below where this route starts.');
         case 'other-egg':
           return out(
             OTHER_EGG_WORDS,
@@ -420,9 +432,9 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
           : `${gapWords(s.hours)} ${s.kind === 'ahead' ? 'ahead' : 'behind'}`;
       const parts = [
         `Plan expected ${s.expected} TE by ${clockWords(s.saveTime, nowSeconds, zone)}; you had ${s.actual}.`,
-        `Plan: ascension ${s.planAsc} of ${s.stops} by then · you: stop ${s.stopsReached} of ${s.stops} reached.`,
+        `Plan: ascension ${s.planAsc} of ${s.stops} by then · you: ascension ${s.stopsReached} of ${s.stops}.`,
         s.rough ? 'Rough: compared ascension by ascension.' : '',
-        s.estimate ? 'The plan is an instant answer, not checked exactly.' : '',
+        s.estimate ? 'The plan is an instant answer, an estimate not simulated on your account.' : '',
         s.onVirtue ? '' : 'Not on your virtue farm in this save.',
         s.startNote ? `This plan was set to start ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
         FORECAST_WORDS,

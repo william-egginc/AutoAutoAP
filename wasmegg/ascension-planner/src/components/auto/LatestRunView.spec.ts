@@ -1,5 +1,5 @@
 /**
- * My runs › Your latest run (was Leaderboard › Your latest run, #/compare/latest, until 16 Oct 2026): the newest
+ * My Runs › Your latest run (was Leaderboard › Your latest run, #/compare/latest, until 16 Oct 2026): the newest
  * search's routes with their arrows; for Fastest its other options and charts, moved off its results (15 Oct
  * 2026); for By a date its best route for each stop count and its top 50, and while it runs its top routes so far
  * (moved off By a date's result, 16 Oct 2026). This account's runs only (16 Oct 2026). Fastest's panels and By a
@@ -62,16 +62,15 @@ const row = (chain: number[], days: number, reason: ShortlistRow['reason']): Sho
   reason,
 });
 
-describe('LatestRunView (My runs › Your latest run)', () => {
+describe('LatestRunView (My Runs › Your latest run)', () => {
   it('no run in this visit: says so plainly, and nothing else', async () => {
     const html = await view();
     expect(html).toContain('data-testid="latest-run-empty"');
     const t = textOf(html);
     expect(t).toContain('Run a search on Fastest to 490 TE or Highest TE by a date and its routes show here');
-    // Names both ways of searching, and says Light isn't a search and where its results are.
-    expect(t).toContain('Either way of searching counts (Nearby routes or Exhaustive)');
-    expect(t).toContain("The pricing that follows Check exactly isn't a search");
-    expect(t).toContain("its results are on the instant answer's rows");
+    // Names both ways of searching (the pricing after Check exactly, and its note, went with it on 23 Oct 2026).
+    expect(t).toContain('Fast, Exact and Custom all count.');
+    expect(t).not.toContain('Check exactly');
     expect(html).not.toContain('data-testid="other-options"');
     expect(html).not.toContain('data-testid="search-shape"');
   });
@@ -83,7 +82,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const html = await view();
     const t = textOf(html);
     expect(html).not.toContain('data-testid="latest-run-empty"');
-    expect(t).toContain(`From your Nearby routes run on`);
+    expect(t).toContain(`From your Fast and Exact run on`);
     expect(html).toContain('href="#/auto/fastest"');
     expect(html).toContain('data-testid="other-options"');
     expect(t).toContain('Other options worth considering');
@@ -100,7 +99,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     store.pricedCount = 1;
     store.searchSpace = { bands: [] } as never;
     const html = await view();
-    expect(textOf(html)).toContain('From your Exhaustive run on');
+    expect(textOf(html)).toContain('From your Custom run on');
     expect(html).toContain('href="#/auto/fastest/full"');
     expect(textOf(html)).not.toMatch(/Finished:|Nothing left to price:/);
   });
@@ -109,12 +108,12 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const src = read('LatestRunView.vue');
     expect(src).toMatch(/const RunCharts = safeAsyncComponent\(\(\) => import\('\.\/charts\/RunCharts\.vue'\)\)/);
     expect(src).not.toMatch(/import RunCharts from/);
-    // The view is on My runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
+    // The view is on My Runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
     expect(read('../MyRunsView.vue')).toMatch(/<LatestRunView\s+:player-id="playerId"\s+:want="[^"]+"\s+@has="v => \(latestHas = v\)"/);
     expect(read('LeaderboardPanel.vue')).not.toMatch(/<LatestRunView|import\('\.\/LatestRunView\.vue'\)/);
-    // Its Leaderboard tab stays, as one line to My runs (the integrator, 16 Oct).
-    expect(read('LeaderboardPanel.vue')).toMatch(/v-else-if="tab === 'latest'"[^>]*data-testid="latest-moved"/);
-    expect(read('LeaderboardPanel.vue')).toContain('>{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a');
+    // Its Leaderboard tab, one line to My Runs since 16 Oct, went in the fluff review 2 (L1, 5 Nov 2026); the
+    // address lands on My Runs (siteNav.spec.ts).
+    expect(read('LeaderboardPanel.vue')).not.toContain('data-testid="latest-moved"');
     // The store builds the chart's data only while a chart is mounted.
     expect(read('charts/RunCharts.vue')).toContain('onMounted(() => store.chartMounted(true))');
     expect(read('charts/RunCharts.vue')).toContain('onBeforeUnmount(() => store.chartMounted(false))');
@@ -123,7 +122,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
 
 describe("Fastest's results: one line in place of the moved blocks", () => {
   for (const file of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
-    it(`${file}: "Dig deeper into your plan ›" to My runs, and no longer has the blocks`, () => {
+    it(`${file}: "Dig deeper into your plan ›" to My Runs, and no longer has the blocks`, () => {
       const src = read(file);
       expect(src).toMatch(/<DigDeeperLink\s+v-if="ownRun && store.pricedCount"/);
       expect(src).not.toContain('Other options worth considering');
@@ -141,13 +140,13 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
 
   it("By a date's result keeps its best, its best for each stop count and the share box; its top routes moved", () => {
     const src = read('DeadlinePanel.vue');
-    // Moved to My runs › Your latest run (Jordan, 16 Oct): the priced summary and the top routes, and the live
+    // Moved to My Runs › Your latest run (Jordan, 16 Oct): the priced summary and the top routes, and the live
     // "Top routes so far".
     expect(src).not.toMatch(/>Every route in your boxes/);
     expect(src).not.toMatch(/title="Top routes so far"/);
     expect(src).not.toContain('result.routes.slice(0, 15)');
     // Kept.
-    expect(src).toMatch(/title="Best for each stop count"/);
+    expect(src).toMatch(/title="Best for each number of ascensions"/);
     expect(src).toMatch(/<ByDateRouteCard\s+v-if="best"/);
     expect(src).toMatch(/<ShareResult\b/);
     // While it runs, a line to the top routes so far.
@@ -158,8 +157,8 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     const { default: DigDeeperLink } = await import('./DigDeeperLink.vue');
     const html = await renderHtml(DigDeeperLink, {});
     expect(textOf(html)).toContain('Dig deeper into your plan ›');
-    expect(textOf(html)).toContain('(My runs › Your runs)');
-    // Its click asks My runs to open on Your runs (lib/myRunsFocus.ts).
+    expect(textOf(html)).toContain('(My Runs › Your runs)');
+    // Its click asks My Runs to open on Your runs (lib/myRunsFocus.ts).
     expect(read('DigDeeperLink.vue')).toContain('@click="askYourRuns()"');
     expect(html).toContain('href="#/myruns"');
     expect(html).not.toContain('#/compare/latest');
@@ -243,7 +242,7 @@ describe('Your latest run: By a date', () => {
     const t = textOf(html);
     expect(html).not.toContain('data-testid="latest-run-empty"');
     expect(html).toContain('data-testid="latest-run-from-date"');
-    expect(t).toContain('From your Highest TE by a date run (Nearby routes, by');
+    expect(t).toContain('From your Highest TE by a date run (Fast and Exact, by');
     expect(t).toContain('1,234 routes priced');
     expect(html).toContain('href="#/auto/by-date"');
     expect(t).toContain('Best for each stop count');
@@ -264,7 +263,7 @@ describe('Your latest run: By a date', () => {
     // Restored from IndexedDB, but found BEFORE the Fastest run: Fastest shows.
     store.deadlineResult = dateResult(Date.parse('2026-10-14T12:00:00Z')) as never;
     let html = await view();
-    expect(textOf(html)).toContain('From your Nearby routes run on');
+    expect(textOf(html)).toContain('From your Fast and Exact run on');
     expect(html).toContain('data-testid="latest-run-other"');
     expect(textOf(html)).toContain('Show your Highest TE by a date run instead');
     // Found after it: By a date shows.
@@ -280,7 +279,7 @@ describe('Your latest run: By a date', () => {
     store.isRunning = true;
     store.deadlineResult = dateResult(Date.now()) as never;
     const html = await view();
-    expect(textOf(html)).toContain('From your Nearby routes run on');
+    expect(textOf(html)).toContain('From your Fast and Exact run on');
   });
 
   it('source: the shortlist and By a date tables use RouteTimeline, and the eggBlocks copy is gone', () => {
@@ -326,7 +325,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
     expect(textOf(onB)).toContain('From your Highest TE by a date run');
     expect(onB).not.toContain('data-testid="latest-run-other"');
     const onA = await view(A);
-    expect(textOf(onA)).toContain('From your Nearby routes run on');
+    expect(textOf(onA)).toContain('From your Fast and Exact run on');
     expect(onA).not.toContain('data-testid="latest-run-other"');
   });
 
@@ -351,7 +350,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
     const store = fs.readFileSync(path.join(__dirname, '../../stores/chainSearch.ts'), 'utf8');
     // Both Fastest starts and an opened saved run.
     expect(store.match(/tagChainResult\(playerId\);/g)?.length).toBe(2);
-    expect(store).toMatch(/chainResultAt\.value = summary\.savedAt \|\| 0;\s*chainOwnerSeq\+\+;\s*chainResultOwner\.value = owner;/);
+    expect(store).toMatch(/chainResultAt\.value = summary\.savedAt \|\| 0;\s*chainRunSaveAt\.value = [^;]*;\s*chainOwnerSeq\+\+;\s*chainResultOwner\.value = owner;/);
     // By a date: read back from IndexedDB, an opened saved answer, a run.
     expect(store).toMatch(/deadlineResult\.value = loadedResult;\s*deadlineResultOwner\.value = owner;/);
     expect(store).toContain('deadlineResultOwner.value = savedAnswersOwner;');
@@ -361,7 +360,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
   });
 });
 
-describe("My runs' Showing switch: each option shows only its own kind (beta, 16 Oct)", () => {
+describe("My Runs' Showing switch: each option shows only its own kind (beta, 16 Oct)", () => {
   const wanted = (want: 'fastest' | 'date') => renderHtml(LatestRunView, { playerId: A, want }, {}, [pinia]);
   const fastestRun = (store: ReturnType<typeof storeOfA>) => {
     store.pricedCount = 7;

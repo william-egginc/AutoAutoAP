@@ -118,13 +118,13 @@ describe('useBigBoxConfirm (one question at a time)', () => {
 
 // Every start that can launch an Exhaustive box asks first, before it sets anything (source).
 describe('every start of an Exhaustive box asks first', () => {
-  it('Fastest: Find / Find and submit (the sweep card’s Start and a queue of boxes go through it), on all its boxes', () => {
+  it('Fastest: Run Custom, with or without the send (the sweep card’s Start and a queue of boxes go through it), on all its boxes', () => {
     const src = read('./InsanePanel.vue');
     expect(src).toContain("import { confirmBigBox } from '@/composables/useBigBoxConfirm';");
     expect(src).toMatch(
       /async function start\(andSubmit = false\): Promise<void> \{\n(\s+\/\/[^\n]*\n)+\s+if \(!\(await confirmBigBox\(bigBoxInputFor\(totalChains\.value\)\)\)\) return;\n\s+findAndSubmit\.value = /
     );
-    // Its buttons all call start: Find / Find and submit, and a sweep link's Start.
+    // Its buttons all call start: Run Custom (sending or not), and a sweep link's Start.
     expect(src).toContain('@find="andSubmit => void start(andSubmit)"');
     expect(src).toContain('@click="start(false)"');
   });

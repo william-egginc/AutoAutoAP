@@ -26,17 +26,16 @@
  *   - The final leg is NOT pushed. Reaching the final target is not an action; there is nothing to
  *     do at that instant, so being unavailable for it costs nothing.
  *
- *   - The delay is charged in full, and the TE you keep earning while away is NOT credited. Once
- *     the target is hit the farm goes on laying, so in real life you come back slightly past the
- *     checkpoint and the next leg is slightly shorter. The model is therefore CONSERVATIVE: a plan
- *     built with a schedule will, if anything, run marginally faster than it says.
+ *   - The delay is charged in full, and the eggs the farm keeps laying while you wait ARE credited
+ *     (creditWait), up to what the silos hold. The silo count is the save's, for every later
+ *     ascension, which is cautious because later ascensions buy silos again.
  *
  * Setting a schedule changes what "best" means, so it is part of the run fingerprint (see
  * persistence.ts) and there is none by default. Chains scored with and without one are not
  * comparable, and every accuracy figure on record was measured without one.
  */
-import { getTimezoneOffsetAt } from '@/lib/events';
-import { isConstrained, validDays, type Availability } from './availabilitySchedule';
+import { getTimezoneOffsetAt } from 'lib/planners/events';
+import { blockedArray, isConstrained, validDays, weekIndex, type Availability } from './availabilitySchedule';
 
 // The schedule's shape lives in availabilitySchedule.ts, which does not import lib/events (and so
 // not its Pacific-time table). Re-exported so every existing importer keeps working. A module the
@@ -46,19 +45,26 @@ export {
   describeAvailability,
   fromSleepHours,
   isConstrained,
+  maskOfWindow,
+  WEEK_HOURS,
+  weekIndex,
   type Availability,
 } from './availabilitySchedule';
 
 /** Local hour-of-day, 0-23. One Intl call via `getTimezoneOffsetAt`, which is DST-exact — the
  *  offset is resolved AT that instant rather than assumed constant. */
 export function localHour(unixSeconds: number, timezone: string): number {
-  const wall = unixSeconds + getTimezoneOffsetAt(timezone, unixSeconds);
+  // Whole second: getTimezoneOffsetAt truncates the wall clock to seconds but subtracts the raw instant, so a
+  // fractional instant reads the offset up to a second low (R2/R5).
+  const s = Math.floor(unixSeconds);
+  const wall = s + getTimezoneOffsetAt(timezone, s);
   return Math.floor((((wall % 86400) + 86400) % 86400) / 3600);
 }
 
 /** Local day of week, 0 = Sunday. 1970-01-01 was a Thursday, hence the +4. */
 export function localDayOfWeek(unixSeconds: number, timezone: string): number {
-  const wall = unixSeconds + getTimezoneOffsetAt(timezone, unixSeconds);
+  const s = Math.floor(unixSeconds);
+  const wall = s + getTimezoneOffsetAt(timezone, s);
   return ((Math.floor(wall / 86400) % 7) + 4 + 7) % 7;
 }
 
@@ -70,6 +76,17 @@ export function localDayOfWeek(unixSeconds: number, timezone: string): number {
  * back half of every session the user explicitly asked for.
  */
 export function isAvailable(unixSeconds: number, a: Availability): boolean {
+  // Weekly hours (R10): the hour of the week, read once. A mask that is no schedule (nothing or everything blocked) is
+  // available throughout (availabilitySchedule.ts isConstrained).
+  if (a.blocked !== undefined) {
+    const m = blockedArray(a);
+    if (!m) return true;
+    const s = Math.floor(unixSeconds);
+    const wall = s + getTimezoneOffsetAt(a.timezone, s);
+    const hour = Math.floor((((wall % 86400) + 86400) % 86400) / 3600);
+    const dow = ((Math.floor(wall / 86400) % 7) + 4 + 7) % 7;
+    return m.blocked[weekIndex(dow, hour)] === 0;
+  }
   const h = localHour(unixSeconds, a.timezone);
   const wraps = a.fromHour > a.toHour;
   const allHours = a.fromHour === a.toHour;
@@ -82,39 +99,18 @@ export function isAvailable(unixSeconds: number, a: Availability): boolean {
   const days = validDays(a);
   if (!days.length || days.length === 7) return true;
 
-  const sessionStart = wraps && h < a.toHour ? unixSeconds - 86400 : unixSeconds;
-  return days.includes(localDayOfWeek(sessionStart, a.timezone));
+  // The previous LOCAL day, by weekday arithmetic: stepping back 86400 s lands on the wrong day when the day
+  // in between is 23 h (spring forward: Monday 00:30 would read as Saturday).
+  const dow = localDayOfWeek(unixSeconds, a.timezone);
+  return days.includes(wraps && h < a.toHour ? (dow + 6) % 7 : dow);
 }
 
-/**
- * The next instant strictly after `t` whose local time is exactly `hour:00`.
- *
- * Deliberately NOT `getNextTimeInTimezone` from lib/events. That helper resolves the zone offset at
- * its own GUESSED UTC instant, so on a spring-forward day it lands an hour late: asking for 07:00 on
- * 2027-03-14 in America/Denver returns 08:00 MDT, because the offset is read at 07:00 UTC, still MST
- * and before the 02:00 transition. Harmless where it is used today (whole-hour plan starts a user
- * typed), wrong here, where the result is the thing being minimised.
- */
-function nextLocalHour(t: number, hour: number, tz: string): number {
-  const wall = t + getTimezoneOffsetAt(tz, t);
-  const intoDay = ((wall % 86400) + 86400) % 86400;
-  let delta = hour * 3600 - intoDay;
-  // Strictly after: standing exactly on the target means the NEXT one is tomorrow's.
-  if (delta <= 0) delta += 86400;
-  let out = t + delta;
+/** The last instant `nextAvailable` looks at the calendar for: Intl's last date (8.64e12 s) less the fortnight it
+ *  may search ahead. */
+const MAX_DATE_SECONDS = 8.64e12 - 30 * 86400;
 
-  // Correct for a transition crossed on the way. Offsets move by an hour (45 minutes in a couple of
-  // zones), so two rounds is ample; the third is insurance, not a real case.
-  for (let i = 0; i < 3; i++) {
-    const h = localHour(out, tz);
-    if (h === hour) break;
-    let diff = hour - h;
-    if (diff > 12) diff -= 24;
-    if (diff < -12) diff += 24;
-    out += diff * 3600;
-  }
-  return out > t ? out : t + 3600;
-}
+/** Hours in a week (availabilitySchedule.ts WEEK_HOURS). */
+const WEEK = 168;
 
 /**
  * The earliest instant at or after `unixSeconds` that the player is available.
@@ -123,18 +119,61 @@ function nextLocalHour(t: number, hour: number, tz: string): number {
  * unconditionally.
  */
 export function nextAvailable(unixSeconds: number, a: Availability): number {
+  // Past the last date a calendar holds (Intl throws "Invalid time value" beyond 8.64e12 s), or not a time at all:
+  // nothing to wait for. A bare farm continued as it is gets there (spec-buildfail, 30 Oct 2026: just after a
+  // prestige, its TE waits ran for ages, the shift hold asked here, and the throw took the whole leg with it, the
+  // build carried on included: "the ascension to 218 TE could not be simulated").
+  if (!(Math.abs(unixSeconds) <= MAX_DATE_SECONDS)) return unixSeconds;
   if (!isConstrained(a) || isAvailable(unixSeconds, a)) return unixSeconds;
+  // A daily window too goes by its week of hours (blockedArray builds it from the window): it used to step to the
+  // next `fromHour` o'clock, which on the day the clocks go forward does not exist when the window starts in the
+  // skipped hour, and landed up to an hour late (code review 22 Nov 2026, R2.3: 2 AM to 4 AM, 1:30 AM PST on
+  // 14 Mar 2027 gave 3:30 AM, not 3:00 AM). No free hour in the week: the input back, rather than a hung search.
+  if (!blockedArray(a)) return unixSeconds;
+  return nextAvailableInWeek(unixSeconds, a);
+}
 
-  // Every session begins at `fromHour`, so those are the only candidate instants. Fourteen covers
-  // a fortnight, which is more than enough for any weekly pattern that has any available day at
-  // all; a pattern with none would loop forever without the bound.
+/**
+ * The next instant strictly after `tIn` at which the local hour of the week can change: the next local whole hour, or
+ * a clock change before it (found to the quarter hour: every zone's offsets and changes are on quarter hours). On the
+ * day the clocks go forward that is the hour after the skipped one; going back, the repeated hour comes round twice.
+ */
+function nextHourChange(tIn: number, tz: string): number {
+  const t = Math.floor(tIn);
+  const off = getTimezoneOffsetAt(tz, t);
+  const wall = t + off;
+  const cand = t + (3600 - (((wall % 3600) + 3600) % 3600));
+  if (getTimezoneOffsetAt(tz, cand) === off) return cand;
+  let q = Math.floor(t / 900) * 900 + 900;
+  while (q < cand && getTimezoneOffsetAt(tz, q) === off) q += 900;
+  return q;
+}
+
+/** `nextAvailable` for weekly hours. Usually no clock change lies ahead within the week: then the next free hour is found
+ *  on the wall clock (the mask read as an array) and checked with one offset read at it. Across a clock change, walk
+ *  the local hours (at most a week of them, plus the change) to the first free one. With no free hour in reach, the
+ *  input back, as for the daily window. */
+function nextAvailableInWeek(unixSeconds: number, a: Availability): number {
+  const m = blockedArray(a)!.blocked;
+  const t = Math.floor(unixSeconds);
+  const off = getTimezoneOffsetAt(a.timezone, t);
+  const wall = t + off;
+  const hourStart = wall - (((wall % 3600) + 3600) % 3600);
+  const dow = ((Math.floor(wall / 86400) % 7) + 4 + 7) % 7;
+  const idx = weekIndex(dow, Math.floor((((wall % 86400) + 86400) % 86400) / 3600));
+  for (let k = 1; k <= WEEK; k++) {
+    if (m[(idx + k) % WEEK]) continue;
+    const cand = hourStart + k * 3600 - off;
+    // No clock change between here and there (an offset that changed and changed back within a week does not happen):
+    // the wall-clock answer is the answer.
+    if (getTimezoneOffsetAt(a.timezone, cand) === off) return cand;
+    break;
+  }
   let c = unixSeconds;
-  for (let i = 0; i < 14; i++) {
-    c = nextLocalHour(c, a.fromHour, a.timezone);
+  for (let i = 0; i < 24 * 7 + 8; i++) {
+    c = nextHourChange(c, a.timezone);
     if (isAvailable(c, a)) return c;
   }
-  // Give up rather than spin. A caller that gets its input back is no worse off than one with no
-  // schedule at all, which is strictly better than a hung search.
   return unixSeconds;
 }
 
@@ -145,4 +184,32 @@ export function countUnavailable(timestamps: number[], a: Availability | null | 
   let n = 0;
   for (const t of timestamps) if (!isAvailable(t, a)) n++;
   return n;
+}
+
+/**
+ * `nextAvailable` on `a` as a function of the instant, remembered per UTC hour (the table replay asks
+ * it for every shift of every checkpoint of every start: search/tableV2.ts `sweepReplay`). The hours
+ * change only on local whole hours, which fall at most once in any UTC hour, so an hour whose first
+ * and last seconds are both inside is inside throughout, and one whose two ends are both outside
+ * waits for the same instant throughout; only an hour with a change in it is asked each time.
+ * The same answers as `nextAvailable`, to the second.
+ */
+export function holdUntilOf(a: Availability): (t: number) => number {
+  if (!isConstrained(a)) return t => t;
+  // Per UTC hour: -1 inside throughout, -2 a change inside it, else the instant to wait for.
+  const byHour = new Map<number, number>();
+  return t => {
+    const h = Math.floor(t / 3600);
+    let v = byHour.get(h);
+    if (v === undefined) {
+      const s = h * 3600;
+      const inS = isAvailable(s, a);
+      const inE = isAvailable(s + 3599, a);
+      v = inS && inE ? -1 : !inS && !inE ? nextAvailable(s, a) : -2;
+      // A pattern with no hour at all gives its input back (nextAvailable): ask each time then.
+      if (v === s) v = -2;
+      byHour.set(h, v);
+    }
+    return v === -1 ? t : v === -2 ? nextAvailable(t, a) : v;
+  };
 }

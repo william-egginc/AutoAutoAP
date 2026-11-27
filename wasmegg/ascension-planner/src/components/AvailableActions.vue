@@ -2,12 +2,12 @@
   <div class="space-y-4">
     <!-- Current Egg Indicator -->
     <div
-      class="hidden sm:flex items-center gap-2 text-sm p-2 rounded-lg border transition-colors"
+      class="hidden sm:flex items-center gap-2 text-body p-2 rounded-lg border transition-colors"
       :class="isEditingPastGroup ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'"
     >
       <span
-        class="text-[10px] font-bold uppercase tracking-widest px-1"
-        :class="isEditingPastGroup ? 'text-blue-500' : 'text-gray-400'"
+        class="label px-1"
+        :class="isEditingPastGroup ? 'text-blue-500' : 'text-gray-600'"
       >
         {{ isEditingPastGroup ? 'Editing' : 'Current Egg' }}
       </span>
@@ -19,12 +19,12 @@
             :alt="effectiveEgg"
           />
         </div>
-        <span class="text-xs font-bold" :class="eggTextColorClass">
+        <span class="text-small font-bold" :class="eggTextColorClass">
           {{ currentEggName }}
         </span>
       </div>
-      <span class="text-gray-300 mx-1">/</span>
-      <span class="text-xs font-semibold text-gray-500 tracking-tight">{{ availableActionLabel }}</span>
+      <span class="text-gray-600 mx-1">/</span>
+      <span class="text-small font-bold text-gray-600">{{ availableActionLabel }}</span>
     </div>
 
     <!-- Tab buttons -->
@@ -38,8 +38,8 @@
         <button
           v-for="tab in availableTabs"
           :key="tab.id"
-          class="px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap shrink-0"
-          :class="activeTab === tab.id ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+          class="px-4 py-2 text-body font-normal transition-colors relative whitespace-nowrap shrink-0"
+          :class="activeTab === tab.id ? 'text-blue-600' : 'text-gray-600 hover:text-gray-700'"
           @click="activeTab = tab.id"
         >
           {{ tab.label }}
@@ -77,14 +77,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { iconURL } from 'lib';
-import VehicleActions from './actions/VehicleActions.vue';
-import HabActions from './actions/HabActions.vue';
-import ResearchActions from './actions/ResearchActions.vue';
+import VehicleActions from 'ui/components/planners/actions/VehicleActions.vue';
+import HabActions from 'ui/components/planners/actions/HabActions.vue';
+import ResearchActions from 'ui/components/planners/actions/ResearchActions.vue';
 import ShiftActions from './actions/ShiftActions.vue';
 import ArtifactActions from './actions/ArtifactActions.vue';
-import SiloActions from './actions/SiloActions.vue';
-import FuelTankActions from './actions/FuelTankActions.vue';
-import WaitActions from './actions/WaitActions.vue';
+import SiloActions from 'ui/components/planners/actions/SiloActions.vue';
+import FuelTankActions from 'ui/components/planners/actions/FuelTankActions.vue';
+import WaitActions from 'ui/components/planners/actions/WaitActions.vue';
 import RocketActions from './actions/RocketActions.vue';
 import InitialStateContainer from './containers/InitialStateContainer.vue';
 import { useActionsStore } from '@/stores/actions';

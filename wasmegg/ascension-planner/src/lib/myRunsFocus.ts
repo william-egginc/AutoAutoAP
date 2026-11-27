@@ -1,5 +1,5 @@
 /**
- * "Dig deeper into your plan ›" (DigDeeperLink.vue) opens My runs on its Your runs section rather than its top
+ * "Dig deeper into your plan ›" (DigDeeperLink.vue) opens My Runs on its Your runs section rather than its top
  * (spec myruns-now v3, section 6). The link is a plain address (#/myruns); its click leaves this ask, which
  * MyRunsView takes when it mounts. One shot, a minute at most: an ask nobody took is forgotten.
  */

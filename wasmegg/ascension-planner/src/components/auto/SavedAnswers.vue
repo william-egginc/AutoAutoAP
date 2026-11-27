@@ -1,6 +1,7 @@
 <!--
-  By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one): "Save this
-  answer" beside the result's other buttons (`actions` slot: Download CSV), whatever the screen says
+  By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one), saved from the result
+  card's one Save since 5 Nov 2026 (ByDateRouteCard.vue; it had its own name box and Save this answer here until then),
+  then the result's other buttons (`actions` slot), whatever the screen says
   under it (default slot), then the list with Open and Delete, and each entry's save (EntrySaveActions:
   Use the save from…, Download this save). Kept in this browser per player by the
   store (`saveCurrentAnswer`, `savedAnswers`), in By a date's own format.
@@ -9,46 +10,32 @@
   run library, carries them on and names them after saving: the two stores hold different records,
   and joining them would change both. Several roots, so it sits in the screen's own spacing.
 
-  `list-only` (My runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
-  so (`opened`) for My runs to show By a date. There, each answer says how the latest save is doing against
-  it (R6, PaceBadge.vue), worked out while `pace-active` (My runs' "Saved on this device" is open).
+  `list-only` (My Runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
+  so (`opened`) for My Runs to show By a date. There, each answer says how the latest save is doing against
+  it (R6, PaceBadge.vue), worked out while `pace-active` (My Runs' "Saved on this device" is open).
 -->
 <template>
-  <div v-if="!listOnly" class="flex flex-wrap items-center gap-2">
+  <!-- The answer is saved from the card's one Save, with its name (ByDateRouteCard.vue; UX fluff review 2, 5 Nov 2026,
+       item D11): the name box and the second Save that were here are gone. -->
+  <div v-if="!listOnly && $slots.actions" class="flex flex-wrap items-center gap-2">
     <slot name="actions" />
-    <input
-      v-model="label"
-      type="text"
-      maxlength="80"
-      :placeholder="defaultLabel"
-      aria-label="Name for this answer"
-      class="w-64 max-w-full rounded-lg border-slate-300 text-xs text-slate-800"
-    />
-    <button
-      type="button"
-      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
-      :disabled="saving"
-      @click="save"
-    >
-      {{ flash ? 'Saved' : 'Save this answer' }}
-    </button>
   </div>
   <slot v-if="!listOnly" />
   <div v-if="store.savedAnswers.length" class="space-y-1">
-    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
+    <h4 class="text-slate-600 label">Saved answers</h4>
     <div
       v-for="a in store.savedAnswers"
       :key="a.id"
-      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-small"
     >
       <span class="font-bold text-slate-800">{{ a.label }}</span>
-      <span class="text-slate-500"
+      <span class="text-slate-600"
         >{{ a.result.routes[0] ? a.result.routes[0].chain.join(' ') : 'no route' }} · saved
         {{ showDateTime(a.savedAt / 1000, zone) }}</span
       >
       <button
         type="button"
-        class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+        class="ml-auto text-body font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
         :disabled="store.deadlineRunning"
         @click="open(a.id)"
       >
@@ -60,10 +47,15 @@
         :goal-key="screenGoalKey(a.result.deadline, a.result.te)"
         from="saved"
         :label="a.label"
+        :source="sourceOfLevel(foundLevel({ custom: !a.result.simple, effort: a.result.level }))"
+        :finish="a.result.routes[0].reachAt"
+        :end-te="a.result.routes[0].chain[a.result.routes[0].chain.length - 1]"
+        :plan-start="a.result.planStart"
+        :deadline="a.result.deadline"
       />
       <button
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
+        class="text-body font-bold text-slate-600 hover:text-rose-600"
         @click="store.removeSavedAnswer(playerId, a.id)"
       >
         Delete
@@ -78,21 +70,26 @@
         v-if="listOnly"
         :words="pace.paceOf({ kind: 'answer', answer: a, goalKey: screenGoalKey(a.result.deadline, a.result.te) })"
       />
+      <BaselineChip v-if="listOnly && baselineOf(a)" :line="baselineOf(a)" />
     </div>
     <SaveFileBar v-if="!listOnly" :player-id="playerId" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
 import { followableAnswer, screenGoalKey } from '@/lib/follow';
+import { sourceOfLevel } from '@/lib/followCloud';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import { useBaselines } from '@/composables/useBaselines';
+import { foundLevel } from '@/lib/searchPointer';
 
 const props = defineProps<{
   playerId: string;
@@ -100,37 +97,37 @@ const props = defineProps<{
   defaultLabel: string;
   /** The planner's time zone, for "saved Oct 8, 2026, 2:22 PM". */
   zone: string;
-  /** My runs: the list alone (no Save this answer, no slots, no save-file bar). */
+  /** My Runs: the list alone (no Save this answer, no slots, no save-file bar). */
   listOnly?: boolean;
-  /** My runs' "Saved on this device" is open: the badges may load what they need (one answer at a time). */
+  /** My Runs' "Saved on this device" is open: the badges may load what they need (one answer at a time). */
   paceActive?: boolean;
 }>();
 const emit = defineEmits<{ opened: [] }>();
 const store = useChainSearchStore();
+
+/** "vs your instant baseline: −1 TE (313 → 312), 0.28 days more spare (Fast)" (My Runs, wireframe B1): the instant
+ *  answer for the answer's date and save, logged here (lib/instantBaseline.ts); null without one. */
+const baselines = props.listOnly ? useBaselines() : null;
+function baselineOf(a: (typeof store.savedAnswers)[number]) {
+  const route = a.result.routes[0];
+  if (!baselines || !route) return null;
+  return baselines.lineFor({
+    goal: `date ${a.result.deadline}`,
+    backupTime: a.save?.backupAt ?? null,
+    run: { goal: 'date', deadline: a.result.deadline, end: route.reachAt, endTE: route.chain[route.chain.length - 1] ?? 0 },
+    level: foundLevel({ custom: !a.result.simple, effort: a.result.level }),
+  });
+}
 
 function open(id: string): void {
   store.openSavedAnswer(id);
   emit('opened');
 }
 
-const label = ref('');
-const saving = ref(false);
-const flash = ref(false);
-async function save(): Promise<void> {
-  saving.value = true;
-  try {
-    await store.saveCurrentAnswer(props.playerId, label.value || props.defaultLabel);
-    label.value = '';
-    flash.value = true;
-    setTimeout(() => (flash.value = false), 2000);
-  } finally {
-    saving.value = false;
-  }
-}
 
 onMounted(() => void store.refreshSavedAnswers(props.playerId));
 
-/** "N hours ahead / behind" on each answer (My runs only). */
+/** "N hours ahead / behind" on each answer (My Runs only). */
 const pace = usePlanPace({
   playerId: () => props.playerId,
   active: () => !!props.listOnly && !!props.paceActive,

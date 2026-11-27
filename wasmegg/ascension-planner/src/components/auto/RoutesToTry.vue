@@ -2,17 +2,17 @@
   "The routes to try": the chain-row editor shared by the Full sweep (its added chains, Chain 2 on)
   and Highest TE by a date (every chain). One row per chain: its number, the Ascensions box, Suggest a
   space and Remove; the box of bands with the band checker under it (BandCheckNotice.vue); the row's
-  count or what is wrong with it; Suggest a space's two sliders (SpaceSliders.vue), independent per
+  count or what is wrong with it; Suggest boxes's two sliders (SpaceSliders.vue), independent per
   chain unless the screen offers "move every chain's sliders together" (`linkable`) and it is ticked.
   Then "+ Add another chain", with the screen's own extras beside it (`footer`).
 
-  The screen owns the rows and every rule about them (what Suggest a space fills in, what a slider
+  The screen owns the rows and every rule about them (what Suggest boxes fills in, what a slider
   moves, what counts): this draws them and says what was asked (events). What genuinely differs goes
   in props and slots:
     - the Full sweep: up to 12 ascensions, its Chain 1 drawn by the screen above these rows
       (`firstNumber` 2), rows can all be removed, the band checker knows each row's count, and its
       "Suggest would fill in N chains" line under the sliders (`row-after`);
-    - By a date: up to 8 ascensions, at least one row, "Suggest a space tries" before the sliders,
+    - By a date: up to 8 ascensions, at least one row, "Suggested boxes try" before the sliders,
       the link option, the instant answer and Science notes (`row-notes`), the step-wider-than-±
       warning (`row-after`) and the shared "Last stop" box (`footer`).
   A screen's Simple mode (batch 3) can leave this out with v-if: nothing else depends on it.
@@ -21,8 +21,8 @@
   <div>
     <div v-for="(row, k) in rows" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Box {{ k + firstNumber }}</span>
-        <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        <span class="text-slate-600 label">Box {{ k + firstNumber }}</span>
+        <label class="flex items-center gap-1.5 text-slate-600 label">
           Ascensions
           <input
             :value="row.asc"
@@ -30,7 +30,7 @@
             min="1"
             :max="maxAsc"
             :disabled="disabled"
-            class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+            class="w-16 rounded-md border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
             @input="emit('asc', k, asNumber(($event.target as HTMLInputElement).value))"
           />
         </label>
@@ -39,16 +39,16 @@
         <button
           type="button"
           :disabled="disabled || row.asc < 2"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:bg-white disabled:opacity-40"
           @click="emit('suggest', k)"
         >
-          Suggest a space
+          Suggest boxes
         </button>
         <button
           v-if="rows.length > minRows"
           type="button"
           :disabled="disabled"
-          class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
+          class="ml-auto text-body font-bold text-slate-600 hover:text-rose-600 disabled:opacity-40"
           @click="emit('remove', k)"
         >
           Remove
@@ -60,7 +60,7 @@
         type="text"
         :disabled="disabled"
         :placeholder="placeholder"
-        class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+        class="w-full rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
         @input="emit('text', k, ($event.target as HTMLInputElement).value)"
       />
       <BandCheckNotice
@@ -72,7 +72,7 @@
         :disabled="disabled"
         @use="t => emit('text', k, t)"
       />
-      <span class="block text-[10px]" :class="problems[k] ? 'text-rose-600' : 'text-slate-500'">
+      <span class="block text-small" :class="problems[k] ? 'text-rose-600' : 'text-slate-600'">
         {{ problems[k] || summaries[k] }}
       </span>
       <slot name="row-notes" :row="row" :k="k" />
@@ -101,7 +101,7 @@
       <button
         type="button"
         :disabled="disabled"
-        class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
         @click="emit('add')"
       >
         + Add another box

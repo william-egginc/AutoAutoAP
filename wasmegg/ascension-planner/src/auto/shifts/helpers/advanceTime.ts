@@ -17,9 +17,9 @@
 import type { Action } from '@/types/actions/meta';
 import { createSimAction } from '@/types/actions/meta';
 import type { EngineState, SimulationContext } from '../../types';
-import { computeSnapshot } from '../../../engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { applyAction, calculateEggsDeliveredForTime } from '../../../engine/apply';
-import { totalAwayTime } from '@/stores/silos';
+import { totalAwayTime } from 'lib/planners/stores/silos';
 import {
   isResearchSaleActive,
   getNextSaleStart,
@@ -28,13 +28,15 @@ import {
   getNextEarningsBoostEnd,
   getNextEarningsBoostStart,
   BOUNDARY_EPSILON_SECONDS,
-} from '@/lib/events';
+} from 'lib/planners/events';
 
 // Actions that pass time (or mark an event boundary) without the player doing anything.
 const IDLE_ACTION_TYPES = new Set([
   'wait_for_time',
   'wait_for_research_sale',
+  'wait_for_research_sale_end',
   'wait_for_earnings_boost',
+  'wait_for_earnings_boost_end',
   'toggle_sale',
   'toggle_earnings_boost',
 ]);
@@ -51,6 +53,23 @@ function trailingIdleSeconds(actions: Action[]): number {
     seconds += actions[i].totalTimeSeconds || 0;
   }
   return seconds;
+}
+
+/**
+ * THE PLAYER'S HOURS FOR PURCHASES (spec-awakebuys, 9 Nov 2026; aaap-tools notes/awake-buys-design-2026-11-09.md). A wait
+ * ends where the purchase after it happens. With the player's hours (`context.holdUntil`, set by the search only when
+ * hours are picked: search/leg.ts legContext) a wait that would end while the player is away is stretched to the next
+ * moment they are around, the farm laying meanwhile (the helpers below credit the longer wait like any other), so the buys
+ * land inside the hours, as egg shifts do (auto/hold.ts). Sale-end cap (Jordan, 9 Nov 2026): a wait that ends inside a
+ * research sale is never stretched past the sale's end, the player staying up for the last sale buys. Seconds to add; 0
+ * without the hook, so the tables, the manual planner and every run without hours are untouched.
+ */
+function stretchToHours(context: SimulationContext, endAbsTime: number): number {
+  if (!context.holdUntil) return 0;
+  let extra = context.holdUntil(endAbsTime) - endAbsTime;
+  if (!(extra > 0)) return 0;
+  if (isResearchSaleActive(endAbsTime)) extra = Math.min(extra, Math.max(0, getNextSaleEnd(endAbsTime) - endAbsTime));
+  return extra > 0 ? extra : 0;
 }
 
 export interface AdvanceTimeResult {
@@ -79,6 +98,8 @@ export function advanceTimeFlat(
   metadata?: Record<string, unknown>
 ): AdvanceTimeResult {
   if (seconds <= 0) return { currentState, elapsedSeconds };
+  // The wait ends inside the player's hours (stretchToHours); absolute time as everywhere else: start + (lastStepTime - offset).
+  seconds += stretchToHours(context, context.ascensionStartTime + ((currentState.lastStepTime || 0) - context.planStartOffset) + seconds);
 
   const snap = computeSnapshot(currentState, context, { skipGrowth: true });
   const waitAction = createSimAction('wait_for_time', { totalTimeSeconds: seconds, ...metadata });
@@ -125,6 +146,8 @@ export function advanceTimeWithBoundaries(
   totalSeconds: number
 ): AdvanceTimeResult {
   let remaining = totalSeconds;
+  // The wait ends inside the player's hours (stretchToHours); the loop below still stops at every sale and boost boundary.
+  if (remaining > 0) remaining += stretchToHours(context, baseAbsTime + elapsedSeconds + remaining);
 
   while (remaining > 0) {
     const absTime = baseAbsTime + elapsedSeconds;
@@ -158,9 +181,16 @@ export function advanceTimeWithBoundaries(
     }
 
     if (stepSeconds > 0) {
-      let actionType: 'wait_for_time' | 'wait_for_research_sale' | 'wait_for_earnings_boost' = 'wait_for_time';
+      let actionType:
+        | 'wait_for_time'
+        | 'wait_for_research_sale'
+        | 'wait_for_research_sale_end'
+        | 'wait_for_earnings_boost'
+        | 'wait_for_earnings_boost_end' = 'wait_for_time';
       if (targetEvent === 'research_sale') actionType = 'wait_for_research_sale';
+      else if (targetEvent === 'research_sale_end') actionType = 'wait_for_research_sale_end';
       else if (targetEvent === 'earnings_boost') actionType = 'wait_for_earnings_boost';
+      else if (targetEvent === 'earnings_boost_end') actionType = 'wait_for_earnings_boost_end';
 
       const snap = computeSnapshot(currentState, context, { skipGrowth: true });
       const waitAction = createSimAction(actionType, { totalTimeSeconds: stepSeconds });
@@ -228,6 +258,7 @@ export function advanceTimeWithBoundaries(
               amount: delta,
               previousValue: currentState.bankValue || 0,
               delta,
+              earningsBoostCredit: { seconds: creditSeconds, multiplier: 2 },
             });
             currentState = applyAction(currentState, modifyBank);
             modifyBank.bankDelta = delta;
@@ -252,10 +283,10 @@ export function advanceTimeWithBoundaries(
         saleType: 'research',
         active: isSaleNow,
         multiplier: 0.3, // 70% off — matches every other toggle_sale creator (commonResearch.ts's
-        // getDiscountedVirtuePrice is the actual price authority and is independently hardcoded to
+        // getDiscountedResearchPrice is the actual price authority and is independently hardcoded to
         // the same 0.3; this field is purely descriptive/display, but 0.35 here was inconsistent
         // with it and with every other call site (ResearchActions.vue, ShiftActions.vue,
-        // WaitForEventActions.vue, useEventExpiry.ts, actionHelpers.ts).
+        // WaitForEventActions.vue, actionHelpers.ts).
       });
       currentState = applyAction(currentState, toggleSale);
       toggleSale.endState = computeSnapshot(currentState, context, { skipGrowth: true });

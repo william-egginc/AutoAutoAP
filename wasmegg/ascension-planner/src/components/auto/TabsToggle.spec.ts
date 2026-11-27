@@ -8,6 +8,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { TABS_KEY, resetTabPrefsForTest } from '@/composables/useTabPrefs';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+/** Cut (UX fluff review 2, S43, 5 Nov 2026): the labels already say "Show the … tab". */
 const NOTE = 'The Leaderboard and Science tabs show only when you turn them on here.';
 const NONE = 'This build has no leaderboard, so there is nothing to show.';
 
@@ -29,16 +30,15 @@ function box(html: string, id: string): string {
 }
 
 describe('TabsToggle', () => {
-  it('with a collector: two boxes, off by default, each with its line, and the calm note', async () => {
+  it('with a collector: two boxes, off by default, each with its line, and no note above them', async () => {
     vi.stubEnv('VITE_SUBMIT_URL', 'https://collector.test/submit');
     resetTabPrefsForTest(null);
     const html = await renderHtml(TabsToggle, {}, {}, [pinia]);
     const t = textOf(html);
-    expect(t).toContain(NOTE);
-    expect(t).toContain('Show the Leaderboard tab');
-    expect(t).toContain('Show the Science tab');
-    expect(t).toContain('Everyone’s shared runs: Egg Day, the race to 490 and the charts.');
-    expect(t).toContain('How the planner works and how its answers were checked, and the sweeps still to run.');
+    expect(t).not.toContain(NOTE);
+    // One line each (spec-fluff3-chrome, S44).
+    expect(t).toContain('Leaderboard tab · everyone’s shared runs');
+    expect(t).toContain('Science tab · how the planner works and was checked');
     expect(t).not.toContain(NONE);
     for (const id of ['leaderboard', 'science']) {
       expect(box(html, id)).toContain('type="checkbox"');
@@ -75,7 +75,7 @@ describe('TabsToggle', () => {
     expect(src).toContain('h-5 w-5');
   });
 
-  it('sits in Your setup › How the site shows things, after the date style', () => {
+  it('sits in Setup › How the site shows things, after the date style', () => {
     const setup = read('YourSetup.vue');
     const block = setup.slice(setup.indexOf('How the site shows things</h3>'), setup.indexOf('</section>'));
     expect(block.indexOf('<DateStyleToggle />')).toBeGreaterThan(-1);

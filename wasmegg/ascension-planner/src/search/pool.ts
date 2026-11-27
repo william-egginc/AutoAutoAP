@@ -23,7 +23,8 @@
  * timeout and no way to tell it apart from a slow batch. So every worker now heartbeats per chain
  * (see chainSearch.protocol.ts) and a request with no traffic for `STALL_MS` is failed loudly.
  */
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { workerCopy } from './workerCopy';
+import { perfEnd, perfStart, perfStep } from '@/lib/buildUpDebug';
 import { inputsForWorkers } from './workerBackup';
 import { sortChainsDepthFirst, type MemoSettings } from './chain';
 import { clampPoolSize, hardwareThreads, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
@@ -60,6 +61,69 @@ const WATCHDOG_INTERVAL_MS = 30 * 1000;
  * is a suspension and gets forgiven rather than counted.
  */
 const SUSPEND_GAP_MS = 3 * WATCHDOG_INTERVAL_MS;
+
+/**
+ * Once the player pressed Stop (`hurry`), silence this long means the worker is gone. A healthy worker
+ * heartbeats every chain (15-25 s), so 45 s is still about twice the longest gap; it ends the wait in
+ * under a minute where the ten-minute bound left "Stopping... 120 s" counting (red team 21 Oct 2026,
+ * data-inputs #5: a worker killed mid-run). Browsers fire no event when a worker is killed from
+ * outside, so silence is the only sign.
+ */
+const HURRY_STALL_MS = 45 * 1000;
+/** How often the watchdog looks once hurried. */
+const HURRY_INTERVAL_MS = 5 * 1000;
+
+/**
+ * A worker crashed, could not read a message, or went silent: the request it held will never be
+ * answered. The store ends the run with the best route found so far and says a worker stopped, rather
+ * than failing the run.
+ */
+export class WorkerLostError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorkerLostError';
+  }
+}
+
+/** Whether the page is in front: visible and focused. */
+export interface PageFront {
+  hidden: boolean;
+  focused: boolean;
+}
+
+/** The page as it is now (in front when there is no document, as in a test or a worker). */
+export function pageFrontNow(): PageFront {
+  if (typeof document === 'undefined') return { hidden: false, focused: true };
+  let focused = true;
+  try {
+    focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+  } catch {
+    focused = true;
+  }
+  return { hidden: !!document.hidden, focused };
+}
+
+/**
+ * What the watchdog says when a worker has gone quiet. QA 24 Oct 2026 (Safari not the frontmost app): after about 65 s
+ * it said the worker had very probably been killed, but it was the browser slowing a window that is not in front, not a
+ * crash. So when the page is hidden or not focused at that moment it says so and asks for the window to be brought
+ * to the front, and doesn't call it killed; in front, the message is as before.
+ */
+export function stallMessage(o: { label: string; quietMs: number; done: number; total: number; page: PageFront }): string {
+  const mins = Math.round(o.quietMs / 60000);
+  const forHow = o.quietMs >= 60_000 ? `${mins} minute${mins === 1 ? '' : 's'}` : `${Math.round(o.quietMs / 1000)}s`;
+  const head = `${o.label} stopped responding: no progress for ${forHow} (${o.done}/${o.total} routes done).`;
+  const saved = 'Your progress is saved, so resuming re-uses every route already priced.';
+  if (o.page.hidden || !o.page.focused)
+    return (
+      `${head} Your browser slows windows that are not in front: bring this window to the front and the search ` +
+      `carries on. ${saved}`
+    );
+  return (
+    `${head} The worker was very likely killed, most often by the browser reclaiming memory or freezing or ` +
+    `discarding the tab. ${saved}`
+  );
+}
 
 interface PendingEntry {
   resolve: (message: WorkerResponse) => void;
@@ -118,6 +182,11 @@ export interface PoolOptions {
    * memory kill or a script that would not load looks), and how many requests it had in hand.
    */
   onFault?: (f: PoolFault) => void;
+  /**
+   * Any message from any worker (a start-up answer, a heartbeat, a reply), as it arrives. For a caller that bounds its
+   * own wait on worker silence (composables/useCurrentSim.ts: the Build-up tracker's stall, spec-stuck2).
+   */
+  onMessage?: () => void;
 }
 
 /** One worker failure (`PoolOptions.onFault`). */
@@ -180,6 +249,10 @@ export interface EvaluateOptions {
    * starts (more workers, less each: they share the tab's memory). Absent: the memo as it is.
    */
   memo?: { keepLast?: boolean; capacity?: (workers: number) => number };
+  /** BUILD-UP TRACKER: each chain's first step comes back with its build-up list (search/chain.ts
+   *  `EvaluateChainOptions.keepPurchases`). Off by default; only My Runs' simulation of the ascension
+   *  you are in asks for it (composables/useCurrentSim.ts), not when dealt. */
+  keepPurchases?: boolean;
 }
 
 /** The `memo` field of an evaluate request, for a pool of `workers`: absent when there is nothing to say. */
@@ -239,7 +312,8 @@ export interface ChainSearchPool {
    *  found (search/leg.ts `integrityCheck`), or null. Optional: test pools leave it out. */
   integrityLowTe?(): import('./leg').LowTeOpeningInfo | null;
   /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
-   *  first worker against the pool's own inputs: empty without a farm in the save. */
+   *  first worker against the pool's own inputs: empty without a farm in the save. Rejects when the
+   *  simulation throws or the worker is lost (never an empty list for a failure). */
   buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
   /** A fresh build at `te` from `start` on the pool's own account, as a table cell holds it (search/
    *  liveCell.ts), on the first worker. Optional: test pools leave it out. */
@@ -284,6 +358,12 @@ export interface ChainSearchPool {
    * check overlaps the two. Failures are not reported here: the batch that uses the worker gets them.
    */
   warm(n: number): void;
+  /**
+   * The player pressed Stop: from now on a worker silent for `HURRY_STALL_MS` is let go (its requests
+   * fail with `WorkerLostError`), so Stop never waits on a worker that is gone. Healthy workers are
+   * unaffected: they heartbeat well inside that.
+   */
+  hurry?(): void;
   terminate(): void;
 }
 
@@ -304,7 +384,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   let size = opts.size === undefined ? maxPoolSize() : clampPoolSize(opts.size);
   // Slots for every worker the machine could hold, so `resize` can grow without reallocating.
   const cap = Math.max(size, hardwareThreads());
-  const stallMs = opts.stallMs ?? STALL_MS;
+  let stallMs = opts.stallMs ?? STALL_MS;
+  let hurried = false;
   const now = opts.now ?? (() => Date.now());
   let nextRequestId = 0;
   let terminated = false;
@@ -334,7 +415,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     counts.made++;
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      // The reply is read (structured-clone deserialised) on first access of `data`: measured, quietly.
+      const t0 = perfStart('worker reply read', true);
       const msg = event.data;
+      if (t0 !== null) perfEnd(`worker reply read (${msg?.type ?? '?'})`, t0);
+      opts.onMessage?.();
       if ('heapMB' in msg && typeof msg.heapMB === 'number') pw.heapMB = msg.heapMB;
       if ('memoEntries' in msg && typeof msg.memoEntries === 'number') pw.memoEntries = msg.memoEntries;
       if ('memoCapacity' in msg && typeof msg.memoCapacity === 'number') pw.memoCapacity = msg.memoCapacity;
@@ -373,7 +458,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       const detail = [event.message, event.filename && `${event.filename}:${event.lineno ?? '?'}`]
         .filter(Boolean)
         .join(' at ');
-      const err = new Error(
+      const err = new WorkerLostError(
         detail
           ? `A search worker crashed: ${detail}`
           : 'A search worker stopped without reporting why. This is usually the browser reclaiming ' +
@@ -385,6 +470,20 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       } catch {
         // diagnostics only
       }
+      for (const entry of pw.pending.values()) entry.reject(err);
+      pw.pending.clear();
+    };
+
+    // A reply the page could not read back (structured clone failed on arrival): the request it
+    // answered would otherwise wait for good. Same as a crash for that worker's requests.
+    worker.onmessageerror = () => {
+      counts.crashed++;
+      try {
+        opts.onFault?.({ kind: 'crash', worker: pw.index, message: 'a reply could not be read', pending: pw.pending.size });
+      } catch {
+        // diagnostics only
+      }
+      const err = new WorkerLostError('A search worker sent a reply the page could not read.');
       for (const entry of pw.pending.values()) entry.reject(err);
       pw.pending.clear();
     };
@@ -427,11 +526,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         const quiet = t - entry.lastSeen;
         const forHow = quiet >= 60_000 ? `${Math.round(quiet / 60000)} minutes` : `${Math.round(quiet / 1000)}s`;
         entry.reject(
-          new Error(
-            `${entry.label} stopped responding: no progress for ${forHow} ` +
-              `(${entry.done}/${entry.total} routes done). The worker was very likely killed, ` +
-              `most often by the browser reclaiming memory or freezing or discarding the tab. ` +
-              `Your progress is saved, so resuming re-uses every route already priced.`
+          new WorkerLostError(
+            stallMessage({ label: entry.label, quietMs: quiet, done: entry.done, total: entry.total, page: pageFrontNow() })
           )
         );
         counts.stalled++;
@@ -475,7 +571,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       }
       pw.pending.set(message.requestId, { resolve, reject, lastSeen: now(), label, done: 0, total });
       armWatchdog();
+      const t0 = perfStart(`postMessage ${message.kind}`);
       pw.worker.postMessage(message);
+      perfEnd(`postMessage ${message.kind}`, t0);
     });
   }
 
@@ -496,7 +594,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // the rest of the save -- mission and contract archives, the home farm and its inventory -- was a
   // copy in every worker of something no worker reads. Trimmed before the sanitize, so the deep
   // rebuild only walks what is sent.
-  const cleanInputs = sanitizeLongs(inputsForWorkers(inputs));
+  //
+  // spec-mainfreeze (31 Oct 2026): through `workerCopy` (search/workerCopy.ts), sanitizeLongs's copy with every node
+  // unwrapped by `toRaw` first, so the walk never goes through a Pinia proxy's traps and nothing reactive reaches
+  // `postMessage`. Measured as `pool backup clean` with the perf breadcrumbs on (lib/buildUpDebug.ts).
+  const cleanInputs = perfStep('pool backup clean', () => workerCopy(inputsForWorkers(inputs)));
 
   /** Create and initialise worker `i` on first use; every later caller awaits the same promise. */
   function workerAt(i: number): Promise<PoolWorker> {
@@ -739,6 +841,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               chains: bucket,
               ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
               ...memo,
+              ...(opts.keepPurchases ? { keepPurchases: true as const } : {}),
             },
             `worker ${workerOf[i]}`,
             bucket.length
@@ -886,6 +989,16 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         'worker 0 (live first ascension)'
       )) as { builds: import('./precomputedLeg').BuildParams[] };
       return reply.builds;
+    },
+
+    hurry(): void {
+      if (terminated || hurried) return;
+      hurried = true;
+      stallMs = Math.min(stallMs, HURRY_STALL_MS);
+      if (watchdog) clearInterval(watchdog);
+      watchdog = null;
+      lastSweepAt = now();
+      watchdog = setInterval(sweepStalled, Math.min(HURRY_INTERVAL_MS, stallMs));
     },
 
     resize(n: number): number {

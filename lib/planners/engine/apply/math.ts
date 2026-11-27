@@ -1,0 +1,457 @@
+import type { BaseCalculationsSnapshot } from '../../types/actions/core';
+import { isEarningsBoostActive, getNextEarningsBoostStart, getNextEarningsBoostEnd } from '../../events';
+
+/**
+ * A future point (relative to t=0 of the calculation) at which the earnings boost's active state
+ * changes. `boostActive` is the state that applies AFTER this transition. A transition with
+ * `atSeconds <= 0` means the snapshot's own `earningsBoost.active` is stale for this window (it
+ * wasn't re-derived at this point in time) — the most recent such transition wins as the true
+ * state at t=0, overriding the snapshot's flag, rather than creating a mid-window segment.
+ *
+ * Lists of these are in ascending `atSeconds` order, as `boostTransitionsFrom` builds them:
+ * `calculateEarningsForTime` and `getTimeToSave` walk them in place rather than sorting per call.
+ */
+export interface EarningsRateTransition {
+  atSeconds: number;
+  boostActive: boolean;
+  /**
+   * Silo mode only, on a boost start (see `forecastTransitionsFrom`): seconds of pre-boost earnings
+   * credited when the boost starts, the way the auto planner's `modify_bank` credit pays them. The
+   * time since t=0 (the last purchase), up to the silos' away time.
+   */
+  siloCreditSeconds?: number;
+}
+
+/**
+ * How far ahead to enumerate upcoming boost start/end flips. `getTimeToSave` doesn't know in
+ * advance how long a wait will actually take (it's solving for that), so `boostTransitionsFrom`
+ * can't bound the list to "however far this particular wait goes" the way `findEventCrossings`
+ * (researchROI.ts, which *is* given a known duration) does — it has to generate enough transitions
+ * up front to cover whatever the wait turns out to need. `getTimeToSave` has no upper limit on what
+ * it can return (a genuinely reachable purchase is never reported as impossible just because it's
+ * slow — see that function's own doc comment), so this horizon can't be sized to guarantee full
+ * coverage of every possible wait; beyond it, the boundary-aware math falls back to assuming the
+ * last known boost state holds indefinitely, which is an acceptable approximation for a wait's far
+ * tail (the boost is only active ~14% of the time either way, so the error this introduces is small
+ * relative to a wait already measured in years).
+ *
+ * Affordable to set this generously (rather than trimming it as tight as possible) because
+ * `getNextPacificTime`'s cache (`src/lib/events.ts`) remembers every occurrence it has ever
+ * discovered per (day, hour) key, not just the last one: the very first walk out to this horizon
+ * pays the real (brute-force) cost once, and every other call from any candidate/step touching any
+ * point within that already-discovered range answers via binary search, not recomputation. And a
+ * query for a point far beyond anything discovered yet (e.g. a purchase whose wait lands centuries
+ * out) is handled in O(1) rather than by crawling toward it — see the cache's own doc comment.
+ */
+const BOOST_TRANSITION_HORIZON_SECONDS = 3 * 365 * 86400;
+
+/**
+ * The earnings boost's fixed multiplier while active — every real `setEarningsBoost`/
+ * `toggle_earnings_boost` call site in this codebase writes exactly `2` when activating and `1`
+ * when deactivating (the `1` is a reset placeholder, not a meaningful "boost strength"; nothing
+ * ever reads `multiplier` while `active` is false except this file's own rate projection below).
+ * Used instead of `prevSnapshot.earningsBoost.multiplier` whenever a rate needs to be projected
+ * for the OPPOSITE of the snapshot's current active state — see `calculateEarningsForTime`'s and
+ * `getTimeToSave`'s `rateFor` for why relying on the snapshot field there is unsafe.
+ */
+export const EARNINGS_BOOST_MULTIPLIER = 2;
+
+/**
+ * Builds the earnings-rate transitions needed for a `getTimeToSave`/`calculateEarningsForTime`/
+ * `applyTime` call starting at `snapshot`, given the TRUE calendar time `absTime` that call
+ * represents. `snapshot.earningsBoost.active` may be stale (many callers never toggle it as
+ * simulated time advances — it stays frozen at whatever it was when the snapshot was computed) —
+ * when it disagrees with calendar truth at `absTime`, a past-transition correction is included so
+ * the boundary-aware math above treats the current truth as authoritative. This is still correct
+ * even though `snapshot`'s own rate (`V1`) was computed under the stale flag: `V1` always
+ * represents "the rate for whichever state the flag reflects," and the boundary-aware functions
+ * derive the *other* state's rate by multiplying/dividing by the boost multiplier — so only the
+ * segment assignment needs correcting, never `V1` itself.
+ *
+ * Walks forward enumerating EVERY boost start/end flip within the horizon, not just the next one —
+ * a wait long enough to span a full 24h boost cycle (start AND end both within it, e.g. a purchase
+ * that takes several days) needs both transitions represented, or the math would assume the boost,
+ * once started, stays active for the rest of the wait instead of reverting to 1x after 24h.
+ */
+export function boostTransitionsFrom(
+  snapshot: BaseCalculationsSnapshot,
+  absTime: number,
+  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS,
+  /** Silo mode's away time: each boost start then carries `siloCreditSeconds`. 0 for none. */
+  siloSeconds: number = 0
+): EarningsRateTransition[] {
+  // Remembered per (absTime, horizon, stale flag): the walk below reads only those and the fixed
+  // calendar (lib/planners/events.ts), and the table builder prices thousands of waits from the same
+  // moment (about a tenth of a sim4 build went here, PC profile 9 Nov). The lists are frozen, since
+  // every caller shares them; `getTimeToSave`/`calculateEarningsForTime` only read them.
+  const flag = snapshot.earningsBoost.active;
+  if (siloSeconds > 0 || horizonSeconds !== BOOST_TRANSITION_HORIZON_SECONDS || (flag !== true && flag !== false)) {
+    return walkBoostTransitions(snapshot, absTime, horizonSeconds, siloSeconds);
+  }
+  const memo = boostTransitionsMemo[flag ? 1 : 0];
+  let list = memo.get(absTime);
+  if (!list) {
+    list = Object.freeze(walkBoostTransitions(snapshot, absTime, horizonSeconds).map(t => Object.freeze(t)));
+    if (memo.size >= BOOST_TRANSITIONS_MEMO_SIZE) memo.delete(memo.keys().next().value!);
+    memo.set(absTime, list);
+  }
+  return list as EarningsRateTransition[];
+}
+
+/** `boostTransitionsFrom`'s memo by absTime, oldest first: [flag off, flag on]. */
+const boostTransitionsMemo = [
+  new Map<number, readonly EarningsRateTransition[]>(),
+  new Map<number, readonly EarningsRateTransition[]>(),
+];
+const BOOST_TRANSITIONS_MEMO_SIZE = 4096;
+
+/** `boostTransitionsFrom` without its memo: the walk itself. */
+export function walkBoostTransitions(
+  snapshot: BaseCalculationsSnapshot,
+  absTime: number,
+  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS,
+  siloSeconds: number = 0
+): EarningsRateTransition[] {
+  const trueActiveNow = isEarningsBoostActive(absTime);
+  const transitions: EarningsRateTransition[] = [];
+  if (trueActiveNow !== snapshot.earningsBoost.active) {
+    transitions.push({ atSeconds: -1, boostActive: trueActiveNow });
+  }
+
+  let cursor = absTime;
+  let active = trueActiveNow;
+  const horizon = absTime + horizonSeconds;
+  let iterations = 0;
+  while (cursor < horizon) {
+    iterations++;
+    if (iterations > 2000) {
+      // Safety net: this loop should terminate in well under 1000 iterations for any real 3-year
+      // horizon (max ~2 flips/week). If we're here, `cursor` isn't advancing — break instead of
+      // hanging the tab, and log so a regression here is loud instead of silent.
+      console.error('[boostTransitionsFrom] runaway loop detected, breaking', {
+        absTime,
+        cursor,
+        horizon,
+        active,
+        iterations,
+      });
+      break;
+    }
+    const nextFlip = active ? getNextEarningsBoostEnd(cursor) : getNextEarningsBoostStart(cursor);
+    if (!isFinite(nextFlip) || nextFlip > horizon) break;
+    if (nextFlip <= cursor) {
+      // Safety net: getNextPacificTime should always return a value strictly after its input (see
+      // its own doc comment — this exact invariant caused a real production hang before it was
+      // fixed there). Break instead of looping forever if that ever regresses.
+      console.error('[boostTransitionsFrom] nextFlip did not advance past cursor, breaking', {
+        absTime,
+        cursor,
+        nextFlip,
+        active,
+        iterations,
+      });
+      break;
+    }
+    const atSeconds = nextFlip - absTime;
+    transitions.push(
+      !active && siloSeconds > 0
+        ? { atSeconds, boostActive: true, siloCreditSeconds: Math.min(atSeconds, siloSeconds) }
+        : { atSeconds, boostActive: !active }
+    );
+    active = !active;
+    cursor = nextFlip;
+  }
+
+  return transitions;
+}
+
+/**
+ * `boostTransitionsFrom` for a forecast: what a plan expects to earn or how soon it expects to
+ * afford something. In silo mode (the auto planner's `deferForEarningsMode`) it also counts the
+ * credit each boost start pays for the time since the last purchase, which `absTime` is taken to be.
+ *
+ * Not for the engine's own waits or the UI's "time to afford": the engine never pays that credit
+ * itself (the auto planner adds it as a `modify_bank` action), so those use `boostTransitionsFrom`.
+ *
+ * Only the final-sale gap buy's projection uses it (`simulateFinalSaleGapBuy`). Using it in every
+ * forecast (ROI, ranking, smart buy, milestone chains) made silo-mode build tables slightly worse,
+ * up to +0.29% total time: most of those purchases are made on paths where the auto planner doesn't
+ * collect the credit, so the forecasts promised money the plan never got.
+ */
+export function forecastTransitionsFrom(
+  snapshot: BaseCalculationsSnapshot,
+  absTime: number,
+  context: object,
+  horizonSeconds: number = BOOST_TRANSITION_HORIZON_SECONDS
+): EarningsRateTransition[] {
+  const siloMode = !!(context as { deferForEarningsMode?: boolean }).deferForEarningsMode;
+  const siloSeconds = siloMode ? (snapshot.siloTimeMinutes || 0) * 60 : 0;
+  return boostTransitionsFrom(snapshot, absTime, horizonSeconds, siloSeconds);
+}
+
+/**
+ * Solve for time T in: integral from 0 to T of min(R * min(P0 + I*t, HabCap), S) dt = targetAmount
+ */
+export function solveForTime(
+  targetAmount: number,
+  P0: number,
+  I: number,
+  R: number,
+  S: number,
+  HabCap: number = Infinity
+): number {
+  if (targetAmount <= 0) return 0;
+
+  const CapRate = Math.min(S, R * HabCap);
+
+  if (R * P0 >= CapRate) {
+    return CapRate > 0 ? targetAmount / CapRate : Infinity;
+  }
+
+  // Time when rate hits CapRate
+  let Tcap = Infinity;
+  if (I > 0) {
+    Tcap = (CapRate / R - P0) / I;
+  }
+
+  const Gcap = I > 0 && Tcap !== Infinity ? R * (P0 * Tcap + 0.5 * I * Tcap * Tcap) : Infinity;
+
+  if (targetAmount <= Gcap) {
+    const a = 0.5 * R * I;
+    const b = R * P0;
+    const c = -targetAmount;
+    if (a === 0) return b > 0 ? targetAmount / b : Infinity;
+    return (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+  } else {
+    const Tremaining = (targetAmount - Gcap) / CapRate;
+    return Tcap + Tremaining;
+  }
+}
+
+/**
+ * Integrated rate from 0 to T: integral from 0 to T of min(R * min(P0 + I*t, HabCap), S) dt
+ */
+export function integrateRate(seconds: number, P0: number, I: number, R: number, S: number, HabCap: number): number {
+  if (seconds <= 0) return 0;
+
+  const CapRate = Math.min(S, R * HabCap);
+
+  let Tcap = Infinity;
+  if (I > 0) {
+    Tcap = (CapRate / R - P0) / I;
+  } else if (R * P0 >= CapRate) {
+    Tcap = 0;
+  }
+
+  if (Tcap <= 0) {
+    return CapRate * seconds;
+  } else if (seconds <= Tcap) {
+    return R * (P0 * seconds + 0.5 * I * seconds * seconds);
+  } else {
+    const Gcap = R * (P0 * Tcap + 0.5 * I * Tcap * Tcap);
+    const Gafter = CapRate * (seconds - Tcap);
+    return Gcap + Gafter;
+  }
+}
+
+/**
+ * Calculate the total earnings integrated over a period of time [0, seconds], accounting for any
+ * number of earnings-boost transitions within that window (boost starting, ending, or both).
+ *
+ * Egg-delivery physics (population growth, hab/shipping caps — everything `integrateRate` models)
+ * are entirely independent of the earnings boost: the boost is a pure post-hoc multiplier on the
+ * dollar value of delivered eggs. So a transition only ever changes the $-per-egg conversion rate
+ * for the segment after it, never the underlying egg integral — each segment's earnings are just
+ * `rate * (eggs at segment end - eggs at segment start)`, summed across segments.
+ */
+export function calculateEarningsForTime(
+  seconds: number,
+  prevSnapshot: BaseCalculationsSnapshot,
+  transitions: EarningsRateTransition[] = []
+): number {
+  if (seconds <= 0) return 0;
+  const V1 = prevSnapshot.elr > 0 ? prevSnapshot.offlineEarnings / prevSnapshot.elr : 0;
+  if (V1 <= 0) return 0;
+
+  // `prevSnapshot.earningsBoost.multiplier` is only trustworthy for the snapshot's OWN current
+  // `active` state — it gets reset to 1 whenever a boost is toggled off (see
+  // `EARNINGS_BOOST_MULTIPLIER`'s doc comment), so it can't be used to project the rate for the
+  // OPPOSITE state (e.g. an upcoming boost while currently inactive). Use the snapshot's real
+  // current rate (`V1`) for the current state, and the fixed constant for the other.
+  const currentActive = prevSnapshot.earningsBoost.active;
+  const rateFor = (active: boolean) =>
+    active === currentActive ? V1 : active ? V1 * EARNINGS_BOOST_MULTIPLIER : V1 / EARNINGS_BOOST_MULTIPLIER;
+
+  const eggsAt = (t: number) =>
+    integrateRate(
+      t,
+      prevSnapshot.population,
+      prevSnapshot.offlineIHR / 60,
+      prevSnapshot.ratePerChickenPerSecond,
+      prevSnapshot.shippingCapacity,
+      prevSnapshot.habCapacity
+    );
+
+  // Transitions at/before t=0 mean prevSnapshot's own `earningsBoost.active` is stale for this
+  // window — the most recent one wins as the true state at t=0. Only transitions strictly inside
+  // (0, seconds) create additional segments.
+  let segmentActive = currentActive;
+  let eggsAtSegmentStart = eggsAt(0);
+  let total = 0;
+
+  for (const transition of transitions) {
+    // Paid when the boost starts, so a window ending right then still gets it.
+    if (transition.siloCreditSeconds && transition.atSeconds > 0 && transition.atSeconds <= seconds) {
+      total += siloCredit(transition, prevSnapshot, rateFor(false));
+    }
+    if (transition.atSeconds >= seconds) break;
+    if (transition.atSeconds > 0) {
+      const eggsAtSegmentEnd = eggsAt(transition.atSeconds);
+      total += rateFor(segmentActive) * (eggsAtSegmentEnd - eggsAtSegmentStart);
+      eggsAtSegmentStart = eggsAtSegmentEnd;
+    }
+    segmentActive = transition.boostActive;
+  }
+  total += rateFor(segmentActive) * (eggsAt(seconds) - eggsAtSegmentStart);
+
+  return total;
+}
+
+/**
+ * Silo mode's credit at a boost start: the delivery rate then, at the unboosted price per egg, for
+ * the transition's `siloCreditSeconds` (`advanceTimeWithBoundaries` pays the same from its own snapshot).
+ */
+function siloCredit(
+  transition: EarningsRateTransition,
+  prevSnapshot: BaseCalculationsSnapshot,
+  unboostedPerEgg: number
+): number {
+  const population = Math.min(
+    prevSnapshot.habCapacity,
+    prevSnapshot.population + (prevSnapshot.offlineIHR / 60) * transition.atSeconds
+  );
+  const delivered = Math.min(prevSnapshot.ratePerChickenPerSecond * population, prevSnapshot.shippingCapacity);
+  return unboostedPerEgg * delivered * (transition.siloCreditSeconds || 0);
+}
+
+/**
+ * Calculate the total eggs delivered integrated over a period of time [0, seconds].
+ */
+export function calculateEggsDeliveredForTime(seconds: number, prevSnapshot: BaseCalculationsSnapshot): number {
+  return integrateRate(
+    seconds,
+    prevSnapshot.population,
+    prevSnapshot.offlineIHR / 60,
+    prevSnapshot.ratePerChickenPerSecond,
+    prevSnapshot.shippingCapacity,
+    prevSnapshot.habCapacity
+  );
+}
+
+/**
+ * Helper to get time to save for a cost, accounting for population growth and caps, plus any
+ * number of earnings-boost transitions within the wait (the boost starting, ending, or both).
+ *
+ * Same insight as `calculateEarningsForTime`: population growth is boost-independent, so each
+ * regime between transitions can be solved with the existing `solveForTime`/`integrateRate`
+ * machinery by re-anchoring `P0` to the population already reached at that regime's start time
+ * (`min(P0 + I*t, HabCap)`) — the growth curve restarting from that point is identical to the
+ * original curve continuing from there.
+ *
+ * `Infinity` means genuinely, permanently unaffordable (`V1 <= 0` below — a zero or negative
+ * effective earning rate, which truly never accumulates money) — NOT "would take a very long
+ * time." A near-zero-but-positive rate combined with an expensive item can produce a wait of years
+ * or more; that's still a real, finite answer, and callers that treat `Infinity` as "no path
+ * exists" (e.g. the milestone chain's "give up" branches) depend on that distinction being exact.
+ * Deliberately does not cap or round this down to `Infinity` past some "practical" threshold —
+ * that was tried once and it broke exactly this: a slow-but-real path got reported as impossible.
+ * Anything downstream that only cares about a bounded horizon (e.g. `boostTransitionsFrom`'s tail
+ * approximation, or a UI display cutoff like `formatDuration`'s `>999d`) should apply its own
+ * bound at its own layer instead of relying on this function to lie about reachability.
+ */
+export function getTimeToSave(
+  cost: number,
+  prevSnapshot: BaseCalculationsSnapshot,
+  transitions: EarningsRateTransition[] = []
+): number {
+  const t = timeToSaveRaw(cost, prevSnapshot, transitions);
+  // The 60 s rule (Jordan, 3 Nov 2026): no sub-minute waits. A buy that has to wait at all waits
+  // at least a minute, away (so at the offline rate this whole module uses); an instant one stays 0.
+  return t > 0 && t < MIN_WAIT_SECONDS ? MIN_WAIT_SECONDS : t;
+}
+
+/**
+ * The 60 s rule (game, Jordan 3 Nov 2026): "Just have it wait a minute (only exception is when it's
+ * instant, or 0s) then purchase the stuff then go offline a minute." Offline earnings only start
+ * after a full minute away, so the planner never waits less than that: every non-instant wait is at
+ * least this long, at the offline rate, and whatever is affordable at its end is bought together.
+ */
+export const MIN_WAIT_SECONDS = 60;
+
+/** `getTimeToSave` without the 60 s minimum wait: the pure earnings time, for price-to-income tests
+ *  (Smart Buy's 10 s sweep threshold) that are not waits. */
+export function timeToSaveRaw(
+  cost: number,
+  prevSnapshot: BaseCalculationsSnapshot,
+  transitions: EarningsRateTransition[]
+): number {
+  const effectiveCost = Math.max(0, cost - (prevSnapshot.bankValue || 0));
+  if (effectiveCost <= 0) return 0;
+
+  const V1 = prevSnapshot.elr > 0 ? prevSnapshot.offlineEarnings / prevSnapshot.elr : 0;
+  if (V1 <= 0) return Infinity;
+
+  // `prevSnapshot.earningsBoost.multiplier` is only trustworthy for the snapshot's OWN current
+  // `active` state — it gets reset to 1 whenever a boost is toggled off (see
+  // `EARNINGS_BOOST_MULTIPLIER`'s doc comment), so it can't be used to project the rate for the
+  // OPPOSITE state (e.g. an upcoming boost while currently inactive). Use the snapshot's real
+  // current rate (`V1`) for the current state, and the fixed constant for the other.
+  const currentActive = prevSnapshot.earningsBoost.active;
+  const rateFor = (active: boolean) =>
+    active === currentActive ? V1 : active ? V1 * EARNINGS_BOOST_MULTIPLIER : V1 / EARNINGS_BOOST_MULTIPLIER;
+
+  const P0 = prevSnapshot.population;
+  const I = prevSnapshot.offlineIHR / 60;
+  const R = prevSnapshot.ratePerChickenPerSecond;
+  const S = prevSnapshot.shippingCapacity;
+  const HabCap = prevSnapshot.habCapacity;
+  const eggsAt = (t: number) => integrateRate(t, P0, I, R, S, HabCap);
+  const popAt = (t: number) => Math.min(HabCap, P0 + I * t);
+
+  // Transitions at/before t=0 only correct the snapshot's stale flag; the rest end regimes.
+  let segmentActive = currentActive;
+  let i = 0;
+  while (i < transitions.length && transitions[i].atSeconds <= 0) segmentActive = transitions[i++].boostActive;
+
+  let segmentStart = 0;
+  let eggsAtSegmentStart = eggsAt(0);
+  let dollarsSoFar = 0;
+
+  // One regime more than there are transitions left: the last one never ends.
+  for (; i <= transitions.length; i++) {
+    const regimeEnd = i < transitions.length ? transitions[i].atSeconds : Infinity;
+    const rate = rateFor(segmentActive);
+    const eggsAtRegimeEnd = regimeEnd === Infinity ? Infinity : eggsAt(regimeEnd);
+    const dollarsAvailable = regimeEnd === Infinity ? Infinity : rate * (eggsAtRegimeEnd - eggsAtSegmentStart);
+
+    if (dollarsSoFar + dollarsAvailable >= effectiveCost) {
+      const neededEggs = (effectiveCost - dollarsSoFar) / rate;
+      const tWithinRegime = solveForTime(neededEggs, popAt(segmentStart), I, R, S, HabCap);
+      return segmentStart + tWithinRegime;
+    }
+
+    dollarsSoFar += dollarsAvailable;
+    segmentStart = regimeEnd;
+    eggsAtSegmentStart = eggsAtRegimeEnd;
+    if (i < transitions.length) {
+      // Silo mode: still saving when the boost starts, so its credit is paid; enough lands the purchase then.
+      if (transitions[i].siloCreditSeconds) {
+        dollarsSoFar += siloCredit(transitions[i], prevSnapshot, rateFor(false));
+        if (dollarsSoFar >= effectiveCost) return regimeEnd;
+      }
+      segmentActive = transitions[i].boostActive;
+    }
+  }
+
+  return Infinity;
+}

@@ -40,7 +40,7 @@ export interface CheckEntry {
   exact: HistoryAnswer | null;
   firstLeg?: FirstLegKind;
   shared: boolean;
-  /** The hours and time off the check priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers
+  /** The hours and time off the check priced with (fix 22, 16 Oct 2026; absent before): My Runs ranks answers
    *  priced with Your setup now first (lib/currentAnswer.ts). */
   setup?: { availability: Availability | null; timeOff: TimeOffDates[] };
   /** The record's signature (instantRecord.ts `recordSig`): two checks with the same one are the same. */

@@ -113,7 +113,7 @@ export function setGaps(id: SetId, name: string, set: readonly EquippedArtifact[
 
 const SET_NAMES: Record<SetId, string> = {
   earnings: 'Earnings set',
-  production: 'Production set',
+  production: 'Delivery set',
   equipped: 'Equipped now',
 };
 
@@ -139,15 +139,15 @@ export function perfectSetGaps(i: {
   if (has(i.production)) {
     const g = setGaps('production', SET_NAMES.production, i.production!);
     if (has(i.earnings) && sameSet(i.earnings, i.production))
-      g.sameAs = 'The same as your earnings set: the same gaps.';
+      g.sameAs = 'Same as your earnings set, so the same gaps.';
     else counted.push(g);
     sets.push(g);
   }
   if (has(i.equipped)) {
     const g = setGaps('equipped', SET_NAMES.equipped, i.equipped!);
     const m = i.match;
-    if (m === 'earnings' || m === 'both') g.sameAs = 'Equipped now is your earnings set: the same gaps.';
-    else if (m === 'production') g.sameAs = 'Equipped now is your production set: the same gaps.';
+    if (m === 'earnings' || m === 'both') g.sameAs = 'Equipped now is your earnings set, so the same gaps.';
+    else if (m === 'production') g.sameAs = 'Equipped now is your delivery set, so the same gaps.';
     else if (!counted.length) counted.push(g);
     else if (m === 'mix') counted.push(g);
     sets.push(g);

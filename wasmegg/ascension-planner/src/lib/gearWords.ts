@@ -1,5 +1,5 @@
 /**
- * A set of artifacts in a few words, for My runs' gear rows: "3 legendary, 1 epic · 12 stones".
+ * A set of artifacts in a few words, for My Runs' gear rows: "3 legendary, 1 epic · 12 stones".
  */
 import { getArtifact } from './artifacts/data';
 import type { EquippedArtifact } from './artifacts/types';

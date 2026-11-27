@@ -15,9 +15,18 @@ let fresh: { sale: number; days: number; endTE?: number; buildPhaseEnd?: number 
  *  rule above it is tested as it was before the build-up existed). */
 let buildUpDays: number | null = null;
 let buildUpEndTE = 200;
+/** Whether the build-up's build buys anything (NO EMPTY BUILD-UP, search/leg.ts `buildUpBuild`): a C3 variant with a
+ *  research purchase, or none. */
+let buildUpBuys = true;
+/** SHIFT NOW (spec-emptyshiftnow): the build-up's C3 variants one by one (each its own leg in days, whether its C3 buys,
+ *  and how long its C3 takes), in place of the single `buildUpDays` variant; null: that single variant. */
+let buildUpSales: { sale: number; days: number; buys: boolean; c3Hours?: number }[] | null = null;
+/** The steps before C3 (auto/buildUp.ts `runBuildUpUntilC3`): none, on Curiosity (the farm already in C3), by default. */
+let buildUpPre: { actions: { type: string }[]; stayOnCuriosity: boolean } = { actions: [], stayOnCuriosity: true };
 const calls = { c3: 0, buildUp: 0 };
 
 vi.mock('@/auto/ascension', () => ({
+  isPurchase: (a: { type: string }) => /^buy_/.test(a.type),
   runUntilShift: () => ({ actions: [], state: {}, elapsedSeconds: 0 }),
   deriveNextStartState: () => ({}),
   runContinueCurrent: () => ({
@@ -25,11 +34,13 @@ vi.mock('@/auto/ascension', () => ({
     summary: { totalDurationSeconds: contDays * DAY, endTime: contDays * DAY, endTE: contEndTE },
   }),
   runAscensionFromC3Variant: (_b: unknown, _p: unknown, v: { saleCount: number }, _c: unknown, _s: unknown, id: string) => {
-    if (id.endsWith('_buildup'))
+    if (id.endsWith('_buildup')) {
+      const days = buildUpSales ? buildUpSales.find(x => x.sale === v.saleCount)!.days : buildUpDays!;
       return {
         actions: [],
-        summary: { totalDurationSeconds: buildUpDays! * DAY, endTime: buildUpDays! * DAY, endTE: buildUpEndTE, strategyLabel: '1-sale build' },
+        summary: { totalDurationSeconds: days * DAY, endTime: days * DAY, endTE: buildUpEndTE, strategyLabel: `${v.saleCount}-sale build` },
       };
+    }
     const f = fresh.find(x => x.sale === v.saleCount)!;
     return {
       actions: [],
@@ -38,15 +49,31 @@ vi.mock('@/auto/ascension', () => ({
   },
 }));
 vi.mock('@/auto/buildUp', () => ({
-  runBuildUpUntilC3: () => ({ actions: [], state: { buildUp: true }, elapsedSeconds: 0, shifted: [], stayOnCuriosity: true }),
+  runBuildUpUntilC3: () => ({ actions: buildUpPre.actions, state: { buildUp: true }, elapsedSeconds: 0, shifted: [], stayOnCuriosity: buildUpPre.stayOnCuriosity }),
 }));
 vi.mock('@/auto/shifts/c3', () => ({
   runC3Variants: (state: { buildUp?: boolean }) => {
     if (state?.buildUp) {
       calls.buildUp++;
+      if (buildUpSales)
+        return buildUpSales.map(x => ({
+          saleCount: x.sale,
+          attemptTier13Unlock: false,
+          impossible: false,
+          buildPhaseEnd: x.sale * 7 * DAY,
+          result: { actions: x.buys ? [{ type: 'buy_research' }] : [], elapsedSeconds: (x.c3Hours ?? 0) * 3600 },
+        }));
       return buildUpDays === null
         ? []
-        : [{ saleCount: 1, attemptTier13Unlock: false, impossible: false, buildPhaseEnd: 0 }];
+        : [
+            {
+              saleCount: 1,
+              attemptTier13Unlock: false,
+              impossible: false,
+              buildPhaseEnd: 0,
+              result: { actions: buildUpBuys ? [{ type: 'buy_research' }] : [{ type: 'shift' }] },
+            },
+          ];
     }
     calls.c3++;
     return fresh.map(f => ({
@@ -57,7 +84,8 @@ vi.mock('@/auto/shifts/c3', () => ({
     }));
   },
 }));
-vi.mock('@/engine/compute', () => ({ computeSnapshot: () => ({ elr: 1 }) }));
+// lib/planners since Joo's PR 731 (leg.ts imports compute from there).
+vi.mock('lib/planners/engine/compute', () => ({ computeSnapshot: () => ({ elr: 1 }) }));
 vi.mock('@/lib/artifacts', () => ({
   getArtifactLoadoutFromBackup: () => [],
   getOptimalEarningsSet: () => null,
@@ -99,6 +127,9 @@ beforeEach(() => {
   calls.buildUp = 0;
   buildUpDays = null;
   buildUpEndTE = 200;
+  buildUpBuys = true;
+  buildUpSales = null;
+  buildUpPre = { actions: [], stayOnCuriosity: true };
   contEndTE = 200;
   fresh = [
     { sale: 1, days: 40 },
@@ -244,9 +275,9 @@ describe('leg 1: continue my build-up', () => {
     expect(calls.c3).toBe(0);
     contDays = 40;
     expect(leg1(inputs('buildup'))!.key).toBe('continue');
-    // A tie goes to the build-up.
+    // A tie goes to continue (spec-noemptybuild: a build-up no sooner than continue is continue with extra shifts).
     contDays = 50;
-    expect(leg1(inputs('buildup'))!.key).toBe('buildup');
+    expect(leg1(inputs('buildup'))!.key).toBe('continue');
   });
 
   it('under Continue my build-up with neither possible, falls back to a fresh start', () => {
@@ -290,5 +321,150 @@ describe('leg 1: continue my build-up', () => {
     buildUpEndTE = 215;
     fresh = [{ sale: 1, days: 20, endTE: 210, buildPhaseEnd: 5 * DAY }];
     expect(leg1(inputs('auto'), 20 * DAY)!.key).toBe('buildup');
+  });
+});
+
+describe('leg 1: no build-up that buys nothing or ends no sooner than continue (spec-noemptybuild)', () => {
+  // Every fresh start slower than continue and the build-up, so only those two decide.
+  beforeEach(() => {
+    fresh = [{ sale: 2, days: 60 }];
+  });
+
+  it('a build-up whose build buys nothing is never offered: continue, under every setting that builds up', () => {
+    contDays = 42;
+    buildUpDays = 41; // even sooner (it cannot be, but the rule does not lean on the times)
+    buildUpBuys = false;
+    for (const first of ['auto', 'buildup'] as const) {
+      const r = leg1(inputs(first))!;
+      expect(r.key).toBe('continue');
+      // Not an option, so neither the rival nor recorded.
+      expect(r.firstLegEnds?.buildup).toBeUndefined();
+      expect(r.rival?.key).not.toBe('buildup');
+    }
+  });
+
+  it("with nothing to buy, My Runs' unfinished build (continue left out) is continue, not the empty build-up", () => {
+    contDays = 42;
+    buildUpDays = 43;
+    buildUpBuys = false;
+    // A new inputs object each time: the build-up is worked out once per run (its inputs).
+    const carryOn = () => ({ ...inputs('buildup'), continueMaxSeconds: 0 }) as SearchInputs;
+    expect(leg1(carryOn())!.key).toBe('continue');
+    // A build-up that buys something stays the build carried on there (pieha, 27 Oct 2026), as before.
+    buildUpBuys = true;
+    expect(leg1(carryOn())!.key).toBe('buildup');
+    // Past six months continue is still no answer: a fresh start, as before.
+    buildUpBuys = false;
+    contDays = 200;
+    expect(leg1(carryOn())!.key).toBe('2-sale');
+  });
+
+  it('a build-up that buys something and ends sooner than continue is still chosen', () => {
+    contDays = 42;
+    buildUpDays = 41;
+    expect(leg1(inputs('auto'))!.key).toBe('buildup');
+    expect(leg1(inputs('buildup'))!.key).toBe('buildup');
+  });
+
+  it('a tie with continue goes to continue; later than continue, continue', () => {
+    contDays = 42;
+    buildUpDays = 42;
+    expect(leg1(inputs('auto'))!.key).toBe('continue');
+    expect(leg1(inputs('buildup'))!.key).toBe('continue');
+    buildUpDays = 43;
+    const r = leg1(inputs('auto'))!;
+    expect(r.key).toBe('continue');
+    // A build-up that buys something is still a real option that lost: recorded.
+    expect(r.firstLegEnds?.buildup).toBe(43 * DAY);
+  });
+
+  it('by a deadline, a build-up reaching no more TE than continue is not taken', () => {
+    contDays = 20;
+    contEndTE = 215;
+    buildUpDays = 20;
+    buildUpEndTE = 215;
+    fresh = [{ sale: 1, days: 20, endTE: 210, buildPhaseEnd: 5 * DAY }];
+    expect(leg1(inputs('auto'), 20 * DAY)!.key).toBe('continue');
+    expect(leg1(inputs('buildup'), 20 * DAY)!.key).toBe('continue');
+    buildUpEndTE = 216;
+    expect(leg1(inputs('buildup'), 20 * DAY)!.key).toBe('buildup');
+  });
+});
+
+describe("leg 1: the sale's buying done, the build-up shifts now (spec-emptyshiftnow)", () => {
+  // Jordan's main, 13 Nov 2026, 2:51 PM, in shape: the 1-sale variant's last buy just bought (its C3 buys nothing and
+  // takes no time: H1 now), the 2-sale variant waits a week for the next sale and buys more. Fresh starts all slower.
+  beforeEach(() => {
+    fresh = [{ sale: 2, days: 80 }];
+    contDays = 50;
+  });
+  const carryOn = () => ({ ...inputs('buildup'), continueMaxSeconds: 0 }) as SearchInputs;
+
+  it('shift now is kept, and the sooner plan wins under every setting that builds up', () => {
+    buildUpSales = [
+      { sale: 1, days: 40, buys: false },
+      { sale: 2, days: 41.6, buys: true, c3Hours: 184 },
+    ];
+    for (const i of [inputs('auto'), inputs('buildup'), carryOn()]) {
+      const r = leg1(i)!;
+      expect(r.key).toBe('buildup');
+      expect(r.summary.endTime).toBe(40 * DAY);
+      expect(r.firstLegEnds?.buildup).toBe(40 * DAY);
+    }
+    // Still the best of the variants: a 2-sale build sooner than shifting now is taken instead.
+    buildUpSales = [
+      { sale: 1, days: 40, buys: false },
+      { sale: 2, days: 39, buys: true, c3Hours: 184 },
+    ];
+    expect(leg1(inputs('buildup'))!.summary.endTime).toBe(39 * DAY);
+  });
+
+  it('shift now no sooner than continue: everything as before it was kept (the build-up that buys stands in)', () => {
+    contDays = 42;
+    buildUpSales = [
+      { sale: 1, days: 45, buys: false },
+      { sale: 2, days: 47, buys: true, c3Hours: 184 },
+    ];
+    for (const i of [inputs('auto'), inputs('buildup')]) {
+      const r = leg1(i)!;
+      expect(r.key).toBe('continue');
+      // The option that lost, as recorded before: the 2-sale build, not shifting now.
+      expect(r.firstLegEnds?.buildup).toBe(47 * DAY);
+    }
+    // My Runs' unfinished build (continue left out): the build that buys is carried on (pieha, 27 Oct 2026), as before.
+    const r = leg1(carryOn())!;
+    expect(r.key).toBe('buildup');
+    expect(r.summary.endTime).toBe(47 * DAY);
+    // A tie with continue is no sooner either.
+    buildUpSales[0].days = 42;
+    expect(leg1(carryOn())!.summary.endTime).toBe(47 * DAY);
+  });
+
+  it('an empty variant that waits, or a farm not yet in C3, is still no option (NO EMPTY BUILD-UP)', () => {
+    // Waits for the sale and buys nothing: dropped, the 2-sale build is the build-up.
+    buildUpSales = [
+      { sale: 1, days: 40, buys: false, c3Hours: 27 },
+      { sale: 2, days: 41.6, buys: true, c3Hours: 184 },
+    ];
+    expect(leg1(inputs('buildup'))!.summary.endTime).toBe(41.6 * DAY);
+    // Steps before C3 (a farm that shifts to Curiosity first): the empty variant is continue with extra shifts.
+    buildUpPre = { actions: [{ type: 'notification' }], stayOnCuriosity: true };
+    buildUpSales = [
+      { sale: 1, days: 40, buys: false },
+      { sale: 2, days: 41.6, buys: true, c3Hours: 184 },
+    ];
+    expect(leg1(inputs('buildup'))!.summary.endTime).toBe(41.6 * DAY);
+  });
+
+  it('every variant empty (nothing left to buy at all): still no build-up, continue', () => {
+    buildUpSales = [
+      { sale: 1, days: 40, buys: false },
+      { sale: 2, days: 41.6, buys: false, c3Hours: 184 },
+    ];
+    for (const i of [inputs('auto'), inputs('buildup'), carryOn()]) {
+      const r = leg1(i)!;
+      expect(r.key).toBe('continue');
+      expect(r.firstLegEnds?.buildup).toBeUndefined();
+    }
   });
 });

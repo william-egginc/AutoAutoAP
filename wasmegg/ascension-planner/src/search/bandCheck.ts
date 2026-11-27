@@ -92,7 +92,7 @@ function withPieces(seg: Segment, replace: Map<string, string | null>): string {
     .join(', ');
 }
 
-const band = (n: number) => `Band ${n}`;
+const band = (n: number) => `Range ${n}`;
 
 /**
  * Everything worth saying about the bands in this text, in the order the player would meet it.
@@ -130,7 +130,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
       issues.push({
         code: 'empty',
         band: n,
-        message: `Band ${n} is empty, so it is skipped and the box gets one ascension fewer.`,
+        message: `Range ${n} is empty, so it is skipped and the box gets one ascension fewer.`,
         fix: withSegment(segs, i, null),
       });
       return;
@@ -172,7 +172,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
         issues.push({
           code: 'stepTooWide',
           band: n,
-          message: `${band(n)}: the step in "${p.piece}" is wider than the band, so only ${p.lo} is tried. Did you mean ${fixed}?`,
+          message: `${band(n)}: the step in "${p.piece}" is wider than the range, so only ${p.lo} is tried. Did you mean ${fixed}?`,
           fix: swap(fixed),
         });
       }
@@ -202,7 +202,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
           first === cur
             ? // A stop is an ascension still to come. Ascending straight away is the First ascension
               // setting (Your setup, or Classic's A1 dropdown), not a stop at TE now.
-              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is the First ascension setting in Your setup, which is ${firstAscensionNow(ctx.firstAscension)}. Did you mean ${formatBand(inRange)}?`
+              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is the First ascension setting in Setup, which is ${firstAscensionNow(ctx.firstAscension)}. Did you mean ${formatBand(inRange)}?`
             : `${band(n)} starts at ${first}, at or below the TE you're at now (${cur}). Those values can't be played. Did you mean ${formatBand(inRange)}?`,
         fix: withSegment(segs, i, formatBand(inRange)),
       });
@@ -237,7 +237,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
         issues.push({
           code: 'outOfOrder',
           band: late.n,
-          message: `${band(late.n)} (${late.seg.text}) sits below band ${early.n} (${early.seg.text}), but stops go up, so no route can use both.${
+          message: `${band(late.n)} (${late.seg.text}) sits below range ${early.n} (${early.seg.text}), but stops go up, so no route can use both.${
             ok ? ' Did you mean them in this order?' : ''
           }`,
           fix: ok ? sorted.join('; ') : undefined,
@@ -251,7 +251,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
     issues.push({
       code: 'countMismatch',
       band: 0,
-      message: `These bands make ${count + 1} ascensions, but this box is set to ${ctx.ascensions}.`,
+      message: `These ranges make ${count + 1} ascensions, but this box is set to ${ctx.ascensions}.`,
     });
   }
 
@@ -401,7 +401,7 @@ export function widenEdges(
 /** What to tell the player when the winner sits on a band's edge. One wording for the Full sweep's
  *  panel and the command line. */
 export function describeEdge(e: BandEdge): string {
-  return `The best route sits on the edge of band ${e.band} (${e.value} is the ${e.side === 'low' ? 'lowest' : 'highest'} you allowed). There may be a better one just outside.`;
+  return `The best route sits on the edge of range ${e.band} (${e.value} is the ${e.side === 'low' ? 'lowest' : 'highest'} you allowed). There may be a better one just outside.`;
 }
 
 const ascWord = (n: number) => (n === 1 ? '1 ascension' : `${n} ascensions`);

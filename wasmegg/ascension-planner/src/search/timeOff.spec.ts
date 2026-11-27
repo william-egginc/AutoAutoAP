@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeTimeOff, nextDate, timeOffWindows, usableTimeOff } from './timeOff';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 
 const TZ = 'America/Denver';
 

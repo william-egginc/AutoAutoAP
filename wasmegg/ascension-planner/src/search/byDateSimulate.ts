@@ -1,5 +1,5 @@
 /**
- * What By a date's "Simulate this plan" (ByDateRouteCard.vue) hands Single run (Classic): the route, from the plan
+ * What By a date's "Simulate this route" (ByDateRouteCard.vue) hands Single run (Classic): the route, from the plan
  * start its run priced it from, with its legs (time off, and the build its first ascension took) and
  * the run's own first-ascension setting (search/simulateRoute.ts, stores/chainSearch.ts `applyChain`),
  * as the instant answer's rows do.
@@ -11,9 +11,10 @@
 import type { DeadlineRoute } from './deadline';
 import type { FirstAscension } from './firstAscension';
 import type { LegSummary } from './types';
-import { NAMES } from '@/lib/siteNav';
 
-export const BUILDUP_NOTE = `${NAMES.classic} prices the first ascension as a fresh build/continue.`;
+// The note's words are search/byDateSimulateWords.ts's (moved there unchanged, 5 Nov 2026), so a reword keeps the hash.
+import { BUILDUP_NOTE } from './byDateSimulateWords';
+export { BUILDUP_NOTE };
 
 export function byDateSimulate(
   route: DeadlineRoute,
@@ -32,7 +33,7 @@ export function byDateSimulate(
       ...(run.planStart && run.planStart > 0 ? { start: run.planStart } : {}),
       ...(legs.length ? { legs } : {}),
       ...(run.firstAscension ? { firstAscension: run.firstAscension } : {}),
-      from: 'your By a date search',
+      from: 'your Highest TE by a date search',
     },
     note: buildUp ? BUILDUP_NOTE : '',
   };

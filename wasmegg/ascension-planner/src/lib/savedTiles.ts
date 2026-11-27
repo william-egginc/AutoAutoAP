@@ -1,5 +1,5 @@
 /**
- * My runs' two saved-answer tiles (spec myruns-now v3, section 4): Fastest to 490 and Egg Day, each the best
+ * My Runs' two saved-answer tiles (spec myruns-now v3, section 4): Fastest to 490 and Egg Day, each the best
  * answer already worked out for the loaded save, with when it was calculated, from which save, and How sure
  * (lib/howSure.ts). Nothing is worked out again: every answer comes from something this browser or the board
  * already holds:
@@ -43,7 +43,8 @@ import {
   type BoardRow,
 } from './leaderboardRank';
 import { howSure, type SearchLevel, type Sure } from './howSure';
-import type { NowPlan } from './nowPlan';
+import { onTrack, type NowPlan } from './nowPlan';
+import { pathOfPace } from './planPace';
 import {
   CURRENT_SAVE_SECONDS,
   SAME_SAVE_SECONDS,
@@ -86,11 +87,17 @@ export interface TileAnswer {
   source: 'snapshot' | 'lastChecked' | 'history' | 'board' | 'saved';
   how: 'instant' | 'check' | 'search';
   level?: SearchLevel | null;
+  /** A snapshot's Fast, Exact or Custom result (lib/searchPlan.ts): the panel's own name for it. */
+  found?: 'Fast' | 'Exact' | 'Custom';
   complete?: boolean;
   exactConfirmsTE?: boolean;
   runnerUpHours?: number | null;
   olderSimulator?: boolean;
+  /** An instant answer an older build worked out (NowPlan `olderCode`, Release 7). */
+  olderCode?: boolean;
   hoursChanged?: boolean;
+  /** The loaded save against this answer's planned route (How sure's `path`): 'unknown' unless a newer save and the plan's legs allow the check. */
+  path?: 'on' | 'off' | 'unknown';
   /** A board run this browser didn't send (not on /mine): a "looks like yours" row from another browser or site. */
   otherBrowser?: boolean;
   /** Its legs (each shift), when the source kept them: By a date's saved answers. */
@@ -151,7 +158,16 @@ export interface TileInput {
   deadline: number | null;
   nowMs: number;
   /** The loaded save. */
-  save: { seconds: number; te: number } | null;
+  save: {
+    seconds: number;
+    te: number;
+    /** What the loaded save shows for the route check (lib/planPace.ts): each egg's TE, whole TE, the egg the farm is
+     *  on. Absent: no route check, How sure keeps its age rules. */
+    teByEgg?: readonly number[];
+    progress?: number;
+    onVirtue?: boolean;
+    egg?: string | null;
+  } | null;
   snapshot: NowPlan | null;
   lastChecked: { at: number; chain: number[]; end: number; endTE: number } | null;
   history: readonly CheckEntry[];
@@ -173,6 +189,9 @@ export interface TileInput {
 const LEVELS: readonly SearchLevel[] = ['light', 'quick', 'normal', 'thorough', 'exhaustive'];
 const asLevel = (v: unknown): SearchLevel | null => (LEVELS.includes(v as SearchLevel) ? (v as SearchLevel) : null);
 
+/** The search panel's levels as the tile's (How sure reads these). */
+const FOUND_LEVEL: Record<'Fast' | 'Exact' | 'Custom', SearchLevel> = { Fast: 'quick', Exact: 'normal', Custom: 'exhaustive' };
+
 /** A board row's search level: Exhaustive for a space (Fastest) or By a date's 'advanced' mode, else its level. */
 export function rowLevel(row: BoardRow): SearchLevel | null {
   if (row.space) return 'exhaustive';
@@ -188,6 +207,14 @@ export function rowSaveSeconds(row: BoardRow): number | null {
 
 function candidates(i: TileInput): TileAnswer[] {
   const out: TileAnswer[] = [];
+  // A kept snapshot's route against the loaded save (lib/planPace.ts, the same check as Right now's chip).
+  const pathOf = (s: NowPlan): 'on' | 'off' | 'unknown' => {
+    const v = i.save;
+    if (!v || !v.teByEgg) return 'unknown';
+    return pathOfPace(
+      onTrack(s, { seconds: v.seconds, teByEgg: v.teByEgg, progress: v.progress, onVirtue: v.onVirtue, egg: v.egg ?? null })
+    );
+  };
   const saveNow = i.save?.seconds ?? null;
   const goalOk = (deadline: number | undefined | null, target: number | undefined) =>
     i.goal === 'date' ? deadline === i.deadline : !deadline && target === i.target;
@@ -206,15 +233,21 @@ function candidates(i: TileInput): TileAnswer[] {
     saveSeconds: s.meta?.backupTime ?? (own ? saveNow : null),
     fromTE: own ? (i.save?.te ?? null) : null,
     source: 'snapshot',
-    how: s.exact ? 'check' : 'instant',
-    exactConfirmsTE: i.goal === 'date' && s.exact ? s.instantTE === s.endTE : undefined,
+    // A search's result kept with the snapshot (lib/searchPlan.ts) reads as that search; an older snapshot's exact
+    // lead was Check exactly's.
+    ...(s.from
+      ? { how: 'search' as const, level: FOUND_LEVEL[s.from.level], found: s.from.level }
+      : { how: s.exact ? ('check' as const) : ('instant' as const) }),
+    exactConfirmsTE: i.goal === 'date' && s.exact && !s.from ? s.instantTE === s.endTE : undefined,
     runnerUpHours: s.runnerUpHours,
     runnerUpChain: s.runnerUp?.chain ?? null,
     runnerUpSame: !!s.runnerUp && s.runnerUp.end === s.end && s.runnerUp.endTE === s.endTE,
     plan: true,
     ownKey: own,
+    ...(s.olderCode ? { olderCode: true } : {}),
     setup: own ? ownSetup : setup,
     hoursChanged: setup?.fit === 'other',
+    path: pathOf(s),
   });
   const s = i.snapshot;
   if (s && s.goal === i.goal) out.push(fromSnap(s, true, ownSetup));
@@ -378,6 +411,8 @@ function finish(
     runnerUpHours: pick.runnerUpHours ?? null,
     ageDays: ageMs / 86_400_000,
     olderSimulator: pick.olderSimulator,
+    olderCode: pick.olderCode,
+    path: pick.path,
     hoursChanged: pick.hoursChanged,
     teMoved: i.save != null && pick.fromTE != null && Math.floor(pick.fromTE) !== Math.floor(i.save.te),
     te: pick.endTE,
@@ -398,13 +433,14 @@ export function saveGapWords(gapSeconds: number): string {
  *  guessed from another browser ("looks like yours"). */
 export function sourceWords(a: TileAnswer): string {
   if (a.source !== 'board') return '';
-  return a.otherBrowser ? 'from your board run sent from another browser' : 'from your board run';
+  return a.otherBrowser ? 'from your Leaderboard run sent from another browser' : 'from your Leaderboard run';
 }
 
 /** "Snapshot" etc. in player words, for the tile's calculated line: "(Check exactly)", "(Exhaustive)". */
 export function howWords(a: TileAnswer): string {
+  if (a.found) return a.found;
   if (a.how === 'instant') return 'instant answer';
-  if (a.how === 'check') return a.level === 'light' ? 'Checked at once' : 'Check exactly';
-  const w: Record<SearchLevel, string> = { light: 'Checked at once', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Exhaustive' };
+  if (a.how === 'check') return a.level === 'light' ? 'Instant Answer' : 'simulator check';
+  const w: Record<SearchLevel, string> = { light: 'Instant Answer', quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', exhaustive: 'Custom' };
   return a.level ? w[a.level] : 'a search';
 }

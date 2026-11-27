@@ -28,6 +28,8 @@ export const TABLE_STALL_MS = 30_000;
 export const TABLE_STALLED = 'the instant answer download stalled (timeout)';
 
 class Stalled extends Error {}
+/** The server has no such file: a 404, or the app's own page in its place. */
+class Missing extends Error {}
 
 /** The error (here, or as text from a worker) is the stall. */
 export function isTableStall(e: unknown): boolean {
@@ -47,6 +49,23 @@ export async function probeHeader<T>(load: () => Promise<T>): Promise<T | null> 
     if (isTableStall(e)) throw e;
     return null;
   }
+}
+
+/**
+ * The first of `urls` that has a header (`probeHeader` on each in turn, one after another): a player's own table
+ * under its `.v2` name, then the plain one (tableGear.ts ownTableNames). The plain name is asked for only after the
+ * `.v2` one misses. A file this page can't read (a newer version) is no table, as a missing one: nothing shown. Null
+ * when none; a stall is thrown on, so no later name waits another 30 s.
+ */
+export async function probeFirst<T>(
+  urls: readonly string[],
+  load: (url: string) => Promise<T>
+): Promise<{ url: string; header: T } | null> {
+  for (const url of urls) {
+    const header = await probeHeader(() => load(url));
+    if (header) return { url, header };
+  }
+  return null;
 }
 
 /** One file's bytes, or an error when the server has none (the preview server answers a missing file
@@ -72,7 +91,8 @@ async function fetchBytes(url: string, deps: FetchDeps, stallMs: number): Promis
         const res = await deps.fetch(url, { cache: 'no-cache', signal: ctrl.signal });
         progress();
         if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
-          throw new Error(`the instant answer could not be loaded (${res.ok ? 404 : res.status})`);
+          const message = `the instant answer could not be loaded (${res.ok ? 404 : res.status})`;
+          throw res.ok || res.status === 404 ? new Missing(message) : new Error(message);
         }
         if (!res.body) return res.arrayBuffer();
         // Read by chunks, each one putting the stall off again.
@@ -105,22 +125,45 @@ async function fetchBytes(url: string, deps: FetchDeps, stallMs: number): Promis
  *  file used to read "No instant answer for your TE yet", the words for a TE the instant answer doesn't cover. No "table": players never read that word. */
 export const TABLE_LOAD_FAILED = 'The instant answer couldn’t be loaded.';
 
+/** What the card says when the file is a newer version than this page reads (`tableNewerThanPage`): the site was
+ *  updated while the tab was open (Jordan's By a date on egg-beta, 23 Oct 2026). With a Reload button. */
+export const TABLE_OLDER_PAGE = 'An older version of this page is open: reload it to get the instant answer.';
+
+/** The error (as text from a worker) is the loader refusing the file's version (precomputedTable.ts readTable):
+ *  this page is older than the file. A load failure too (`tableLoadFailed`), said as an older page. */
+export function tableNewerThanPage(message: string): boolean {
+  return /precomputed table version \d+ is not supported/i.test(message);
+}
+
 /**
  * A worker's error message (it crosses as text) that means the file itself could not be had: missing, a web
- * page in its place, cut short, from another version, stalled, or no connection. Not a TE outside the file (InstantRoute's `below`).
+ * page in its place, cut short, from another version, stalled, or no connection; or the route worker reading it never
+ * started, stopped or sent a reply the page couldn't read (search/routePool.ts), which a Retry may get past. Not a TE
+ * outside the file (InstantRoute's `below`).
  */
 export function tableLoadFailed(message: string): boolean {
-  return /404|not a precomputed table|incomplete|precomputed table version|instant answer could not be loaded|download stalled|failed to fetch|networkerror|load failed/i.test(
+  return /404|not a precomputed table|incomplete|precomputed table version|instant answer could not be loaded|download stalled|failed to fetch|networkerror|load failed|route worker/i.test(
     message
   );
 }
 
 const isGzip = (b: ArrayBuffer) => b.byteLength > 2 && new Uint8Array(b)[0] === 0x1f && new Uint8Array(b)[1] === 0x8b;
 
+/**
+ * An own or gear table (`acct-…`, `gear-…`, either name: tableGear.ts ownTableNames, gearTableFiles): looked up by
+ * name, and most players have none, so a miss must be one request per name. The deploy ships every one as `NAME.gz`
+ * beside `NAME`, so a missing `.gz` is no table under that name: the plain file is not asked for. A `.gz` that is
+ * there but broken still falls back to it. The maxed table keeps the full `.gz`-then-plain fallback.
+ */
+export function gzOnlyWhenMissing(url: string): boolean {
+  return /(^|\/)(acct|gear)-[^/]*\.bin$/.test(url);
+}
+
 export async function fetchTable(
   url: string,
   deps: FetchDeps = defaults(),
-  stallMs = TABLE_STALL_MS
+  stallMs = TABLE_STALL_MS,
+  gzOnly = gzOnlyWhenMissing(url)
 ): Promise<Table> {
   try {
     let bytes = await fetchBytes(url + '.gz', deps, stallMs);
@@ -133,6 +176,8 @@ export async function fetchTable(
   } catch (e) {
     // A stall is the connection, not the .gz: the plain file (four times the size) would only stall too.
     if (e instanceof Stalled) throw e;
+    // An own or gear table with no .gz: none under this name (`gzOnlyWhenMissing`).
+    if (gzOnly && e instanceof Missing) throw e;
     return readTable(await fetchBytes(url, deps, stallMs));
   }
 }

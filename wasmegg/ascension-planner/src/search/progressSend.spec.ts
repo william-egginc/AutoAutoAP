@@ -164,7 +164,7 @@ describe('a CSV over the cap goes in parts (uploadCsv)', () => {
     const busy = fake(ok({}, 503));
     expect(await uploadCsv(URL_, 't', new ArrayBuffer(10), { fetch: busy.fetch })).toEqual({
       kind: 'failed',
-      why: 'the board answered 503',
+      why: 'the Leaderboard answered 503',
       status: 503,
     });
     const odd = fake(new Error('boom'), new Error('boom'), new Error('boom'));

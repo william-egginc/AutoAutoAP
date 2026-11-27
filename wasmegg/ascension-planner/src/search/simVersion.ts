@@ -14,23 +14,97 @@
  *  - results changed: bump SIM_VERSION (tables need regenerating, or restamping after a bitcheck
  *    shows they are identical), then update SIM_SOURCE_HASH;
  *  - results unchanged (a refactor, a comment; bitcheck all identical): update SIM_SOURCE_HASH only.
- * It covers the code that decides a cell most often (the engine, the ascension and shift code, the
- * table build). Not everything a cell touches (lib/, calculations/) is in it; a change there that
- * moves results still needs a bump by hand.
+ * It covers the code that decides a cell (the engine, the ascension and shift code, the calculations, the table
+ * build and generator) and, since 15 Nov 2026, the calendar, pricing, planners and data they read. Not everything
+ * the generator bundles is in it: leg.ts (TIER_13_MIN_STARTING_TE), the manual-planner action executors, the save
+ * decoding and artifact data under lib/ are left out, because they change often for other reasons. A change there
+ * that moves results still needs a bump by hand.
  *
  * Where the stamp goes: scripts/precompute.ts writes it into a table's meta.json at --generate and its
  * header at --pack, and --manifest copies it into tables.json. The page compares it at load
  * (`tableSimMismatch`) and says so on the instant answer when they differ; it also rides in the CSV
  * header and the instant record.
  */
-export const SIM_VERSION = '2026-10-21-egg-beta2';
+// 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
+// (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 24 h,
+// and the 60 s rule (no sub-minute waits: a non-instant wait is at least a minute, offline).
+// 2026-11-09-sim4: Joo's PR #729 merged (Carpet's main c36a25cf + joo/main 595aa573). The mover is 799a6502
+// (hr/% at the charged price; delivery research planned as a set, calculations/deliveryLevelSearch.ts) with
+// b2ce0b99 and d180ce708 (lookahead pairs); also standard permit (60cf8977) and the research sale on sim time
+// (8a5892b6, b8c6cb8e). Joo's planners refactor moved engine/apply/math.ts and most calculations into lib/planners
+// (hashed below). Tables are rebuilt for it (Jordan, 9 Nov: Option B).
+// 2026-11-14-sim5: upstream fa805e2d1 merged (Joo's PR 731 final, ColossalTuna's PR 714). The movers are c983b800c
+// (milestone chain fix, smart buy's milestone list: TE 200 in the sample) and 72e0de505 (2x and Smart Buy rules in
+// smartBuyPreview.ts: TE 55 to 300); the rest of upstream moved no sampled cell (A/B/C bitcheck, notes
+// upstream-2026-11-14.md section 8). Tables are rebuilt for it (Jordan, 14 Nov: full merge with a bump).
+export const SIM_VERSION = '2026-11-14-sim5';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
-export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
+export const SIM_SOURCES = [
+  'src/engine',
+  'src/auto',
+  'src/search/tableBuild.ts',
+  'src/search/precomputedLeg.ts',
+  // sim4 (9 Nov 2026): the ascension planner's own calculations too. Joo's 799a6502 moved table cells from here
+  // (researchRanking.ts, smartBuyPreview.ts, deliveryLevelSearch.ts) while the hash above stayed put.
+  'src/calculations',
+  // Joo's shared planner code (PR #729) moved the engine math and the hab/vehicle/silo planners here.
+  '../../lib/planners/engine',
+  '../../lib/planners/calculations',
+  // sim5 (14 Nov 2026): the table generator's own code, which decides every cell but was outside the hash.
+  'src/search/tableV2Build.ts',
+  'scripts/precompute.ts',
+  // 15 Nov 2026 (review T5): what the generator's bundle reads to price and time every cell (its sourcemaps): the
+  // event calendar and its table, pricing and research helpers, the hab/vehicle/silo planners, epic research, the
+  // virtue optimizer, the earnings bonus and the research data.
+  '../../lib/planners/events.ts',
+  '../../lib/planners/pacificTimeTable.json',
+  '../../lib/planners/utils/pricing.ts',
+  '../../lib/planners/utils/research.ts',
+  '../../lib/planners/utils/math.ts',
+  '../../lib/planners/habs.ts',
+  '../../lib/planners/vehicles.ts',
+  '../../lib/planners/silos.ts',
+  '../../lib/planners/epicResearch.ts',
+  '../../lib/planners/artifacts/virtue.ts',
+  '../../lib/earning_bonus.ts',
+  '../../lib/researches.json',
+  // 22 Nov 2026 (code review T1.8): the TE thresholds every cell counts, the artifact modifiers and colleggtibles
+  // the farm's rates come from, and the artifact helpers the generator's build reads.
+  'src/lib/truthEggs.ts',
+  'src/lib/artifacts/calculator.ts',
+  '../../lib/collegtibles.ts',
+  '../../lib/planners/artifacts/utils.ts',
+];
 
-/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = 'cc63078ba1d2264bb39fa07b92b5e6a90a71f67289f68ea3e8bffb23ab955fd3';
+/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
+ *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
+ *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
+ *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge.
+ *  9 Nov 2026 (spec-sim4): re-pasted for isTierUnlocked's short count (commonResearch.ts), a speed-up
+ *  with the same answers: its spec checks it against the full count, and the tables bitcheck. Then for
+ *  boostTransitionsFrom's memo (engine/apply/math.ts), the same lists as its walk (same checks). Then for
+ *  the player's hours for purchases (advanceTime.ts stretchToHours, game expert): only with context.holdUntil,
+ *  which the tables never set, so cells stay the same (tables bitcheck).
+ *  10 Nov 2026 (spec-r9): re-pasted for Joo's refactor (joo/main 3cd91eff2: 2x earnings from sim time,
+ *  simulate.ts, Continue from mid-build, files moved into lib/planners) and egg-beta2-int's uncapped save
+ *  catch-up. Not a SIM_VERSION bump: the merged build's start-TE files are byte-identical to the sim4
+ *  tables (11 of 11 on the Mac; the PC sweep over every finished table is in aaap-tools notes).
+ *  14 Nov 2026 (spec-upstream1114): re-pasted with the sim5 bump for upstream fa805e2d1, the merge's
+ *  boostTransitionsFrom silo fix (engine/apply/math.ts) and the two generator files added above.
+ *  15 Nov 2026 (spec-tables1115): re-pasted for --verify-cells on version 2 tables (precompute.ts cellBuilds, shared
+ *  with --generate): a refactor, the generated cells byte-identical (maxed TE 489, the old and new generator).
+ *  Then for the coverage above (review T5): files added, none changed, so no cell can move.
+ *  22 Nov 2026 (code review T1.8): re-pasted for four files added to the coverage (truthEggs, the artifact modifier
+ *  calculator, colleggtibles, the planner's artifact helpers), none changed, so no cell can move. No SIM_VERSION bump.
+ *  22 Nov 2026 (code review T1.7): re-pasted for precomputedLeg.ts: pacificOffset exported, dstLateBy added (read by
+ *  the finder only), comments. tailTo, sweepTails and the generator's code are as they were, so no cell can move.
+ *  No SIM_VERSION bump.
+ *  22 Nov 2026 (code review round 2, T2): re-pasted for precomputedLeg.ts kindnessAtK3 and its use in tailTo and
+ *  sweepTails (K3's share from kindness at its shift, a stopgap). It moves how a cell's builds are PRICED, not the
+ *  cells: the generator's builds and every table file are as they were. No SIM_VERSION bump. */
+export const SIM_SOURCE_HASH = '9d3c2d14925fe1373351ada518531de5a25d6c4909c741588d0eeec692bb692b';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

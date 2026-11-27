@@ -1,8 +1,8 @@
 <!--
   "Share this result": the box under every search's answer (Smart search, the Full sweep and By a
   date). One frame for all three: the heading, the screen's own words on what is sent and where
-  (`intro`), the consent tick with the screen's own wording (`consent`), and once ticked, anonymous
-  or "Credit me as", the CSV and diagnostics boxes (ShareExtras.vue) and anything else the screen
+  (`intro`), the consent tick with the screen's own wording (`consent`), and once ticked, the sharing
+  line with its one Change (SharingSummary.vue), the CSV and diagnostics boxes (ShareExtras.vue) and anything else the screen
   asks (`opted`). The buttons and the status line are the screen's (default slot, ShareStatus.vue):
   what a send does differs (the race to the target vs Compare's By a date tabs).
 
@@ -11,25 +11,25 @@
 -->
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
-    <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">{{ heading }}</h3>
+    <h3 class="text-indigo-800 label">Share this result</h3>
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
-    <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
-      Your best so far from this run is on the board as "in progress". Sending this result replaces it.
+    <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900 max-w-prose" data-testid="share-replaces">
+      Your best so far from this run is on the Leaderboard as "in progress". Sending this result replaces it.
     </p>
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
          opens the consent (nothing is sent by that press); agreed (remembered for the account), the one-line
          summary with Change, the note folded, and the screen's button and status below it. -->
-    <template v-if="compact && !optIn && sendLabel && !asking">
+    <template v-if="!optIn && sendLabel && !asking">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800"
         data-testid="share-ask"
         @click="asking = true"
       >
         {{ sendLabel }}
       </button>
-      <p class="text-[10px] text-indigo-900/70">This asks you to agree first; nothing is sent by that press.</p>
+      <p class="text-small text-indigo-900/70">This asks you to agree first; nothing is sent by that press.</p>
     </template>
     <!-- The account's agreement (ConsentBox.vue, composables/useConsent.ts): compact folds it to one line
          once agreed, with Change; opened, "Remember my choice", Withdraw and Done. -->
@@ -37,17 +37,16 @@
       v-else
       v-model="optIn"
       consent-id="leaderboard"
-      :foldable="compact"
       done-testid="share-done"
       box-testid="share-consent"
-      label-class="text-xs text-indigo-900"
+      label-class="text-body text-indigo-900"
       input-class="border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-      summary-class="text-[11px] text-indigo-900"
+      summary-class="text-body text-indigo-900"
       :footer-indent="false"
       withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
     >
       <template #summary>
-        <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" />
+        <ConsentSummary />
       </template>
       <template #text>
         <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked. -->
@@ -67,27 +66,32 @@
       <template #after>
         <!-- Credit, behind the opt-in like everything else that leaves the machine. -->
         <div v-if="optIn" class="space-y-2">
-          <ShareNameChoice
-            v-model:anonymous="anonymous"
-            v-model:nickname="nickname"
-            :nickname-max="nicknameMax"
-            class="text-[11px] text-indigo-900"
-            @nickname-typed="emit('nicknameTyped')"
-          />
           <ShareExtras :csv-detail="csvDetail" />
           <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
                says here is what is sent, and what the CSV's header carries. -->
-          <RunNoteBox v-if="note !== undefined" v-model="note" class="text-[11px] text-indigo-900" />
+          <RunNoteBox v-if="note !== undefined" v-model="note" class="text-small text-indigo-900" />
           <slot name="opted" />
         </div>
       </template>
       <template #aside="{ folded }">
+        <!-- The one sharing line and its Change (SharingSummary.vue), folded or open, once agreed: the credit is
+             chosen there, not with radios of this box's own (ux29 #11). -->
+        <SharingSummary
+          v-if="optIn"
+          ref="sharing"
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :on="optIn"
+          :nickname-max="nicknameMax"
+          class="text-body text-indigo-900"
+          @nickname-typed="emit('nicknameTyped')"
+        />
         <template v-if="folded">
-          <details v-if="note !== undefined" class="text-[11px] text-indigo-900" data-testid="share-note-fold">
+          <details v-if="note !== undefined" class="text-small text-indigo-900" data-testid="share-note-fold">
             <summary class="cursor-pointer font-bold text-indigo-800">
               {{ note ? 'Note on this run (added)' : 'Add a note on this run' }}
             </summary>
-            <RunNoteBox v-model="note" class="mt-1 text-[11px] text-indigo-900" />
+            <RunNoteBox v-model="note" class="mt-1 text-small text-indigo-900" />
           </details>
           <div class="space-y-2"><slot name="opted" /></div>
         </template>
@@ -98,16 +102,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { provide, ref, watch } from 'vue';
 import ConsentBox from './ConsentBox.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ShareExtras from './ShareExtras.vue';
-import ShareNameChoice from './ShareNameChoice.vue';
+import SharingSummary from '../SharingSummary.vue';
+import { OPEN_SHARING_FOR_NAME } from '@/lib/sharingLine';
 import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
   defineProps<{
-    heading?: string;
     /** After "(the same file as Download CSV)" in the CSV box: what this screen's CSV holds. */
     csvDetail?: string;
     nicknameMax?: number;
@@ -115,18 +119,14 @@ withDefaults(
     goalWord?: 'target' | 'deadline';
     /** The run sent a best so far that this send replaces (store `provisionalRows`). */
     replacesBestSoFar?: boolean;
-    /** Show the agreed consent as one line (ConsentSummary.vue) instead of the full box. */
-    compact?: boolean;
-    /** With `compact`, and not agreed yet: the screen's one send button, which asks for the consent. */
+    /** Not agreed yet: the screen's one send button, which asks for the consent. */
     sendLabel?: string;
   }>(),
   {
-    heading: 'Share this result',
     csvDetail: '',
     nicknameMax: 40,
     goalWord: 'target',
     replacesBestSoFar: false,
-    compact: false,
     sendLabel: '',
   }
 );
@@ -142,4 +142,10 @@ const asking = ref(false);
 watch(optIn, v => {
   if (v) asking.value = false;
 });
+/** Put my name on it on a row sent anonymously (BoardSubmitButtons.vue in the slot): the sharing line's setting,
+ *  open on "Credit me as". */
+const sharing = ref<InstanceType<typeof SharingSummary> | null>(null);
+provide(OPEN_SHARING_FOR_NAME, () => void sharing.value?.openForName());
+/** The screen opens the setting on "Credit me as" itself (DeadlinePanel's Put my name on it). */
+defineExpose({ openForName: () => sharing.value?.openForName() });
 </script>

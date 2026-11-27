@@ -2,7 +2,7 @@
  * Every consent box, remembered per ACCOUNT (composables/useConsent.ts; Jordan, 15 Oct): hashed keys only,
  * accounts kept apart, "Remember my choice" vs this visit only, a withdraw that counts, and the one-time
  * migration of the per-browser choices of before. Also the boxes built on it: the CSV and diagnostics
- * (useShareExtras.ts), "Keep sharing my checks" (useInstantShare.ts), and the Stepping away? ticks.
+ * (useShareExtras.ts), "Share my search results" (useInstantShare.ts), and the Stepping away? ticks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
@@ -279,7 +279,7 @@ describe('the boxes built on it', () => {
     x.sendCsv.value = true;
   });
 
-  it('"Keep sharing my checks" is per account', async () => {
+  it('"Share my search results" (keepSharingChecks) is per account', async () => {
     const share = useInstantShare();
     await setConsentAccount(A);
     share.on.value = true;

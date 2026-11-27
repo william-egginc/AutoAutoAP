@@ -1,0 +1,322 @@
+/**
+ * Right now with a followed route keeps the route's timeline (regression, 23 Oct 2026): following the instant answer's
+ * own route kept "Following your pick · not priced on this save yet" and "No timeline for your route on this save yet"
+ * where the instant timeline had been. Now (lib/followPrice.ts step 0): the instant answer's route keeps the instant
+ * timeline and its pill; this save's kept Fast result keeps the Fast timeline; then an older save's kept result, with "priced on
+ * your save of …, may have drifted"; only a route that is none of these is "not priced on this save yet". Through useNowPage with the synthetic save (id
+ * EI0000000000000000, never printed), the card server-rendered.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { effectScope, markRaw, ref } from 'vue';
+import { createPinia, getActivePinia, setActivePinia } from 'pinia';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
+import RightNowCard from './RightNowCard.vue';
+import type { LegSummary } from '@/search/types';
+import { instantGoal, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
+import { recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
+import { accountOf } from '@/search/runSaves';
+import { syntheticBackup } from '@/test/syntheticSave';
+import { resolveColleggtibleContracts } from 'lib';
+import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { useFollowStore } from '@/stores/follow';
+import { useInitialStateStore } from '@/stores/initialState';
+import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
+import { hashID } from '@/lib/storage/db';
+import { FOLLOW_PREFIX } from '@/lib/follow';
+import type { BoardRow } from '@/lib/leaderboardRank';
+
+const ZONE = 'America/Los_Angeles';
+const H = 3600;
+const D = 86400;
+let mem: Map<string, string>;
+
+beforeEach(() => {
+  mem = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, v),
+    removeItem: (k: string) => void mem.delete(k),
+    key: () => null,
+    length: 0,
+  });
+  setActivePinia(createPinia());
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+});
+
+const leg = (start: number, end: number, endTE: number) =>
+  ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts: [], endEgg: { egg: 'kindness', te: 40 } }) as LegSummary;
+
+const A_ID = 'EI0000000000000000';
+const SAVE_AGO = 1 * H;
+function save() {
+  const b = syntheticBackup();
+  const t = Math.floor(Date.now() / 1000) - SAVE_AGO;
+  b.eiUserId = A_ID;
+  b.settings.lastBackupTime = t;
+  b.approxTime = t;
+  resolveColleggtibleContracts(b);
+  return markRaw(b);
+}
+
+/**
+ * Egg Day: this save's instant answer (200 → 238, no Check exactly) and a Fast result (201 → 239) for the same goal,
+ * kept with the snapshot (`where` 'snap'), beyond it in aap-search-plans ('kept'), only there with no snapshot
+ * ('kept-only'), or kept for an OLDER save ('stale'). Then the route followed, as given.
+ */
+async function eggDay(
+  followed: Record<string, unknown>,
+  where: 'snap' | 'kept' | 'kept-only' | 'stale' | 'kept-only-store' | 'restamped' | 'restamped-only' = 'snap',
+  staleHours = 5
+) {
+  loadAndSyncBackup(A_ID, save(), 'plan_next');
+  rollUpPendingTE();
+  const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+  resetGoalChoice();
+  const store = useChainSearchStore();
+  const now = Math.floor(Date.now() / 1000);
+  const eggDayAt = eggDaySeconds(nextEggDayYear());
+  const goalKey = `eggday-${nextEggDayYear()}`;
+  const key = instantSnapKey(instantKeyFromStores(eggDayAt, store.finalTE));
+  const found: SnapSearch = {
+    level: 'Fast',
+    chain: [201, 239],
+    end: eggDayAt - 2.5 * D,
+    endTE: 239,
+    legs: [leg(now - H, now + 28 * H, 201), leg(now + 28 * H, eggDayAt - 2.5 * D, 239)],
+    at: Date.now() - 10_000,
+    planStart: now - H,
+  };
+  if (where === 'kept-only-store') {
+    // Only the chain-search store holds it, priced on a save 5 h before the loaded one.
+    store.deadlineResult = {
+      deadline: eggDayAt,
+      te: Math.floor(store.currentTE),
+      simple: true,
+      level: 'quick',
+      at: found.at,
+      planStart: found.planStart,
+      backupAt: useInitialStateStore().lastBackupTime - 5 * H,
+      routes: [{ chain: found.chain, reachAt: found.end, legs: found.legs }],
+    } as never;
+    store.deadlineRunning = false;
+  }
+  if (where !== 'kept-only' && where !== 'kept-only-store')
+    writeSnapshot(key, {
+      rc: resultCode(),
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: null,
+        byAscensions: [],
+        byDate: {
+          chain: [200, 238],
+          end: eggDayAt - 2 * D,
+          legs: [
+            { to: 200, endTE: 200, start: now - H, end: now + 30 * H },
+            { to: 238, endTE: 238, start: now + 30 * H, end: eggDayAt - 2 * D },
+          ],
+        },
+      },
+      exact: {},
+      dateExact: null,
+      answerStart: now - H,
+      ...(where === 'snap' ? { search: found } : {}),
+    } as never);
+  if (where === 'restamped' || where === 'restamped-only') {
+    // Jordan's screenshot (17 Nov 2026), made-up data: a Custom run done two days before the loaded save (on that older
+    // save, 20 min after it), kept by the old beta with no backupAt, then re-stamped under the loaded save. 'restamped' also
+    // keeps the genuine copy under the older save; 'restamped-only' has only the re-stamped one.
+    const older = now - SAVE_AGO - 2 * D;
+    const custom: SnapSearch = { ...found, level: 'Custom', at: (older + 20 * 60) * 1000 };
+    const base = {
+      account: accountOf(useInitialStateStore().rawBackup),
+      goal: instantGoal(eggDayAt, store.finalTE),
+      setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
+      search: custom,
+    };
+    if (where === 'restamped') recordKeptSearch({ ...base, backupTime: older });
+    recordKeptSearch({ ...base, backupTime: now - SAVE_AGO });
+  } else if (where !== 'snap' && where !== 'kept-only-store')
+    recordKeptSearch({
+      account: accountOf(useInitialStateStore().rawBackup),
+      goal: instantGoal(eggDayAt, store.finalTE),
+      // 'stale': priced on a save `staleHours` before this one.
+      backupTime: now - SAVE_AGO - (where === 'stale' ? staleHours * H : 0),
+      setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
+      search: found,
+    });
+  mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
+  const follows = useFollowStore();
+  await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+  const scope = effectScope();
+  const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+  page.selectGoal(goalKey);
+  await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+  return { page, scope, found };
+}
+
+async function render(page: Awaited<ReturnType<typeof eggDay>>['page']) {
+  const html = await renderHtml(
+    RightNowCard,
+    {
+      card: page.cardPlan.value,
+      onVirtue: true,
+      currentEgg: 'curiosity',
+      teSoFar: 190,
+      ascNow: page.ascNow.value,
+      track: null,
+      events: page.events.value,
+      shownEvents: page.shownEvents.value,
+      gear: null,
+      now: page.now.value,
+      zone: ZONE,
+      saveSeconds: page.saveSeconds.value,
+      eggDayYear: page.eggDayYear,
+      goals: page.goalChoices.value,
+      selectedGoal: page.selectedGoal.value,
+      follow: page.follow.value,
+      betterRoute: page.betterRoute.value,
+      followSetWith: page.followSetWith.value,
+      followSaveWords: page.followSaveWords.value,
+    },
+    {},
+    [getActivePinia()!]
+  );
+  return { html, text: textOf(html) };
+}
+
+const NOT_PRICED = 'not priced on this save yet';
+const NO_TIMELINE = 'No timeline for your route on this save yet';
+const now = () => Date.now() - 60_000;
+
+describe("Right now: a followed route keeps its route's timeline", () => {
+  it("(a) followed from the instant card, the instant answer's own route: the instant timeline, its pill, Next step with rounded times", async () => {
+    const { page, scope } = await eggDay({ chain: [200, 238], from: 'answer', at: now(), source: 'instant' });
+    expect(page.follow.value).toMatchObject({ price: 'instant', source: 'this-save', chain: [200, 238] });
+    expect(page.cardPlan.value?.plan).toMatchObject({ chain: [200, 238], exact: false });
+    expect(page.events.value.length).toBeGreaterThan(0);
+    const { html, text } = await render(page);
+    expect(html).toContain('data-testid="now-source-pill"');
+    expect(text).toContain('from the instant answer');
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(text).not.toMatch(/rounded to the hour/);
+    expect(html).toContain('data-testid="tip-info"');
+    expect(text).toContain('Following 2');
+    expect(text).not.toContain('Following your pick');
+    expect(text).not.toContain(NOT_PRICED);
+    expect(text).not.toContain(NO_TIMELINE);
+    // Next step with its (rounded) time, no calendar buttons, Try next named under the events (no link, no Run Fast
+    // button on the card: one path per card, 25 Oct 2026).
+    expect(text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
+    expect(html).not.toContain('data-testid="calendar-button"');
+    expect(text).not.toContain('For exact times');
+    expect(html).not.toContain('data-testid="now-recalc-button"');
+    // The follow line offers nothing more to price it.
+    expect(html).not.toContain('data-testid="now-follow-price"');
+    scope.stop();
+  });
+
+  it("(b) followed from a Fast run, the same route as this save's Fast result: the Fast timeline, exact times, calendar", async () => {
+    for (const where of ['snap', 'kept', 'kept-only'] as const) {
+      setActivePinia(createPinia());
+      mem.clear();
+      const { page, scope, found } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, where);
+      expect(page.follow.value, where).toMatchObject({ price: 'exact', source: 'this-save' });
+      expect(page.cardPlan.value?.plan, where).toMatchObject({ chain: found.chain, exact: true, from: { level: 'Fast' } });
+      const { html, text } = await render(page);
+      expect(text, where).toContain('from your Fast run, on your account');
+      expect(text, where).not.toContain(NOT_PRICED);
+      expect(text, where).not.toContain(NO_TIMELINE);
+      expect(html, where).toContain('data-testid="calendar-button"');
+      expect(html, where).not.toContain('data-testid="now-events-rounded"');
+      scope.stop();
+    }
+  });
+
+  it("(c) a typed route that is neither: no timeline yet, the instant answer for the setup being worked out", async () => {
+    const { page, scope } = await eggDay({ chain: [205, 238], from: 'typed', at: now(), source: 'manual' });
+    expect(page.follow.value?.price).toBe('none');
+    expect(page.cardPlan.value).toBeNull();
+    const { html, text } = await render(page);
+    // No pricing settings kept for this save (an answer from before 24 Oct 2026): My Runs works them out itself (26 Oct
+    // 2026), said while it does.
+    expect(text).toContain('Working out its times');
+    expect(text).toContain('Working out the instant answer for your setup...');
+    expect(text).not.toContain(NOT_PRICED);
+    expect(html).not.toContain('data-testid="now-follow-price"');
+    expect(html).not.toContain('data-testid="now-source-pill"');
+    scope.stop();
+  });
+
+  it("(d) read back from online with source instant and the same stops: the instant timeline", async () => {
+    const eggDayAt = eggDaySeconds(nextEggDayYear());
+    const { page, scope } = await eggDay({
+      chain: [200, 238],
+      from: 'answer',
+      at: now(),
+      source: 'instant',
+      finish: eggDayAt - 2 * D,
+      endTE: 238,
+      cloud: true,
+    });
+    expect(page.follow.value).toMatchObject({ price: 'instant', chain: [200, 238] });
+    const { text } = await render(page);
+    expect(text).toContain('from the instant answer');
+    expect(text).not.toContain(NOT_PRICED);
+    scope.stop();
+  });
+
+  it('(e) a Fast result kept for a save 5 h or 17 h older: its timeline, with the drift note and Add buttons', async () => {
+    for (const hours of [5, 17]) {
+      setActivePinia(createPinia());
+      mem.clear();
+      const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, 'stale', hours);
+      expect(page.follow.value, `${hours} h`).toMatchObject({ price: 'exact', source: 'older-save' });
+      expect(page.cardPlan.value?.plan.from?.level).toBe('Fast');
+      const { html, text } = await render(page);
+      expect(text, `${hours} h`).toMatch(/Priced on your save of .+, may have drifted/);
+      expect(text).not.toContain(NOT_PRICED);
+      expect(text).not.toContain(NO_TIMELINE);
+      expect(html).toContain('data-testid="calendar-button"');
+      scope.stop();
+    }
+  });
+
+  it("(g) Jordan's case: a Custom result done 2 days BEFORE the loaded save, re-stamped under it with no backupAt (old beta): never this save's", async () => {
+    const { page, scope, found } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'custom' }, 'restamped');
+    // The genuine copy under the older save prices it, said to be that save's.
+    expect(page.follow.value).toMatchObject({ price: 'exact', source: 'older-save' });
+    expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
+    expect(page.cardPlan.value?.plan.meta?.backupTime).toBeLessThan(page.saveSeconds.value - D);
+    const { text } = await render(page);
+    expect(text).toMatch(/worked out on your save from .+\. It was not checked against your newest save\./);
+    expect(text).not.toMatch(/Calculated from your/);
+    expect(text).toMatch(/Priced on your save of .+, may have drifted/);
+    scope.stop();
+  });
+
+  it("(h) the same with only the re-stamped copy: the route stays followed and is worked out on this save; nothing is priced as this save's", async () => {
+    const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'custom' }, 'restamped-only');
+    expect(page.follow.value).not.toBeNull();
+    expect(page.follow.value).not.toMatchObject({ source: 'this-save', price: 'exact' });
+    const { text } = await render(page);
+    // Still followed; its times are worked out on this save, as for any route not priced here yet (c).
+    expect(page.follow.value).toMatchObject({ chain: [201, 239], price: 'none' });
+    expect(text).toContain('Following 201 → 239');
+    expect(text).toContain('Working out its times');
+    expect(text).not.toMatch(/Calculated from your/);
+    expect(text).not.toMatch(/from your Custom run, on your account/);
+    scope.stop();
+  });
+
+  it('(f) the only priced result is the store\'s, priced on a save 5 h older (17 Nov 2026): priced on an older save, not "from your Fast run" on this one', async () => {
+    const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, 'kept-only-store' as never);
+    expect(page.follow.value).toMatchObject({ price: 'exact', source: 'older-save' });
+    const { text } = await render(page);
+    expect(text).toMatch(/Priced on your save of .+, may have drifted/);
+    scope.stop();
+  });
+});

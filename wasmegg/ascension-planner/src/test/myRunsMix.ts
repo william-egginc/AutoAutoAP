@@ -1,5 +1,5 @@
 /**
- * My runs' fixture (specs only): the alt account's runs as reported on 16 Oct 2026, made up. `mix()` is
+ * My Runs' fixture (specs only): the alt account's runs as reported on 16 Oct 2026, made up. `mix()` is
  * 27 sends of 25 runs: Egg Day (sent, look-alike, hidden, provisional), races to several targets (awake
  * hours or not), other dates, and two results sent twice.
  */

@@ -1,9 +1,9 @@
 /**
  * By a date's deadline, kept for the page load (DeadlinePanel.vue's `kept`), and a way for another page
- * to set it before opening that screen (My runs' Next steps, 16 Oct 2026: "Find my Egg Day answer").
+ * to set it before opening that screen (My Runs' Next steps, 16 Oct 2026: "Find my Egg Day answer").
  *
- * Only the deadline lives here: the date, time and zone the screen's boxes hold, and whether "Another
- * date" is picked. Everything else DeadlinePanel keeps (the stop boxes, the sliders, the mode) stays in
+ * Only the deadline lives here: the date, time and zone the screen's boxes hold, and whether "Pick another date"
+ * is open (`customDate`; it starts false each time the screen opens, `startOnEggDay`). Everything else DeadlinePanel keeps (the stop boxes, the sliders, the mode) stays in
  * its own `kept`; a request that fills the boxes already has its own way in (the ui store's
  * `byDateRequest`, DeadlinePanel `applyRequest`).
  *
@@ -79,5 +79,19 @@ export function applyByDatePreset(p: ByDatePresetAsk, form: ByDateForm = byDateF
   form.time.value = t;
   form.zone.value = p.zone;
   form.customDate.value = true;
+  return true;
+}
+
+/**
+ * Each opening of the screen starts on Egg Day (By Egg Day, Jordan, 20 Nov 2026: "Another date" was picked while the boxes held Egg
+ * Day's date). A run going or being restored owns its date (`owned`: nothing changes); a My Runs preset is taken after this and
+ * still applies. True when the boxes were reset.
+ */
+export function startOnEggDay(owned: boolean, form: ByDateForm = byDateForm): boolean {
+  if (owned) return false;
+  form.date.value = `${eggDayYearAtLoad}-07-14`;
+  form.time.value = EGG_DAY_TIME;
+  form.zone.value = EGG_DAY_ZONE;
+  form.customDate.value = false;
   return true;
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-6 leading-relaxed">
+    <p class="text-body font-normal text-slate-600 mb-6">
       Wait for Truth Eggs to accumulate by shipping eggs.
     </p>
 
@@ -11,57 +11,57 @@
           class="w-12 h-12 rounded-2xl bg-white border border-slate-200/50 shadow-sm flex items-center justify-center p-2"
         >
           <img
-            :src="iconURL(`egginc/egg_${virtueStore.currentEgg}.png`, 64)"
+            :src="iconURL(`egginc/egg_${planStore.currentEgg}.png`, 64)"
             class="w-full h-full object-contain"
-            :alt="virtueStore.currentEgg"
+            :alt="planStore.currentEgg"
           />
         </div>
         <div>
-          <div class="text-sm font-bold text-slate-800">
-            {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
+          <div class="text-body font-bold text-slate-800">
+            {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}
           </div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Egg</div>
+          <div class="text-slate-600 label">Current Egg</div>
         </div>
       </div>
 
       <!-- Current TE State -->
       <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
-          <div class="text-slate-400 uppercase tracking-[0.2em] font-black">Metric</div>
-          <div class="text-slate-400 uppercase tracking-[0.2em] font-black text-right">Value (Initial → Current)</div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
+          <div class="text-slate-600 label">Metric</div>
+          <div class="text-slate-600 label text-right">Value (Initial → Current)</div>
 
-          <div class="text-slate-600 font-bold uppercase tracking-tight">Eggs Delivered:</div>
-          <div class="font-mono-premium text-right text-slate-700 font-bold">
-            <span class="text-slate-300 font-normal">{{ formatNumber(initialEggsDelivered, 2) }}</span>
+          <div class="text-slate-600 label">Eggs Delivered:</div>
+          <div class="tabular-nums text-right text-slate-700 font-bold">
+            <span class="text-slate-600 font-normal">{{ formatNumber(initialEggsDelivered, 2) }}</span>
             <span class="mx-1 text-slate-200 font-normal">→</span>
             <span>{{ formatNumber(currentEggsDelivered, 2) }}</span>
           </div>
 
           <div
-            class="text-slate-600 font-bold uppercase tracking-tight pt-2 border-t border-slate-100/50 flex items-center"
+            class="text-slate-600 label pt-2 border-t border-slate-100/50 flex items-center"
           >
             Shipped in Plan:
           </div>
-          <div class="font-mono-premium text-right text-slate-900 font-black pt-2 border-t border-slate-100/50 text-xs">
+          <div class="tabular-nums text-right text-slate-900 font-bold pt-2 border-t border-slate-100/50 text-small">
             {{ formatNumber(Math.max(0, currentEggsDelivered - initialEggsDelivered), 2) }}
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 text-[10px] pt-3 border-t border-slate-100/50">
+        <div class="grid grid-cols-2 gap-4 text-small pt-3 border-t border-slate-100/50">
           <div class="space-y-1">
             <div class="flex items-center justify-between">
-              <span class="text-slate-400 uppercase tracking-widest font-black">Claimed TE:</span>
-              <span class="font-mono-premium text-slate-700 font-bold">{{ claimedTE }}</span>
+              <span class="text-slate-600 label">Claimed TE:</span>
+              <span class="tabular-nums text-slate-700 font-bold">{{ claimedTE }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-slate-400 uppercase tracking-widest font-black">Pending TE:</span>
-              <span class="font-mono-premium text-slate-900 font-black">{{ pendingTE }}</span>
+              <span class="text-slate-600 label">Pending TE:</span>
+              <span class="tabular-nums text-slate-900 font-bold">{{ pendingTE }}</span>
             </div>
           </div>
           <div class="flex flex-col justify-end text-right">
-            <span class="text-slate-400 uppercase tracking-widest font-black">Total Progress:</span>
-            <span class="font-mono-premium font-bold text-slate-900 text-sm tracking-tighter"
-              >{{ truthEggsStore.totalTE }} <span class="text-slate-300 font-normal">/ 490</span></span
+            <span class="text-slate-600 label">Total Progress:</span>
+            <span class="tabular-nums font-bold text-slate-900 text-body"
+              >{{ truthEggsStore.totalTE }} <span class="text-slate-600 font-normal">/ 490</span></span
             >
           </div>
         </div>
@@ -76,14 +76,14 @@
         >
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-full h-full object-contain" alt="Truth Egg" />
         </div>
-        <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">
-          Gain Additional TE on {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
+        <span class="text-small font-bold text-slate-700">
+          Gain Additional TE on {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}
         </span>
       </div>
 
       <!-- Target TE input with +/- buttons -->
       <div class="flex flex-col gap-3 mb-6">
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add how many TE?</span>
+        <span class="text-slate-600 label">Add how many TE?</span>
         <div class="flex items-center gap-1">
           <button
             class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
@@ -104,7 +104,7 @@
             :min="1"
             :max="98 - currentTE"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="flex-1 h-11 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
+            class="flex-1 h-11 text-center text-body tabular-nums font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
             @input="onBoxInput"
             @blur="onBoxLeave"
@@ -124,39 +124,39 @@
 
       <!-- Calculated values -->
       <div v-if="teToGain > 0" class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50">
-        <div class="flex justify-between items-center text-[10px]">
-          <span class="font-black text-slate-400 uppercase tracking-widest">Reaches:</span>
-          <span class="font-mono-premium font-black text-slate-900">TE #{{ targetTENumber }}</span>
+        <div class="flex justify-between items-center text-small">
+          <span class="text-slate-600 label">Reaches:</span>
+          <span class="tabular-nums font-bold text-slate-900">TE #{{ targetTENumber }}</span>
         </div>
-        <div class="flex justify-between items-center text-[10px]">
-          <span class="font-black text-slate-400 uppercase tracking-widest">TE to Gain:</span>
-          <span class="font-mono-premium font-black text-slate-900">+{{ teToGain }} TE</span>
+        <div class="flex justify-between items-center text-small">
+          <span class="text-slate-600 label">TE to Gain:</span>
+          <span class="tabular-nums font-bold text-slate-900">+{{ teToGain }} TE</span>
         </div>
-        <div class="flex justify-between items-center text-[10px]">
-          <span class="font-black text-slate-400 uppercase tracking-widest">Eggs to Lay:</span>
-          <span class="font-mono-premium font-bold text-slate-700">{{ formatNumber(eggsToLay, 3) }}</span>
+        <div class="flex justify-between items-center text-small">
+          <span class="text-slate-600 label">Eggs to Lay:</span>
+          <span class="tabular-nums font-bold text-slate-700">{{ formatNumber(eggsToLay, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
-              <span class="font-black text-slate-400 uppercase tracking-widest">Delivery Rate per hour:</span>
+              <span class="text-slate-600 label">Delivery Rate per hour:</span>
             </div>
-            <span class="font-mono-premium text-slate-500">{{ formatNumber(elrPerHour, 2) }}</span>
+            <span class="tabular-nums text-slate-600">{{ formatNumber(elrPerHour, 2) }}</span>
           </div>
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
-              <span class="font-black text-slate-400 uppercase tracking-widest">Delivery Rate per day:</span>
+              <span class="text-slate-600 label">Delivery Rate per day:</span>
             </div>
-            <span class="font-mono-premium text-slate-500">{{ formatNumber(elrPerDay, 2) }}</span>
+            <span class="tabular-nums text-slate-600">{{ formatNumber(elrPerDay, 2) }}</span>
           </div>
-          <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-[10px]">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="font-mono-premium font-black text-slate-900">{{ formatDuration(timeToLaySeconds) }}</span>
+          <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
+            <span class="text-slate-600 label">Time Required:</span>
+            <span class="tabular-nums font-bold text-slate-900">{{ formatDuration(timeToLaySeconds) }}</span>
           </div>
-          <div class="flex justify-between items-center text-[10px]">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Completion Time:</span>
-            <span class="font-mono-premium font-black text-slate-900">{{ absoluteEarnedTime }}</span>
+          <div class="flex justify-between items-center text-small">
+            <span class="text-slate-600 label">Completion Time:</span>
+            <span class="tabular-nums font-bold text-slate-900">{{ absoluteEarnedTime }}</span>
           </div>
         </div>
       </div>
@@ -181,7 +181,7 @@
       v-if="teToGain > 0 && eggsToLay > 0 && !isTEWaitReachable(timeToLaySeconds)"
       class="bg-amber-50 border border-amber-100 rounded-2xl p-4"
     >
-      <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+      <p class="text-body font-bold text-amber-700 max-w-prose">
         TE #{{ targetTENumber }} is not reachable: it would take over a year at this farm's current delivery
         rate. Build up the farm first.
       </p>
@@ -194,8 +194,8 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <p class="text-[11px] font-bold text-emerald-700 uppercase tracking-tight">
-        You have reached the maximum TE (98) for {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}!
+      <p class="text-body font-bold text-emerald-700">
+        You have reached the maximum TE (98) for {{ VIRTUE_EGG_NAMES[planStore.currentEgg] }}!
       </p>
     </div>
 
@@ -209,17 +209,17 @@ const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL } from 'lib';
 import { useTruthEggsStore } from '@/stores/truthEggs';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useActionsStore } from '@/stores/actions';
-import { computeDependencies } from '@/lib/actions/executor';
+import { computeDependencies } from 'lib/planners/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES } from '@/types';
 import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable, clampTECount, maxTEToGain } from '@/lib/truthEggs';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { solveForTime } from '@/engine/apply/math';
+import { useActionExecutor } from 'lib/planners/composables/useActionExecutor';
+import { solveForTime } from 'lib/planners/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const actionsStore = useActionsStore();
 const { prepareExecution, completeExecution } = useActionExecutor();
 
@@ -229,18 +229,18 @@ const { prepareExecution, completeExecution } = useActionExecutor();
 const snapshot = computed(() => actionsStore.effectiveSnapshot);
 
 // Current egg state
-const currentEggsDelivered = computed(() => truthEggsStore.eggsDelivered[virtueStore.currentEgg]);
+const currentEggsDelivered = computed(() => truthEggsStore.eggsDelivered[planStore.currentEgg]);
 const currentTE = computed(() => {
   // Use the higher of thresholds passed (for pending TE) and claimed TE (for baseline)
-  const claimed = truthEggsStore.teEarned[virtueStore.currentEgg] || 0;
+  const claimed = truthEggsStore.teEarned[planStore.currentEgg] || 0;
   const passed = countTEThresholdsPassed(currentEggsDelivered.value);
   return Math.max(claimed, passed);
 });
-const pendingTE = computed(() => truthEggsStore.pendingTEForEgg(virtueStore.currentEgg));
-const claimedTE = computed(() => truthEggsStore.teEarned[virtueStore.currentEgg] || 0);
+const pendingTE = computed(() => truthEggsStore.pendingTEForEgg(planStore.currentEgg));
+const claimedTE = computed(() => truthEggsStore.teEarned[planStore.currentEgg] || 0);
 
 // Initial state from backup (for comparative display)
-const initialEggsDelivered = computed(() => actionsStore.initialSnapshot.eggsDelivered[virtueStore.currentEgg]);
+const initialEggsDelivered = computed(() => actionsStore.initialSnapshot.eggsDelivered[planStore.currentEgg]);
 
 // Additional TE selection (user wants relative target)
 const teToGain = ref(1);
@@ -248,7 +248,7 @@ const targetTENumber = computed(() => Math.min(98, currentTE.value + teToGain.va
 
 // Reset selection when egg changes
 watch(
-  () => virtueStore.currentEgg,
+  () => planStore.currentEgg,
   () => {
     teToGain.value = 1;
   }
@@ -310,11 +310,11 @@ const elrPerDay = computed(() => snapshot.value.elr * 86400);
 
 function getAbsoluteEarnedTime(timeSecs: number): string {
   if (!isTEWaitReachable(timeSecs)) return 'Not reachable';
-  const planStartSeconds = virtueStore.planStartTime.getTime() / 1000;
+  const planStartSeconds = planStore.planStartTime.getTime() / 1000;
   const currentStepTime = snapshot.value.lastStepTime || planStartSeconds;
   const totalSeconds = currentStepTime + timeSecs;
   const relativeSeconds = totalSeconds - planStartSeconds;
-  return formatAbsoluteTime(relativeSeconds, virtueStore.planStartTime.getTime(), virtueStore.ascensionTimezone);
+  return formatAbsoluteTime(relativeSeconds, planStore.planStartTime.getTime(), planStore.ascensionTimezone);
 }
 
 const absoluteEarnedTime = computed(() => getAbsoluteEarnedTime(timeToLaySeconds.value));

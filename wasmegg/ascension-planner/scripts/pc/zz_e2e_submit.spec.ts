@@ -20,7 +20,7 @@ const BACKUP = process.env.E2E_BACKUP!;
 const OUT = process.env.E2E_OUT!;
 const log = (s: string) => appendFileSync(OUT, s + '\n');
 
-vi.mock('@/lib/modes/fetchBackup', () => ({
+vi.mock('lib/planners/modes/fetchBackup', () => ({
   fetchPlayerBackup: async () => {
     const b = JSON.parse(readFileSync(BACKUP, 'utf8'));
     resolveColleggtibleContracts(b);
@@ -31,7 +31,7 @@ vi.mock('@/lib/modes/fetchBackup', () => ({
 vi.mock('@/search/pool', async orig => {
   const real = (await orig()) as Record<string, unknown>;
   const { createChainEvaluator } = await import('@/search/chain');
-  const { sanitizeLongs } = await import('@/lib/artifacts/utils');
+  const { sanitizeLongs } = await import('lib/planners/artifacts/utils');
   const { splitByPrefix, workersForBatch } = await import('@/search/batch');
   const { integrityWaitSeconds } = await import('@/search/leg');
   type Result = { chain: number[]; seconds: number };

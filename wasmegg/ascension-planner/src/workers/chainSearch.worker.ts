@@ -25,7 +25,7 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
-import { buildUpTailParams, integrityCheck } from '@/search/leg';
+import { buildUpTailParamsV2, integrityCheck } from '@/search/leg';
 import { liveFreshBuilds } from '@/search/liveCell';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
@@ -123,12 +123,11 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
       case 'buildup-tails': {
         if (!loaded) throw new Error('chainSearch worker received buildup-tails before init');
-        let tails: ReturnType<typeof buildUpTailParams> = [];
-        try {
-          tails = buildUpTailParams(loaded, loaded.planStart);
-        } catch {
-          tails = [];
-        }
+        // With table version 2's extras, so the instant answer replays its tail as the simulator runs it
+        // (and, with the player's hours, held: routeFinder.ts TailOptions). A throw goes back as an error, never as
+        // no tails: the page then says the build-up couldn't be worked out (search/instantFirstLegs.ts BuildUpFlags)
+        // instead of pricing only a fresh prestige and continue.
+        const tails = buildUpTailParamsV2(loaded, loaded.planStart);
         post({ type: 'buildup-tails', requestId: msg.requestId, tails });
         break;
       }
@@ -157,6 +156,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           const r = evaluator.evaluate(msg.chains[i], {
             ...(msg.handoff ? { handoff: msg.handoff } : {}),
             ...(keepLast ? {} : { keepLast: false }),
+            ...(msg.keepPurchases ? { keepPurchases: true } : {}),
           });
           if (r) results.push(r);
           // Heartbeat. Posted per chain rather than per batch because a batch can be ~2200 chains

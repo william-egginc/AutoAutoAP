@@ -11,18 +11,18 @@
 <template>
   <p
     v-if="notes.length && !error"
-    class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+    class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
     data-testid="run-notes"
   >
     <span v-for="n in notes" :key="n" class="block">{{ n }}</span>
   </p>
   <div
     v-if="error"
-    class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"
+    class="p-4 bg-red-50 border border-red-200 rounded-xl text-body text-red-800 space-y-1.5"
     data-testid="run-error"
   >
     <p>
-      <span v-if="labelled" class="font-bold uppercase tracking-wide">{{
+      <span v-if="labelled" class="label">{{
         beforeStart ? "Didn't start:" : 'Search failed:'
       }}</span>
       {{ error }}

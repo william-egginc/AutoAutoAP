@@ -6,9 +6,14 @@
  * Bounded: at most `MAX_SNAPSHOTS` answers (the oldest dropped), each at most `MAX_BYTES`, none older
  * than `MAX_AGE_MS` (a new table is deployed now and then; a day-old answer is recomputed). Storage is
  * localStorage, in try/catch everywhere: it is a convenience, never a reason for the page to fail.
+ *
+ * A snapshot never keeps a `search` priced on another save than its own `meta.backupTime` (17 Nov 2026, second path:
+ * the newer save's snapshot carried the older save's result and My Runs read "Calculated from your <newer> save" over
+ * its plan): `writeSnapshot` and `patchSnapshot` drop that field (`searchFitsSave`, 60 s), the rest is kept.
  */
 import type { Availability } from './availabilitySchedule';
 import type { TimeOffDates } from './timeOff';
+import { searchFitsSave } from '@/lib/searchFits';
 
 export const SNAP_PREFIX = 'aap-instant-snap:';
 const INDEX_KEY = 'aap-instant-snap-index';
@@ -25,13 +30,13 @@ export interface StorageLike {
 interface IndexEntry {
   key: string;
   at: number;
-  /** What the answer is for (new snapshots since 17 Oct 2026): My runs finds an older save's plan by it
+  /** What the answer is for (new snapshots since 17 Oct 2026): My Runs finds an older save's plan by it
    *  without parsing every snapshot. Small: no route, no legs. */
   meta?: SnapMeta;
 }
 
 /**
- * A snapshot's own description (17 Oct 2026, the My runs "Right now" page): which account (a hash, never the
+ * A snapshot's own description (17 Oct 2026, the My Runs "Right now" page): which account (a hash, never the
  * player id), which goal, which save, and each egg's TE in that save, so a newer save can be compared with the
  * plan made from an older one (lib/nowPlan.ts `onTrack`). Copied into the index entry.
  */
@@ -45,7 +50,10 @@ export interface SnapMeta {
   /** Each egg's TE in that save, lifetime as the game counts it (max of earned and thresholds passed),
    *  in the save's order (Curiosity, Integrity, Humility, Resilience, Kindness). */
   teByEgg?: number[];
-  /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers priced
+  /** The plan's own starting TE, for a run read back from the Leaderboard that has no per-egg TE (lib/boardRunPlan.ts
+   *  `runMetaOf`): the pace badge then goes leg by leg from it. */
+  startTE?: number;
+  /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My Runs ranks answers priced
    *  with Your setup now first and names the hours of the others (lib/currentAnswer.ts). */
   setup?: { availability: Availability | null; timeOff: TimeOffDates[] };
 }
@@ -61,6 +69,9 @@ export interface SnapWhatIf {
   /** The player's own instant answer it was compared with. */
   mineEnd: number | null;
   mineTE: number;
+  /** By a date: when maxed gear reaches the player's own TE (`mineTE`), the fastest route to it on the maxed table, unix
+   *  seconds; null when none. Absent before 25 Oct 2026 (My Runs' "With a perfect set" line then says nothing). */
+  sameEnd?: number | null;
 }
 
 function readIndex(st: StorageLike): IndexEntry[] {
@@ -96,6 +107,16 @@ export function readSnapshot<T extends { at: number }>(
   }
 }
 
+/** `value` without its `search` when that was priced on another save than its `meta.backupTime` (searchFitsSave). */
+function withoutOtherSaveSearch<T extends Record<string, unknown>>(value: T): T {
+  const search = value.search as { backupAt?: number | null } | null | undefined;
+  if (!search || typeof search !== 'object') return value;
+  const at = (value.meta as { backupTime?: number | null } | undefined)?.backupTime;
+  if (searchFitsSave(search, at)) return value;
+  const { search: _drop, ...rest } = value;
+  return rest as T;
+}
+
 /** Keep `value` under `key`, dropping the oldest beyond MAX_SNAPSHOTS. False when it was not kept. */
 export function writeSnapshot(
   key: string | null,
@@ -104,7 +125,7 @@ export function writeSnapshot(
 ): boolean {
   if (!key || !st) return false;
   try {
-    const text = JSON.stringify(value);
+    const text = JSON.stringify(withoutOtherSaveSearch(value as Record<string, unknown>));
     if (text.length > MAX_BYTES) return false;
     const index = readIndex(st).filter(e => e.key !== key);
     const meta = (value as { meta?: SnapMeta }).meta;
@@ -136,6 +157,48 @@ export function readSnapIndex(st: StorageLike | null = defaultStorage()): IndexE
   return st ? readIndex(st) : [];
 }
 
+/** How old an answer may be and still be shown while the answer is worked out again (marked "From <time>,
+ *  checking…"): never put back as the answer, only shown until the fresh one is in. */
+export const STALE_MAX_AGE_MS = 30 * 24 * 3600_000;
+
+function readStale<T extends { at: number }>(key: string, now: number, st: StorageLike): T | null {
+  try {
+    const v = JSON.parse(st.getItem(SNAP_PREFIX + key) ?? 'null') as (T & { result?: unknown; header?: unknown }) | null;
+    if (!v || typeof v.at !== 'number' || now - v.at > STALE_MAX_AGE_MS || v.at > now + 3600_000) return null;
+    return v.result && v.header ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * CACHED ANSWERS FIRST, THEN RECHECK (Jordan, 27 Oct 2026: "answers recalculating with nothing shown"). The answer to
+ * show while the one for `key` is worked out again: `key`'s own even when it no longer fits (over a day old, other
+ * tables, older rules), else the newest of the same account and goal under any other key (another setup, save or
+ * table identity: stale, but better than blank). Up to STALE_MAX_AGE_MS old; null when there is none (the first ever:
+ * the loading line as before). `readSnapshot`, the exact path, is unchanged.
+ */
+export function latestSnapshotFor<T extends { at: number }>(
+  o: { key: string | null; account: string | null | undefined; goal: string },
+  now = Date.now(),
+  st: StorageLike | null = defaultStorage()
+): { key: string; value: T } | null {
+  if (!st) return null;
+  if (o.key) {
+    const own = readStale<T>(o.key, now, st);
+    if (own) return { key: o.key, value: own };
+  }
+  if (!o.account) return null;
+  const list = readIndex(st)
+    .filter(e => e.key !== o.key && e.meta?.account === o.account && e.meta?.goal === o.goal)
+    .sort((a, b) => b.at - a.at);
+  for (const e of list) {
+    const v = readStale<T>(e.key, now, st);
+    if (v) return { key: e.key, value: v };
+  }
+  return null;
+}
+
 /**
  * Merge `patch` into the snapshot saved under `key` (its `at` and index place kept). False when there is none
  * or it could not be written. For the maxed what-if, worked out after the answer was saved.
@@ -149,7 +212,7 @@ export function patchSnapshot(
   try {
     const v = JSON.parse(st.getItem(SNAP_PREFIX + key) ?? 'null') as Record<string, unknown> | null;
     if (!v || typeof v.at !== 'number') return false;
-    const text = JSON.stringify({ ...v, ...patch });
+    const text = JSON.stringify(withoutOtherSaveSearch({ ...v, ...patch }));
     if (text.length > MAX_BYTES) return false;
     st.setItem(SNAP_PREFIX + key, text);
     return true;
@@ -175,8 +238,14 @@ export function removeSnapshot(key: string | null, st: StorageLike | null = defa
  * would then be the maxed table's when the player's own fits. Such an answer is worked out again.
  * One with no gear note stands: every newer rule matches whatever an older one matched.
  */
-export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | null, gearRule: number): boolean {
+export function snapshotUsable(
+  s: { ownChanged?: string; gearRule?: number; tableUrl?: string } | null,
+  gearRule: number
+): boolean {
   if (!s) return false;
+  // Read from the version 1 maxed table (precompute/table.bin, before it moved to table-v2.bin): worked out again,
+  // and never taken for the player's own (InstantRoute `own` is any table but the maxed one's URL).
+  if (typeof s.tableUrl === 'string' && /(^|\/)table\.bin(\||$)/.test(s.tableUrl)) return false;
   return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
 }
 
@@ -218,11 +287,27 @@ export interface InstantKeyInput {
   epic: unknown;
   availability: unknown;
   timeOff: unknown;
+  /** No prestige on these days (Your setup, whole dates): keyed only when some are set, so every answer saved
+   *  without them keeps its key, and one worked out without them is never shown for a setup with them. */
+  noPrestige?: readonly unknown[] | null;
   milestones: unknown;
   firstAscension: string | null | undefined;
   /** "Works inside my hours" in effect. */
   useHours: boolean;
   maxAscensions: number | null;
+  /** The ascensions range's lower end (24 Oct 2026): keyed only when set, so every answer saved under "At most N"
+   *  keeps its key, and one worked out under other bounds is never put back. */
+  minAscensions?: number | null;
+  /** The save's own time (the backup's `approxTime`, unix seconds), 6 Nov 2026: research bought between two saves
+   *  moves neither the TE nor any egg's count, so without it a newer save put back the older save's answer. Keyed
+   *  only when set, so the golden keys below hold; InstantRoute always sets it. */
+  saveAt?: number | null;
+  /** Setup's silo trick (10 Nov 2026): keyed only when on, so every answer saved without it keeps its key, and one worked out
+   *  without it is never shown for a setup with it. */
+  siloTrick?: boolean;
+  /** "Make them wait too" (held shifts), 22 Nov 2026 (code review, math-fast-3): keyed only when the hours are used and
+   *  it is off, so every answer saved with it (the default) keeps its key. */
+  holdShifts?: boolean;
 }
 
 /** The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved under those
@@ -242,6 +327,13 @@ export function instantGoal(deadline: number | null | undefined, finalTE: number
  * filters. The JSON and its key order are exactly InstantRoute's before this moved here: a different hash
  * would lose every answer saved in players' browsers (instantSnapshot.spec.ts holds golden values).
  */
+/** The save's own time for `InstantKeyInput.saveAt`, one place so the Instant route and My Runs cannot drift. */
+export function instantSaveAt(
+  raw: { approxTime?: number; settings?: { lastBackupTime?: number } } | null | undefined
+): number | null {
+  return raw?.approxTime ?? raw?.settings?.lastBackupTime ?? null;
+}
+
 export function instantKey(i: InstantKeyInput): string {
   const sig = (x: number) => Number(x.toPrecision(6));
   const parts = {
@@ -252,8 +344,17 @@ export function instantKey(i: InstantKeyInput): string {
     artifacts: i.artifacts,
     stones: i.stones,
     epic: i.epic,
-    setup: [i.availability, i.timeOff, i.milestones, keyFirst(i.firstAscension ?? 'auto')],
-    filters: [i.useHours, i.maxAscensions],
+    setup: [
+      i.availability,
+      i.timeOff,
+      i.milestones,
+      keyFirst(i.firstAscension ?? 'auto'),
+      ...(i.noPrestige?.length ? [{ noPrestige: i.noPrestige }] : []),
+    ],
+    filters: [i.useHours, i.maxAscensions, ...(i.minAscensions != null ? [{ min: i.minAscensions }] : [])],
+    ...(i.saveAt != null ? { save: Math.floor(i.saveAt) } : {}),
+    ...(i.siloTrick ? { siloTrick: true } : {}),
+    ...(i.useHours && i.holdShifts === false ? { free: true } : {}),
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);

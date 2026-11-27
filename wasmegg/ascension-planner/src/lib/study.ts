@@ -41,7 +41,8 @@ export interface StudyTicks {
   csv: boolean;
   /** "Send private diagnostics with them": `diagnosticsDefault` (and this visit's diagnostics tick). */
   diag: boolean;
-  /** "Keep sharing my checks (private, anonymous)": `keepSharingChecks`. */
+  /** "Share my search results (private, anonymous)": `keepSharingChecks` (was "Keep sharing my checks" until
+   *  23 Oct 2026, when Check exactly went; the key and the stored answers are unchanged). */
   checks: boolean;
 }
 
@@ -66,7 +67,7 @@ export const TICK_WORDS: [keyof StudyTicks, string][] = [
   ['share', 'Share my runs on the leaderboard when I press a share button'],
   ['csv', 'Send my CSV with them (public)'],
   ['diag', 'Send private diagnostics with them'],
-  ['checks', 'Keep sharing my checks (private, anonymous)'],
+  ['checks', 'Share my search results (private, anonymous)'],
 ];
 
 /** What the box opens with: every tick OFF (Jordan, 21 Oct 2026: opt in, nothing pre-ticked). Yes needs at
@@ -135,8 +136,12 @@ export function consentsFor(ticks: StudyTicks): [ConsentId, boolean][] {
   ];
 }
 
-/** The consents Withdraw turns off (the CSV choice is left as it is: with sharing off it cannot go). */
-export const WITHDRAW_CONSENTS: ConsentId[] = ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks'];
+/** The consents Withdraw turns off (the CSV choice is left as it is: with sharing off it cannot go). The gear fields go with the search results (R10, 25 Nov 2026). */
+export const WITHDRAW_CONSENTS: ConsentId[] = ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks', 'shareGearDetail'];
+
+/** What Withdraw turns off: the sharing choices above, and the table-answered ping (`shareTableUse`, on by default, so it is
+ *  not one of the choices that decide whether Withdraw is offered). */
+export const WITHDRAW_TURNS_OFF: ConsentId[] = [...WITHDRAW_CONSENTS, 'shareTableUse'];
 
 /**
  * What the account with this hash needs:

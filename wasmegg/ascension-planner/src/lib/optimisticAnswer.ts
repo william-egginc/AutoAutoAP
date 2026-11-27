@@ -15,7 +15,7 @@ export const OPTIMISTIC_SCALE = 0.95;
 /** Which instant answer the card read: the player's own, a gear combination's, or the maxed one scaled. */
 export type AnswerTable = 'own' | 'gear' | 'maxed';
 
-export const OPTIMISTIC_TEXT = 'This answer may be optimistic for your gear: Check exactly gives the real number.';
+export const OPTIMISTIC_TEXT = 'This answer may be optimistic for your gear: a Fast search gives the real number.';
 
 /**
  * The label shows: the maxed answer, scaled to a delivery rate under OPTIMISTIC_SCALE. A gear combination's answer

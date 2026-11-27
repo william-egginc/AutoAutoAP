@@ -1,0 +1,117 @@
+/**
+ * Soul eggs a plan's shifts would leave (the math review's second check, 24 Oct 2026, finding 15: "SE exhaustion is
+ * silent"). Each shift costs soul eggs, rising with the cube of the shift count (lib/shiftCost.ts), and the count only
+ * goes back to 0 with a Path reset (aaap-tools game-mechanics.md §7). Stepped exactly from 0 shifts, what is left is
+ * 97% after 60, 69% after 120, 24% after 168, 6% after 200 and 0.2% after 240, for any soul eggs from 1e15 to 1e24
+ * (the review's numbers; soulEggs.spec.ts holds them). That is the formula itself, not a curve fitted to it, so no
+ * interpolation: `soulEggsLeft` pays each shift out of what is left, as `plannedShiftsCost` does, earning none.
+ *
+ * Under a quarter left, one plain amber line says so (SoulEggWarning.vue); it never blocks anything.
+ *
+ * My Runs also says what is left after the followed route (27 Oct 2026, Jordan: Single run shows "Soul eggs: −3.0s,
+ * remaining 9.7s"): `soulEggsAfterLine`, one plain line, amber under the same quarter.
+ */
+import { formatNumber } from './format';
+import { plannedShiftsCost } from './shiftCost';
+import { soulEggFold, soulEggLine, soulEggPercentWords } from './soulEggWords';
+
+/** Under this share of soul eggs left, the plan says so. */
+export const SE_WARN_BELOW = 0.25;
+/** The shift count from a Path reset where less than a quarter is left (24.6% at 1e21 soul eggs; 25.4% at 167). */
+export const QUARTER_SHIFTS = 168;
+/** Soul eggs to price with when the save's aren't known: the share left barely moves with them (above). */
+export const NOMINAL_SOUL_EGGS = 1e21;
+
+/** The share of `soulEggs` left after `count` more shifts, with `done` made since the last Path reset. */
+export function soulEggsLeft(done: number, count: number, soulEggs?: number | null): number {
+  const se = soulEggs != null && soulEggs > 0 ? soulEggs : NOMINAL_SOUL_EGGS;
+  const spent = plannedShiftsCost(se, Math.max(0, Math.floor(done)), count);
+  return Math.max(0, 1 - spent / se);
+}
+
+export interface SoulEggPlan {
+  /** The plan's shifts (from its simulated legs); null when the plan doesn't keep them. */
+  planShifts: number | null;
+  /** The save's shifts since its last Path reset (the backup's `virtue.shiftCount`); null when there is no save. */
+  done: number | null;
+  /** The save's soul eggs; absent or null: priced at `NOMINAL_SOUL_EGGS`. */
+  soulEggs?: number | null;
+}
+
+const s = (n: number) => (n === 1 ? '' : 's');
+
+/**
+ * The soul-egg warning in two parts (Jordan, 9 Nov 2026; it replaced the one long line, `soulEggWarning`): `line` for
+ * the page and `fold` for the "?" behind it (components/SoulEggWarning.vue), or null when
+ * the plan leaves a quarter or more (or its shifts aren't known). The words are lib/soulEggWords.ts.
+ */
+export function soulEggWarningParts(p: SoulEggPlan): { line: string; fold: string } | null {
+  if (p.planShifts == null || !(p.planShifts > 0)) return null;
+  const plan = Math.floor(p.planShifts);
+  const left = soulEggsLeft(p.done ?? 0, plan, p.soulEggs);
+  if (left >= SE_WARN_BELOW) return null;
+  const percent = soulEggPercentWords(left);
+  const done = p.done == null ? null : Math.max(0, Math.floor(p.done));
+  return { line: soulEggLine(percent, done == null), fold: soulEggFold({ plan, done, percent, quarterShifts: QUARTER_SHIFTS }) };
+}
+
+/**
+ * "You'll have about 10.4s soul eggs left when this plan is done (about 2.3s goes on 41 shifts · about 24 of the 41 are
+ * build-up shifts, estimated)" (My Runs' Right now and its saved answer tile; worded plainer 28 Oct 2026, pieha):
+ * today's soul eggs less the planned shifts' cost (`plannedShiftsCost` from the save's `done` shifts, as All planned
+ * shifts prices them), each number as Single run writes its Spent / Remaining (`formatNumber(x, 1)`). `opening`: how
+ * many of the shifts are the estimated build-up shifts (lib/openingShifts.ts). `amber` under SE_WARN_BELOW left, the
+ * warning's threshold. Null without the save's soul eggs or a planned count.
+ */
+export function soulEggsAfterLine(p: {
+  soulEggs: number | null | undefined;
+  done: number | null | undefined;
+  /** `cost`: the planned shifts' cost as All planned shifts has it (useNowPage `plannedShifts`, the one source); absent:
+   *  priced here the same way. */
+  planned: { count: number; cost?: number; opening?: number } | null | undefined;
+}): { text: string; amber: boolean } | null {
+  const se = p.soulEggs;
+  if (se == null || !(se > 0) || !p.planned || !Number.isFinite(p.planned.count)) return null;
+  const count = Math.max(0, Math.floor(p.planned.count));
+  const done = Math.max(0, Math.floor(p.done ?? 0));
+  const given = p.planned.cost;
+  const spent = given != null && Number.isFinite(given) && given >= 0 ? given : plannedShiftsCost(se, done, count);
+  const left = Math.max(0, se - spent);
+  const opening = p.planned.opening ?? 0;
+  // The count is the whole route; the build-up shifts are the ones made while buying research in the LATER ascensions
+  // (each fresh ascension's, estimated). They cost soul eggs like any other, so they are said as part of the count
+  // (Jordan, 12 and 13 Nov 2026: "Why are we talking about build-up shifts?" while on Humility in A1).
+  const later = opening > 0 ? `, ${opening} of them while buying research in later ascensions; estimated` : '';
+  const left_ = `You'll have about ${formatNumber(left, 1)} soul eggs left at the end of this route.`;
+  return {
+    text:
+      count === 0
+        ? `${left_} The route has no shifts.`
+        : `${left_} Shifts on the way cost about ${formatNumber(spent, 1)} (about ${count} shift${s(count)}${later}).`,
+    amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW,
+  };
+}
+
+/**
+ * The All planned shifts tile on Your eggs (ux34-a, 28 Oct 2026, plainer): "41 shifts" over "will cost about 2.3s soul
+ * eggs (at today's prices), about 18 of them while buying research in later ascensions (estimated)". The same count and cost as
+ * `soulEggsAfterLine` above (both from useNowPage `plannedShifts`), the cost written as it writes it. `opening`: the
+ * estimated build-up shifts included (lib/openingShifts.ts); `partial`: only the instant answer's shifts, none added.
+ */
+export function plannedShiftsWords(p: { count: number; cost: number; opening?: number; partial?: boolean }): { value: string; note: string } {
+  const count = Math.max(0, Math.floor(p.count));
+  if (count === 0) return { value: 'no shifts on the route', note: '' };
+  const opening = Math.max(0, Math.floor(p.opening ?? 0));
+  const tail =
+    opening > 0
+      ? count === 1
+        ? ', made while buying research in a later ascension (estimated)'
+        : `, about ${opening} of them while buying research in later ascensions (estimated)`
+      : p.partial
+        ? ", the shifts listed, without each new ascension's first hours"
+        : '';
+  return {
+    value: `${count} shift${s(count)}`,
+    note: `will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices)${tail}`,
+  };
+}

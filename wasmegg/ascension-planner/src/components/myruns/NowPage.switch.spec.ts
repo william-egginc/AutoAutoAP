@@ -1,5 +1,5 @@
 /**
- * My runs after SWITCHING accounts (fix 21). On beta, Kelli -> main: the card said "Integrity · 159 TE so far" and
+ * My Runs after SWITCHING accounts (fix 21). On beta, Kelli -> main: the card said "Integrity · 159 TE so far" and
  * both tiles "How sure: Low · Your TE has moved since" over a save at 191 (35+38+39+39+40, as Your eggs said). The
  * switch (`submitPlayerId`) loads the save 'default'-style: `initialTeEarned` is the CLAIMED TE (pending Truth Eggs
  * not rolled up) and the farm is caught up to now; the page read those store fields. Now every TE, egg and time on
@@ -8,12 +8,18 @@
  *
  * Two synthetic saves, ids EI0000000000000000 (A, Curiosity, nothing pending) and EI1234567890123456 (B, Integrity,
  * 159 claimed of 190: 31 pending). No id is ever printed.
+ *
+ * The clock is frozen (Date only) at the fixture's own day, 2h after its save: every save time, save age and Egg
+ * Day below is worked out from it, never from the wall clock. With the real clock a second could tick between
+ * making a save and reading its age (3601 for 3600), and a failed test left its page scope running; a store action
+ * from that scope then set ITS pinia active again across a later test's `await`, and that test rendered the old
+ * stores ("Load your save…"). Each page scope is now stopped in afterEach, and the render takes this test's pinia.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, markRaw, ref } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { effectScope, markRaw, ref, type EffectScope } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
-import { syntheticBackup } from '@/test/syntheticSave';
+import { NOW, syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -28,8 +34,20 @@ import type { LegSummary } from '@/search/types';
 const H = 3600;
 const A_ID = 'EI0000000000000000';
 const B_ID = 'EI1234567890123456';
+/** "Now" for every test here: the fixture's save day, 2h after its save (unix ms). */
+const FROZEN_MS = (NOW + 2 * H) * 1000;
+
+/** Every page scope a test opens; stopped after it, passed or failed. */
+const scopes: EffectScope[] = [];
+function pageScope(): EffectScope {
+  const s = effectScope();
+  scopes.push(s);
+  return s;
+}
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(FROZEN_MS);
   const mem = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => mem.get(k) ?? null,
@@ -42,6 +60,11 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
 
+afterEach(() => {
+  for (const s of scopes.splice(0)) s.stop();
+  vi.useRealTimers();
+});
+
 /** A save `hoursAgo` old: A's as the fixture has it; B on Integrity with 31 Truth Eggs pending. */
 function save(id: string, hoursAgo: number) {
   const b = syntheticBackup();
@@ -49,6 +72,7 @@ function save(id: string, hoursAgo: number) {
   b.eiUserId = id;
   b.settings.lastBackupTime = t;
   b.approxTime = t;
+  b.farms[0].lastStepTime = t; // the farm ran when the save was made (the fixture's own is a fixed time)
   if (id === B_ID) {
     b.farms[0].eggType = 51;
     b.virtue.eovEarned = [32, 32, 32, 32, 31]; // claimed 159; each egg is past its 38th threshold: 190
@@ -101,7 +125,7 @@ function olderPlanFor(b: ReturnType<typeof save>): void {
   } as never);
 }
 
-describe('My runs after switching accounts: every value follows the new save', () => {
+describe('My Runs after switching accounts: every value follows the new save', () => {
   it('A loaded, then B: the card’s TE and egg, Your eggs, the strip and the tiles are B’s own', async () => {
     const a = save(A_ID, 5);
     const b = save(B_ID, 1);
@@ -109,7 +133,7 @@ describe('My runs after switching accounts: every value follows the new save', (
     rollUpPendingTE();
     const myRows = ref<BoardRow[] | null>([eggDayRow(a, 190)]);
     const { useNowPage } = await import('@/composables/useNowPage');
-    const scope = effectScope();
+    const scope = pageScope();
     const page = scope.run(() => useNowPage({ myRows, boardRows: ref<BoardRow[] | null>([]) }))!;
     expect(page.hasSave.value).toBe(true);
     expect(page.currentEgg.value).toBe('curiosity');
@@ -118,7 +142,7 @@ describe('My runs after switching accounts: every value follows the new save', (
     // 1. B's save fetched, the stores still A's (the moment before loadFromBackup): nothing of A's shows as B's.
     useInitialStateStore().rawBackup = b;
     expect(page.saveSeconds.value).toBe(secondsOf(b));
-    expect(page.strip.value?.text).toMatch(/\(1 hour ago\)\.$/);
+    expect(page.strip.value?.saveAgeSeconds).toBe(3600);
     expect(page.hasSave.value).toBe(false);
     expect(page.teSoFar.value).toBe(0);
     expect(page.currentEgg.value).toBeNull();
@@ -151,7 +175,7 @@ describe('My runs after switching accounts: every value follows the new save', (
     initial.initialEggsDelivered = { curiosity: 1, integrity: 1, humility: 1, resilience: 1, kindness: 1 };
     initial.currentFarmState = { ...initial.currentFarmState!, eggType: 53, population: 1 };
     const { useNowPage } = await import('@/composables/useNowPage');
-    const scope = effectScope();
+    const scope = pageScope();
     const page = scope.run(() =>
       useNowPage({ myRows: ref<BoardRow[] | null>([eggDayRow(b, 190)]), boardRows: ref<BoardRow[] | null>([]) })
     )!;
@@ -167,10 +191,11 @@ describe('My runs after switching accounts: every value follows the new save', (
   });
 
   it('renders B’s TE and egg after the switch, never the stores’ 159', async () => {
+    const pinia = getActivePinia()!; // this test's, taken before any await
     const b = save(B_ID, 1);
     loadAndSyncBackup(B_ID, b, 'default');
     const { default: MyRunsView } = await import('../MyRunsView.vue');
-    const html = await renderHtml(MyRunsView, { playerId: B_ID }, {}, [getActivePinia()!]);
+    const html = await renderHtml(MyRunsView, { playerId: B_ID }, {}, [pinia]);
     expect(html).not.toMatch(/EI\d{16}/);
     const t = textOf(html);
     expect(t).toContain('190 TE so far');
@@ -181,18 +206,19 @@ describe('My runs after switching accounts: every value follows the new save', (
 });
 
 describe('the switch, in the source', () => {
-  it('App sets the stores up from the save in hand on My runs when the switch left the TE claimed-only', async () => {
+  it('App sets the stores up from the save in hand on My Runs when the switch left the TE claimed-only', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
-    expect(app).toContain('chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)');
+    // The save's TE, or this account's starting-TE override (spec-overridestart, lib/teOverrideAccount.ts).
+    expect(app).toContain('chainSearchStore.currentTE === plannerStartTEOf(initialStateStore.rawBackup)');
     expect(app).toContain('void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());');
     // A fresh save (the switch fetched it a moment ago), for the start's provenance (search/startProvenance.ts).
     expect(app).toContain("await initPlanFuture(playerId.value, raw, 'fresh');");
     expect(app).toContain("watch(playerId, () => (myRunsLoadFor = ''));");
   });
 
-  it('My runs reads no TE, egg or farm field of the initial-state store', async () => {
+  it('My Runs reads no TE, egg or farm field of the initial-state store', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.resolve(__dirname, '../../composables/useNowPage.ts'), 'utf8');

@@ -5,43 +5,46 @@
   JSON file that "Load a save file" (SaveFileBar.vue) reads back. Entries without a kept save say why.
 -->
 <template>
-  <div class="w-full flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+  <div class="w-full flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
     <template v-if="state === 'kept' && entry.save">
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-violet-700 hover:text-violet-900 disabled:opacity-40"
+        class="font-bold text-violet-700 hover:text-violet-900 disabled:opacity-40"
         :disabled="store.busy || ui.loading || using"
-        title="Load this save into the planner as your active save, with this entry's plan start and settings"
+        title="Load this save into the planner as your active save, with this entry's route start and settings"
         @click="use"
       >
-        {{ using ? 'Loading the save…' : `Use the save from ${when} (TE ${teLabel})` }}
+        <template v-if="using">Loading the save<AnimatedDots /></template
+        ><template v-else>{{ `Use the save from ${when} (TE ${teLabel})` }}</template>
       </button>
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 disabled:opacity-40"
+        class="font-bold text-slate-600 hover:text-slate-800 disabled:opacity-40"
         :disabled="downloading"
         @click="download"
       >
         Download this save
       </button>
     </template>
-    <span v-else-if="state === 'dropped'" class="text-slate-400">
+    <span v-else-if="state === 'dropped'" class="text-slate-600">
       The save for this one was dropped to make room (only the {{ MAX_KEPT_SAVES }} newest saves are kept here).
     </span>
-    <span v-else-if="state === 'missing'" class="text-slate-400">
+    <span v-else-if="state === 'missing'" class="text-slate-600">
       The save for this one wasn't kept (it was no longer on {{ thisDevice() }} when this was saved).
     </span>
-    <span v-else class="text-slate-400">The save for this one wasn't kept (saved before 10 Oct).</span>
+    <span v-else class="text-slate-600">The save for this one wasn't kept (saved before Oct 10).</span>
   </div>
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { thisDevice } from '@/search/device';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { showDateTime } from '@/lib/displayTime';
 import { MAX_KEPT_SAVES, type EntrySave } from '@/search/keptSaves';
+import { downloadFile } from '@/utils/export';
 
 const props = defineProps<{
   playerId: string;
@@ -76,14 +79,8 @@ async function download(): Promise<void> {
   try {
     const file = await store.entrySaveFile(props.playerId, props.entry.save);
     if (!file) return;
-    const url = URL.createObjectURL(new Blob([file.text], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    // Through the page's one download (utils/export), which also clears any player ID left in it.
+    downloadFile(file.name, file.text, 'application/json');
   } finally {
     downloading.value = false;
   }

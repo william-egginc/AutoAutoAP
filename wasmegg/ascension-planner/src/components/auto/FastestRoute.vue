@@ -10,15 +10,19 @@
   one would show the other's progress as its own.
 -->
 <template>
+  <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line and the
+       goal tabs above (App.vue), then here, always in this order: the title and its one line, the answer with Follow this
+       route as its one main button, what to do now, then the one closed More (everything else, in its old order), then
+       the footer (App.vue). A new control goes inside More unless Jordan gives it a place. One has a place outside More:
+       the target box, first in the one card ("The target"), under the title and the Target TE | By a date switch
+       (Jordan's OK, 12 Nov 2026; Joo's "Reach [490] TE as soon as possible"; in the card like By a date's date, 13 Nov 2026). -->
   <div class="max-w-4xl mx-auto space-y-4">
-    <div>
-      <h2 class="text-2xl font-black text-slate-900">{{ fastestName(store.finalTE) }}</h2>
-      <p class="text-sm text-slate-600">
-        Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
-        include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
-        simulated.
-      </p>
+    <div data-region="title">
+      <h1 class="sr-only">{{ fastestName(store.finalTE) }}</h1>
     </div>
+
+    <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
+    <TeOverrideBanner />
 
     <!-- One order on both search screens: the instant answer, then the two ways to search, one shown at a
          time (SearchPanel.vue: Fast | Exact | Custom, 22 Oct; was two tabs, Allan, 14 Oct). Your setup is the
@@ -26,20 +30,65 @@
          start?" is in Science (#/science/start). -->
     <YourSetup screen="fastest" issues-only />
 
-    <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
-         Check exactly prices them on your save; its stronger check shows at the top of the search panel. -->
-    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
-      <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). -->
-      <InstantRoute
-        stronger-to="#stronger-check-results"
-        @check="checkExactly"
-        @state="st => (instantLoad = st)"
-        @unloaded="u => (instantUnloaded = u)"
-        @by-date="emit('by-date')"
-      />
-    </CollapsibleSection>
-    <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
-    <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
+    <!-- THE ONE CARD, like By a date's (DeadlinePanel.vue, Jordan 13 Nov 2026: "fix the target TE to match the by date"): a
+         small caps label, the target box, Filters and its row, the answer, What to do now, then More. A frame from sm up
+         only, as By a date's is (ByDateScreen.frame.spec). The title, the banner and the save's problems stay above it. -->
+    <div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4" data-testid="target-card">
+    <!-- The save age and the silo line, top right of the card (Jordan, 14 Nov 2026: inside THE TARGET card, top right): floated
+         right from md up so the rows beside it wrap round it; in the flow, one merged line, below md (layout/SaveSide.vue). -->
+    <div v-if="initialState.playerId" class="md:float-right md:ml-4 md:w-72"><SaveSide /></div>
+    <h3 class="text-slate-600 label md:!mt-0">The target</h3>
+    <!-- The target (store.finalTE, also More's Final target TE boxes): your TE + 1 up to 490, set on Enter or leaving the
+         box (TargetTeBox.vue). Here only: By a date is fixed at 490. -->
+    <TargetTeBox />
+    <!-- Right now, from your save (R11, 21 Nov 2026): the start, with a button to Setup. -->
+    <StartLine />
+
+    <!-- Filters opens Setup (layout/FiltersButton.vue): right above the instant answer card (Jordan, 13 Nov 2026), only
+         where the Setup pill is mounted (a player ID). On the left at every width (Jordan, 12 Nov 2026 pm: centred or left, not right; the fixed Setup pill, bottom-right, covered it at 390 px). -->
+    <PanelFold v-if="initialState.playerId" section="goalFilters" title="Filters" :hint="filtersText" data-region="filters">
+      <div class="space-y-2 pt-1">
+        <div class="flex justify-start">
+          <FiltersButton />
+        </div>
+        <!-- The answer's filters (InstantRoute `filters-to`): Works inside my awake hours, Ascensions from/to and its line,
+             Prefer fewer ascensions. In the one closed Filters fold since R11 (21 Nov 2026), with a one-line summary. -->
+        <div id="filters-fastest-answer" class="empty:hidden" data-testid="filters-under"></div>
+      </div>
+    </PanelFold>
+    <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
+         numbers only. The search panel below prices routes on your save; the answer points to its result. -->
+    <!-- The answer, always shown: no Hide since the simpler page (the section's old id kept for the tracker's "Pick a route
+         to follow", lib/pickRoute.ts). Its filters, every number of ascensions and How this is worked out go into More
+         (`more-to`). -->
+    <div data-testid="section-instant" data-region="answer">
+      <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). Never nothing:
+           a card that can't be drawn says so (InstantGuard.ts). -->
+      <InstantGuard>
+        <InstantRoute
+          share-to="#search-share-fastest"
+          more-to="more-fastest-answer"
+          filters-to="filters-fastest-answer"
+          now-to="now-offer-fastest"
+          @state="st => (instantLoad = st)"
+          @unloaded="u => (instantUnloaded = u)"
+          @by-date="emit('by-date')"
+          @more-changes="c => (moreChanges = c)"
+          @filters-line="l => (filtersText = l)"
+        />
+      </InstantGuard>
+    </div>
+
+    <NowLine screen="fastest" :goal-key="goalKey" @show-search="showSearch" />
+
+    <MoreFold
+      ref="more"
+      section="moreFastest"
+      :line="moreLineWithChanges(MORE_LINE_AUTO, moreChanges)"
+      :running="smartRunning || fullRunning"
+      :unfinished="!!store.crashedRun"
+    >
+    <div id="more-fastest-answer" class="space-y-3"></div>
 
     <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
     <div
@@ -47,13 +96,13 @@
       :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
       :inert="blockedBy ? true : undefined"
     >
-      <!-- The search panel (SearchPanel.vue, 22 Oct): Light's status, then Fast | Exact | Custom. Both of its
-           parts stay mounted (v-show): a run, its progress block and #stronger-check-results (the instant
-           answer teleports the stronger check there) live on in the hidden one. -->
+      <!-- The search panel (SearchPanel.vue, 22 Oct): Fast | Exact | Custom. Both of its parts stay mounted
+           (v-show): a run and its progress block live on in the hidden one. -->
       <SearchPanel
         screen="fastest"
         :player-id="playerId"
         :running="smartRunning || fullRunning"
+        :stopping="store.isRunning && store.stopRequested"
         :estimates="levelEstimates"
         @pick="o => emit('update:depth', o === 'custom' ? 'full' : 'smart')"
       >
@@ -63,21 +112,28 @@
           <StrongerBox goal="fastest" :running="smartRunning" :estimates="levelEstimates">
             <ChainSearchPanel
               :player-id="playerId"
-              embedded
-              level-elsewhere
               @check-exactly="checkExactly"
+              @open-custom="openCustom"
             />
           </StrongerBox>
         </template>
         <template #custom>
           <!-- Custom is Exhaustive: its boxes, run controls and results (InsanePanel.vue), unchanged. -->
           <section id="exhaustive" class="space-y-3 scroll-mt-24">
-            <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
-            <ExhaustivePromise goal="fastest" />
-            <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
+            <!-- One line (UX fluff review 2, 5 Nov 2026, item C-pre1); the evidence and how it works are in the one fold
+                 under it, "How Custom works" (item C-pre2). DRAFT (Words). -->
+            <p class="max-w-prose text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_LEAD }}</p>
+            <ExhaustivePromise goal="fastest">
+              <CustomHowItWorks />
+            </ExhaustivePromise>
+            <InsanePanel :player-id="playerId" goal="fastest" @update:goal="onGoal" />
           </section>
         </template>
       </SearchPanel>
+    </div>
+    <div id="more-fastest-answer-how"></div>
+    <a href="#/science/how" class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900" data-testid="how-it-works-link">{{ HOW_IT_WORKS_LINK }}</a>
+    </MoreFold>
     </div>
   </div>
 </template>
@@ -86,26 +142,34 @@
 import { thisDevice } from '@/search/device';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
-import { safeAsyncComponent } from '@/lib/import';
+import { fastestName, type Depth } from '@/lib/siteNav';
+import { safeAsyncComponent } from 'lib/planners/import';
 import StrongerBox from './StrongerBox.vue';
-import CollapsibleSection from './CollapsibleSection.vue';
+import MoreFold from '@/components/layout/MoreFold.vue';
+import NowLine from '@/components/layout/NowLine.vue';
+import SaveSide from '@/components/layout/SaveSide.vue';
+import { HOW_IT_WORKS_LINK, MORE_LINE_AUTO, moreLineWithChanges } from '@/lib/layoutWords';
+import { screenGoalKey } from '@/lib/follow';
+import { revealMore } from '@/composables/useMoreReveal';
+import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
-import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
-import { routeLine } from '@/search/sectionSummary';
-import { NO_INSTANT_SUMMARY, UNLOADED_INSTANT_SUMMARY, type InstantState } from '@/search/autoWiden';
-import { showDateTime } from '@/lib/displayTime';
-import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import SearchCompare from './SearchCompare.vue';
-import { SHOW_COMPARE } from '@/lib/features';
+import type { InstantState } from '@/search/autoWiden';
 import InstantRoute from './InstantRoute.vue';
+import FiltersButton from '@/components/layout/FiltersButton.vue';
+import PanelFold from './PanelFold.vue';
+import StartLine from './StartLine.vue';
+import { useInitialStateStore } from '@/stores/initialState';
 import ExhaustivePromise from './ExhaustivePromise.vue';
+import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
+import TargetTeBox from './TargetTeBox.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
 import { plural } from '@/lib/format';
+import { typicalHowLongLine } from '@/lib/fastEstimateWords';
 
 const props = defineProps<{
   playerId: string;
@@ -126,39 +190,52 @@ const emit = defineEmits<{
 
 const store = useChainSearchStore();
 const ui = useUIStore();
+const initialState = useInitialStateStore();
 const stronger = useStrongerStore();
 
-// The hidden sections' one-line results (CollapsibleSection.vue).
-useSearchSnapshots('fastest');
-const planner = useAutoPlannerStore();
-const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+/** The line under the tabs, for the player's own target (490 or another). */
+/** The goal this screen follows for (Follow this route, the What to do now line). */
+const goalKey = computed(() => screenGoalKey(null, store.finalTE));
+/** The values in More not at their default (InstantRoute `more-changes`), named in its line. */
+const moreChanges = ref<string[]>([]);
+/** The closed Filters fold's one-line summary, from the instant answer (lib/filtersLine.ts). */
+const filtersText = ref('');
+const more = ref<InstanceType<typeof MoreFold> | null>(null);
+/** What to do now's "Show search ›": More open, at the search. */
+function showSearch(): void {
+  revealMore('fastest');
+  void more.value?.show();
+  void nextTick(() => document.querySelector('[data-testid="search-panel-fastest"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
 /** InstantRoute's `state`: still being worked out, in, or settled with none (then the summary says so). */
 const instantLoad = ref<InstantState>('loading');
 /** InstantRoute's `unloaded`: its file couldn't be loaded. */
 const instantUnloaded = ref(false);
-const lines = computed(() => ({
-  instant: routeLine(
-    'fastest',
-    stronger.instant.fastest,
-    show,
-    instantLoad.value === 'none'
-      ? instantUnloaded.value
-        ? UNLOADED_INSTANT_SUMMARY
-        : NO_INSTANT_SUMMARY
-      : 'working out…'
-  ),
-}));
+
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
   const out: Partial<Record<StrongerLevel, LevelEstimate>> = {};
   for (const l of ['quick', 'normal', 'thorough'] as const) {
     const e = store.smartEstimate(l);
     const t = formatHours(e.seconds / 3600);
+    const workers = plural(store.workerBudget, 'worker');
+    const speed = e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed';
     out[l] = {
       short: `~${t}`,
-      line: `Up to about ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${
-        e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed'
-      }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
+      // What the level really prices (lib/fastTypical.ts): this device's runs, or Fast's built-in share on a first run.
+      // Only Exact with nothing kept is priced at the bound.
+      line:
+        e.typical !== null && e.typicalFrom
+          ? typicalHowLongLine({
+              time: t,
+              device: thisDevice(),
+              workers,
+              speed,
+              typical: e.typical,
+              bound: e.chains,
+              from: e.typicalFrom,
+            })
+          : `Up to about ${t} on ${thisDevice()} (${workers}, ${speed}): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }
   return out;
@@ -178,7 +255,14 @@ watch(
 /** The instant answer's Check exactly: the route's checkpoints as one-value bands in the exhaustive
  *  search below, which prices exactly that route with the full simulator; the page goes there. */
 function checkExactly(chain: number[]): void {
-  ui.fullSweepBands = chain.slice(0, -1).join('; ');
+  openCustom(chain.slice(0, -1).join('; '));
+}
+
+/** Custom with these boxes filled in (Check exactly, or a finished run's "Go further: open in Custom"):
+ *  nothing starts until the player presses Find. */
+function openCustom(bands: string): void {
+  ui.fullSweepBands = bands;
+  revealMore('fastest');
   emit('update:depth', 'full');
   // Custom (the Exhaustive tab) first: a hidden part has no place on the page to scroll to.
   selectSearchTab('fastest', 'exhaustive');
@@ -193,9 +277,9 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-/** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
-const CUSTOM_INTRO =
-  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Exhaustive), and nothing outside them, so its answer is proven for that space. In players' runs so far it added minutes to hours, not days. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.";
+/** Custom's one line (it is the Exhaustive search, unchanged); its bullets are in the fold (ExhaustivePromise.vue). DRAFT. */
+const CUSTOM_LEAD =
+  'Tries every route in your boxes, so it proves the best inside them. It rarely beats Fast by more than hours, and big boxes take hours.';
 
 /** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
  *  opens Exhaustive, and a tab picked by hand changes the address (@pick above). Opened on the plain
@@ -204,7 +288,11 @@ const CUSTOM_INTRO =
 watch(
   () => props.depth,
   (d, before) => {
-    if (d === 'full') selectSearchTab('fastest', 'exhaustive');
+    if (d === 'full') {
+      // Custom is inside More: a link to #/auto/fastest/full opens it.
+      revealMore('fastest');
+      selectSearchTab('fastest', 'exhaustive');
+    }
     else if (before !== undefined) selectSearchTab('fastest', 'nearby');
   },
   { immediate: true }

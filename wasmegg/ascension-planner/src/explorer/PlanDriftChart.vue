@@ -21,11 +21,11 @@
 <template>
   <div class="space-y-2">
     <div v-if="drifts.length" class="flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-1.5">
-        <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Account</span>
+      <label class="flex min-w-0 max-w-full items-center gap-1.5">
+        <span class="label text-slate-600">Account</span>
         <select
           v-model="picked"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700"
+          class="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
         >
           <option v-for="d in drifts" :key="d.key" :value="d.key">
             {{ d.label }} ·
@@ -41,11 +41,11 @@
         v-for="mode in VIEWS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors disabled:opacity-40"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors disabled:opacity-40"
         :class="
           view === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
-            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
         "
         :aria-pressed="view === mode.id"
         :disabled="mode.id === 'repriced' && !current?.repricedPlans"
@@ -55,27 +55,27 @@
       </button>
     </div>
 
-    <EChart v-if="current && shown.length" :option="option" height="340px" />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <EChart v-if="current && shown.length" :option="option" height="340px" label="Chart: how an account's best route changes from one day to the next" />
+    <p v-else class="px-4 py-8 text-center text-body text-slate-600">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>
-    <p v-if="current && !current.repricedPlans" class="px-1 text-[11px] text-slate-500">
+    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-600 max-w-prose">
       None of {{ current.label }}'s plans has been priced twice yet, so there is no line to draw: each mark is one plan
       at the date it was made.
     </p>
-    <p v-if="current?.anchorKind === 'own'" class="px-1 text-[10px] text-amber-700">
+    <p v-if="current?.anchorKind === 'own'" class="px-1 text-small text-amber-700">
       None of this account's runs at {{ finalTE }} TE still stands, so heights count from the earliest finish shown.
     </p>
 
     <div
       v-if="current && shown.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-600"
       aria-label="How to read the marks"
     >
       <span class="text-slate-600">Colour is the ascension count, not an account</span>
       <span><span aria-hidden="true">●</span> a finished box at every TE</span>
       <span><span aria-hidden="true">○</span> a finished box that stepped over TEs</span>
-      <span><span aria-hidden="true">⊗</span> a Nearby routes search, or a box it did not finish</span>
+      <span><span aria-hidden="true">⊗</span> a Fast or Exact search, or a box it did not finish</span>
       <span><span aria-hidden="true">◆</span> priced again inside a later run (a re-check or a runner-up)</span>
       <span><span aria-hidden="true">——</span> the same plan, priced at different times</span>
       <span v-if="hasFaded"
@@ -87,13 +87,13 @@
     <!-- Every account's re-pricings, not just the picked one's: there are few enough to list, and the
          point is how few. A row picks its account. -->
     <div class="space-y-1 pt-1">
-      <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+      <p class="text-small font-bold text-slate-600">
         Every plan priced twice, all accounts ({{ tally.repricings }})
       </p>
       <div v-if="tableRows.length" class="overflow-x-auto">
-        <table class="w-full text-[11px]">
+        <table class="w-full text-small">
           <thead>
-            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <tr class="text-slate-600 label">
               <th class="text-left py-1 pr-3">Account</th>
               <th class="text-left py-1 pr-3">Plan</th>
               <th class="text-left py-1 pr-3">Made</th>
@@ -112,22 +112,22 @@
               @click="picked = r.accountKey"
             >
               <td class="py-1 pr-3 whitespace-nowrap font-bold text-slate-700">{{ r.account }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap font-mono-premium text-slate-600">{{ r.plan }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.made }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.again }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap tabular-nums text-slate-600">{{ r.plan }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap text-slate-600">{{ r.made }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap text-slate-600">{{ r.again }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-right tabular-nums text-slate-600">{{ r.apart }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-right tabular-nums font-bold" :class="r.movedClass">
                 {{ r.moved }}
               </td>
-              <td class="py-1 whitespace-nowrap text-slate-500">{{ r.by }}</td>
+              <td class="py-1 whitespace-nowrap text-slate-600">{{ r.by }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-else class="text-[11px] text-slate-500">No plan to {{ finalTE }} TE has been priced twice yet.</p>
+      <p v-else class="text-body text-slate-600">No plan to {{ finalTE }} TE has been priced twice yet.</p>
     </div>
 
-    <p class="px-1 text-[11px] text-slate-600 leading-relaxed max-w-3xl">
+    <p class="px-1 text-body text-slate-600 max-w-3xl">
       <template v-if="tally.repricings">
         That is {{ tally.repricings }} re-pricing{{ tally.repricings === 1 ? '' : 's' }} on
         {{ tally.accounts }} account{{ tally.accounts === 1 ? '' : 's' }}, which is thin: {{ tally.later }} came out
@@ -490,7 +490,7 @@ const tableRows = computed(() =>
         again: dateText(r.to.start),
         apart: apartText(r.apart),
         moved: movedText(r.moved),
-        movedClass: dir === 'later' ? 'text-rose-700' : dir === 'earlier' ? 'text-emerald-700' : 'text-slate-500',
+        movedClass: dir === 'later' ? 'text-rose-700' : dir === 'earlier' ? 'text-emerald-700' : 'text-slate-600',
         by: KIND_TEXT[r.to.kind],
       };
     })

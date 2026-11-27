@@ -14,7 +14,7 @@
  * 5. Only when they are not the usual: `epic research N/M` when some research the simulator reads is
  *    below its cap, `colleggtibles N/M` when not every one is at the top tier.
  */
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import type { LoadoutSlot } from './csv';
 import type { TableGear } from './tableGear';
 

@@ -1,7 +1,7 @@
 <!--
   One player's plans as a small table: route, finish date, days left, where it was planned from,
   and either the gap to their best plan or the reason it no longer counts. Used inside an opened
-  Race line (and on My plans, until it moved to the My runs tab, 15 Oct 2026).
+  Race line (and on My plans, until it moved to the My Runs tab, 15 Oct 2026).
 
   The table scrolls sideways inside its own box rather than wrapping: on a phone a long route and a
   wrapped "Planned" line made every plan five lines tall. The box only scrolls when something
@@ -20,14 +20,14 @@
   is one row, with the other sends named on it.
 -->
 <template>
-  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-[10px] text-slate-400">
+  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-small text-slate-600">
     Swipe the table for more columns →
   </p>
   <div class="relative">
     <div :ref="edges.bind" class="overflow-x-auto [container-type:inline-size]" @scroll.passive="edges.update">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap">
+          <tr class="label text-slate-600 text-left whitespace-nowrap">
             <th class="py-1.5 pr-3 w-4"></th>
             <th class="py-1.5 pr-3">Route</th>
             <th class="py-1.5 pr-3">{{ showReason ? 'Would finish' : 'Finishes' }}</th>
@@ -46,7 +46,7 @@
               <td class="py-1.5 pr-3">
                 <button
                   type="button"
-                  class="text-slate-400 hover:text-indigo-700"
+                  class="text-slate-600 hover:text-indigo-700"
                   :aria-expanded="!!open[keyOf(p, i)]"
                   :aria-label="`Show what ${p.row.chain.join(' ')} was simulated with`"
                   @click="open[keyOf(p, i)] = !open[keyOf(p, i)]"
@@ -62,42 +62,42 @@
                 data-testid="row-open-name"
                 @click="onRowClick($event, () => (open[keyOf(p, i)] = !open[keyOf(p, i)]))"
               >
-                <span class="font-mono font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
+                <span class="tabular-nums font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
                   p.row.chain.join(' ')
                 }}</span>
                 <span
                   v-if="p.folded.copies.length > 1"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-bold text-slate-600"
                   :title="`The same result was sent ${p.folded.copies.length} times`"
                   >sent ×{{ p.folded.copies.length }}</span
                 >
                 <span
                   v-if="resends?.get(p)?.length"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-bold text-slate-600"
                   :title="resendTitle(p)"
                   >{{ resendTag(p) }}</span
                 >
                 <span
                   v-for="t in tags.get(p.row) ?? []"
                   :key="t"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-small font-bold text-sky-800"
                   :title="settingTagTitle(t)"
                   >{{ t }}</span
                 >
                 <span
                   v-if="originOf(p)"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-indigo-100 text-[9px] font-black text-indigo-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-indigo-100 text-small font-bold text-indigo-800"
                   :title="originTitle(originOf(p))"
                   >{{ originOf(p) }}</span
                 >
                 <span
                   v-if="stateTag(p.state)"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-100 text-[9px] font-black uppercase tracking-widest text-amber-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-100 label text-amber-800"
                   >{{ stateTag(p.state) }}</span
                 >
                 <span
                   v-if="provisionalTag(p.row)"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
                   :title="PROVISIONAL_TITLE"
                   >{{ provisionalTag(p.row) }}</span
                 >
@@ -105,24 +105,24 @@
               <td class="py-1.5 pr-3 whitespace-nowrap text-slate-700" :title="finishTitle(p.finish, p.row.timezone)">
                 {{ finishDateText(p.finish, viewZone) }}
                 <SimChip :stamp="p.row.simVersion" />
-                <div v-if="narrow" class="text-slate-500">{{ daysLeftPhrase(p.finish, now, viewZone) }}</div>
+                <div v-if="narrow" class="text-slate-600">{{ daysLeftPhrase(p.finish, now, viewZone) }}</div>
               </td>
               <td v-if="!narrow" class="py-1.5 pr-3 text-right font-bold text-slate-700">
                 {{ daysLeftText(p.finish, now, viewZone) }}
               </td>
               <td v-if="gapLabel" class="py-1.5 pr-3 text-right whitespace-nowrap">
-                <span v-if="p === best" class="font-black text-emerald-700">best</span>
+                <span v-if="p === best" class="font-bold text-emerald-700">best</span>
                 <span v-else-if="gap(p) != null" class="font-bold text-slate-700">{{ gapText(gap(p)!) }}</span>
                 <span
                   v-else-if="best && sameSave(p.row, best.row) && !sameBuild(p.row, best.row)"
-                  class="text-slate-400"
-                  title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to price both again on this version."
+                  class="text-slate-600"
+                  title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to open this route in the Auto Planner, then run it to price it on this version."
                   >other version</span
                 >
                 <span
                   v-else
-                  class="text-slate-400"
-                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to price it again from the save you loaded."
+                  class="text-slate-600"
+                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to open it in the Auto Planner, then run it to price it from the save you loaded."
                   >other save</span
                 >
               </td>
@@ -132,15 +132,15 @@
               <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap" :title="plannedText(p, { zone: viewZone })">
                 {{ plannedText(p, { zone: viewZone, brief: true }) }}
               </td>
-              <td class="py-1.5 pr-3 text-slate-400 whitespace-nowrap" :title="p.row.window || undefined">
+              <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap" :title="p.row.window || undefined">
                 {{ scheduleText(p.row.window) }}
               </td>
               <td v-if="showReason" class="py-1.5 pr-3 text-slate-600 min-w-[16rem]">{{ p.reason }}</td>
               <td class="py-1.5 text-right">
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                  :title="`Put ${p.row.chain.join(' ')} into the Auto Planner and price it on your account`"
+                  class="px-2 py-0.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                  :title="`Open ${p.row.chain.join(' ')} in the Auto Planner, without running it. The Auto Planner doesn't use your awake hours.`"
                   @click="emit('use', p.row.chain)"
                 >
                   Use
@@ -151,14 +151,14 @@
             <tr v-if="open[keyOf(p, i)]" class="bg-slate-50">
               <td :colspan="columns" class="p-0">
                 <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
-                  <div v-if="p.earlier.length" class="text-[11px] text-slate-600">
-                    <span class="font-bold">Earlier runs of this plan:</span>
+                  <div v-if="p.earlier.length" class="text-small text-slate-600">
+                    <span class="font-bold">Earlier runs of this route:</span>
                     <span v-for="(e, k) in p.earlier" :key="k">
                       {{ k ? ', ' : ' ' }}{{ plannedDay(e) }} (finish {{ finishDateText(e.finish, viewZone) }})
                     </span>
                   </div>
-                  <div v-if="resends?.get(p)?.length" class="text-[11px] text-slate-600">
-                    <span class="font-bold">Also sent as the same plan, counted once:</span>
+                  <div v-if="resends?.get(p)?.length" class="text-small text-slate-600">
+                    <span class="font-bold">Also sent as the same route, counted once:</span>
                     <span v-for="(e, k) in resends?.get(p) ?? []" :key="k">
                       {{ k ? ', ' : ' ' }}{{ resendText(e) }}
                     </span>
@@ -316,23 +316,23 @@ function originTitle(tag: string): string {
   switch (tag) {
     case 'no code':
       return (
-        "Sent under this player's name since the board began stamping runs, but without the owner code their runs " +
+        "Sent under this player's name since the Leaderboard began stamping runs, but without the owner code their runs " +
         'carry. Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried". Anyone can send ' +
         "a run like this, though, so it never sets this line's best finish or its place in the race, and it is never " +
-        'used to judge their plans.'
+        'used to judge their routes.'
       );
     case 'before codes':
       return (
-        "Sent before the board had owner codes, under this player's name, so it is filed as theirs. It is judged " +
+        "Sent before the Leaderboard had owner codes, under this player's name, so it is filed as theirs. It is judged " +
         'only by other runs from before codes.'
       );
     case 'no name':
       return (
-        "Sent without a name, from this player's timezone and artifacts. It is a newer run of a plan they sent before " +
-        'owner codes, so it counts as a re-run of that plan.'
+        "Sent without a name, from this player's timezone and artifacts. It is a newer run of a route they sent before " +
+        'owner codes, so it counts as a re-run of that route.'
       );
     default:
-      return "This player sent from more than one browser, and each keeps its own private code. Each browser's plans are judged by that browser's runs only.";
+      return "This player sent from more than one browser, and each keeps its own private code. Each browser's routes are judged by that browser's runs only.";
   }
 }
 
@@ -357,9 +357,9 @@ function resendText(e: Plan): string {
 function resendTitle(p: Plan): string {
   const more = props.resends?.get(p) ?? [];
   return (
-    `The same plan was also sent ${more.map(resendText).join(', ')}. Neither run can replace the other ` +
+    `The same route was also sent ${more.map(resendText).join(', ')}. Neither run can replace the other ` +
     '(one was sent without the owner code, from another browser, or within the hour), so both still count. ' +
-    'They finish within a day of each other, so they are listed as one plan and "Tried" counts it once. Open the ' +
+    'They finish within a day of each other, so they are listed as one route and "Tried" counts it once. Open the ' +
     'line for details.'
   );
 }

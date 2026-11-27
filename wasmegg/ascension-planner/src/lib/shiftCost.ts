@@ -12,7 +12,7 @@
  * `plannedShiftsCost` adds up a plan's shifts from TODAY's soul eggs, earning none on the way and paying each
  * shift out of what is left, as the report does ("SE after 166 shifts = SE now minus the sum of the costs";
  * that is what reproduces its 72.68%). An estimate: the later shifts happen with more soul eggs and cost more.
- * My runs says "at today's soul eggs".
+ * My Runs says "at today's soul eggs".
  */
 
 /** Shift number `n` (1-based) at `soulEggs`. */

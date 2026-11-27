@@ -1,7 +1,7 @@
 /**
  * WHICH OPTIONAL TABS SHOW (Jordan, 21 Oct 2026): the Leaderboard and Science tabs are off by default and
  * turned on per browser in Setup › How the site shows things (TabsToggle.vue). Manual Planner, Auto Planner and
- * My runs always show.
+ * My Runs always show.
  *
  * Stored in localStorage under `aap.tabs` as {"leaderboard":boolean,"science":boolean}; anything missing or
  * unreadable is false. Storage is wrapped in try/catch: private windows and blocked site data throw.

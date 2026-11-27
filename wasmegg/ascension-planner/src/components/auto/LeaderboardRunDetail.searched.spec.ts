@@ -1,5 +1,5 @@
 /**
- * A run's details (LeaderboardRunDetail.vue, opened on My runs and Compare): its "What was searched"
+ * A run's details (LeaderboardRunDetail.vue, opened on My Runs and Compare): its "What was searched"
  * line, from the row's `searched` (search/searched.ts `searchedWords`), or "not recorded (older run)".
  */
 import { describe, expect, it } from 'vitest';

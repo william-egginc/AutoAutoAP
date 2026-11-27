@@ -42,11 +42,11 @@
           v-for="mode in MODES"
           :key="mode.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             view === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
-              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
           "
           :aria-pressed="view === mode.id"
           @click="view = mode.id"
@@ -54,14 +54,14 @@
           {{ mode.label }}
         </button>
       </div>
-      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+      <span class="text-small font-bold text-slate-600">
         {{ bests.length }} account{{ bests.length === 1 ? '' : 's' }} ({{ rows.length }} run{{
           rows.length === 1 ? '' : 's'
         }}) · {{ summary.length }} stop{{ summary.length === 1 ? '' : 's' }}
       </span>
     </div>
 
-    <EChart v-if="bests.length" :option="option" height="300px" />
+    <EChart v-if="bests.length" :option="option" height="300px" label="Chart: how the stops fall for each ascension count" />
 
     <!-- In HTML, so every entry is on screen at any width (legend.ts). The map: which checkpoint is
          which (only with two or more), then which stalk is whose, without hovering. The share view:
@@ -74,16 +74,16 @@
       v-else-if="bests.length"
       v-model:hidden="hiddenShare"
       :entries="[...accountEntries, MEDIAN_ENTRY]"
-      label="Accounts: click to hide or show"
+      label="Accounts: press to hide or show"
     />
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ hint }}</p>
+    <p class="text-small text-slate-600 px-1">{{ hint }}</p>
 
     <!-- The same numbers as the chart, for the reader who wants to copy one: the TEs the best plans
          really used, the same as TE above the start, and the slope that says which travels. -->
     <div class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-600 label">
             <th class="text-left py-1 pr-3">Stop</th>
             <th class="text-right py-1 pr-3">Accounts</th>
             <th class="text-left py-1 pr-3">TE</th>
@@ -96,29 +96,29 @@
           <tr v-for="cp in summary" :key="cp.index">
             <td class="py-1 pr-3 font-bold text-slate-600">
               {{ cp.index + 1
-              }}<span v-if="cp.index === summary.length - 1" class="font-normal text-slate-400"> (last)</span>
+              }}<span v-if="cp.index === summary.length - 1" class="font-normal text-slate-600"> (last)</span>
             </td>
-            <td class="py-1 pr-3 text-right text-slate-400">{{ cp.accounts }}</td>
-            <td class="py-1 pr-3 font-mono-premium whitespace-nowrap" :class="tighter(cp) === 'te' ? WIN : LOSE">
+            <td class="py-1 pr-3 text-right text-slate-600">{{ cp.accounts }}</td>
+            <td class="py-1 pr-3 tabular-nums whitespace-nowrap" :class="tighter(cp) === 'te' ? WIN : LOSE">
               {{ rangeText(cp.te) }}
             </td>
-            <td class="py-1 pr-3 font-mono-premium whitespace-nowrap" :class="tighter(cp) === 'above' ? WIN : LOSE">
+            <td class="py-1 pr-3 tabular-nums whitespace-nowrap" :class="tighter(cp) === 'above' ? WIN : LOSE">
               +{{ rangeText(cp.aboveStart) }}
             </td>
             <td
-              class="py-1 pr-3 text-right font-mono-premium text-slate-600"
+              class="py-1 pr-3 text-right tabular-nums text-slate-600"
               :title="cp.slope == null ? 'Needs three accounts at different starting TEs' : ''"
             >
               {{ cp.slope == null ? '—' : cp.slope.toFixed(2) }}
             </td>
-            <td class="py-1 font-mono-premium text-slate-500 whitespace-nowrap">
+            <td class="py-1 tabular-nums text-slate-600 whitespace-nowrap">
               <b class="text-slate-700">{{ pct(cp.share.mid) }}</b>
-              <span class="text-slate-400"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
+              <span class="text-slate-600"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-600 max-w-3xl">
         Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the stop moves for
         each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start (from
         {{ plural(summary[0]?.accounts ?? 0, 'account') }} at most, so it is only a rough trend). The narrower of the two ranges
@@ -188,8 +188,8 @@ function shadeOf(index: number, n: number): string {
   return SHADES[n <= 1 ? SHADES.length - 1 : Math.round((index * (SHADES.length - 1)) / (n - 1))];
 }
 
-const WIN = 'font-black text-slate-800';
-const LOSE = 'text-slate-400';
+const WIN = 'font-bold text-slate-800';
+const LOSE = 'text-slate-600';
 
 const summary = computed<CheckpointSummary[]>(() => summariseCheckpoints(props.bests.map(b => b.row)));
 

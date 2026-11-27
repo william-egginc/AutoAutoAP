@@ -73,7 +73,7 @@ export function breathe(): Promise<void> {
  * since nothing can sweep an opaque gzip stream afterwards (stores/chainSearch.ts `gzip`).
  */
 export async function gzipChunksCapped(
-  chunks: Iterable<string>,
+  chunks: Iterable<string> | AsyncIterable<string>,
   cap: number,
   scrub: (text: string) => string = t => t,
   /** Checked between chunks: true gives up, rejecting with `GzipStopped` (a timeout, the run's end). */
@@ -101,7 +101,7 @@ export async function gzipChunksCapped(
   const encoder = new TextEncoder();
   let gaveUp = false;
   try {
-    for (const chunk of chunks) {
+    for await (const chunk of chunks) {
       if (over) break;
       if (stopped()) {
         gaveUp = true;
@@ -164,7 +164,7 @@ export function progressDetail(done: number, unit: string, csv: ProgressCsv): st
     case 'off':
       return `${count}; no CSV ("Send my CSV too" is unticked)`;
     case 'not-taken':
-      return `${count}; no CSV (the board doesn't take one mid-run yet)`;
+      return `${count}; no CSV (the Leaderboard doesn't take one mid-run yet)`;
     case 'failed':
       return `${count}; the CSV didn't upload`;
     case 'superseded':
@@ -184,7 +184,7 @@ export function csvNote(csv: ProgressCsv): string {
     case 'too-big':
       return ` The CSV so far is too big to send (over ${sizeLabel(PROGRESS_CSV_LIMIT_BYTES)} compressed), so only the best so far and diagnostics went; Download CSV keeps it on ${thisDevice()}.`;
     case 'not-taken':
-      return " The CSV so far wasn't sent: the board doesn't take one mid-run yet.";
+      return " The CSV so far wasn't sent: the Leaderboard doesn't take one mid-run yet.";
     case 'failed':
       return ` The CSV so far didn't upload (${csv.why}); the next send tries again.`;
     case 'superseded':
@@ -277,12 +277,12 @@ export async function uploadCsv(
     if (r.status === 403) return { kind: 'refused' };
     if (multi && r.status === 400) return { kind: 'no-parts' };
     if (r.status >= 500 || r.status === 429) return null;
-    return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+    return { kind: 'failed', why: `the Leaderboard answered ${r.status}`, status: r.status };
   };
   const failedFrom = (r: Response | Error): CsvUpload =>
     r instanceof Error
       ? { kind: 'failed', why: fetchFailureWhy(r) }
-      : { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+      : { kind: 'failed', why: `the Leaderboard answered ${r.status}`, status: r.status };
 
   if (parts.length === 1) {
     const r = await once(null);
@@ -320,5 +320,5 @@ export async function uploadCsv(
       if (isUpload(r) && r.kind !== 'stored') return r;
     }
   }
-  return { kind: 'failed', why: 'the board kept saying a part was missing', status: 422 };
+  return { kind: 'failed', why: 'the Leaderboard kept saying a part was missing', status: 422 };
 }

@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newWatchId, newWatchSecret, sealHeartbeat, type WatchHeartbeat } from '@/search/watchLink';
+import { settle } from '@/watch/specSettle';
 
 const ID = newWatchId();
 const SECRET = newWatchSecret();
@@ -34,10 +35,6 @@ const hb: WatchHeartbeat = {
   startedAt: T0 - 3600_000,
   updatedAt: T0,
   workers: 8,
-};
-
-const settle = async () => {
-  for (let i = 0; i < 8; i++) await new Promise(r => setImmediate(r));
 };
 
 async function startAt(hash: string): Promise<void> {
@@ -94,10 +91,11 @@ describe('the phone page', () => {
   });
 
   it('a wrong secret is an incomplete link', async () => {
-    // A well-formed secret that is certainly not SECRET (a random one could, in theory, be it), and a wait
-    // for the answer: opening the heartbeat is real async crypto, which a few event-loop turns do not always
-    // cover on a busy machine (it failed once in a full run, and passed alone).
-    const wrong = SECRET.slice(0, -1) + (SECRET.endsWith('A') ? 'B' : 'A');
+    // A well-formed secret that is certainly not SECRET, and a wait for the answer: opening the heartbeat is
+    // real async crypto, which a few event-loop turns do not always cover on a busy machine. The FIRST character
+    // is changed: 32 bytes are 43 base64url characters and the last one's low 2 bits are padding, so A <-> B
+    // there decoded to the same key whenever SECRET ended in A-D (1 run in 16 failed).
+    const wrong = (SECRET.startsWith('A') ? 'B' : 'A') + SECRET.slice(1);
     await startAt(`#${ID}.${wrong}`);
     for (let i = 0; i < 800 && els['p-title']?.textContent !== 'This link is incomplete'; i++) {
       await new Promise(r => setTimeout(r, 10));
@@ -129,6 +127,41 @@ describe('the phone page', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     await settle();
     expect(fetches).toHaveLength(4);
+  });
+
+  it('a read that never answers (the phone locked part-way through one) does not stop the page reading', async () => {
+    // ux35-f: with no answer and no error, the page used to stay "busy" for good and only redraw its old
+    // reading, its "Last update" growing older (and then "Not reporting") while the run kept reporting.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    let hang = true;
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      fetches.push(url);
+      if (!hang) return reply();
+      return new Promise<Response>((_, reject) =>
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+        )
+      );
+    });
+    await startAt(`#${ID}.${SECRET}`);
+    expect(fetches).toHaveLength(1);
+    hang = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    await settle();
+    expect(fetches).toHaveLength(2);
+    expect(els['p-title'].textContent).toBe('Running');
+    // Coming back into view reads at once too, even with a read left hanging from before.
+    hang = true;
+    await vi.advanceTimersByTimeAsync(60_000);
+    visibility = 'hidden';
+    docListeners.visibilitychange();
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    hang = false;
+    visibility = 'visible';
+    docListeners.visibilitychange();
+    await settle();
+    expect(fetches).toHaveLength(4);
+    expect(els['p-title'].textContent).toBe('Running');
   });
 
   it('the plain status wins over the sealed one (a page that closed sends only that)', async () => {

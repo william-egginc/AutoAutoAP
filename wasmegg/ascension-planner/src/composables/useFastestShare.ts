@@ -7,12 +7,14 @@
  * Smart search used to carry a private copy of sendRunResult's steps, and a name that was neither
  * trimmed nor capped; the Full sweep had its own. Now a fix lands on both.
  */
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import { sendRunResult } from '@/search/sendRun';
+import { onBoardLine } from '@/search/sentOnBoard';
 import { useShareExtras } from './useShareExtras';
 import { useBoardSubmit, useShareIdentity } from './useShareResult';
 import { consentGivenThisVisit } from './useConsent';
+import { downloadFile } from '@/utils/export';
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
@@ -79,25 +81,38 @@ export function useFastestShare(
     }
   }
 
+  /**
+   * "Already on the Leaderboard (sent at 10:48 AM)" when the result's row is already there, known on load from
+   * the account's rows (stores/chainSearch.ts `fastestOnBoard`; Jordan, 27 Oct 2026). '' otherwise, or while
+   * the rows are not read: Submit as before. A send made this visit says how it went itself.
+   */
+  const fastestOnBoardLine = computed(() => {
+    if (submitMessage.value) return '';
+    const row = store.fastestOnBoard;
+    return row ? onBoardLine(row) : '';
+  });
+  watch(
+    () => store.bestDays > 0 && !store.isRunning,
+    done => {
+      if (done) void store.loadMineRows();
+    },
+    { immediate: true }
+  );
+
   /** The payload, pretty-printed, so "show exactly what is sent" is the literal bytes. */
   function payloadPreview(): string {
     const p = store.buildRunSubmission(effectiveNickname.value);
     return p ? JSON.stringify(p, null, 2) : 'Nothing to share yet. Run a search first.';
   }
 
-  /** The offline path, and the only one with no collector configured. A Blob, not a `data:` URI:
+  /** The offline path, and the only one with no collector configured. A Blob (utils/export), not a `data:` URI:
    *  those are length-capped in some browsers. */
   function downloadSubmission(): void {
     if (!optIn.value) return;
     const payload = store.buildRunSubmission(effectiveNickname.value);
     if (!payload) return;
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = store.submissionFilename(payload);
-    a.click();
-    URL.revokeObjectURL(url);
+    // Through the page's one download (utils/export), which also clears any player ID left in it.
+    downloadFile(store.submissionFilename(payload), JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
     submitOk.value = true;
     submitMessage.value = 'Saved. Share it wherever you like.';
   }
@@ -113,5 +128,6 @@ export function useFastestShare(
     submit,
     payloadPreview,
     downloadSubmission,
+    fastestOnBoardLine,
   };
 }

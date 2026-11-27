@@ -5,7 +5,7 @@ import RouteExtras from '@/components/auto/RouteExtras.vue';
 import { getThresholdForTE } from '@/lib/truthEggs';
 import type { LegSummary } from './types';
 
-const T0 = Date.UTC(2026, 9, 13, 22, 0) / 1000; // Tue Oct 13, 4 pm MDT
+const T0 = Date.UTC(2026, 9, 13, 22, 0) / 1000; // Tue Oct 13, 4:00 PM MDT
 const leg = (over: Partial<LegSummary>): LegSummary =>
   ({ key: '2-sale-tier13', endTE: 166, durationSeconds: 86400, maxELR: 1e12, ...over }) as LegSummary;
 const shifts = [
@@ -37,6 +37,14 @@ describe('oneMoreTE', () => {
       how: 'run',
     });
   });
+  it("By a date: never a run-cost date at or before the deadline (the search priced that TE and it missed)", () => {
+    // UX review 2, 5 Nov 2026: "One more TE (312) ... about Wed, Jul 14, 6:21 am" before a Jul 14 10 am date,
+    // while the search found 311 best. The run cost is what 311 cost over 310, not a price of 312.
+    const deadline = T0 + 17 * 3600;
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 14 * 3600, deadline })).toBeNull();
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 17 * 3600, deadline })).toBeNull();
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 20 * 3600, deadline })?.at).toBe(T0 + 20 * 3600);
+  });
   it("else the last leg's final rate; nothing at 490 or with noRate", () => {
     const m = oneMoreTE({ chain: [166, 247], legs: [leg({}), endLeg], reachAt: T0 + 100 * 86400 });
     expect(m?.how).toBe('rate');
@@ -48,14 +56,14 @@ describe('oneMoreTE', () => {
 });
 
 describe('RouteExtras', () => {
-  it('folds the shifts into one line, then a list "Shift to Humility · Tue Oct 13, 4 pm"', async () => {
+  it('folds the shifts into one line, then a list "Shift to Humility · Tue, Oct 13, 4:00 PM"', async () => {
     const t = textOf(
       await renderHtml(RouteExtras, { chain: [166, 247], legs: [leg({ shifts })], reachAt: T0, zone: 'America/Denver', runCost: 36000 })
     );
-    expect(t).toContain('First ascension: 2 egg shifts, Tue Oct 13, 4 pm to Thu Oct 15, 4:30 pm');
-    expect(t).toContain('Shift to Humility · Tue Oct 13, 4 pm');
-    expect(t).toContain('Shift to Integrity · Thu Oct 15, 4:30 pm');
-    expect(t).toMatch(/One more TE \(248\): about 10 h more, so about Wed Oct 14, 2 am \(what 247 cost over 246 in this run\)\./);
+    expect(t).toContain('First ascension: 2 egg shifts, Tue, Oct 13, 4:00 PM to Thu, Oct 15, 4:30 PM');
+    expect(t).toContain('Shift to Humility · Tue, Oct 13, 4:00 PM');
+    expect(t).toContain('Shift to Integrity · Thu, Oct 15, 4:30 PM');
+    expect(t).toMatch(/One more TE \(248\): about 10 h more, so about Wed, Oct 14, 2:00 AM \(what 247 cost over 246 in this run\)\./);
   });
   it('nothing to say: nothing drawn', async () => {
     expect(textOf(await renderHtml(RouteExtras, { chain: [300, 490], legs: [leg({})], reachAt: T0, zone: 'UTC' }))).toBe('');

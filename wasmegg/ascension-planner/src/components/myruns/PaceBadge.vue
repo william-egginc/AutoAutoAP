@@ -8,7 +8,7 @@
 <template>
   <div
     v-if="words && (words.badge || words.detail)"
-    class="w-full flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
+    class="w-full flex flex-wrap items-center gap-x-2 gap-y-1 text-body"
     :class="words.greyed ? 'opacity-60' : ''"
     data-testid="pace-badge"
     :data-tone="tone"
@@ -33,7 +33,7 @@
       data-testid="pace-pill"
       >{{ words.badge }}</span
     >
-    <span v-if="words.asOf || words.greyed" class="text-slate-500" data-testid="pace-asof"
+    <span v-if="words.asOf || words.greyed" class="text-slate-600" data-testid="pace-asof"
       >{{ words.asOf }}<template v-if="words.asOf && words.greyed">{{ ' · ' }}</template
       ><template v-if="words.greyed">{{ NOT_FOLLOWED_WORDS }}</template></span
     >

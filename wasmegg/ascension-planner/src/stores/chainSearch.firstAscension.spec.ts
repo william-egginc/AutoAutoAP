@@ -3,6 +3,7 @@
  * Classic's A1 dropdown kept in step, Classic's one-hour rule, and a run started under the old
  * boolean carrying on exactly as it began.
  */
+import { SIM_VERSION } from '@/search/simVersion';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { SearchInputs } from '@/search/types';
@@ -143,7 +144,7 @@ describe("Your setup's First ascension and Classic's A1 dropdown", () => {
     expect(store.classicFirstPick()).toEqual({ 0: 'continue' });
   });
 
-  it("a route sent with its run's own setting (By a date's Simulate this plan) keeps that setting's pick", () => {
+  it("a route sent with its run's own setting (By a date's Simulate this route) keeps that setting's pick", () => {
     const store = useChainSearchStore();
     const planner = useAutoPlannerStore();
     // Priced under Prestige now, Your setup on Continue since: the run's build, not Continue.
@@ -274,7 +275,7 @@ describe('a run started under the old boolean carries on as it began', () => {
     await saveCheckpoint(
       'P',
       buildCheckpoint({
-        fingerprint: `P|${PLAN_START}|196|490|fc`,
+        fingerprint: `P|${PLAN_START}|196|490|fc|sim:${SIM_VERSION}`,
         effort: 'thorough',
         seedChain: [200, 490],
         bestChain: [200, 490],
@@ -304,7 +305,7 @@ describe('a run started under the old boolean carries on as it began', () => {
 
     expect(store.firstAscension).toBe('continue');
     expect(useAutoPlannerStore().planVariantOverrides[0]).toBe('continue');
-    expect(store.resumeInputsKey).toBe('|0|196|490|fc');
+    expect(store.resumeInputsKey).toBe(`|0|196|490|fc|sim:${SIM_VERSION}`);
     // Its record says what it priced: the submission names Continue Asc., with the boolean beside it.
     const sub = store.buildRunSubmission();
     expect(sub?.firstAscension).toBe('continue');

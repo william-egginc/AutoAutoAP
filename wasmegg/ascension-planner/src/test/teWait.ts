@@ -3,10 +3,10 @@
  */
 import type { Plugin } from 'vue';
 import { useActionsStore } from '@/stores/actions';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { countTEThresholdsPassed, eggsNeededForTE } from '@/lib/truthEggs';
-import { solveForTime } from '@/engine/apply/math';
+import { solveForTime } from 'lib/planners/engine/apply/math';
 
 /** The app registers vue-tippy in main.ts; a no-op directive is enough for server rendering. */
 export const tippyStub: Plugin = { install: app => void app.directive('tippy', {}) };
@@ -14,7 +14,7 @@ export const tippyStub: Plugin = { install: app => void app.directive('tippy', {
 /** What the Wait for TE panel prices for +1 TE on the current egg (same inputs as the component). */
 export function nextTEWait() {
   const snap = useActionsStore().effectiveSnapshot;
-  const egg = useVirtueStore().currentEgg;
+  const egg = usePlanStore().currentEgg;
   const te = useTruthEggsStore();
   const delivered = te.eggsDelivered[egg];
   const currentTE = Math.max(te.teEarned[egg] || 0, countTEThresholdsPassed(delivered));

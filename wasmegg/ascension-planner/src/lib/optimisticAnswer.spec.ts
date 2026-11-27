@@ -43,6 +43,6 @@ describe('optimisticForGear', () => {
     expect(optimisticForGear('maxed', Number.NaN)).toBe(false);
   });
   it('the words', () => {
-    expect(OPTIMISTIC_TEXT).toBe('This answer may be optimistic for your gear: Check exactly gives the real number.');
+    expect(OPTIMISTIC_TEXT).toBe('This answer may be optimistic for your gear: a Fast search gives the real number.');
   });
 });

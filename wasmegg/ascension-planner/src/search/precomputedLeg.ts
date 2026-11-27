@@ -17,7 +17,7 @@
 import { distributeTargetTE } from '@/auto/shifts/te-wait';
 import { computeTEEarned, timeToEarnTE } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed, TE_BREAKPOINTS } from '@/lib/truthEggs';
-import { getTimezoneOffsetAt, PACIFIC_TIMEZONE } from '@/lib/events';
+import { getTimezoneOffsetAt, PACIFIC_TIMEZONE } from 'lib/planners/events';
 import type { VirtueEgg } from '@/types';
 
 /** The five eggs in table order; also the order `delivered` is stored in. */
@@ -100,15 +100,45 @@ export function rebase(b: BuildParams, te: number, delivered: number[]): BuildPa
  * `lateBy`: seconds into the table's hour the ascension really starts. The build's purchases take as
  * long either way, but the sale ends at a fixed moment, so it ends that much sooner after a late
  * start. (Exact at 0, which is what the table was built at; scripts/precompute.ts --verify-table
- * measures it in between.)
+ * measures it in between.) Across a daylight-saving change the finder passes `dstLateBy`'s value, so the
+ * sale ends an hour later or sooner, as it really does.
  */
+/**
+ * KINDNESS AT K3'S SHIFT, ESTIMATED (code review round 2, 22 Nov 2026, T2, math-simcheck-1; Mac-only stopgap). The
+ * simulator shares the goal out at K3's shift (auto/ascension.ts); a table build stores the counts at `waitStart`,
+ * after K3's 60 s and train-car buys, so the first share saw kindness a little high and a build could be priced up to
+ * a day fast (maxed TE 95, Sat 9 AM PT, 2-sale to 100: 1,301,897 s against the simulator's 1,388,269 s). With version
+ * 2's extras and a bare 60 s after the shift (`waitStart - k3At === 60`), kindness's count then is taken as the stored
+ * one less `k3Rate` for that minute, never below a threshold already passed. APPROXIMATE: k3Rate is measured on
+ * humility before the shift. Null (the stored count) for a version 1 build, a longer gap, or H1 waiting for the sale.
+ * Used for the FIRST share only; K3's own need still comes from the stored count, as runK3's does. The exact fix (the
+ * count at the shift as a new extra) needs a table build.
+ */
+export function kindnessAtK3(
+  p: BuildParams & { extras?: { k3At: number; k3Rate: number; waitEgg: number } },
+  thresholds: readonly number[] = TE_BREAKPOINTS
+): number | null {
+  const x = p.extras;
+  if (!x || x.waitEgg === 4 || p.waitStart - x.k3At !== 60) return null;
+  const stored = p.delivered[1] || 0;
+  let passed = 0;
+  for (const th of thresholds) if (stored >= th) passed = th;
+  return Math.max(passed, stored - x.k3Rate * 60);
+}
+
 export function tailTo(p: BuildParams, target: number, lateBy = 0): Tail | null {
   const delivered = Object.fromEntries(EGG_ORDER.map((e, i) => [e, p.delivered[i]])) as Record<VirtueEgg, number>;
   const locked: VirtueEgg[] = [];
   const saleEnd = p.saleEnd - lateBy;
   let t = p.waitStart;
+  const kAt = kindnessAtK3(p);
   for (const egg of WAIT_ORDER) {
-    const targets = distributeTargetTE(delivered, target, locked);
+    // The first share (K3's) from kindness at K3's shift (`kindnessAtK3`, T2), the rest from the counts as they are.
+    const targets = distributeTargetTE(
+      egg === 'kindness' && kAt !== null ? { ...delivered, kindness: kAt } : delivered,
+      target,
+      locked
+    );
     const have = countTEThresholdsPassed(delivered[egg] || 0);
     const need = Math.max(0, targets[egg] - have);
     // K3 waits for the sale to end whatever the goal; the others only for their share.
@@ -254,7 +284,10 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
   if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {}, bytes: SWEEP_OVERHEAD };
 
   const span = Math.max(0, to - now);
-  const all = greedyOrder(d, GREEDY_IDX, span);
+  // Shared from kindness at K3's shift (`kindnessAtK3`, T2): only kindness's own place in the order moves, so the four's
+  // order below, kindness left out, is as before. The counts and K3's need stay the stored ones.
+  const kAt = kindnessAtK3(p);
+  const all = greedyOrder(kAt === null ? d : d.map((v, e) => (e === KIND ? kAt : v)), GREEDY_IDX, span);
   // The four eggs' own order is the same order with kindness taken out: each egg's thresholds are its
   // own, and ties break the same way, so leaving one egg out does not reorder the rest. Of the first
   // m, the four are never asked for more than the five-egg order gave them (kindness only overshoots).
@@ -375,7 +408,9 @@ export const WEEK_HOURS = 168;
  * The Pacific hour of the week an instant falls in, 0 = Monday 00:00 Pacific. The game's weekly
  * events (the research sale, the Monday earnings boost) are at fixed Pacific times, daylight saving
  * included (lib/events.ts), so an ascension started at the same Pacific hour in any week meets them
- * at the same points.
+ * at the same points, except that a wait across a daylight-saving change (the first Sunday of
+ * November, the second of March) is an hour longer or shorter than in the table's week, which has
+ * none: `dstLateBy` moves the sale's end for that (code review 22 Nov 2026, T1.7).
  */
 const offsetByDay = new Map<number, number | null>();
 const offsetAtDayStart = new Map<number, number>();
@@ -391,7 +426,7 @@ const offsetByHour = new Map<number, number>();
 /** Pacific's offset from UTC at an instant. It changes twice a year, on an hour boundary, so it is
  *  asked of the date formatter (slow: it was most of a route search's time) once per day, and per
  *  hour only on the two days it changes. */
-function pacificOffset(unixSeconds: number): number {
+export function pacificOffset(unixSeconds: number): number {
   const day = Math.floor(unixSeconds / 86400);
   let whole = offsetByDay.get(day);
   if (whole === undefined) {
@@ -409,6 +444,18 @@ function pacificOffset(unixSeconds: number): number {
     offsetByHour.set(h, offset);
   }
   return offset;
+}
+
+/**
+ * `lateBy` for a build of a cell started at `start` (`lateBy` seconds into the cell's hour), corrected for a
+ * daylight-saving change between the start and the build's sale end (`saleEnd` after the cell's hour). The cell was
+ * built in a week with no change, so its sale ends `saleEnd` after the hour; across one the real sale end is an
+ * hour later (November: the clocks go back) or sooner (March), and that hour goes into the lateness the sale's end is
+ * moved by (code review 22 Nov 2026, T1.7: cells were an hour off for those builds, some 1-sale ones too).
+ */
+export function dstLateBy(saleEnd: number, start: number, lateBy: number): number {
+  const cell = start - lateBy;
+  return lateBy - (pacificOffset(cell) - pacificOffset(cell + saleEnd));
 }
 
 export function pacificHourOfWeek(unixSeconds: number): number {

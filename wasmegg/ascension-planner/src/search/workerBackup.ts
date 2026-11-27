@@ -21,6 +21,10 @@
  *     above, plus virtueAfxDb.activeArtifacts), game.permitLevel. Its `recommendArtifactSet` uses
  *     a virtue strategy, which never builds a lib `Farm` or reads prophecy eggs.
  *   - `getArtifactLoadoutFromBackup` (search/leg.ts continue): artifactsDb.virtueAfxDb.
+ *   - `parseVirtueProgress` (lib/backupVirtue.ts; search/leg.ts claimedTEEarned, for continue and every
+ *     current-ascension start, spec-pendingte): virtue.eovEarned and virtue.eggsDelivered, the TE the farm in the
+ *     save has claimed. The whole `virtue` block is kept: it is a few hundred bytes. Without it every worker priced
+ *     that farm at claimed TE 0 (spec-workervirtue, 6 Nov 2026).
  *   - Truthiness checks (`if (!context.rawBackup)`) in h1.ts, c1.ts and leg.ts.
  *
  * Every simulator caller passes `context.epicResearchLevels` and `context.colleggtibleModifiers`, so
@@ -70,6 +74,9 @@ export function trimBackupForWorkers<T>(raw: T, context?: Pick<SimulationContext
   const game = raw.game;
   if (isObj(game)) out.game = pick(game, ['permitLevel', 'epicResearch']);
   else if (game !== undefined) out.game = game;
+
+  // The save's claimed TE per egg (parseVirtueProgress, see the module comment).
+  if (raw.virtue !== undefined) out.virtue = raw.virtue;
 
   if (!context?.colleggtibleModifiers && isObj(raw.contracts)) {
     out.contracts = pick(raw.contracts, ['archive', 'contracts']);

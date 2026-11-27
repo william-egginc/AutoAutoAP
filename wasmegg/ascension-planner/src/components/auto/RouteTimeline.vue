@@ -9,19 +9,19 @@
   Nothing is worked out here: a route priced without its legs says so rather than guessing.
 -->
 <template>
-  <div class="space-y-1 text-[11px] leading-relaxed whitespace-normal text-left" data-testid="route-timeline">
-    <p v-if="!lines.length" class="text-slate-500" data-testid="route-timeline-none">
+  <div class="space-y-1 text-body whitespace-normal text-left" data-testid="route-timeline">
+    <p v-if="!lines.length" class="text-slate-600" data-testid="route-timeline-none">
       {{ noLegsText || "When each stop happens wasn't kept for this route." }}
     </p>
     <template v-for="l in lines" :key="l.asc">
       <details
         v-if="l.eggs.length"
-        :open="open || undefined"
+        :open="open || hereStep?.asc === l.asc || undefined"
         class="rounded-md border border-slate-200 bg-white/80 px-2 py-1"
         data-testid="route-timeline-line"
       >
         <summary class="cursor-pointer text-slate-700 marker:text-slate-400">
-          <span class="font-black">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
+          <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
           <template v-if="l.reachedAt">
             · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
           >
@@ -30,7 +30,7 @@
         <ol class="mt-1 mb-0.5 ml-3 space-y-0.5 text-slate-600">
           <li v-for="(s, k) in l.steps" :key="k" class="break-words" data-testid="route-timeline-step">
             <template v-if="s.label"
-              ><span class="font-black text-slate-700">{{ s.label }}</span> ·
+              ><span class="font-bold text-slate-700">{{ s.label }}</span> ·
             </template>
             <span class="font-bold text-slate-700">{{ eggName(s.egg) }}</span> ·
             <span class="whitespace-nowrap">{{ when(s.start) }}</span> ·
@@ -38,11 +38,17 @@
             <template v-if="s.te !== null">
               · <span class="whitespace-nowrap">{{ s.te }} TE</span></template
             >
-            <span v-if="s.noLaying" class="text-slate-400"> (no laying: artifact swap / build step)</span>
+            <span
+              v-if="hereStep && hereStep.asc === l.asc && hereStep.k === k"
+              class="ml-1 rounded bg-emerald-100 px-1.5 text-small font-bold text-emerald-900"
+              data-testid="you-are-here"
+              >you are here</span
+            >
+            <span v-if="s.noLaying" class="text-slate-600"> (no laying: artifact swap / build step)</span>
           </li>
         </ol>
         <!-- Each egg's first and last shift, one small line under the list. -->
-        <p class="mt-0.5 ml-3 text-[10px] text-slate-400" data-testid="route-timeline-egg-summary">
+        <p class="mt-0.5 ml-3 text-small text-slate-600" data-testid="route-timeline-egg-summary">
           Each egg, first to last:
           <template v-for="(e, k) in l.eggs" :key="e.egg"
             >{{ k ? ' · ' : '' }}{{ eggName(e.egg) }} {{ when(e.firstAt) }} to {{ when(e.lastAt)
@@ -52,18 +58,23 @@
       </details>
       <!-- No eggs kept (a leg read back from a saved run): the stop and when, without an arrow. -->
       <p v-else class="px-2 py-1 pl-5 text-slate-700" data-testid="route-timeline-line">
-        <span class="font-black">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
+        <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
         <template v-if="l.reachedAt">
           · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
         >
       </p>
+      <!-- R1 after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). Its own line under the
+           ascension, outside the details' v-if/v-else pair. -->
+      <p v-if="r1Of(l.asc)" class="mt-0.5 ml-3 text-body text-amber-800 break-words max-w-prose" data-testid="route-timeline-r1-sleep">
+        {{ sleepBeforeR1Card(r1Of(l.asc)!, when) }}
+      </p>
     </template>
-    <p v-if="lines.some(l => !l.eggs.length)" class="text-[10px] text-slate-400" data-testid="route-timeline-no-eggs">
+    <p v-if="lines.some(l => !l.eggs.length)" class="text-small text-slate-600" data-testid="route-timeline-no-eggs">
       Each egg's times weren't kept for
       {{ lines.every(l => !l.eggs.length) ? 'this route' : 'the ascensions without an arrow' }} (read back from a saved
       run, or priced before they were kept).
     </p>
-    <p v-if="lines.length && missingTE" class="text-[10px] text-slate-400" data-testid="route-timeline-no-te">
+    <p v-if="lines.length && missingTE" class="text-small text-slate-600" data-testid="route-timeline-no-te">
       This route was priced before the planner kept each egg's TE at its shifts, so it shows when you lay each egg, not
       the TE it reaches.
     </p>
@@ -76,6 +87,9 @@ import { showWhen, spansYears } from '@/lib/displayTime';
 import { routeTimeline, stepLength, timelineMoments } from '@/search/routeTimeline';
 import type { LegSummary } from '@/search/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
+import type { Availability } from '@/search/availability';
+import { r1OfShifts } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
 
 const props = defineProps<{
   chain: number[];
@@ -87,14 +101,38 @@ const props = defineProps<{
   only?: number;
   /** Every line opened (one ascension shown on its own). */
   open?: boolean;
+  /** "You are here": the moment (unix seconds) whose step is tagged and whose ascension opens by default. */
+  hereAt?: number;
   /** What to say when there are no legs, instead of the default line. */
   noLegsText?: string;
+  /** The R1 sleep warning (lib/sleepBeforeR1.ts): the awake hours the route was priced with (null or absent: none), and whether
+   *  its shifts waited for them (held: the softer "R1 waits until …" line). */
+  hours?: Availability | null;
+  heldShifts?: boolean;
 }>();
 
 const all = computed(() => routeTimeline(props.chain, props.legs));
 const lines = computed(() =>
   props.only === undefined ? all.value : all.value.filter(l => l.asc === (props.only ?? 0) + 1)
 );
+/** The step the moment falls in: the last one that started by then and hasn't ended (an open end counts as running). */
+const hereStep = computed(() => {
+  const at = props.hereAt;
+  if (at === undefined) return null;
+  let found: { asc: number; k: number } | null = null;
+  for (const l of lines.value)
+    l.steps.forEach((s, k) => {
+      if (s.start <= at && (s.seconds === null || at < s.start + s.seconds)) found = { asc: l.asc, k };
+    });
+  return found as { asc: number; k: number } | null;
+});
+/** The R1 warning for ascension `asc` (1-based): from its leg's start and shifts; never one already started at `hereAt`. */
+function r1Of(asc: number) {
+  const leg = props.legs?.[asc - 1];
+  if (!props.hours || !leg?.shifts?.length || typeof leg.startTime !== 'number') return null;
+  if (props.hereAt !== undefined && leg.startTime <= props.hereAt) return null;
+  return r1OfShifts({ start: leg.startTime, shifts: leg.shifts, hours: props.hours, held: props.heldShifts });
+}
 /** Eggs with times but no TE: legs simulated before shifts kept their TE. */
 const missingTE = computed(() => lines.value.some(l => l.eggs.some(e => e.te === null)));
 

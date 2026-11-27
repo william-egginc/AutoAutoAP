@@ -43,9 +43,11 @@ describe('a stall ends the answer at 30 s, once', () => {
     expect(isTableStall('the instant answer could not be loaded (404)')).toBe(false);
   });
 
-  it('InstantRoute.vue probes its own file with probeHeader, and stops trying gear names on a stall', () => {
-    const src = readFileSync(new URL('../components/auto/InstantRoute.vue', import.meta.url), 'utf8');
-    expect(src).toContain('const oh = mine ? await probeHeader(() => p.header(mine)) : null;');
+  it('the instant answer probes its own file (each name) with probeFirst, and stops trying gear names on a stall (search/instantCompute.ts, which InstantRoute.vue calls)', () => {
+    const src = readFileSync(new URL('./instantCompute.ts', import.meta.url), 'utf8');
+    expect(src).toContain('const ownHit = await probeFirst(await ownTableUrls().catch(() => []), u => p.header(u));');
     expect(src).toContain('if (isTableStall(e)) break;');
+    const card = readFileSync(new URL('../components/auto/InstantRoute.vue', import.meta.url), 'utf8');
+    expect(card).toContain('const choice = await chooseInstantTable({');
   });
 });

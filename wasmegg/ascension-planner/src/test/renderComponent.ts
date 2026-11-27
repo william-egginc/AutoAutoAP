@@ -4,7 +4,14 @@
  * composables, which have their own specs.
  */
 import { createSSRApp, h, type Component, type Plugin } from 'vue';
+import { ASC_START_OPEN } from '@/lib/ascOpenKey';
 import { renderToString } from 'vue/server-renderer';
+
+let ascOpen = false;
+/** My Runs' ascension blocks start open in what renderHtml draws next (a spec that reads what an opened block holds; call with false in afterAll). */
+export function openAscensions(on = true): void {
+  ascOpen = on;
+}
 
 export async function renderHtml(
   comp: Component,
@@ -16,6 +23,7 @@ export async function renderHtml(
 ): Promise<string> {
   const app = createSSRApp({ render: () => h(comp, props, slots as never) });
   for (const p of plugins) app.use(p);
+  if (ascOpen) app.provide(ASC_START_OPEN, true);
   return renderToString(app);
 }
 
@@ -32,4 +40,10 @@ export function textOf(html: string): string {
     .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** The visible text with AnimatedDots read as the "..." it draws (spec-dots, 1 Nov 2026): "Checking..." rather than
+ *  textOf's "Checking . . .". The dots are aria-hidden; this is what the eye reads. */
+export function textWithDots(html: string): string {
+  return textOf(html.replace(/<span class="animated-dots" aria-hidden="true"[^>]*>(?:<span[^>]*>\.<\/span>){3}<\/span>/g, '...'));
 }

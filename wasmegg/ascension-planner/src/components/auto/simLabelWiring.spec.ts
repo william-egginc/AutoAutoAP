@@ -75,7 +75,7 @@ describe('Show runs from older simulators', () => {
     expect(panel.indexOf('Show runs from older simulators')).toBeLessThan(panel.indexOf('<ChainExplorer v-if='));
   });
 
-  it('filters every public view’s rows (not My runs), and Insights when it is embedded here', () => {
+  it('filters every public view’s rows (not My Runs), and Insights when it is embedded here', () => {
     expect(panel).toContain('myRunsMode.value ? publicShown.value : bySimToggle(publicShown.value, showOlder.value)');
     const ex = read('explorer/ChainExplorer.vue');
     expect(ex).toContain("props.embedded && props.part === 'insights' && !showOlder.value");

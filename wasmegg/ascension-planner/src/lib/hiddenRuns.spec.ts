@@ -97,9 +97,9 @@ describe('the optimistic update', () => {
 });
 
 describe('what the board says', () => {
-  it('says hidden, and that the public board can take a minute', () => {
+  it('says hidden, and that the public Leaderboard can take a minute', () => {
     expect(hideStatus(ok(true, ['a1']), true)).toEqual({
-      text: 'Hidden. It can take up to a minute to leave the public board.',
+      text: 'Hidden. It can take up to a minute to leave the public Leaderboard.',
       tone: 'ok',
     });
     expect(hideStatus(ok(false, ['a1']), false).text).toMatch(/^Showing again\./);
@@ -111,13 +111,13 @@ describe('what the board says', () => {
       tone: 'warn',
     });
     expect(hideStatus(ok(true, ['a1'], { missing: ['b2'] }), true).text).toBe(
-      'Hidden. It can take up to a minute to leave the public board. One run was not found yet, try again in a moment.'
+      'Hidden. It can take up to a minute to leave the public Leaderboard. One run was not found yet, try again in a moment.'
     );
   });
 
   it('says when some runs are left after "Hide all"', () => {
     expect(hideStatus(ok(true, ['a1'], { more: true }), true, { all: true }).text).toMatch(/press it again/);
-    expect(hideStatus(ok(true, []), true, { all: true }).text).toBe('You have no runs on the board to hide.');
+    expect(hideStatus(ok(true, []), true, { all: true }).text).toBe('You have no runs on the Leaderboard to hide.');
   });
 
   it('says when to try again', () => {
@@ -133,7 +133,7 @@ describe('what the board says', () => {
 
   it('says a network error and a refusal in plain words', () => {
     expect(hideStatus({ kind: 'network', message: 'Failed to fetch' }, true)).toEqual({
-      text: "Couldn't reach the board. Check your connection and try again.",
+      text: "Couldn't reach the leaderboard. Check your connection and try again.",
       tone: 'error',
     });
     expect(hideStatus({ kind: 'bad', message: 'rejected', problems: [] }, true).tone).toBe('error');

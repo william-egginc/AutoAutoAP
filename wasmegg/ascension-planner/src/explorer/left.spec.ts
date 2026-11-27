@@ -197,3 +197,15 @@ describe('the words', () => {
     expect(longEstimate(5_000 * 365 * 86400)).toBe('5,000 years');
   });
 });
+
+describe('code review round 2, C6.2: crafted bands cannot make the page expand a million values a band', () => {
+  it('32 bands of [0, 999999] answer null at once, with no huge allocation', () => {
+    const bands = Array.from({ length: 32 }, () => [0, 999_999]);
+    const crafted = row({
+      space: { mode: 'bands', chains: 5, chainsPriced: 5, minGap: 0, minAscensions: 33, maxAscensions: 33, stoppedEarly: false, bands } as unknown as SearchSpace,
+    });
+    const t0 = Date.now();
+    expect(leftOf(crafted)).toBeNull();
+    expect(Date.now() - t0).toBeLessThan(1000);
+  });
+});

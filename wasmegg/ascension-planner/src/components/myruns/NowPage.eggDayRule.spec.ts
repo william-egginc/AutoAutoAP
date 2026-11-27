@@ -1,5 +1,5 @@
 /**
- * The Egg Day rule's words on My runs (lib/eggDayRule.ts, Jordan 22 Oct 2026), server-rendered:
+ * The Egg Day rule's words on My Runs (lib/eggDayRule.ts, Jordan 22 Oct 2026), server-rendered:
  *   - Right now, a goal whose kept plans all land late: "No route finishes before Egg Day starts. The nearest is 7 hours
  *     after." with the nearest route marked "after Egg Day starts" (By a date: "before your date", "after your date");
  *   - the Egg Day tile: the same words instead of an answer, the nearest marked, the screen still offered;
@@ -27,8 +27,8 @@ beforeEach(() => {
 const race: GoalOption = {
   key: 'fastest-490',
   kind: 'race',
-  label: 'Race to 490',
-  name: 'Race to 490',
+  label: 'Fastest to 490 TE',
+  name: 'Fastest to 490 TE',
   deadline: null,
   state: 'plan',
   calculatedAt: (NOW - 3 * H) * 1000,
@@ -92,9 +92,21 @@ describe('Right now: a goal with no plan in time', () => {
   it('a followed route that lands late is marked "after Egg Day starts"', async () => {
     const follow = { chain: [197, 222, 249], from: 'board', price: 'none', source: null, pricedSave: null, missesDate: true };
     const t = textOf(await renderHtml(RightNowCard, props({ goals: [race, { ...eggLate, state: 'none', late: undefined }], follow })));
-    expect(t).toContain('Following your pick');
-    expect(t).toContain('· after Egg Day starts');
+    // The route line says Following; the follow line starts with its note (UX fluff review 2, 5 Nov 2026, item R5).
+    expect(t).toContain('Not priced on this save yet · after Egg Day starts');
     expect(t).not.toContain('lands after the date');
+  });
+
+  it('not said twice: when the goal pill already says "after Egg Day starts", the follow line does not (spec-tidy)', async () => {
+    // An estimated route that lands after the date: the pill reads "following · lands about Jul 15, 2027, after Egg Day
+    // starts"; the follow line used to read "after Egg Day starts" alone under it (spec-uxpass, left open).
+    const follow = { chain: [197, 222, 249], from: 'typed', price: 'estimate', source: null, pricedSave: null, missesDate: true };
+    const goal: GoalOption = { ...eggLate, state: 'none', late: undefined, follow: { times: 'estimate', end: EGG_DAY_AT + 24 * H, late: true } };
+    const html = await renderHtml(RightNowCard, props({ goals: [race, goal], follow }));
+    const t = textOf(html);
+    expect(t).toContain('after Egg Day starts');
+    expect(t.split('after Egg Day starts').length - 1).toBe(1);
+    expect(html).not.toContain('data-testid="now-follow"');
   });
 });
 

@@ -1,11 +1,11 @@
 /**
- * Light's earlier routes read the account's board runs as My runs does (18 Oct 2026, the alt on beta).
+ * Light's earlier routes read the account's board runs as My Runs does (18 Oct 2026, the alt on beta).
  *
  * The report: Light said "Your earlier routes: None" and ended on 247 (165 200 223 247), while the alt had a
  * Fast run on the save loaded now reaching 248 (165 200 224 248, about 10 h to spare) and a 161 198 218 248
  * run, both sent from the PC under the account's name. Light read GET /mine only, which answers for this
  * site's code in this browser; those runs carry the PC's code, so they never came back. Now Light reads
- * /all and /mine merged and keeps `isMyRun` rows (search/myBoardRows.ts), the same set My runs lists.
+ * /all and /mine merged and keeps `isMyRun` rows (search/myBoardRows.ts), the same set My Runs lists.
  * Made-up rows; no player ID anywhere.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ const MINE: BoardRow[] = [{ ...ALL[2], yours: true }];
 const look = (mine: readonly BoardRow[] | null) =>
   lookAlikeFor({ saveKey: KEY, remembered: [], mine, names: ['AltPlayer', ''], viewerTE: TE_NOW });
 
-describe("the rows Light now reads are My runs' rows", () => {
+describe("the rows Light now reads are My Runs' rows", () => {
   it('/mine alone (before) had only the 247 run', () => {
     const before = earlierRoutes({ goal: DATE, currentTE: TE_NOW, board: MINE, exclude: [[165, 200, 223, 247]] });
     expect(before.map(r => r.chain.join(' '))).toEqual(['166 201 223 247']);
@@ -136,19 +136,19 @@ describe("Light's candidate list and its order", () => {
 
   it('says where they came from', () => {
     const r = earlierRoutes({ goal: DATE, currentTE: TE_NOW, board, exclude });
-    expect(earlierFromText(r)).toBe('from your board runs, 2 of them sent from another browser');
+    expect(earlierFromText(r)).toBe('from your Leaderboard runs, 2 of them sent from another browser');
     expect(earlierFromText(r.filter(x => x.source === 'board-other'))).toBe(
-      'from your board runs sent from another browser'
+      'from your Leaderboard runs sent from another browser'
     );
     expect(
       earlierFromText([
         { chain: [1], source: 'board-other' },
         { chain: [2], source: 'saved-answer' },
       ])
-    ).toBe('from your board run sent from another browser and your saved answer');
+    ).toBe('from your Leaderboard run sent from another browser and your saved answer');
     expect(earlierFromText([])).toBe('');
     expect(sourceLabel(r[0], t => `T${t}`)).toBe(
-      `your board run, sent T${Date.parse('2026-10-17T12:00:00Z')} from another browser`
+      `your Leaderboard run, sent T${Date.parse('2026-10-17T12:00:00Z')} from another browser`
     );
   });
 
@@ -228,12 +228,8 @@ describe("readMyBoardRows: one fetch layer, the board's /all reused for a minute
 });
 
 describe('the sources wire through', () => {
-  it('StrongerCheck.vue reads the board through search/myBoardRows.ts, not /mine on its own', async () => {
+  it('the board panel reads the account\'s runs through search/myBoardRows.ts (StrongerCheck.vue, gone 23 Oct 2026, did too)', async () => {
     const fs = await import('node:fs');
-    const src = fs.readFileSync(new URL('../components/auto/StrongerCheck.vue', import.meta.url), 'utf8');
-    expect(src).toContain('readMyBoardRows(');
-    expect(src).toContain('lookAlikeFor(');
-    expect(src).not.toMatch(/fetch\(`\$\{root\}\/mine`/);
     const board = fs.readFileSync(new URL('../components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8');
     expect(board).toContain('rememberAll(root.value, rows)');
     expect(board).toContain('lookAlikeFor(');

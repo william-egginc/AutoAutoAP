@@ -112,9 +112,19 @@ export interface StartProvenance {
   /** Hours from the page being opened to the send, and from the build it runs to the send: the tab's age. */
   tabH?: number;
   buildH?: number;
+  /** R8 (client brief section 6): the run priced from the save's TE ('save') or from a starting TE the player typed
+   *  ('typed', Virtue Progress's override, for the account priced). Absent on blocks sent before R8. */
+  teSrc?: TESource;
+  /** With 'typed' only: the typed total TE, whole, 0 to 490. */
+  teTyped?: number;
 }
 
-/** The longest `start` block, as JSON. A full one is about 260 bytes; the collector refuses nothing for it
+/** Where the starting TE came from (the collector's TE_SOURCES, spec-tesrc). */
+export const TE_SOURCES = ['save', 'typed'] as const;
+export type TESource = (typeof TE_SOURCES)[number];
+const okTyped = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 490;
+
+/** The longest `start` block, as JSON. A full one is about 260 bytes (about 295 with R8's teSrc and teTyped); the collector refuses nothing for it
  *  but drops the block past its own cap (collector/worker.js START_MAX_BYTES). */
 export const MAX_START_BYTES = 400;
 /** A tab's age either way, hours: ten years past, a day of clock skew before. */
@@ -168,6 +178,9 @@ export function startProvenanceOf(o: {
   /** The planner's eggs delivered per virtue egg (initialState `initialEggsDelivered`). */
   eggs?: Partial<Record<string, number>> | null;
   plan: PlanStartSource | null;
+  /** R8: the typed starting TE's total when the planner prices from it for this account, null when from the save;
+   *  absent: not said (no teSrc). */
+  typedTE?: number | null;
 }): StartProvenance {
   const out: StartProvenance = {};
   if (o.source && (START_SOURCES as readonly string[]).includes(o.source)) out.src = o.source;
@@ -184,6 +197,10 @@ export function startProvenanceOf(o: {
   }
   if (o.eggs) out.eggs = VIRTUE_ORDER.map(e => sig6(Number(o.eggs?.[e] ?? 0)));
   if (o.plan) out.plan = o.plan;
+  if (o.typedTE !== undefined) {
+    out.teSrc = o.typedTE === null ? 'save' : 'typed';
+    if (o.typedTE !== null && okTyped(o.typedTE)) out.teTyped = o.typedTE;
+  }
   return out;
 }
 
@@ -234,6 +251,10 @@ export function finishStartProvenance(
   const eggs = five(p.eggs, MAX_EGGS, false);
   if (eggs) out.eggs = eggs;
   if (p.plan && (PLAN_START_SOURCES as readonly string[]).includes(p.plan)) out.plan = p.plan;
+  if (p.teSrc && (TE_SOURCES as readonly string[]).includes(p.teSrc)) {
+    out.teSrc = p.teSrc;
+    if (p.teSrc === 'typed' && okTyped(p.teTyped)) out.teTyped = p.teTyped;
+  }
   const tabH = hoursSince(o.openedAt, o.now);
   const buildH = hoursSince(o.builtAt, o.now);
   if (tabH !== undefined) out.tabH = tabH;
@@ -248,9 +269,10 @@ export function startProvenanceProblems(v: unknown): string[] {
   const p = v as StartProvenance;
   const clean = finishStartProvenance(p, { now: 0 });
   const problems: string[] = [];
-  for (const k of ['src', 'claimed', 'pending', 'saveAt', 'saveHash', 'eggs', 'plan'] as const) {
+  for (const k of ['src', 'claimed', 'pending', 'saveAt', 'saveHash', 'eggs', 'plan', 'teSrc'] as const) {
     if (p[k] !== undefined && clean?.[k] === undefined) problems.push(`start.${k} is not valid`);
   }
+  if (p.teTyped !== undefined && !(p.teSrc === 'typed' && okTyped(p.teTyped))) problems.push('start.teTyped is not valid');
   for (const k of ['tabH', 'buildH'] as const) {
     const h = p[k];
     if (h !== undefined && !(typeof h === 'number' && Number.isFinite(h) && h >= MIN_AGE_H && h <= MAX_AGE_H))

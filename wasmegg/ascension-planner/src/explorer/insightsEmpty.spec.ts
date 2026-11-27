@@ -26,7 +26,7 @@ describe('allHiddenSimText', () => {
 
 describe('ChainExplorer wiring', () => {
   it('"holding no runs yet" is a computed value judged on every row sent, not the filtered ones', () => {
-    const at = ex.indexOf("'The collector answered, but it is holding no runs yet.'");
+    const at = ex.indexOf("'The planner\\'s server answered, but it is holding no runs yet.'");
     expect(at).toBeGreaterThan(0);
     expect(ex.match(/holding no runs yet/g)).toHaveLength(1);
     const def = ex.slice(ex.indexOf('const error = computed('), at);

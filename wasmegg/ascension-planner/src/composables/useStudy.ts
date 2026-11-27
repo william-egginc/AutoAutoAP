@@ -13,14 +13,15 @@
  *    the actions that set it must run with Pinia active (they do, from the screens).
  *  - Storage in try/catch: blocked, the answer holds for this visit.
  */
-import { computed, reactive, readonly, watch } from 'vue';
-import { consentAgreed, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
+import { computed, reactive, readonly, ref, watch } from 'vue';
+import { consentAgreed, consentRecord, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
 import { useShareExtras } from './useShareExtras';
 import { useAccountName } from './useShareResult';
-import { useShareNameStore } from '@/stores/shareName';
+import { onCreditChange, useShareNameStore } from '@/stores/shareName';
+import { rememberRunSends } from '@/lib/runSends';
 import {
   STUDY_KEY,
-  WITHDRAW_CONSENTS,
+  WITHDRAW_TURNS_OFF,
   accountStep,
   afterNo,
   afterNotThisAccount,
@@ -68,6 +69,10 @@ const state = reactive<{ rec: StudyRecord; thanked: boolean }>({ rec: read(), th
 
 /** The record and whether Yes was pressed this visit, read only. */
 export const studyState = readonly(state);
+
+/** "Help improve the planner"'s box is on screen with its form open (StudyBox.vue keeps it): the first-visit tour waits
+ *  behind it (spec-firsttour, 8 Nov 2026); Hide or an answer lets the tour go on. Read only anywhere else. */
+export const studyBoxOpen = ref(false);
 
 /**
  * Two tabs (21 Oct 2026, prelive; Jordan: "one Yes is enough", across tabs, reloads and restarts). Every
@@ -124,12 +129,18 @@ export function defaultCredit(playerId: string): StudyCredit {
   return knownName(playerId) ? 'name' : 'anon';
 }
 
+/**
+ * The credit picked here, put in the account's one "Credit me as" (stores/shareName.ts), which every Before you send
+ * shows and every send reads. The name is kept as picked even when it is the account's own (it used to be left
+ * to follow the header's name, so /prefs saved no credit at all, and a new browser, a private window or a page
+ * where the header's name hadn't arrived showed Submit anonymously and sent anonymously: Jordan, 26 Oct 2026).
+ */
 function applyCredit(playerId: string, credit: StudyCredit, nickname: string): StudyCredit {
   const names = useShareNameStore();
   const name = capName(nickname.trim()).trim();
   if (credit === 'name' && name) {
+    if (names.nameFor(playerId) !== name) names.setName(playerId, name);
     names.setAnonymous(playerId, false);
-    if (name !== knownName(playerId)) names.setName(playerId, name);
     return 'name';
   }
   // No name known: anonymous, whatever was asked (a name is never made up).
@@ -147,7 +158,7 @@ function applyTicks(ticks: StudyTicks): void {
 }
 
 function turnOff(): void {
-  for (const id of WITHDRAW_CONSENTS) if (consentAgreed(id)) setConsent(id, false, true);
+  for (const id of WITHDRAW_TURNS_OFF) if (consentAgreed(id)) setConsent(id, false, true);
   useShareExtras().sendDiagnostics.value = false;
 }
 
@@ -161,8 +172,27 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
   state.thanked = true;
 }
 
+/** Every tick of "Help improve the planner" on. */
+export const ALL_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
+
 /**
- * No thanks: never asked again in this browser; no account's choices change.
+ * YES TO ALL (Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or "Share my Instant Answer with my
+ * runs", unticked). Every sharing choice on, remembered for the account (each stamped now, so a value saved online
+ * earlier never undoes it: stores/prefs.ts, newer wins): the four ticks of the box (share, CSV, diagnostics and this
+ * visit's diagnostics tick, search results), the instant answer with my runs (`shareBaseline`), and the send tick
+ * under every Run (lib/runSends.ts: one choice for the browser, Fastest and By a date alike; a player who had
+ * unticked it once kept it off). The one function behind Yes to all, in the box and in Setup (StudyForm.vue).
+ */
+export function yesToAll(credit: StudyCredit, nickname: string): void {
+  if (!consentState.account || !consentState.hash) return;
+  rememberRunSends(true);
+  answerYes({ ...ALL_TICKS }, credit, nickname);
+  setConsent('shareBaseline', true, true);
+}
+
+/**
+ * No thanks: never asked again in this browser; no account's sharing choices change (all are off already), and the
+ * account on screen's table-answered ping, on by default, goes off.
  * Two tabs: a Yes already recorded (in any tab) wins. A box left open in a stale tab must not turn this
  * browser's yes into a no while the consents that yes set stay on (Setup would then say nothing is shared),
  * so the stored record is read first and No thanks is only written when there is no yes at that moment.
@@ -171,6 +201,9 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
 export function answerNo(): boolean {
   if (fresh().answer === 'yes') return false;
   save(afterNo(state.rec, Date.now()));
+  // A No stays off (R10.1, Jordan 25 Nov 2026): the account on screen stops the table-answered ping, the one choice that is
+  // on before anyone answers. Its other choices are untouched.
+  if (consentState.account && consentState.hash) setConsent('shareTableUse', false, true);
   return true;
 }
 
@@ -213,6 +246,41 @@ export function setStudyCredit(credit: StudyCredit, nickname: string): void {
   save({ ...fresh(), credit: given });
 }
 
+/**
+ * The account's answer read back from its choices saved online (stores/prefs.ts, newer than this browser's): the box
+ * isn't asked again for it in a new browser or a private window. Nothing is sent and no consent is set here (the
+ * caller sets the saved ticks with `applySavedConsent`). Yes: this browser's answer when it had none, else this
+ * account's yes. No (or "later"): this browser's no when it had none; after a yes here, "not this account".
+ */
+export function applySavedStudy(
+  hash: string,
+  answer: 'yes' | 'no',
+  at: number,
+  ticks: Partial<StudyTicks> = {},
+  credit?: StudyCredit
+): void {
+  if (!hash) return;
+  const rec = fresh();
+  if (answer === 'yes') {
+    if (rec.answer === null) save(afterYes(rec, hash, at, { ...rec.ticks, ...ticks }, credit ?? rec.credit));
+    else if (rec.accounts[hash] !== 'yes' || (credit && credit !== rec.credit))
+      save({ ...rec, credit: credit ?? rec.credit, accounts: { ...rec.accounts, [hash]: 'yes' } });
+    return;
+  }
+  if (rec.answer === null) save({ ...rec, answer: 'no', at });
+  else if (rec.answer === 'yes' && rec.accounts[hash] !== 'no') save({ ...rec, accounts: { ...rec.accounts, [hash]: 'no' } });
+}
+
+/**
+ * The other way: anonymous or "Credit me as" picked anywhere else (Before you send, a share box, /prefs applying a
+ * saved choice) for the account on screen is this browser's record's credit too, so the strip offers the same.
+ */
+onCreditChange((playerId, anonymous) => {
+  if (!consentState.account || playerId !== consentState.account) return;
+  const credit: StudyCredit = anonymous ? 'anon' : 'name';
+  if (fresh().credit !== credit) save({ ...state.rec, credit });
+});
+
 /** The "Thank you" line closed. */
 export function closeThanks(): void {
   state.thanked = false;
@@ -225,6 +293,17 @@ watch(
     if (step !== 'withdraw') return;
     turnOff();
     save(afterWithdrawApplied(fresh(), consentState.hash));
+  },
+  { flush: 'sync', immediate: true }
+);
+
+// A browser-wide No (R10.1, Jordan 25 Nov 2026): the first-visit banner's No thanks is this browser's answer, so an account
+// that loads after it starts with the table-answered ping off, unless it has already chosen that for itself.
+watch(
+  () => [consentState.account, consentState.loaded, consentState.hash, state.rec.answer] as const,
+  ([account, loaded, hash, answer]) => {
+    if (!account || !loaded || !hash || answer !== 'no') return;
+    if (consentRecord('shareTableUse').at === 0) setConsent('shareTableUse', false, true);
   },
   { flush: 'sync', immediate: true }
 );

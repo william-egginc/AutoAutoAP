@@ -1,5 +1,5 @@
 /**
- * My runs' "Right now" page (spec myruns-now v3, 17 Oct 2026), server-rendered: the strip, the card, the eggs, the
+ * My Runs' "Right now" page (spec myruns-now v3, 17 Oct 2026), server-rendered: the strip, the card, the eggs, the
  * tiles and Try next, from saved data only. The integration test loads the synthetic save (player id
  * EI0000000000000000, never printed) and a saved instant answer under the key InstantRoute would use.
  */
@@ -18,13 +18,13 @@ import GearBlock from './GearBlock.vue';
 import type { LegSummary } from '@/search/types';
 import { planEvents, tableEvents, type NowPlan } from '@/lib/nowPlan';
 import type { CardPlan } from '@/composables/useNowPage';
-import { saveStrip } from '@/lib/saveFreshness';
+import { saveState } from '@/lib/saveFreshness';
 import { tryNextPills } from '@/lib/tryNext';
 import type { Tile } from '@/lib/savedTiles';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
 const H = 3600;
 
 beforeEach(() => {
@@ -87,15 +87,22 @@ const cardProps = (o: Record<string, unknown> = {}) => {
   };
 };
 
-describe('the save-age strip', () => {
-  it('green, amber, red, and none', async () => {
-    const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 am (3 hours ago). Load a fresh one ›');
-    expect(ok).toContain('data-tone="ok"');
-    const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
-    expect(bad).toContain('data-tone="bad"');
-    expect(textOf(bad)).toContain('Load a fresh save before you rely on them');
-    const none = await renderHtml(SaveAgeStrip, { strip: null, loading: false });
+describe('the save-age banner (spec-saveage)', () => {
+  // A save `age` old whose virtue farm ran when it was taken, with 24 h of silos.
+  const st = (age: number) =>
+    saveState({ backupSeconds: NOW - age, farmStepSeconds: NOW - age, siloSeconds: 24 * H, siloCount: 8, hasVirtueFarm: true, nowSeconds: NOW, zone: ZONE });
+  it('green, yellow, red, and none', async () => {
+    const ok = await renderHtml(SaveAgeStrip, { state: st(3 * H), loading: false });
+    expect(textOf(ok)).toBe('Up to date Your save is from Oct 15 at 11:40 AM, 3h ago. Load a fresh one ›');
+    expect(ok).toContain('data-tone="green"');
+    const warn = await renderHtml(SaveAgeStrip, { state: st(13 * H), loading: false });
+    expect(warn).toContain('data-tone="yellow"');
+    expect(textOf(warn)).toContain('Getting old Open Egg, Inc. so it syncs, then load a fresh save');
+    const bad = await renderHtml(SaveAgeStrip, { state: st(80 * H), loading: false });
+    expect(bad).toContain('data-tone="red"');
+    expect(textOf(bad)).toContain('Out of date');
+    expect(textOf(bad)).toContain('Load a fresh save ›');
+    const none = await renderHtml(SaveAgeStrip, { state: null, loading: false });
     expect(textOf(none)).toContain('Load your save ›');
   });
 });
@@ -104,27 +111,30 @@ describe('the Right now card', () => {
   it('the plan, its egg, the next step and the events with dates, times and distances', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const t = textOf(html);
-    expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 12:40 pm (2 h ago) (Check exactly)');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 PM (2h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
-    expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
-    expect(t).toContain('Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am');
+    // Not on Right now since 5 Nov 2026: a plan from the save loaded now has nothing to compare (UX fluff review 2, R9).
+    expect(t).not.toContain('Made from your latest save');
+    expect(t).toContain('Shift to Humility today at 4:00 PM (in 1h 20m), then Kindness tomorrow at 9:15 AM');
     // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
     expect(html).toContain('egginc/egg_integrity.png');
     // The table: the passed shift greyed, the next highlighted, the prestige, the goal.
     expect(html).toContain('data-testid="now-event-past"');
     expect(html).toContain('data-testid="now-event-next"');
-    expect(t).toContain('Thu, Oct 15 at 4:00 pm');
-    expect(t).toContain('today, in 1 h 20 m');
+    expect(t).toContain('Thu, Oct 15 at 4:00 PM');
+    expect(t).toContain('today, in 1h 20m');
     expect(t).toContain('Prestige at 198 TE');
     expect(t).toContain('490 TE reached');
     expect(t).toContain('Add all 3 upcoming to calendar');
-    expect(t).toContain('If the plan changes, add them again after a new check.');
-    expect(t).toContain('Full timeline');
+    // One clause since 5 Nov 2026, the alert and the save behind its "?" (UX fluff review 2, item R15).
+    expect(t).toContain('If the plan changes, add them again.');
+    // One timeline (17 Nov 2026): the Full timeline is merged into You are here; each ascension's row opens.
+    expect(t).toMatch(/(Show|Hide) A\d's shifts and dates/);
   });
 
-  it('behind plan: "Check again ›"; no timeline: "Can\'t tell"', async () => {
-    // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My runs' saved plans ("Behind by 6 h" before).
+  it('behind plan: "Run Fast ›" (was Check again); no timeline: "Can\'t tell"', async () => {
+    // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My Runs' saved plans ("Behind by 6 h" before).
     const track = {
       kind: 'behind' as const,
       hours: -6,
@@ -141,8 +151,8 @@ describe('the Right now card', () => {
     };
     const behind = textOf(await renderHtml(RightNowCard, cardProps({ track })));
     expect(behind).toContain('6 hours behind, as of');
-    expect(behind).toContain('6 hours behind. Check again ›');
-    expect(behind).toContain('Check again ›');
+    expect(behind).toContain('6 hours behind. Run Fast ›');
+    expect(behind).not.toContain('Check again ›');
     const cant = textOf(await renderHtml(RightNowCard, cardProps({ track: { kind: 'cant', why: 'no-timeline' } })));
     expect(cant).toContain("Can't tell: saved without its timeline");
   });
@@ -161,12 +171,12 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Your setup changed since this plan. Work it out again ›');
+    expect(changed).toContain('Setup has changed since this route was made. Get the instant answer for your Setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
     );
-    expect(textOf(older)).toContain('This plan was worked out from your save of Oct 14 at 8:40 am');
+    expect(textOf(older)).toContain('This plan was worked out from your save of Oct 14 at 8:40 AM');
   });
 });
 
@@ -179,11 +189,11 @@ describe('the events table', () => {
       goalName: 'Fastest to 490',
       now: NOW + 40 * H,
       zone: ZONE,
-      saveWhen: 'Oct 15 at 11:40 am',
-      calculatedWhen: 'Oct 15 at 12:40 pm',
+      saveWhen: 'Oct 15 at 11:40 AM',
+      calculatedWhen: 'Oct 15 at 12:40 PM',
     });
     const t = textOf(html);
-    expect(t).toContain('The plan had you prestige Fri, Oct 16 at 8:40 pm: load a newer save.');
+    expect(t).toContain('The plan had you prestige Fri, Oct 16 at 8:40 PM: load a newer save.');
     expect(t).toContain('passed');
     // The goal alone is ahead: nothing to add.
     expect(html).not.toContain('data-testid="calendar-button"');
@@ -204,7 +214,7 @@ const tile = (o: Partial<Tile> = {}): Tile => ({
     how: 'instant',
   },
   olderSave: true,
-  sure: { level: 'medium', reason: 'instant answer, 5 days old', action: 'check' },
+  sure: { level: 'medium', reason: 'Instant Answer, 5 days old' },
   ...o,
 });
 
@@ -223,9 +233,10 @@ describe('a saved-answer tile', () => {
     const t = textOf(html);
     expect(t).toContain('Egg Day 2027 · saved answer');
     expect(t).toContain('248 TE');
-    expect(t).toContain('16.8 h spare · 161 198 218 248');
-    expect(t).toContain('Calculated Oct 10 at 2:40 pm (5 days ago) · from your save of Oct 10 at 2:20 pm · instant answer');
-    expect(t).toContain('How sure: Medium Instant answer, 5 days old. Check exactly ›');
+    expect(t).toContain('16h 48m spare · 161 198 218 248');
+    expect(t).toContain('Calculated Oct 10 at 2:40 PM (5d ago) · from your save of Oct 10 at 2:20 PM · instant answer');
+    expect(t).toContain('How sure: Medium Instant Answer, 5 days old.');
+    expect(t).not.toContain('Run Fast');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
     expect(t).toContain('See the routes ›');
@@ -241,7 +252,7 @@ describe('a saved-answer tile', () => {
         now: NOW,
         zone: ZONE,
         standing: '',
-        standingLabel: 'Race to 490',
+        standingLabel: 'Fastest to 490 TE',
       })
     );
     expect(t).toContain('Not worked out for this save yet. Open Fastest');
@@ -264,17 +275,40 @@ describe('your eggs and Try next', () => {
         clothedEarnings: 212,
         now: NOW,
         saveSeconds: NOW - 3 * H,
+        zone: ZONE,
       })
     );
     expect(t).toContain('Curiosity 41 TE');
-    expect(t).toContain('next TE in 2 h');
-    // Another egg is never timed: its next TE comes after a shift.
+    expect(t).toContain('next TE in 2h');
+    // Another egg without an after-shift time (none passed here, lib/nextTeEgg.ts) keeps its line.
     expect(t).toContain('60% to the next TE · after a shift');
     expect(t).toContain('Shifts done 214');
-    expect(t).toContain("All planned shifts Can't tell");
-    expect(t).toContain('Silos 17h 20m away');
+    expect(t).toContain("All shifts on the route Can't tell");
+    // Estimated to now (lib/farmNow.ts): 3 h since the save, 17h 20m held.
+    // Not "estimated from your save of …" again on the tile (UX fluff review 2, item R17).
+    expect(t).toContain('Silos about 14h 20m left of 17h 20m');
+    expect(t).not.toContain('of 17h 20m · estimated from your save');
     expect(t).toContain('Habs 72% full');
     expect(t).toContain('Clothed TE 212 (equipped 198)');
+  });
+
+  it('Clothed TE: "(equipped …)" only when the equipped gear differs (spec-tidy: "326 (equipped 326)")', async () => {
+    const t = textOf(
+      await renderHtml(YourEggs, {
+        eggs: [],
+        facts: null,
+        shiftsDone: 214,
+        nextShiftCost: 1.8e21,
+        plannedShifts: null,
+        clothedEquipped: 326.2,
+        clothedEarnings: 325.9,
+        now: NOW,
+        saveSeconds: NOW - 3 * H,
+        zone: ZONE,
+      })
+    );
+    expect(t).toContain('Clothed TE 326 with your earnings set');
+    expect(t).not.toContain('equipped');
   });
 
   it('planned shifts at today\'s soul eggs', async () => {
@@ -291,35 +325,47 @@ describe('your eggs and Try next', () => {
         saveSeconds: NOW,
       })
     );
-    expect(t).toMatch(/All planned shifts 19 shifts · about 61\.0\S* soul eggs at today's soul eggs/);
+    expect(t).toMatch(/All shifts on the route 19 shifts will cost about 61\.0\S* soul eggs \(at today's prices\)/);
   });
 
   it('Try next opens screens set up, at most four', async () => {
     const pills = tryNextPills({ tile: { goal: 'fastest', answer: null, olderSave: false, sure: null }, target: 490 }, tile());
     const t = textOf(await renderHtml(TryNext, { pills, line: 'One more TE by Egg Day 2027 (249) would need about 1.6 more days.' }));
     expect(t).toContain('Egg Day, Fast ›');
-    expect(t).toContain('Exact on my 490 route ›');
+    expect(t).toContain('Exact on Fastest to 490 ›');
     expect(t).toContain('One more TE by Egg Day 2027 (249)');
   });
 
-  it('the gear: three rows, and the maxed what-if only when it was kept', async () => {
-    const t = textOf(
-      await renderHtml(GearBlock, {
-        equipped: [],
-        earnings: [],
-        production: [],
-        clothedEquipped: 198,
-        clothedEarnings: 204,
-        whatIf: { at: NOW * 1000, end: null, te: 252, mineEnd: null, mineTE: 248 },
-        goal: 'date',
-        whatIfWhen: 'Oct 15 at 2:40 pm',
-      })
-    );
+  it('the gear: three rows, and what the imperfect gear costs in time only when the what-if was kept', async () => {
+    const D = 86400;
+    const base = { equipped: [], earnings: [], production: [], clothedEquipped: 198, clothedEarnings: 204 };
+    const html = await renderHtml(GearBlock, {
+      ...base,
+      whatIf: { at: NOW * 1000, end: NOW + 40 * D, te: 252, mineEnd: NOW + 30 * D, mineTE: 248, sameEnd: NOW + 26 * D },
+      goal: 'date',
+    });
+    const t = textOf(html);
     expect(t).toContain('Equipped now');
     expect(t).toContain('Earnings set');
     expect(t).toContain('+6 Clothed TE vs equipped');
-    expect(t).toContain('Production set');
-    expect(t).toContain('With maxed gear: +4 TE by the date (worked out Oct 15 at 2:40 pm).');
+    expect(t).toContain('Delivery set');
+    // By a date: the time to the same TE, not "+4 TE"; one line, after "Missing for a perfect set".
+    expect(t).toContain("With a perfect set you'd reach 248 TE about 4.0 days sooner (an estimate from the instant answer).");
+    expect(t).not.toContain('+4 TE');
+    expect(html.indexOf('data-testid="now-gear-perfect"')).toBeLessThan(html.indexOf('data-testid="now-gear-maxed"'));
+    expect(html.match(/data-testid="now-gear-maxed"/g)).toHaveLength(1);
+    // Fastest: the finish gap.
+    const f = textOf(await renderHtml(GearBlock, { ...base, whatIf: { at: 1, end: NOW + 10 * D, te: 490, mineEnd: NOW + 12 * D, mineTE: 490 }, goal: 'fastest' }));
+    expect(f).toContain("With a perfect set you'd reach 490 TE about 2.0 days sooner (an estimate from the instant answer).");
+    // Nothing kept, or an older By a date what-if without the same-TE time: no line, no placeholder.
+    for (const [whatIf, goal] of [
+      [null, 'fastest'],
+      [{ at: 1, end: NOW + 40 * D, te: 252, mineEnd: NOW + 30 * D, mineTE: 248 }, 'date'],
+    ] as const) {
+      const n = await renderHtml(GearBlock, { ...base, whatIf, goal });
+      expect(n).not.toContain('data-testid="now-gear-maxed"');
+      expect(textOf(n)).not.toContain('perfect set you');
+    }
   });
 });
 
@@ -345,8 +391,8 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
     const html = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
     const t = textOf(html);
     expect(html).toContain('data-testid="now-card"');
-    expect(t).toContain('Plan for Race to 490 calculated');
-    expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 pm
+    expect(t).toContain('Plan for Fastest to 490 TE calculated');
+    expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 PM
     expect(t).toContain('Fastest to 490 TE · saved answer');
     expect(t).toContain('Your eggs · from your save');
     expect(html).not.toMatch(/EI\d{16}/);
@@ -360,21 +406,22 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
 });
 
 describe('source checks', () => {
-  it('My runs keys the same fields InstantRoute does', () => {
+  it('My Runs keys the same fields InstantRoute does', () => {
     const fields = (src: string) => {
       const i = src.indexOf('instantKey({');
       const body = src.slice(i, src.indexOf('});', i));
       return [...body.matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).sort();
     };
     const route = fields(read('../auto/InstantRoute.vue'));
-    expect(route.length).toBe(14);
+    // 18 since spec-silotrick (10 Nov 2026): `siloTrick` joined the key; 19 since `holdShifts` (code review 22 Nov 2026).
+    expect(route.length).toBe(19);
     expect(fields(read('../../composables/useNowPage.ts'))).toEqual(route);
   });
 
-  it('App mounts the floating Setup on My runs, with its hours under it', () => {
+  it('App mounts the floating Setup on My Runs, with its hours under it', () => {
     const app = read('../../App.vue');
     expect(app).toMatch(/<SetupDock\s+v-else-if="plannerTab === 'myruns' && playerId && !loading"\s+screen="fastest"/);
-    expect(app).toContain(':summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff)"');
+    expect(app).toContain(':summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"');
   });
 
   it('nothing on the page starts a search, a check or a worker', () => {
@@ -382,15 +429,20 @@ describe('source checks', () => {
       const src = read(f);
       expect(src, f).not.toMatch(/new Worker|createChainSearchPool|RoutePool|findRoutes\(|startSearch|runExact/);
     }
+    // The one exception (24 Oct 2026): a followed route with no timeline, priced in one route worker, one route only.
+    const est = read('../../composables/useFollowEstimate.ts');
+    expect(est).toContain('new RoutePool(1,');
+    expect(est).toContain('.priceChain(');
+    expect(est).not.toMatch(/findRoutes\(|createChainSearchPool|startSearch|runExact/);
   });
 });
 
 describe('spacing and picture fixes (19 Oct shots)', () => {
-  it('the save-age strip keeps a space before its link, and the egg picture is named by the egg', () => {
+  it('the save-age banner keeps a space before its link, and the egg picture is named by the egg', () => {
     const fs = require('node:fs') as typeof import('node:fs');
     const path = require('node:path') as typeof import('node:path');
     const strip = fs.readFileSync(path.join(__dirname, 'SaveAgeStrip.vue'), 'utf8');
-    expect(strip).toContain("{{ strip.text }}{{ ' ' }}");
+    expect(strip).toContain(`<template v-if="quiet">{{ ' ' }}</template>`);
     const card = fs.readFileSync(path.join(__dirname, 'RightNowCard.vue'), 'utf8');
     expect(card).toContain(':src="iconURL(eggPicture, 64)"'); // lib/virtueEggs.ts eggIconPath (fix 20)
     expect(card).not.toContain('▸ Full timeline');

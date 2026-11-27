@@ -117,7 +117,7 @@ export function firstAscensionFromTag(tag: string | undefined): FirstAscension {
 /** The words for labels: Classic's dropdown says "Continue Asc." and "Prestige Now"; the build-up
  *  is ours. */
 export const FIRST_ASCENSION_WORDS: Record<FirstAscension, string> = {
-  auto: 'Fastest',
+  auto: 'Soonest',
   buildup: 'Continue my build-up',
   continue: 'Continue Asc.',
   fresh: 'Prestige Now',
@@ -134,33 +134,6 @@ export function describeFirstAscension(mode: FirstAscension): string {
         ? 'prestiging straight away (Prestige Now)'
         : 'finishing your current ascension (building on or as it is) or prestiging straight away, whichever is faster';
 }
-
-/** Your setup's four choices, in order. */
-export const FIRST_ASCENSION_CHOICES: readonly { value: FirstAscension; label: string; blurb: string }[] = [
-  {
-    value: 'auto',
-    label: 'Fastest (default)',
-    blurb:
-      'Works out all three: keep building from where your farm is, stop buying and just lay, or prestige now. Takes whichever finishes first.',
-  },
-  {
-    value: 'buildup',
-    label: 'Continue my build-up',
-    blurb:
-      'Carries on from your farm as it is now, finishing the build (habs, vehicles, research through the coming sales), then lays out the ascension.',
-  },
-  {
-    value: 'continue',
-    label: 'Finish without buying',
-    blurb:
-      "No more purchases: your farm lays at today's rate until the ascension ends. Right when your build is already done. If that takes over a week, a fresh start that is strictly faster still wins.",
-  },
-  {
-    value: 'fresh',
-    label: 'Prestige now',
-    blurb: 'Prestiges straight away: the first ascension is a fresh one.',
-  },
-];
 
 /** A CLI's flags, read the same way by every script: `--first-ascension auto|buildup|continue|fresh`, else the
  *  old pair (`--force-continue` is 'continue', `--no-force-continue` is 'auto'), else 'auto'. Throws on

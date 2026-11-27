@@ -18,6 +18,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Joo's shared planner code (lib/planners, Nov 2026 refactor) imports this planner's modules as @planner.
+      '@planner': fileURLToPath(new URL('./src', import.meta.url)),
       lib: fileURLToPath(new URL('../../lib', import.meta.url)),
       ui: fileURLToPath(new URL('../../ui', import.meta.url)),
     },

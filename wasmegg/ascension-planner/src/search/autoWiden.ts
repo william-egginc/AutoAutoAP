@@ -187,7 +187,6 @@ export function quickScanSpec(o: {
   currentTE: number;
   deadline: number;
   guessHi: number;
-  ascendNeeded: boolean;
   level?: DeadlineRunSpec['level'];
 }): DeadlineRunSpec {
   const lastHi = scanLastHi(o.currentTE, o.guessHi);
@@ -211,7 +210,6 @@ export function quickScanSpec(o: {
     lastHi,
     step: 5,
     maxShapes: QUICK_SCAN_SHAPES,
-    ascendNeeded: o.ascendNeeded,
     // About 4 routes a set: the last stop is narrowed down, not tried at every TE.
     estimate: sets * 4,
     sets,
@@ -370,11 +368,6 @@ export function noInstantHeading(tableFrom: number | null): string {
     : 'No instant answer for your TE yet.';
 }
 
-/** The Instant answer section's folded summary when it settled with none (it said "working out…"). */
-export const NO_INSTANT_SUMMARY = 'none for your TE';
-/** The same, when its file couldn't be loaded (InstantRoute's `unloaded`; QA break-it #5). */
-export const UNLOADED_INSTANT_SUMMARY = 'couldn’t be loaded';
-
 /** Why Get a quick estimate is greyed out, or '' when it can start. In this order: Your setup still
  *  loading, another run (or Find waiting on the instant answer), a save problem, then whatever Nearby
  *  routes' own Find would refuse (`aroundIssue`, or no date yet). */
@@ -385,7 +378,7 @@ export function quickEstimateIssue(o: {
   canStart: boolean;
   issue: string;
 }): string {
-  if (!o.setupLoaded) return 'Waiting for your setup to load…';
+  if (!o.setupLoaded) return 'Waiting for Setup to load…';
   if (o.busy) return 'Another search is running; this can start once it ends.';
   if (o.blocked) return 'Your save needs a look first (see the note above).';
   if (!o.canStart) return o.issue || 'Pick a date and time first.';
@@ -396,7 +389,7 @@ export function quickEstimateIssue(o: {
 export function quickEstimateNote(canWiden: boolean): string {
   return canWiden
     ? 'This is a quick estimate: Widen and run again looks further.'
-    : 'This is a quick estimate: Exhaustive looks further, in boxes you set.';
+    : 'This is a quick estimate: Custom looks further, in boxes you set.';
 }
 
 /** The plain note beside an answer the fallback found (`SavedDeadlineResult.fallback`). */

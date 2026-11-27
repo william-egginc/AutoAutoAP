@@ -136,7 +136,7 @@ describe("the instant answer's state, for Find on Nearby routes", () => {
   it('is loading while a run is due or going, in with an answer, else settled with none', () => {
     // Waiting for the save set up (search/startProvenance.ts) is loading too.
     expect(state).toContain(
-      "if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
+      "if (runDue.value || tablesWait.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
     );
     expect(state).toContain("return status.value === 'done' && result.value ? 'answer' : 'none';");
     expect(instant).toContain("watch(instantState, s => emit('state', s), { immediate: true });");
@@ -146,5 +146,23 @@ describe("the instant answer's state, for Find on Nearby routes", () => {
     expect(instant).toMatch(
       /runDue\.value = true;\n {4}timer = setTimeout\(\(\) => \{\n {6}runDue\.value = false;\n {6}void run\(\);/
     );
+  });
+});
+
+describe('the instant answer still being worked out (23 Oct 2026, Jordan: By a date with hours 7 am to 5 am)', () => {
+  it('Nearby routes says so plainly, and that Run waits up to 10 seconds, then uses suggested routes until it is ready', () => {
+    const still = template.indexOf("v-else-if=\"instantLoad === 'loading'\"");
+    expect(still).toBeGreaterThan(template.indexOf("simpleFrom === 'instant'"));
+    expect(still).toBeLessThan(template.indexOf('No instant answer yet'));
+    const words = template
+      .slice(still, template.indexOf('</template', still))
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ');
+    expect(words).toContain(
+      'The instant answer is still being worked out. Run waits up to {{ INSTANT_SETTLE_MS / 1000 }} seconds for it, then checks suggested routes for {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions until it is ready: {{ simpleWidthsText }}.'
+    );
+    expect(script).toContain('  INSTANT_SETTLE_MS,');
+    // Find stays available while it is worked out (only a wait already going, or a run, disables it).
+    expect(script).toContain('if (store.busy || instantWait.value) return;');
   });
 });

@@ -1,5 +1,5 @@
 <!--
-  My runs' Right now card (spec myruns-now v3, section 2), from a SAVED plan only (composables/useNowPage.ts):
+  My Runs' Right now card (spec myruns-now v3, section 2), from a SAVED plan only (composables/useNowPage.ts):
   the egg the save is on, how the save compares with the plan, the next step, the gear, the next events with
   their dates, times and distances, and the whole route folded. The plan is the instant answer kept after Check
   exactly (for this save; else the same save under an older setup; else an earlier save's), so its times are
@@ -15,28 +15,70 @@
   "Follow this route" (lib/follow.ts): a route the player picked for the goal (on the instant answer, a saved answer or
   run, a board row, or typed in the box under the route line) replaces the planner's pick: the route line, the events,
   the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
-  older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
-  "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
+  older save, it says so; not priced, it says so. ONE PATH PER CARD (25 Oct 2026): the follow line's "Run Fast ›",
+  "Simulate it ›" and "Use the planner's route ›" and the card's Run Fast button are gone (Try next has the runs); the
+  way back is one quiet "Stop following: use the planner's route" under Earlier versions.
+  INSTANT FIRST (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026; there is no Check exactly any more): the plan
+  is the instant answer's ("from the instant answer": times rounded to the hour, no calendar buttons, a "run Fast" link
+  that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: By a
+  date, it makes the date; Fastest, always, since the instant answer's finish is an estimate, math review 24 Oct
+  2026): "from your Fast run, on your account", exact times, calendar Add buttons and
+  "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
+  (lib/recalc.ts): the goal's screen with Fast selected.
+  FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a
+  newer, better one is asked about on the Auto Planner's cards, not here (BetterRoutePrompt.vue; Jordan, 13 Nov 2026);
+  when the save contradicts the
+  followed route (lib/followStale.ts), the planner's answer for this save is offered ("Re-plan from this save"). "Earlier versions"
+  (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
+  set with other hours or another simulator says so in one quiet line.
+  A FOLLOWED ROUTE KEEPS ITS TIMELINE (23 Oct 2026, lib/followPrice.ts step 0): following this save's instant answer's own
+  route keeps the instant timeline and its pill ("from the instant answer", rounded, no calendar, "run Fast"); following
+  this save's Fast, Exact or Custom result keeps that result's ("from your Fast run, on your account", exact times,
+  calendar). Only a route that is neither says "not priced on this save yet".
+  EVERY ASCENSION (26 Oct 2026): the table lists each ascension's prestige (one that waits for the hours or past a
+  no-prestige day says so); the ascension you are in is simulated on the save in the background ("Working out your
+  shifts…", lib/followSim.ts) and its exact shifts replace the table's; and each ascension's row in You are here (the Full timeline, merged into it 17 Nov 2026) of a plan with no exact legs lists A1..An with each one's shifts from
+  the instant answer (AscensionList.vue).
+  A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): that route is then priced on the instant
+  answer's data (the same pricing the instant answer uses, in a route worker) and its steps shown "estimated from the
+  instant answer's data (times rounded to the hour)"; while it is worked out the Next step says so. Only when it can't be
+  (no instant answer of this save, a route past the data, a failure) does the old "Simulate it ›" line show.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
-      <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
-        <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
-        <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
-          Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
+      <div class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3" data-testid="now-head">
+        <p class="label text-slate-600">Right now</p>
+        <!-- With the source pill below, only when (UX fluff review 2, 5 Nov 2026, item R1: the pill's line says the
+             source, the hours and the save, and the goal switch the goal). The save in it since 12 Nov 2026 (Jordan: the
+             save box beside the card went), Words' lib/calculatedFromWords.ts; amber once the loaded save is out of date,
+             as the strip's own line; nothing when the save's time is unknown. -->
+        <template v-if="card && pill">
+          <p
+            v-if="fromSaveLine"
+            class="min-w-0 break-words text-body tabular-nums"
+            :class="saveOld ? 'text-amber-800' : 'text-slate-600'"
+            data-testid="now-calculated"
+          >
+            {{ fromSaveLine }}
+          </p>
+        </template>
+        <p v-else-if="card" class="text-body text-slate-600" data-testid="now-calculated">
+          Plan for {{ goalOnlyName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
             >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
           >
           · from your save of {{ planSaveWhen }}
         </p>
+        <!-- My Runs: the "?" that opens the save strip (myruns/SaveHeadHelp.vue), right after the line. -->
+        <slot name="save" />
       </div>
     </div>
     <!-- Which plan: a radiogroup, one option per goal (lib/planGoals.ts goalOptions); arrows move and pick. -->
     <div
       v-if="goals && goals.length"
       role="radiogroup"
-      aria-label="Which plan"
+      aria-label="Which goal"
       class="flex flex-wrap gap-2"
       data-testid="now-goal-switch"
       @keydown="onSwitchKey"
@@ -55,210 +97,489 @@
         :data-state="g.state"
         @click="emit('select', g.key)"
       >
-        <span class="block text-[13px] font-bold">{{ g.label }}</span>
-        <span class="block text-[11px]" :class="g.state === 'plan' ? 'text-slate-500' : 'text-slate-400'">{{ optionSub(g) }}</span>
+        <span class="block text-small font-bold">{{ g.label }}</span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-600' : 'text-slate-600'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
-    <p v-if="shownChain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
-      <template v-if="notOnVirtue">If you start then:{{ ' ' }}</template>Following<template v-for="(s, i) in stops" :key="i"
+    <p v-if="shownChain.length" class="text-body text-slate-700 break-words" data-testid="now-chain">
+      {{ chainLead({ followed: !!follow || !!card?.followed, notOnVirtue, startWhen: card?.plan.planStart ? dateAt(card.plan.planStart, now, zone) : null }) }}<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
           :class="
             s.state === 'now'
-              ? 'font-black text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
+              ? 'font-bold text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
               : s.state === 'passed'
-                ? 'text-slate-400'
+                ? 'text-slate-600'
                 : ''
           "
           :aria-current="s.state === 'now' ? 'step' : undefined"
           :data-stop="s.state"
           >{{ s.te }}</span
         ></template
-      >{{ ' ' }}({{ followName }})
+      ><template v-if="!(goals && goals.length)">{{ ' ' }}({{ goalOnlyName }})</template>
     </p>
 
-    <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
-    <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
-      <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
-      ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
-      ><template v-if="offerPrice"
-        >{{ ' ' }}·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" @click="priceIt">
-          Price it ›
+    <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
+    <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
+      <!-- The source explainer in a Tip beside the pill (Tip.vue, info-always; spec-myruns-fix), not a line on the card. -->
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-600">
+        <Tip v-if="pillInfo" :text="pillInfo" :name="pill" info-always class="-my-3" v-slot="{ describedby }">
+          <span
+            class="rounded px-1.5 py-0.5 label bg-emerald-100 text-emerald-800"
+            :aria-describedby="describedby"
+            data-testid="now-source-pill"
+            >{{ pill }}</span
+          >
+        </Tip>
+        <span
+          v-else
+          class="rounded px-1.5 py-0.5 label"
+          :class="card.plan.from ? 'bg-indigo-600 text-white' : 'bg-emerald-100 text-emerald-800'"
+          data-testid="now-source-pill"
+          >{{ pill }}</span
+        >
+        <span v-if="pillSub" data-testid="now-source-sub">{{ pillSub }}</span>
+      </p>
+      <p v-if="replaceLine" class="text-body text-slate-600" data-testid="now-replaces">
+        {{ replaceLine }}
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-go-back" @click="emit('goBack')">
+          <!-- "Replaces the instant answer · Go back to it" (lib/searchPlanWords.ts; UX fluff review 2, item R6). -->
+          {{ replaceLine.endsWith('·') ? 'Go back to it' : 'Go back to the instant answer' }}
         </button>
-        ·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
-          Simulate it ›
-        </button></template
-      >{{ ' ' }}·
-      <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-back" @click="emit('unfollow')">
-        Use the checked route ›
+      </p>
+      <p v-else-if="backLine" class="text-body text-slate-600" data-testid="now-went-back">
+        {{ backLine }}
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-use-search" @click="emit('useSearch')">
+          Use your {{ card.driving?.search?.from?.level }} run
+        </button>
+      </p>
+      <p v-else-if="keepLine" class="text-body text-slate-600" data-testid="now-keeps-instant">{{ keepLine }}</p>
+    </div>
+
+    <!-- The player's own pick (lib/follow.ts) and where its price came from. One path per card (25 Oct 2026): no Run
+         Fast, Simulate it or way back on this line; the way back is the quiet line under Earlier versions. -->
+    <!-- "Following your pick" is not said again here (UX fluff review 2, item R5: the route line says Following); a label
+         of its own ("From your Fast run") still is. -->
+    <p
+      v-if="follow && (followWhose || followNote || followLate)"
+      class="text-body text-slate-600"
+      data-testid="now-follow"
+      :data-price="follow.price"
+      :data-source="follow.source ?? ''"
+    >
+      <span v-if="followWhose" class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span
+      >{{ followWhose && followNote ? ' · ' : '' }}{{ followWhose ? followNote : capitalise(followNote) }}<template v-if="followLate"
+        >{{ followWhose || followNote ? ' · ' : '' }}{{ lateMark }}</template
+      >
+    </p>
+
+    <!-- THE FOLLOWED ROUTE NOW MISSES ITS DATE (Jordan, 16 Nov 2026; an exception to the 13 Nov "no better-route offer on
+         My Runs", lib/followMiss.ts): the finish Right now has for it is after the By a date goal's date. Said plainly, with the
+         way to look again: the same date search on the latest save (`recalc`). Words: lib/followMissWords.ts. -->
+    <!-- NO ROUTE MAKES THE DATE (17 Nov 2026): the followed By a date route is priced on an older save and this save's answer for the date
+         has no route above the TE: said plainly, with the way on, a later date (the same date again cannot help). Words: lib/followMissWords.ts. -->
+    <!-- THE BEST ON THE NEWEST SAVE IS BELOW THE TE FOLLOWED (17 Nov 2026, QA: 198 against 199): said with both numbers; the way on is By a date
+         for the date, where the best route has Follow and Fast can look for better. Words: lib/followMissWords.ts. -->
+    <div v-if="followBelow && !followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-below-box">
+      <p class="font-bold" data-testid="now-follow-below">{{ followBelowText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-below-see"
+        @click="emit('open', goalOpen)"
+      >
+        {{ FOLLOW_BELOW_BUTTON }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_BELOW_NOTE }}</p>
+    </div>
+    <div v-if="followCannot" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-cannot-box">
+      <p class="font-bold" data-testid="now-follow-cannot">{{ followCannotText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-cannot-later"
+        @click="emit('open', { auto: 'by-date' })"
+      >
+        {{ FOLLOW_CANNOT_LATER }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_CANNOT_LATER_NOTE }}</p>
+    </div>
+    <div v-if="followMiss && !followCannot && !followBelow" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-body text-amber-900" role="status" data-testid="now-follow-misses-box">
+      <p class="font-bold" data-testid="now-follow-misses">{{ followMissText }}</p>
+      <button
+        type="button"
+        class="mt-1 inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-misses-search"
+        @click="askLook()"
+      >
+        {{ FOLLOW_MISS_SEARCH }}
+      </button>
+      <p class="text-slate-700">{{ FOLLOW_MISS_NOTE }}</p>
+      <!-- The search for this goal finished after the press and found nothing faster (lib/followMiss.ts; DRAFT words). -->
+      <p v-if="noBetterText" class="mt-1 font-bold" data-testid="now-follow-nobetter">{{ noBetterText }}</p>
+    </div>
+
+    <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
+    <p v-if="follow && followSetWith" class="text-body text-slate-600" data-testid="now-follow-set-with">{{ followSetWith }}</p>
+    <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
+         `notSaved`). -->
+    <p v-if="follow && (followSaveWords || followNotSaved) && !saveAndReadFailed" class="text-body text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
+      {{ followSaveWords || NOT_SAVED_WORDS }}<template v-if="followNotSaved">{{ ' ' }}</template>
+      <button
+        v-if="followNotSaved"
+        type="button"
+        class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-save-now"
+        @click="emit('saveOnline')"
+      >
+        Save it online ›
+      </button>
+    </p>
+    <!-- Save online is off in Setup (lib/saveOnline.ts; stores/follow.ts `offByChoice`): the route is followed in this
+         browser only; "Save it online" is shown disabled with Words' note (Jordan, 7 Nov 2026: off disables it, it never
+         turns the switch on). -->
+    <p v-if="follow && followSaveOff" class="text-body text-slate-600" data-testid="now-follow-save-off">
+      {{ SAVE_ONLINE_FOLLOW_OFF }}{{ ' ' }}
+      <button
+        type="button"
+        disabled
+        class="inline-flex min-h-[44px] items-center font-bold text-slate-600 sm:min-h-0"
+        data-testid="now-follow-save-off-button"
+      >
+        Save it online ›
+      </button>
+    </p>
+    <!-- The routes saved online couldn't be read on this load: amber with Retry, never red, as following still works in
+         this browser (UX review, 25 Oct 2026). -->
+    <p v-if="followCloudUnreachable" class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
+      {{ saveAndReadFailed ? CLOUD_BOTH_UNREACHABLE_NOTE : UNREACHABLE_NOTE }} Following still works in this browser.{{ ' ' }}
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-cloud-retry"
+        @click="emit('retryCloud')"
+      >
+        Retry ›
+      </button>
+    </p>
+    <!-- Only when the save contradicts the followed route: "Re-plan from this save" (`replan-only`). The better-route
+         offer is asked on the Auto Planner's cards, where following is done (Jordan, 13 Nov 2026). -->
+    <BetterRoutePrompt
+      v-if="follow && betterRoute"
+      replan-only
+      :goal-key="betterRoute.goalKey"
+      :goal="betterRoute.goal"
+      :deadline="betterRoute.deadline"
+      :candidate="betterRoute.candidate"
+      :followed-finish="betterRoute.followedFinish"
+      :followed-priced="!!betterRoute.followedPriced"
+      :stale="betterRoute.stale ?? null"
+      :zone="zone"
+    />
+    <!-- Change route (the simpler page, Jordan 9 Nov 2026): Earlier versions, Stop following and Follow another route go
+         into My Runs' More with `changeRouteTo` (a looked-up element, never deferred; on this card without one). -->
+    <Teleport :to="changeRouteEl ?? 'body'" :disabled="!changeRouteEl">
+    <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
+    <FollowHistory
+      v-if="follow && selectedGoal"
+      :goal-key="selectedGoal"
+      :goal="askFor.goal"
+      :deadline="askFor.deadline"
+      :zone="zone"
+      :now="now"
+    />
+    <!-- The only way to stop following (25 Oct 2026: off the follow line, quiet, under Earlier versions). -->
+    <p v-if="follow" class="text-body text-slate-600" data-testid="now-follow-back-line">
+      <button type="button" class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
+        {{ STOP_FOLLOWING }}
       </button>
     </p>
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
-    <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
-      <summary class="cursor-pointer font-semibold text-indigo-700">Follow another route</summary>
+    <details v-if="selectedOption && !notOnVirtue" class="text-body" data-testid="now-follow-typed">
+      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-bold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
       <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
         <label class="sr-only" for="now-follow-input">Stops of the route</label>
         <input
           id="now-follow-input"
           v-model="typed"
           type="text"
-          inputmode="numeric"
+          inputmode="text"
+          autocapitalize="off"
+          autocorrect="off"
           autocomplete="off"
+          spellcheck="false"
           :placeholder="typedHint"
-          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[13px]"
+          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-body"
           data-testid="now-follow-input"
         />
-        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50">
+        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-body font-bold text-indigo-700 hover:bg-indigo-50">
           Follow
         </button>
         <span v-if="typedError" class="w-full text-rose-700" data-testid="now-follow-error">{{ typedError }}</span>
-        <span v-else class="w-full text-slate-500">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
+        <span v-else class="w-full text-slate-600">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
       </form>
     </details>
+    </Teleport>
 
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
-    <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
+    <p v-if="card?.secondary" class="text-body text-slate-600" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
         (calculated {{ dateAt(card.secondary.plan.calculatedAt / 1000, now, zone) }})</template
       >
     </p>
 
-    <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
-      Your setup changed since this plan.
-      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Work it out again ›</button>
+    <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-setup-changed">
+      Setup has changed since this route was made.
+      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your Setup ›</button>
     </p>
-    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
+    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
+    <!-- The player line (My Runs' #player: myruns/PlayerLine.vue, 12 Nov 2026), right above the egg. -->
+    <slot name="player" />
     <!-- The egg. -->
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3" data-testid="now-egg-row">
       <!-- The picture and its frame as FloatingStats.vue shows the current egg (lib/virtueEggs.ts eggIconPath). -->
       <div v-if="eggPicture" class="w-14 h-14 shrink-0 rounded-xl border border-slate-200/50 bg-white/50 p-1.5 shadow-inner overflow-hidden">
         <img :src="iconURL(eggPicture, 64)" :alt="eggName" class="w-full h-full object-contain" data-testid="now-egg-picture" />
       </div>
       <div class="min-w-0">
         <div class="flex flex-wrap items-start gap-x-2.5 gap-y-1">
-          <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
-          <p v-else-if="notOnVirtue" class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+          <p v-if="onVirtue" class="text-title font-bold text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+          <p v-else-if="notOnVirtue" class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
             No virtue farm in this save, so nothing to do on a farm yet.
           </p>
-          <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
-            No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
+          <p v-else class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
+            No virtue farm in this save<template v-if="card?.plan.planStart">: the route starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
           </p>
           <!-- The state, as a badge on the egg's own line (lib/nowPhase.ts), its rate smaller underneath. -->
           <span v-if="notOnVirtue || phaseText" class="inline-flex flex-col items-start">
             <span
               v-if="notOnVirtue"
-              class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[12px] font-bold text-amber-900"
+              class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-small font-bold text-amber-900"
               data-testid="now-not-virtue-pill"
               >Not on virtue yet</span
             >
             <span
               v-else-if="phaseText"
-              class="rounded-full border px-2.5 py-0.5 text-[12px] font-bold"
+              class="rounded-full border px-2.5 py-0.5 text-small font-bold"
               :class="phase!.phase === 'building' ? 'border-sky-300 bg-sky-50 text-sky-900' : 'border-emerald-300 bg-emerald-50 text-emerald-800'"
               data-testid="now-phase"
               :data-phase="phase!.phase"
               >{{ phaseText.title }}</span
             >
-            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-[11px] text-slate-500" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
+            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-small text-slate-600" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
           </span>
         </div>
-        <p class="text-[12px] text-slate-500">
+        <p class="text-body text-slate-600">
           <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
-          <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
+          <template v-else-if="card && card.plan.planStart && ascNow === 0">route starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
           {{ Math.floor(teSoFar) }} TE so far
         </p>
       </div>
-      <span v-if="chip" class="ml-auto rounded-full border px-2.5 py-0.5 text-[12px] font-bold" :class="CHIP[chip.tone]" data-testid="now-track">
+      <span v-if="chip" class="ml-auto rounded-full border px-2.5 py-0.5 text-small font-bold" :class="CHIP[chip.tone]" data-testid="now-track">
         {{ chip.text }}
       </span>
     </div>
 
     <!-- Not on virtue yet: when to start, from each goal's saved plan (lib/nowStart.ts); nothing worked out here. -->
     <div v-if="notOnVirtue" class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-start">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">When to start</p>
-      <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-[13px] text-slate-800" data-testid="now-start-lines">
+      <p class="label text-indigo-700">When to start</p>
+      <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-small text-slate-800" data-testid="now-start-lines">
         <li v-for="l in startInfo" :key="l.key">{{ l.text }}</li>
       </ul>
-      <p v-else class="text-[13px] text-slate-700" data-testid="now-start-none">{{ NOTHING_PRICED }}</p>
+      <p v-else class="text-body text-slate-700" data-testid="now-start-none">{{ NOTHING_PRICED }}</p>
       <button
         type="button"
-        class="mt-2 min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white hover:bg-indigo-700"
+        class="mt-2 min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-body font-bold text-white hover:bg-indigo-700"
         data-testid="now-when-start"
         @click="emit('startTimes', card?.plan.chain.length ? [...card.plan.chain] : null)"
       >
         When should I start? ›
       </button>
-      <span class="block mt-1 text-[11px] text-slate-500"
+      <span class="block mt-1 text-body text-slate-600 max-w-prose"
         >Prices a route at every hour of the next week for this save ({{ NAMES.science }} › {{ NAMES.start }}).</span
       >
     </div>
 
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
-      <template v-if="card">
-        <p v-if="nextText" class="text-[13px] text-slate-800">
-          <b>{{ nextText }}</b>
-          <span v-if="nextEvent" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
+      <p class="label text-indigo-700">Next step</p>
+      <!-- A1 CHOICE (spec-a1choice, lib/a1Choice.ts): carrying on the unfinished build buys but ends later than finishing
+           without buying; both offered, the sooner by default. What follows (Next step, Next shifts, the Build-up
+           tracker) is the side picked. -->
+      <A1Choice
+        v-if="a1Choice && !notOnVirtue"
+        :side="a1Choice.side"
+        :keep="a1Words!.keep"
+        :finish="a1Words!.finish"
+        :legend="a1Words!.legend"
+        @pick="side => emit('pickA1', side)"
+      />
+      <!-- STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts): the forced build-up followed here ends more
+           than an hour after a fresh start. "Switch to Soonest" follows Fastest for this ascension only (Setup unchanged);
+           while it holds, a line says so with Undo. Words DRAFT (lib/freshSoonerWords.ts). -->
+      <FreshSooner v-if="!notOnVirtue" :line="freshWords" :followed="!!fastestFollowed" @switch="on => emit('switchFastest', on)" />
+      <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
+           action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
+      <template v-if="!card && follow && (actionText || simWorking || simFailure)">
+        <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+          <b>{{ actionText }}</b>
         </p>
-        <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
-        <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
-          {{ paceBadge }}.
-          <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
+        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
+        <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
+          <p class="label text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-small text-slate-700">
+            <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
+          </ul>
+        </div>
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-else>Your shifts are worked out once the search running now ends.</template>
+        </p>
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
+          Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
         </p>
       </template>
-      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
-        No timeline for your route on this save yet: Price it › runs Check exactly on it (about a minute more on a phone).
+      <template v-if="card">
+        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck).
+             DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked them out. -->
+        <p v-if="follow?.staleAt" class="text-small text-amber-800" role="status" data-testid="now-follow-stale">
+          From {{ showDateTime(follow.staleAt / 1000, zone) }}{{ follow.staleOlder ? ' (older version)' : '' }}, checking<AnimatedDots />
+        </p>
+        <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
+             line from the plan's events. -->
+        <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+          <b>{{ actionText }}</b>
+        </p>
+        <p v-else-if="nextText" class="text-body text-slate-800">
+          <b>{{ nextText }}</b>
+          <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
+        </p>
+        <p v-else class="text-body text-slate-700">Nothing left in this route: work out a new one.</p>
+        <!-- "If you prestige now", R1 would come after your hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Sleep" class="mt-0.5 text-body text-amber-800" data-testid="now-r1-sleep">{{ r1Sleep }}</p>
+        <p v-if="!actionText && nextText" class="mt-0.5 text-small text-slate-600" data-testid="now-next-rough">{{ ROUGH_NEXT_STEP }}</p>
+        <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
+        <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
+        <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, not interactive. Left out where the timeline table is shown
+             under this card, which lists the same shifts (Jordan, 17 Nov 2026). -->
+        <div v-if="nextShiftLines && nextShiftLines.length && !timelineBelow" class="mt-1.5" data-testid="now-next-shifts">
+          <p class="label text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-small text-slate-700">
+            <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
+          </ul>
+        </div>
+        <!-- Soul eggs after the plan (lib/soulEggs.ts `soulEggsAfterLine`): the planned shifts at today's soul eggs. -->
+        <p v-if="soulEggsAfter" class="mt-1 text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-soul-eggs-after">
+          {{ soulEggsAfter.text }}
+        </p>
+        <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-else>Your shifts are worked out once the search running now ends.</template>
+        </p>
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
+          Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
+        </p>
+        <p v-if="track?.kind === 'behind'" class="mt-1 text-body text-rose-800" data-testid="now-behind">
+          {{ paceBadge }}.
+          <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" data-testid="now-behind-run-fast" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
+        </p>
+      </template>
+      <p
+        v-else-if="follow && (follow.estimating === 'working' || follow.estimating === 'waiting')"
+        class="text-body text-slate-700 max-w-prose"
+        role="status"
+        data-testid="now-follow-estimating"
+        :data-state="follow.estimating"
+      >
+        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data<AnimatedDots /></template>
+        <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
+      </p>
+      <!-- My Runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
+      <p
+        v-else-if="follow && (follow.estimating === 'instant' || follow.estimating === 'instantwait')"
+        class="text-body text-slate-700 max-w-prose"
+        role="status"
+        data-testid="now-follow-instant"
+        :data-state="follow.estimating"
+      >
+        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup<AnimatedDots /></template>
+        <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
+      </p>
+      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
+        <template v-if="follow.instantFailure"
+          >No timeline for your route yet: the instant answer for your setup couldn't be worked out here ({{ follow.instantFailure }}).</template
+        ><template v-else
+          >No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
+          nothing to estimate it from.</template
+        >{{ ' ' }}<button
+          type="button"
+          class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+          data-testid="now-follow-open-screen"
+          @click="emit('open', goalOpen)"
+        >
+          Open {{ screenName }} once so the instant answer can price it ›
+        </button>
+      </p>
+      <p v-else-if="follow" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
+        <template v-if="follow.estimating === 'beyond'"
+          >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
+        ><template v-else-if="follow.estimating === 'failed'"
+          >Your route couldn't be priced on the instant answer's data:{{ ' ' }}</template
+        ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>a run from Try next, below, works
+        out its times on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
-      <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
+      <p v-else-if="selectedOption?.state === 'late'" class="text-body text-slate-700" data-testid="now-no-route-in-time">
         {{ lateWords }}<template v-if="selectedOption.late?.chain"
-          >{{ ' ' }}<span class="font-mono" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
+          >{{ ' ' }}<span class="tabular-nums" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
         >
         ·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
+        <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
           Work it out ›
         </button>
       </p>
-      <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
+      <p v-else-if="selectedOption" class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
+        <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
           Work it out ›
         </button>
-        <span class="block mt-0.5 text-[11px] text-slate-500"
-          >A plan with its times is kept for a day after Check exactly finishes (computers run it by themselves; on a
-          phone, press Check exactly).</span
+        <span class="block mt-0.5 text-body text-slate-600 max-w-prose"
+          >The instant answer for a goal is kept for a day after its screen works it out; a Fast, Exact or Custom result
+          for it takes over when it is better.</span
         >
       </p>
-      <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
-        No plan with its times is saved for this save yet: one is kept for a day after Check exactly finishes (computers
-        run it by themselves; on a phone, press Check exactly).
-        <button type="button" class="font-bold text-indigo-700 underline" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
+      <p v-else class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
+        No plan with its times is saved for this save yet: the instant answer for a goal is kept for a day after its
+        screen works it out.
+        <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-out-plan" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
           Work out my plan ›
         </button>
       </p>
+      <!-- NIGHT-BUY NOTE (spec-nightbuynote, Jordan's option b until Joo's fix after #729; words lib/nightBuyWords.ts): a
+           build-up's finish is shown above (Building up / Keep building, or the Keep building choice) with awake hours
+           set, and its research buys can fall outside them: the finish is a best case. Once, at the foot of Next step. -->
+      <p v-if="nightBuy" class="mt-1 text-small text-slate-600 max-w-prose" data-testid="now-night-buy">
+        {{ NIGHT_BUY_NOTE }}{{ ' ' }}<HelpTip>{{ NIGHT_BUY_TIP }}</HelpTip>
+      </p>
     </div>
 
-    <!-- Recalculate: the goal's screen with this save, running Check exactly there (lib/recalc.ts). -->
-    <div v-if="card && !notOnVirtue" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="now-recalc">
-      <button
-        type="button"
-        class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
-        @click="emit('recalc', recalcRequest)"
-      >
-        Recalculate
-      </button>
-      <span class="text-[11px] text-slate-500">{{ recalcLine }}</span>
-    </div>
+    <!-- The rockets for the Humility stop (myruns/RunsRockets.vue): right under Next step (Jordan, 23 Nov 2026). -->
+    <div v-if="$slots.rockets" class="mt-2" data-testid="now-rockets-slot"><slot name="rockets" /></div>
 
+    <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
+    <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
+
+    <!-- The gear and the full timeline go into My Runs' More with `detailTo` (the simpler page, 9 Nov 2026): a looked-up
+         element, never deferred; on this card without one. -->
+    <Teleport :to="detailEl ?? 'body'" :disabled="!detailEl">
     <GearBlock
       v-if="gear"
       :equipped="gear.equipped"
@@ -267,10 +588,10 @@
       :clothed-equipped="gear.clothedEquipped"
       :clothed-earnings="gear.clothedEarnings"
       :what-if="gear.whatIf"
-      :what-if-when="gear.whatIf ? dateAt(gear.whatIf.at / 1000, now, zone) : ''"
       :goal="card?.goal.goal ?? 'fastest'"
       :match="gear.match ?? null"
     />
+    </Teleport>
 
     <template v-if="card">
       <EventsTable
@@ -284,20 +605,48 @@
         :save-when="planSaveWhen"
         :calculated-when="calculatedWhen"
         :following="following"
-      />
-      <details class="mt-2" data-testid="now-timeline">
-        <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
-          Full timeline (every ascension, each egg's first and last shift)
-        </summary>
-        <div class="mt-2">
+        :rounded="rounded"
+        :here="hereRow"
+      >
+        <!-- One timeline (Jordan, 17 Nov 2026): each ascension's row opens to its shifts and dates, what the old separate fold held. No exact legs: the instant answer's list (lib/instantSteps.ts `ascensionSteps`), else the route's own legs. -->
+        <template #detail="{ asc }">
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :only="asc" :note="false" quiet :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
           <RouteTimeline
+            v-else
+            :chain="card.plan.chain"
+            :legs="card.plan.legs"
+            :only="asc - 1"
+            open
+            :zone="zone"
+            :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
+            :here-at="hereRow ? now : undefined"
+            :hours="r1Hours"
+            :held-shifts="r1Held"
+          />
+        </template>
+      </EventsTable>
+      <!-- No You are here list to open (not on virtue yet, or no events): the route's ascensions in one closed fold, as the old Full
+           timeline had them, so nothing is lost where the rows are not. -->
+      <details v-else class="mt-3 text-body" data-testid="now-asc-all">
+        <summary class="min-h-[44px] cursor-pointer py-2 font-bold text-indigo-700">{{ ALL_ASC_LABEL }}</summary>
+        <div class="mt-1">
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" :hours="r1Hours" :held-shifts="r1Held" />
+          <RouteTimeline
+            v-else
             :chain="card.plan.chain"
             :legs="card.plan.legs"
             :zone="zone"
-            no-legs-text="This plan was kept without each ascension's shifts (it was too big to keep whole): open its screen for them."
+            :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
+            :here-at="hereRow ? now : undefined"
+            :hours="r1Hours"
+            :held-shifts="r1Held"
           />
         </div>
       </details>
+      <!-- Said once for the opened ascensions above (UX sweep R9), not in each. -->
+      <p v-if="shownEvents.length && !notOnVirtue && !card.plan.legs && ascensions && ascensions.length" class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">{{ ASC_TIMES_NOTE }}</p>
+      <!-- A followed route that is late (see the helper's words) while the row above is the instant answer's plan (M13 item 3). DRAFT words. -->
+      <p v-if="followedLate" class="mt-1 text-body text-amber-800" data-testid="now-followed-late">{{ followedLate }}</p>
     </template>
   </section>
 </template>
@@ -306,18 +655,45 @@
 import { computed, nextTick, ref } from 'vue';
 import { iconURL } from 'lib';
 import CalendarButton from './CalendarButton.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import PendingText from '@/components/auto/PendingText.vue';
+import FollowHistory from './FollowHistory.vue';
+import BetterRoutePrompt from '../BetterRoutePrompt.vue';
+import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
+import type { StaleReason } from '@/lib/followStale';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
-import { dateAt, relativeWords } from '@/lib/eventWhen';
-import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
-import { emptyGoalWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
+import AscensionList from './AscensionList.vue';
+import { ALL_ASC_LABEL, ASC_TIMES_NOTE } from '@/lib/timelineWords';
+import A1Choice from './A1Choice.vue';
+import HelpTip from '@/components/auto/HelpTip.vue';
+import Tip from '@/components/Tip.vue';
+import { NIGHT_BUY_NOTE, NIGHT_BUY_TIP } from '@/lib/nightBuyWords';
+import { followLook, followLookNothingBetter, followMissOf } from '@/lib/followMiss';
+import { FOLLOW_BELOW_BUTTON, FOLLOW_BELOW_LINE, FOLLOW_BELOW_NOTE, FOLLOW_CANNOT_LATER, FOLLOW_CANNOT_LATER_NOTE, FOLLOW_MISS_NOTE, FOLLOW_MISS_SEARCH, followCannotLine, followMissLine, followNoBetterLine, followOldPlanLabel } from '@/lib/followMissWords';
+import { nextStepShowsBuildUp, nightBuyNoteShown } from '@/lib/nightBuyNote';
+import type { Availability } from '@/search/availabilitySchedule';
+import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
+import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
+import { freshSoonerLine } from '@/lib/freshSoonerWords';
+import FreshSooner from './FreshSooner.vue';
+import { nextActionWords, nextShiftWords, type NextAction, type NextBuy, type NextShiftLine } from '@/lib/nextAction';
+import { ROUGH_NEXT_STEP, roundToHourIn } from '@/lib/nowWords';
+import { r1IfPrestigeNow } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1NextStep } from '@/lib/sleepBeforeR1Words';
+import { dateStyle, showDateTime } from '@/lib/displayTime';
+import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
+import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
+import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
+import { chainLead, chainStops, followingLine, nextStepText } from '@/lib/nowWords';
+import { followedLateLine } from '@/lib/followedLateWords';
+import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
-import { secondaryLine } from '@/lib/currentAnswer';
-import { formatDate } from '@/lib/leaderboardRank';
-import { NAMES } from '@/lib/siteNav';
+import { planFinish, secondaryLine } from '@/lib/currentAnswer';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
@@ -326,14 +702,30 @@ import type { SnapWhatIf } from '@/search/instantSnapshot';
 import type { SetMatch } from '@/lib/gearMatch';
 import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
-import { askGoal, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { askGoal, type RecalcRequest } from '@/lib/recalc';
+import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
+import { CLOUD_BOTH_UNREACHABLE_NOTE, NOT_SAVED_WORDS, saveFailWords, UNREACHABLE_NOTE } from '@/lib/followCloud';
+import { SAVE_ONLINE_FOLLOW_OFF } from '@/lib/syncWords';
+import { SOURCE_ESTIMATE_INFO_WORDS, SOURCE_ESTIMATE_SIM_INFO_WORDS, SOURCE_INSTANT_INFO_WORDS } from '@/lib/nowSourceWords';
+import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { FollowCard } from '@/composables/useNowPage';
+import { useTeleportTarget } from '@/composables/useTeleportTarget';
+import { STOP_FOLLOWING } from '@/lib/layoutWords';
+import { calculatedFromLine } from '@/lib/calculatedFromWords';
 
 const props = defineProps<{
+  /** My Runs' More (the simpler page, 9 Nov 2026): the id of the element there that takes Earlier versions, Stop
+   *  following and Follow another route; without one they stay on this card. */
+  changeRouteTo?: string;
+  /** The same for the gear (into More). */
+  detailTo?: string;
   card: CardPlan | null;
   onVirtue: boolean | null;
+  /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
+   *  none (no soul eggs in the save, or no planned count). */
+  soulEggsAfter?: { text: string; amber: boolean } | null;
   currentEgg: string | null;
   teSoFar: number;
   ascNow: number;
@@ -362,24 +754,107 @@ const props = defineProps<{
   startInfo?: StartLine[];
   /** The route the player follows for this goal (lib/follow.ts) and how it is priced; null or absent: none. */
   follow?: FollowCard | null;
+  /** With a followed route: the planner's newer pick to offer when better (useNowPage `betterRoute`). */
+  betterRoute?: {
+    goalKey: string;
+    goal: 'fastest' | 'date';
+    deadline: number | null;
+    candidate: RouteFinish & { chain: number[]; at: number; source: FollowPrompt['source']; planStart: number | null };
+    followedFinish: RouteFinish | null;
+    /** Its finish here came from a priced result: an instant answer never asks (lib/searchPlan.ts `followIsPriced`). */
+    followedPriced?: boolean;
+    /** The save contradicts the followed route (lib/followStale.ts): offered as "Re-plan from this save". */
+    stale?: StaleReason | null;
+  } | null;
+  /** "This route was set with a different hours window / planner version." ('' or absent: none). */
+  followSetWith?: string;
+  /** The last Follow press couldn't be saved online: why, in words. */
+  followSaveWords?: string;
+  /** The followed route isn't saved online (stores/follow.ts `notSaved`): said, with "Save it online". */
+  followNotSaved?: boolean;
+  /** Save online is off in Setup (stores/follow.ts `offByChoice`): the route action shown disabled, with a note. */
+  followSaveOff?: boolean;
+  /** The routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus` 'unreachable'). */
+  followCloudUnreachable?: boolean;
+  /** Setup's awake hours (the store's `availability`; null or absent: none): with hours that rule something out and a
+   *  build-up's finish in Next step, the night-buy note (spec-nightbuynote). */
+  awakeHours?: Availability | null;
+  /** The R1 sleep warning (lib/sleepBeforeR1.ts): the awake hours whether or not the shifts are held, and whether they are
+   *  (held: the softer "R1 waits until …" line, Jordan 15 Nov 2026). */
+  r1Hours?: Availability | null;
+  r1Held?: boolean;
+  /** The loaded save is out of date (lib/saveBanner.ts `outOfDate`, past a day): the header's save line turns amber. */
+  saveOld?: boolean;
+  /** Every ascension and its shifts (useNowPage `ascensions`), for each ascension's detail when the plan has no exact legs. */
+  ascensions?: AscensionStep[];
+  /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
+   *  `simWorking`); null or absent: not. */
+  simWorking?: 'working' | 'waiting' | null;
+  /** It has run over 20 s: "(can take a few minutes)". */
+  simSlow?: boolean;
+  /** The simulation of the ascension you are in failed: why, and whether it is tried once more (useNowPage
+   *  `simFailure`); null or absent: none. */
+  simFailure?: { reason: string; retrying: boolean } | null;
+  /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
+  nextStep?: NextAction | null;
+  /** A research buy still to do before the next step (lib/nextAction.ts `nextBuyBefore`, from the tracker's lines): said first. */
+  nextBuy?: NextBuy | null;
+  /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
+  nextShiftLines?: NextShiftLine[];
+  /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
+  a1Choice?: { side: A1Side; buys: number; buildEnd: number; contEnd: number } | null;
+  /** A fresh start would end this ascension over an hour sooner than the build-up followed (useNowPage `freshLine`);
+   *  null or absent: no line. */
+  freshSooner?: FreshSoonerData | null;
+  /** Fastest is followed for this ascension (useNowPage `fastestFollowed`): the line with Undo. */
+  fastestFollowed?: boolean;
 }>();
+/** Where Change route goes (`changeRouteTo`): looked up after mount and each time the card draws again. */
+const changeRouteEl = useTeleportTarget(() => (props.changeRouteTo ? `#${props.changeRouteTo}` : undefined), () => true);
+const detailEl = useTeleportTarget(() => (props.detailTo ? `#${props.detailTo}` : undefined), () => true);
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
   select: [key: GoalKey];
   /** "When should I start?": Science › When should I start? for this save, on this route when there is one. */
   startTimes: [chain: number[] | null];
-  /** "Recalculate": open the goal's screen with the save and run Check exactly there (App, lib/recalc.ts). */
+  /** "Run Fast": open the goal's screen with the save and Fast selected (App, lib/recalc.ts). */
   recalc: [req: RecalcRequest];
+  /** "Go back to the instant answer" (useNowPage `goBackToInstant`). */
+  goBack: [];
+  /** "Use your Fast run": undo going back. */
+  useSearch: [];
   /** A route typed in "Follow another route": follow it for this goal. */
   follow: [chain: number[]];
-  /** "Use the checked route ›": back to the planner's pick for this goal. */
+  /** "Stop following: use the planner's route": back to the planner's pick for this goal. */
   unfollow: [];
-  /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
-  simulate: [chain: number[]];
+  saveOnline: [];
+  /** Retry reading the routes saved online (stores/follow.ts `loadCloud(true)`). */
+  retryCloud: [];
+  /** The A1 choice: the player's pick (useNowPage `pickA1`). */
+  pickA1: [side: A1Side];
+  /** "Switch to Soonest" (true) / "Undo" (false) for this ascension (useNowPage `switchToFastest`). */
+  switchFastest: [on: boolean];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
 const notOnVirtue = computed(() => props.onVirtue === false);
+/** A save that failed for want of a connection AND the unreadable saved routes are one cause: one line (spec-tidy M8). */
+const saveAndReadFailed = computed(() => !!props.followCloudUnreachable && props.followSaveWords === saveFailWords('error'));
+/**
+ * The night-buy note (lib/nightBuyNote.ts): awake hours set and a build-up's finish drawn in Next step: the next action
+ * or a Next shifts line building up (drawn with a plan, or with a followed route's simulation), or the A1 choice.
+ */
+const nightBuy = computed(() => {
+  const drawn = !!props.card || (!!props.follow && (!!actionText.value || !!props.simWorking || !!props.simFailure));
+  return nightBuyNoteShown(
+    props.awakeHours,
+    nextStepShowsBuildUp({
+      nextStep: drawn && actionText.value ? props.nextStep : null,
+      nextShiftLines: drawn ? props.nextShiftLines : null,
+      a1Choice: props.a1Choice && !notOnVirtue.value ? props.a1Choice : null,
+    })
+  );
+});
 const phaseText = computed(() => (props.phase ? phaseWords(props.phase) : null));
 
 const CHIP = {
@@ -394,15 +869,32 @@ const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date'
     ? (props.card.name ?? `Egg Day ${props.eggDayYear}`)
-    : `Fastest to ${props.card?.goal.target ?? 490}`
+    : fastestName(props.card?.goal.target)
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
 const followName = computed(() => {
   const name =
     props.card?.name ??
-    (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
-  return props.follow ? `${name} · your pick` : name;
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Fastest to ${props.card.goal.target} TE` : goalName.value) : (selectedOption.value?.name ?? ''));
+  return props.follow ? `${name} · ${props.follow.label ?? 'your pick'}` : name;
 });
+/** "From the instant answer" or "From your Fast run" (the first answer for the goal, followed on its own,
+ *  lib/followPolicy.ts); '' for a Follow press ("Following your pick" until 5 Nov 2026: the route line says Following). */
+const followWhose = computed(() => {
+  const l = props.follow?.label ?? 'your pick';
+  // Not again when the pill above says it ("from the instant answer", spec-uxpass item 1, 8 Nov 2026).
+  if (l === 'your pick' || l.toLowerCase() === pill.value.toLowerCase()) return '';
+  return capitalise(l);
+});
+function capitalise(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+/** The goal alone, for the header when there is no source pill and the route line when there is no goal switch. */
+const goalOnlyName = computed(
+  () =>
+    props.card?.name ??
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Fastest to ${props.card.goal.target} TE` : goalName.value) : (selectedOption.value?.name ?? ''))
+);
 /** The route on the line: the plan's, else (a followed route not priced yet) the followed one. */
 const shownChain = computed(() => props.card?.plan.chain ?? props.follow?.chain ?? []);
 const stops = computed(() => chainStops(shownChain.value, props.card ? props.ascNow : 0));
@@ -414,7 +906,21 @@ const following = computed(() => followingLine(props.card?.plan.chain ?? [], fol
 const followNote = computed(() => {
   const f = props.follow;
   if (!f) return '';
-  if (f.price === 'none') return 'not priced on this save yet';
+  // The same words as its pill (lib/planGoals.ts `followNoTimesWords`): being worked out, or not priced.
+  if (f.price === 'none')
+    return followNoTimesWords(
+      f.estimating === 'working' || f.estimating === 'waiting'
+        ? f.estimating
+        : f.estimating === 'instant' || f.estimating === 'instantwait'
+          ? f.estimating === 'instant'
+            ? 'working'
+            : 'waiting'
+          : f.estimating === 'beyond' || f.estimating === 'failed' || (f.estimating === 'nosource' && f.instantFailure)
+            ? 'failed'
+            : 'none'
+    );
+  // Said on the tag line under the pill (`pillSub`, spec-uxpass item 1), not again here.
+  if (f.price === 'estimate') return '';
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);
     return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
@@ -422,8 +928,8 @@ const followNote = computed(() => {
   if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
   return '';
 });
-/** "Price it ›" and "Simulate it ›": whenever the route has no Check exactly times of this save. */
-const offerPrice = computed(() => !!props.follow && (props.follow.price !== 'exact' || props.follow.source === 'older-save'));
+/** The ascension you are in is the simulation's (lib/followSim.ts `withCurrentSim`), not the table's. */
+const simulatedNow = computed(() => !!props.card?.plan.tableLegs?.[0]?.simulated);
 /** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
 const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
   if (props.card) return props.card.goal;
@@ -432,11 +938,6 @@ const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: nu
   const t = Number(/^fastest-(\d+)$/.exec(o?.key ?? '')?.[1] ?? 490);
   return { goal: 'fastest', target: t, deadline: null };
 });
-/** Recalculate with the followed route attached: Check exactly prices it as one more route (lib/recalc.ts). */
-function priceIt(): void {
-  if (!props.follow) return;
-  emit('recalc', { ...recalcRequest.value, chain: [...props.follow.chain] });
-}
 const typed = ref('');
 const typedError = ref('');
 const typedHint = computed(() => (askFor.value.goal === 'fastest' ? `e.g. 197 222 247 ${askFor.value.target}` : 'e.g. 197 222 247'));
@@ -461,12 +962,83 @@ const selectedOption = computed(() => props.goals?.find(g => g.key === props.sel
 const lateKind = computed(() => (selectedOption.value?.kind === 'eggday' ? 'eggday' : 'date'));
 const lateWords = computed(() => noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null));
 const lateMark = computed(() => lateMarker(lateKind.value));
+/** The follow line's "after Egg Day starts": not again when the goal pill above already says it ("following · lands about
+ *  Jul 15, 2027, after Egg Day starts"; spec-tidy, open item from spec-uxpass). */
+const followLate = computed(() => {
+  // From the finish Right now shows (planFinish: the simulated first ascension moves it, lib/followSim.ts
+  // withCurrentSim), as followMiss reads it; the follow state's `missesDate` was worked out before the simulation
+  // (code review round 2, 22 Nov 2026, R7.6). Without a date plan on the card, that as before.
+  const c = props.card;
+  const late =
+    c && c.goal.goal === 'date'
+      ? !!followMissOf({ goal: 'date', deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish: planFinish(c.plan) })
+      : !!props.follow?.missesDate;
+  if (!late) return false;
+  const o = selectedOption.value;
+  return !(o?.follow && optionSub(o).includes(lateMark.value));
+});
+/** "Your followed route lands about Jul 17, 2027, after Egg Day starts" beside a goal row that is another plan's
+ *  (lib/followedLateWords.ts). */
+const followedLate = computed(() =>
+  props.card && props.card.goal.goal === 'date'
+    ? followedLateLine(selectedOption.value?.follow, props.card.plan.end, t => dayWords(t, props.zone), lateMark.value)
+    : ''
+);
+// ------------------------------------------------------------------- the followed route that misses its date
+/** The followed By a date route's finish here is after the date (lib/followMiss.ts): the finish Right now already has for
+ *  it, from the newest save. Nothing without a priced finish. */
+const followMiss = computed(() => {
+  const f = props.follow;
+  const c = props.card;
+  if (!f || !c || c.goal.goal !== 'date') return null;
+  const finish = f.finish?.end ?? (f.price === 'exact' || f.price === 'instant' || f.price === 'estimate' ? c.plan.end : null);
+  return followMissOf({ goal: c.goal.goal, deadline: selectedOption.value?.deadline ?? c.goal.deadline, finish });
+});
+/** This save's best for the followed date is below the TE followed (useNowPage `belowTE`). */
+const followBelow = computed(() => (props.card?.goal.goal === 'date' ? props.follow?.belowTE ?? null : null));
+const followBelowText = computed(() => {
+  const b = followBelow.value;
+  if (!b) return '';
+  const d = selectedOption.value?.deadline ?? props.card?.goal.deadline ?? null;
+  return FOLLOW_BELOW_LINE(d ? dayWords(d, props.zone) : 'your date', b.bestTE, b.followedTE, (selectedOption.value?.kind ?? '') === 'eggday');
+});
+/** No route makes the followed date on this save (useNowPage `cannotDate`). */
+const followCannot = computed(() => !!props.follow?.cannotDate && props.card?.goal.goal === 'date');
+const followCannotText = computed(() => {
+  const d = selectedOption.value?.deadline ?? props.card?.goal.deadline ?? null;
+  return followCannotLine(d ? dayWords(d, props.zone) : 'your date', (selectedOption.value?.kind ?? '') === 'eggday');
+});
+const followMissText = computed(() =>
+  followMiss.value
+    ? followMissLine(followMiss.value, t => dateAt(t, props.now, props.zone), (selectedOption.value?.kind ?? '') === 'eggday')
+    : ''
+);
+/** "Look for a better route": remember the press (the goal's screen takes over from here), then open the goal on Fast. */
+function askLook(): void {
+  followLook.ask(recalcRequest.value.goal, Date.now());
+  emit('recalc', recalcRequest.value);
+}
+/** The search the player ran for this goal after the press found nothing faster than the followed route. */
+const noBetterText = computed(() => {
+  const m = followMiss.value;
+  const s = props.card?.driving?.search;
+  if (!m || !s?.from) return '';
+  const askedAt = followLook.askedAt(recalcRequest.value.goal);
+  if (!followLookNothingBetter({ askedAt, search: { level: s.from.level, at: s.from.at, end: s.end }, miss: m })) return '';
+  const at = (t: number) => dateAt(t, props.now, props.zone);
+  const when = props.now - s.from.at / 1000 < 120 ? 'just now' : at(s.from.at / 1000);
+  return followNoBetterLine(m, at, (selectedOption.value?.kind ?? '') === 'eggday', when);
+});
 const radios = ref<(HTMLButtonElement | null)[]>([]);
+/** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
+ *  line no longer starts with it.) */
 function optionSub(g: GoalOption): string {
+  // A followed route: what is true of it, never "no saved route yet" (25 Oct 2026).
+  if (g.follow) return followOptionWords(g.follow, t => dayWords(t, props.zone), lateMarker(g.kind === 'eggday' ? 'eggday' : 'date'));
   if (g.state === 'late') return 'no route in time';
-  if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
-  const day = g.kind === 'date' && g.deadline ? `${dateAt(g.deadline, props.now, props.zone).replace(/ at .*$/, '')} · ` : '';
-  return g.calculatedAt ? `${day}calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : `${day}saved plan`;
+  if (g.answer) return answerOptionWords(g.answer, t => dayWords(t, props.zone));
+  if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved route with its times yet' : 'no saved route yet';
+  return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved route';
 }
 /** Arrow keys, Home and End move the pick and the focus (a radiogroup). */
 function onSwitchKey(ev: KeyboardEvent): void {
@@ -483,18 +1055,96 @@ const calculatedWhen = computed(() => {
   return at ? `${dateAt(at, props.now, props.zone)} (${relativeWords(at - props.now)})` : '';
 });
 /** The save the plan was made from: its own (an older save's), else the loaded one. */
+/** "You are here": the loaded save's egg and TE, while it is on virtue with a known egg (EventsTable.vue). */
+const hereRow = computed(() =>
+  props.currentEgg && props.onVirtue !== false
+    ? { egg: props.currentEgg, te: props.teSoFar, saveWhen: dateAt(props.saveSeconds, props.now, props.zone) }
+    : null
+);
+/** The header's line: the plan's save and when the plan was calculated, in Words' shape; '' when the save time is unknown. */
+const fromSaveLine = computed(() => {
+  const p = props.card?.plan;
+  if (!p) return '';
+  // The followed route's plan was worked out on an OLDER save than the loaded one: say so, never "Calculated from your <newer> save"
+  // above the old plan (QA's live run, 17 Nov 2026; Words' followOldPlanLabel).
+  const f = props.follow;
+  if (f?.source === 'older-save' && f.pricedSave && props.saveSeconds && f.pricedSave < props.saveSeconds) return followOldPlanLabel(dateAt(f.pricedSave, props.now, props.zone));
+  return calculatedFromLine({ saveSeconds: p.meta?.backupTime || props.saveSeconds, nowSeconds: p.calculatedAt / 1000, zone: props.zone });
+});
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
 const secondaryText = computed(() => {
   const sec = props.card?.secondary;
   if (!sec) return '';
-  return secondaryLine(sec.label, sec.plan, t => formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' }));
+  return secondaryLine(sec.label, sec.plan, t => dayWords(t, props.zone));
 });
-/** The chip: lib/planPace.ts's words, the same as My runs' saved plans ("3 hours behind, as of 3:42 pm"). */
+/** The chip: lib/planPace.ts's words, the same as My Runs' saved plans ("3 hours behind, as of 3:42 pm"). */
 const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));
-const chip = computed(() => (pace.value?.text ? { tone: pace.value.tone, text: pace.value.text } : null));
+/** lib/planPace.ts's words for a plan made from the save loaded now: the chip says nothing new then, so it is left out
+ *  (UX fluff review 2, 5 Nov 2026, item R9; the words are planPace.ts's, a result code input, so they are matched here). */
+const SAME_SAVE_CHIP = 'Made from your latest save';
+const chip = computed(() =>
+  pace.value?.text && pace.value.badge !== SAME_SAVE_CHIP ? { tone: pace.value.tone, text: pace.value.text } : null
+);
 const paceBadge = computed(() => pace.value?.badge ?? '');
-const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
+const nextText = computed(() =>
+  props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
+);
+/** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
+/** Next step is a prestige and the ascension it starts would reach R1 after the awake hours end: "If you prestige now, your silo buys (R1) …"
+ *  (held shifts: "… wait until 7:00 AM"). The step simulated on the save when it is in (`nextStep`), else the plan's own next event
+ *  ("Not done yet: prestige at 191 TE (due …)", QA 15 Nov 2026). Only a prestige, never a shift or the goal. */
+const r1Prestige = computed<{ at: number; te: number } | null>(() => {
+  const a = props.nextStep;
+  if (a) return a.kind === 'prestige' ? { at: a.at, te: props.teSoFar } : null;
+  const e = props.events.find(x => x.next);
+  if (!e || e.kind !== 'prestige') return null;
+  return { at: e.wait && e.prestigeAt && !e.notDone ? e.prestigeAt : e.at, te: typeof e.te === 'number' ? e.te : props.teSoFar };
+});
+const r1Sleep = computed(() => {
+  const p = r1Prestige.value;
+  if (!p) return '';
+  const d = r1IfPrestigeNow({ at: p.at, now: props.now, startTE: p.te, hours: props.r1Hours, held: props.r1Held });
+  if (!d) return '';
+  // The clock alone on today, the date too on another day (Words: add the date when R1 is on another day).
+  return sleepBeforeR1NextStep(d, t => (buyFmt.sameDay(t, props.now) ? buyFmt.clock(t) : sentenceWhen(t)));
+});
+/** The A1 choice's words in this card's zone (as every other time on it). */
+const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
+/** The fresh-start line in this card's zone (as every other time on it). */
+const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
+/** The research buy window's words in this card's zone: the clock alone (same day), the weekday of the sale. */
+const buyFmt = {
+  clock: (t: number) => formatClock(t * 1000, props.zone),
+  weekday: (t: number) => new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: props.zone }).format(new Date(t * 1000)),
+  /** The sale's day: "Friday", with the date when it is a week or more away ("Friday, Nov 20"). */
+  day: (t: number) => {
+    const w = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: props.zone }).format(new Date(t * 1000));
+    return t - props.now >= 7 * 86400 ? `${w}, ${formatMoment(t * 1000, { zone: props.zone, dateOnly: true, year: 'never' })}` : w;
+  },
+  sameDay: (a: number, b: number) => calendarOf(a * 1000, props.zone)?.ymd === calendarOf(b * 1000, props.zone)?.ymd,
+};
+const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, sentenceWhen, props.nextBuy, buyFmt) : ''));
+/** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
+const shiftLineText = (l: NextShiftLine) => nextShiftWords(l, (t, exact) => sentenceWhen(exact ? t : roundToHourIn(t, props.zone)));
+/** A moment in a sentence, "Nov 13, 2026 at 10:00 AM" (spec-uxpass item 2, 8 Nov 2026: was "Nov 13, 2026, 10:00 AM"
+ *  after "at"); the ISO style keeps its fixed form. */
+function sentenceWhen(t: number): string {
+  if (dateStyle.value === 'iso') return showDateTime(t, props.zone);
+  return formatMoment(t * 1000, { zone: props.zone, at: true }) || showDateTime(t, props.zone);
+}
+/** The first prestige ahead that the estimate can't time (lib/instantSteps.ts flags), in words; '' when none. */
+const nextFlag = computed(() => {
+  const e = props.events.find(x => !x.past && x.kind === 'prestige' && !x.timeOff);
+  if (!e) return '';
+  if (e.cutByTimeOff)
+    return `Your time off ${timeOffDays(e.cutByTimeOff, props.zone)} comes first: this ascension ends when it starts (going to your home farm is a prestige). Fast prices the rest.`;
+  if (e.prestigeInTimeOff) return `That prestige falls in your time off ${timeOffDays(e.prestigeInTimeOff, props.zone)}: Fast prices it.`;
+  if (e.onNoPrestigeDay) return 'That prestige falls on a no-prestige day: it waits past your no-prestige days. Fast prices it.';
+  return '';
+});
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
+/** The events table (EventsTable) is drawn under this card: it lists the shifts the Next shifts list would repeat. */
+const timelineBelow = computed(() => props.shownEvents.length > 0 && !notOnVirtue.value);
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
   nextEvent.value
@@ -517,5 +1167,58 @@ const recalcRequest = computed<RecalcRequest>(() => ({
   open: goalOpen.value,
   goal: askGoal(askFor.value),
 }));
-const recalcLine = computed(() => recalcWords(goalOpen.value));
+/** The screen that works the goal's instant answer out: "Highest TE by a date", "Fastest to 490 TE". */
+const screenName = computed(() => (askFor.value.goal === 'date' ? NAMES.byDate : fastestName(askFor.value.target)));
+
+// ------------------------------------------------------------------- instant answer or search result
+/** The instant answer's plan (not a search's, not an older snapshot's Check exactly): times rounded, no calendar. */
+const rounded = computed(() => !!props.card && !props.card.plan.exact);
+const NO_LEGS_INSTANT = 'The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.';
+const NO_LEGS_KEPT = "This route was kept without each ascension's shifts (it was too big to keep whole): open its screen for them.";
+/** "(instant answer)", "(Fast run)", "(Check exactly)" for an older snapshot's. */
+const howText = computed(() => {
+  const p = props.card?.plan;
+  if (!p) return '';
+  return p.from ? `${p.from.level} run` : p.exact ? 'simulator check' : p.estimated ? "estimate from the instant answer's data" : 'instant answer';
+});
+const pill = computed(() => {
+  const p = props.card?.plan;
+  if (!p || (p.exact && !p.from)) return '';
+  // A run read back from the Leaderboard (lib/boardRunPlan.ts): "from your Fast run (sent from another browser), …".
+  const words = sourcePill(p.from?.level ?? null);
+  return p.from?.otherBrowser ? words.replace(/ run,/, ' run (sent from another browser),') : words;
+});
+/**
+ * The source explainer (lib/nowSourceWords.ts *_INFO_WORDS) for the Tip beside the pill: the one place the instant
+ * answer's data is explained (spec-uxpass item 1), in the Tip since spec-myruns-fix. Empty for a search's result.
+ */
+const pillInfo = computed(() => {
+  const p = props.card?.plan;
+  if (!p || !pill.value) return '';
+  if (p.estimated) return simulatedNow.value ? SOURCE_ESTIMATE_SIM_INFO_WORDS : SOURCE_ESTIMATE_INFO_WORDS;
+  return p.from ? '' : SOURCE_INSTANT_INFO_WORDS;
+});
+/** A search's result: when it was done, from which save, priced with what. */
+const pillSub = computed(() => {
+  const p = props.card?.plan;
+  if (!p || p.estimated || !p.from) return '';
+  const done = dateAt(p.from.at / 1000, props.now, props.zone);
+  return `done ${done}, your save of ${planSaveWhen.value}${props.card?.pricedWith ? `, ${props.card.pricedWith}` : ''}`;
+});
+const replaceLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search || !d.takeover || props.card?.plan !== d.search || !d.instant) return '';
+  return replaceWords(d.takeover, d.search, d.instant);
+});
+const backLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search?.from || !d.wentBack) return '';
+  return `You went back from your ${d.search.from.level} run (done ${dateAt(d.search.from.at / 1000, props.now, props.zone)}).`;
+});
+const keepLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search?.from || !d.takeover || d.wentBack || props.card?.plan === d.search) return '';
+  const kind = props.card?.goal.deadline ? deadlineKind(props.card.goal.deadline) : 'date';
+  return keepWords(d.takeover, d.search.from.level, d.search, d.instant, kind);
+});
 </script>

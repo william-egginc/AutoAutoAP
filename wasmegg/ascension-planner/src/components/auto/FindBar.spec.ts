@@ -1,9 +1,11 @@
 /**
- * Find / Find and submit / Send best so far (FindBar.vue): what the bar and its share box show before
- * and during a run. Review, 9 Oct: the CSV and diagnostics boxes vanished once a search started,
- * though they apply to the send at the end; a Send best so far press left no clear next step; and the
- * hint under Find and submit said only "Please tick the box below".
+ * Run Fast / Run Exact / Run Custom and its send tick (Find and Find and submit until 25 Oct 2026), Send best so
+ * far (FindBar.vue): what the bar and its share box show before and during a run. Review, 9 Oct: the CSV and
+ * diagnostics boxes vanished once a search started, though they apply to the send at the end; a Send best so far
+ * press left no clear next step; and the hint under Find and submit said only "Please tick the box below".
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
@@ -12,6 +14,7 @@ import FindBar from './FindBar.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { RUN_SENDS_KEY, reloadRunSends } from '@/lib/runSends';
 
 /**
  * The Change button (and Done) only set FindBar's own `expanded` ref, and specs here render
@@ -49,6 +52,7 @@ beforeEach(() => {
   });
   pinia = createPinia();
   setActivePinia(pinia);
+  reloadRunSends();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -63,13 +67,59 @@ const render = async (props: Record<string, unknown>) =>
   textOf(await renderHtml(FindBar, { ...base, ...props }, {}, [pinia]));
 
 describe('FindBar', () => {
-  it('says how to use Find and submit until the box is ticked', async () => {
-    const t = await render({});
-    // The box is a link (it scrolls to the box), so the text extractor puts a space before the stop.
-    expect(t).toMatch(/To use Find and submit, please tick the box below ?\./);
-    expect(t).not.toMatch(/(^|[^,] )Please tick the box below/);
+  it('one button named by the strength picked: Run Fast, Run Exact, Run Custom (Jordan, Q2, 25 Oct 2026)', async () => {
+    for (const [option, words] of [
+      ['fast', 'Run Fast'],
+      ['exact', 'Run Exact'],
+      ['custom', 'Run Custom'],
+    ] as const) {
+      const html = await renderHtml(FindBar, { ...base, option }, {}, [pinia]);
+      const inner = html.match(/<button[^>]*data-testid="run-button"[^>]*>([\s\S]*?)<\/button>/)?.[1] ?? '';
+      expect(inner.replace(/<[^>]*>/g, '').trim()).toBe(words);
+    }
+    // One button that starts a run: Find and submit is gone.
+    const html = await renderHtml(FindBar, { ...base, option: 'fast' }, {}, [pinia]);
+    expect(html).not.toContain('find-and-submit');
+    expect(textOf(html)).not.toMatch(/\bFind\b/);
+    // A screen's own words still win (a sweep link's Start this sweep).
+    expect(await render({ option: 'custom', findLabel: 'Start this sweep' })).toContain('Start this sweep');
+  });
+
+  it('the send tick: on for a player who shares, off otherwise; the player\'s own choice is remembered and wins', async () => {
+    const box = (html: string) => html.match(/<input[^>]*data-testid="run-sends-box"[^>]*>/)?.[0] ?? '';
+    const on = await renderHtml(FindBar, { ...base, optIn: true }, {}, [pinia]);
+    expect(textOf(on)).toContain('Send the result to the Leaderboard when it finishes');
+    expect(box(on)).toMatch(/\schecked/);
+    // Sharing off: it starts off, so a plain Run just finds.
+    expect(box(await renderHtml(FindBar, base, {}, [pinia]))).not.toMatch(/\schecked/);
+    // Unticked by the player: remembered in this browser, off even with sharing on.
+    localStorage.setItem(RUN_SENDS_KEY, '0');
+    reloadRunSends();
+    expect(box(await renderHtml(FindBar, { ...base, optIn: true }, {}, [pinia]))).not.toMatch(/\schecked/);
+    // Ticked by the player: still off while sharing is off (it can only send with sharing on).
+    localStorage.setItem(RUN_SENDS_KEY, '1');
+    reloadRunSends();
+    expect(box(await renderHtml(FindBar, base, {}, [pinia]))).not.toMatch(/\schecked/);
+    expect(box(await renderHtml(FindBar, { ...base, optIn: true }, {}, [pinia]))).toMatch(/\schecked/);
+    // Not offered where the run sends itself (a sweep link), nor during a run.
+    expect(await renderHtml(FindBar, { ...base, optIn: true, showSubmit: false }, {}, [pinia])).not.toContain('run-sends');
+    expect(await renderHtml(FindBar, { ...base, optIn: true, running: true }, {}, [pinia])).not.toContain('run-sends');
+  });
+
+  it('says how to send while the send is ticked and sharing is off', async () => {
+    // Ticked by the player with sharing off (the press opened the fold): the hint stays until sharing is on.
+    const t = textOf(await renderWith({}, { ticked: true }));
+    // Names the fold the ticks are in, as a link that opens it (UX review 26 Oct 2026, item 11).
+    expect(t).toContain('To send the result, open Before you send');
+    expect(t).not.toMatch(/tick the box below/i);
     expect(t).toContain('I acknowledge the following');
-    expect(await render({ optIn: true })).not.toMatch(/please tick the box below/);
+    expect(t).toContain('To send the result, please read this and tick the box to agree');
+    // Unticked with sharing off: a plain Run, nothing to point at.
+    expect(await render({})).not.toContain('To send the result, open');
+    expect(await render({ optIn: true })).not.toContain('To send the result, open');
+    const src = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
+    expect(src).toMatch(/data-testid="acknowledge-hint-link"\s*@click="showConsent"\s*>Before you send<\/button/);
+    expect(src).toContain('await ackFold.value?.show(false);');
   });
 
   for (const goalWord of ['target', 'deadline'] as const) {
@@ -80,14 +130,15 @@ describe('FindBar', () => {
       expect(t).toContain('Also send diagnostics');
       expect(t).toContain('Tick this by default from now on');
       expect(t).toContain('you can still change these');
-      // The name for the send at the end, once agreed.
-      expect(t).toContain('Submit anonymously');
+      // The name for the send at the end, once agreed: the one sharing line and its Change (SharingSummary.vue).
+      expect(t).toContain('Sharing: on · anonymous · Change');
+      expect(t).not.toContain('Submit anonymously');
       // The consent wording is for starting, or for Send best so far asking: not repeated mid-run.
       expect(t).not.toContain('I acknowledge the following');
     });
   }
 
-  it('says the run sends these when it finishes, for a Find and submit run', async () => {
+  it('says the run sends these when it finishes, for a run started with the send ticked', async () => {
     useChainSearchStore().submitsWhenDone = true;
     expect(textOf(await changed({ running: true, optIn: true }))).toContain('Sent with the result when the run finishes');
   });
@@ -108,11 +159,14 @@ describe('FindBar', () => {
       const extras = useShareExtras();
       extras.sendCsv.value = false;
       extras.sendDiagnostics.value = true;
-      expect(textOf(await renderWith({ optIn: true }))).toMatch(/CSV off · diagnostics on · anonymous/);
+      const off = textOf(await renderWith({ optIn: true }));
+      expect(off).toMatch(/CSV off · diagnostics on/);
+      expect(off).toContain('Sharing: on · anonymous');
       extras.sendCsv.value = true;
       extras.sendDiagnostics.value = false;
       const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: 'Fred' }));
-      expect(t).toMatch(/CSV on · diagnostics off · credited as Fred/);
+      expect(t).toMatch(/CSV on · diagnostics off/);
+      expect(t).toContain('Sharing: on · credited as Fred');
       expect(t).not.toContain('anonymous');
     });
 
@@ -150,7 +204,8 @@ describe('FindBar', () => {
 
     it('"Credit me as" with no name says anonymous in the summary', async () => {
       const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: '  ' }));
-      expect(t).toMatch(/diagnostics off · anonymous/);
+      expect(t).toContain('Sharing: on · anonymous');
+      expect(t).not.toContain('credited as');
     });
 
     it('with the box unticked: the full text and no summary', async () => {
@@ -171,9 +226,9 @@ describe('FindBar', () => {
       'Your best so far is sent as soon as you tick it, anonymously or under the name you choose below'
     );
     expect(t).toContain('Tick the box below and it sends straight away');
-    expect(t).toContain('Not sent yet: tick the box under Find to agree, and it sends straight away.');
-    // The name choice is there before the tick, since the tick sends.
-    expect(t).toMatch(/Submit anonymously.*Credit me as/);
+    expect(t).toContain('Not sent yet: tick the box under Run to agree, and it sends straight away.');
+    // The name choice is there before the tick, since the tick sends: the sharing line and its one Change.
+    expect(t).toContain('Sharing: off · Change');
     store.endBestSoFar();
   });
 

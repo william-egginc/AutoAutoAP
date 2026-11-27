@@ -5,10 +5,10 @@
 <template>
   <div
     v-if="crash && !sameFinishedRun"
-    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-[11px] text-amber-900 leading-relaxed space-y-2"
+    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-body text-amber-900 space-y-2"
   >
     <p>
-      <span class="font-black uppercase tracking-wide">Last time, this page stopped without finishing.</span>
+      <span class="font-bold">Last time, this page stopped without finishing.</span>
       It was {{ doing }} at {{ when(crash.last.at)
       }}<template v-if="crash.last.done !== undefined"
         >, {{ crash.last.done.toLocaleString() }} priced<template v-if="crash.last.total">
@@ -20,23 +20,24 @@
       <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
       {{ ' ' }}{{ causeLine }}
       <template v-if="deadlineOffer"
-        >{{ ' ' }}A By a date search was going: its progress is saved, see
+        >{{ ' ' }}A By Egg Day search was going: its progress is saved, see
         <a href="#by-date-unfinished" class="underline font-bold" @click.prevent="toOffer">the unfinished run above</a>
         to carry it on.</template
       >
       <template v-else>{{ ' ' }}If a run was going, its progress is saved and it can carry on.</template>
+      {{ ' ' }}To have it looked at, download the black box and send the file to Williamthe5thc on Discord.
     </p>
     <div class="flex flex-wrap gap-3">
       <button
         type="button"
-        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800"
         @click="download"
       >
         Download the black box
       </button>
       <button
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
+        class="text-body font-bold text-amber-700/70 hover:text-amber-900"
         @click="store.dismissCrash()"
       >
         Dismiss
@@ -48,6 +49,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { showDateTime } from '@/lib/displayTime';
 import { downloadFile } from '@/utils/export';
 import { memoryPhrase, stopCause, stopCauseLine, workersNote } from '@/search/blackBox';
 
@@ -59,6 +62,7 @@ const store = useChainSearchStore();
 function toOffer(): void {
   document.getElementById('by-date-unfinished')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+const planner = useAutoPlannerStore();
 const crash = computed(() => store.lastCrash);
 /** The crash was a Nearby routes / Exhaustive search whose saved run has since finished: its own
  *  "A finished run is saved" box says all there is (the user, 12 Oct: two boxes for one run). */
@@ -74,8 +78,9 @@ const memory = computed(() => (crash.value ? memoryPhrase(crash.value.last) : ''
 const workers = computed(() => (crash.value ? workersNote(crash.value.last) : ''));
 /** Reloaded or closed by the player, memory by the evidence, or said neutrally (search/blackBox.ts). */
 const causeLine = computed(() => (crash.value ? stopCauseLine(stopCause(crash.value.last)) : ''));
+/** The shared formatter, in the plan's zone, ISO when the player chose it (rel-ui-6, 22 Nov 2026). */
 function when(ms: number): string {
-  return new Date(ms).toLocaleString();
+  return showDateTime(ms / 1000, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 function download(): void {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');

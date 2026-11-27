@@ -107,7 +107,7 @@ export function lightSendLabel(r: LightResult): string {
 /** Where Light's route came from, in the Share box's words. */
 export function lightFromText(r: LightResult): string {
   const b = r.best;
-  if (b.from === 'instant') return "one of the instant answer's routes, priced ascending at once on your hours";
+  if (b.from === 'instant') return "one of the instant answer's routes, priced ascending at once on your awake hours";
   if (b.from === 'earlier') return 'one of your earlier routes, priced on this save';
   return "the instant answer's fastest route one TE lower, priced on this save";
 }

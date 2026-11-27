@@ -31,6 +31,7 @@
  * better; a route that cannot be priced is never better than one that can.
  */
 import type { ChainResult } from './types';
+import { compactDuration } from '@/lib/duration';
 
 /** Whole hours to wait before each prestige, entry i after stop i (length = stops - 1). */
 export type Waits = number[];
@@ -78,6 +79,9 @@ export interface SingleWait {
   risk: NeedleWarning | null;
   /** The route's seconds for each wait 0..maxHours (null: unpriceable). */
   curve: (number | null)[];
+  /** When the next ascension really starts with the best wait: the priced route's own start, which the player's hours
+   *  may put later than reached + wait (code review 22 Nov 2026, R2.1). Null or absent when unknown. */
+  startAt?: number | null;
 }
 
 export interface CombinedWaits {
@@ -90,6 +94,8 @@ export interface CombinedWaits {
   risks: (NeedleWarning | null)[];
   /** When each stop is reached under these waits (unix seconds), then the prestige at reached + wait. */
   reachedAt: (number | null)[];
+  /** When the ascension after each stop really starts under these waits (`SingleWait.startAt`); absent when unknown. */
+  startsAt?: (number | null)[];
   /** Passes the descent ran, and whether the last changed nothing (a local best for single moves). */
   passes: number;
   settled: boolean;
@@ -174,6 +180,15 @@ export function reachedTimes(r: ChainResult | null | undefined, stops: number): 
   return r.legs.map(l => (Number.isFinite(l.endTime) ? (l.endTime as number) : null));
 }
 
+/** When the ascension after each stop starts in a priced route (the next leg's own start), or null per stop. */
+export function startTimes(r: ChainResult | null | undefined, stops: number): (number | null)[] {
+  if (!r || r.legs.length !== stops) return Array.from({ length: stops }, () => null);
+  return r.legs.map((_, i) => {
+    const t = r.legs[i + 1]?.startTime;
+    return t != null && Number.isFinite(t) ? t : null;
+  });
+}
+
 export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSearchOptions = {}): Promise<WaitReport> {
   const n = Math.max(0, chain.length - 1);
   const max = Math.max(1, Math.floor(o.maxHours ?? 24));
@@ -231,6 +246,7 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
       needle: needleOf(curve, bestHours, near),
       risk: needleOf(curve, bestHours, WAIT_RISK_HOURS),
       curve,
+      startAt: bestHours ? startTimes(cache.get(keyOf(with1(base, p, bestHours))), chain.length)[p] : null,
     });
   }
 
@@ -296,37 +312,36 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
           needles,
           risks,
           reachedAt: reachedTimes(cache.get(keyOf(cur)), chain.length),
+          startsAt: startTimes(cache.get(keyOf(cur)), chain.length),
           passes: ran,
           settled,
         };
   return { chain: [...chain], baseSeconds, singles, combined, priced: cache.size, bound, stopped };
 }
 
-/** Hours, as a player reads them: "3.6 h", "40 h", "25 min". */
+/** A span as a player reads it: "3h 36m", "40h", "25m" (lib/duration). */
 export function hoursText(seconds: number): string {
-  const h = seconds / 3600;
-  if (h < 1) return `${Math.max(1, Math.round(seconds / 60))} min`;
-  return `${h < 100 ? Math.round(h * 10) / 10 : Math.round(h)} h`;
+  return compactDuration(Math.max(60, seconds));
 }
 
 /** "Off by 2 h costs 40 h" for a needle, or null when nothing nearby loses enough to mention. */
 export function needleText(n: NeedleWarning | null, chosenHours: number, minLossSeconds = 3600): string | null {
   if (!n || n.lossSeconds < minLossSeconds) return null;
   const off = Math.abs(n.hours - chosenHours);
-  const which = n.hours === 0 ? 'prestiging at once' : `waiting ${n.hours} h`;
-  return `needle-sharp: ${which} (off by ${off} h) costs ${hoursText(n.lossSeconds)}`;
+  const which = n.hours === 0 ? 'prestiging at once' : `waiting ${n.hours}h`;
+  return `very sensitive: ${which} (off by ${off}h) costs ${hoursText(n.lossSeconds)}`;
 }
 
 /** "2 h later costs 92 h" / "1 h sooner costs 18 h" (prestiging that much off the time shown). */
 export function slipText(n: NeedleWarning | null, chosenHours: number): string | null {
   if (!n || n.lossSeconds <= 0) return null;
   const off = n.hours - chosenHours;
-  return `${Math.abs(off)} h ${off > 0 ? 'later' : 'sooner'} costs ${hoursText(n.lossSeconds)}`;
+  return `${Math.abs(off)}h ${off > 0 ? 'later' : 'sooner'} costs ${hoursText(n.lossSeconds)}`;
 }
 
 /** Shown above the suggestions when they were priced without the player's hours. */
 export const ANY_HOUR_WARNING =
-  'These waits assume you can shift eggs at any hour. Set your hours in Setup first: with real hours, long waits usually lose.';
+  'These waits assume you can shift eggs at any hour. Set your awake hours in Setup first: with real awake hours, long waits usually lose.';
 
 /** What the "Try waiting before each prestige" panel says about each prestige, and about the waits together. */
 export interface WaitLines {
@@ -338,8 +353,8 @@ export interface WaitLines {
 /** Why a wait that wins is still not suggested, or null when it is. */
 function holdBack(gainSeconds: number, risk: NeedleWarning | null, chosenHours: number): string | null {
   const v = waitVerdict(gainSeconds, risk);
-  if (v === 'tooSmall') return `waiting ${chosenHours} h gains only ${hoursText(gainSeconds)}`;
-  if (v === 'tooRisky') return `waiting ${chosenHours} h gains ${hoursText(gainSeconds)}, but ${slipText(risk, chosenHours)}`;
+  if (v === 'tooSmall') return `waiting ${chosenHours}h gains only ${hoursText(gainSeconds)}`;
+  if (v === 'tooRisky') return `waiting ${chosenHours}h gains ${hoursText(gainSeconds)}, but ${slipText(risk, chosenHours)}`;
   return null;
 }
 
@@ -352,7 +367,7 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
     if (!s.bestHours || s.gainSeconds <= 0) return { stop: s.stop, text: `${atOnce} No wait helps.`, warn: null, wait: false };
     const why = holdBack(s.gainSeconds, s.risk, s.bestHours);
     if (why) return { stop: s.stop, text: `${atOnce} (${capital(why)}.)`, warn: null, wait: false };
-    const at = s.reachedAt != null ? `prestige at ${show(s.reachedAt + s.bestHours * 3600)} (wait ${s.bestHours} h)` : `wait ${s.bestHours} h`;
+    const at = s.reachedAt != null ? `prestige at ${prestigeAt(s.reachedAt, s.bestHours, s.startAt, show)}` : `wait ${s.bestHours}h`;
     return {
       stop: s.stop,
       text: `After ${s.stop}${reached}: ${at}. Finishes ${hoursText(s.gainSeconds)} sooner.`,
@@ -376,8 +391,8 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
         .map((w, i) =>
           w > 0
             ? c.reachedAt[i] != null
-              ? `after ${r.chain[i]}, prestige at ${show(c.reachedAt[i]! + w * 3600)} (wait ${w} h)`
-              : `wait ${w} h after ${r.chain[i]}`
+              ? `after ${r.chain[i]}, prestige at ${prestigeAt(c.reachedAt[i]!, w, c.startsAt?.[i], show)}`
+              : `wait ${w}h after ${r.chain[i]}`
             : null
         )
         .filter((x): x is string => !!x);
@@ -392,6 +407,14 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
 }
 
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** "9:00 AM (wait 9h)": the priced route's own next start when known, else reached + the wait in hours. With the
+ *  player's hours many waits price as one start (10 PM plus 2 h to 9 h all start at 7 AM): the route that won
+ *  prestiges then, not at reached + the first of them (code review 22 Nov 2026, R2.1). */
+function prestigeAt(reached: number, hours: number, start: number | null | undefined, show: (t: number) => string): string {
+  if (start != null && start > reached) return `${show(start)} (wait ${hoursText(start - reached)})`;
+  return `${show(reached + hours * 3600)} (wait ${hours}h)`;
+}
 
 /** "Needle-sharp: 2 h later costs 92 h." Null below an hour. */
 function sharpText(n: NeedleWarning | null, chosen: number): string | null {

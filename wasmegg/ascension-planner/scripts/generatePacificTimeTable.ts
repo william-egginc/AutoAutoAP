@@ -1,7 +1,7 @@
 /**
- * Regenerates `src/lib/pacificTimeTable.json` — the precomputed table of every Monday/Tuesday/
+ * Regenerates `lib/planners/pacificTimeTable.json` (the repo's shared lib) — the precomputed table of every Monday/Tuesday/
  * Friday/Saturday 9am Pacific Time occurrence (earnings-boost and research-sale start/end) between
- * 2015 and 2100, baked into the app bundle so `getNextPacificTime` (src/lib/events.ts) never has to
+ * 2015 and 2100, baked into the app bundle so `getNextPacificTime` (lib/planners/events.ts) never has to
  * run the DST-aware `Intl.DateTimeFormat` computation at runtime for these 4 real keys — it just
  * loads this file and binary-searches it. That's a meaningful win on low-powered devices, where
  * even the ~85ms-per-key one-time computation (fast on a desktop) can be noticeably slower.
@@ -21,13 +21,16 @@
  * `getNextPacificTime` uses live for any key not in this file, and overwrites the JSON). Commit the
  * resulting diff.
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { buildPacificTimeTable } from '../src/lib/events.ts';
+import { buildPacificTimeTable } from 'lib/planners/events';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outPath = join(__dirname, '..', 'src', 'lib', 'pacificTimeTable.json');
+// The file events.ts imports (code review 22 Nov 2026, T1.10: this wrote src/lib/pacificTimeTable.json, which nothing
+// reads). It must already be there: a wrong path stops here instead of writing a stray file.
+const outPath = join(__dirname, '..', '..', '..', 'lib', 'planners', 'pacificTimeTable.json');
+if (!existsSync(outPath)) throw new Error(`${outPath} is not there: the table events.ts imports has moved`);
 
 // The 4 keys the app actually queries: earnings-boost start/end (Mon/Tue 9am) and research-sale
 // start/end (Fri/Sat 9am) — see getNextEarningsBoostStart/End and getNextSaleStart/End in events.ts.

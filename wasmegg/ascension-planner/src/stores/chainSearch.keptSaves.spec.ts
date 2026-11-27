@@ -26,6 +26,8 @@ const { useInitialStateStore } = await import('./initialState');
 const { useUIStore } = await import('./ui');
 const { saveRunInputs, listRunSaves } = await import('@/search/runSaves');
 const { listKeptSaves, backupText } = await import('@/search/keptSaves');
+const { plannerFieldsOnly } = await import('@/lib/saveKeep');
+const { blankLinkingIds, scrubPlayerIds } = await import('@/lib/saveScrub');
 const { saveRun } = await import('@/search/runLibrary');
 const { saveDeadlineResult } = await import('@/search/deadlineStore');
 
@@ -58,9 +60,11 @@ function backup(at: number, account = 'TEST-ACCOUNT-1') {
   };
 }
 
+const route = (chain: number[]) => ({ chain, reachAt: 0, ascendAt: 0, spare: 3600, legs: [] });
+
 function answer(over: Record<string, unknown> = {}) {
   return {
-    routes: [{ chain: [240, 255], reachAt: 0, ascendAt: 0, spare: 3600, legs: [] }],
+    routes: [route([240, 255])],
     byStops: [],
     deadline: PLAN_START + 30 * 86400,
     planStart: PLAN_START,
@@ -109,6 +113,8 @@ describe('chainSearch: saves kept for saved entries', () => {
     const key = await runSave();
     store.deadlineResult = answer({ inputsKey: key, backupAt: SAVED_AT });
     await store.saveCurrentAnswer('P', 'first');
+    // Another answer from the same save (the same answer again keeps one entry: chainSearch.savedAnswerDedupe.spec.ts).
+    store.deadlineResult = answer({ inputsKey: key, backupAt: SAVED_AT, routes: [route([240, 256])] });
     await store.saveCurrentAnswer('P', 'second');
     const [a, b] = store.savedAnswers;
     expect(a.save).toMatchObject({ te: 230, backupAt: SAVED_AT });
@@ -138,8 +144,10 @@ describe('chainSearch: saves kept for saved entries', () => {
 
   it('drops a kept save when no saved answer or run names it, and not before', async () => {
     const store = useChainSearchStore();
-    store.deadlineResult = answer({ inputsKey: await runSave(), backupAt: SAVED_AT });
+    const key = await runSave();
+    store.deadlineResult = answer({ inputsKey: key, backupAt: SAVED_AT });
     await store.saveCurrentAnswer('P', 'one');
+    store.deadlineResult = answer({ inputsKey: key, backupAt: SAVED_AT, routes: [route([240, 256])] });
     await store.saveCurrentAnswer('P', 'two');
     const save = store.savedAnswers[0].save!;
     // A saved run naming the same save.
@@ -198,13 +206,16 @@ describe('chainSearch: saves kept for saved entries', () => {
     expect(sub?.backupAgeHours).toBe(2); // the plan starts 2 h after the save it was made from
   });
 
-  it('downloads the full save under a name with no player id', async () => {
+  it('downloads the save, cut to what the planner reads, under a name with no player id', async () => {
     const store = useChainSearchStore();
     store.deadlineResult = answer({ inputsKey: await runSave(), backupAt: SAVED_AT });
     await store.saveCurrentAnswer('P', 'keep me');
     const file = await store.entrySaveFile('P', store.savedAnswers[0].save!);
     expect(file?.name).toMatch(/^egg-inc-save-TE230-.*\.json$/);
-    expect(file?.text).toBe(backupText(backup(SAVED_AT)));
+    // Only what the planner reads (lib/saveKeep.ts, chainSearch.saveScrubP5b.spec.ts), ids scrubbed (lib/saveScrub.ts).
+    expect(file?.text).toBe(scrubPlayerIds(backupText(blankLinkingIds(plannerFieldsOnly(backup(SAVED_AT))))));
+    // This save holds only fields the planner reads, so nothing of it is lost (the keys in the planner's order).
+    expect(JSON.parse(file!.text)).toEqual(backup(SAVED_AT));
   });
 
   it("Load a save file loads the player's own save, and refuses another account's", async () => {

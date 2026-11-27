@@ -1,0 +1,204 @@
+/**
+ * The tour pictures' rings and arrows. spec-tourfix (16 Nov 2026): step 4's ring was an empty box above its button;
+ * spec-tour-v3 (Jordan): arrows, one thing a slide, a magnified target when a slide points at ONE thing; spec-tour-v4 (Jordan,
+ * 16 Nov, ~10:40 PM): slides that share a page picture keep it and the ring, arrow and copy SLIDE (components/TourOverlay.vue),
+ * and a thing that lives under a top tab also gets a light ring on that tab.
+ * The picture generator (~/code/aaap-tools/harness-r7/simpler/tour/make-tour-images-v4.mjs) measures every ring, target and arrow
+ * on the page, writes them to src/assets/tour/overlays.json (live slides, in the shared base picture's own pixels) and rings.json
+ * (baked slides, in page pixels), and refuses a picture that breaks the rules below. This spec holds the shipped numbers to the same
+ * rules, so a picture re-made without the checks fails here.
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { TOUR_SLIDES } from './tourSlides';
+import { FULL_TOUR_STEPS } from './fullTour';
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+interface Pt {
+  x: number;
+  y: number;
+}
+interface Ov {
+  base: string;
+  cw: number;
+  ch: number;
+  rect: Rect;
+  inset: { sprite: string; rect: Rect; ring: Rect } | null;
+  ring: Rect;
+  mag: string | null;
+  tabs: Rect[];
+  arrow: { dir: 'left' | 'right' | 'up' | 'down'; x: number; y: number; len: number };
+  dim?: boolean;
+}
+const read = (n: string) => JSON.parse(readFileSync(new URL(`../assets/tour/${n}`, import.meta.url), 'utf8'));
+const overlays: Record<string, Ov> = read('overlays.json');
+const baked: Record<string, { targets: { rect: Rect; ring: Rect; magnified: boolean; arrow: { tip: Pt; tail: Pt } }[]; cropTop: number; cropH: number; cropW: number }> = read('rings.json');
+const asset = (stem: string) => new URL(`../assets/tour/${stem}.webp`, import.meta.url);
+
+const inside = (r: Rect, o: Rect, slack = 1) => r.x >= o.x - slack && r.y >= o.y - slack && r.x + r.w <= o.x + o.w + slack && r.y + r.h <= o.y + o.h + slack;
+const dist = (p: Pt, r: Rect) => Math.hypot(Math.max(r.x - p.x, 0, p.x - (r.x + r.w)), Math.max(r.y - p.y, 0, p.y - (r.y + r.h)));
+const tail = (o: Ov): Pt => {
+  const { dir, x, y, len } = o.arrow;
+  return dir === 'left' ? { x: x + len, y } : dir === 'right' ? { x: x - len, y } : dir === 'up' ? { x, y: y + len } : { x, y: y - len };
+};
+/** Every overlay in the file: the first tour's and the full tour's own (its tab row is shot with the optional tabs on: `full-<id>`). */
+const entries = Object.entries(overlays);
+const BAKED = ['load'];
+
+describe('tour picture overlays (v4)', () => {
+  it('every slide is live (an overlay entry, desk and phone) or baked (several targets: a rings.json entry), and nothing is left over from a dropped slide', () => {
+    for (const s of TOUR_SLIDES) {
+      const has = (['desk', 'phone'] as const).map(f => !!overlays[`${s.id}-${f}`]);
+      expect(has[0], s.id).toBe(has[1]);
+      if (!has[0]) expect(Object.keys(baked), s.id).toContain(`${s.id}-desk`);
+    }
+    const ids = new Set<string>([...TOUR_SLIDES.map(s => s.id), ...FULL_TOUR_STEPS, ...FULL_TOUR_STEPS.map(s => `full-${s}`)]);
+    for (const k of [...Object.keys(overlays), ...Object.keys(baked)]) expect(ids.has(k.replace(/-(desk|phone)$/, '')), k).toBe(true);
+    for (const id of BAKED) expect(TOUR_SLIDES.find(s => s.id === id)?.overlay, id).toBeUndefined();
+  });
+
+  it('the base pictures and copies exist as files', () => {
+    for (const [name, o] of entries) {
+      expect(existsSync(asset(o.base)), `${name} base ${o.base}`).toBe(true);
+      if (o.mag) expect(existsSync(asset(o.mag)), `${name} copy ${o.mag}`).toBe(true);
+    }
+  });
+
+  it('the thing is inside its ring (within 1 px) and the ring hugs it (12 px of padding at most)', () => {
+    for (const [name, o] of entries) {
+      expect(inside(o.rect, o.ring), `${name}: ${JSON.stringify(o.rect)} not inside ${JSON.stringify(o.ring)}`).toBe(true);
+      for (const [a, b] of [[o.ring.x, o.rect.x], [o.ring.y, o.rect.y], [o.rect.x + o.rect.w, o.ring.x + o.ring.w], [o.rect.y + o.rect.h, o.ring.y + o.ring.h]]) expect(Math.abs(a - b), name).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it('the ring and the whole arrow are in the picture (12 px of ring padding may fall outside, a tall thing is clipped); the tip is within 6 px of the ring', () => {
+    for (const [name, o] of entries) {
+      const full: Rect = { x: 0, y: 0, w: o.cw, h: o.ch };
+      expect(inside(o.ring, { x: -12, y: -12, w: o.cw + 24, h: o.ch + 24 }), `${name}: ring ${JSON.stringify(o.ring)}`).toBe(true);
+      const t = tail(o);
+      for (const pt of [{ x: o.arrow.x, y: o.arrow.y }, t]) expect(inside({ x: pt.x, y: pt.y, w: 0, h: 0 }, full), `${name}: arrow ${JSON.stringify(pt)}`).toBe(true);
+      expect(dist({ x: o.arrow.x, y: o.arrow.y }, o.ring), `${name}: tip from ring`).toBeLessThanOrEqual(6);
+      for (const tab of o.tabs) expect(inside(tab, { x: -8, y: -8, w: o.cw + 16, h: o.ch + 16 }), `${name}: tab ring`).toBe(true);
+    }
+  });
+
+  it('Jordan: magnify when a slide points at ONE small thing; a tall or crowded thing is drawn as the page has it (ring and arrow only)', () => {
+    // A thing with no copy: the tall Setup panel, the shifts table, the time-off boxes, and any that the generator found no room to
+    // enlarge without covering a neighbour (it never enlarges onto another control: Jordan, 16 Nov, the phone tabs).
+    for (const [name, o] of entries) if (o.mag) expect(o.rect.w, name).toBeGreaterThan(o.cw * 0.07);
+  });
+
+  it('the arrow is shorter on a phone than on a desk, and long enough to see', () => {
+    for (const [name, o] of entries) {
+      expect(o.arrow.len, name).toBeGreaterThanOrEqual(40);
+      expect(o.arrow.len, name).toBeLessThanOrEqual(name.endsWith('-phone') ? 80 : 130);
+    }
+  });
+
+  it("no arrow's tip is inside a tab ring (an arrow does not hide the tab it goes with)", () => {
+    for (const [name, o] of entries) for (const tab of o.tabs) expect(dist({ x: o.arrow.x, y: o.arrow.y }, tab), name).toBeGreaterThan(0);
+  });
+
+  it('Jordan: a thing under a top tab (Chain Finder or My Runs) is shown with that tab ringed lightly, at least on a desk, wherever the tab fits in the picture', () => {
+    const under = ['goalDate', 'filters', 'followedRoute', 'nextStep']; // (the My Runs slide rings the My Runs tab itself)
+    for (const id of under) expect(overlays[`${id}-desk`].tabs.length, `${id}-desk`).toBeGreaterThan(0);
+  });
+
+  it('a shared page picture: slides that use one base all carry the same crop size, so the overlay can slide between them', () => {
+    const by: Record<string, Ov[]> = {};
+    for (const [, o] of entries) (by[o.base] ??= []).push(o);
+    for (const [base, os] of Object.entries(by)) for (const o of os) expect([o.cw, o.ch], base).toEqual([os[0].cw, os[0].ch]);
+  });
+
+  it('each tab slide is a picture of THAT page, its tab lit and ringed (17 Nov 2026): Manual, Auto Planner and Chain Finder have a picture of their own, My Runs shares the My Runs slide\'s', () => {
+    const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
+    for (const f of ['desk', 'phone']) {
+      expect(new Set(['tabManual', 'tabAuto', 'tabChain'].map(id => base(id, f))).size, f).toBe(3);
+      expect(base('tabMyruns', f), f).toBe(base('myrunsPage', f));
+    }
+  });
+
+  it('a slide about a sub-tab shows it SELECTED (17 Nov 2026): By a date has a picture of its own, not Target TE\'s; so has the full tour\'s Insights view', () => {
+    const base = (id: string, f: string) => overlays[`${id}-${f}`]?.base;
+    for (const f of ['desk', 'phone']) {
+      expect(base('goalDate', f), f).toBeTruthy();
+      // Desk: the filters slide shares Target TE's picture. Phone (17 Nov 2026, Words' long Setup button text wraps to two lines at
+      // 390 px): the switch and the button no longer fit one 440 px crop, so the filters slide has its own picture, 9-filters-base-phone.
+      expect(base('filters', f), f).toBe(`9-filters-base-${f}`);
+      expect(base('full-tabInsights', f), f).not.toBe(base('full-tabLeaderboard', f));
+    }
+  });
+
+  it('the page badge (17 Nov 2026): every slide whose picture is on a page has the little tab strip, that page\'s tab ringed; the Setup dialog slides have none', () => {
+    const none = ['setupAwake', 'setupInside', 'setupTimeOff'];
+    // R9 H3 (18 Nov 2026): on these phone slides no corner of the crop was clear of every ring, arrow and copy, so they have no badge.
+    const noRoomOnPhone = ['result' /* R10.3: the 580 px crop is nearly all ring */, 'tabMyruns', 'myrunsPage', 'followedRoute', 'nextStep', 'tracker', 'r2gearSets', 'r5yourRuns', 'r6boardRuns'];
+    for (const [name, o] of entries) {
+      const id = name.replace(/-(desk|phone)$/, '');
+      if (none.includes(id) || o.dim === false || (name.endsWith('-phone') && noRoomOnPhone.includes(id))) expect(o.inset, name).toBeNull();
+      else {
+        expect(o.inset, name).toBeTruthy();
+        expect(o.inset!.sprite, name).toMatch(/^f?strip-(manual|auto|chain|myruns|compare|science)-(desk|phone)$/);
+        // Inside the picture, and the ring is on the strip.
+        const i = o.inset!;
+        expect(i.rect.x, name).toBeGreaterThanOrEqual(0);
+        expect(i.rect.y, name).toBeGreaterThanOrEqual(0);
+        expect(i.rect.x + i.rect.w, name).toBeLessThanOrEqual(o.cw);
+        expect(i.rect.y + i.rect.h, name).toBeLessThanOrEqual(o.ch);
+        expect(i.ring.x, name).toBeGreaterThanOrEqual(i.rect.x - 4);
+        expect(i.ring.x + i.ring.w, name).toBeLessThanOrEqual(i.rect.x + i.rect.w + 4);
+      }
+    }
+  });
+
+  it('each ring sits on what its slide is about (the baked slides: by the test ids they were found by)', () => {
+    for (const f of ['desk', 'phone']) {
+      expect(Object.keys(baked)).toContain(`load-${f}`);
+      expect(baked[`load-${f}`].targets.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
+describe('the three tour fixes of 26 Nov 2026 (Jordan)', () => {
+  const rings = JSON.parse(readFileSync(new URL('../assets/tour/rings.json', import.meta.url), 'utf8')) as Record<string, { targets: { sels: string[]; rect: Rect; ring: Rect; arrow: { dir: string } }[] }>;
+  const ovs = JSON.parse(readFileSync(new URL('../assets/tour/overlays.json', import.meta.url), 'utf8')) as Record<string, Ov & { dim?: boolean }>;
+  it('Goals boxes TWO things, Target TE and By Egg Day, each with its own ring and arrow (a baked picture, so no live overlay)', () => {
+    for (const f of ['desk', 'phone']) {
+      expect(ovs[`goalTarget-${f}`], f).toBeUndefined();
+      const t = rings[`goalTarget-${f}`].targets;
+      expect(t, f).toHaveLength(2);
+      expect(t[0].sels[0], f).toContain('data-goal="fastest"');
+      expect(t[1].sels[0], f).toContain('data-goal="by-date"');
+      for (const x of t) expect(x.arrow.dir, f).toBeTruthy();
+    }
+  });
+  it('The Instant Answer ring frames the heading AND the card: on a desk it starts above the card top and is taller than the card alone, on a phone the crop is taller', () => {
+    const d = ovs['result-desk'], p = ovs['result-phone'];
+    // The card alone was 274 px (1100-px page) tall; with the heading it is about 330. The picture is the clean page: no Filters row inside the ring.
+    expect(d.rect.h).toBeGreaterThan(300);
+    expect(p.ch).toBeGreaterThan(560);
+    for (const o of [d, p]) expect(o.ring.y).toBeGreaterThan(0);
+  });
+  it('My Runs is one page: its slide is not dimmed (dim false in the overlay), the others are', () => {
+    for (const f of ['desk', 'phone']) {
+      expect(ovs[`myrunsPage-${f}`].dim, f).toBe(false);
+      for (const [k, o] of Object.entries(ovs)) if (k !== `myrunsPage-${f}` && k.endsWith(f)) expect(o.dim, k).toBeUndefined();
+    }
+  });
+});
+
+describe('R10.3 tour minors (26 Nov 2026, QA r10.2)', () => {
+  const ovs = JSON.parse(readFileSync(new URL('../assets/tour/overlays.json', import.meta.url), 'utf8')) as Record<string, Ov & { dim?: boolean; inset: unknown }>;
+  it('an undimmed slide (My Runs) has no tab-row inset: the real tabs carry the ring alone, not shown twice over the Home button', () => {
+    for (const [k, o] of Object.entries(ovs)) if (o.dim === false) expect(o.inset, k).toBeNull();
+  });
+  it('the Instant Answer phone picture is short enough for its caption to fit a 390x844 phone (crop at most 600 px tall)', () => {
+    expect(ovs['result-phone'].ch).toBeLessThanOrEqual(600);
+    expect(ovs['result-phone'].ch).toBeGreaterThan(500);
+  });
+});

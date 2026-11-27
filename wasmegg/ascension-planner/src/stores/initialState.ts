@@ -1,4 +1,6 @@
+import { hydrateSharedInitialState, sharedInitialStateActions, toActiveMissionInfo } from 'lib/planners/stores/initialStateShared';
 import { defineStore } from 'pinia';
+import { guardEpicLevels, guardFarm, saveGuardNote } from '@/lib/saveGuard';
 import type {
   InitialState,
   ResearchLevels,
@@ -7,7 +9,7 @@ import type {
   ActiveMissionInfo,
 } from '@/types';
 import { ei, Mission } from 'lib';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import {
   type ColleggtibleTiers,
   type Modifiers as ColleggtibleModifiers,
@@ -20,6 +22,7 @@ import {
   type ArtifactModifiers,
   createEmptyLoadout,
   calculateArtifactModifiers,
+  activeSlots,
   getArtifactLoadoutFromBackup,
   getOptimalEarningsSet,
   getOptimalELRSet,
@@ -59,6 +62,9 @@ export interface InitialStateStoreState {
   // Assume double earnings (video doubler)
   assumeDoubleEarnings: boolean;
 
+  // Pro permit (vs. Standard): Standard halves offline earnings, caps silos at 2 and active artifacts at 2
+  proPermit: boolean;
+
   // Global progress metrics at start of ascension
   initialTankLevel: number;
   initialFuelAmounts: Record<VirtueEgg, number>;
@@ -83,6 +89,9 @@ export interface InitialStateStoreState {
    * `startWait`), and every send says which it was (`Submission.start`).
    */
   setupSource: StartSource | '';
+  /** What the save held that this planner doesn't know yet, held to the nearest known value
+   *  (lib/saveGuard.ts); '' when nothing was. */
+  saveNote: string;
 }
 
 function createEmptyVirtueMap(): Record<VirtueEgg, number> {
@@ -93,6 +102,13 @@ function createEmptyVirtueMap(): Record<VirtueEgg, number> {
     resilience: 0,
     kindness: 0,
   };
+}
+
+/** Same artifacts and stones in every slot (missing slots count as empty). */
+function sameLoadout(a: EquippedArtifact[], b: EquippedArtifact[]): boolean {
+  const slot = (l: EquippedArtifact[], i: number) => JSON.stringify([l[i]?.artifactId ?? null, l[i]?.stones ?? []]);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) if (slot(a, i) !== slot(b, i)) return false;
+  return true;
 }
 
 function initializeEpicResearchLevels(): ResearchLevels {
@@ -122,6 +138,7 @@ export const useInitialStateStore = defineStore('initialState', {
     currentFarmState: null,
     soulEggs: 1e21, // Default to 1s
     assumeDoubleEarnings: true,
+    proPermit: true,
     initialTankLevel: 0,
     initialFuelAmounts: createEmptyVirtueMap(),
     initialEggsDelivered: createEmptyVirtueMap(),
@@ -130,6 +147,7 @@ export const useInitialStateStore = defineStore('initialState', {
     activeMissions: [],
     rawBackup: null,
     setupSource: '',
+    saveNote: '',
   }),
 
   getters: {
@@ -155,34 +173,17 @@ export const useInitialStateStore = defineStore('initialState', {
      * Get calculated artifact modifiers from loadout
      */
     artifactModifiers(): ArtifactModifiers {
-      return calculateArtifactModifiers(this.artifactLoadout);
+      return calculateArtifactModifiers(activeSlots(this.artifactLoadout, this.proPermit));
     },
 
     /**
      * Get active virtue missions from backup
      */
-    virtueMissions(): ActiveMissionInfo[] {
+    plannerMissions(): ActiveMissionInfo[] {
       return this.activeMissions
         .map(m => new Mission(m))
         .filter(m => m.type === ei.MissionInfo.MissionType.VIRTUE)
-        .map(m => ({
-          ship: m.shipType,
-          duration: m.durationType,
-          shipName: m.shipName,
-          durationTypeName: m.durationTypeName,
-          shipIconPath: m.shipIconPath,
-          sensorTarget: m.sensorTarget,
-          returnTimestamp: m.returnTimestamp,
-          statusIsFueling: m.statusIsFueling,
-          statusName: m.statusName,
-          capacity: m.capacity,
-          durationSeconds: m.durationSeconds,
-          fuels: m.fuels.map(f => ({
-            egg: f.egg,
-            amount: f.amount,
-            eggIconPath: f.eggIconPath,
-          })),
-        }));
+        .map(toActiveMissionInfo);
     },
   },
 
@@ -216,6 +217,8 @@ export const useInitialStateStore = defineStore('initialState', {
         backup.subInfo?.subscriptionLevel != null && backup.subInfo.status === ei.UserSubscriptionInfo.Status.ACTIVE;
       this.lastBackupTime = backup.settings?.lastBackupTime || backup.approxTime || 0;
       this.soulEggs = backup.game?.soulEggsD || 0;
+      // Reconciling keeps the loaded plan's own permit: a plan runs on the permit it was built with.
+      if (mode !== 'reconcile') this.proPermit = backup.game?.permitLevel === 1;
 
       const artifactsDB = backup.artifactsDb || {};
       this.activeMissions = [
@@ -224,15 +227,13 @@ export const useInitialStateStore = defineStore('initialState', {
         ...(artifactsDB.virtueAfxDb?.fuelingMission ? [artifactsDB.virtueAfxDb.fuelingMission] : []),
       ];
 
-      // Load epic research levels
-      this.epicResearchLevels = initializeEpicResearchLevels();
-      if (backup.game?.epicResearch) {
-        for (const research of backup.game.epicResearch) {
-          if (research.id && research.level !== null && research.level !== undefined) {
-            this.epicResearchLevels[research.id] = research.level;
-          }
-        }
+      // Load epic research levels, each held to its max (lib/saveGuard.ts)
+      const saveNotes: string[] = [];
+      const savedEpic: Record<string, unknown> = {};
+      for (const research of backup.game?.epicResearch ?? []) {
+        if (research.id && research.level !== null && research.level !== undefined) savedEpic[research.id] = research.level;
       }
+      this.epicResearchLevels = { ...initializeEpicResearchLevels(), ...guardEpicLevels(savedEpic, saveNotes) };
 
       // Load colleggtible tiers from contracts
       this.colleggtibleTiers = getColleggtibleTiers(backup);
@@ -243,7 +244,7 @@ export const useInitialStateStore = defineStore('initialState', {
 
       // Handle artifact sets based on mode
       if (mode === 'scratch' || mode === 'plan_next') {
-        const optimalEarnings = getOptimalEarningsSet(backup);
+        const optimalEarnings = getOptimalEarningsSet(backup, this.proPermit);
         this.artifactSets.earnings = optimalEarnings;
         this.artifactSets.elr = null;
         this.setActiveArtifactSet('earnings');
@@ -252,14 +253,14 @@ export const useInitialStateStore = defineStore('initialState', {
         this.artifactSets.elr = null;
         this.setActiveArtifactSet('earnings');
       } else if (mode === 'continue_elr') {
-        this.artifactSets.earnings = getOptimalEarningsSet(backup);
+        this.artifactSets.earnings = getOptimalEarningsSet(backup, this.proPermit);
         this.artifactSets.elr = backupLoadout;
         this.setActiveArtifactSet('elr');
       } else if (mode === 'reconcile') {
         // Do not update artifact sets from backup for reconcile
       } else {
         // Default behavior (e.g. initial load or form submit)
-        const optimalEarnings = getOptimalEarningsSet(backup);
+        const optimalEarnings = getOptimalEarningsSet(backup, this.proPermit);
         this.artifactSets.earnings = optimalEarnings;
         this.artifactSets.elr = JSON.parse(JSON.stringify(backupLoadout));
         this.setActiveArtifactSet('earnings');
@@ -290,7 +291,8 @@ export const useInitialStateStore = defineStore('initialState', {
       this.initialTePending = { ...tePendingPerEgg };
 
       // Load current farm state if on a virtue egg (IDs 50-54)
-      this.currentFarmState = parseVirtueFarm(backup);
+      this.currentFarmState = parseVirtueFarm(backup, saveNotes);
+      this.saveNote = saveGuardNote(saveNotes);
 
       // Return virtue and tank data
       return {
@@ -304,73 +306,7 @@ export const useInitialStateStore = defineStore('initialState', {
       };
     },
 
-    /**
-     * Set epic research level
-     */
-    setEpicResearchLevel(researchId: string, level: number) {
-      const def = epicResearchDefs.find(r => r.id === researchId);
-      if (def) {
-        this.epicResearchLevels = {
-          ...this.epicResearchLevels,
-          [researchId]: Math.max(0, Math.min(level, def.maxLevel)),
-        };
-      }
-    },
-
-    /**
-     * Set colleggtible tier
-     */
-    setColleggtibleTier(id: string, tierIndex: number) {
-      if (id in this.colleggtibleTiers) {
-        // Replace the entire object to guarantee Vue reactivity propagation.
-        // In-place mutation (this.colleggtibleTiers[id] = x) can fail to trigger
-        // re-renders in child components that receive the whole object as a prop,
-        // because the object reference identity doesn't change.
-        this.colleggtibleTiers = {
-          ...this.colleggtibleTiers,
-          [id]: Math.max(-1, Math.min(3, tierIndex)),
-        };
-      }
-    },
-
-    /**
-     * Set artifact loadout
-     */
-    setArtifactLoadout(loadout: EquippedArtifact[]) {
-      this.artifactLoadout = loadout;
-    },
-
-    /**
-     * Set active artifact set and update current loadout
-     */
-    setActiveArtifactSet(setName: import('@/types').ArtifactSetName | null) {
-      this.activeArtifactSet = setName;
-      if (setName && this.artifactSets[setName]) {
-        this.artifactLoadout = JSON.parse(JSON.stringify(this.artifactSets[setName]));
-      } else if (setName) {
-        // Set exists but is empty/null — clear to empty loadout
-        this.artifactLoadout = createEmptyLoadout();
-      }
-    },
-
-    /**
-     * Update an artifact set's content
-     */
-    updateArtifactSet(setName: import('@/types').ArtifactSetName, loadout: EquippedArtifact[]) {
-      this.artifactSets[setName] = JSON.parse(JSON.stringify(loadout));
-      // If updating the active set, also update current loadout
-      if (this.activeArtifactSet === setName) {
-        this.artifactLoadout = JSON.parse(JSON.stringify(loadout));
-      }
-    },
-
-    /**
-     * Save current loadout to a set
-     */
-    saveCurrentToSet(setName: import('@/types').ArtifactSetName) {
-      this.artifactSets[setName] = JSON.parse(JSON.stringify(this.artifactLoadout));
-      this.activeArtifactSet = setName;
-    },
+    ...sharedInitialStateActions,
 
     /**
      * Set soul eggs
@@ -384,6 +320,21 @@ export const useInitialStateStore = defineStore('initialState', {
      */
     setAssumeDoubleEarnings(enabled: boolean) {
       this.assumeDoubleEarnings = enabled;
+    },
+
+    /**
+     * Set Pro vs. Standard permit. An earnings set that is still the optimizer's pick for the old
+     * permit is re-picked for the new one (Standard's best 2 aren't simply the first 2 of Pro's 4);
+     * a set the player edited is kept as is.
+     */
+    setProPermit(enabled: boolean) {
+      if (enabled === this.proPermit) return;
+      const backup = this.rawBackup;
+      const earnings = this.artifactSets.earnings;
+      if (backup && earnings && sameLoadout(earnings, getOptimalEarningsSet(backup, this.proPermit))) {
+        this.updateArtifactSet('earnings', getOptimalEarningsSet(backup, enabled));
+      }
+      this.proPermit = enabled;
     },
 
     /**
@@ -401,7 +352,7 @@ export const useInitialStateStore = defineStore('initialState', {
       this.soulEggs = data.soulEggs || 1e21;
 
       if (data.epicResearchLevels) {
-        this.epicResearchLevels = { ...data.epicResearchLevels };
+        this.epicResearchLevels = { ...initializeEpicResearchLevels(), ...guardEpicLevels(data.epicResearchLevels) };
       }
       if (data.colleggtibleTiers) {
         // Merge onto current defaults rather than replacing outright, so
@@ -432,7 +383,9 @@ export const useInitialStateStore = defineStore('initialState', {
       } else {
         this.assumeDoubleEarnings = true;
       }
-      this.currentFarmState = data.currentFarmState || null;
+      // Plans saved before Standard permit was supported were all built as Pro.
+      this.proPermit = data.proPermit ?? true;
+      this.currentFarmState = data.currentFarmState ? guardFarm(data.currentFarmState) : null;
       if (data.initialTankLevel !== undefined) {
         this.initialTankLevel = data.initialTankLevel;
       }
@@ -512,12 +465,14 @@ export const useInitialStateStore = defineStore('initialState', {
       this.isUltra = false;
       this.lastBackupTime = 0;
       this.epicResearchLevels = initializeEpicResearchLevels();
+      this.saveNote = '';
       this.colleggtibleTiers = getDefaultColleggtibleTiers();
       this.artifactLoadout = createEmptyLoadout();
       this.artifactSets = { earnings: null, elr: null };
       this.activeArtifactSet = null;
       this.soulEggs = 1e21;
       this.assumeDoubleEarnings = true;
+      this.proPermit = true;
       this.initialTankLevel = 0;
       this.initialFuelAmounts = createEmptyVirtueMap();
       this.initialEggsDelivered = createEmptyVirtueMap();

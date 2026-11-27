@@ -13,11 +13,11 @@
             />
           </svg>
         </div>
-        <span class="text-[9px] font-black text-slate-500 uppercase tracking-[0.1em]">{{ title }}</span>
+        <span class="text-slate-600 label">{{ title }}</span>
       </div>
 
       <!-- Col 2 Row 1 (mobile only): Duration, right-aligned -->
-      <div class="flex justify-end items-center text-[8.5px] font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex justify-end items-center text-small font-bold text-slate-600 sm:hidden">
         <span
           v-tippy="{ content: timeTooltipContent, allowHTML: true }"
           class="cursor-help border-b border-dashed border-slate-300/50 transition-colors"
@@ -27,19 +27,19 @@
       </div>
 
       <!-- Col 1 Row 2 (mobile only): SE cost, left-aligned -->
-      <div class="flex items-center gap-1 text-[8.5px] font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex items-center gap-1 text-small font-bold text-slate-600 sm:hidden">
         <span>{{ formatNumber(cost, 3) }}</span>
         <img v-if="costType === 'SE'" :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
       </div>
 
       <!-- Col 2 Row 2 (mobile only): Eggs delivered, right-aligned -->
-      <div class="flex justify-end items-center gap-1 text-[8.5px] font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex justify-end items-center gap-1 text-small font-bold text-slate-600 sm:hidden">
         <span>{{ formatNumber(totalEggsLaid, 3) }}</span>
         <span>Eggs</span>
       </div>
 
       <!-- Desktop only: full right-side row with dot separators (unchanged) -->
-      <div class="hidden sm:flex items-center gap-2 text-[8.5px] font-black tracking-tight text-slate-600">
+      <div class="hidden sm:flex items-center gap-2 text-small font-bold text-slate-600">
         <span
           v-tippy="{ content: timeTooltipContent, allowHTML: true }"
           class="cursor-help border-b border-dashed border-slate-300/50 hover:text-slate-500 hover:border-slate-400 transition-colors"
@@ -61,8 +61,20 @@
 
     <div v-if="summaryItems.length > 0" class="flex flex-wrap gap-1">
       <div v-for="(item, index) in summaryItems" :key="index" class="flex items-center">
-        <template v-if="item.isPremium">
-          <span class="px-1.5 py-0.5 rounded border text-[8.5px] font-black tracking-tight bg-slate-50 text-slate-600 border-slate-100">
+        <template v-if="'isTE' in item">
+          <div
+            v-tippy="`+${item.gained} Truth Eggs this shift (${item.total} total, ${item.eggTotal} ${egg})`"
+            class="flex items-center gap-0.5 px-1.5 py-0.5 rounded border bg-slate-50 border-slate-100 text-small font-bold text-slate-600"
+          >
+            <span>+{{ item.gained }}</span>
+            <img :src="iconURL('egginc/egg_truth.png', 32)" class="w-3 h-3 object-contain" alt="Truth Egg" />
+            <span>({{ item.total }} total | {{ item.eggTotal }}</span>
+            <img :src="iconURL(`egginc/egg_${egg}.png`, 32)" class="w-3 h-3 object-contain" :alt="egg" />
+            <span>)</span>
+          </div>
+        </template>
+        <template v-else-if="item.isPremium">
+          <span class="px-1.5 py-0.5 rounded border text-small font-bold bg-slate-50 text-slate-600 border-slate-100">
             {{ item.text }}
           </span>
         </template>
@@ -70,7 +82,7 @@
           <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-100">
             <span
               v-if="item.setNames.length"
-              class="text-[8.5px] font-black tracking-tight text-slate-600 whitespace-nowrap"
+              class="text-small font-bold text-slate-600 whitespace-nowrap"
             >
               {{ item.setNames.length > 1 ? `Equipped ${item.setNames.join(' + ')} Sets` : `Equipped ${item.setNames[0]} Set` }}
             </span>
@@ -92,7 +104,7 @@
                 :class="stone.count > 1 ? 'w-auto pl-0.5 pr-1' : 'justify-center'"
               >
                 <img :src="iconURL(stone.iconPath, 64)" class="w-4 h-4 flex-shrink-0" :alt="stone.name" />
-                <span v-if="stone.count > 1" class="text-[8px] leading-none font-black text-slate-600">
+                <span v-if="stone.count > 1" class="text-small leading-none font-bold text-slate-600">
                   ×{{ stone.count }}
                 </span>
               </div>
@@ -101,34 +113,36 @@
         </template>
         <template v-else-if="item.isPeakELR">
           <div class="flex items-center px-1.5 py-0.5 rounded border bg-slate-50 border-slate-100">
-            <span class="text-[8.5px] font-black tracking-tight text-slate-600">
+            <span class="text-small font-bold text-slate-600">
               {{ item.text }}
             </span>
           </div>
         </template>
         <template v-else>
           <div class="flex items-center gap-1 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">
-            <span class="text-[8.5px] font-black tracking-tight text-slate-600">{{ item.name }}</span>
-            <span class="text-[8.5px] font-black tracking-tight text-slate-600">{{ item.delta }}</span>
+            <span class="text-small font-bold text-slate-600">{{ item.name }}</span>
+            <span class="text-small font-bold text-slate-600">{{ item.delta }}</span>
           </div>
         </template>
       </div>
     </div>
     <div v-else class="text-center py-1">
-      <p class="text-[8.5px] font-black text-slate-300 uppercase tracking-widest">No purchases during this shift</p>
+      <p class="text-small font-bold text-slate-300">No purchases during this shift</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed } from 'vue';
 import { formatNumber, formatDuration, plural } from '@/lib/format';
 import { iconURL } from 'lib';
-import { rarityTint } from '@/lib/artifacts/display';
+import { rarityTint } from 'lib/planners/artifacts/display';
 import { getResearchById, getResearchByTier } from '@/calculations/commonResearch';
 import { getVehicleType } from '@/lib/vehicles';
 import { getHabById, type HabId } from '../../lib/habs';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import type { RarityCode, StoneOption } from '@/lib/artifacts/types';
 import type { VirtueEgg } from '@/types';
 import type { Action } from '@/types/actions/meta';
@@ -142,37 +156,32 @@ const props = defineProps<{
   costType: 'SE' | 'Virtue';
   startTime: number;
   endTime: number;
+  /** The plan's zone, as the card above shows it (rel-ui-4, 22 Nov 2026); the browser's when unset. */
+  timezone?: string;
 }>();
 
 const formatTime = (ts: number) => {
   // `Math.round`, not a bare `new Date(...)` — see `secondsToDate`'s doc comment (lib/format.ts):
   // `ts` routinely lands a sub-microsecond residue short of a whole second.
-  return new Date(Math.round(ts * 1000)).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(Math.round(ts * 1000), { weekday: true, year: 'never', zone: props.timezone || undefined });
 };
 
 const timeTooltipContent = computed(() => {
   return `
     <div class="text-left font-sans">
-      <div class="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-1 border-b border-slate-600/50 pb-1">Shift Schedule</div>
-      <div class="text-xs mb-0.5"><span class="text-slate-400 mr-2">Start:</span><span class="text-white">${formatTime(props.startTime)}</span></div>
-      <div class="text-xs"><span class="text-slate-400 mr-2">End:</span><span class="text-white">${formatTime(props.endTime)}</span></div>
+      <div class="label text-slate-300 mb-1 border-b border-slate-600/50 pb-1">Shift Schedule</div>
+      <div class="text-small mb-0.5"><span class="text-slate-600 mr-2">Start:</span><span class="text-white">${formatTime(props.startTime)}</span></div>
+      <div class="text-small"><span class="text-slate-600 mr-2">End:</span><span class="text-white">${formatTime(props.endTime)}</span></div>
     </div>
   `;
 });
 
 const eggThemes: Record<VirtueEgg, { bg: string; text: string }> = {
-  curiosity: { bg: 'bg-amber-50', text: 'text-amber-500' },
+  curiosity: { bg: 'bg-amber-50', text: 'text-amber-700' },
   integrity: { bg: 'bg-blue-50', text: 'text-blue-500' },
   humility: { bg: 'bg-purple-50', text: 'text-purple-500' },
-  resilience: { bg: 'bg-rose-50', text: 'text-rose-500' },
-  kindness: { bg: 'bg-emerald-50', text: 'text-emerald-500' },
+  resilience: { bg: 'bg-rose-50', text: 'text-rose-700' },
+  kindness: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
 };
 
 const eggTheme = computed(() => eggThemes[props.egg] || eggThemes.curiosity);
@@ -183,6 +192,7 @@ type SummaryCategory = (typeof CATEGORY_ORDER)[number];
 
 // Pill variants; the template switches on isPremium/isLoadout/isPeakELR in that order.
 type SummaryItem = { category: SummaryCategory } & (
+  | { isTE: true; gained: number; total: number; eggTotal: number }
   | { isPremium: true; text: string }
   | {
       isPremium?: false;
@@ -312,13 +322,26 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
       });
     }
     // --- TE Earned ---
-    const totalTE = props.actions.reduce((sum, a) => sum + (a.type === 'wait_for_te' ? a.payload.teGained || 0 : 0), 0);
+    // Thresholds passed between the shift's first and last action, so TE that the build phase's
+    // deliveries cross counts too, not just the wait_for_te payloads (whose teGained uses the same
+    // threshold baseline, so the two agree when a shift only waits). Upstream PR 731.
+    const waitTE = props.actions.reduce((sum, a) => sum + (a.type === 'wait_for_te' ? a.payload.teGained || 0 : 0), 0);
+    const firstDelivered = props.actions[0]?.endState?.eggsDelivered?.[props.egg];
+    const lastDelivered = props.actions[props.actions.length - 1]?.endState?.eggsDelivered?.[props.egg];
+    const deliveredTE =
+      firstDelivered !== undefined && lastDelivered !== undefined
+        ? countTEThresholdsPassed(lastDelivered) - countTEThresholdsPassed(firstDelivered)
+        : 0;
+    const totalTE = Math.max(waitTE, deliveredTE);
     if (totalTE > 0) {
-      items.push({
-        category: 'te',
-        isPremium: true,
-        text: `+${totalTE} Truth Eggs`,
-      });
+      // Total across all eggs once this shift ends: each egg's thresholds passed, or its claimed
+      // count if higher (claimed TE isn't always backed by the plan's eggsDelivered).
+      const endState = props.actions[props.actions.length - 1]?.endState;
+      const eggs = Object.keys(endState?.eggsDelivered ?? {}) as VirtueEgg[];
+      const eggTE = (e: VirtueEgg) =>
+        Math.max(countTEThresholdsPassed(endState.eggsDelivered[e] || 0), endState.teEarned?.[e] || 0);
+      const total = eggs.reduce((sum, e) => sum + eggTE(e), 0);
+      items.push({ category: 'te', isTE: true, gained: totalTE, total, eggTotal: eggTE(props.egg) });
     }
 
   // --- Equipped Loadout (combines "Equipped X Set" with the artifact/stone icons) ---

@@ -8,7 +8,7 @@
  */
 import { colleggtibleDefs, modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { getArtifact } from '@/lib/artifacts/data';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { createEmptyStonePool, withEmptyStones, type AutoLoadoutInputs } from '@/auto/loadout';
 import type { EngineState, SimulationContext } from '@/auto/types';
 
@@ -58,6 +58,8 @@ export function maxedBaseState(): EngineState {
     researchLevels: {},
     siloCount: 1,
     tankLevel: 0,
+    // Tables are built for Pro permit only; the Chain Finder and Table Builder warn Standard players.
+    proPermit: true,
     artifactLoadout: [],
     activeArtifactSet: null,
     artifactSets: { earnings: null, elr: null },

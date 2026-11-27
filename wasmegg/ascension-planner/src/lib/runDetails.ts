@@ -53,7 +53,7 @@ export function runDetailLine(d: RunDetailInput): string {
     if (d.estimated && (d.done ?? 0) >= d.estimated)
       parts.push(`more than the ~${d.estimated.toLocaleString()} routes estimated`);
     if (d.estimateNote) parts.push(d.estimateNote);
-    if (d.legs) parts.push(`${plural(d.legs, 'leg')} simulated`);
+    if (d.legs) parts.push(`${plural(d.legs, 'ascension')} simulated`);
   }
   return parts.filter(Boolean).join(' · ');
 }

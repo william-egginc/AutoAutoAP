@@ -5,9 +5,14 @@
 import { describe, expect, it } from 'vitest';
 import { ei, MissionType } from 'lib';
 
-import { optionsFromWire, optionsToWire, solutionsFromWire, solutionsToWire } from '@/lib/optimizer-worker-protocol';
+import {
+  optionsFromWire,
+  optionsToWire,
+  solutionsFromWire,
+  solutionsToWire,
+} from 'lib/mission-optimizer/optimizer-worker-protocol';
 import { makeOpt, makeSolution } from './spec-helpers';
-import type { LaunchSolution } from '@/lib/types';
+import type { LaunchSolution } from 'lib/mission-optimizer/types';
 
 const Spaceship = ei.MissionInfo.Spaceship;
 const DurationType = ei.MissionInfo.DurationType;
@@ -63,7 +68,7 @@ describe('optimizer worker protocol', () => {
       bestProbability: 0.42,
       jointProbability: 0.42,
       choiceHistory: [makeChoice()],
-      finalYieldVector: new Map([['tachyon-stone-1', 17.5]]),
+      supplyByItem: new Map([['tachyon-stone-1', 17.5]]),
       craftPrimal: new Map([['tachyon-deflector-4', 3]]),
       perTarget: [
         {
@@ -81,8 +86,8 @@ describe('optimizer worker protocol', () => {
     const [got] = received;
 
     expect(got.bestProbability).toBe(0.42);
-    expect(got.finalYieldVector).toBeInstanceOf(Map);
-    expect(got.finalYieldVector.get('tachyon-stone-1')).toBe(17.5);
+    expect(got.supplyByItem).toBeInstanceOf(Map);
+    expect(got.supplyByItem.get('tachyon-stone-1')).toBe(17.5);
     expect(got.craftPrimal.get('tachyon-deflector-4')).toBe(3);
     expect(got.perTarget[0].expectedCrafts).toBe(3);
 
@@ -94,5 +99,32 @@ describe('optimizer worker protocol', () => {
     expect(choice.ship).toBeInstanceOf(MissionType);
     expect(choice.ship.shipName).toBe(new MissionType(Spaceship.HENERPRISE, DurationType.EPIC).shipName);
     expect(choice.ship.missionTypeId).toBe(new MissionType(Spaceship.HENERPRISE, DurationType.EPIC).missionTypeId);
+  });
+
+  it('carries the event window and each launch’s capacity variant', () => {
+    const solution = makeSolution({
+      eventWindowSeconds: 7200,
+      choiceHistory: [
+        { ...makeChoice(), variant: 'overhang' },
+        { ...makeChoice(), variant: 'normal' },
+      ],
+    });
+    const [got] = solutionsFromWire(structuredClone(solutionsToWire([solution])));
+    expect(got.eventWindowSeconds).toBe(7200);
+    expect(got.choiceHistory.map(c => c.variant)).toEqual(['overhang', 'normal']);
+  });
+
+  // The timeline names its entries by index, so the wire carries two numbers a launch and no second ship.
+  it('carries each slot’s launches as indices into choiceHistory', () => {
+    const launches = [
+      { choice: 1, launchAt: 0 },
+      { choice: 0, launchAt: 5678 },
+    ];
+    const solution = makeSolution({
+      choiceHistory: [makeChoice(), makeChoice()],
+      slots: [{ loadSeconds: 11356, rawLoadSeconds: 11356, launches }],
+    });
+    const [got] = solutionsFromWire(structuredClone(solutionsToWire([solution])));
+    expect(got.slots?.[0].launches).toEqual(launches);
   });
 });

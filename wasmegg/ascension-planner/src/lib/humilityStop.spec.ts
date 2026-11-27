@@ -1,0 +1,104 @@
+/**
+ * The Humility stop of the ascension the player is in, read off its simulated shifts (My runs' rockets row, Jordan 23 Nov
+ * 2026: "put the optimizer in the ascent plan at the Humility stop"). v1: the current stop, or the next one to come, in
+ * the ascension being followed; nothing for later ascensions (their fuel and farm are not known).
+ */
+import { describe, expect, it } from 'vitest';
+import { actionLegOfSummary, humilityStopOf, stopDurationText } from './humilityStop';
+import type { ActionLeg } from './nextAction';
+
+const leg = (shifts: { at: number; egg: string }[], end = 90_000, o: Partial<ActionLeg> = {}): ActionLeg => ({
+  to: 218,
+  start: 0,
+  end,
+  shifts,
+  simulated: true,
+  ...o,
+});
+const SHIFTS = [
+  { at: 1000, egg: 'curiosity' },
+  { at: 20_000, egg: 'humility' },
+  { at: 20_000 + 52 * 3600, egg: 'resilience' },
+];
+
+describe('humilityStopOf', () => {
+  it('the next stop before it starts: its arrival and how long the plan stays', () => {
+    expect(humilityStopOf(leg(SHIFTS, 400_000), 5000)).toEqual({ arrival: 20_000, end: 20_000 + 52 * 3600, lengthSeconds: 52 * 3600, current: false, approximate: false });
+  });
+  it('the current stop while the player is on it', () => {
+    const s = humilityStopOf(leg(SHIFTS, 400_000), 30_000)!;
+    expect(s.current).toBe(true);
+    expect(s.arrival).toBe(20_000);
+  });
+  it('none once the plan has left Humility, or without simulated shifts', () => {
+    expect(humilityStopOf(leg(SHIFTS, 400_000), 20_000 + 53 * 3600)).toBeNull();
+    expect(humilityStopOf(leg([{ at: 1000, egg: 'curiosity' }]), 5000)).toBeNull();
+    expect(humilityStopOf(null, 5000)).toBeNull();
+  });
+  it('a stop with no shift after it lasts to the end of the ascension', () => {
+    const s = humilityStopOf(leg([{ at: 20_000, egg: 'humility' }], 100_000), 5000)!;
+    expect(s.end).toBe(100_000);
+    expect(s.lengthSeconds).toBe(80_000);
+  });
+  it('the first stop that has not finished, when the plan visits Humility twice', () => {
+    const twice = [
+      { at: 10_000, egg: 'humility' },
+      { at: 20_000, egg: 'resilience' },
+      { at: 50_000, egg: 'humility' },
+      { at: 60_000, egg: 'kindness' },
+    ];
+    expect(humilityStopOf(leg(twice, 90_000), 25_000)!.arrival).toBe(50_000);
+    expect(humilityStopOf(leg(twice, 90_000), 15_000)!.arrival).toBe(10_000);
+  });
+});
+
+describe('a plan still on the table (not simulated: "a rough estimate", Jordan 23 Nov 2026 shot 1)', () => {
+  it('still gives the stop, marked approximate: his row was missing because only simulated legs counted', () => {
+    const s = humilityStopOf(leg(SHIFTS, 400_000, { simulated: false }), 30_000)!;
+    expect(s).toMatchObject({ arrival: 20_000, end: 20_000 + 52 * 3600, current: true, approximate: true });
+    expect(humilityStopOf(leg(SHIFTS, 400_000), 30_000)!.approximate).toBe(false);
+  });
+  it('on Humility with no shift to it in the list (the ascension began there): from the ascension start to the next shift', () => {
+    const s = humilityStopOf(leg([{ at: 50_000, egg: 'kindness' }], 400_000, { start: 10_000, simulated: false }), 30_000, 'humility')!;
+    expect(s).toMatchObject({ arrival: 10_000, end: 50_000, current: true });
+  });
+  it('the save says another egg: no invented current stop', () => {
+    expect(humilityStopOf(leg([{ at: 50_000, egg: 'kindness' }], 400_000, { start: 10_000 }), 30_000, 'curiosity')).toBeNull();
+  });
+});
+
+describe('a stop with no length (QA, 23 Nov 2026: By a date route whose Humility stop is 0 s)', () => {
+  it('is no stop: nothing to plan in no time, before it or on it', () => {
+    const zero = leg([{ at: 20_000, egg: 'humility' }, { at: 20_000, egg: 'kindness' }], 400_000);
+    expect(humilityStopOf(zero, 5000)).toBeNull();
+    expect(humilityStopOf(zero, 20_000)).toBeNull();
+  });
+});
+
+// QA 23 Nov 2026 (shots R-myruns-*): a followed Fast or Exact run keeps the exact check's legs (`plan.legs`, every shift of every
+// ascension), and useNowPage's `actionLegs` is empty for such a plan, so the row never showed for a stop still ahead.
+type Summary = Parameters<typeof actionLegOfSummary>[0];
+describe('a plan that kept the exact check\'s legs', () => {
+  const summary = (shifts: { at: number; egg: string }[]) => ({ key: 'x', endTE: 203, durationSeconds: 380_000, maxELR: 0, endTime: 400_000, startTime: 20_000, tier13Unlocked: true, shifts }) as unknown as Summary;
+  it('its first leg reads as an ascension with its shifts, so a Humility stop still ahead is found', () => {
+    const leg = actionLegOfSummary(summary([{ at: 100_000, egg: 'humility' }, { at: 100_000 + 56 * 3600, egg: 'kindness' }]), 203);
+    expect(humilityStopOf(leg, 50_000)).toMatchObject({ arrival: 100_000, end: 100_000 + 56 * 3600, lengthSeconds: 56 * 3600, current: false, approximate: true });
+  });
+  it('is the one on it while the player is there', () => {
+    const leg = actionLegOfSummary(summary([{ at: 100_000, egg: 'humility' }, { at: 300_000, egg: 'kindness' }]), 203);
+    expect(humilityStopOf(leg, 150_000)).toMatchObject({ current: true, arrival: 100_000 });
+  });
+  it('starts at the end less the duration when the summary has no start', () => {
+    const l = { ...summary([]), startTime: undefined } as Summary;
+    expect(actionLegOfSummary(l, 203).start).toBe(400_000 - 380_000);
+  });
+});
+
+describe('stopDurationText', () => {
+  it('whole hours the duration field reads back, at least one', () => {
+    expect(stopDurationText(52 * 3600)).toBe('52h');
+    expect(stopDurationText(52 * 3600 + 1800)).toBe('52h');
+    expect(stopDurationText(600)).toBe('1h');
+    expect(stopDurationText(0)).toBe('');
+  });
+});

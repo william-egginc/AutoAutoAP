@@ -13,7 +13,6 @@ import {
   gearSummary,
   guideSegment,
   latestWithGear,
-  whatIfRuns,
   mapDomain,
   needRegions,
   placeLabels,
@@ -22,6 +21,7 @@ import {
   type MapDomain,
 } from './gearMap';
 import { dataNeeds, type DataNeed } from './needs';
+import { whatIfRuns } from '@/test/explorerReference';
 
 let n = 0;
 /** Only what gearMap and needs read. `source: 'upload'` makes a run a finished search to 490. */

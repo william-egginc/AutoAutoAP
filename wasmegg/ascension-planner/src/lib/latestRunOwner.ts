@@ -1,5 +1,5 @@
 /**
- * Whether a run the page holds is this account's, for My runs › Your latest run (16 Oct 2026: with another
+ * Whether a run the page holds is this account's, for My Runs › Your latest run (16 Oct 2026: with another
  * account loaded, it showed the first account's By a date run). Shown only when:
  *  - its tag (the chain-search store's `chainResultOwner` / `deadlineResultOwner`: the partition hash of the
  *    player ID it was run, loaded or opened for, lib/accountHash.ts) is this account's hash. A result read

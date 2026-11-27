@@ -60,6 +60,25 @@ const other = (p: NowPlan, goalKey: string, recorded: PricedSetup | null, goalIn
 });
 
 describe('goal keys and the goal list', () => {
+  it('each By a date goal a pill of its own, named by its date; a custom race by its target (24 Oct 2026)', () => {
+    const FEB10 = MAR3 - 21 * 86400;
+    const list = goalDefs({
+      ownTarget: 490,
+      raceTarget: 490,
+      eggDay: EGG_DAY,
+      otherDates: [MAR3, FEB10, MAR3],
+      otherTargets: [312],
+      dayWords: t => (t === FEB10 ? 'Feb 10, 2027' : 'Mar 3, 2027'),
+    });
+    expect(list.map(g => [g.key, g.label])).toEqual([
+      ['fastest-490', 'Fastest to 490 TE'],
+      ['fastest-312', 'Fastest to 312 TE'],
+      ['eggday-2027', 'Egg Day 2027'],
+      [`date-${FEB10}`, 'By Feb 10, 2027'],
+      [`date-${MAR3}`, 'By Mar 3, 2027'],
+    ]);
+  });
+
   it('fastest-<target>, eggday-<year>, date-<unix>', () => {
     expect(goalKeyOf('fastest', 490, null, EGG_DAY)).toBe('fastest-490');
     expect(goalKeyOf('date', 490, EGG_DAY.at, EGG_DAY)).toBe('eggday-2027');
@@ -68,14 +87,14 @@ describe('goal keys and the goal list', () => {
 
   it('Race to your own target first; Fastest to 490 beside it only when the target differs; other dates optional', () => {
     expect(goals.map(g => [g.key, g.label, g.name, !!g.optional])).toEqual([
-      ['fastest-490', 'Race to 490', 'Race to 490', false],
+      ['fastest-490', 'Fastest to 490 TE', 'Fastest to 490 TE', false],
       ['eggday-2027', 'Egg Day 2027', 'Egg Day 2027', false],
-      [`date-${MAR3}`, 'By a date', 'By Mar 3, 2027', true],
+      [`date-${MAR3}`, 'By Mar 3, 2027', 'By Mar 3, 2027', true],
     ]);
     const mine = goalDefs({ ownTarget: 450, raceTarget: 490, eggDay: EGG_DAY, otherDates: [EGG_DAY.at], dayWords: String });
     expect(mine.map(g => [g.key, g.label, !!g.optional])).toEqual([
-      ['fastest-450', 'Race to 450', false],
-      ['fastest-490', 'Race to 490', true],
+      ['fastest-450', 'Fastest to 450 TE', false],
+      ['fastest-490', 'Fastest to 490 TE', true],
       ['eggday-2027', 'Egg Day 2027', false],
     ]);
   });
@@ -95,14 +114,14 @@ describe('plansByGoal', () => {
     expect(withDate.map(p => p.goal.key)).toEqual(['fastest-490', 'eggday-2027', `date-${MAR3}`]);
   });
 
-  it('an instant answer only (no timeline): listed as "no saved plan with its times"', () => {
+  it('an instant answer only (no timeline): listed as "no saved route with its times"', () => {
     const answers: GoalAnswer[] = [{ goalKey: 'eggday-2027', calculatedAt: T0 + 90 * MIN, saveSeconds: SAVE, ownKey: true }];
     const list = plansByGoal(goals, [own(race, 'fastest-490')], answers, SAVE);
     const egg = list.find(p => p.goal.key === 'eggday-2027')!;
     expect(egg.pick).toBeNull();
     expect(egg.answerOnly).toBe(true);
-    expect(emptyGoalWords('answer-only')).toBe('no saved plan with its times for this goal yet');
-    expect(emptyGoalWords('none')).toBe('no saved plan for this goal yet');
+    expect(emptyGoalWords('answer-only')).toBe('no saved route with its times for this goal yet');
+    expect(emptyGoalWords('none')).toBe('no saved route for this goal yet');
   });
 
   it("within a goal, currentAnswer's rule: the current setup leads a sooner plan priced with other hours (secondary)", () => {
@@ -114,6 +133,33 @@ describe('plansByGoal', () => {
     // An older save's plan never leads one of the loaded save.
     const old = plan('fastest', T0 + 60 * MIN, [490], { meta: { account: 'acct', goal: 'target 490', backupTime: SAVE - 3 * 86400 } });
     expect(plansByGoal(goals, [other(old, 'fastest-490', MINE), own(race, 'fastest-490')], [], SAVE)[0].pick?.candidate.plan).toBe(race);
+  });
+
+  it("the loaded save's own plan beats an older save's higher-TE plan inside the 2 h window (Jordan, 17 Nov 2026; QA's two-save run)", () => {
+    // QA's run: the Sample save, then the habs-cut save 30 min later; By a date. The older save's plan reaches 199 TE, the loaded
+    // save's own plan 198 TE. Both saves count as "current" (CURRENT_SAVE_SECONDS, 2 h), and both snapshots sit under one key
+    // (ownKey true for both), so before this the 199 led and My Runs' table showed the older save's numbers.
+    const older = SAVE - 30 * 60;
+    const key = `date-${MAR3}`;
+    const meta = (backupTime: number) => ({ account: 'acct', goal: `date ${MAR3}`, backupTime });
+    const old199 = plan('date', T0, [190, 199], { deadline: MAR3, end: MAR3 - 20 * 3600, spareHours: 20, meta: meta(older) });
+    const new198 = plan('date', T0 + 40 * MIN, [190, 198], { deadline: MAR3, end: MAR3 - 6 * 3600, spareHours: 6, meta: meta(SAVE) });
+    for (const list of [
+      [own(old199, key), own(new198, key)],
+      [own(new198, key), own(old199, key)],
+      [other(old199, key, MINE), other(new198, key, MINE)],
+    ]) {
+      const pick = plansByGoal(goals, list, [], SAVE).find(p => p.goal.key === key)!.pick!;
+      expect(pick.candidate.plan).toBe(new198);
+      expect(pick.candidate.plan.endTE).toBe(198);
+      expect(pick.candidate.plan.spareHours).toBe(6);
+      expect(pick.candidate.plan.meta?.backupTime).toBe(SAVE);
+    }
+    // Instant (not checked) on the loaded save still beats the older save's checked plan.
+    const inst198 = { ...new198, exact: false };
+    expect(plansByGoal(goals, [own(old199, key), own(inst198, key)], [], SAVE).find(p => p.goal.key === key)!.pick!.candidate.plan).toBe(inst198);
+    // With nothing of the loaded save, the older save's plan is still the pick.
+    expect(plansByGoal(goals, [own(old199, key)], [], SAVE).find(p => p.goal.key === key)!.pick!.candidate.plan).toBe(old199);
   });
 });
 
@@ -151,6 +197,36 @@ describe('the default goal: the one checked LAST', () => {
     const answers: GoalAnswer[] = [{ goalKey: 'eggday-2027', calculatedAt: T0, saveSeconds: SAVE }];
     expect(defaultGoalKey(plansByGoal(goals, [], answers, SAVE), SAVE)).toBe('eggday-2027');
     expect(defaultGoalKey([], SAVE)).toBeNull();
+  });
+  // R7 red-team #3 (31 Oct 2026): an Egg Day route followed while nothing of the save is kept for it opened My Runs on
+  // Fastest to 490 (no plan, first in the list), so the Build-up tracker said "follow a route first" for 5 minutes.
+  it('a followed goal without a plan opens before a goal with nothing, or with only an older save\'s plan', () => {
+    const follow = new Set(['eggday-2027']);
+    // Neither has a plan: the followed one, not Race (first in the list).
+    expect(defaultGoalKey(plansByGoal(goals, [], [], SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race checked later without a plan (an answer only): still the followed goal.
+    const answers: GoalAnswer[] = [{ goalKey: 'fastest-490', calculatedAt: T0 + 9 * 60 * MIN, saveSeconds: SAVE }];
+    expect(defaultGoalKey(plansByGoal(goals, [], answers, SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race with an older save's plan: the followed goal (its route is priced on this save).
+    const old = { ...race, meta: { account: 'acct', goal: 'target 490', backupTime: SAVE - 3 * 86400 } };
+    expect(defaultGoalKey(plansByGoal(goals, [other(old, 'fastest-490', MINE)], [], SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race with a plan of this save: still the followed goal (Jordan, 15 Nov 2026: My Runs opens on the route being FOLLOWED, not
+    // the one last looked at; it was this save's plans first).
+    expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], [], SAVE, follow), SAVE)).toBe('eggday-2027');
+    // The same with Race followed instead: the same rule for both goal kinds.
+    expect(defaultGoalKey(plansByGoal(goals, [], [{ goalKey: 'eggday-2027', calculatedAt: T0, saveSeconds: SAVE }], SAVE, new Set(['fastest-490'])), SAVE)).toBe('fastest-490');
+    expect(plansByGoal(goals, [], [], SAVE, follow).find(p => p.goal.key === 'eggday-2027')?.followed).toBe(true);
+  });
+  it('the followed route wins however the other goal was looked at; with nothing followed it is the goal last looked at, as before (Jordan, 15 Nov 2026)', () => {
+    const follow = new Set(['eggday-2027']);
+    // Race looked at last, with a fresher plan on this save and a later check: the followed Egg Day route still opens.
+    const answers: GoalAnswer[] = [{ goalKey: 'fastest-490', calculatedAt: T0 + 9 * 60 * MIN, saveSeconds: SAVE }];
+    expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], answers, SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Nothing followed: the goal with a plan of this save, then the one last checked.
+    expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], [], SAVE), SAVE)).toBe('fastest-490');
+    expect(defaultGoalKey(plansByGoal(goals, [], [{ goalKey: 'eggday-2027', calculatedAt: T0, saveSeconds: SAVE }], SAVE), SAVE)).toBe('eggday-2027');
+    // Both followed: the usual order between them (this save's plan first).
+    expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], [], SAVE, new Set(['fastest-490', 'eggday-2027'])), SAVE)).toBe('fastest-490');
   });
 });
 

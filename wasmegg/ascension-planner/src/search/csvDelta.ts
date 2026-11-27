@@ -179,13 +179,13 @@ export async function uploadDelta(
     if (r.status === 409) {
       const got = (await r.json().catch(() => null)) as { count?: unknown } | null;
       const n = got && typeof got.count === 'number' && Number.isInteger(got.count) ? got.count : null;
-      return n === null ? { kind: 'failed', why: 'the board had that piece already but did not say what was in it', status: 409 } : { kind: 'stored', count: n };
+      return n === null ? { kind: 'failed', why: 'the Leaderboard had that piece already but did not say what was in it', status: 409 } : { kind: 'stored', count: n };
     }
     if (r.status >= 500 || r.status === 429) {
-      last = { why: `the board answered ${r.status}`, status: r.status };
+      last = { why: `the Leaderboard answered ${r.status}`, status: r.status };
       continue;
     }
-    return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+    return { kind: 'failed', why: `the Leaderboard answered ${r.status}`, status: r.status };
   }
   return { kind: 'failed', ...last };
 }
@@ -216,13 +216,13 @@ export async function uploadDeltaHead(
     if (r.status === 422) {
       const got = (await r.json().catch(() => null)) as { missing?: unknown } | null;
       const missing = Array.isArray(got?.missing) ? got!.missing.filter((n): n is number => Number.isInteger(n)) : [];
-      return { kind: 'failed', why: 'the board was missing a piece of it', status: 422, missing };
+      return { kind: 'failed', why: 'the Leaderboard was missing a piece of it', status: 422, missing };
     }
     if (r.status >= 500 || r.status === 429) {
-      last = { why: `the board answered ${r.status}`, status: r.status };
+      last = { why: `the Leaderboard answered ${r.status}`, status: r.status };
       continue;
     }
-    return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+    return { kind: 'failed', why: `the Leaderboard answered ${r.status}`, status: r.status };
   }
   return { kind: 'failed', ...last };
 }

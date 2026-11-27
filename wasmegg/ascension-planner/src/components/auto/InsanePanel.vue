@@ -19,7 +19,7 @@
   -- and when it was implemented and measured it cut 0 of 69 chains. Exhaustive means exhaustive.
 -->
 <template>
-  <div :class="embedded ? 'relative overflow-hidden' : 'section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden'">
+  <div class="relative overflow-hidden">
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-6">
@@ -29,46 +29,50 @@
            the time is acceptable. -->
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
         <div class="space-y-1">
-          <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+          <p class="text-indigo-600 label">
             Sweep request from {{ NAMES.science }}
           </p>
-          <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
-          <p class="text-[11px] text-slate-600">
-            Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
+          <h3 class="text-body font-bold text-slate-900">{{ sweepRequest.label }}</h3>
+          <p class="text-body text-slate-600 max-w-prose">
+            Ranges <code class="rounded bg-white px-1 text-small">{{ bandsText }}</code
             >, minimum gap {{ minGap
             }}<template v-if="sweepRequest.firstAscension !== null"
               >, {{ describeFirstAscension(sweepRequest.firstAscension) }}</template
             >. These are already filled in below.
           </p>
-          <p class="text-[11px] text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
             {{ NAMES.smartFirst }} or the instant answer for that.
           </p>
-          <p class="text-[11px] text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             <template v-if="timeOffText">
               Planned around time off: <b>{{ timeOffText }}</b
-              >. It still prices every route, but the result goes on the board with the time-off runs and won't fill
+              >. It still prices every route, but the result goes on the Leaderboard with the time-off runs and won't fill
               this gap.
             </template>
             <template v-else>
               Taking time off, like Egg Day or a trip?
               <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
-                Add it in Your setup
+                Add it in Setup
               </button>
               and the sweep still prices every route around it.
             </template>
           </p>
         </div>
 
-        <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
+        <div class="grid gap-2 sm:grid-cols-3 text-small">
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
+            <div class="label text-slate-600">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCountLabel }}</div>
           </div>
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Estimated time</div>
-            <div class="font-bold text-slate-800">{{ estimateLabel }}</div>
-            <div class="text-[10px] text-slate-400">
+            <div class="label text-slate-600">Estimated time</div>
+            <div class="font-bold text-slate-800">
+              {{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+              >{{ ' ' }}(measuring<AnimatedDots />)</template
+            >
+            </div>
+            <div class="text-small text-slate-600">
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}
             </div>
           </div>
@@ -76,16 +80,16 @@
             <button
               type="button"
               :disabled="store.isRunning"
-              class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
-              {{ measuredCost ? 'Re-benchmark' : 'Benchmark my PC' }}
+              {{ measuredCost ? 'Re-benchmark' : 'Benchmark my computer' }}
             </button>
           </div>
         </div>
 
         <label class="block space-y-1">
-          <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+          <span class="flex items-baseline justify-between text-body font-bold text-slate-700">
             <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
@@ -97,7 +101,7 @@
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
-          <span class="block text-[10px] text-slate-500">
+          <span class="block text-small text-slate-600">
             Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread
             PC we measured, 12 workers were as fast as 19). The estimate above follows the
             slider. You can move it during a run too: the change takes effect within about a minute, and no route in
@@ -111,8 +115,8 @@
           v-model="sweepConsent"
           consent-id="scienceSweep"
           testid="sweep-consent"
-          label-class="text-[11px] text-slate-700"
-          summary-class="text-[11px] text-slate-700"
+          label-class="text-body text-slate-700"
+          summary-class="text-body text-slate-700"
           withdrawn-text="Withdrawn: this sweep's result will not be sent."
         >
           <template #summary>
@@ -120,7 +124,9 @@
           </template>
           <template #text>
           <span>
-            I understand this takes about <b>{{ estimateLabel }}</b
+            I understand this takes about <b>{{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+                >{{ ' ' }}(measuring<AnimatedDots />)</template
+              ></b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
             <b>sent to the board automatically</b>. What gets sent: the route, its timings and the full CSV, with my
             artifact inventory, timezone and local plan start, plus a random code this browser keeps for the account
@@ -131,25 +137,27 @@
           </span>
           </template>
         </ConsentBox>
-        <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
-             unless the player picks otherwise, and the name box starts from their own nickname. -->
-        <ShareNameChoice
+        <!-- The one sharing line and its Change (SharingSummary.vue, ux29 #11), on the same values as the Submit
+             section at the bottom: anonymous unless the player picks otherwise. -->
+        <SharingSummary
+          ref="sweepSharing"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
+          :on="sweepConsent"
           :disabled="store.isRunning"
-          class="pl-6 text-[11px] text-slate-700"
+          class="pl-6 text-body text-slate-700"
           @nickname-typed="nicknameTouched = true"
         />
-        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-small text-slate-700" />
 
         <IntegrityNotice />
         <p
           v-if="ascMismatch"
-          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-body font-bold text-rose-800"
         >
           The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{
             plural(bands.length + 1, 'ascension')
-          }}). To start, set it back to {{ bands.length + 1 }} under The space to search.
+          }}). To start, set it back to {{ bands.length + 1 }} under The boxes to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
@@ -162,12 +170,12 @@
               !chainCount ||
               ascMismatch
             "
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500 disabled:opacity-40"
             @click="start(false)"
           >
-            {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
+            <template v-if="store.isRunning">Running<AnimatedDots /></template><template v-else>Start this sweep</template>
           </button>
-          <span class="text-[10px] text-slate-500">
+          <span class="text-small text-slate-600">
             One press starts it (the button further down does the same). When the sweep finishes, the result is
             submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, what it priced so far is
             sent, marked as partial.
@@ -182,34 +190,36 @@
           :ok="submitOk"
           :partial="submitPartial"
           :name-to-claim="nameToClaim"
+          :offer-name="offerName"
           :claiming="claiming"
           :pending-table="store.pendingTable?.source === 'fastest'"
           :retrying="retryingTable"
           quiet
           @claim="claim"
           @retry="retryTable"
+          @name-it="sweepSharing?.openForName()"
         />
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
         <p
           v-if="store.noFeasibleChain && !store.error"
-          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] text-rose-800"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-body text-rose-800"
         >
           <b>No route finished</b>, so there is nothing to save or submit. The reason is further down.
         </p>
         <p
           v-if="store.error && !store.errorIsIntegrityNotice"
-          class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800"
+          class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-body text-red-800"
         >
           <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</b> {{ store.error }}
         </p>
         <p
           v-else-if="store.runNotes.length"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900"
         >
           <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
         </p>
-        <p v-else-if="store.isRunning" class="text-[11px] font-semibold text-indigo-700">
+        <p v-else-if="store.isRunning" class="text-body font-bold text-indigo-700 max-w-prose">
           Running: progress is shown further down. Leave this tab open<template v-if="autoSubmitArmed"
             >; the result is submitted automatically when it finishes</template
           >.
@@ -220,75 +230,9 @@
         Two questions. The first is everything below as it always was; the second
         (DeadlinePanel, search/deadline.ts) turns the finish line into a date.
       -->
-      <!-- The site's tabs pick the goal now (Fastest route / Highest TE by a date); this switch is
-           only for the panel on its own. -->
-      <div v-if="!props.goal" class="flex flex-wrap items-center gap-2">
-        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What are you after?</span>
-        <button
-          v-for="g in GOALS"
-          :key="g.id"
-          type="button"
-          :disabled="store.busy"
-          class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-          :class="
-            goal === g.id
-              ? 'border-slate-800 bg-slate-800 text-white'
-              : 'border-slate-200 text-slate-500 hover:text-slate-700'
-          "
-          @click="goal = g.id"
-        >
-          {{ g.label }}
-        </button>
-      </div>
-      <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
-        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          How {{ NAMES.fullFirst }} works, and what it costs
-        </summary>
-        <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
-          <p>
-            This prices <span class="font-bold">every</span> route in the bands you describe, with no descent, stages or
-            pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
-            of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
-          </p>
-          <p>
-            Nothing here is capped. Above 100,000 routes, Find asks you to confirm first; above 500,000 it asks twice.
-            The count and estimate below update as you type, so check them before you press Find.
-          </p>
-          <!-- How the work is split: explanation, so it sits here with the rest (it was between the
-               estimate and Find). -->
-          <p class="pt-2 font-bold text-slate-800">How the work is split</p>
-          <p>
-            <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
-            starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way, because
-            the expensive unit is the <span class="font-semibold">ascension</span>, not the route. Two routes that share their
-            first three stops share those three ascensions' simulations exactly.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800"
-              >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
-            >
-            (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-            prefix, so each worker gets a family of related routes instead of a random handful, and its memo pays off.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Each worker simulates ascensions and remembers them.</span> An ascension is a full
-            farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is
-            where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new ascensions, which
-            is why the real cost lands well under the estimate.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
-            reports after every route it finishes, so the bar moves steadily and you can tell a dead worker from one
-            that is still thinking. The s/route figure under the bar is measured on this machine, not carried over from
-            another one.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-            first, so on a space with long routes "Stopping…" can sit for a minute or two. Nothing is lost: everything
-            priced so far stays, and the best of it is your answer.
-          </p>
-        </div>
-      </details>
+      <!-- The site's tabs pick the goal (Fastest route / Highest TE by a date): the `goal` prop. -->
+      <!-- Its fold on how the Full sweep works and what it costs is inside Custom's one fold now, "How Custom works" (ExhaustivePromise.vue
+           with CustomHowItWorks.vue, FastestRoute.vue; UX fluff review 2, 5 Nov 2026, item C-pre2). -->
 
       <!--
         An interrupted run, found on load. Above everything, because it is time-sensitive in a way
@@ -298,6 +242,7 @@
         v-if="goal === 'fastest' && store.crashedRun && !store.isRunning && queueAt < 0"
         :title="store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found'"
         :elsewhere="store.runElsewhere.sweep"
+        :run-key="store.crashedRun.updatedAt"
         :carry-label="
           store.crashedQueue
             ? `Carry on the queue (box ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
@@ -308,7 +253,7 @@
       >
         <p>
           <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
-          <template v-else>A run on this machine stopped without finishing.</template>
+          <template v-else>A run here stopped without finishing.</template>
           <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
             <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> routes are
             already priced and will be replayed instead of simulated again.
@@ -327,7 +272,7 @@
             >), so you don't have to set them up again.
           </template>
           <template v-if="store.planStartRestoreNote(store.crashedRun.fingerprint)">
-            Carrying on puts the plan start back to
+            Carrying on puts the route start back to
             <span class="font-bold">{{ store.planStartRestoreNote(store.crashedRun.fingerprint) }}</span
             >, the time it was priced from.
           </template>
@@ -352,41 +297,35 @@
       <template v-else>
         <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
         <slot name="mode" />
-        <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
-             leave it out (`hideRoutes`). -->
-        <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
+        <!-- The space. These numbers are the whole definition of the search. -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+          <h3 class="text-slate-600 label">The boxes to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
+                <span class="text-slate-600 label">Final target TE</span>
                 <HelpTip
                   >The TE every route ends at. It's added to the end of each route automatically, so it never goes in
-                  the bands below.</HelpTip
+                  the ranges below.</HelpTip
                 >
               </span>
-              <input
-                v-model.number="store.finalTE"
-                type="number"
-                min="1"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
+              <!-- The store's one rule, on Enter or leaving the box (FinalTargetInput.vue, 13 Nov 2026). -->
+              <FinalTargetInput input-class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50" />
             </label>
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
+                <span class="text-slate-600 label">Your TE now</span>
                 <HelpTip
-                  >Read from your backup, not editable here. It is the floor for every stop in the bands.</HelpTip
+                  >Read from your save, not editable here. It is the floor for every stop in the ranges.</HelpTip
                 >
               </span>
               <input
                 :value="store.currentTE"
                 type="number"
                 disabled
-                class="w-full rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-500"
+                class="w-full rounded-lg border-slate-200 bg-slate-50 text-body font-bold text-slate-600"
               />
             </label>
           </div>
@@ -394,17 +333,19 @@
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
             <label class="space-y-1 block">
               <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
-              <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
+              <span v-if="!sweepRequest" class="block text-slate-600 label">
                 Box 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Bands, one per stop
+                <span class="text-slate-600 label">
+                  Ranges, one per stop
                 </span>
                 <HelpTip>
                   Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
                   the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
-                  and 290, then the target. Bands may overlap; routes still have to increase.
+                  and 290, then the target. Ranges may overlap; routes still have to increase. The ascension count includes
+                  the final target, so 4 ranges is 5 ascensions. Values at or below your current TE, and at or above the
+                  target, are dropped: neither is an ascension you can perform.
                 </HelpTip>
               </span>
               <input
@@ -412,11 +353,11 @@
                 type="text"
                 :disabled="store.isRunning"
                 placeholder="185-200:5; 210-240:10; 250-290:20"
-                class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
               />
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
-                  class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                  class="flex items-center gap-1.5 text-slate-600 label"
                 >
                   Ascensions
                   <input
@@ -425,11 +366,11 @@
                     :min="suggestRange[0]"
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
-                    class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    class="w-16 rounded-md border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
                     @input="markAscTouched"
                   />
                 </label>
-                <span v-if="chain1FromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                <span v-if="chain1FromInstant" class="text-small text-slate-600" data-testid="asc-follow-hint"
                   >(from the instant answer)</span
                 >
                 <SpaceSliders
@@ -444,25 +385,19 @@
                 <button
                   type="button"
                   :disabled="store.isRunning || !suggestion"
-                  class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+                  class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
                   @click="applySuggestion"
                 >
-                  Suggest a space
+                  Suggest boxes<template v-if="suggestion">{{ ' ' }}({{ chainsTimeLabel(suggestion.chains) }})</template>
                 </button>
+                <!-- What Suggest would fill in is in its tip, the time on the button (UX fluff review 2, 5 Nov 2026, item
+                     C-pre3: a line under every box). DRAFT (Words). -->
                 <HelpTip>
-                  Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
-                  ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
-                  no measurement is involved. Above that, it uses where near-best routes have actually landed across
-                  this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
-                  the bands. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
-                  covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
-                  point you can edit.
-                </HelpTip>
-                <span v-if="suggestion" class="text-[10px] text-slate-500">
+                  <template v-if="suggestion">
                   Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'route') }},
                   about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
-                    <span class="font-black text-emerald-700">complete sweep</span>
+                    <span class="font-bold text-emerald-700">complete sweep</span>
                     {{
                       suggestion.exact
                         ? 'of every reachable TE, so the run proves the optimum'
@@ -479,9 +414,16 @@
                   </template>
                   <template v-else>
                     measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ plural(suggestion.accounts, 'account') }}
-                  </template>
-                </span>
-                <span v-else class="text-[10px] text-amber-700">
+                  </template>{{ '. ' }}</template
+                  >Fills the boxes to the size set beside it. When the whole reachable range fits (at two
+                  ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
+                  no measurement is involved. Above that, it uses where near-best routes have actually landed across
+                  this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
+                  the ranges. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
+                  covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
+                  point you can edit.
+                </HelpTip>
+                <span v-if="!suggestion" class="text-small text-amber-700">
                   No suggestion for this target or ascension count.
                 </span>
                 <KeptBoxNote
@@ -492,17 +434,17 @@
                 />
               </div>
 
-              <span class="block text-[10px] text-slate-400">
+              <span class="block text-small text-slate-600">
                 <template v-if="bands.length">
-                  {{ plural(bands.length, 'band') }} → {{ plural(bands.length + 1, 'ascension') }} ·
+                  {{ plural(bands.length, 'range') }} → {{ plural(bands.length + 1, 'ascension') }} ·
                   {{ bands.map(b => b.length).join(' × ') }} values
                 </template>
                 <template v-else>Nothing readable yet.</template>
               </span>
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
                    186, 191... and never 227, so a faster Smart search result between grid points is no surprise. -->
-              <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
-                <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
+              <p v-if="!plannedGridComplete && gridExample" class="text-body text-slate-600">
+                <span class="font-bold text-slate-800">These boxes try {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a route between grid points can be faster.
               </p>
@@ -513,22 +455,22 @@
                 :disabled="store.isRunning"
                 @use="t => (bandsText = t)"
               />
-              <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
+              <!-- The box only chooses what Suggest boxes fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
               <p
                 v-if="ascMismatch"
-                class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
+                class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body font-bold text-rose-800"
               >
-                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
-                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
-                a space to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
+                Your ranges make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
+                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest boxes fills in: press Suggest
+                boxes to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
                 {{ bands.length + 1 }}.
               </p>
             </label>
 
             <!--
-              More chains for the same click: each its own space and ascension count, run one after
+              More chains for the same click: each its own boxes and ascension count, run one after
               another. Short ones (1 or 2 ascensions) cost little alone; queued behind the main run
               they need no second visit.
             -->
@@ -557,25 +499,29 @@
               @use-sliders="suggestExtra"
             >
               <template #row-after="{ row, k }">
-                <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
-                  Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
-                  {{ chainsTimeLabel(extraSugs[k]!.chains)
-                  }}<template v-if="extraCoarse(k)"
-                    >. {{ COARSE_SUGGESTION_NOTE }}</template
+                <!-- Behind a tip, as Box 1's (UX fluff review 2, item C-pre3), its time beside it. DRAFT (Words). -->
+                <span v-if="row.asc >= 2 && extraSugs[k]" class="inline-flex items-center gap-1.5 text-small text-slate-600">
+                  Suggest: about {{ chainsTimeLabel(extraSugs[k]!.chains) }}
+                  <HelpTip
+                    >Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
+                    {{ chainsTimeLabel(extraSugs[k]!.chains)
+                    }}<template v-if="extraCoarse(k)"
+                      >. {{ COARSE_SUGGESTION_NOTE }}</template
+                    ></HelpTip
                   >
                 </span>
               </template>
               <template #footer>
-                <span v-if="extraChains.length" class="text-[11px] text-slate-500">
+                <span v-if="extraChains.length" class="text-body text-slate-600">
                   One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} boxes, one
-                  after another. Each finished one is saved under Saved runs.
+                  after another. Each finished one is saved under Saved for later.
                 </span>
               </template>
             </RoutesToTry>
 
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <span class="text-small font-bold text-slate-600">
                   Keep stops at least this many TE apart
                 </span>
                 <HelpTip>
@@ -590,9 +536,9 @@
                 type="number"
                 min="0"
                 :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
-              <span class="block text-[10px] text-slate-500">
+              <span class="block text-small text-slate-600">
                 {{
                   minGap > 0
                     ? `e.g. after ascending at 200, the next stop is ${200 + minGap} or higher. 0 = no limit.`
@@ -601,17 +547,11 @@
               </span>
             </label>
 
-            <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
-              The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
-              reachable. That's still a stronger claim than {{ NAMES.smartFirst }} makes, which homes in rather than
-              trying everything.
-            </p>
+            <!-- The amber line on what the winner is the best of is gone: the lead says it (UX fluff review 2, 5 Nov 2026,
+                 item C-pre5). -->
           </div>
 
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            The ascension count includes the final target, so 4 bands is 5 ascensions. Values at or below your current
-            TE, and at or above the target, are dropped: neither is an ascension you can perform.
-          </p>
+          <!-- The ascension-count rule is in the Ranges tip (UX fluff review 2, item C-pre6). -->
         </div>
 
         <!-- The number that should decide whether you press the button. -->
@@ -622,64 +562,69 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Values tried</span>
+                <span class="text-slate-600 label">Values tried</span>
                 <HelpTip
-                  >Stop values across all the bands, after anything outside (your TE, target) is dropped.</HelpTip
+                  >Stop values across all the ranges, after anything outside (your TE, target) is dropped.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ poolSize }}</div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes it will run</span>
+                <span class="text-slate-600 label">Routes it will run</span>
                 <HelpTip
-                  >Every route through the bands that can actually be played: each stop above the one before it (and at
+                  >Every route through the ranges that can actually be played: each stop above the one before it (and at
                   least the minimum gap above it), with the target added at the end. Combinations that go down, stand
                   still, or fall outside your TE and the target can't be played, so they aren't counted or run. It's
                   counted, never built as a list: at small steps the list wouldn't fit in memory, and this number warns
                   you before that happens.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+              <div class="text-title font-bold tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
                 {{ chainCountLabel }}
               </div>
               <!-- Only the playable ones (the user, 1 Oct: "we are running the feasible total chains... however
                    the lay user may not know that"). -->
-              <div v-if="runChainsNote" class="text-[10px] text-slate-500 leading-snug">{{ runChainsNote }}</div>
+              <div v-if="runChainsNote" class="text-small text-slate-600">{{ runChainsNote }}</div>
               <div
                 v-else-if="!runLeft && unplayable > 0 && totalChains === chainCount"
-                class="text-[10px] text-slate-500 leading-snug"
+                class="text-small text-slate-600"
               >
-                playable, of {{ combinations.toLocaleString() }} the bands could make
+                playable, of {{ combinations.toLocaleString() }} the ranges could make
               </div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. time</span>
+                <span class="text-small font-bold text-slate-600">Estimated time</span>
                 <HelpTip
-                  >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
+                  >Routes × assumed cost ÷ workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
                   prefix sharing means most routes cost far less than a full simulation. As a guide from players' runs:
                   about 1 minute per 70 routes on an 8-core computer, per 120 on 16. A hidden tab runs several times
                   slower.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
-                {{ estimateLabel }}
+              <div class="text-title font-bold tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+                {{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+              >{{ ' ' }}(measuring<AnimatedDots />)</template
+            >
               </div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
+                <span class="text-slate-600 label">Assumed cost</span>
                 <HelpTip
                   >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
-                  press "Benchmark my PC" below, which prices that first chunk right away instead of waiting for a real
-                  run.</HelpTip
+                  press "Benchmark my computer" below, which prices that first chunk right away instead of waiting for a real
+                  run. The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
+                  {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.<template v-if="!measuredCost"
+                    >{{ ' ' }}Press Benchmark my computer for a number from your own computer.</template
+                  ></HelpTip
                 >
               </div>
               <div
-                class="text-lg font-black tabular-nums"
+                class="text-title font-bold tabular-nums"
                 :class="{
                   'text-emerald-700': store.rateSource === 'live',
                   'text-indigo-700': store.rateSource === 'benchmark',
@@ -695,32 +640,33 @@
             <button
               type="button"
               :disabled="store.isRunning || store.benchmarking || !chainCount"
-              class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
-              {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
+              <template v-if="store.benchmarking">Benchmarking<AnimatedDots /></template
+              ><template v-else>{{ store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my computer' }}</template>
             </button>
-            <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
+            <span v-if="store.benchmarking" class="text-body text-slate-600">
               Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
               as a real run's opening chunk.
             </span>
-            <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
+            <span v-else-if="store.benchmarkedAt" class="text-body text-slate-600">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
               {{ plural(store.benchmarkChainCount, 'route') }} · {{ agoLabel(store.benchmarkedAt) }}
             </span>
           </div>
-          <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
+          <p v-if="store.benchmarkError" class="text-body font-bold text-red-700">{{ store.benchmarkError }}</p>
 
-          <p v-if="coverageBefore" class="text-[11px] font-semibold text-slate-700 leading-relaxed">
+          <p v-if="coverageBefore" class="text-body font-bold text-slate-700">
             {{ coverageBefore }}
             <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
           </p>
-          <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
+          <p class="text-body" :class="tooBig ? 'text-red-800' : 'text-slate-600'">
             <template v-if="!poolSize">
-              The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
+              The ranges are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
             <template v-else-if="!chainCount">
-              No routes: no way through these bands goes up at every stop{{
+              No routes: no way through these ranges goes up at every stop{{
                 minGap > 0 ? ` by at least ${minGap} TE` : ''
               }}.
             </template>
@@ -729,29 +675,25 @@
               {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
               narrow the ascension range.
             </template>
-            <template v-else>
-              The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
-              {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
-              <template v-if="!measuredCost"
-                >Press Benchmark my PC above for a number from your own computer.</template
-              >
-              Leave the tab open: a closed tab stops the workers.
-            </template>
+            <!-- The safety clause only; the estimate's basis is in the Assumed cost tip (UX fluff review 2, item C-pre9). -->
+            <template v-else> Leave the tab open: a closed tab stops the workers. </template>
           </p>
           <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
           <BigBoxNote :note="bigBox" />
         </div>
 
         <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
-             already sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
+             already sends itself, so it gets the button alone (no send tick), labelled as the card at the top labels it. -->
         <RunControls
           long-run
+          :estimate-seconds="hours * 3600"
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
           v-model:note="store.runNote"
           kind="full"
           :player-id="playerId"
+          :share-shown-key="shareShownKey"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -764,12 +706,13 @@
           "
           :running="(store.isRunning && ownRun) || queueAt >= 0"
           :stopping="store.stopRequested || queueCancelled"
+          option="custom"
           :find-label="
             sweepRequest
               ? sweepConsent
                 ? 'Start this sweep'
                 : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
-              : 'Find'
+              : ''
           "
           running-word="Pricing every route"
           :show-submit="!sweepRequest && !!store.submitUrl"
@@ -782,6 +725,7 @@
             ok: submitOk,
             partial: submitPartial,
             nameToClaim,
+            offerName,
             claiming,
             pendingTable: store.pendingTable?.source === 'fastest',
             retrying: retryingTable,
@@ -802,16 +746,16 @@
             >
               <button
                 type="button"
-                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800"
                 @click="resumeCrashed"
               >
                 {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
               </button>
-              <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
+              <span v-if="store.crashedQueue" class="text-body text-amber-900">
                 Box {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
                 settings are put back for you.
               </span>
-              <span v-else class="text-[11px] text-amber-900">
+              <span v-else class="text-body text-amber-900">
                 {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} routes already priced; its settings are
                 put back for you.
               </span>
@@ -825,7 +769,7 @@
               data-run-progress="full"
               class="scroll-mt-24"
             >
-              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold tabular-nums">
+              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-600 font-bold tabular-nums">
                 Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
               </p>
             </div>
@@ -835,27 +779,41 @@
               v-if="queueAt >= 0 || queueResults.length"
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
-              <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <p class="text-small font-bold text-slate-600">
                 <template v-if="queueAt >= 0">Running box {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
                 <template v-else>All boxes from the last click</template>
               </p>
               <ResultTable
                 v-if="queueResults.length"
-                :columns="['Box', 'Best found', 'Days', 'Finishes']"
+                :columns="['Box', 'Best found', 'Days', 'Finishes', '']"
                 :rows="queueResults"
                 :row-key="q => q.label"
               >
                 <template #default="{ row: q }">
-                  <td class="pr-4 py-1 text-slate-500">
+                  <td class="pr-4 py-1 text-slate-600">
                     {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
                   </td>
                   <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
                   <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
                   <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
+                  <td class="pr-4 py-1">
+                    <!-- Follow this route (Jordan, 23 Oct 2026): any box's best, as the card's. -->
+                    <FollowButton
+                      v-if="rowFollow && q.finish && q.chain[q.chain.length - 1] === store.finalTE"
+                      class="min-h-[44px] sm:min-h-0"
+                      :chain="q.chain"
+                      :goal-key="rowFollow.goalKey"
+                      from="saved"
+                      :source="rowFollow.source"
+                      :finish="q.finish"
+                      :end-t-e="store.finalTE"
+                      :plan-start="rowFollow.planStart"
+                    />
+                  </td>
                 </template>
               </ResultTable>
-              <p class="text-[10px] text-slate-500">
-                Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
+              <p class="text-small text-slate-600">
+                Each is saved under Saved for later, so you can open any of them again. Compare them by finish date.
               </p>
             </div>
           </template>
@@ -878,17 +836,17 @@
               v-if="store.noFeasibleChain && !store.error"
               class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
-              <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
-                No route in this space finishes
+              <p class="text-small font-bold text-rose-800">
+                No route in these boxes finishes
               </p>
-              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 Every route was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
                 put a date on. That is a result, not a crash, so there is nothing to save or submit.
               </p>
-              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
                 and vehicles the plan is waiting on, so the very first ascension stalls and every ascension after it inherits the
-                stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
+                stall. Different boxes won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
                 necklace and their stones) will. If you think the planner has this wrong, download the diagnostics below
                 and send them in.
               </p>
@@ -896,7 +854,7 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
-              :priced-with="pricedWith"
+              :meta="runMeta"
               v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
@@ -905,75 +863,110 @@
               :running="store.isRunning"
               :claim="store.stoppedEarly ? '' : resultClaim"
               :busy="store.busy"
+              :follow="customFollow"
               can-save
               :saving="saving"
+              :saved="store.currentRunSaved"
               @build="buildPlan"
+              :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
+              :xlsx="store.xlsxOffered('fastest')"
+              @xlsx="downloadXlsx('fastest')"
+              diagnostics
+              @diagnostics="downloadDiagnostics"
               @save="save"
               :last-run="lastRunLabel"
             >
               <RouteExtras
                 v-if="!store.isRunning"
+                :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
-                :reach-at="store.planStart + store.bestDays * 86400"
+                :reach-at="store.resultsPlanStart() + store.bestDays * 86400"
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
-              <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
+              <!-- With awake hours, a route carrying on the build-up: its finish is a best case (spec-nightbuy-results). -->
+              <ResultNightBuyNote
+                v-if="!store.isRunning"
+                :hours="store.runSettingsUsed?.availability ?? null"
+                :build-up-clause="store.buildUpClause"
+                :hold-shifts="store.runSettingsUsed?.deferShifts ?? true"
+              />
+              <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
+              <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
+              <p v-if="!store.isRunning && resultExplain" class="text-body text-emerald-900/80">
                 {{ resultExplain }}
               </p>
-              <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
+              <p v-if="coverageAfter && !edgeBox" class="text-body text-emerald-900/80">
                 {{ coverageAfter }}
                 <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
               </p>
-              <EdgeWarning
-                v-if="edges.length"
-                class="mt-2"
-                :lines="edges.map(edgeWords)"
-                :can-widen="!!edgeWiden"
-                :disabled="store.busy || queueAt >= 0"
-                @widen="widenAndRun"
+              <!-- The edge warnings in one amber box with one heading (UX fluff review 2, 5 Nov 2026, item C0b): "This
+                   sweep only tried N ascensions" joins the heading; both actions stay. -->
+              <div
+                v-if="edgeBox"
+                class="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900"
+                data-test="edge-box"
               >
-                <template v-if="edgeWiden">
-                  The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
-                  setup hasn't changed.
-                </template>
-              </EdgeWarning>
-              <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
-              <LongerRouteHint
-                v-if="goal === 'fastest'"
-                class="mt-2"
-                mode="chain"
-                :running="store.isRunning || queueAt >= 0"
-                :disabled="store.busy || queueAt >= 0"
-                :can-add="!sweepRequest"
-                :on-add="addChainOfCount"
-                @check="checkRouteExactly"
-              />
-              <p class="text-[10px] text-emerald-900/60">
-                Compare runs by finish date. Two runs started hours apart have different plan starts, so their day
-                counts don't measure the same thing, but the dates they land on do.
-              </p>
+                <p v-if="edgeBox === 'edge'" class="font-bold">
+                  Your boxes may be too small.<template v-if="coverageAfter">{{ ' ' }}{{ coverageAfter }}</template>
+                </p>
+                <p v-if="suggestedCountNote">{{ suggestedCountNote }}</p>
+                <!-- The wider space's size on the button, as the mock (item C0b); no sentence under it. -->
+                <EdgeWarning
+                  v-if="edges.length"
+                  bare
+                  :lines="edges.map(edgeWords)"
+                  :can-widen="!!edgeWiden"
+                  :disabled="store.busy || queueAt >= 0"
+                  :routes="edgeWiden ? plural(edgeWiden.chains, 'route') : ''"
+                  @widen="widenAndRun"
+                />
+                <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+                <LongerRouteHint
+                  v-if="goal === 'fastest'"
+                  bare
+                  mode="chain"
+                  :running="store.isRunning || queueAt >= 0"
+                  :disabled="store.busy || queueAt >= 0"
+                  :can-add="!sweepRequest"
+                  :on-add="addChainOfCount"
+                  @check="checkRouteExactly"
+                />
+              </div>
+              <!-- Ascension 1 carrying on the build-up is a clause in the First ascension line (store `buildUpClause`,
+                   item C3); the other leg-1 notes are advice and keep the amber. -->
               <p
                 v-if="store.continueWarning"
-                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-900"
               >
                 {{ store.continueWarning }}
               </p>
               <ResultHealth class="mt-2" :issues="store.resultContradictions" />
-              <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
-                You stopped it early, so this is the best of what was priced, not the optimum of the space.
+              <p v-if="store.stoppedEarly" class="text-body text-emerald-900/70 pt-1 max-w-prose">
+                You stopped it early, so this is the best of what was priced, not the best in the boxes.
               </p>
-              <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
-                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
-                next one starts after it.
+              <p v-if="store.timeOff.length && !store.isRunning" class="text-body text-emerald-900/80 max-w-prose">
+                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts
+                (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
             </RouteResultCard>
+            <!-- More than the single best (TopRoutes.vue, item 12): the best 5 priced and the best per ascension count,
+                 closed by default; Simulate goes through the card's own `buildPlan`. -->
+            <TopRoutes
+              v-if="ownRun && !store.isRunning && store.bestDays > 0 && store.pricedCount > 1"
+              goal="fastest"
+              :routes="() => store.topPricedRoutes"
+              :zone="autoPlannerStore.timezone || plannerTzFallback"
+              :follow="customFollow"
+              :busy="store.busy"
+              @simulate="buildPlan"
+            />
           </template>
           <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
              player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
-          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-body">
             <button
               type="button"
               class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -982,9 +975,9 @@
             >
               Check start times for this route</button
             >
-            <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
+            <span class="text-slate-600"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
-          <!-- The run's charts are on My runs › Your latest run (LatestRunView.vue; moved off this screen,
+          <!-- The run's charts are on My Runs › Your latest run (LatestRunView.vue; moved off this screen,
                15 Oct 2026): "Dig deeper into your plan ›". -->
           <DigDeeperLink
             v-if="ownRun && store.pricedCount"
@@ -992,17 +985,16 @@
           />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
-            <SavedRuns :player-id="playerId" can-resume />
+            <SavedRuns :player-id="playerId" can-resume heading="Saved for later" />
 
-            <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
-               report what went in. -->
-            <CsvCard v-if="ownRun && (store.pricedCount || store.noFeasibleChain)" :csv="store.csvRows > 0" diagnostics>
-              <template #csv>
-                <span class="text-[11px] text-slate-500">
-                  {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
-                </span>
-              </template>
-            </CsvCard>
+            <!-- The CSV and the diagnostics are under the card's Download ▾ (UX fluff review 2, item C8: this row was a
+                 second copy of the card's CSV). Here: a failed download's message and the big CSV's status, and the
+                 diagnostics for a run with no answer (no card), exactly when someone wants to report what went in. -->
+            <CsvCard
+              v-if="ownRun && (store.pricedCount || store.noFeasibleChain)"
+              :csv="store.isRunning && store.csvRows > 0"
+              :diagnostics="!(store.bestDays > 0)"
+            />
           </template>
           <template #share>
             <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
@@ -1015,7 +1007,6 @@
             />
             <ShareResult
               v-else-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
-              compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"
@@ -1023,28 +1014,19 @@
               :note="store.runNoteUsed ?? ''"
               @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
               :nickname-max="NICKNAME_MAX"
-              :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per leg; routes past the memory budget export with their per-leg cells blank)`"
+              :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per ascension; routes past the memory budget export with their per-ascension cells blank)`"
               @nickname-typed="nicknameTouched = true"
             >
+              <!-- One sentence before the consent (UX fluff review 2, 5 Nov 2026, item C9/S1; DRAFT, Words); what the random
+                   code does is under "Show exactly what is sent" (item C10/S2, word for word). -->
               <template #intro>
-                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-                  An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
-                  a search result. It is sent with the space it covered and what it found there (the runners-up, the
-                  best route at each ascension count, and the spread), so a reader can tell a real find from a flat
-                  neighbourhood without downloading the CSV. A run opened from Saved runs above is sent without a run
-                  cost, because the time it took wasn't this machine's.
-                </p>
-                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-                  The board uses the random code so that a run landing on the flagged board shows to you as yours and to
-                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
-                  you sent anonymously, and your own later runs can replace your older plans in the race (nobody else's
-                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
-                  to you. Your best three plans already on the board go named with a named send and anonymous with an
-                  anonymous one, so a re-check never ties the two together.
+                <p class="text-body text-indigo-900/80 max-w-prose">
+                  Sends the boxes it covered, its best route and the runners-up, so readers can tell a real find from a
+                  flat neighbourhood.
                 </p>
               </template>
               <template #opted>
-                <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+                <label class="flex items-start gap-3 cursor-pointer text-body text-indigo-900/80">
                   <input
                     v-model="stampName"
                     type="checkbox"
@@ -1052,24 +1034,26 @@
                     class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
                   />
                   <span>
-                    <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each
-                    space you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
-                    tell apart at a glance when several are on the board.
+                    <span class="font-bold">Add the time to the name.</span> Optional. The Leaderboard already keeps each
+                    set of boxes you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
+                    tell apart at a glance when several are on the Leaderboard.
                   </span>
                 </label>
-                <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
+                <p v-if="!anonymous" class="text-body text-indigo-900/70">
                   Submitting as
-                  <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
+                  <span class="tabular-nums font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
                 </p>
               </template>
 
               <BoardSubmitButtons
                 :opt-in="optIn"
-                :submit-url="store.submitUrl"
+                :submit-url="store.sendUrl"
                 :name-to-claim="nameToClaim"
+                :offer-name="offerName"
                 :claiming="claiming"
                 :sending="submitting"
                 :already-submitted="store.alreadySubmitted"
+                :on-board-line="fastestOnBoardLine"
                 :message="submitMessage"
                 :ok="submitOk"
                 :partial="submitPartial"
@@ -1080,7 +1064,16 @@
                 @submit="submit()"
                 @save="downloadSubmission"
                 @retry="retryTable"
-              />
+              >
+                <template #payload-note>
+                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
+                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
+                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
+                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
+                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
+                  anonymous one, so a re-check never ties the two together.
+                </template>
+              </BoardSubmitButtons>
             </ShareResult>
           </template>
         </RunResults>
@@ -1090,6 +1083,7 @@
 </template>
 
 <script lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { plural } from '@/lib/format';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { ref as keptRef } from 'vue';
@@ -1100,7 +1094,7 @@ import { ref as keptRef } from 'vue';
  * fills them in when it opens the screen, until its sweep starts.
  */
 const kept = {
-  // Empty until the player's TE is known: the default is Suggest a space for THIS player (it used to
+  // Empty until the player's TE is known: the default is Suggest boxes for THIS player (it used to
   // be a fixed 185-360 that suited one account and was nonsense for a 130 or a 250).
   bandsText: keptRef(''),
   /** The text the panel filled in by itself (the default space). A box that still holds it is the
@@ -1111,7 +1105,7 @@ const kept = {
   /** The Ascensions box was changed by hand: the default space stops following the instant answer's
    *  count (lib/limitsFollow.ts's rule for the Limits box, here for chain 1's one count). */
   ascTouched: keptRef(false),
-  /** Chain 1's two Suggest a space sliders; null until moved (then the space is sized to the default chain budget). */
+  /** Chain 1's two Suggest boxes sliders; null until moved (then the space is sized to the default chain budget). */
   suggestWidthIx: keptRef<number | null>(null),
   suggestStepIx: keptRef<number | null>(null),
   /** The bands text the panel last wrote into Chain 1's box (default, Suggest, or a slider). A box that
@@ -1124,9 +1118,15 @@ const kept = {
 </script>
 
 <script setup lang="ts">
-import { pricedWithLine } from '@/lib/pricedWith';
+import FinalTargetInput from './FinalTargetInput.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import { pricedWithShort } from '@/lib/pricedWithWords';
+import { longerRouteHints } from '@/lib/longerRouteHint';
+import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { runMetaLine } from '@/lib/lastRunLine';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -1144,7 +1144,9 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import TopRoutes from './TopRoutes.vue';
 import RouteExtras from './RouteExtras.vue';
+import SoulEggWarning from '../SoulEggWarning.vue';
 import { queueCountLine } from '@/lib/queueCount';
 import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
@@ -1163,8 +1165,8 @@ import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
-import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
+import ResultNightBuyNote from './ResultNightBuyNote.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
 import { showDateTime } from '@/lib/displayTime';
@@ -1184,24 +1186,24 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
 import RunResults from './RunResults.vue';
-import ShareNameChoice from './ShareNameChoice.vue';
+import SharingSummary from '../SharingSummary.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
 import DigDeeperLink from './DigDeeperLink.vue';
+import FollowButton from '../FollowButton.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
+import { foundLevel as levelOfRun } from '@/lib/searchPointer';
+import type { ResultFollow } from '@/lib/follow';
 import LongerRouteHint from './LongerRouteHint.vue';
 import ConsentBox from './ConsentBox.vue';
 import { agreeThisVisit, useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
-  /** Set by the site's tabs, which then own the choice: a change here asks them (update:goal). */
-  goal?: 'fastest' | 'deadline';
-  /** Leave out the space to search / The routes to try (a Simple mode that picks the routes itself). */
-  hideRoutes?: boolean;
-  /** Inside a box of the screen's own (FastestRoute.vue's Exhaustive box): no frame of its own. */
-  embedded?: boolean;
+  /** Set by the site's tabs, which own the choice: a change here asks them (update:goal). */
+  goal: 'fastest' | 'deadline';
 }>();
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
@@ -1216,7 +1218,7 @@ const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const ui = useUIStore();
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
-const { downloadCsv } = useRunDownloads(store);
+const { downloadCsv, downloadXlsx, downloadDiagnostics } = useRunDownloads(store);
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than
  *  refusing: the point of this page is that the decision is the operator's. */
@@ -1242,6 +1244,8 @@ const sweepRequest =
   typeof window === 'undefined' || props.goal === 'deadline' ? null : parseSweepRequest(window.location.search);
 /** "I understand ... sent to the board automatically": the account's `scienceSweep` consent. */
 const sweepConsent = useConsent('scienceSweep').agreed;
+/** The sweep card's sharing line, for Put my name on it on a sweep sent anonymously (SharingSummary.vue). */
+const sweepSharing = ref<InstanceType<typeof SharingSummary> | null>(null);
 if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
@@ -1264,7 +1268,7 @@ watch(
   { immediate: true }
 );
 // The tag holds only while the space is still the one the link asked for. Edit the bands (or press
-// Suggest a space) and it is somebody's own run, which must not count toward that preset's coverage;
+// Suggest boxes) and it is somebody's own run, which must not count toward that preset's coverage;
 // put them back and it is the preset again.
 watch([bandsText, minGap], ([text, gap]) => {
   if (!sweepRequest) return;
@@ -1294,7 +1298,7 @@ const suggestBudget = SUGGESTION_CHAIN_BUDGET;
 const chainsTimeLabel = (chains: number) =>
   formatHours(sweepSeconds(chains, store.workerBudget, workerSeconds.value) / 3600);
 /**
- * Precompute: Suggest a space for `n` ascensions. A complete sweep still wins (it proves the optimum)
+ * Precompute: Suggest boxes for `n` ascensions. A complete sweep still wins (it proves the optimum)
  * unless the sliders were moved; otherwise the space is centred on the instant answer's route for that
  * count (`store.instantRoutes`) and sized by `deadlineSuggest.ts spaceBySliders`: to `maxChains` while
  * the sliders are unmoved (`routeSpace`), to the sliders once they are. With no instant route, unmoved
@@ -1383,7 +1387,7 @@ function applySuggestion(): void {
 
 /**
  * A suggested space only covers its own ascension count, and the best count is often one off. So
- * Suggest a space also queues the count one lower and one higher as added chains (the three run
+ * Suggest boxes also queues the count one lower and one higher as added chains (the three run
  * one after another from one click), each at half the size so three chains cost about twice one,
  * not three times. They are the player's to remove, and any they typed themselves stay.
  */
@@ -1405,7 +1409,7 @@ function queueNeighbours(asc: number): void {
 }
 
 /**
- * The default space, for a player who has not typed one: Suggest a space for their TE, with the
+ * The default space, for a player who has not typed one: Suggest boxes for their TE, with the
  * counts either side queued. Tries the usual six ascensions and works down to the nearest count
  * the suggester can speak to. Leaves alone a box the player has touched.
  */
@@ -1483,6 +1487,8 @@ const {
   anonymous,
   nickname,
   nicknameTouched,
+  carryName,
+  dropCarried,
   plainName,
   effectiveNickname,
   submitMessage,
@@ -1491,12 +1497,14 @@ const {
   retryingTable,
   retryTable,
   nameToClaim,
+  offerName,
   claiming,
   claim,
   submitting,
   submit,
   payloadPreview,
   downloadSubmission,
+  fastestOnBoardLine,
 } = useFastestShare(store, () => props.playerId, stampName);
 
 /** Values across all the bands (the "Values tried" figure). */
@@ -1529,14 +1537,14 @@ const resultClaim = computed(() => {
   const sp = store.searchSpace;
   if (!sp) return 'best found';
   const complete = gridIsComplete(sp.bands, sp.range?.step);
-  if (complete) return 'the best of every route in this space';
+  if (complete) return 'the best of every route in these boxes';
   return `best on this grid (${gridStepLabel(sp.bands, sp.range?.step)})`;
 });
 const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every route on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Nearby routes can land on something faster in between.`;
+  return `Every route on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Fast and Exact can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */
@@ -1608,19 +1616,28 @@ async function widenAndRun(): Promise<void> {
   await nextTick();
   autoSubmitArmed.value = false;
   autoSubmitted.value = false;
-  await store.startExhaustive(
-    props.playerId,
-    {
-      lo: 0,
-      hi: 0,
-      step: 1,
-      minAsc: w.bands.length + 1,
-      maxAsc: w.bands.length + 1,
-      minGap: sp.minGap,
-      bands: w.bands,
-    },
-    { recheck: false }
-  );
+  // The bookkeeping a fresh click does (U3.3, 22 Nov 2026), kept around the single-box call: start() would run the whole queue.
+  dropCarried();
+  store.lastAutoSend = null;
+  store.beginBestSoFar('fastest', null);
+  try {
+    await store.startExhaustive(
+      props.playerId,
+      {
+        lo: 0,
+        hi: 0,
+        step: 1,
+        minAsc: w.bands.length + 1,
+        maxAsc: w.bands.length + 1,
+        minGap: sp.minGap,
+        bands: w.bands,
+      },
+      { recheck: false }
+    );
+    if (await owesResult()) await sendFinished();
+  } finally {
+    store.endBestSoFar();
+  }
 }
 
 const chainCount = computed(() =>
@@ -1672,9 +1689,9 @@ function extraProblem(k: number): string {
   const row = extraChains.value[k];
   if (!row || row.asc <= 1) return '';
   const b = extraBands(k);
-  if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
-  if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
-  return extraCount(k) ? '' : 'No route in these bands goes up to the target.';
+  if (!b.length) return 'Nothing readable yet: press Suggest boxes or type bands.';
+  if (b.length !== row.asc - 1) return `These ranges make ${b.length + 1} ascensions, not ${row.asc}.`;
+  return extraCount(k) ? '' : 'No route in these ranges goes up to the target.';
 }
 function extraSummary(k: number): string {
   const row = extraChains.value[k];
@@ -1754,17 +1771,17 @@ function addChain(): void {
 }
 /**
  * "A longer route might win" (LongerRouteHint.vue): add a chain with `n` ascensions, its box filled in
- * by Suggest a space (centred on the instant answer's route for that count when there is one). Adds
+ * by Suggest boxes (centred on the instant answer's route for that count when there is one). Adds
  * nothing when a row for that count is already queued with the suggested box; the player presses Find.
  */
 function addChainOfCount(n: number): string {
   const suggested = spaceFor(n, suggestBudget)?.text ?? '';
   const queued = extraChains.value.findIndex(r => r.asc === n && r.text.trim() === suggested);
-  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
+  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Run Custom to run it.`;
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Find to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The boxes to search. Press Run Custom to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {
@@ -1811,7 +1828,7 @@ const queueAt = computed({
 const pricedSoFar = computed(() => store.chainsDone + (store.isRunning ? store.batchDone : 0));
 
 /**
- * The finish INSTANT, not the duration. Durations from different plan starts are not comparable --
+ * The finish INSTANT, not the duration. Durations from different route starts are not comparable --
  * two runs started an hour apart produce day counts that cannot be ranked against each other -- and
  * the date is what a player actually plans around. The main panel has shown this all along; the
  * exhaustive panel printed days only, which is exactly the comparison people were getting wrong.
@@ -1819,15 +1836,7 @@ const pricedSoFar = computed(() => store.chainsDone + (store.isRunning ? store.b
 const endDate = computed(() => {
   if (!(store.bestDays > 0)) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date((store.planStart + store.bestDays * 86400) * 1000));
+  return formatMoment((store.resultsPlanStart() + store.bestDays * 86400) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 });
 /**
  * The rate this machine is actually managing, once it has managed anything. The 15 s assumption is
@@ -1872,14 +1881,16 @@ const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget,
  * "remaining", while the bar said something else again.
  */
 const runLeft = computed(() => (store.isRunning ? store.sweepLeft : null));
-const estimateLabel = computed(() => {
+/** The estimate's words, and where the moving dots go while the speed is still measured (spec-dots, 1 Nov 2026):
+ *  after "measuring" alone ('end'), or as " (measuring...)" after the time left ('paren'); never a typed "…". */
+const estimateLabel = computed<{ text: string; dots: 'end' | 'paren' | null }>(() => {
   const left = runLeft.value;
   if (left) {
-    if (left.seconds === null) return 'measuring…';
+    if (left.seconds === null) return { text: 'measuring', dots: 'end' };
     const words = formatTimeLeft(left.seconds);
-    return words ? `${words} left${left.measuring ? ' (measuring…)' : ''}` : 'almost done';
+    return words ? { text: `${words} left`, dots: left.measuring ? 'paren' : null } : { text: 'almost done', dots: null };
   }
-  return chainCount.value ? formatHours(hours.value) : '—';
+  return { text: chainCount.value ? formatHours(hours.value) : '—', dots: null };
 });
 const tooBig = computed(() => chainCount.value > 0 && hours.value > TOO_BIG_HOURS);
 /**
@@ -1956,6 +1967,11 @@ const autoSubmitted = ref(false);
 /** The result on screen went with its run (Find and submit, a sweep link, or a run that owed it): Share
  *  this result gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
 const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
+/** The kept result whose Share this result is on the page (store `safeResultKey`, the key a kept Fastest result
+ *  carries): the unsent box near Run leaves it out (UX fluff review 2, item S3); null while none is shown. */
+const shareShownKey = computed(() =>
+  ownRun.value && store.bestDays > 0 && !store.isRunning ? store.safeResultKey() : null
+);
 
 /** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);
@@ -1966,6 +1982,8 @@ async function start(andSubmit = false): Promise<void> {
   // Cancel starts nothing and leaves nothing behind (search/bigBox.ts, BigBoxConfirm.vue).
   if (!(await confirmBigBox(bigBoxInputFor(totalChains.value)))) return;
   findAndSubmit.value = andSubmit && optIn.value;
+  // A fresh run goes under the account's own choice, not the last carried-on run's name.
+  dropCarried();
   store.lastAutoSend = null;
   // The sweep link has done its job: later visits to this screen (and reloads) start from the
   // player's own settings, not the link's again.
@@ -1996,10 +2014,8 @@ async function owesResult(): Promise<boolean> {
   await store.bestSoFarSettled();
   // Not once the player withdrew (store `owedRow`).
   const owed = store.owedRow('fastest');
-  if (!agreed && owed) {
-    anonymous.value = !owed.nickname;
-    if (owed.nickname) nickname.value = owed.nickname;
-  }
+  // Under the name its best so far went with, on this screen only (never the account's choice).
+  if (!agreed && owed) carryName(owed.nickname ?? '');
   return agreed || !!owed;
 }
 
@@ -2068,10 +2084,8 @@ async function resumeQueue(q: SweepQueueRecord, next: number): Promise<void> {
   resuming.value = 'checkpoint';
   // Its recorded Find and submit holds unless the account's agreement was withdrawn since.
   findAndSubmit.value = q.submit && store.carriedYesHolds();
-  if (q.submit) {
-    anonymous.value = !q.name;
-    if (q.name) nickname.value = q.name;
-  }
+  // Its own name, on this screen only (never the account's choice).
+  if (q.submit) carryName(q.name ?? '');
   store.lastAutoSend = null;
   store.submitsWhenDone = findAndSubmit.value;
   store.beginBestSoFar('fastest', findAndSubmit.value ? { nickname: q.name ?? '' } : null);
@@ -2163,32 +2177,37 @@ onMounted(() => {
 });
 onUnmounted(() => ageTimer && clearInterval(ageTimer));
 
-const GOALS = [
-  { id: 'fastest', label: 'Fastest to a target' },
-  { id: 'deadline', label: 'Highest TE by a date' },
-] as const;
-/** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. With the
- *  site's tabs in charge (the `goal` prop), theirs is the answer and a switch here goes to them. */
-const ownGoal = ref<'fastest' | 'deadline'>(
-  typeof window !== 'undefined' &&
-    (/deadline/.test(window.location.hash) || new URLSearchParams(window.location.search).get('goal') === 'deadline')
-    ? 'deadline'
-    : 'fastest'
-);
 const goal = computed<'fastest' | 'deadline'>({
-  get: () => props.goal ?? ownGoal.value,
+  get: () => props.goal,
   set: g => {
-    ownGoal.value = g;
-    if (props.goal && props.goal !== g) emit('update:goal', g);
+    if (g !== props.goal) emit('update:goal', g);
   },
 });
 
 /** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
-function buildPlan(): void {
-  store.applyChain([...store.bestChain]);
+/** Simulate this route: the card's best, or a route from More routes (TopRoutes.vue). */
+function buildPlan(chain: readonly number[] = store.bestChain): void {
+  store.applyChain([...chain]);
   store.generateWhenPlannerOpens = true;
   ui.openPlannerRequested++;
 }
+
+/** The card's one meta line: "Custom, Nov 3 at 12:22 pm, on your save of Nov 3 at 11:19 am · awake hours 8 am to 11 pm,
+ *  9 no-prestige days" (lib/lastRunLine.ts `runMetaLine`; UX fluff review 2, items C1 and C4). The settings are the
+ *  run's own (store `runSettingsUsed`), never the live setup. */
+const runMeta = computed(() =>
+  store.chainResultAt && !store.isRunning
+    ? runMetaLine({
+        level: 'exhaustive',
+        at: store.chainResultAt,
+        saveAt: store.chainRunSaveAt,
+        loadedSaveAt: backupSecondsOf(useInitialStateStore().rawBackup),
+        zone: autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        now: Math.floor(Date.now() / 1000),
+        priced: store.runSettingsUsed ? pricedWithShort(store.runSettingsUsed) : '',
+      })
+    : ''
+);
 
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */
@@ -2198,6 +2217,30 @@ const lastRunLabel = computed(() => {
   return at
     ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
     : 'from an earlier visit';
+});
+/** "Follow this route" on the result card (RouteResultCard.vue): the finished result for this race, its level as the
+ *  source (Custom for this screen's own run). */
+/** The same for a row of the boxes' results (once the queue is done): the goal, source and route start. */
+const rowFollow = computed<Pick<ResultFollow, 'goalKey' | 'source' | 'planStart'> | null>(() =>
+  store.isRunning || queueAt.value >= 0
+    ? null
+    : {
+        goalKey: `fastest-${store.finalTE}`,
+        source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
+        planStart: store.planStartUsed || store.planStart,
+      }
+);
+const customFollow = computed<ResultFollow | null>(() => {
+  const chain = store.bestChain;
+  if (store.isRunning || !chain.length || !(store.bestDays > 0) || chain[chain.length - 1] !== store.finalTE) return null;
+  const start = store.planStartUsed || store.planStart;
+  return {
+    goalKey: `fastest-${store.finalTE}`,
+    source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
+    finish: start + store.bestDays * 86400,
+    endTE: store.finalTE,
+    planStart: start,
+  };
 });
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';
@@ -2214,11 +2257,12 @@ function agoLabel(ms: number): string {
   return `${Math.round(diffH / 24)} days ago`;
 }
 
-/** The result card's Save run (named later, or not, in Saved runs). */
-async function save(): Promise<void> {
+/** The result card's Save run, with the name typed beside it (CardSaveRow.vue; Saved for later's own Save this run
+ *  is gone, UX fluff review 2, item C7b). */
+async function save(name = ''): Promise<void> {
   saving.value = true;
   try {
-    await store.saveCurrentRun(props.playerId);
+    await store.saveCurrentRun(props.playerId, name);
   } finally {
     saving.value = false;
   }
@@ -2257,7 +2301,7 @@ const crashedQueueNote = computed(() => {
   const doneText = done ? ` ${done} finished ${done === 1 ? 'box is' : 'boxes are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
-  const head = `An Exhaustive run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
+  const head = `A Custom run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
     ? `${head} Carrying on finishes box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
     : `${head} That box finished; carrying on starts box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
@@ -2268,7 +2312,23 @@ const resuming = ref('');
 
 /** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
-/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
- *  settings are known (lib/pricedWith.ts). */
-const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
+/** The one amber box for the edges (item C0b): 'edge' when the best sits on a box's edge or on the most ascensions
+ *  searched (it gets the heading), 'hint' for the instant answer's faster route alone, '' for none. The same rule as
+ *  LongerRouteHint.vue's own list (lib/longerRouteHint.ts). */
+const instantSummary = useInstantSummaryStore();
+const edgeBox = computed<'edge' | 'hint' | ''>(() => {
+  if (store.isRunning || queueAt.value >= 0) return '';
+  const hints =
+    goal.value === 'fastest' && store.bestDays > 0 && store.bestChain.length
+      ? longerRouteHints({
+          bestChain: store.bestChain,
+          bestSeconds: store.bestDays * 86400,
+          searchedCounts: store.pricedCounts(),
+          instant: instantSummary.fastest,
+          run: null,
+        })
+      : [];
+  if (edges.value.length || hints.some(h => h.kind === 'edge')) return 'edge';
+  return hints.length ? 'hint' : '';
+});
 </script>

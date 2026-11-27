@@ -6,7 +6,7 @@
  * plan's own timezone -- "July 14" is the whole of Egg Day wherever the player is. What the chain
  * evaluator does with it is documented on `SearchInputs.timeOff`.
  */
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import type { TimeOffWindow } from './types';
 
 export interface TimeOffDates {

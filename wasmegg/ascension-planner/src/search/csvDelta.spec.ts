@@ -212,8 +212,8 @@ describe('why an upload failed (12 Oct 2026: a CORS block went unrecorded)', () 
     vi.useFakeTimers();
     try {
       const busy = (() => Promise.resolve(new Response('', { status: 503 }))) as typeof fetch;
-      expect(await settle(uploadDeltaHead(BASE, head, busy))).toEqual({ kind: 'failed', why: 'the board answered 503', status: 503 });
-      expect(await settle(uploadDelta(BASE, delta, busy))).toEqual({ kind: 'failed', why: 'the board answered 503', status: 503 });
+      expect(await settle(uploadDeltaHead(BASE, head, busy))).toEqual({ kind: 'failed', why: 'the Leaderboard answered 503', status: 503 });
+      expect(await settle(uploadDelta(BASE, delta, busy))).toEqual({ kind: 'failed', why: 'the Leaderboard answered 503', status: 503 });
     } finally {
       vi.useRealTimers();
     }

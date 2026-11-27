@@ -1,0 +1,106 @@
+/**
+ * The slim instant card's words (spec-slimcard; wireframes/instant-slim-v1, approved by Jordan 5 Nov 2026). DRAFT, for
+ * Words: the one line under the title (in place of the estimate line, "These are instant answers…", "Each prestige
+ * waits for your awake hours…" and "Your no-prestige days are kept…") and the First step line in the green box (with
+ * the awake-hours clause that was the HOURS_NOTE paragraph under it). Wording only: never a result code input.
+ */
+import { describe, expect, it } from 'vitest';
+import { FIRST_STEP_BUILDUP_MISSING, FIRST_STEP_HOURS, FIRST_STEP_LABEL, firstStepLine, firstStepShort, instantHeaderLine, noPrestigeDayCount, splitStepLead } from './instantWords';
+import { isWordingOnly } from './resultCodeHash';
+
+describe('the line under the title (DRAFT)', () => {
+  const LEAD = 'Worked out ahead of time, a few days either side of a search on your save.';
+  it('as in the mock: awake hours and 9 no-prestige days', () => {
+    expect(instantHeaderLine({ hours: '8 am to 11 pm', noPrestigeDays: 9 })).toBe(
+      `${LEAD} Keeps your awake hours (8 am to 11 pm) and your 9 no-prestige days.`
+    );
+  });
+  it('hours only, days only, one day, neither', () => {
+    expect(instantHeaderLine({ hours: '8 am to 11 pm', noPrestigeDays: 0 })).toBe(`${LEAD} Keeps your awake hours (8 am to 11 pm).`);
+    // R10 (Words, 22 Nov 2026): a custom week has no window to bracket.
+    expect(instantHeaderLine({ hours: 'custom weekly hours', noPrestigeDays: 0 })).toBe(`${LEAD} Keeps your custom weekly hours.`);
+    expect(instantHeaderLine({ hours: 'custom weekly hours', noPrestigeDays: 2 })).toBe(`${LEAD} Keeps your custom weekly hours and your 2 no-prestige days.`);
+    expect(instantHeaderLine({ hours: null, noPrestigeDays: 3 })).toBe(`${LEAD} Keeps your 3 no-prestige days.`);
+    expect(instantHeaderLine({ hours: null, noPrestigeDays: 1 })).toBe(`${LEAD} Keeps your 1 no-prestige day.`);
+    expect(instantHeaderLine({ hours: null, noPrestigeDays: 0 })).toBe(LEAD);
+  });
+  it('the days counted once each, across ranges that overlap, months and years; half-typed rows left out', () => {
+    expect(
+      noPrestigeDayCount([
+        { from: '2026-11-26', to: '2026-11-28' },
+        { from: '2026-12-24', to: '2026-12-26' },
+        { from: '2027-01-01', to: '2027-01-03' },
+      ])
+    ).toBe(9);
+    expect(noPrestigeDayCount([{ from: '2026-12-30', to: '2027-01-02' }, { from: '2027-01-01', to: '2027-01-01' }])).toBe(4);
+    expect(noPrestigeDayCount([{ from: '2026-12-24', to: '' }, { from: '2026-12-26', to: '2026-12-24' }])).toBe(0);
+    expect(noPrestigeDayCount(null)).toBe(0);
+  });
+});
+
+describe('First step (DRAFT)', () => {
+  const at = { reached: 'Dec 22, 2026 at 8:11 PM', prestigeDate: 'Dec 22, 2026 at 9:00 PM', prestigeTime: '9:00 PM' };
+  it('as in the mock: continue the current ascension, then prestige at the time, with the hours clause', () => {
+    expect(firstStepLine({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: true })).toBe(
+      'To get there: Keep building until then. Continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. With awake hours, prestige at the time shown: a few minutes late can cost days.'
+    );
+  });
+  it('a prestige on another day names the date; no hours clause without hours', () => {
+    expect(firstStepLine({ kind: 'continue', stopTE: 218, ...at, prestigeDate: 'Dec 23, 2026 at 8:00 AM', sameDay: false, hours: false })).toBe(
+      'To get there: Keep building until then. Continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige Dec 23, 2026 at 8:00 AM.'
+    );
+  });
+  it('a build-up continued (Single run can’t: its banner says so), a fresh start now or held', () => {
+    expect(firstStepLine({ kind: 'buildup', stopTE: 218, ...at, sameDay: true, hours: false })).toBe(
+      'To get there: Keep building until then. Continue your build-up to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
+    );
+    expect(firstStepLine({ kind: 'fresh', stopTE: 218, ...at, sameDay: true, hours: false })).toBe(
+      'To get there: prestige now and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.'
+    );
+    expect(firstStepLine({ kind: 'fresh', start: 'Dec 21, 2026 at 8:00 AM', stopTE: 218, ...at, sameDay: true, hours: true })).toBe(
+      'To get there: prestige Dec 21, 2026 at 8:00 AM and reach 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM. ' + FIRST_STEP_HOURS
+    );
+  });
+  it('one ascension: no prestige after it, so no hours clause either', () => {
+    expect(firstStepLine({ kind: 'continue', stopTE: 291, reached: 'Jul 13, 2027 at 5:14 PM', prestigeDate: null, prestigeTime: null, sameDay: false, hours: true })).toBe(
+      'To get there: continue your current ascension to 291 TE (Jul 13, 2027 at 5:14 PM).'
+    );
+  });
+  it('wording only: out of the result code hash', () => {
+    expect(isWordingOnly('src/lib/instantWords.ts')).toBe(true);
+  });
+});
+
+describe('The short prestige line on the card (Jordan, 16 Nov 2026, replacing the short First step of 12 Nov)', () => {
+  const at = { reached: 'Nov 20 at 8:11 PM', prestigeDate: 'Nov 21 at 9:00 AM', prestigeTime: '9:00 AM' };
+  it('continue the build-up: "Prestige at 203 TE: Nov 21 at 9:00 AM sharp." ("sharp" with awake hours); the full sentence for the "?" is the old one', () => {
+    const r = firstStepShort({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true });
+    expect(r.short).toBe('Prestige at 203 TE: Nov 21 at 9:00 AM sharp.');
+    expect(r.full).toBe(firstStepLine({ kind: 'buildup', stopTE: 203, ...at, sameDay: false, hours: true }));
+    expect(r.full).toContain('a few minutes late can cost days');
+    expect(splitStepLead(r.short)).toEqual({ lead: 'Prestige at 203 TE:', rest: 'Nov 21 at 9:00 AM sharp.' });
+  });
+  it('the ascension you are in reads the same; no "sharp" without awake hours; the same day gives only the time', () => {
+    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: false, hours: false }).short).toBe('Prestige at 218 TE: Nov 21 at 9:00 AM.');
+    expect(firstStepShort({ kind: 'continue', stopTE: 218, ...at, sameDay: true, hours: false }).short).toBe('Prestige at 218 TE: 9:00 AM.');
+  });
+  it('a fresh start: now, or held to a time, then the TE it reaches', () => {
+    expect(firstStepShort({ kind: 'fresh', stopTE: 220, ...at, sameDay: false, hours: true }).short).toBe('Prestige: now, then reach 220 TE.');
+    expect(firstStepShort({ kind: 'fresh', start: 'Jan 11, 2027 at 8:00 AM', stopTE: 220, ...at, sameDay: false, hours: true }).short).toBe(
+      'Prestige: Jan 11, 2027 at 8:00 AM, then reach 220 TE.'
+    );
+    expect(splitStepLead('Prestige: now, then reach 220 TE.')).toEqual({ lead: 'Prestige:', rest: 'now, then reach 220 TE.' });
+  });
+  it('a route with no later prestige: says none is needed (DRAFT)', () => {
+    const r = firstStepShort({ kind: 'continue', stopTE: 291, reached: 'Jul 13, 2027 at 5:14 PM', prestigeDate: null, prestigeTime: null, sameDay: false, hours: true });
+    expect(r.short).toBe('No prestige needed: keep going to 291 TE.');
+  });
+  it('a build-up that could not be worked out: nothing to shorten, no label (the amber warning stays as it is)', () => {
+    const r = firstStepShort({ kind: 'fresh', stopTE: 203, ...at, sameDay: false, hours: true, buildUpMissing: true });
+    expect(r.short).toBe(r.full);
+    expect(splitStepLead(`${FIRST_STEP_LABEL} ${FIRST_STEP_BUILDUP_MISSING}`).lead).toBe(FIRST_STEP_LABEL);
+  });
+  it('the old "First step" words are gone from the short line', () => {
+    for (const kind of ['buildup', 'continue', 'fresh'] as const) expect(firstStepShort({ kind, stopTE: 203, ...at, sameDay: false, hours: true }).short).not.toMatch(/First step|continue your|then prestige/);
+  });
+});

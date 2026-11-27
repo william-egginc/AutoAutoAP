@@ -1,15 +1,15 @@
 <!--
-  "Dig deeper into your plan ›" under a search's result card (Fastest's two panels, By a date): to My runs
+  "Dig deeper into your plan ›" under a search's result card (Fastest's two panels, By a date): to My Runs
   (#/myruns), on its Your runs section (lib/myRunsFocus.ts, 17 Oct 2026), whose latest-run block (LatestRunView.vue) shows the newest search's routes with when each
   stop and egg happens, By a date's top routes, and for Fastest its other options and charts. It went to
-  Leaderboard › Your latest run (#/compare/latest) until 16 Oct 2026; that address lands on My runs too.
+  Leaderboard › Your latest run (#/compare/latest) until 16 Oct 2026; that address lands on My Runs too.
 -->
 <template>
-  <p class="text-[11px] text-slate-600" data-testid="dig-deeper">
+  <p class="text-body text-slate-600" data-testid="dig-deeper">
     <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="askYourRuns()"
       >Dig deeper into your plan ›</a
     >
-    <span class="text-slate-500"> {{ detail }} ({{ NAMES.myRuns }} › Your runs)</span>
+    <span class="text-slate-600"> {{ detail }} ({{ NAMES.myRuns }} › Your runs)</span>
   </p>
 </template>
 

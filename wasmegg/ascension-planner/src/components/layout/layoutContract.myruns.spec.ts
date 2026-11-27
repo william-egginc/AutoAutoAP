@@ -1,0 +1,60 @@
+/**
+ * THE LAYOUT CONTRACT on My Runs (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line
+ * at the top (App.vue; this page's own save strip and intro went), the title, Right now with the Build-up tracker, the
+ * soul-egg line, then the one closed More holding the rest in its old order: Change route (Earlier versions, Stop
+ * following, Follow another route), your eggs, the saved answer, Try next, the routes at a glance and Your runs (its
+ * consent tick word for word). Read from the source.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const read = (f: string) => fs.readFileSync(path.resolve(__dirname, '..', f), 'utf8');
+const tpl = (src: string) => src.slice(src.indexOf('<template>'), src.lastIndexOf('</template>')).replace(/<!--[\s\S]*?-->/g, '');
+const view = tpl(read('MyRunsView.vue'));
+
+describe('My Runs: the regions in their fixed order', () => {
+  it('title, Right now (with the tracker), the soul-egg line, Your eggs, More (Jordan, 9 Nov 2026: eggs above More; the Full timeline is merged into You are here, 17 Nov 2026)', () => {
+    const at = ['data-region="title"', '<RightNowCard', '<BuildUpTracker', '<SoulEggWarning', '<YourEggs', '<MoreFold'].map(m => view.indexOf(m));
+    expect(at.every(i => i >= 0), String(at)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+  it('everything else inside More, in its old order; the save strip and the intro line are gone', () => {
+    const more = view.slice(view.indexOf('<MoreFold'), view.indexOf('</MoreFold>'));
+    const at = ['id="more-myruns-route"', 'id="more-myruns-detail"', '<SavedTile', '<TryNext', '<RouteScatter', 'id="my-runs-your-runs"'].map(m => more.indexOf(m));
+    expect(more).not.toContain('<YourEggs');
+    expect(more).not.toContain('id="myruns-timeline"');
+    expect(at.every(i => i >= 0), String(at)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(more).toContain('<b>Share my Instant Answer with my runs</b>');
+    expect(view).not.toContain('<SaveAgeStrip');
+    expect(view).not.toContain('data-testid="my-runs-intro"');
+    expect(view).toContain('section="moreMyRuns" :line="MORE_LINE_MYRUNS"');
+    // Filters is on the instant answer card (Fastest, By a date), not beside this title (Jordan, 13 Nov 2026).
+    expect(view).not.toContain('<FiltersButton');
+  });
+  it('Change route moves from Right now into More (a Teleport to a looked-up element), with "Stop following"', () => {
+    const card = tpl(read('myruns/RightNowCard.vue'));
+    const tp = card.slice(card.indexOf(`<Teleport :to="changeRouteEl ?? 'body'" :disabled="!changeRouteEl">`), card.indexOf('</Teleport>'));
+    for (const part of ['<FollowHistory', 'data-testid="now-follow-back"', 'data-testid="now-follow-typed"']) expect(tp, part).toContain(part);
+    expect(tp).toContain('{{ STOP_FOLLOWING }}');
+    expect(view).toContain('change-route-to="more-myruns-route"');
+    // The gear too (into More).
+    expect(view).toContain('detail-to="more-myruns-detail"');
+    expect(view).not.toContain('timeline-to');
+    expect(card.match(/<Teleport :to="detailEl \?\? 'body'" :disabled="!detailEl">/g)).toHaveLength(1);
+    expect(card).not.toContain('timelineEl');
+  });
+  it('the links into Your runs open More first (See the routes ›, Dig deeper, Next steps\' unsent)', () => {
+    const src = read('MyRunsView.vue');
+    const show = src.slice(src.indexOf('function showRuns'), src.indexOf('\n}', src.indexOf('function showRuns')));
+    expect(show).toContain('more.value?.show();');
+    const act = src.slice(src.indexOf('function act('), src.indexOf('\n}', src.indexOf('function act(')));
+    expect(act).toContain('more.value?.show();');
+  });
+  it('the Full timeline is not a fold of its own any more (17 Nov 2026): each ascension row of You are here opens to it', () => {
+    const card = tpl(read('myruns/RightNowCard.vue'));
+    expect(card).not.toContain('now-timeline');
+    expect(card).toContain('#detail="{ asc }"');
+  });
+});

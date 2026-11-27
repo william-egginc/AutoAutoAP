@@ -10,7 +10,7 @@
       <div class="flex items-center min-w-0" :class="compact ? 'gap-2' : 'gap-3 sm:gap-4'">
         <!-- Expand/collapse icon -->
         <svg
-          class="w-4 h-4 text-slate-400 transition-transform duration-300 flex-shrink-0"
+          class="w-4 h-4 text-slate-600 transition-transform duration-300 flex-shrink-0"
           :class="{ 'rotate-90 text-slate-900': isExpanded }"
           fill="none"
           stroke="currentColor"
@@ -21,7 +21,7 @@
 
         <!-- Egg icon + headerText -->
         <div class="flex flex-col items-center gap-0.5">
-          <span class="text-[17px] font-black text-slate-800 uppercase tracking-tighter leading-none">{{ headerText }}</span>
+          <span class="text-title font-bold text-slate-800 leading-none">{{ headerText }}</span>
           <div
             class="flex-shrink-0 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden group-hover:scale-110 transition-transform"
             :class="compact ? 'w-6 h-6 p-0.5' : 'w-7 h-7 sm:w-8 sm:h-8 p-1'"
@@ -37,14 +37,14 @@
         <!-- Time info -->
         <div class="text-left shrink-0">
           <div
-            class="text-[9px] sm:text-[10px] font-black text-slate-700 tracking-widest leading-none"
+            class="text-small font-bold text-slate-700 leading-none"
             :class="compact ? 'mb-0.5' : 'mb-1'"
           >
             {{ formattedTimestamp }}
           </div>
           <div class="flex flex-col items-start gap-0.5">
-            <div class="text-[9px] sm:text-[10px] font-bold text-slate-400 tracking-tight">Time: {{ formattedTimeElapsed }}</div>
-            <div class="text-[9px] sm:text-[10px] font-black text-slate-900 tracking-widest">
+            <div class="text-small font-bold text-slate-600">Time: {{ formattedTimeElapsed }}</div>
+            <div class="text-small font-bold text-slate-900">
               {{ formatNumber(props.eggsDelivered, 3) }} Eggs
             </div>
           </div>
@@ -56,7 +56,7 @@
         <div class="flex items-center gap-3">
           <!-- Shift info -->
           <div v-if="isShiftAction && headerAction.cost > 0" class="flex items-center gap-1 opacity-80">
-            <span class="text-[9px] sm:text-[10px] font-bold text-slate-700 font-mono-premium">
+            <span class="text-small font-bold text-slate-700 tabular-nums">
               {{ formatNumber(headerAction.cost, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />
@@ -64,12 +64,12 @@
 
           <!-- Reconciliation Status -->
           <div v-if="actionsStore.isReconciling" class="shrink-0">
-            <div v-if="shiftReconciliationStatus === 'completed'" class="text-emerald-500" v-tippy="'All actions complete.'">
+            <div v-if="shiftReconciliationStatus === 'completed'" class="text-emerald-700" v-tippy="'All actions complete.'">
               <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
               </svg>
             </div>
-            <div v-else-if="shiftReconciliationStatus === 'pending'" class="text-amber-500 animate-pulse" v-tippy="'Some actions pending.'">
+            <div v-else-if="shiftReconciliationStatus === 'pending'" class="text-amber-700 animate-pulse" v-tippy="'Some actions pending.'">
               <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -81,7 +81,7 @@
         <div class="flex items-center gap-1 sm:gap-2" @click.stop>
           <button
             v-if="!isEditing && !(isCurrent && !actionsStore.editingGroupId)"
-            class="text-slate-400 hover:text-slate-900 hover:bg-brand-primary/5 rounded-xl transition-all active:scale-95"
+            class="text-slate-600 hover:text-slate-900 hover:bg-brand-primary/5 rounded-xl transition-all active:scale-95"
             :class="compact ? 'p-1' : 'p-1.5 sm:p-2'"
             v-tippy="'Edit this shift'"
             @click="$emit('start-editing', headerAction.id)"
@@ -97,7 +97,7 @@
             v-tippy="'Finish editing'"
             @click="$emit('stop-editing')"
           >
-            <span class="text-[9px] font-black uppercase tracking-widest">Done</span>
+            <span class="text-body font-bold">Done</span>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
             </svg>
@@ -105,7 +105,7 @@
 
           <button
             v-if="isShiftAction"
-            class="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+            class="text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
             :class="compact ? 'p-1' : 'p-1.5 sm:p-2'"
             v-tippy="'Undo this shift and all its actions'"
             @click="handleUndo($event, headerAction)"
@@ -147,6 +147,9 @@
           />
         </template>
 
+        <!-- Compact single-day shift: no day layer, but smart buys still get their summaries -->
+        <CompactActionRows v-else-if="compact" :actions="actions" @undo="handleDayUndo" />
+
         <!-- Action list -->
         <template v-else>
           <ActionHistoryItem
@@ -163,17 +166,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { formatMoment } from '@/lib/clock';
+import { ref, computed, watch, nextTick, type Component } from 'vue';
 import { iconURL } from 'lib';
 import { useActionsStore } from '@/stores/actions';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import type { Action, VirtueEgg, StartAscensionPayload, ShiftPayload } from '@/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
 import { formatNumber, formatDuration } from '@/lib/format';
-import { safeAsyncComponent } from '@/lib/import';
-import { scrollToAndHighlight } from '@/lib/scrollToAndHighlight';
-import ActionHistoryItem from './ActionHistoryItem.vue';
-import DayGroup from './DayGroup.vue';
+import { safeAsyncComponent } from 'lib/planners/import';
+import { scrollToAndHighlight } from 'lib/planners/scrollToAndHighlight';
+import ActionHistoryItem from 'ui/components/planners/ActionHistoryItem.vue';
+import DayGroup from 'ui/components/planners/DayGroup.vue';
+import CompactActionRows from 'ui/components/planners/CompactActionRows.vue';
+import { smartBuyNoteByActionId } from 'lib/planners/actions/smartBuyGroups';
+import { expandSmartBuyContaining } from 'lib/planners/composables/useSmartBuyExpansion';
 
 // Lazy load summary components
 const CuriositySummary = safeAsyncComponent(() => import('./summaries/CuriositySummary.vue'));
@@ -182,7 +189,7 @@ const HumilitySummary = safeAsyncComponent(() => import('./summaries/HumilitySum
 const ResilienceSummary = safeAsyncComponent(() => import('./summaries/ResilienceSummary.vue'));
 const KindnessSummary = safeAsyncComponent(() => import('./summaries/KindnessSummary.vue'));
 
-const summaryComponents: Record<VirtueEgg, any> = {
+const summaryComponents: Record<VirtueEgg, Component> = {
   curiosity: CuriositySummary,
   integrity: IntegritySummary,
   humility: HumilitySummary,
@@ -209,7 +216,7 @@ const emit = defineEmits<{
 }>();
 
 const actionsStore = useActionsStore();
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 
 // Internal state for manually collapsing/expanding the current group
 // This is now managed by the store, but we keep the ref if needed for transition (actually we can remove it)
@@ -287,23 +294,13 @@ const headerText = computed(() => {
 const summaryComponent = computed(() => summaryComponents[currentEgg.value]);
 
 const shiftReconciliationStatus = computed(() => {
-  return actionsStore.getShiftReconciliationStatus(props.actions);
+  return actionsStore.getGroupReconciliationStatus(props.actions);
 });
 
 /**
- * Format the period timestamp as "Mon Jan 5, 2:30 PM"
+ * Format the period timestamp as "Mon, Jan 5, 2:30 PM" in en-US (lib/clock.ts)
  */
-const formattedTimestamp = computed(() => {
-  const date = props.periodTimestamp;
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-});
+const formattedTimestamp = computed(() => formatMoment(props.periodTimestamp.getTime(), { weekday: true, year: 'never' }));
 
 /**
  * Format the time elapsed in a human-readable way.
@@ -328,7 +325,7 @@ function handleDayUndo(action: Action, options: { skipConfirmation: boolean }) {
  * hover tooltip — anchors the plan's simulated time to the ascension's actual start time.
  */
 function actionAbsoluteTime(action: Action): Date {
-  const startTime = virtueStore.planStartTime.getTime();
+  const startTime = planStore.planStartTime.getTime();
   const offset = actionsStore.planStartOffset;
   const simTime = action.endState.lastStepTime || 0;
   // `Math.round`, not a bare `new Date(...)` — see `secondsToDate`'s doc comment (lib/format.ts):
@@ -378,8 +375,11 @@ const dayGroups = computed<DayGroupItem[]>(() => {
   let prevAction: Action | null = null;
   let currentDayKey = '';
 
+  // A smart buy can wait across several days; it stays whole, under the day it started.
+  const smartBuyNotes = smartBuyNoteByActionId(props.actions);
+
   for (const action of props.actions) {
-    const date = actionAbsoluteTime(action);
+    const date = actionAbsoluteTime(smartBuyNotes.get(action.id) ?? action);
     const dayKey = date.toDateString();
     if (dayKey !== currentDayKey) {
       currentDayKey = dayKey;
@@ -462,14 +462,14 @@ function setDayExpanded(key: string, value: boolean) {
 
 /**
  * Handles a curiosity summary link click whose target action wasn't found in the DOM — meaning
- * it's inside a collapsed day (compact view). Expand that day, wait for it to render, then scroll.
+ * it's inside a collapsed day or smart buy (compact view). Expand whichever hold it, wait for them
+ * to render, then scroll.
  */
 async function handleScrollToAction(actionId: string) {
   const day = dayGroups.value.find(d => d.actions.some(a => a.id === actionId));
-  if (day) {
-    expandedDayKeys.value.add(day.key);
-    await nextTick();
-  }
+  if (day) expandedDayKeys.value.add(day.key);
+  expandSmartBuyContaining(props.actions, actionId);
+  await nextTick();
   scrollToAndHighlight(actionId);
 }
 </script>

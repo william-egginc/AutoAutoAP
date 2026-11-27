@@ -38,24 +38,30 @@ describe("the progress bar's Jump to it / Show it", () => {
 
 describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
   it("Fastest: Check exactly (the instant answer's, and a longer route's) selects Exhaustive before scrolling", () => {
-    const fn = between(fastest, 'function checkExactly', '\n}');
+    // Check exactly and Go further's "open in Custom" both go through openCustom (25 Oct 2026).
+    expect(between(fastest, 'function checkExactly', '\n}')).toContain('openCustom(');
+    const fn = between(fastest, 'function openCustom', '\n}');
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeGreaterThan(0);
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeLessThan(fn.indexOf("getElementById('exhaustive')"));
-    expect(fastest).toContain('@check="checkExactly"');
+    // The instant card's `check` emit was never emitted and is gone (ui-instantroute-11, 22 Nov 2026).
+    expect(fastest).not.toContain('@check="checkExactly"');
     expect(fastest).toContain('@check-exactly="checkExactly"');
+    expect(fastest).toContain('@open-custom="openCustom"');
   });
   it('By a date: Open in Exhaustive, Check exactly and widen-and-run all go through showExhaustive, which selects the tab', () => {
     const fn = between(deadline, 'function showExhaustive', '\n}');
     expect(fn.indexOf("selectSearchTab('by-date', 'exhaustive')")).toBeGreaterThan(0);
     expect(fn.indexOf("selectSearchTab('by-date', 'exhaustive')")).toBeLessThan(fn.indexOf("getElementById('exhaustive')"));
     expect(between(deadline, 'function openInAdvanced', '\n}')).toContain('showExhaustive();');
-    expect(between(deadline, 'function checkByDate', '\n}')).toContain('showExhaustive();');
+    expect(deadline).not.toContain('function checkByDate');
     expect(between(deadline, 'async function widenAndRun', '\n}')).toContain('openInAdvanced();');
   });
   it('the address #/auto/fastest/full opens Custom (Exhaustive), and an option picked by hand sets the address', () => {
-    expect(between(fastest, 'watch(\n  () => props.depth', '{ immediate: true }')).toContain(
-      "if (d === 'full') selectSearchTab('fastest', 'exhaustive');"
-    );
+    // Custom is inside the screen's More since the simpler page (9 Nov 2026): the link opens it first.
+    const depth = between(fastest, 'watch(\n  () => props.depth', '{ immediate: true }');
+    expect(depth).toContain("if (d === 'full') {");
+    expect(depth.indexOf("revealMore('fastest');")).toBeGreaterThan(0);
+    expect(depth.indexOf("revealMore('fastest');")).toBeLessThan(depth.indexOf("selectSearchTab('fastest', 'exhaustive');"));
     expect(fastest).toContain(`@pick="o => emit('update:depth', o === 'custom' ? 'full' : 'smart')"`);
   });
   it('a run starting or going shows its own tab, on both screens', () => {
@@ -85,6 +91,9 @@ describe('setup: the floating button only', () => {
   it('Fastest and By a date show no setup bar, only the save\'s problems; the floating Setup button stays', () => {
     expect(fastest).toContain('<YourSetup screen="fastest" issues-only />');
     expect(read('components/auto/ByDateScreen.vue')).toContain('<YourSetup screen="by-date" issues-only />');
-    expect(app).toContain('<SetupDock v-if="plannerTab === \'automatic\' && playerId && !loading" :screen="autoView" />');
+    // The Auto Planner's SetupDock tag, whatever other attributes or line breaks it carries (spec-pill added @height).
+    const dockTag = app.match(/<SetupDock\s[^>]*v-if="plannerTab === 'automatic' && playerId && !loading"[^>]*\/>/)?.[0] ?? '';
+    expect(dockTag).toMatch(/\s:screen="autoView"\s/);
+    expect(dockTag).toMatch(/\s:bottom-offset="singleRunBarRoom"\s/);
   });
 });

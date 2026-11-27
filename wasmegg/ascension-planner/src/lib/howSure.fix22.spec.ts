@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TIE_HOURS, behindWords, howSure, type SureInput } from './howSure';
 import { planFromSnapshot, type SnapLike } from './nowPlan';
 import { buildTile } from './savedTiles';
+import { resultCode } from './resultCode';
 
 const date = (o: Partial<SureInput>): SureInput => ({ goal: 'date', how: 'check', ageDays: 0.1, te: 248, spareHours: 30, ...o });
 
@@ -18,11 +19,11 @@ describe('a runner-up that ties', () => {
   });
 
   it('the Egg Day tile: "Exact check done; another route ties it", never "0.0 h behind"', () => {
-    expect(howSure(date({ runnerUpHours: 0.02 })).reason).toBe('Check exactly done; another route ties it');
+    expect(howSure(date({ runnerUpHours: 0.02 })).reason).toBe('simulator check done; another route ties it');
     expect(howSure(date({ runnerUpHours: 0, runnerUpSame: true, runnerUpChain: [160, 248] })).reason).toBe(
-      'Check exactly done; another route ties it exactly (160 248)'
+      'simulator check done; another route ties it exactly (160 248)'
     );
-    expect(howSure(date({ runnerUpHours: 1 })).reason).toBe('Check exactly done; the next route is only 1.0 h behind');
+    expect(howSure(date({ runnerUpHours: 1 })).reason).toBe('simulator check done; the next route is only 1.0 h behind');
     // Fastest's search line too.
     expect(howSure({ goal: 'fastest', how: 'search', level: 'normal', ageDays: 0.1, runnerUpHours: 0.01 }).reason).toBe(
       'Exact search; another route ties it'
@@ -37,6 +38,8 @@ describe('a runner-up that ties', () => {
       result: { best: null, byAscensions: [], byDate: { chain: [160, 248], legs: [], end } },
       dateExact: { chain: [160, 248], endTE: 248, end },
       dateExactByK: { 2: { chain: [160, 248], endTE: 248, end }, 3: { chain: [150, 200, 248], endTE: 248, end } },
+      // Kept by this build (lib/resultCode.ts).
+      rc: resultCode(),
     };
     const plan = planFromSnapshot(snap, 'date', DEADLINE)!;
     expect(plan.runnerUpHours).toBe(0);
@@ -53,6 +56,6 @@ describe('a runner-up that ties', () => {
       board: null,
       saved: [],
     });
-    expect(tile.sure?.reason).toBe('Check exactly done; another route ties it exactly (150 200 248)');
+    expect(tile.sure?.reason).toBe('simulator check done; another route ties it exactly (150 200 248)');
   });
 });

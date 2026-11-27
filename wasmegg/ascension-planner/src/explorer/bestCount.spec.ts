@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { accountKey, judgeFinishes, searchGrade, type FinishJudgement, type SearchGrade } from './analysis';
+import { accountKey, searchGrade, type FinishJudgement, type SearchGrade } from './analysis';
+import { judgeFinishes } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import { DAY_MS } from '@/lib/leaderboardRank';
 import {
@@ -9,7 +10,6 @@ import {
   countColumns,
   fillBin,
   FILL_BINS,
-  gearText,
   gradeStyle,
   searchWords,
   stepWords,
@@ -39,7 +39,7 @@ function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'chain' | 'current
   } as CollectorRow;
 }
 
-/** Plan starts on consecutive days at 10:00 in the default zone (America/Denver, MDT in September). */
+/** Route starts on consecutive days at 10:00 in the default zone (America/Denver, MDT in September). */
 const START = Date.parse('2026-09-01T16:00:00Z');
 const dayOf = (n: number) => new Date(Date.UTC(2026, 8, 1 + n)).toISOString().slice(0, 10);
 const iso = (n: number) => new Date(START + n * DAY_MS + 5 * 60_000).toISOString();
@@ -103,7 +103,7 @@ describe('gradeStyle', () => {
       'a finished box at up to every 6th TE'
     );
     expect(searchWords(grade('staged', Infinity, []))).toBe(
-      'a Nearby routes search (thorough), with no box to bound what it missed'
+      'a Fast or Exact search (thorough), with no box to bound what it missed'
     );
   });
 });
@@ -311,7 +311,7 @@ describe('bestCountTable', () => {
     const c6 = denver.cells.find(c => c.column.label === '6')!;
     expect(c6).toMatchObject({ state: 'hidden', text: '', bin: -1, hiddenRuns: 2, noProof: true });
     expect(cellTitle(denver, c6, 'UTC')).toBe(
-      'Denver has no finished box at 6 ascensions at this target: its 2 runs at this count are Nearby routes searches or boxes they did not finish, which Proofs only hides.'
+      'Denver has no finished box at 6 ascensions at this target: its 2 runs at this count are Fast or Exact searches or boxes they did not finish, which Proofs only hides.'
     );
     // 4 is still not tried by Denver at all, and the footer counts who tried each count, whatever is hidden.
     expect(denver.cells.find(c => c.column.label === '4')!.state).toBe('untried');
@@ -376,9 +376,6 @@ describe('bestCountTable', () => {
     expect(order('te')).toEqual(['c', 'a', 'b']);
     expect(order('cte')).toEqual(['b', 'a', 'c']);
     expect(order('delivery')).toEqual(['a', 'c', 'b']);
-    expect(gearText(bestCountTable(all, judge(all), { labels: names }).rows[1])).toBe(
-      'TE 150 · Clothed TE 300.0 · delivery 80%'
-    );
   });
 
   it('puts the chain, finish, search, plans priced and step in the cell’s tooltip', () => {

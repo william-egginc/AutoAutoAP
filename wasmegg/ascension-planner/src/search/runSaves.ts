@@ -17,7 +17,8 @@
  * Keyed by a hash of the payload, so the many runs of one session on one save share one copy.
  */
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+// workerCopy: sanitizeLongs's copy read under the store proxies (spec-mainfreeze): the same result, without the traps.
+import { workerCopy } from './workerCopy';
 import type { SearchInputs } from './types';
 
 const INDEX_KEY = 'chainSearchRunSaveIndex';
@@ -55,12 +56,14 @@ export function accountOf(rawBackup: unknown): string {
 export function encode(value: unknown): string {
   return JSON.stringify(value, (_k, v) => (typeof v === 'number' && !Number.isFinite(v) ? { __num: String(v) } : v));
 }
+/** `encode`'s numbers back (a JSON.parse reviver). */
+export function reviveNumbers(_k: string, v: unknown): unknown {
+  return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && typeof (v as { __num?: unknown }).__num === 'string'
+    ? Number((v as { __num: string }).__num)
+    : v;
+}
 export function decode<T>(text: string): T {
-  return JSON.parse(text, (_k, v) =>
-    v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && typeof v.__num === 'string'
-      ? Number(v.__num)
-      : v
-  ) as T;
+  return JSON.parse(text, reviveNumbers) as T;
 }
 
 /**
@@ -69,7 +72,7 @@ export function decode<T>(text: string): T {
  * give the same save a new key on every visit.
  */
 export function runSaveKey(inputs: SearchInputs): string {
-  const plain = sanitizeLongs(inputs) as SearchInputs;
+  const plain = workerCopy(inputs) as SearchInputs;
   const context: Record<string, unknown> = { ...(plain.context as unknown as Record<string, unknown>) };
   delete context.ascensionStartTime;
   delete context.planStartOffset;
@@ -121,7 +124,7 @@ export async function saveRunInputs(
     };
     // Body first, then the index: a quota failure leaves an orphan nothing lists, not a listed save
     // that cannot be read.
-    await saveMetadata(partitionHash, BODY_PREFIX + key, encode(sanitizeLongs(inputs)));
+    await saveMetadata(partitionHash, BODY_PREFIX + key, encode(workerCopy(inputs)));
     await saveMetadata(partitionHash, INDEX_KEY, [summary, ...index]);
     return summary;
   });

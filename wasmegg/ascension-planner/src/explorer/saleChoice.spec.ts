@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { accountKey, judgeFinishes } from './analysis';
+import { accountKey } from './analysis';
+import { judgeFinishes } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import type { SubmissionLeg } from '@/search/submission';
 import { DAY_MS } from '@/lib/leaderboardRank';
@@ -10,7 +11,6 @@ import {
   SALE_PLANS,
   SALE_SLOT,
   saleCellBreakdown,
-  saleCellText,
   saleLegs,
   salePlanOf,
   saleSummary,
@@ -200,14 +200,12 @@ describe('saleSummary', () => {
     const c = s.cells[0][1]!; // 180-199, climbs 16-30
     expect(c).toMatchObject({ n: 3, accounts: 3, top: ['3-sale'] });
     expect(c.share).toBeCloseTo(2 / 3, 9);
-    expect(saleCellText(c)).toBe('3-sale 67% (n 3)');
     expect(saleCellBreakdown(c)).toBe('3-sale 2, 2-sale 1');
     expect(s.cells[1].every(x => x === null)).toBe(true); // nothing starts at 200-219
     expect(s.cells[2][2]).toMatchObject({ n: 1, top: ['2-sale'], share: 1 });
     // A tie names both, in legend order.
     const tie = s.cells[4][0]!;
     expect(tie).toMatchObject({ n: 2, top: ['1-sale', '2-sale'], share: 0.5 });
-    expect(saleCellText(tie)).toBe('1/2-sale 50% each (n 2)');
   });
 
   it('puts a leg on a band edge in the band it names', () => {

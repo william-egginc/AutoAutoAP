@@ -183,7 +183,9 @@ const INPUTS: SubmissionInputs = {
 describe('board rows carry the start block', () => {
   it('buildSubmission sends it with the tab’s age, for a run priced in this tab, with no schema bump', () => {
     const start = startProvenanceOf({ source: 'fresh', rawBackup: save(), plan: 'now' });
-    const sub = buildSubmission({ ...INPUTS, build: 'abc1234', start });
+    // The tab's age is `now` less the page's real opening time (performance.timeOrigin), so `now` is the real clock
+    // here: INPUTS' fixed Oct 22 6:00 pm UTC made it a day "before" the page opened from Oct 23 6:00 pm UTC on.
+    const sub = buildSubmission({ ...INPUTS, now: Date.now(), build: 'abc1234', start });
     expect(sub.schema).toBe(7);
     expect(sub.start).toMatchObject({ src: 'fresh', claimed: [43, 38, 44, 40, 39], saveAt: SAVE_AT, plan: 'now' });
     expect(sub.start!.saveHash).toBe(saveHashOf(save()));
@@ -236,29 +238,29 @@ describe('the instant answer waits for the save (InstantRoute.vue)', () => {
     expect(watchBlock).toMatch(/if \(store\.startWait\) \{\s*waitForSave\(\);\s*return;/);
   });
 
-  it('never works an answer out, checks it exactly or shares it while waiting', () => {
+  it('never works an answer out or shares a result while waiting (no Check exactly since 23 Oct 2026)', () => {
     expect(script).toMatch(
       /async function run\(force = false, goAhead = false\): Promise<void> \{[^}]*if \(store\.startWait\) return;/
     );
-    expect(script).toMatch(/function checkAgain\(\): void \{\s*if \([^)]*store\.startWait\) return;/);
+    expect(script).not.toContain('function checkAgain');
     expect(script).toMatch(
-      /async function shareCheck\(id: number\): Promise<void> \{\s*if \([^)]*store\.startWait\) return;/
+      /async function shareResult\(k: string\): Promise<void> \{\s*const f = searchFound\.value;\s*if \([^)]*store\.startWait[^)]*\) return;/
     );
     expect(script).toContain(
-      "if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
+      "if (runDue.value || tablesWait.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
     );
   });
 
   it('drops the work in flight and labels an answer already on screen', () => {
     const fn = script.slice(script.indexOf('function waitForSave(): void {'), script.indexOf('const saveWaitText'));
-    for (const s of ['++runs;', '++bracketRuns;', '++prestigeRuns;', 'stopExact();', 'resultFromBefore.value = true;'])
+    for (const s of ['++runs;', '++bracketRuns;', '++prestigeRuns;', 'afterPrestige = null;', 'resultFromBefore.value = true;'])
       expect(fn).toContain(s);
     expect(src).toContain('{{ START_WAIT_LABEL }}');
     expect(src).toContain('data-testid="instant-wait-save"');
   });
 
-  it('the shared record says where the check started, taken as it started', () => {
-    expect(script).toContain('exactStart = store.startProvenanceNow();');
+  it('the shared record says where the save on screen came from (the result shared is for this save)', () => {
+    expect(script).toContain('const start = finishStartProvenance(store.startProvenanceNow(), {');
     expect(script).toContain('...(start ? { start } : {}),');
   });
 });
@@ -277,11 +279,14 @@ describe('the page sets the save up for the instant answer (App.vue)', () => {
       app.indexOf("watch(playerId, () => (autoSetUpFor = ''));")
     );
     expect(fn).toContain("plannerTab.value !== 'automatic'");
-    expect(fn).toContain('const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;');
+    expect(fn).toContain('if (!needsSaveSetUp(wait, initialStateStore.setupSource)) return;');
+    // Once per account, save and Manual plan opened (spec-manualleak): a plan opened later is set up again.
+    expect(fn).toContain('const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}|${plansOpened}`;');
+    expect(app).toContain("if (name === 'hydrate') plansOpened++;");
     expect(fn).toContain('autoSetUpFor === forSave || searchActive.value || uiStore.runSaveLoaded');
     expect(fn).toContain('setUpFromSaveInHand() : prepareAutoPlanner()');
     expect(app).toContain(
-      'watch([plannerTab, playerId, loading, () => chainSearchStore.startWait], setUpForInstantAnswer);'
+      'watch([plannerTab, playerId, loading, () => chainSearchStore.startWait, searchActive], setUpForInstantAnswer);'
     );
   });
 });

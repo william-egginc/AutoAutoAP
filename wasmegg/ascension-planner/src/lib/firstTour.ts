@@ -1,0 +1,143 @@
+/**
+ * THE FIRST-VISIT TOUR'S MEMORY (spec-firsttour, 8 Nov 2026; Jordan: "Can we make a tutorial for first time visitors?
+ * (with the option to skip and remind me later defaulted checked)"; design ~/code/aaap-tools/notes/tutorial-design.md,
+ * Jordan's defaults kept). v2 (spec-firsttour2, 9 Nov 2026): a welcome box and a slideshow of six pictures in a modal
+ * (composables/useFirstTour.ts, components/TourModal.vue, lib/tourSlides.ts).
+ *
+ * ONE localStorage key, `aap.tour`, plain strings like the other small flags (lib/panelFold.ts, lib/saveOnline.ts):
+ *   absent    never seen: starts on a page load for a NEW visitor only (no saved player ID, no remembered tab)
+ *   later:N   seen, not finished; N = Skips with "Remind me later" ticked. Starts on the next page load while N < 3
+ *             (TOUR_REMIND_CAP: the third such Skip is the last, later:3 and up read as off). The first show writes
+ *             later:0, so a reload mid-tour (the save then makes the visitor not new) shows it again.
+ *   off       Skip with the box unticked: never by itself again
+ *   done      Done on the last step: never by itself again
+ * The footer's and Setup's "Show the tour again" start it whatever this says, writing only on Skip or Done.
+ *
+ * Plain `localStorage.getItem` / `setItem` in try/catch: a write goes through lib/storageWrites.ts's one wrapper like
+ * every other write; this module never wraps or reassigns setItem and listens to nothing. Storage blocked outright
+ * (lib/storageGuard.ts memory fallback): no tour by itself (it would come back on every load). Never sent, never synced,
+ * and nothing the result hash covers imports this file (src/lib/resultCodeHash.ts).
+ */
+
+export const TOUR_KEY = 'aap.tour';
+/** Skips with "Remind me later" ticked before the tour stops coming back (Jordan, 8 Nov 2026: stop after 3). */
+export const TOUR_REMIND_CAP = 3;
+
+export type TourStored = { kind: 'absent' } | { kind: 'later'; n: number } | { kind: 'off' } | { kind: 'done' };
+
+/** The steps, in order. Tour v3 (spec-tour-v3, Jordan, 16 Nov 2026: "use arrows to show important things, one thing at a
+ *  time, start from the big things and work your way down"), as he reviewed it (~1:30 PM): twenty-three, then twenty-two (Jordan, 16 Nov, ~10:55 PM: the maxed-gear what-if is in the Full tour only). The tab row is four
+ *  slides, one a tab, and the goal switch two (Target TE, By a date); then the result, the filters button, what is inside
+ *  Setup (awake hours, time off), Prefer fewer ascensions, Simulate this route and Follow this
+ *  route; then My Runs (the page, the route followed, Next step, the Build-up tracker), where Setup is, what is in it,
+ *  the shifts, and a closing card that points at the Full tour (lib/fullTour.ts), which holds what More holds. */
+export type TourStepId =
+  | 'tabManual'
+  | 'tabAuto'
+  | 'tabChain'
+  | 'tabMyruns'
+  | 'load'
+  | 'goalTarget'
+  | 'goalDate'
+  | 'result'
+  | 'filters'
+  | 'setupAwake'
+  | 'setupTimeOff'
+  | 'prefer'
+  | 'simulate'
+  | 'follow'
+  | 'myrunsPage'
+  | 'followedRoute'
+  | 'nextStep'
+  | 'tracker'
+  | 'setupWhere'
+  | 'setupInside'
+  | 'shifts'
+  | 'closing';
+/** The quick tour: seven slides (Jordan, 18 Nov 2026: "cut to about 8, ending with More in the Full tour"; 19 Nov: the load slide dropped). Every
+ *  other step id below stays a word and a picture the full tour uses (lib/fullTour.ts); opened from this tour's last card the full
+ *  tour leaves out the ones seen here (`fullStepsFor`). */
+export const TOUR_STEPS: readonly TourStepId[] = ['tabAuto', 'goalTarget', 'result', 'follow', 'myrunsPage', 'setupWhere', 'closing'];
+
+/** The stored string as a state; anything else reads as never seen. */
+export function parseTour(v: string | null | undefined): TourStored {
+  if (v === 'off' || v === 'done') return { kind: v };
+  const m = /^later:(\d{1,4})$/.exec(v ?? '');
+  return m ? { kind: 'later', n: Number(m[1]) } : { kind: 'absent' };
+}
+
+/** The string kept for a state (absent: none). */
+export function formatTour(s: TourStored): string | null {
+  return s.kind === 'absent' ? null : s.kind === 'later' ? `later:${s.n}` : s.kind;
+}
+
+/** Whether the tour starts by itself on this page load. `stored` null: storage unreadable. */
+export function tourShouldStart(p: { stored: TourStored | null; newVisitor: boolean; blocked: boolean }): boolean {
+  if (p.blocked || !p.stored) return false;
+  if (p.stored.kind === 'absent') return p.newVisitor;
+  if (p.stored.kind === 'later') return p.stored.n < TOUR_REMIND_CAP;
+  return false;
+}
+
+/** Skip: with "Remind me later" ticked one more reminder (a fresh count after done or off: a replay), else off. */
+export function afterSkip(stored: TourStored, remind: boolean): TourStored {
+  if (!remind) return { kind: 'off' };
+  return { kind: 'later', n: (stored.kind === 'later' ? stored.n : 0) + 1 };
+}
+
+/** Done on the last step. */
+export function afterDone(): TourStored {
+  return { kind: 'done' };
+}
+
+/** "Load my save" on the welcome box (v2, Jordan 9 Nov 2026): the visitor chose to start, so no reminder and no skip
+ *  count. */
+export function afterLoadMySave(): TourStored {
+  return { kind: 'done' };
+}
+
+/** What the first show of a never-seen tour keeps (later:0); anything else as it is. */
+export function shownFirst(stored: TourStored): TourStored {
+  return stored.kind === 'absent' ? { kind: 'later', n: 0 } : stored;
+}
+
+/** A new visitor: this browser holds no player ID and no remembered tab (lib/siteNav.ts openingRoute's test). */
+export function isNewVisitor(p: { savedPlayerId: string | null | undefined; lastRoute: string | null | undefined }): boolean {
+  return !p.savedPlayerId && !p.lastRoute;
+}
+
+/** The steps for what is loaded: a save file with no player ID has no My Runs page, so it leaves that slide out (six steps). */
+export function stepsFor(p: { hasAccount: boolean; hasSaveFile: boolean }): TourStepId[] {
+  return !p.hasAccount && p.hasSaveFile ? TOUR_STEPS.filter(id => id !== 'myrunsPage') : [...TOUR_STEPS];
+}
+
+type TourStorage = Pick<Storage, 'getItem' | 'setItem'>;
+function local(): TourStorage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** This browser's tour state, or null when storage can't be read. Never throws. */
+export function readTour(st: TourStorage | null = local()): TourStored | null {
+  if (!st) return null;
+  try {
+    return parseTour(st.getItem(TOUR_KEY));
+  } catch {
+    return null;
+  }
+}
+
+/** Keep a tour state; false when the browser refused. Never throws. */
+export function writeTour(s: TourStored, st: TourStorage | null = local()): boolean {
+  const v = formatTour(s);
+  if (!st || v === null) return false;
+  try {
+    st.setItem(TOUR_KEY, v);
+    return true;
+  } catch {
+    return false;
+  }
+}

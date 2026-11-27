@@ -1,5 +1,5 @@
 /**
- * Which saved answer is "the" answer for the loaded save (fix 22, beta 16 Oct): ONE rule for My runs' Right now
+ * Which saved answer is "the" answer for the loaded save (fix 22, beta 16 Oct): ONE rule for My Runs' Right now
  * card and its two tiles, so they cannot disagree. Jordan changed his hours (any hour -> 7 am to 1 am) between two
  * Check exactly runs of the same save: Right now showed the 11:59 pm plan (his hours, 6 ascensions) and the
  * Fastest tile the 11:51 pm one (any hour, 7 ascensions, sooner), and read it as "same save, two answers".
@@ -8,6 +8,8 @@
  *   0. By a date (Egg Day too): only an answer whose last TE counts by the date (lib/eggDayRule.ts, Jordan 22 Oct
  *      2026); a late one is never the pick, whatever it reaches;
  *   1. an answer of the loaded save (or of one at most CURRENT_SAVE_SECONDS older, fix 21) before any other;
+ *      among those, My Runs' plans of the loaded save ITSELF (`ofThisSave`) before an older one's, whatever the TE
+ *      (Jordan, 17 Nov 2026: a later save's own 198 TE plan leads the earlier save's 199);
  *   2. an answer priced with the CURRENT setup (hours and time off as Your setup has them now) before one priced
  *      with other hours or with hours not recorded, EVEN IF that one finishes sooner;
  *   3. (current saves) checked or searched before the instant answer's table alone;
@@ -29,8 +31,10 @@ import { describeAvailability, isConstrained, type Availability } from '@/search
 import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { hoursShort, pricedWithLine, timeOffWords } from './pricedWith';
 import { parseWindow } from './planFilters';
+import { blockedFromAwake, parseWeekWindow } from './weekWindow';
 import { finishesBefore } from './eggDayRule';
 import type { NowPlan } from './nowPlan';
+import type { Driving } from './searchPlan';
 
 /** Two save times this close are the same save. */
 export const SAME_SAVE_SECONDS = 10 * 60;
@@ -91,26 +95,31 @@ export function rowSetup(row: { window?: string | null; timeOff?: TimeOffDates[]
   if (row.window === undefined) return null;
   if (row.window === null || row.window === '') return { availability: null, timeOff: row.timeOff ?? [] };
   const a = parseWindow(row.window);
-  return a ? { availability: a, timeOff: row.timeOff ?? [] } : null;
+  if (a) return { availability: a, timeOff: row.timeOff ?? [] };
+  // R10: a week that is not one daily window (lib/weekWindow.ts)
+  const wk = parseWeekWindow(row.window);
+  return wk
+    ? { availability: { days: [], fromHour: 0, toHour: 0, timezone: wk.timezone, blocked: blockedFromAwake(wk.hours) }, timeOff: row.timeOff ?? [] }
+    : null;
 }
 
 /**
  * The secondary line's label for an answer priced with another setup: "with any hour (before your hours changed)",
- * "with 9 am–1 am (before your hours changed)", "with no time off (before your time off changed)", or "with other
+ * "with 9 am–1 am (before your awake hours changed)", "with no time off (before your time off changed)", or "with other
  * hours" when what it was priced with was not recorded. '' for the current setup.
  */
 export function otherSetupLabel(c: SetupCheck): string {
   if (c.fit === 'current') return '';
   const r = c.recorded;
-  if (!r) return 'with other hours';
+  if (!r) return 'with other awake hours';
   if (c.hours)
-    return `with ${hoursShort(r.availability)}${c.timeOff ? `, ${timeOffWords(r.timeOff)}` : ''} (before your hours changed)`;
+    return `with ${hoursShort(r.availability)}${c.timeOff ? `, ${timeOffWords(r.timeOff)}` : ''} (before your awake hours changed)`;
   return `with ${timeOffWords(r.timeOff)} (before your time off changed)`;
 }
 
 /** Right now's header words: "priced with your hours 7 am to 1 am, no time off", "priced with other hours". */
 export function pricedWithWords(c: SetupCheck): string {
-  if (!c.recorded) return 'priced with other hours';
+  if (!c.recorded) return 'priced with other awake hours';
   const line = pricedWithLine(c.recorded);
   return line.charAt(0).toLowerCase() + line.slice(1);
 }
@@ -149,6 +158,9 @@ export interface Rankable {
   calculatedAt: number;
   /** A plan Right now can show (a kept snapshot): it leads a tie, so the card and the tile name the same one. */
   plan?: boolean;
+  /** Of the loaded save itself (within a minute), not just a current one: it leads every other current save's answer, whatever the TE
+   *  (Jordan, 17 Nov 2026). Set for My Runs' plans (`rankableOf`); unset ranks as before. */
+  thisSave?: boolean;
 }
 
 /** Whether an answer's save is current against the loaded one (`ownKey`: under this save's own key). */
@@ -169,6 +181,7 @@ export function compareAnswers(goal: 'fastest' | 'date') {
   const q = quality(goal);
   return (a: Rankable, b: Rankable): number => {
     if (a.currentSave !== b.currentSave) return a.currentSave ? -1 : 1;
+    if (a.currentSave && !!a.thisSave !== !!b.thisSave) return a.thisSave ? -1 : 1;
     const fit = (x: Rankable) => (x.fit === 'current' ? 0 : 1);
     if (fit(a) !== fit(b)) return fit(a) - fit(b);
     if (!a.currentSave) return b.calculatedAt - a.calculatedAt;
@@ -201,7 +214,7 @@ export function pickAnswer<T extends Rankable>(list: readonly T[], goal: 'fastes
 /** A kept snapshot Right now could show. */
 export interface CardCandidate {
   plan: NowPlan;
-  /** Which goal it is for (its place in My runs' goal list): candidates of one goal are ranked together; across
+  /** Which goal it is for (its place in My Runs' goal list): candidates of one goal are ranked together; across
    *  goals the place is only the last tie-break (`pickCardPlan`). */
   goalIndex: number;
   /** lib/planGoals.ts's key for the goal ('fastest-490', 'eggday-2027', 'date-<unix>'), when known. */
@@ -209,6 +222,8 @@ export interface CardCandidate {
   /** Under this save's own key (this save, this setup). */
   ownKey: boolean;
   check: SetupCheck;
+  /** The goal's instant plan and search result from the same snapshot, and which drives (lib/searchPlan.ts). */
+  driving?: Driving;
 }
 
 export interface CardPick {
@@ -218,8 +233,16 @@ export interface CardPick {
   secondary: CardCandidate | null;
 }
 
+/** A plan of the loaded save itself: its save time within a minute; without one, its own key. Not ownKey alone: two saves
+ *  minutes apart share the key (QA's two-save run, 17 Nov 2026). */
+export function ofThisSave(c: Pick<CardCandidate, 'plan' | 'ownKey'>, loaded: number): boolean {
+  const bt = c.plan.meta?.backupTime;
+  return typeof bt === 'number' ? Math.abs(bt - loaded) <= 60 : c.ownKey;
+}
+
 const rankableOf = (c: CardCandidate, loaded: number): Rankable => ({
   currentSave: isCurrentSave(c.plan.meta?.backupTime ?? null, loaded, c.ownKey),
+  thisSave: ofThisSave(c, loaded),
   fit: c.check.fit,
   how: c.plan.exact ? 'check' : 'instant',
   end: c.plan.end,
@@ -294,7 +317,7 @@ export function pickGoalPlan(all: readonly CardCandidate[], loadedSave: number, 
  * Right now's default plan over every goal: each goal's lead by the same rule as the tiles (`pickGoalPlan`), then
  * the goals by the save tier and the setup of their lead (as before), then the goal the player checked LAST
  * (the newest calculated time of its plans), then the goal order. The fixed order Fastest 490 > own target > Egg
- * Day is now only the last tie-break. My runs lets the player pick another goal (lib/planGoals.ts).
+ * Day is now only the last tie-break. My Runs lets the player pick another goal (lib/planGoals.ts).
  */
 export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
   if (!list.length) return null;

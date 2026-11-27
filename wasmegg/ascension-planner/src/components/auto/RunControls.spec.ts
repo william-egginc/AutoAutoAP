@@ -1,14 +1,21 @@
 /** RunControls.vue (12 Oct): the order of the blocks, and Find greyed out for the other search. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import { h } from 'vue';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import RunControls from './RunControls.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { renderHtml, textOf } from '@/test/renderComponent';
+import { SET_UP_KEY, stepAwayNudge } from '@/composables/useStepAwayNudge';
+import { resetConsents } from '@/composables/useConsent';
+import { resetRunBeacon, runBeaconRunEnded, runBeaconRunStarted } from '@/lib/runBeacon';
 
 let pinia: Pinia;
+let mem: Map<string, string>;
 beforeEach(() => {
-  const mem = new Map<string, string>();
+  mem = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => mem.get(k) ?? null,
     setItem: (k: string, v: string) => void mem.set(k, v),
@@ -20,6 +27,8 @@ beforeEach(() => {
   });
   pinia = createPinia();
   setActivePinia(pinia);
+  resetConsents(null);
+  stepAwayNudge.value = null;
 });
 
 const props = {
@@ -56,11 +65,12 @@ describe('RunControls', () => {
       store.isRunning = true;
       expect(store.runProgress?.kind).toBe('smart');
     };
-    it('Fastest\'s Exhaustive (full) names Nearby routes while it runs', async () => {
+    it('Fastest\'s Exhaustive (full) names the run Fast while it runs (review W2: one run is Fast or Exact, never both)', async () => {
       smartRuns();
       const html = await render({ kind: 'full' });
       expect(html).toContain('data-testid="find-blocked"');
-      expect(textOf(html)).toContain('Nearby routes is running');
+      expect(textOf(html)).toContain('Fast is running');
+      expect(textOf(html)).not.toContain('Fast and Exact is running');
       expect(html).toContain('data-testid="find-blocked-jump"');
     });
     it('the screen that is itself running says nothing', async () => {
@@ -71,5 +81,91 @@ describe('RunControls', () => {
       smartRuns();
       expect(await render({ kind: 'by-date' })).not.toContain('data-testid="find-blocked"');
     });
+  });
+});
+
+describe('Run on a long run opens Stepping away? (28 Oct 2026, ux35-d)', () => {
+  /** Render, then press Run (FindBar's `find`) through RunControls' own handler; what the screen was told. */
+  async function pressRun(p: Record<string, unknown>): Promise<boolean[]> {
+    const finds: boolean[] = [];
+    const app = createSSRApp({ render: () => h(RunControls, { ...props, ...p, onFind: (s: boolean) => finds.push(s) } as never) });
+    app.use(pinia);
+    app.mixin({
+      created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+        if (this.$.type.__file?.endsWith('/RunControls.vue')) (this.$.setupState.onFind as (s: boolean) => void)(true);
+      },
+    });
+    await renderToString(app);
+    return finds;
+  }
+
+  it('over an hour: the run still starts, and the box of its own kind opens', async () => {
+    expect(await pressRun({ estimateSeconds: 2 * 3600 })).toEqual([true]);
+    expect(stepAwayNudge.value).toBe('smart');
+    stepAwayNudge.value = null;
+    await pressRun({ kind: 'full', estimateSeconds: 5 * 3600 });
+    expect(stepAwayNudge.value).toBe('sweep');
+    stepAwayNudge.value = null;
+    await pressRun({ kind: 'by-date', estimateSeconds: 3601 });
+    expect(stepAwayNudge.value).toBe('deadline');
+  });
+
+  it('an hour or less, or no estimate: the run starts and the box stays closed', async () => {
+    expect(await pressRun({ estimateSeconds: 3600 })).toEqual([true]);
+    expect(await pressRun({})).toEqual([true]);
+    expect(stepAwayNudge.value).toBe(null);
+  });
+
+  it('already set up in this browser: not opened', async () => {
+    mem.set(SET_UP_KEY, '1');
+    expect(await pressRun({ estimateSeconds: 9 * 3600 })).toEqual([true]);
+    expect(stepAwayNudge.value).toBe(null);
+  });
+
+  it('every screen gives its run estimate (the one it shows) to the run controls', () => {
+    const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
+    for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue', 'DeadlinePanel.vue'])
+      expect(read(f), f).toMatch(/<RunControls\b[\s\S]{0,200}?\s:estimate-seconds="/);
+  });
+});
+
+describe('Run on a run of 2 hours or more tells the planner’s server (the long-run alert, lib/runBeacon.ts)', () => {
+  const SUBMIT = 'https://collector.example.workers.dev/submit';
+  async function pressRun(p: Record<string, unknown>): Promise<void> {
+    const app = createSSRApp({ render: () => h(RunControls, { ...props, ...p, onFind: () => {} } as never) });
+    app.use(pinia);
+    app.mixin({
+      created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+        if (this.$.type.__file?.endsWith('/RunControls.vue')) (this.$.setupState.onFind as (s: boolean) => void)(true);
+      },
+    });
+    await renderToString(app);
+  }
+  let fetchMock: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    resetRunBeacon();
+    fetchMock = vi.fn(async () => new Response('{"ok":true}'));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  const sent = () => fetchMock.mock.calls.map(c => JSON.parse((c[1] as RequestInit).body as string));
+
+  it('arms the start with the screen’s kind and estimate; sent when the run starts', async () => {
+    await pressRun({ option: 'exact', estimateSeconds: 3 * 3600 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    runBeaconRunStarted(SUBMIT);
+    expect(sent()).toEqual([expect.objectContaining({ t: 'start', kind: 'exact', estHours: 3 })]);
+    runBeaconRunEnded('finished');
+    await pressRun({ kind: 'by-date', option: 'fast', estimateSeconds: 7200 });
+    runBeaconRunStarted(SUBMIT);
+    expect(sent()[2]).toEqual(expect.objectContaining({ t: 'start', kind: 'bydate', estHours: 2 }));
+  });
+
+  it('under 2 hours, or no estimate: nothing', async () => {
+    await pressRun({ option: 'exact', estimateSeconds: 7199 });
+    runBeaconRunStarted(SUBMIT);
+    runBeaconRunEnded('finished');
+    await pressRun({ option: 'exact' });
+    runBeaconRunStarted(SUBMIT);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

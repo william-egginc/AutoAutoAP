@@ -1,4 +1,5 @@
-// Post a saved payload.json + table.csv the way the planner's sendSubmission does: /submit, then
+// LEGACY (26 Oct 2026): not the site's send any more (no owner token, no ?quarantine=1, the table uncapped);
+// `fastsearch submit --from DIR` is. Post a saved payload.json + table.csv the way the planner's sendSubmission did: /submit, then
 // the gzipped, scrubbed table to /csv with the one-time upload token. Drops `run` (PC harness speed
 // is not browser speed and would skew the Explorer's time estimates).
 import { readFileSync } from 'node:fs';

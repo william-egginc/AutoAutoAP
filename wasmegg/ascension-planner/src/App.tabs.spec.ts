@@ -37,14 +37,17 @@ describe('App.vue header layout', () => {
     const folds = [...app.matchAll(/isHeaderCollapsed \? 'grid-rows-\[0fr\] opacity-0'/g)].map(m => m.index!);
     const tabs = app.indexOf('<SiteTabs');
     // Everything from the first folding grid's opening to the tabs must have closed it: the form comes first
-    // and the tabs tag is at the page level (a 6-space indent, like the cards around it).
-    expect(app.slice(app.lastIndexOf('\n', tabs) + 1, tabs)).toBe('      ');
+    // and the tabs tag is at the page level: inside the site row (a 6-space div, like the cards around it, since the
+    // dark bar's Home and menu joined the row, 13 Nov 2026), so an 8-space indent.
+    expect(app.slice(app.lastIndexOf('\n', tabs) + 1, tabs)).toBe('        ');
+    expect(app.slice(app.lastIndexOf('\n', app.lastIndexOf('<div class="mt-4 flex flex-col gap-2 lg:flex-row', tabs)) + 1, app.lastIndexOf('<div class="mt-4 flex flex-col gap-2 lg:flex-row', tabs))).toBe('      ');
     expect(tabs).toBeGreaterThan(folds[0]);
     expect(tabs).toBeLessThan(folds[1]);
   });
 
   it('has one chevron, with an accessible name, in the one place under the tabs', () => {
-    expect(app.match(/@click="isHeaderCollapsed = !isHeaderCollapsed"/g)).toHaveLength(1);
+    expect(app.match(/@click="toggleHeader"/g)).toHaveLength(1);
+    expect(app).toContain('isHeaderCollapsed.value = !isHeaderCollapsed.value;');
     expect(app).toContain("isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'");
     // Not tied to a screen.
     const block = app.slice(app.indexOf('data-testid="header-toggle"') - 120, app.indexOf('data-testid="header-toggle"') + 40);
@@ -52,7 +55,9 @@ describe('App.vue header layout', () => {
   });
 
   it('the Manual part that folds is only there on Manual, and the sub-tabs stay in the nav', () => {
-    expect(app).toContain("v-if=\"plannerTab === 'manual'\"\n        class=\"mt-2 rounded-2xl border");
+    // manualShown: the Manual tab, and not the first visit (spec-fluff3-chrome, App.firstVisit.spec.ts).
+    expect(app).toContain('v-if="manualShown"\n        class="mt-2 rounded-2xl border');
+    expect(app).toContain("const manualShown = computed(() => plannerTab.value === 'manual' && !firstVisit.value);");
     expect(app.indexOf('<nav v-if="playerId"')).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
   });
 
@@ -64,10 +69,10 @@ describe('App.vue header layout', () => {
   });
 });
 
-/** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My runs always. */
+/** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My Runs always. */
 describe('App.vue optional tabs', () => {
   it('builds the top tabs from what is shown, not from a count', () => {
-    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
+    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
     expect(tabs).toContain('...(optionalShown.value.leaderboard');
     expect(tabs).toContain('...(optionalShown.value.science');
     expect(app).toContain("const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);");
@@ -80,12 +85,17 @@ describe('App.vue optional tabs', () => {
     expect(goTo.indexOf('allowForVisit(r.section)')).toBeLessThan(goTo.indexOf('applyRoute(r)'));
   });
 
-  it("on a tab that isn't shown, falls back to the last tab shown or My runs, at once", () => {
+  it("on a tab that isn't shown, falls back to the last tab shown, else My Runs, else the Auto Planner, at once", () => {
     const block = app.slice(app.indexOf('let lastShownTab'), app.indexOf('/**\n * On a link into the Auto Planner'));
     expect(block).toContain("let lastShownTab: typeof plannerTab.value = 'myruns';");
-    expect(block).toContain("plannerTab.value = tabHidden(lastShownTab) ? 'myruns' : lastShownTab;");
+    expect(block).toContain(
+      "plannerTab.value = !tabHidden(lastShownTab) ? lastShownTab : !tabHidden('myruns') ? 'myruns' : 'automatic';"
+    );
+    // My Runs with nothing to show is a hidden tab too (lib/myRunsShown.ts), and the fallback follows it.
+    expect(block).toContain("(tab === 'myruns' && !myRunsTabShown.value)");
+    expect(block).toContain('[plannerTab, optionalShown, myRunsTabShown],');
     expect(block).toContain("{ immediate: true, flush: 'sync' }");
-    // The old rule (no collector: My runs and Science sent to the Manual Planner) is gone.
+    // The old rule (no collector: My Runs and Science sent to the Manual Planner) is gone.
     expect(app).not.toContain("plannerTab.value === 'myruns' || plannerTab.value === 'science'");
   });
 });

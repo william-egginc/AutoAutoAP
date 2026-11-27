@@ -1,4 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 /** By a date's route card (ByDateRouteCard.vue): the finished answer, and the best so far mid-run. */
+import { formatMoment } from '@/lib/clock';
 import { describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import ByDateRouteCard from './ByDateRouteCard.vue';
@@ -31,7 +34,7 @@ describe('ByDateRouteCard', () => {
     const html = await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' });
     const t = textOf(html);
     expect(t).toMatch(/^Highest by .*2027/);
-    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27\.3 h to spare/);
+    expect(t).toMatch(/166 → 197 → 223 → 247 247 TE reached .*2027.*, 27h 18m to spare/);
     expect(t).toContain('Stopped early.');
     // Laid out as Fastest's leg table: Ascension, to TE, Start, Finish, Days.
     expect(t).toMatch(/Ascension → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
@@ -40,10 +43,25 @@ describe('ByDateRouteCard', () => {
     expect(t).not.toContain('can still improve');
   });
 
+  it("Start is the ascension's own start (the prestige), not the last one's finish, when the hours held it", async () => {
+    // UX review 2, 5 Nov 2026: A3 reached 278 at 2:21 am, the prestige waited for 8 am (sleepDelaySeconds),
+    // and A4's Start said 2:21 am although its days were counted from 8 am.
+    const reach = DEADLINE - 70 * 86400; // 10:00 am UTC
+    const held = 5 * 3600 + 40 * 60;
+    const legs = [
+      { ...(leg(278, reach, 66) as object), sleepDelaySeconds: held },
+      { ...(leg(311, DEADLINE - 3600, 70 - (held + 3600) / 86400) as object), startTime: reach + held },
+    ] as never;
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ route: route({ chain: [278, 311], legs }) })));
+    const at = (u: number) => formatMoment(u * 1000, { zone: 'UTC', year: 'always' });
+    expect(t).toContain(`A2 311 ${at(reach + held)}`);
+    expect(t).not.toContain(`A2 311 ${at(reach)}`);
+  });
+
   it('mid-run: labelled the best so far, and says it can still improve', async () => {
     const t = textOf(await renderHtml(ByDateRouteCard, props({ running: true })));
     expect(t).toMatch(/^Best so far · highest by .*2027/);
-    expect(t).toContain('166 197 223 247 247 TE');
+    expect(t).toContain('166 → 197 → 223 → 247 247 TE');
     expect(t).toContain('The search is still going, so this can still improve.');
     expect(t).toContain('Ascension → TE Start Finish Days');
   });
@@ -51,7 +69,7 @@ describe('ByDateRouteCard', () => {
   it('a best so far without its legs yet (replayed) shows what is known, and no empty table', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ running: true, route: route({ legs: [] }) }));
     expect(html).not.toContain('by-date-legs');
-    expect(textOf(html)).toContain('166 197 223 247 247 TE');
+    expect(textOf(html)).toContain('166 → 197 → 223 → 247 247 TE');
     expect(textOf(html)).toContain('The time of each stop comes with the finished result.');
   });
 
@@ -89,20 +107,21 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     // The last leg ends 27.3 h before the deadline. The farm is on kindness: 2.3e17 eggs at 1e12 a second
     // (63.9 h), a date and time in the planner's zone, 12-hour. The other eggs need a shift first.
     const end = DEADLINE - 27.3 * 3600;
-    const at = (s: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(s * 1000));
+    const at = (s: number) => formatMoment(s * 1000, { zone: 'UTC' });
     expect(t).toContain('Curiosity 50 after a shift');
     expect(t).toMatch(new RegExp(`Kindness · laying 49 ${at(end + 2.3e5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);
-    // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx).
-    expect(t).toMatch(
-      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the deadline, so it isn't counted\./
-    );
+    // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx). The fold's title
+    // since 5 Nov 2026 (UX fluff review 2, items D5 and D6; the table and the rate inside it).
+    expect(t).toMatch(/Next TE: Kindness, .*2027.*, after the date TE per egg/);
+    expect(t).toContain("That is laying on after the last stop at the final rate of 3.60q eggs an hour, so it isn't counted.");
   });
 
   it('no next-TE line when laying on would beat the deadline (the search should have found that route)', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ route: withEnd(), deadline: DEADLINE + 100 * 3600 }));
     expect(html).toContain('data-testid="by-date-te-per-egg"');
-    expect(html).not.toContain('by-date-next-te"');
+    expect(textOf(html)).not.toContain('Next TE:');
+    expect(textOf(html)).toContain('TE per egg at the end');
   });
 
   it('without a rate: the TE, and a dash for when, with its reason in the title', async () => {
@@ -111,7 +130,7 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     expect(t).toContain('TE per egg TE Next TE Curiosity 50 after a shift');
     expect(t).toMatch(/Kindness · laying 49 —/);
     expect(html).toContain("final delivery rate isn&#39;t known, so there is no time for it.");
-    expect(t).not.toContain('Laying on after the last stop');
+    expect(t).not.toContain('laying on after the last stop');
   });
 
   it('without the end time: a dash, and the title says the date is what is missing', async () => {
@@ -129,23 +148,16 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
 });
 
 describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
-  it('Simulate this plan, with its note', async () => {
-    const t = textOf(
-      await renderHtml(
-        ByDateRouteCard,
-        props({ simulate: true, simulateNote: BUILDUP_NOTE })
-      )
-    );
-    expect(t).toContain('Single run prices the first ascension as a fresh build/continue. Simulate this plan');
+  it('Simulate this route, without the build-up note (it is on Single run\'s banner: DeadlinePanel.simulateNote.spec)', async () => {
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ simulate: true })));
+    expect(t).toContain('Simulate this route');
+    expect(t).not.toContain(BUILDUP_NOTE);
     expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
-    expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('by-date-simulate-note');
   });
 
-  it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
+  it('Simulate, Share, Download ▾, Save answer in that order, styled as Fastest\'s (no Simulate note since 5 Nov 2026)', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
-    expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
-    );
+    expect(textOf(html)).toMatch(/Simulate this route Share ↓ Download ▾ Download CSV \(detail for top routes\) Save answer Ascension/);
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
       days: 760.5,
@@ -155,8 +167,8 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
       canSave: true,
     });
     const classOf = (h: string, text: string) => h.match(new RegExp(`class="([^"]*)"[^>]*>\\s*${text}`))?.[1];
-    expect(classOf(html, 'Simulate this plan')).toContain('bg-emerald-700');
-    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Build this plan'));
+    expect(classOf(html, 'Simulate this route')).toContain('bg-emerald-700');
+    expect(classOf(html, 'Simulate this route')).toBe(classOf(fast, 'Simulate this route'));
     expect(classOf(html, 'Share')).toContain('border-emerald-300');
     expect(classOf(html, 'Share')).toBe(classOf(fast, 'Share'));
   });
@@ -171,16 +183,16 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     const t = textOf(
       await renderHtml(ByDateRouteCard, props({ running: true, simulate: true, canShare: true, canCsv: true, canSave: true }))
     );
-    expect(t).toContain('Simulate this plan');
+    expect(t).toContain('Simulate this route');
     expect(t).not.toMatch(/Share|CSV|Save answer/);
   });
 });
 
 describe('spareLabel', () => {
   it('minutes, hours under two days, then days', () => {
-    expect(spareLabel(40 * 60)).toBe('40 min');
-    expect(spareLabel(27.3 * 3600)).toBe('27.3 h');
-    expect(spareLabel(3.5 * 86400)).toBe('3.5 days');
+    expect(spareLabel(40 * 60)).toBe('40m');
+    expect(spareLabel(27.3 * 3600)).toBe('27h 18m');
+    expect(spareLabel(3.5 * 86400)).toBe('3d 12h');
   });
 });
 
@@ -192,7 +204,8 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain("Build this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
+    // The Simulate line is the button's title since 5 Nov 2026 (UX fluff review 2, item C6).
+    expect(live).not.toContain('Simulate this route opens this route');
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });
@@ -207,5 +220,30 @@ describe('RouteResultCard (Fastest) mid-run', () => {
     expect(
       textOf(await renderHtml(RouteResultCard, { ...base, running: false }, { default: () => h('i') }))
     ).not.toContain('can still improve');
+  });
+});
+
+describe('Follow this route on the result cards (23 Oct 2026)', () => {
+  const follow = { goalKey: 'eggday-2027', source: 'fast' as const, finish: DEADLINE - 27.3 * 3600, endTE: 247, planStart: DEADLINE - 300 * 86400, deadline: DEADLINE };
+  it('By a date: the finished answer has "Follow this route" for its goal; the best so far and a card without it have none', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ follow, simulate: true, canCsv: true }));
+    expect(html).toMatch(/data-testid="follow-route" data-goal="eggday-2027"/);
+    // Follow first, then Simulate (one order wherever the pair is shown, Allan 9 Nov 2026).
+    expect(textOf(html)).toMatch(/Follow this route Simulate this route Download ▾ Download CSV/);
+    expect(await renderHtml(ByDateRouteCard, props({ follow, running: true, simulate: true }))).not.toContain('follow-route');
+    expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('follow-route');
+  });
+  it('Fastest: the finished answer has it before Simulate this route; mid-run none', async () => {
+    const base = { chain: [166, 197, 223, 490], days: 30.5, finalTE: 490, endLabel: 'Feb 15, 2029, 9:22 PM', running: false };
+    const f = { goalKey: 'fastest-490', source: 'exact' as const, finish: 1_900_000_000, endTE: 490, planStart: 1_897_000_000 };
+    const html = await renderHtml(RouteResultCard, { ...base, follow: f });
+    expect(html).toMatch(/data-testid="follow-route" data-goal="fastest-490"/);
+    expect(textOf(html)).toMatch(/Follow this route Simulate this route Share/);
+    expect(await renderHtml(RouteResultCard, { ...base, running: true, follow: f })).not.toContain('follow-route');
+  });
+
+  it('imports nothing it does not use (dead-ui-26, 22 Nov 2026: AnimatedDots)', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, 'ByDateRouteCard.vue'), 'utf8');
+    expect(src).not.toContain('AnimatedDots');
   });
 });

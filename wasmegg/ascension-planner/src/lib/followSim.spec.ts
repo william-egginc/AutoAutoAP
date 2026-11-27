@@ -1,0 +1,191 @@
+import { describe, expect, it } from 'vitest';
+import {
+  SIM_MAX_BYTES,
+  SIM_RECORD_KEY,
+  SIM_RECORD_RULES,
+  findSimRecord,
+  readSimRecords,
+  recordSim,
+  simKey,
+  simLegOf,
+  simSetupKey,
+  withCurrentSim,
+  type SimRecord,
+} from './followSim';
+import type { LegSummary } from '@/search/types';
+import type { NowPlan } from './nowPlan';
+
+const T0 = 1_800_000_000;
+const H = 3600;
+
+function mem(o: { failWrites?: (text: string) => boolean; failReads?: boolean } = {}) {
+  const m = new Map<string, string>();
+  return {
+    m,
+    getItem: (k: string) => {
+      if (o.failReads) throw new Error('blocked');
+      return m.get(k) ?? null;
+    },
+    setItem: (k: string, v: string) => {
+      if (o.failWrites?.(v)) throw new Error('QuotaExceededError');
+      m.set(k, v);
+    },
+  };
+}
+const leg = { key: 'continue', startTime: T0, endTime: T0 + 30 * H, endTE: 226, buildPhaseEndTime: T0, shifts: [{ at: T0 + 2 * H, egg: 'humility' }] };
+const rec = (backupTime: number, extra: Partial<SimRecord> = {}): SimRecord => ({
+  account: 'acct-hash',
+  backupTime,
+  route: [226, 277, 490],
+  setup: '[]',
+  at: backupTime * 1000,
+  leg,
+  ...extra,
+});
+
+describe('the record (aap-follow-sim)', () => {
+  it('keeps the newest five (SIM_RECORDS; spec-r7verify, was three), one per account, save, route and setup', () => {
+    const st = mem();
+    for (const t of [1, 2, 3, 4, 5, 6]) expect(recordSim(rec(T0 + t), st)).toBe(true);
+    expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 6, T0 + 5, T0 + 4, T0 + 3, T0 + 2]);
+    // The rest as before, on the newest three.
+    st.m.set(SIM_RECORD_KEY, JSON.stringify(JSON.parse(st.m.get(SIM_RECORD_KEY)!).slice(2)));
+    expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 4, T0 + 3, T0 + 2]);
+    // The same key again replaces it.
+    recordSim(rec(T0 + 3, { at: 5 }), st);
+    expect(readSimRecords(st).map(r => [r.backupTime, r.at])).toEqual([
+      [T0 + 3, 5],
+      [T0 + 4, (T0 + 4) * 1000],
+      [T0 + 2, (T0 + 2) * 1000],
+    ]);
+    expect(findSimRecord(readSimRecords(st), { account: 'acct-hash', backupTime: T0 + 4, route: [226, 277, 490], setup: '[]' })?.backupTime).toBe(T0 + 4);
+    expect(findSimRecord(readSimRecords(st), { account: 'acct-hash', backupTime: T0 + 4, route: [226, 490], setup: '[]' })).toBeNull();
+  });
+
+  it('a record too big is not kept; a full storage keeps fewer rather than none; nothing throws', () => {
+    const st = mem();
+    const huge = rec(T0, { leg: { ...leg, shifts: Array.from({ length: 2000 }, (_, i) => ({ at: T0 + i, egg: 'curiosity' })) } });
+    expect(JSON.stringify(huge).length).toBeGreaterThan(SIM_MAX_BYTES);
+    expect(recordSim(huge, st)).toBe(false);
+    expect(st.m.has(SIM_RECORD_KEY)).toBe(false);
+    // Room for two records only.
+    const two = mem({ failWrites: text => (JSON.parse(text) as unknown[]).length > 2 });
+    for (const t of [1, 2]) recordSim(rec(T0 + t), two);
+    expect(recordSim(rec(T0 + 3), two)).toBe(true);
+    expect(readSimRecords(two).map(r => r.backupTime)).toEqual([T0 + 3, T0 + 2]);
+    expect(recordSim(rec(T0 + 4), mem({ failWrites: () => true }))).toBe(false);
+    expect(recordSim(rec(T0), null)).toBe(false);
+  });
+
+  it('unreadable or garbled storage reads as none', () => {
+    expect(readSimRecords(mem({ failReads: true }))).toEqual([]);
+    const st = mem();
+    st.m.set(SIM_RECORD_KEY, '{not json');
+    expect(readSimRecords(st)).toEqual([]);
+    st.m.set(SIM_RECORD_KEY, JSON.stringify([{ account: 'x' }, rec(T0)]));
+    expect(readSimRecords(st)).toHaveLength(1);
+  });
+
+  it('never holds a player id: the account is the hash it is given', () => {
+    const st = mem();
+    recordSim(rec(T0), st);
+    expect(st.m.get(SIM_RECORD_KEY)).not.toMatch(/EI\d{16}/);
+  });
+});
+
+describe('keys and the leg', () => {
+  it('the setup key follows what the simulation depends on', () => {
+    const base = { availability: { days: [], fromHour: 7, toHour: 23, timezone: 'UTC' }, useHours: true, timeOff: [], noPrestige: [], firstAscension: 'auto', deferShifts: true };
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, useHours: false }));
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, deferShifts: false }));
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, noPrestige: [{ date: '2026-11-01' }] }));
+    expect(simKey({ account: 'a', backupTime: 5, route: [1, 2], setup: 's' })).toBe('a|5|1,2|s');
+  });
+
+  it('the silo trick and the plan\'s zone are in the key too (code review round 2, 22 Nov 2026, R7.3)', () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [{ date: '2026-11-01' }], firstAscension: 'auto', deferShifts: true, zone: 'America/Denver' };
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, siloTrick: true }));
+    expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, zone: 'America/New_York' }));
+    expect(simSetupKey({ ...base, siloTrick: false })).toBe(simSetupKey(base));
+  });
+
+  it('a record kept before the no-empty-build-up rules is never found again (spec-noemptybuild)', () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    // The setup key as it was made before (no rules in it): Jordan's alt kept a 6-shift build-up that bought nothing.
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false]);
+    expect(simSetupKey(base)).not.toBe(before);
+    expect(simSetupKey(base)).toContain(SIM_RECORD_RULES);
+    const st = mem();
+    const old = { ...rec(T0), setup: before, leg: { ...rec(T0).leg, key: 'buildup' } };
+    st.m.set(SIM_RECORD_KEY, JSON.stringify([old]));
+    expect(findSimRecord(readSimRecords(st), { account: old.account, backupTime: old.backupTime, route: old.route, setup: simSetupKey(base) })).toBeNull();
+  });
+
+  it('simLegOf keeps the times, shifts and peak rate, and refuses a leg without times', () => {
+    const l = { key: '1-sale', endTE: 226, durationSeconds: 10 * H, maxELR: 1, endTime: T0 + 10 * H, tier13Unlocked: false, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness', fromEgg: 'curiosity', te: 3 }] } as LegSummary;
+    expect(simLegOf(l)).toEqual({ key: '1-sale', startTime: T0, endTime: T0 + 10 * H, endTE: 226, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness' }], maxELR: 1 });
+    expect(simLegOf({ ...l, endTime: NaN })).toBeNull();
+    expect(simLegOf(null)).toBeNull();
+  });
+
+  it('A1 CHOICE (spec-a1choice): simLegOf keeps both first-ascension ends and the build-up buy count', () => {
+    const l = { key: 'buildup', endTE: 194, durationSeconds: 7 * 24 * H, maxELR: 1, endTime: T0 + 7 * 24 * H, tier13Unlocked: false, shifts: [], firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H, fresh: NaN }, buildUpBuys: 1 } as LegSummary;
+    expect(simLegOf(l)).toMatchObject({ firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H }, buildUpBuys: 1 });
+    expect(simLegOf(l)!.firstLegEnds).not.toHaveProperty('fresh');
+  });
+
+  it("a record kept before the A1 choice (rules 'noemptybuild', no ends or buys) is never found again", () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false, 'noemptybuild']);
+    expect(SIM_RECORD_RULES).toBe('a1choice');
+    expect(simSetupKey(base)).not.toBe(before);
+  });
+});
+
+describe('withCurrentSim', () => {
+  const plan = {
+    goal: 'fastest',
+    deadline: null,
+    chain: [226, 277],
+    end: T0 + 80 * H,
+    endTE: 277,
+    legs: null,
+    tableLegs: [
+      { from: 200, to: 226, endTE: 226, start: T0, end: T0 + 24 * H },
+      { from: 226, to: 277, endTE: 277, start: T0 + 25 * H, end: T0 + 80 * H, shifts: [{ at: T0 + 50 * H, egg: 'humility' }] },
+    ],
+    exact: false,
+    instantTE: null,
+    calculatedAt: 0,
+    planStart: T0,
+    spareHours: null,
+    runnerUpHours: null,
+    meta: null,
+    whatIf: null,
+  } as NowPlan;
+  it('the first ascension becomes the simulated one; the later ones move by as much as it ends later (code review round 2, 22 Nov 2026, R7.6)', () => {
+    const p = withCurrentSim(plan, leg);
+    expect(p.tableLegs![0]).toMatchObject({ simulated: true, start: T0, end: T0 + 30 * H, shifts: leg.shifts, buildEnd: T0 });
+    // The simulated ascension ends 6 h after the table's (T0 + 24 h): leg 2 starts 6 h later, never before it ends.
+    expect(p.tableLegs![1]).toMatchObject({ start: T0 + 31 * H, end: T0 + 86 * H, shifts: [{ at: T0 + 56 * H, egg: 'humility' }] });
+    expect(p.tableLegs![1].start).toBeGreaterThanOrEqual(p.tableLegs![0].end);
+    expect(p.end).toBe(plan.end + 6 * H);
+    // Under a minute apart: as it was.
+    const near = withCurrentSim(plan, { ...leg, endTime: T0 + 24 * H + 30 });
+    expect(near.tableLegs![1]).toBe(plan.tableLegs![1]);
+    expect(near.end).toBe(plan.end);
+  });
+  it('By a date: a delay that crosses the date moves the finish past it, and the spare hours with it (R7.6)', () => {
+    const dated = { ...plan, goal: 'date', deadline: T0 + 82 * H, spareHours: 2 } as NowPlan;
+    const p = withCurrentSim(dated, leg);
+    expect(p.end).toBe(T0 + 86 * H);
+    expect(p.spareHours).toBe(-4);
+  });
+  it('a one-stop route ends with it; another stop or exact legs leave the plan as it was', () => {
+    const one = { ...plan, chain: [226], tableLegs: [plan.tableLegs![0]], end: T0 + 24 * H, endTE: 226 };
+    expect(withCurrentSim(one, leg)).toMatchObject({ end: T0 + 30 * H, endTE: 226 });
+    expect(withCurrentSim({ ...plan, chain: [230, 277] }, leg)).toEqual({ ...plan, chain: [230, 277] });
+    expect(withCurrentSim(plan, { ...leg, endTE: 220 })).toBe(plan);
+    expect(withCurrentSim(plan, null)).toBe(plan);
+  });
+});

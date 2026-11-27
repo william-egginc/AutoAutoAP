@@ -5,6 +5,8 @@ export default defineConfig({
   // Component specs (src/components/**/*.spec.ts) render single-file components on the server
   // (vue/server-renderer), so no DOM library is needed.
   plugins: [vue()],
+  // App.vue reads this bare (vite.config.ts defines it from AAP_EGG_BETA_RELOAD_AT): off in every spec.
+  define: { __AAP_EGG_BETA_RELOAD__: 'false' },
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,
@@ -14,14 +16,16 @@ export default defineConfig({
       // way vite.search.config.ts does for the Node harness.
       lib: new URL('../../lib', import.meta.url).pathname,
       ui: new URL('../../ui', import.meta.url).pathname,
+      '@planner': new URL('./src', import.meta.url).pathname,
     },
   },
   test: {
     environment: 'node',
     // collector/ is a standalone Cloudflare Worker with no build step, so its tests live next to
     // it and are plain .js. They run here rather than in a separate command so `pnpm test` is
-    // still the one thing that has to pass.
-    include: ['src/**/*.{test,spec}.ts', 'collector/**/*.spec.js'],
+    // still the one thing that has to pass. Shared planner code lives in lib/planners; its specs
+    // run under both planners.
+    include: ['src/**/*.{test,spec}.ts', 'collector/**/*.spec.js', '../../lib/planners/**/*.{test,spec}.ts'],
     // No collector unless a spec names one (`__AAP_SUBMIT_URL__`). Vitest reads the gitignored
     // .env.local like the dev server does, so a checkout with VITE_SUBMIT_URL set gave every store
     // the real collector: each finished run in a spec then kept a result for sending, built after
@@ -32,6 +36,9 @@ export default defineConfig({
     // their own and time out at vitest's 5 s default when the full run shares the machine with other
     // work. Real hangs still fail, just later.
     testTimeout: 20_000,
+    // The console guard (src/test/consoleGuard.ts): pinia's node-only warning is dropped and nothing prints after a
+    // file's tests end, so late output can't fail a run with "Closing rpc while onUserConsoleLog was pending".
+    setupFiles: ['./src/test/vitestSetup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

@@ -12,11 +12,14 @@
   </head>
   <body>
     <div id="app" class="min-h-screen bg-gray-100">
-      <div class="app-loading p-4 text-center text-gray-500">Loading application...</div>
+      <div class="app-loading p-4 text-center text-gray-500">Loading the planner…</div>
     </div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- no_onload: the page counts itself once a player ID is out of the address, by path only
+         (src/lib/urlPlayerId.ts). -->
     <script
       data-goatcounter="https://wasmegg-carpet.goatcounter.com/count"
+      data-goatcounter-settings='{"no_onload": true}'
       async
       src="https://gc.zgo.at/count.js"
     ></script>

@@ -3,7 +3,7 @@
 // `vite.config.ts`, because the app config's `base` makes `highs/runtime?url` resolve to a prefixed path the
 // wasm loader cannot open outside a browser.
 
-import { optimizeFull } from '@/lib/optimizer-core';
+import { optimizeFull } from 'lib/mission-optimizer/optimizer-core';
 import { bruteForceBestJoint } from './enumerate';
 import { evaluateAllocationJoint, OracleInstance } from './evaluate';
 import { FAMILIES, Family, generateInstance } from './generate';
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   console.log(`targets: ${inst.targets.join(', ')}`);
   console.log(`fuelCapacity: ${inst.fuelCapacity}`);
   console.log(`timeCapacityPerSlot: ${inst.timeCapacityPerSlot} s`);
-  console.log(`baseYield: ${JSON.stringify([...inst.baseYield])}`);
+  console.log(`ownedStock: ${JSON.stringify([...inst.ownedStock])}`);
   console.log('options (the ONLY missions the solver was offered):');
   for (const o of inst.options) {
     console.log(
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
     desiredArtifactNodeIds: inst.targets,
     fuelCapacity: inst.fuelCapacity,
     timeCapacityPerSlot: inst.timeCapacityPerSlot,
-    baseYield: inst.baseYield,
+    ownedStock: inst.ownedStock,
     craftBudget: inst.craftBudget,
     maximumCost: Infinity,
   });

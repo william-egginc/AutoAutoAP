@@ -1,71 +1,149 @@
 <!--
-  Time off from the virtue farm: Egg Day, a week chasing a legendary deflector on the home farm.
-  Each stretch ends the ascension in progress (it keeps the TE it reached), nothing happens while
-  away, and coming back is a complete rebuild. The search prices every chain with those gaps in it,
-  so the winner is the best plan AROUND the time off, not the best plan with a hole cut in it.
+  Days picked as whole local dates, two kinds (the three kinds of "not now", Jordan 24 Oct 2026):
+
+  - kind 'timeOff' (the default): away from virtue. Egg Day, a week chasing a legendary deflector on the home farm.
+    Each stretch ends the ascension in progress (it keeps the TE it reached; going to the home farm is a prestige),
+    nothing happens while away, and coming back is a complete rebuild. The search prices every chain with those gaps
+    in it, so the winner is the best plan AROUND the time off, not the best plan with a hole cut in it.
+  - kind 'noPrestige': no prestige on these days (search/noPrestige.ts). The player stays on the virtue farm; a
+    prestige that would fall on one waits for the next allowed moment, the farm laying meanwhile. Shifts still happen.
 -->
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <span class="text-[11px] font-bold text-slate-800">Time off from virtue</span>
+      <!-- The box's heading in the same small caps as Awake hours beside it (it was small bold, a third style; spec-tidy). -->
+      <span class="label text-slate-600">{{ words.title }}</span>
       <button
         type="button"
-        :disabled="store.isRunning || store.timeOff.length >= 8"
-        class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        :disabled="store.isRunning || rows.length >= 8"
+        class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        :data-testid="`${kind}-add`"
         @click="add"
       >
-        Add time off
+        {{ words.add }}
       </button>
     </div>
-    <p class="text-[11px] text-slate-500 leading-relaxed">
-      Days you will be off the virtue farm, in the plan's timezone. The ascension you are in ends when the time off
-      starts and keeps the TE it has; when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.
+    <!-- One line in view, the full explainer behind a 44 px "?" opening in place, word for word (UX fluff review 2, S20
+         and S22; the short lines are DRAFT for Words). Time off's line keeps its safety clause: it is a prestige. -->
+    <div class="flex items-start gap-1">
+      <p class="min-w-0 flex-1 py-1 text-body text-slate-600" :data-testid="`${kind}-short`">{{ words.short }}</p>
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-body font-bold text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        :aria-expanded="moreOpen"
+        :aria-controls="explainId"
+        :aria-label="`More about ${words.title.toLowerCase()}`"
+        :data-testid="`${kind}-more`"
+        @click="moreOpen = !moreOpen"
+      >
+        ?
+      </button>
+    </div>
+    <p
+      :id="explainId"
+      :hidden.attr="moreOpen ? undefined : 'until-found'"
+      class="text-body text-slate-600"
+      :data-testid="`${kind}-explain`"
+      @beforematch="moreOpen = true"
+    >
+      {{ words.explain }}
     </p>
-    <div v-for="(row, i) in store.timeOff" :key="i" class="flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+    <div v-for="(row, i) in rows" :key="i" class="flex flex-wrap items-center gap-2">
+      <label class="flex min-w-0 max-w-full items-center gap-1.5 text-small font-bold text-slate-600">
         From
         <input
           v-model="row.from"
           type="date"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-[12px] text-slate-800 disabled:opacity-50"
+          class="min-w-0 max-w-full rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
           @change="keepOrder(row)"
         />
       </label>
-      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+      <label class="flex min-w-0 max-w-full items-center gap-1.5 text-small font-bold text-slate-600">
         to
         <input
           v-model="row.to"
           type="date"
           :min="row.from"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-[12px] text-slate-800 disabled:opacity-50"
+          class="min-w-0 max-w-full rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
         />
       </label>
-      <span class="text-[10px] text-slate-400">{{ days(row) }}</span>
+      <span class="text-small text-slate-600">{{ days(row) }}</span>
       <button
         type="button"
         :disabled="store.isRunning"
-        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 disabled:opacity-40"
-        @click="store.timeOff.splice(i, 1)"
+        class="min-h-[44px] sm:min-h-0 text-body font-bold text-slate-600 hover:text-red-600 disabled:opacity-40"
+        data-testid="time-off-remove"
+        @click="rows.splice(i, 1)"
       >
         Remove
       </button>
     </div>
-    <p v-if="store.isRunning && store.timeOff.length" class="text-[11px] font-semibold text-amber-700">
-      Locked while a run is going: time off changes which route is fastest.
-    </p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { nextDate, type TimeOffDates } from '@/search/timeOff';
+import { formatInZone } from '@/search/csv';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { useInitialStateStore } from '@/stores/initialState';
+import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
+
+const props = withDefaults(defineProps<{ kind?: 'timeOff' | 'noPrestige' }>(), { kind: 'timeOff' });
 
 const store = useChainSearchStore();
 
-/** Starts on the next Egg Day, the one date nearly everybody takes off. */
+/** The store's list this editor changes (the same shape for both kinds). */
+const rows = computed<TimeOffDates[]>(() => (props.kind === 'noPrestige' ? store.noPrestige : store.timeOff));
+
+const initialState = useInitialStateStore();
+
+/** How long the waiting farm lays: until its silos run out, with the save's silo time when there is one. */
+const siloWords = computed(() =>
+  siloRunOutWords(knownSiloSeconds(initialState.currentFarmState, initialState.epicResearchLevels?.['silo_capacity']))
+);
+
+/** The "?" beside the short line: the full explainer, closed by default (not remembered). */
+const moreOpen = ref(false);
+const explainId = computed(() => `${props.kind}-explain-body`);
+
+/** The player's words for each kind: the three kinds of "not now" must read as different things. */
+const WORDS = {
+  timeOff: {
+    title: 'Time off',
+    add: 'Add time off',
+    short: "On the home farm: that's a prestige, and you rebuild when back. Egg Day is the usual one.",
+    explain:
+      "Days you will be off the virtue farm, on the home farm, in the route's timezone. Nothing is earned on the virtue farm while you are away. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
+  },
+  noPrestige: {
+    title: 'No prestige days',
+    add: 'Add days',
+    short: 'Stay on virtue, but no prestige on these days.',
+    explain:
+      "Days you stay on the virtue farm but won't prestige, in the route's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, {silos}. Egg shifts still happen on these days.",
+  },
+} as const;
+const words = computed(() => {
+  const w = WORDS[props.kind];
+  return { ...w, explain: w.explain.replace('{silos}', siloWords.value) };
+});
+
+/** The plan's timezone (the store's own rule): the days are read there. */
+function planZone(): string {
+  return useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** Time off starts on the next Egg Day, the one date nearly everybody takes off; no-prestige days on tomorrow. */
 function add(): void {
+  if (props.kind === 'noPrestige') {
+    const tomorrow = nextDate(formatInZone(Date.now() / 1000, planZone()).slice(0, 10));
+    store.noPrestige.push({ from: tomorrow, to: tomorrow });
+    return;
+  }
   const now = new Date();
   const year = now.getMonth() > 6 || (now.getMonth() === 6 && now.getDate() > 14) ? now.getFullYear() + 1 : now.getFullYear();
   const eggDay = `${year}-07-14`;

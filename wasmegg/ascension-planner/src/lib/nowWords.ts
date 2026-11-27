@@ -1,43 +1,125 @@
 /**
- * The words of My runs' Right now card (spec myruns-now v3, section 2): an event's title, how far away it is,
+ * The words of My Runs' Right now card (spec myruns-now v3, section 2): an event's title, how far away it is,
  * the next-step sentence and the "calculated …" line. Pure; `now` and the zone are parameters.
  */
 import { dateAt, eventWhen, relativeWords } from './eventWhen';
 import { shiftTitle, type PlanEvent } from './nowPlan';
 import { clockWords } from './planPace';
 import { virtueEggName } from './virtueEggs';
-import { hoursWords, timeOffWords } from './pricedWith';
+import { hoursShort } from './pricedWith';
+import { formatMoment } from './clock';
+import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
+import { compactDuration } from './duration';
 
-export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
+export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te' | 'timeOff'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
   if (e.kind === 'shift') return shiftTitle(e, virtueEggName);
+  if (e.kind === 'prestige' && e.timeOff === 'leave') return `Time off starts: to your home farm at ${e.te} TE`;
+  if (e.kind === 'prestige' && e.timeOff === 'back') return `Back from time off: prestige, build toward ${e.te} TE again`;
   if (e.kind === 'prestige') return `Prestige at ${e.te} TE`;
   return goal === 'date' ? `${goalName} goal: ${e.te} TE` : `${e.te} TE reached`;
 }
 
+/**
+ * ROUNDED TIMES (wireframe R1, 23 Oct 2026): the instant answer's times are estimates worked out ahead of time, so
+ * Right now shows them to the hour, "at around 3:00 pm", "in about 28 h", and offers no calendar button. A By a
+ * date goal's own row is the date itself and stays exact. `rounded` false (a search's plan, on the account): exact.
+ */
+export function roundedAt(
+  e: Pick<PlanEvent, 'at' | 'kind'>,
+  goal: 'fastest' | 'date',
+  rounded: boolean,
+  zone: string
+): number {
+  return rounded && !(e.kind === 'goal' && goal === 'date') ? roundToHourIn(e.at, zone) : e.at;
+}
+
+/**
+ * `at` (unix seconds) to the nearest hour on the clock in `zone` (the planner's), not UTC's: in a half-hour zone
+ * (India +5:30, Newfoundland -3:30) UTC's hour is :30 on the player's clock. The minutes and seconds past the local
+ * hour are read in that zone, so a DST change between the two hours is no matter. UTC's hour when the zone is unknown.
+ */
+export function roundToHourIn(at: number, zone: string): number {
+  let into: number;
+  try {
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', { timeZone: zone, minute: 'numeric', second: 'numeric' })
+        .formatToParts(new Date(at * 1000))
+        .map(x => [x.type, x.value])
+    ) as Record<string, string>;
+    into = Number(p.minute) * 60 + Number(p.second);
+    if (!Number.isFinite(into)) throw new Error('no minutes');
+  } catch {
+    into = ((at % 3600) + 3600) % 3600;
+  }
+  const whole = Math.floor(at);
+  return into >= 1800 ? whole - into + 3600 : whole - into;
+}
+
+/**
+ * The row as it happens (My Runs' You are here table, and the ascension picker's "A2 ends" line, one definition: QA 18 Nov 2026): a waiting
+ * prestige (for the hours or past a no-prestige day, lib/instantSteps.ts `markPrestigeWaits`) at its held time; a prestige whose next
+ * ascension starts later than the stop (the instant answer ascends on the hour) at that start; every other row as it is.
+ */
+export function shownEvent(e: PlanEvent): PlanEvent {
+  const held = e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past ? e.prestigeAt : null;
+  if (held != null) return { ...e, at: held };
+  return e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.past && !e.notDone ? { ...e, at: e.prestigeAt } : e;
+}
+
+/** The events table's When: "Thu, Oct 15 at 4:00 pm", rounded "Fri, Oct 23 at around 3:00 pm". */
+export function whenWords(
+  e: Pick<PlanEvent, 'at' | 'kind'>,
+  goal: 'fastest' | 'date',
+  nowSeconds: number,
+  zone: string,
+  rounded = false
+): string {
+  const at = roundedAt(e, goal, rounded, zone);
+  const d = dateAt(at, nowSeconds, zone, true);
+  return rounded && !(e.kind === 'goal' && goal === 'date') ? d.replace(' at ', ' at around ') : d;
+}
+
 /** "today, in 1 h 20 m" · "tomorrow, in 19 h" · "in 2 days" · "in 271 days · 16.8 h spare" · "passed" ·
- *  "not done yet, due 3 h ago". */
+ *  "not done yet, due 3 h ago". `rounded` (the instant answer's): "tomorrow, in about 28 h", "… spare (instant)". */
 export function howFar(
   e: Pick<PlanEvent, 'at' | 'past' | 'kind' | 'spareHours' | 'notDone'>,
   nowSeconds: number,
-  zone: string
+  zone: string,
+  rounded = false,
+  goal: 'fastest' | 'date' = 'date'
 ): string {
   if (e.past) return 'passed';
+  const at = roundedAt(e, goal, rounded, zone);
   if (e.notDone) {
-    const w = eventWhen(e.at, nowSeconds, zone);
+    const w = eventWhen(at, nowSeconds, zone);
     return w ? `not done yet, due ${w.relative}` : 'not done yet';
   }
-  const w = eventWhen(e.at, nowSeconds, zone);
+  const w = eventWhen(at, nowSeconds, zone);
   if (!w) return '';
-  const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${w.relative}` : w.relative;
-  const spare = e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare` : '';
+  const rel = rounded && /^in \d+[hm]\b/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
+  const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
+  const spare =
+    e.kind === 'goal' && typeof e.spareHours === 'number'
+      ? (() => {
+          // A route that lands after the date (a followed one, QA 12 Nov 2026): lateness, never its size as "spare".
+          const s = spareSide(e.spareHours);
+          return ` · ${s.late ? `lands ${s.size} after` : `${s.size} spare before`} this date${rounded ? ", on the instant answer's route" : ''}`;
+        })()
+      : '';
   return base + spare;
 }
 
-/** "16.8 h", "2.1 days". */
+/** A spare that may be negative, as a side and a size: `late` when the route lands after the date (the goal row's
+ *  "5d 20h after this date", the saved tile's "5d 20h after the date"). */
+export function spareSide(hours: number): { late: boolean; size: string } {
+  return { late: hours < 0, size: spareWords(Math.abs(hours)) };
+}
+
+/** "16h 48m", "2d 2h" (lib/duration); a negative spare reads its size (the caller says behind). */
 export function spareWords(hours: number): string {
-  return hours >= 48 ? `${(hours / 24).toFixed(1)} days` : `${hours.toFixed(1)} h`;
+  return compactDuration(hours * 3600);
 }
 
 const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
@@ -56,24 +138,42 @@ export function notDoneTitle(
 
 /** "Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am"; a step not done yet leads:
  *  "Not done yet: shift to Curiosity (due 8:03 pm), then Humility Oct 23 at 4:06 pm". '' with nothing ahead. */
-export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'date', nowSeconds: number, zone: string): string {
-  const ahead = events.filter(e => !e.past && e.kind !== 'goal');
+export function nextStepText(
+  events: readonly PlanEvent[],
+  goal: 'fastest' | 'date',
+  nowSeconds: number,
+  zone: string,
+  rounded = false
+): string {
+  // A prestige that waits (for the player's hours or past a no-prestige day), or that the next ascension starts later than (the instant
+  // answer ascends on the hour), is said at the time it happens, as the events table and Next shifts do (M12, QA 15 Nov 2026:
+  // "at around 10:00 PM" here over "11:00 PM" there): `prestigeAt`, not the stop's reach time.
+  const ahead = events
+    .filter(e => !e.past && e.kind !== 'goal')
+    .map(e => (e.kind === 'prestige' && e.prestigeAt && e.prestigeAt > e.at && !e.notDone ? { ...e, at: e.prestigeAt } : e))
+    // Moved later, it may now come after an event that was behind it: whichever happens first is named first (stable).
+    .sort((a, b) => a.at - b.at);
   const first = ahead[0];
   if (!first) return '';
-  const w = eventWhen(first.at, nowSeconds, zone);
+  const w = eventWhen(roundedAt(first, goal, rounded, zone), nowSeconds, zone);
   if (!w) return '';
+  // Rounded (the instant answer's, R1): "Shift to Humility tomorrow at around 3:00 pm, then prestige at 197 TE Oct 28
+  // at around 4:00 am".
+  const at = rounded ? 'at around' : 'at';
   let text = first.notDone
     ? notDoneTitle(first, goal, nowSeconds, zone)
-    : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
+    : rounded
+      ? `${eventTitle(first, goal)} ${w.day} ${at} ${w.clock}`
+      : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
   const second = ahead[1];
-  const w2 = second ? eventWhen(second.at, nowSeconds, zone) : null;
+  const w2 = second ? eventWhen(roundedAt(second, goal, rounded, zone), nowSeconds, zone) : null;
   if (second && w2) {
     // "then prestige at 197 TE" (only the first letter lowered: "TE" stays), "then Kindness", "then shift to …".
     const what =
       second.kind === 'shift' && !(second.eggs && second.eggs.length > 1) ? virtueEggName(second.egg) : lower(eventTitle(second, goal));
     text += second.notDone
       ? `, then ${what} (not done yet, due ${clockWords(second.at, nowSeconds, zone)})`
-      : `, then ${what} ${w2.day} at ${w2.clock}`;
+      : `, then ${what} ${w2.day} ${at} ${w2.clock}`;
   }
   return text;
 }
@@ -83,6 +183,19 @@ export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'da
 export function followingLine(chain: readonly number[], goalName: string): string {
   if (!chain.length) return '';
   return `Following ${chain.join(' → ')}${goalName ? ` (${goalName})` : ''}`;
+}
+
+/**
+ * The words before Right now's chain of stops (13 Nov 2026): "Following" only when the route is really followed. Before
+ * a Follow press the chain is the instant answer's, and "Following 223 → 248 → 283 → 300" read as if it had been kept.
+ *   followed:  "Following 223 → …"          not followed: "The instant answer's route: 223 → …"
+ *   not on virtue: "If you start Nov 17 at 4:44 PM: Following …" / "If you start Nov 17 at 4:44 PM, the instant answer's route: …"
+ *   (`startWhen`, the plan's start as When to start says it: 17 Nov 2026, "then" pointed at that box BELOW); "then" without it.
+ */
+export function chainLead(o: { followed: boolean; notOnVirtue?: boolean; startWhen?: string | null }): string {
+  const when = o.startWhen || 'then';
+  if (o.followed) return o.notOnVirtue ? `If you start ${when}: Following` : 'Following';
+  return o.notOnVirtue ? `If you start ${when}, the instant answer's route:` : "The instant answer's route:";
 }
 
 /** Each stop of the route against the clock: 'passed' before the ascension the save is in (`ascNow`, 1-based;
@@ -97,8 +210,57 @@ export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): st
   return d ? `${d} (${relativeWords(atSeconds - nowSeconds)})` : '';
 }
 
-/** The Setup button's line on My runs: "7 am–11 pm · no time off", "any hour · time off Oct 20–22". */
-export function setupSummary(availability: Availability | null | undefined, timeOff: TimeOffDates[] | null | undefined): string {
-  const hours = hoursWords(availability).replace(/^your hours /, '').replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
-  return `${hours} · ${timeOffWords(timeOff)}`;
+/** A whole-day stretch in the browser's format, compact: "Oct 27", "Oct 29–30", "Oct 29 – Nov 2",
+ *  "Dec 30, 2026 – Jan 2, 2027" (the year only when the stretch crosses one). */
+export function stretchWords(d: TimeOffDates, locale?: string): string {
+  const [fy, fm, fd] = d.from.split('-').map(Number);
+  const [ty, tm, td] = d.to.split('-').map(Number);
+  const at = (y: number, m: number, day: number, year: boolean) =>
+    formatMoment(Date.UTC(y, m - 1, day, 12), { zone: 'UTC', dateOnly: true, year: year ? 'always' : 'never', locale });
+  if (d.from === d.to) return at(fy, fm, fd, false);
+  if (fy !== ty) return `${at(fy, fm, fd, true)} – ${at(ty, tm, td, true)}`;
+  if (fm === tm) {
+    // The first day's words with its day number made the run ("Oct 29" → "Oct 29–30", "29. Okt." → "29–30. Okt.").
+    const first = at(fy, fm, fd, false);
+    const i = first.search(new RegExp(`(^|\\D)${fd}(\\D|$)`));
+    if (i >= 0) {
+      const start = first.indexOf(String(fd), i);
+      return `${first.slice(0, start)}${fd}–${td}${first.slice(start + String(fd).length)}`;
+    }
+  }
+  return `${at(fy, fm, fd, false)} – ${at(ty, tm, td, false)}`;
 }
+
+/** Up to two stretches shown, then "+N more". */
+export const SUMMARY_STRETCHES = 2;
+function stretchList(list: TimeOffDates[], locale?: string): string {
+  const shown = list.slice(0, SUMMARY_STRETCHES).map(d => stretchWords(d, locale)).join(', ');
+  const more = list.length - SUMMARY_STRETCHES;
+  return more > 0 ? `${shown} +${more} more` : shown;
+}
+
+/**
+ * The Setup pill's line on My Runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
+ * "7:00 AM–11:00 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is
+ * left out when there are none. Hours and dates in the browser's format (lib/clock.ts), the hours always with their
+ * minutes (Jordan, 12 Nov 2026: "7:00 AM", never "7 AM"); `locale` is for specs.
+ */
+export function setupSummary(
+  availability: Availability | null | undefined,
+  timeOff: TimeOffDates[] | null | undefined,
+  noPrestige?: TimeOffDates[] | null,
+  locale?: string
+): string {
+  // The hours from the numbers in the player's style (lib/timeStyleWords.ts), never read back from words: a 24-hour
+  // locale's "07:00" has no am/pm to read.
+  const hours = hoursShort(availability, locale);
+  const off = usableTimeOff(timeOff);
+  const held = usableTimeOff(noPrestige);
+  const parts = [hours, off.length ? `time off ${stretchList(off, locale)}` : 'no time off'];
+  if (held.length) parts.push(`no prestige ${stretchList(held, locale)}`);
+  return parts.join(' · ');
+}
+
+/** Under the Next step line that comes from the plan's events while the ascension you are in is not simulated yet (review U5,
+ *  15 Nov 2026): it has none of this ascension's shifts or sale. DRAFT (Words reviews). */
+export const ROUGH_NEXT_STEP = "This time is a rough estimate. The planner hasn't worked out this ascension's shifts or sale yet.";

@@ -1,8 +1,8 @@
 /**
- * "How sure" on My runs' saved-answer tiles (spec myruns-now v3, section 4): High, Medium or Low with one reason
+ * "How sure" on My Runs' saved-answer tiles (spec myruns-now v3, section 4): High, Medium or Low with one reason
  * line, never a percentage (a real probability needs calibration data still being collected). First match wins:
  *
- *   Low     an older simulator; hours used differ from Your setup now; under LOW_SPARE_HOURS to spare (By a
+ *   Low     an older simulator; an instant answer an older build of the page worked out (Release 7); hours used differ from Your setup now; under LOW_SPARE_HOURS to spare (By a
  *           date); the save or the answer older than STALE_DAYS; the TE has moved since.
  *   High    Exhaustive complete; By a date with Check exactly confirming the instant answer's TE plus
  *           HIGH_SPARE_HOURS or more to spare and the runner-up more than HIGH_RUNNER_UP_DATE_HOURS behind,
@@ -15,8 +15,9 @@
  * Pure. Every threshold is a named constant here, and nowhere else.
  */
 
-/** A save or answer older than this many days is Low (a table-only answer is Medium until then). */
-export const STALE_DAYS = 14;
+/** A save or answer older than this many days is Low, unless a newer save is on the planned route (a table-only
+ *  answer is Medium until then; Jordan, 22 Nov 2026: over a week is the limit). */
+export const STALE_DAYS = 7;
 /** By a date: under this many hours to spare is Low. */
 export const LOW_SPARE_HOURS = 2;
 /** By a date: High needs at least this many hours to spare. */
@@ -30,16 +31,23 @@ export const HIGH_RUNNER_UP_FASTEST_HOURS = 24;
 export const TIE_HOURS = 0.05;
 
 export type SureLevel = 'high' | 'medium' | 'low';
-/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' Very high). */
+/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' the retired Very high, said
+ *  "Exact (wider)": the glossary of 25 Oct 2026 retires "Very high" as a player word; old runs keep their own colour). */
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
-  light: 'Checked at once',
+  light: 'Instant Answer',
   quick: 'Fast',
   normal: 'Exact',
-  thorough: 'Very high',
-  exhaustive: 'Exhaustive',
+  thorough: 'Exact (wider)',
+  exhaustive: 'Custom',
 };
+
+/** "a Fast", "an Exact", "an Instant Answer": the article for a level word. */
+const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
+
+/** The reason when a newer save on the planned route stands in for a new search. */
+export const ON_PATH_REASON = 'your newer save is on the planned route';
 
 export interface SureInput {
   goal: 'fastest' | 'date';
@@ -64,7 +72,14 @@ export interface SureInput {
   /** The older of the save and the answer, in days. */
   ageDays: number;
   olderSimulator?: boolean;
+  /** An instant answer an older build of the page worked out (lib/resultCode.ts): it is worked out again when the
+   *  instant answer is next opened. */
+  olderCode?: boolean;
   hoursChanged?: boolean;
+  /** A newer save against the route the answer planned (planPace `pathOfPace`): 'on' it is still on that route (the
+   *  answer counts as confirmed by it, whatever its age and the TE moving), 'off' it has left it (a new search is
+   *  needed); 'unknown' or absent: no newer save, or nothing to compare. */
+  path?: 'on' | 'off' | 'unknown';
   /** The loaded save's TE is not the one the answer started from. */
   teMoved?: boolean;
   /** By a date: the answer's TE, for the words. */
@@ -73,10 +88,8 @@ export interface SureInput {
 
 export interface Sure {
   level: SureLevel;
-  /** "Instant answer, 5 days old" (shown after "How sure: Medium"). */
+  /** "Instant Answer, 5 days old" (shown after "How sure: Medium"). */
   reason: string;
-  /** The button beside it: Check exactly (By a date's instant answer) or a short Fast search (Fastest's). */
-  action?: 'check' | 'fast';
 }
 
 function age(days: number): string {
@@ -101,18 +114,22 @@ export function behindWords(runner: number, i: Pick<SureInput, 'runnerUpChain' |
 const atLeast = (l: SearchLevel | null | undefined, min: SearchLevel) => !!l && RANK[l] >= RANK[min];
 
 export function howSure(i: SureInput): Sure {
-  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'Check exactly' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
+  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
-  if (i.hoursChanged) return { level: 'low', reason: 'priced before your hours changed' };
+  if (i.olderCode) return { level: 'low', reason: 'worked out by an older version of this page, and not yet redone' };
+  if (i.hoursChanged) return { level: 'low', reason: 'priced for your earlier awake hours' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
-  if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}` };
-  if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
+  // A newer save settles the question the age and the TE move would raise.
+  if (i.path === 'off') return { level: 'low', reason: 'your newer save is off the planned route, so it needs a new search' };
+  const onPath = i.path === 'on';
+  if (!onPath && i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}, not yet checked against a newer save` };
+  if (!onPath && i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)
-    return { level: 'high', reason: 'Exhaustive checked every route in its boxes' };
-  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Exhaustive run agrees' };
+    return { level: 'high', reason: 'Custom checked every route in its boxes' };
+  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Custom run agrees' };
   const runner = i.runnerUpHours;
   if (i.goal === 'date') {
     const spareOk = typeof i.spareHours === 'number' && i.spareHours >= HIGH_SPARE_HOURS;
@@ -120,16 +137,16 @@ export function howSure(i: SureInput): Sure {
     if (i.how !== 'instant' && i.exactConfirmsTE && spareOk && runnerOk)
       return {
         level: 'high',
-        reason: `Check exactly confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
+        reason: `the full simulator confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
           runner === Infinity ? 'makes less TE' : `${hours(runner!)} behind`
         }`,
       };
     if (atLeast(i.agreeing, 'quick') || (i.how === 'search' && atLeast(i.level, 'quick')))
-      return { level: 'high', reason: `a ${LEVEL_WORDS[(i.agreeing ?? i.level)!]} search agrees on ${i.te ?? 'the'} TE` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[(i.agreeing ?? i.level)!])} search agrees on ${i.te ?? 'the'} TE` };
   } else {
     const strong = atLeast(i.agreeing, 'normal') ? i.agreeing! : i.how === 'search' && atLeast(i.level, 'normal') ? i.level! : null;
     if (strong && runner != null && runner > HIGH_RUNNER_UP_FASTEST_HOURS)
-      return { level: 'high', reason: `${strong === 'thorough' ? 'a' : 'an'} ${LEVEL_WORDS[strong]} search agrees; the next route is ${hours(runner)} behind` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[strong])} search agrees; the next route is ${hours(runner)} behind` };
     if (strong)
       return {
         level: 'medium',
@@ -140,12 +157,13 @@ export function howSure(i: SureInput): Sure {
       };
   }
   // Medium.
+  if (i.how === 'instant' && onPath) return { level: 'medium', reason: ON_PATH_REASON };
   if (i.how === 'instant')
     return i.goal === 'fastest'
-      ? { level: 'medium', reason: `instant answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
-      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'check' };
-  if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
-  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'Check exactly done; it moved the instant answer’s TE' };
+      ? { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}; a short search usually finds a sooner route` }
+      : { level: 'medium', reason: `Instant Answer, ${age(i.ageDays)}` };
+  if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route` };
+  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'simulator check done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)
     return { level: 'medium', reason: `${what} done; only ${hours(i.spareHours)} to spare` };
   if (runner != null && runner !== Infinity && runner <= HIGH_RUNNER_UP_DATE_HOURS)

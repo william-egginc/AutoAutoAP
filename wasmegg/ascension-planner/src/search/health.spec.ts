@@ -45,7 +45,7 @@ describe('reviewLegs', () => {
   it('flags an early leg long enough to be worth checking', () => {
     const issues = reviewLegs([leg(195, 3), leg(212, 3, SLOW_LEG_DAYS + 1), leg(490, 3)]);
     expect(issues.map(i => i.kind)).toEqual(['slow-leg']);
-    expect(issues[0].message).toContain('Leg 2');
+    expect(issues[0].message).toContain('Ascension 2');
   });
 
   // The last leg runs from its checkpoint all the way to the target and is often several hundred

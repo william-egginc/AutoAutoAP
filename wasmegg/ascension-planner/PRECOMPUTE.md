@@ -1,6 +1,6 @@
 # The instant answer (precomputed tables)
 
-Last checked against the code on 14 Oct 2026.
+Last checked against the code on 15 Nov 2026 (sim5).
 
 The Auto Planner's _Fastest to 490 TE_ and _Highest TE by a date_ screens open on an **instant
 answer**. (It was built on a separate `precompute` branch, now merged into `ascension-chain-search`.)
@@ -11,7 +11,7 @@ full simulator then checks the routes it shows, on the player's own account.
 
 The wiki covers the same ground in more detail and keeps dated measurements:
 [Tables and the route finder](https://github.com/william-egginc/AutoAutoAP/wiki/Tables-and-the-route-finder)
-(for players: [Instant answer](https://github.com/william-egginc/AutoAutoAP/wiki/Instant-answer)).
+(for players: [Instant Answer](https://github.com/william-egginc/AutoAutoAP/wiki/Instant-answer)).
 
 Everything below runs in the browser. The tables are static files; nothing about a player is sent
 anywhere to get an answer.
@@ -40,9 +40,9 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
   (`BuildParams`). A build is moved onto a route's real egg counts when it is used (`rebase`), so a
   route carries exact counts from one ascension to the next.
 - **Range.** The generator's default is start TE 100–489 (`TABLE_FROM`, `TABLE_TO` in
-  `scripts/precompute.ts`); the deployed tables start at 120 (an own table at the account's TE).
-  `--max-start-te N` stops a build at N; the next rebuild stops at 339, since above the useful stops
-  the page simulates a player's one ascension live (`src/search/liveCell.ts`).
+  `scripts/precompute.ts`). The sim5 tables are built 55–489 for maxed (75–489 for gear and Carpet
+  tables), as `tables/sim5/tables.json` on the `sim5-tables` branch lists them. `--max-start-te N` stops a
+  build at N.
 - **Reference week** (`REFERENCE_WEEK`, `src/search/tableBuild.ts`): Monday 11 January 2027, 00:00
   Pacific, clear of daylight-saving changes. `--generate` refuses to run if its hour 0 is not Monday
   00:00 Pacific, and `--verify-cells` refuses a table built on another week.
@@ -75,10 +75,29 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
    its research levels). It is joined to the maxed table (`compositeTable`): every
    row the gear table has is used, and the maxed table, with its delivery rate scaled to the player's,
    only fills in above where a gear table stops (`GEAR_TABLE_TO` = 340 at the lowest).
-3. **The maxed table** (`table.bin`): a fully maxed account. A player's waits run at their own peak
+3. **The maxed table** (`table-v2.bin`, a version 2 table; the version 1 `table.bin` stays deployed for pages
+   from before instant answer v2, whose loader refuses version 2): a fully maxed account. A player's waits run at their own peak
    delivery rate against the table's (`src/search/leg.ts` `instantDeliveryScale`, computed with the
    simulator's own rate function at the research a build waits with). A weaker earnings set is not
    taken off, and the page says so.
+
+**Version 2 names for own and gear tables** (24 Oct 2026, the same reason as `table-v2.bin`). Pages from before
+instant answer v2 read `acct-<24 hex>.bin` and `gear-<24 hex>.bin` with a loader that refuses version 2, so a
+version 2 own or gear table under the plain name blanks that account's instant answer in every open older tab. So:
+
+- a **version 2** own or gear table goes under its `.v2` name: `acct-<24 hex>.v2.bin` or `gear-<24 hex>.v2.bin`,
+  with `acct-<24 hex>.v2.bin.gz` / `gear-<24 hex>.v2.bin.gz` beside it (the hex is the same as the plain name's;
+  `--table-name --v2` and `--gear-name --v2` print it);
+- a **version 1** table keeps the plain name, which older pages go on reading; both may be deployed at once.
+
+This page tries the `.v2` name first and the plain name only after it misses. For own and gear tables it asks
+only for `NAME.gz` (one request per name; a missing `.gz` is no table under that name, so always deploy
+`NAME.gz` beside `NAME`; a `.gz` that is there but broken still falls back to `NAME`: `tableFetch.ts`
+`gzOnlyWhenMissing`)
+(`tableGear.ts` `ownTableNames`, `gearTableFiles`: for gear, every name's `.v2` before any plain one;
+`tableFetch.ts` `probeFirst`). It reads version 1 and 2 under either name, so a version 2 file still under its old
+plain name works here; a file of a version it can't read is taken as no table, quietly (no error card). `--pack`
+and `--manifest` refuse a table named against its version (`tableBracket.ts` `tableFileProblem`).
 
 **The gear stamp** (`gearStamp`) is what a table's builds depend on besides the start: the earnings
 set and the delivery sets the simulator's optimizer picks from the inventory (with no research and at
@@ -87,10 +106,13 @@ inventory, so a new artifact that changes no choice leaves the table exact.
 
 **Aliases and `tables.json`.** A deployed gear table is copied under its newer (v2, v3) names so a
 player whose stamp hashes to them finds it; the pairs are recorded in `public/precompute/aliases.json`.
-`--manifest` writes `tables.json`: one entry per table with `file`, `bonus`, `k`, `from`,
-`simVersion`, a gear `label` and its `aliases` (an alias is not listed as a table of its own), and on
-`table.bin`'s entry its `k3`, so the page can work out a player's gear stamp and k before downloading
-any table.
+`--manifest` writes `tables.json`: one entry per table with `file`, `version`, `bonus`, `k`, `from`,
+`simVersion`, `builtAt`, a gear `label` and its `aliases` (an alias is not listed as a table of its own), and on
+the maxed table's entry (`table-v2.bin`, and `table.bin` while it is still deployed) its `k3`, so the page can work out a player's gear stamp and k before downloading
+any table. A table deployed as both a version 1 plain-name file and a version 2 `.v2` file is two entries: older
+pages read the plain one, this page prefers the `.v2` one and ignores its plain twin (`tableBracket.ts`
+`preferV2`). A `.v2` copy under another gear name goes in `aliases.json` as `"gear-<new>.v2.bin":
+"gear-<old>.v2.bin"`.
 
 **k and scale.** `k` (in the manifest) is a table's delivery set's rate over the maxed table's, both
 at the maxed table's waiting research; the maxed table is 1. `scale` (`instantDeliveryScale`) is the
@@ -140,11 +162,11 @@ route slower. `scripts/precompute.ts --prune-bench` reproduces it.
 
 On a mobile browser (an iPad included), 4 GB of memory or less, or 2 cores or fewer (`src/search/device.ts`), the instant
 answer keeps to the answer itself: two route workers, no background polish, no nearest tables above
-and below, and the exact check only when _Check exactly_ is pressed.
+and below (_Check exactly_, which priced the route through the full simulator, is no longer on the instant answer).
 
 ## Filters
 
-- **Works inside my hours** (shown when _Let me pick my hours_ is on): the finder drops an arrival as
+- **Works inside my awake hours** (shown when Setup's _Awake hours_ are on): the finder drops an arrival as
   soon as its prestige (the start of each ascension after the first, at the time the table starts it)
   falls outside the player's hours and days, so every route it keeps fits them. Counts left with no
   such route are named.
@@ -192,6 +214,23 @@ The instant answer also feeds the full searches:
   (`src/search/deadlineSuggest.ts` `routeSpace`), unless a complete sweep fits the budget.
 - **By a date**'s _Routes to try_ are suggested around the instant answer's route for each count.
 
+## Where the tables come from, and one known limit
+
+- **The instant tables are built by `scripts/precompute.ts`** (see Building a table below), not by
+  anything in `src/buildTable/`. `src/buildTable/cell.ts` (its `paramsOf`, `buildsFrom` and `tailTo`
+  tail math) comes from Joo's table builder, whose `scripts/buildTable.ts` was left out on purpose in
+  merge 905333b20. It never runs here, even though it looks like the instant-table math. Do not read
+  it as the code that made our tables, and do not change our tables to match it. Whether it should be
+  deleted is a question for Joo.
+- **A one-hour limit around a daylight-saving change.** A table cell is keyed by the Pacific hour of the
+  week the ascension starts (`pacificHourOfWeek`), and the shape of the week is fixed. A build whose
+  sale wait crosses a daylight-saving change (the first Sunday of November or the second Sunday of
+  March) can therefore come out an hour off, including some 1-sale builds, because the cell reads the
+  sale end at the Pacific offset of the start (code review, 22 Nov 2026, math-tables-6; the fix, if made,
+  corrects the lateness by the difference between the two offsets).
+  The instant answer is a quick estimate for these dates; the exact check works the date out again on
+  the player's own account.
+
 ## Building a table
 
 `scripts/precompute.ts` is a Node CLI (bundled by `vite.search.config.ts` into `dist-search/`). It
@@ -204,12 +243,12 @@ loads a save (`--backup FILE.json`) the way the site does. Main modes:
 | `--reference`                                                | Build on a perfect maxed account (the save plus the missing top artifacts and stones).                                         |
 | `--combos FILE --combo NAME`                                 | Build on a gear combination (artifacts and stones) instead of the save's own inventory.                                        |
 | `--k3 --table DIR`                                           | Record the research and delivery set a build waits with (`DIR/k3.json`; `--generate` already writes it).                       |
-| `--verify-cells --table DIR [--tes …] [--hours …] [--show-diff]` | The bit-check: rebuild sample cells and compare them to the bit, e.g. on a second machine. Defaults: the lowest and highest TE and three between, hours `0,83,167`. |
+| `--verify-cells --table DIR [--tes …] [--hours …] [--show-diff]` | The bit-check: rebuild sample cells and compare them to the bit, e.g. on a second machine (version 2 cells with their extras). Defaults: the lowest and highest TE and three between, at hours `0,83,167` and the week's first sale and 2x boost hours and the hour before each (`checkHours`, `src/search/tableCheck.ts`). |
 | `--check-bin FILE.bin [--samples 24] [--seed N\|random] [--json] [--ignore-sim] [--base SAVE] [--own-inventory] [--against-save SAVE.json \| --current-max]` | Check a table file someone sent: structure, stamps, and random cells (printed seed) plus the edges rebuilt from the table's own inputs. PASS / CLOSE / FAIL / STALE, exit 0 / 1 / 1 / 2. See README.md, "Checking a table someone sent". |
-| `--pack --table DIR --out FILE [--fake-below TE]`            | Pack the generated files into the one file the site loads (the longest run of TEs ending at the top).                          |
+| `--pack --table DIR --out FILE [--fake-below TE]`            | Pack the generated files into the one file the site loads (the longest run of TEs ending at the top). A version 2 own or gear table must be `--out …/acct-<hex>.v2.bin` or `gear-<hex>.v2.bin`. |
 | `--stamp-sim --dir DIR [--sim-version V] [--write]`          | Set `simVersion` in every table header in DIR; a dry run unless `--write`, which also remakes the `.bin.gz`.                   |
-| `--manifest --backup FILE [--dir public/precompute]`         | Write `tables.json` (each table's bonus, delivery k, lowest TE, simulator stamp, label and aliases).                            |
-| `--table-name --backup FILE`                                 | The file name an account's own table is served under.                                                                          |
+| `--manifest --backup FILE [--dir public/precompute]`         | Write `tables.json` (each table's version, bonus, delivery k, lowest TE, simulator stamp, label and aliases); refused when a table is named against its version. |
+| `--table-name --backup FILE [--v2]`                          | The file name an account's own table is served under (`--v2`: a version 2 table's, `acct-<hex>.v2.bin`).                       |
 | `--gear-name`, `--gear-check`, `--v3-name FILE`, `--own-check FILE`, `--restamp` | Gear table names and checks, and rewriting an own table's gear stamp in `meta.json`.                                  |
 | `--route …`, `--route-bin …`                                 | The finder from the command line, optionally checked against the simulator (`--check`, `--brute`; `--stop-max N\|none`). `--route --player` is the page's instant answer for a save; with `--deadline ISO` it also prints each count's By a date answer, with `--available-from H --available-to H [--available-days …] --timezone TZ` only routes inside those hours (the page's "Works inside my hours"), and `--table-top N` tries a table cut at N (the live first ascension above it). |
 | `--polish …`, `--prune-bench …`                              | The polish on one route; the finder-vs-brute-force benchmark.                                                                  |
@@ -224,13 +263,17 @@ node dist-search/precompute.js --route --table tables/own-DIR --backup me.json -
   --start 2026-10-11T01:10:00Z --deadline 2027-07-14T16:00:00Z --available-from 7 --available-to 23 --timezone America/Denver
 ```
 
-A typical pipeline:
+The sim5 tables are built with `pnpm tables:build NAME` and checked with `pnpm tables:verify NAME DIR` on the
+`sim5-tables` branch (`scripts/tables-build.mjs`): the same generator flags everywhere (`--generate --v2`, pinned
+inputs and bundle), and no `--reuse-prefix`, which made some cells near sale hours faster than a fresh build (review
+15 Nov 2026: a TE 95 Monday 3-sale cell by 15.9 h). By hand, a typical pipeline (a version 2 table, so its `.v2`
+name; a version 1 one keeps the plain name):
 
 ```bash
-node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --out tables/NAME --from 120 --to 489 --jobs 8
+node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --v2 --out tables/NAME --from 120 --to 489 --jobs 8
 node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --verify-cells --table tables/NAME --tes 150,300,450
-node dist-search/precompute.js --pack --table tables/NAME --out public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
-gzip -k -9 -n public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
+node dist-search/precompute.js --pack --table tables/NAME --out public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.v2.bin
+gzip -k -9 -n public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.v2.bin
 node dist-search/precompute.js --backup save.json --manifest
 ```
 
@@ -244,20 +287,20 @@ the same process could otherwise differ.
 ### Keeping tables in step with the simulator
 
 - **The stamp.** Each table header carries the `SIM_VERSION` its cells came from
-  (`src/search/simVersion.ts`, now `2026-10-21-egg-beta2`). The page says so when a table's stamp
+  (`src/search/simVersion.ts`, now `2026-11-14-sim5`). The page says so when a table's stamp
   differs from the code's (`tableSimMismatch`), and `--generate` will not mix simulators in one DIR
   without `--allow-sim-change`.
-- **The guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`,
-  `src/search/tableBuild.ts` and `src/search/precomputedLeg.ts` (every `.ts` but specs) and compares
-  the hash with `SIM_SOURCE_HASH`, so any edit there, even a comment, fails it. Then: if results
+- **The guard.** `src/search/simVersion.spec.ts` hashes `SIM_SOURCES` (`src/search/simVersion.ts`: the engine,
+  the ascension and shift code, the calculations here and in `lib/planners`, the table build and generator, and
+  the calendar, pricing, planners and data they read; every `.ts` in a folder but specs) and compares the hash with
+  `SIM_SOURCE_HASH`, so any edit there, even a comment, fails it. Then: if results
   changed, bump `SIM_VERSION` and regenerate the tables, or restamp them (`--stamp-sim --write`, then
   `--manifest`) once a bit-check shows them identical; if it was a refactor or comment only, update
-  `SIM_SOURCE_HASH`. Not everything a cell touches is hashed (`lib/`, `calculations/`), so a
-  change there needs a bump by hand.
+  `SIM_SOURCE_HASH`. Not everything a cell touches is hashed (`leg.ts`, the action executors, save decoding and
+  artifact data in `lib/`; see `simVersion.ts`), so a change there that moves results needs a bump by hand.
 - **The bit-check** is `--verify-cells` run with a CLI build of the commit under test on each deployed
   table's source dir, with the same `--backup` and `--reference` or `--combos/--combo` it was built
-  with. The last full bit-check, on 13 Oct 2026 at 6:44 pm on the merged low-TE build: 13 tables × 15
-  cells, 195 of 195 identical.
+  with. For the sim5 tables, `tables:verify` rebuilds whole start TEs fresh and compares their bytes.
 - **The opening switch** (`src/auto/lowTeOpening.ts`, since egg-beta2, 21 Oct 2026, which merged Joo's
   planner up to 39261255): every fresh build's first C1/K1/I1 pass caps I1 at 4 hours; when that can't
   max the habs, the build takes PR 717's rounds (our default) or Joo's v2 openings

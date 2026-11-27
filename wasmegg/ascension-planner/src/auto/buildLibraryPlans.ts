@@ -1,12 +1,16 @@
+import type { Action } from '@/types/actions/meta';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { createEmptySnapshot } from '@/types';
 import { migrateExportedPlanV1, type ExportedPlan, type ExportedPlanV1 } from './export';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
+import { continueLabel } from './buildStep';
+import type { AscensionSummary } from './types';
+import { buildStamp } from 'lib/planners/diagnostics';
 
 /** Human-readable form of a `VariantKey` for library plan names, e.g. `1-sale`, `2-sale Tier 13`,
  * `Continue`. */
-function formatVariantLabel(key: VariantKey): string {
-  if (key === 'continue') return 'Continue';
+function formatVariantLabel(key: VariantKey, summary: AscensionSummary): string {
+  if (key === 'continue') return continueLabel(summary.continueFromStep);
   return key.endsWith('-tier13') ? `${key.slice(0, -'-tier13'.length)} Tier 13` : key;
 }
 
@@ -36,14 +40,14 @@ export function buildLibraryPlansFromExport(
       state.initialShiftCount = prevBest.summary.endShiftCount;
     }
 
-    let finalActions: any[] = best.actions;
+    let finalActions: Action[] = best.actions;
     if (finalActions.length === 0 || finalActions[0].type !== 'start_ascension') {
-      const startAction = {
+      const startAction: Action<'start_ascension'> = {
         id: 'start_' + Math.random().toString(36).substring(2, 9),
         index: 0,
         timestamp: best.summary.startTime * 1000,
         type: 'start_ascension',
-        payload: { initialEgg: 'curiosity' },
+        payload: { initialEgg: 'curiosity', generatedBy: buildStamp() },
         cost: 0, elrDelta: 0, offlineEarningsDelta: 0, eggValueDelta: 0,
         habCapacityDelta: 0, layRateDelta: 0, shippingCapacityDelta: 0,
         ihrDelta: 0, bankDelta: 0, populationDelta: 0, totalTimeSeconds: 0,
@@ -56,7 +60,7 @@ export function buildLibraryPlansFromExport(
         dependsOn: [], dependents: [],
       };
       finalActions = [startAction, ...finalActions];
-      finalActions.forEach((action: any, i: number) => { action.index = i; });
+      finalActions.forEach((action, i) => { action.index = i; });
     }
 
     // `virtueState.ascensionTime` below only has minute resolution (an "HH:MM" form input), but
@@ -77,25 +81,26 @@ export function buildLibraryPlansFromExport(
     // needed downstream.
     const flooredStartTime = Math.floor(best.summary.startTime / 60) * 60;
     const droppedSeconds = best.summary.startTime - flooredStartTime;
-    const startAscensionAction: any = finalActions[0];
+    const startAscensionAction = finalActions[0];
     startAscensionAction.endState.lastStepTime = (startAscensionAction.endState.lastStepTime || 0) - droppedSeconds;
 
     const summary = best.summary;
     const startStr = new Date(summary.startTime * 1000).toISOString().split('T')[0];
     const peakELR = formatNumber(summary.maxELR * 3600, 3);
     const duration = formatDuration(summary.totalDurationSeconds);
-    const variantSuffix = bestKey ? `${formatVariantLabel(bestKey)}` : '';
+    const variantSuffix = bestKey ? `${formatVariantLabel(bestKey, best.summary)}` : '';
     const name = `${namePrefix} A${idx + 1} - ${peakELR}/hr from ${summary.startTE} to ${summary.endTE} - ${variantSuffix} - ${duration} - starting ${startStr}`;
 
     return {
       name,
       data: {
         version: 1,
+        savedBy: buildStamp(),
         actions: finalActions,
         initialState: state,
         virtueState: {
           shiftCount: state.initialShiftCount || 0,
-          initialTE: Object.values(state.initialTeEarned || {}).reduce((s: number, v: any) => s + (v || 0), 0),
+          initialTE: Object.values<number>(state.initialTeEarned || {}).reduce((s, v) => s + (v || 0), 0),
           ascensionDate: formatUnixToDateInput(best.summary.startTime, imported.timezone),
           ascensionTime: formatUnixToTimeInput(best.summary.startTime, imported.timezone),
           ascensionTimezone: imported.timezone,

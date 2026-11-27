@@ -4,7 +4,7 @@
  * synchronously (`accountHashNow`) after anything has asked for it (`accountHash`). Only hashes are kept;
  * the ID is the map's key in memory, never stored or shown.
  *
- * Used to tie what the page holds in memory to an account (16 Oct 2026, My runs › Your latest run: a run
+ * Used to tie what the page holds in memory to an account (16 Oct 2026, My Runs › Your latest run: a run
  * on one account never shows on another): the chain-search store tags its Fastest and By a date results
  * with the hash of the account they ran for.
  */

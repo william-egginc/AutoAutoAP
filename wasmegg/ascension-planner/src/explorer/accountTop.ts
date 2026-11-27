@@ -344,13 +344,6 @@ export function createPlanMerger() {
   return { add, result };
 }
 
-/** Every table at once: `createPlanMerger` for a caller that already has them all. */
-export function mergeAccountTables(tables: readonly AccountTable[]): AccountTop {
-  const merger = createPlanMerger();
-  for (const t of tables) merger.add(t);
-  return merger.result();
-}
-
 /** The earliest-finishing plan at each ascension count, earliest first: `plans` must be ranked. */
 export function bestPerAscensions(plans: readonly TopPlan[]): TopPlan[] {
   const seen = new Set<number>();

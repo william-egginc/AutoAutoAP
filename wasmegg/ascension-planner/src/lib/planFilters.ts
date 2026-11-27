@@ -1,7 +1,7 @@
 /**
  * The My plans filters: which of the viewer's own runs to show, and "the best one for each".
  *
- * Compare's My plans tab became My runs on 15 Oct 2026, with its own filters (lib/myRuns.ts); My runs
+ * Compare's My plans tab became My Runs on 15 Oct 2026, with its own filters (lib/myRuns.ts); My Runs
  * still reads the hours from here (`hoursLabel`, `hoursTitle`). The bar below is no longer on screen.
  *
  * A player comparing their own plans asks "what is best if I play 7 am to 11 pm", "what if I start on
@@ -14,7 +14,9 @@
  * on the row's own calendar, ascensions from the route, the goal from `deadline`, time off from
  * `timeOff`. Pure, so the component only renders.
  */
-import { isDeadlineRow, scheduleText, startMs, type BoardRow } from './leaderboardRank';
+import { CUSTOM_WEEK_HOURS, isDeadlineRow, scheduleText, startMs, type BoardRow } from './leaderboardRank';
+import { parseWeekWindow, weekAwakeCount } from './weekWindow';
+import { formatClockTime } from './timeStyleWords';
 import { showSchedule } from './displayTime';
 
 export type DayPart = 'night' | 'morning' | 'afternoon' | 'evening';
@@ -64,11 +66,9 @@ const PARTS: { part: DayPart; from: number; to: number; label: string }[] = [
   { part: 'evening', from: 18, to: 24, label: 'Evening' },
 ];
 
-/** An hour of the day on a 12-hour clock, short: `7 am`, `noon`, `12 am`. */
+/** An hour of the day on a 12-hour clock: `7:00 AM`, `12:00 PM`, `12:00 AM` (lib/timeStyleWords.ts). */
 export function hour12(hour: number): string {
-  const h = ((Math.floor(hour) % 24) + 24) % 24;
-  if (h === 12) return 'noon';
-  return `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
+  return formatClockTime(hour);
 }
 
 /**
@@ -97,6 +97,7 @@ export function parseWindow(
 /** `7 am–11 pm`, `Sat, Sun 9 am–1 am`, `all day`, or `Any hour` for no schedule. */
 export function hoursLabel(window: string | null | undefined): string {
   if (!window) return 'Any hour';
+  if (parseWeekWindow(window)) return CUSTOM_WEEK_HOURS; // R10: a week that is not one daily window
   const a = parseWindow(window);
   if (!a) return scheduleText(window);
   const days = [...new Set(a.days)].sort((x, y) => x - y);
@@ -108,6 +109,11 @@ export function hoursLabel(window: string | null | undefined): string {
 /** The full schedule for a tooltip, by the player's clock (lib/displayTime.ts `showSchedule`). */
 export function hoursTitle(window: string | null | undefined): string {
   if (!window) return 'Planned for play at any hour (no awake hours set)';
+  const wk = parseWeekWindow(window);
+  if (wk) {
+    const n = weekAwakeCount(window)!;
+    return `Awake hours that differ by day: ${n} ${n === 1 ? 'hour' : 'hours'} a week you can play, in ${wk.timezone || 'its own timezone'}.`;
+  }
   const a = parseWindow(window);
   return a ? showSchedule({ ...a, timezone: a.timezone || 'its own timezone' }) : window;
 }
@@ -200,7 +206,12 @@ export function filterOptions(rows: readonly BoardRow[], zone: string, target?: 
   return {
     hours: [...hours.keys()]
       .sort((a, b) => startHour(a) - startHour(b) || a.localeCompare(b))
-      .map(k => ({ value: k, label: hoursLabel(hours.get(k)?.window), title: hoursTitle(hours.get(k)?.window) })),
+      .map(k => ({
+        value: k,
+        label: hoursLabel(hours.get(k)?.window),
+        // every custom week is one choice here, so its hover has no count and no zone (Words, 21 Nov)
+        title: k === CUSTOM_WEEK_HOURS ? 'Awake hours that differ by day.' : hoursTitle(hours.get(k)?.window),
+      })),
     // Monday first: a plan week reads Mon..Sun.
     day: [...days]
       .sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
@@ -216,7 +227,7 @@ export function filterOptions(rows: readonly BoardRow[], zone: string, target?: 
       .map(g => ({
         value: g,
         label:
-          g === 'target' ? (target != null ? `Fastest to ${target}` : 'Fastest to a target') : 'Highest TE by a date',
+          g === 'target' ? (target != null ? `Fastest to ${target} TE` : 'Fastest to a target TE') : 'Highest TE by a date',
       })),
     timeOff: [
       ...(off.has(true) ? [{ value: 'with' as const, label: 'With time off' }] : []),

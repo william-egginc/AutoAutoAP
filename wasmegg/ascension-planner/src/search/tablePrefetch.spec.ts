@@ -1,13 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { SIM_VERSION } from './simVersion';
 import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './tablePrefetch';
 import type { TableEntry } from './tableBracket';
 
 const entries: TableEntry[] = [
-  { file: 'table.bin', bonus: 128.71, k: 1, from: 120 },
-  { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138 },
-  { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120 },
-  { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120 },
-  { file: 'gear-strong.bin', bonus: 127.93, k: 1, from: 120 },
+  { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120, simVersion: SIM_VERSION },
+  { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+  { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, simVersion: SIM_VERSION },
+  { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120, simVersion: SIM_VERSION },
+  { file: 'gear-strong.bin', bonus: 127.93, k: 1, from: 120, simVersion: SIM_VERSION },
 ];
 
 describe('prefetchPlan', () => {
@@ -19,13 +22,25 @@ describe('prefetchPlan', () => {
   it('else the gear table and the maxed one', () => {
     expect(prefetchPlan({ entries, own: 'acct-x.bin', gear: 'gear-mine.bin', player: null, te: 150 })).toEqual([
       'gear-mine.bin',
-      'table.bin',
+      'table-v2.bin',
     ]);
     // An own table that starts above the player's TE is no use to them.
     expect(prefetchPlan({ entries, own: 'acct-own.bin', gear: 'gear-mine.bin', player: null, te: 130 })).toEqual([
       'gear-mine.bin',
-      'table.bin',
+      'table-v2.bin',
     ]);
+  });
+  it('a table of another simulator is skipped, as the instant answer skips it (code review 22 Nov 2026, T1.6)', () => {
+    const stale: TableEntry[] = entries.map(e =>
+      e.file === 'acct-own.bin' || e.file === 'gear-weak.bin' ? { ...e, simVersion: '2026-11-09-sim4' } : e
+    );
+    expect(prefetchPlan({ entries: stale, own: 'acct-own.bin', gear: 'gear-mine.bin', player: null, te: 150 })).toEqual([
+      'gear-mine.bin',
+      'table-v2.bin',
+    ]);
+    expect(
+      prefetchPlan({ entries: stale, own: null, gear: null, player: { bonus: 125, k: 0.9 }, te: 150 })
+    ).not.toContain('gear-weak.bin');
   });
   it('a gear table under the first name tried that is listed, as a file or an alias', () => {
     const aliased: TableEntry[] = entries.map(e =>
@@ -33,18 +48,29 @@ describe('prefetchPlan', () => {
     );
     expect(
       prefetchPlan({ entries: aliased, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
-    ).toEqual(['gear-canon.bin', 'table.bin']);
+    ).toEqual(['gear-canon.bin', 'table-v2.bin']);
     // Not aliased yet: the legacy name the page falls back to.
     expect(
       prefetchPlan({ entries, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
-    ).toEqual(['gear-mine.bin', 'table.bin']);
+    ).toEqual(['gear-mine.bin', 'table-v2.bin']);
   });
   it('else the maxed table, then the nearest tables above and below (none for maxed gear)', () => {
     expect(
       prefetchPlan({ entries, own: null, gear: 'gear-none.bin', player: { bonus: 125, k: 0.9 }, te: 150 })
-    ).toEqual(['table.bin', 'acct-own.bin', 'gear-weak.bin']); // another account's table can be the nearer one
+    ).toEqual(['table-v2.bin', 'acct-own.bin', 'gear-weak.bin']); // another account's table can be the nearer one
     expect(prefetchPlan({ entries, own: null, gear: null, player: { bonus: 128.71, k: 1 }, te: 150 })).toEqual([
-      'table.bin',
+      'table-v2.bin',
+    ]);
+  });
+});
+
+describe('prefetchPlan beside the version 1 maxed table', () => {
+  it('table-v2.bin, never table.bin (kept on the site for older pages)', () => {
+    const both: TableEntry[] = [{ file: 'table.bin', bonus: 128.71, k: 1, from: 120 }, ...entries];
+    expect(prefetchPlan({ entries: both, own: null, gear: 'gear-none.bin', player: { bonus: 125, k: 0.9 }, te: 150 })).toEqual([
+      'table-v2.bin',
+      'acct-own.bin',
+      'gear-weak.bin',
     ]);
   });
 });
@@ -84,11 +110,62 @@ describe('prefetchFiles', () => {
   });
 });
 
+describe('prefetchPlan: a delivery-set table (QA batch 11, 24 Nov 2026)', () => {
+  const withDelivery: TableEntry[] = [
+    ...entries,
+    { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.9437, from: 150, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-lle.v2.bin', bonus: 128.71, k: 0.963, from: 150, aliases: ['gear-dlle.v2.bin'], simVersion: SIM_VERSION },
+  ];
+  const player = { bonus: 125, k: 0.95 };
+  it('the delivery table under its alias and the maxed one, no neighbours: what the instant answer reads', () => {
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: ['gear-none.bin'], delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).toEqual(['gear-dlel.v2.bin', 'table-v2.bin']);
+  });
+  it('an own or exact gear table still comes first', () => {
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: 'gear-mine.bin', delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).toEqual(['gear-mine.bin', 'table-v2.bin']);
+  });
+  it('a delivery table not listed, starting above the TE or of another simulator: the maxed one and the neighbours', () => {
+    const neighbours = prefetchPlan({ entries: withDelivery, own: null, gear: null, delivery: 'gear-dzzz.v2.bin', player, te: 200 });
+    expect(neighbours[0]).toBe('table-v2.bin');
+    expect(neighbours.length).toBeGreaterThan(1);
+    expect(
+      prefetchPlan({ entries: withDelivery, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 140 })
+    ).not.toContain('gear-dlel.v2.bin');
+    const stale = withDelivery.map(e => (e.file === 'gear-lel.v2.bin' ? { ...e, simVersion: '2026-11-09-sim4' } : e));
+    expect(
+      prefetchPlan({ entries: stale, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 200 })
+    ).not.toContain('gear-dlel.v2.bin');
+  });
+});
+
+describe('prefetchPlan: a table that ends below the TE (QA R10, 24 Nov 2026)', () => {
+  const topped: TableEntry[] = [
+    ...entries,
+    { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.9437, from: 150, to: 339, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-lle.v2.bin', bonus: 128.71, k: 0.963, from: 150, to: 339, aliases: ['gear-dlle.v2.bin'], simVersion: SIM_VERSION },
+  ];
+  const player = { bonus: 128.71, k: 0.95 };
+  it('its delivery table is not fetched above its last TE, nor a neighbour that ends below the TE', () => {
+    const plan = prefetchPlan({ entries: topped, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 340 });
+    expect(plan).not.toContain('gear-dlel.v2.bin');
+    expect(plan).not.toContain('gear-lle.v2.bin');
+    expect(plan[0]).toBe('table-v2.bin');
+  });
+  it('inside its range, as before', () => {
+    expect(
+      prefetchPlan({ entries: topped, own: null, gear: null, delivery: 'gear-dlel.v2.bin', player, te: 339 })
+    ).toEqual(['gear-dlel.v2.bin', 'table-v2.bin']);
+  });
+});
+
 describe('gearCoverage', () => {
   const entries = [
-    { file: 'table.bin', bonus: 128.71, k: 1, from: 100 },
-    { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100 },
-    { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'] },
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },
+    { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },
+    { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'], simVersion: SIM_VERSION },
   ];
   it('own table first, then a gear table by file or alias, else none', () => {
     expect(gearCoverage(entries, 'acct-aaa.bin', ['gear-x.bin'])).toBe('own');
@@ -96,5 +173,79 @@ describe('gearCoverage', () => {
     expect(gearCoverage(entries, 'acct-bbb.bin', ['gear-zzz.bin', 'gear-old.bin'])).toBe('gear');
     expect(gearCoverage(entries, null, ['gear-zzz.bin'])).toBe('none');
     expect(gearCoverage(entries, 'acct-bbb.bin', [])).toBe('none');
+  });
+  it('a delivery-set table under its alias is delivery coverage, after own and gear (QA batch 11, 24 Nov 2026)', () => {
+    const withDelivery = [...entries, { file: 'gear-lel.v2.bin', bonus: 128.71, k: 0.94, from: 150, aliases: ['gear-dlel.v2.bin'], simVersion: SIM_VERSION }];
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-zzz.bin'], 'gear-dlel.v2.bin')).toBe('delivery');
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-zzz.bin'], 'gear-dzzz.v2.bin')).toBe('none');
+    expect(gearCoverage(withDelivery, 'acct-bbb.bin', ['gear-new.bin'], 'gear-dlel.v2.bin')).toBe('gear');
+    expect(gearCoverage(withDelivery, 'acct-aaa.bin', [], 'gear-dlel.v2.bin')).toBe('own');
+    const old = withDelivery.map(e => ({ ...e, simVersion: '2020-01-01-old' }));
+    expect(gearCoverage(old, 'acct-bbb.bin', [], 'gear-dlel.v2.bin')).toBe('none');
+  });
+  it('a file stamped with another simulator, or not stamped, is not coverage: the instant answer would skip it', () => {
+    const old = entries.map(e => ({ ...e, simVersion: '2020-01-01-old' }));
+    expect(gearCoverage(old, 'acct-aaa.bin', ['gear-x.bin'])).toBe('none');
+    expect(gearCoverage(old, 'acct-bbb.bin', ['gear-new.bin'])).toBe('none');
+    const unstamped = entries.map(({ simVersion: _s, ...e }) => e);
+    void unstamped;
+    expect(gearCoverage(unstamped, 'acct-aaa.bin', [])).toBe('none');
+    // One current file among old ones still counts.
+    const mixed = [old[0], { ...entries[1] }];
+    expect(gearCoverage(mixed, 'acct-aaa.bin', [])).toBe('own');
+  });
+});
+
+describe('.v2 names (an own or gear table of version 2 beside the version 1 one older pages read)', () => {
+  const both: TableEntry[] = [
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120, simVersion: SIM_VERSION },
+    { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+    { file: 'acct-own.v2.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+    { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-mine.v2.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120, simVersion: SIM_VERSION },
+  ];
+  const own = ['acct-own.v2.bin', 'acct-own.bin'];
+  const gear = ['gear-canon.v2.bin', 'gear-mine.v2.bin', 'gear-canon.bin', 'gear-mine.bin'];
+
+  it('the own table under its .v2 name when listed, else the plain one', () => {
+    expect(prefetchPlan({ entries: both, own, gear, player: null, te: 150 })).toEqual(['acct-own.v2.bin']);
+    const plainOnly = both.filter(e => e.file !== 'acct-own.v2.bin');
+    expect(prefetchPlan({ entries: plainOnly, own, gear, player: null, te: 150 })).toEqual(['acct-own.bin']);
+  });
+
+  it('the gear table under its first .v2 name listed (file or alias), else a plain one', () => {
+    expect(prefetchPlan({ entries: both, own: null, gear, player: null, te: 150 })).toEqual(['gear-canon.v2.bin', 'table-v2.bin']);
+    const plainOnly = both.filter(e => !e.file.endsWith('.v2.bin') || e.file === 'table-v2.bin');
+    expect(prefetchPlan({ entries: plainOnly, own: null, gear, player: null, te: 150 })).toEqual(['gear-canon.bin', 'table-v2.bin']);
+  });
+
+  it('the nearest tables: the .v2 file, never its plain twin', () => {
+    expect(
+      prefetchPlan({ entries: both, own: null, gear: ['gear-none.bin'], player: { bonus: 125, k: 0.9 }, te: 150 })
+    ).toEqual(['table-v2.bin', 'acct-own.v2.bin', 'gear-weak.bin']);
+  });
+
+  it('gearCoverage: either own name, any gear name', () => {
+    expect(gearCoverage(both, own, [])).toBe('own');
+    expect(gearCoverage(both.filter(e => e.file !== 'acct-own.v2.bin'), own, [])).toBe('own');
+    expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], gear)).toBe('gear');
+    expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], ['gear-z.v2.bin', 'gear-z.bin'])).toBe('none');
+  });
+});
+
+describe('the composables pass the save\'s delivery-set table (QA batch 11, 24 Nov 2026)', () => {
+  const src = (f: string) => readFileSync(join(__dirname, '../composables', f), 'utf8');
+  it('useTablePrefetch: the delivery table file from the stamp, into prefetchPlan', () => {
+    const s = src('useTablePrefetch.ts');
+    expect(s).toMatch(/deliveryTableFile\(/);
+    expect(s).toMatch(/deliveryKey\(stamp\??\.deliveryFull\)/);
+    expect(s).toMatch(/prefetchPlan\(\{[^}]*\bdelivery\b/);
+  });
+  it('useGearCoverage: the same, into gearCoverage', () => {
+    const s = src('useGearCoverage.ts');
+    expect(s).toMatch(/deliveryTableFile\(/);
+    expect(s).toMatch(/deliveryKey\(stamp\??\.deliveryFull\)/);
+    expect(s).toMatch(/gearCoverage\(entries, own, gear, delivery\)/);
   });
 });

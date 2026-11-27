@@ -1,0 +1,300 @@
+@layer components {
+    /* Reusable Premium Styles */
+
+    /* --- Buttons --- */
+    .btn-premium {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-weight: 700;
+        font-size: 0.875rem;
+        border-radius: var(--radius-md);
+        transition: all var(--transition-fast);
+        cursor: pointer;
+        border: 1px solid transparent;
+        user-select: none;
+    }
+
+    .btn-premium:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--color-brand-primary), var(--color-brand-primary-dark));
+        color: var(--text-white);
+        box-shadow: 0 4px 14px 0 var(--color-brand-primary-glow);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px 0 var(--color-brand-primary-glow);
+        filter: brightness(1.1);
+    }
+
+    .btn-emerald {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #fff;
+        box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+    }
+
+    .btn-emerald:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.23);
+        filter: brightness(1.1);
+    }
+
+    .btn-secondary {
+        background-color: var(--bg-card);
+        border-color: var(--color-slate-200);
+        color: var(--color-slate-700);
+    }
+
+    .btn-secondary:hover {
+        background-color: var(--color-slate-50);
+        border-color: var(--color-slate-300);
+        transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--color-slate-600);
+    }
+
+    .btn-ghost:hover {
+        background-color: var(--color-slate-100);
+        color: var(--color-slate-900);
+    }
+
+    /* --- Cards & Containers --- */
+    .card-premium {
+        background: var(--bg-card);
+        border: 1px solid var(--color-slate-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+    }
+
+    .card-premium:hover {
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card-glass {
+        background: var(--bg-glass);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-glass);
+    }
+
+    /* --- Inputs --- */
+    .input-premium {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        background-color: var(--bg-card);
+        border: 1px solid var(--color-slate-200);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        color: var(--text-main);
+        transition: all var(--transition-fast);
+    }
+
+    .input-premium:focus {
+        outline: none;
+        border-color: var(--color-brand-primary);
+        box-shadow: 0 0 0 4px var(--color-brand-primary-glow);
+    }
+
+    .checkbox-premium {
+        width: 1.125rem;
+        height: 1.125rem;
+        border-radius: var(--radius-sm);
+        border: 2px solid var(--color-slate-300);
+        color: var(--color-brand-primary);
+        transition: all var(--transition-fast);
+    }
+
+    .checkbox-premium:checked {
+        border-color: var(--color-brand-primary);
+    }
+
+    .Select__dropdown li.bg-blue-600 {
+        /* Active/Hover state */
+        background: var(--color-brand-primary) !important;
+    }
+
+    .Select__dropdown {
+        z-index: 1050 !important;
+    }
+
+    .Select__dropdown .truncate {
+        white-space: normal !important;
+    }
+
+    /* --- Player ID Form Premium Overrides --- */
+    #playerId {
+        @apply input-premium text-center tabular-nums text-title tracking-label font-bold text-brand-primary;
+    }
+
+    /* --- Custom Scrollbar --- */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: var(--color-slate-200);
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: var(--color-slate-300);
+    }
+
+    /* --- Displays & Badges --- */
+    .badge-premium {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.625rem;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-radius: var(--radius-full);
+    }
+
+    .badge-brand {
+        background-color: var(--color-brand-primary-glow);
+        color: var(--color-slate-900);
+    }
+
+    .badge-success {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: rgb(5, 150, 105);
+    }
+
+    /* --- Typography --- */
+    /* No mono anywhere (Jordan, 26 Oct 2026): route chains and numbers are the body font with tabular figures,
+       class `tabular-nums`. */
+
+    /* The type scale (type review batch 2, Jordan 26 Oct 2026). Sizes are tailwind.config.ts tokens: text-small (12),
+       text-body (14), text-title (18), text-headline (24), text-page (32). Weights 400 / 700 / 900 (900 only for the
+       big answer numbers, screen titles and the page title). One caps style, `.label`, for section labels, column
+       heads, tabs and badges; buttons and sentences are sentence case. Nothing under 11 px. */
+
+    /* The caps label `.label` (11 px, 700, 0.08em, caps) is a plugin component in tailwind.config.ts, so a scoped
+       <style> can @apply it too. */
+
+    /* The page title (App.vue's header, the one definition): sentence case, 900, 28 px on a phone and 32 px from
+       sm up (the text-page token), tracking -0.02em. */
+    .heading-xl {
+        font-size: 1.75rem;
+        line-height: 34px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+    }
+
+    @media (min-width: 640px) {
+        .heading-xl {
+            font-size: 2rem;
+            line-height: 36px;
+        }
+    }
+
+    .text-gradient {
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-image: linear-gradient(135deg, var(--color-brand-primary), var(--color-brand-accent));
+    }
+
+    /* --- Utilities --- */
+    .animate-float {
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
+    .section-premium {
+        background: var(--bg-card);
+        border: 1px solid var(--color-slate-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-normal);
+    }
+
+    .section-premium:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-slate-300);
+    }
+}
+
+/* The name pencil beside the player ID (ui/components/PlayerIdForm.vue, shared with the other wasmegg tools, so
+   styled from here): 44 px square below sm, as every tap target on a phone; from sm up as it was. */
+@media (max-width: 639.98px) {
+    form:has(#playerId) button[aria-label="Edit name"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Form fields at 16 px below sm: iOS Safari zooms the page when a field under 16 px gets the cursor
+   (type review, 26 Oct 2026: the Auto Planner's selects and number boxes were 11 px, Setup's 11 and 14 px).
+   The selector sits outside @layer and starts with :root plus attribute :not()s, so it outranks any one
+   text-* utility (one class) and a scoped style (class + data-v attribute) without !important.
+   Checkboxes, radios, ranges, colour pickers and the button-type inputs keep their own size. From sm up
+   every field keeps its utility size. */
+@media (max-width: 639.98px) {
+    :root :is(
+        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="hidden"]),
+        select,
+        textarea
+    ) {
+        font-size: 16px;
+    }
+}
+
+/* Numbers in every table line up (type review 26 Oct, item 6): the instant answer's counts tables (TE · spare,
+   Reached, Reaches, Behind), the Leaderboard's columns, the leg tables. Same-width figures for every cell, so a
+   1 above an 8 no longer shifts a column (it did in Segoe UI). Harmless on a text cell. A cell that needs
+   proportional figures can still say `normal-nums` (one class outranks this). */
+td,
+th {
+    font-variant-numeric: tabular-nums;
+}
+
+/* No mono anywhere (Jordan, 26 Oct 2026): code and preformatted text (the CSV preview, the submit JSON, the
+   inline route numbers in the explainers) use the body font with tabular figures. <pre> keeps its own
+   white-space: pre. tailwind.config.ts sets fontFamily.mono to inherit as well, so preflight and any
+   font-mono class (ui/ included) follow. */
+pre,
+code,
+kbd,
+samp {
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+}

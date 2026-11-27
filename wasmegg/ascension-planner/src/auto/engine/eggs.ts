@@ -1,6 +1,6 @@
 import type { Action } from '@/types/actions/meta';
 import type { EngineState, SimulationContext } from '../types';
-import { computeSnapshot } from '../../engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { applyAction } from '../../engine/apply';
 
 /**
@@ -26,7 +26,9 @@ export function calculateEggsLaidDuringActions(
     } else if (
       action.type === 'wait_for_time' ||
       action.type === 'wait_for_research_sale' ||
+      action.type === 'wait_for_research_sale_end' ||
       action.type === 'wait_for_earnings_boost' ||
+      action.type === 'wait_for_earnings_boost_end' ||
       action.type === 'wait_for_full_habs' ||
       action.type === 'wait_for_missions'
     ) {

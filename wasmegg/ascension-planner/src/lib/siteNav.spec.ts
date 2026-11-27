@@ -22,7 +22,6 @@ describe('siteNav', () => {
       R('auto', 'by-date'),
       R('compare', 'classic', 'smart', 'insights'),
       R('compare', 'classic', 'smart', 'dates'),
-      R('compare', 'classic', 'smart', 'latest'),
       R('science', 'classic', 'smart', 'eggday', 'submit'),
       R('science', 'classic', 'smart', 'eggday', 'check'),
       R('science', 'classic', 'smart', 'eggday', 'start'),
@@ -62,15 +61,15 @@ describe('siteNav', () => {
     expect(routeFromLocation('', '#/science/start')).toEqual(R('science', 'classic', 'smart', 'eggday', 'start'));
   });
 
-  it('Your latest run keeps its Leaderboard address (16 Oct: a one-line page pointing to My runs)', () => {
+  it('Your latest run is no Leaderboard tab (fluff review 2, L1, 5 Nov 2026): its old address lands on My Runs', () => {
     expect(NAMES.latest).toBe('Your latest run');
-    expect(hashFor(R('compare', 'classic', 'smart', 'latest'))).toBe('#/compare/latest');
-    expect(routeFromLocation('', '#/compare/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
-    expect(routeFromLocation('', '#/leaderboard/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
+    expect(COMPARE_VIEWS as string[]).not.toContain('latest');
+    expect(routeFromLocation('', '#/compare/latest')).toEqual(R('myruns'));
+    expect(routeFromLocation('', '#/leaderboard/latest')).toEqual(R('myruns'));
   });
 
-  it('gives My runs its own top-level address, and sends old My plans links there (15 Oct)', () => {
-    expect(NAMES.myRuns).toBe('My runs');
+  it('gives My Runs its own top-level address, and sends old My plans links there (15 Oct)', () => {
+    expect(NAMES.myRuns).toBe('My Runs');
     expect(hashFor(R('myruns'))).toBe('#/myruns');
     expect(routeFromLocation('', '#/myruns')).toEqual(R('myruns'));
     expect(routeFromLocation('', '#/compare/mine')).toEqual(R('myruns'));
@@ -79,9 +78,9 @@ describe('siteNav', () => {
     expect(routeFromLocation('', '#/compare/race')).toEqual(R('compare', 'classic', 'smart', 'race'));
   });
 
-  it('names Classic "Single run" in one place (was Your plan)', () => {
-    expect(NAMES.classic).toBe('Single run');
-    expect(NAMES.classicFirst).toBe(`${NAMES.classic} (was ${NAMES.classicWas})`);
+  it('names Classic in one place, the Auto Planner since 12 Nov 2026 (was Single run); "(was Your plan)" is no longer said (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
+    expect(NAMES.classic).toBe('Auto Planner');
+    expect(NAMES).not.toHaveProperty('classicFirst');
     expect(NAMES.classicWas).toBe('Your plan');
   });
 

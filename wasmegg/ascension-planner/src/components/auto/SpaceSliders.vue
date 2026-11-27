@@ -1,9 +1,9 @@
 <template>
-  <!-- Suggest a space's two sliders (search/deadlineSuggest.ts SPACE_WIDTHS and SPACE_STEPS): one
+  <!-- Suggest boxes's two sliders (search/deadlineSuggest.ts SPACE_WIDTHS and SPACE_STEPS): one
        implementation for every chain row on the Full sweep and By a date (RoutesToTry.vue). The parent
        owns the positions; the first stop is always tried at every TE. Anything after the sliders (By a
        date's "move every chain's sliders together") goes in the default slot, on the same line. -->
-  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-small text-slate-600">
     <span v-if="lead" class="font-bold text-slate-600">{{ lead }}</span>
     <label class="flex items-center gap-1.5">
       <input
@@ -20,7 +20,7 @@
       <span
         ><b class="text-slate-700">±{{ halfWidth }}</b> TE around each stop<template v-if="fromCard">
           (from a Science card)</template
-        ><template v-else-if="fromSimple"> (from Nearby routes)</template></span
+        ><template v-else-if="fromSimple"> (from the Fast or Exact result)</template></span
       >
     </label>
     <label class="flex items-center gap-1.5">
@@ -53,7 +53,7 @@ defineProps<{
   halfWidth: number;
   step: number;
   disabled?: boolean;
-  /** Words before the sliders (By a date: "Suggest a space tries"). */
+  /** Words before the sliders (By a date: "Suggested boxes try"). */
   lead?: string;
   /** The ± came from a Science card's request (±1, ±2), not the slider. */
   fromCard?: boolean;

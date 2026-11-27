@@ -1,6 +1,6 @@
 /**
  * R6 simple: the "N hours ahead / behind" badge (PaceBadge.vue), the lines usePlanPace builds from saved runs and
- * answers, and the wiring (badges on My runs only, bodies read only while "Saved on this device" is open).
+ * answers, and the wiring (badges on My Runs only, bodies read only while "Saved on this device" is open).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,7 +46,7 @@ const legs = [
 const run = {
   id: 'r1',
   version: 2,
-  label: 'Race to 200',
+  label: 'Fastest to 200 TE',
   savedAt: (T0 - 600) * 1000,
   currentTE: 186,
   finalTE: 200,
@@ -112,13 +112,13 @@ describe('PaceBadge', () => {
   it('the pill and its time; the detail opens on a tap (aria-expanded)', async () => {
     const w = words(T0 + 11 * H, 188); // the plan had its 189th TE at +6 h
     const shut = await renderHtml(PaceBadge, { words: w });
-    expect(textOf(shut)).toBe('5 hours behind as of 11:46 pm');
+    expect(textOf(shut)).toBe('5 hours behind as of 11:46 PM');
     expect(shut).toContain('aria-expanded="false"');
     expect(shut).toContain('data-tone="bad"');
     expect(shut).toContain('min-h-[44px]');
     const opened = await renderHtml(PaceBadge, { words: w, startOpen: true });
     expect(opened).toContain('aria-expanded="true"');
-    expect(textOf(opened)).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
+    expect(textOf(opened)).toContain('Plan expected 191 TE by 11:46 PM; you had 188.');
   });
 
   it('greyed when another route is followed for its goal', async () => {
@@ -126,7 +126,7 @@ describe('PaceBadge', () => {
     expect(html).toContain('data-greyed="true"');
     expect(html).toContain('opacity-60');
     expect(html).toContain('data-tone="plain"');
-    expect(textOf(html)).toBe('5 hours behind as of 11:46 pm · not the route you follow');
+    expect(textOf(html)).toBe('5 hours behind as of 11:46 PM · not the route you follow');
   });
 
   it('no save, below the plan’s start, and nothing while loading', async () => {
@@ -134,7 +134,7 @@ describe('PaceBadge', () => {
     expect(textOf(none)).toBe(NO_SAVE_WORDS);
     expect(none).not.toContain('aria-expanded');
     const below = await renderHtml(PaceBadge, { words: words(T0 + 2 * H, 185) });
-    expect(textOf(below)).toBe('Your TE is below where this plan starts.');
+    expect(textOf(below)).toBe('Your TE is below where this route starts.');
     expect(await renderHtml(PaceBadge, { words: null })).not.toContain('pace-badge');
   });
 });
@@ -142,7 +142,7 @@ describe('PaceBadge', () => {
 describe('the wiring', () => {
   const src = (p: string) => fs.readFileSync(path.join(__dirname, p), 'utf8');
 
-  it('saved runs and saved answers show the badge on My runs only (list-only)', () => {
+  it('saved runs and saved answers show the badge on My Runs only (list-only)', () => {
     expect(src('../auto/SavedRuns.vue')).toMatch(/<PaceBadge\s+v-if="listOnly"/);
     expect(src('../auto/SavedAnswers.vue')).toMatch(/<PaceBadge\s+v-if="listOnly"/);
     for (const f of ['../auto/SavedRuns.vue', '../auto/SavedAnswers.vue'])

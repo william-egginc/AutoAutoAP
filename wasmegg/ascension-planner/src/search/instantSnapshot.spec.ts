@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_AGE_MS,
   MAX_SNAPSHOTS,
+  patchSnapshot,
   readSnapshot,
   recallShown,
   rememberShown,
@@ -73,6 +74,20 @@ describe('snapshotUsable', () => {
     expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 2 }, 3)).toBe(false);
     expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 3 }, 3)).toBe(true);
   });
+  it('works one out again that was read from the version 1 maxed table (table.bin, before table-v2.bin)', () => {
+    for (const url of [
+      '/ascension-planner/precompute/table.bin',
+      'gearshift:/ascension-planner/precompute/table.bin|1,2,3,4',
+      '/ascension-planner/precompute/gear-ab.bin|/ascension-planner/precompute/table.bin|340|0.9',
+    ])
+      expect(snapshotUsable({ ownChanged: '', tableUrl: url }, 3), url).toBe(false);
+    for (const url of [
+      '/ascension-planner/precompute/table-v2.bin',
+      'gearshift:/ascension-planner/precompute/table-v2.bin|1,2,3,4',
+      '/ascension-planner/precompute/acct-ab.bin',
+    ])
+      expect(snapshotUsable({ ownChanged: '', tableUrl: url }, 3), url).toBe(true);
+  });
   it('has nothing to show for no snapshot', () => {
     expect(snapshotUsable(null, 3)).toBe(false);
   });
@@ -86,5 +101,31 @@ describe('rememberShown', () => {
     expect(recallShown(null)).toBeNull();
     rememberShown('k2', { at: 2 });
     expect(recallShown('k1')).toBeNull();
+  });
+});
+
+describe("a snapshot never keeps a search priced on another save (17 Nov 2026)", () => {
+  const T = 1_800_000_000;
+  // Done a minute after the snapshot's save (a search done before its save is never that save's, lib/searchFits.ts doneBeforeSave).
+  const search = (backupAt: number | null) => ({ level: 'Fast', chain: [200], end: 1, endTE: 200, at: (T + 60) * 1000, planStart: 1, backupAt });
+  const snap = (backupTime: number, s: unknown) => ({ at: Date.now(), meta: { account: 'a', goal: 'target 490', backupTime }, search: s });
+  it('writeSnapshot drops a search from 30 minutes earlier, keeps the rest; keeps this save\'s and an unstamped one', () => {
+    const st = mem();
+    expect(writeSnapshot('k', snap(T, search(T - 1800)), st)).toBe(true);
+    const got = readSnapshot<{ at: number; search?: unknown; meta?: unknown }>('k', Date.now(), st)!;
+    expect(got.search).toBeUndefined();
+    expect(got.meta).toBeDefined();
+    writeSnapshot('k', snap(T, search(T - 30)), st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+    writeSnapshot('k', snap(T, search(null)), st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
+  });
+  it('patchSnapshot drops a patched-in search from another save', () => {
+    const st = mem();
+    writeSnapshot('k', snap(T, undefined), st);
+    expect(patchSnapshot('k', { search: search(T - 1800) }, st)).toBe(true);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeUndefined();
+    patchSnapshot('k', { search: search(T) }, st);
+    expect(readSnapshot<{ at: number; search?: unknown }>('k', Date.now(), st)?.search).toBeDefined();
   });
 });

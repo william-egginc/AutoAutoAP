@@ -348,7 +348,7 @@ export function noteFaultIn(t: Timeline, f: FaultNote): Timeline {
     num(f.heapMB),
     num(f.memo),
     num(f.pct),
-    (f.message ?? '').replace(/EI\d{16}/g, 'EI[redacted]').slice(0, 100),
+    (f.message ?? '').replace(/EI\d{16}/gi, 'EI[redacted]').slice(0, 100),
   ];
   return { ...t, faults: push(t.faults ?? [], entry, MAX_FAULTS) };
 }
@@ -375,7 +375,7 @@ export function noteSendIn(t: Timeline, s: SendNote): Timeline {
     s.parts ?? 1,
     s.tries ?? 1,
   ];
-  if (!s.ok && s.why) entry.push(s.why.replace(/EI\d{16}/g, 'EI[redacted]').slice(0, 100));
+  if (!s.ok && s.why) entry.push(s.why.replace(/EI\d{16}/gi, 'EI[redacted]').slice(0, 100));
   return { ...t, sends: push(t.sends, entry, MAX_SENDS) };
 }
 

@@ -8,8 +8,8 @@
    for the whole script download (about 7 s on a slow phone connection). It cannot linger over the
    app: mounting replaces everything inside #app. */
 @import 'ui/styles/app-loading';
-@import './styles/design-tokens.css';
-@import './styles/components.css';
+@import 'ui/styles/planners/design-tokens.css';
+@import 'ui/styles/planners/components.css';
 
 /* The chart wrapper (components/charts/EChart.vue). It clips because echarts positions a tooltip
    inside it, and on a phone the tooltip's first placement can hang past the screen edge and leave

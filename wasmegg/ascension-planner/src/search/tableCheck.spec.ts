@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBuildPhaseEndForSaleCount } from '@/lib/events';
+import { getBuildPhaseEndForSaleCount } from 'lib/planners/events';
 import { canonicalDelivered, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import { packTable, type TableHeader } from './precomputedTable';
 import { REFERENCE_WEEK } from './tableBuild';
@@ -275,5 +275,33 @@ describe('inventoryOfStamp', () => {
     });
     expect(inv.artifacts).toEqual({ 'T4L Lunar totem': 1, 'T4L Puzzle cube': 1, 'T4L Gusset': 2 });
     expect(inv.stones).toEqual({ 'T4 Lunar stone': 3, 'T4 Quantum stone': 1, 'T4 Tachyon stone': 2 });
+  });
+});
+
+describe('checkHours (review 15 Nov, T8)', () => {
+  // The cell checkers sampled hours 0, 83 and 167 only: no research sale or 2x boost hour, and not the hour before
+  // one starts (where C2's and I1's 4 h lookahead and the opening read it).
+  it('adds an hour in a sale, one in a boost, and the hour before each starts', async () => {
+    const { checkHours } = await import('./tableCheck');
+    const { REFERENCE_WEEK } = await import('./tableBuild');
+    const { isResearchSaleActive, isEarningsBoostActive } = await import('lib/planners/events');
+    const hours = checkHours(REFERENCE_WEEK);
+    const at = (h: number) => REFERENCE_WEEK + h * 3600;
+    expect(hours.slice().sort((a, b) => a - b)).toEqual(hours);
+    expect(new Set(hours).size).toBe(hours.length);
+    for (const h of [0, 83, 167]) expect(hours).toContain(h);
+    expect(hours.some(h => isResearchSaleActive(at(h)))).toBe(true);
+    expect(hours.some(h => isEarningsBoostActive(at(h)))).toBe(true);
+    expect(hours.some(h => !isResearchSaleActive(at(h)) && isResearchSaleActive(at(h + 1)))).toBe(true);
+    expect(hours.some(h => !isEarningsBoostActive(at(h)) && isEarningsBoostActive(at(h + 1)))).toBe(true);
+    for (const h of hours) expect(h >= 0 && h < WEEK_HOURS).toBe(true);
+  });
+
+  it('sampleCells takes them as its edges', async () => {
+    const { checkHours } = await import('./tableCheck');
+    const { REFERENCE_WEEK } = await import('./tableBuild');
+    const hours = checkHours(REFERENCE_WEEK);
+    const a = sampleCells({ from: 120, to: 489 }, 24, 7, hours);
+    expect(a.filter(c => c.edge).map(c => [c.te, c.h])).toEqual([120, 489].flatMap(te => hours.map(h => [te, h])));
   });
 });

@@ -5,7 +5,7 @@
  *   - the CSV's header, as `# searched: ...` and `# ascensions: N-M; min gap: G` under the "routes
  *     priced" line (search/csv.ts `metaLines`; the command line writes its CSVs with the same code);
  *   - the submission's `searched` field (submission.ts), which the board keeps on the row;
- *   - My runs' "What was searched" line (`searchedWords`, LeaderboardRunDetail.vue).
+ *   - My Runs' "What was searched" line (`searchedWords`, LeaderboardRunDetail.vue).
  *
  * THE FORMAT. Tokens joined by "; ", in the command line's own box notation:
  *
@@ -145,7 +145,7 @@ const oneLine = (text: string | undefined) => (text ?? '').replace(/[\u0000-\u00
  */
 export function cleanSearched(text: unknown): string | undefined {
   if (typeof text !== 'string') return undefined;
-  const one = oneLine(text).replace(/EI\d{16}/g, 'EI[redacted]');
+  const one = oneLine(text).replace(/EI\d{16}/gi, 'EI[redacted]');
   if (!one) return undefined;
   if (one.length <= MAX_SEARCHED) return one;
   const { boxes, counts } = splitTokens(one);
@@ -180,7 +180,7 @@ function bandWords(band: string): string | null {
 }
 
 /**
- * A `searched` line in words, for My runs: "Stops: 195-197 (every 2), 209-240, 230-260, 255-300;
+ * A `searched` line in words, for My Runs: "Stops: 195-197 (every 2), 209-240, 230-260, 255-300;
  * last stop 300-320; 5 ascensions". A line it cannot read comes back as it is; none at all, as
  * `SEARCHED_NOT_RECORDED`.
  */
@@ -206,7 +206,7 @@ export function searchedWords(text: string | null | undefined): string {
     } else if ((m = /^grid step (\d+)$/.exec(token))) {
       rest.push(`early stops on a ${m[1]}-TE grid`);
     } else if ((m = /^around ([\d ]+)$/.exec(token))) {
-      rest.push(`Nearby routes around ${m[1].trim()}`);
+      rest.push(`Fast or Exact around ${m[1].trim()}`);
     } else if ((m = /^counts ([\d ]+)$/.exec(token))) {
       rest.push(`ascension counts tried ${m[1].trim().split(/\s+/).join(', ')}`);
     } else if ((m = /^plus (\d+) instant answer sets?$/.exec(token))) {

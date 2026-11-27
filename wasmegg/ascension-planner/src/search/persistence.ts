@@ -23,7 +23,9 @@ import type { CacheEntry } from './driver';
 import type { ProvisionalRow, SearchSpace } from './submission';
 import type { WatchLinkState } from './watchLink';
 import { availabilityKey, type Availability } from './availability';
+import { blockedFromHex } from './availabilitySchedule';
 import { milestonesKey, type Milestone } from './milestones';
+import { SIM_VERSION } from './simVersion';
 import {
   FIRST_ASCENSION_WORDS,
   firstAscensionFromTag,
@@ -56,6 +58,9 @@ export interface SearchCheckpoint {
   bestLegs: LegSummary[];
   /** `key,seconds` pairs — the cache, without per-leg detail. */
   durations: [string, number][];
+  /** The run's leg spill's length when this was written (search/legSpill.ts): a carry-on cuts the file
+   *  back to it. Absent: the run had none. */
+  spillBytes?: number;
   stage: string;
   detail: string;
   chainsDone: number;
@@ -202,6 +207,9 @@ export function fingerprintRun(args: {
   milestones?: Milestone[] | null;
   deferShifts?: boolean;
   timeOff?: TimeOffWindow[] | null;
+  noPrestige?: TimeOffWindow[] | null;
+  /** Setup's silo trick (10 Nov 2026): appended only when on, so every fingerprint written before still matches. */
+  siloTrick?: boolean;
 }): string {
   const parts = [
     args.playerId,
@@ -218,6 +226,11 @@ export function fingerprintRun(args: {
   if (ms) parts.push(ms);
   // Only when set, so every checkpoint written before time off existed still matches.
   if (args.timeOff?.length) parts.push('off:' + args.timeOff.map(w => `${w.from}-${w.to}`).join(','));
+  // No prestige on these days (search/noPrestige.ts): likewise only when set.
+  if (args.noPrestige?.length) parts.push('np:' + args.noPrestige.map(w => `${w.from}-${w.to}`).join(','));
+  if (args.siloTrick) parts.push('trick');
+  // The simulator (sim3, 3 Nov 2026): a checkpoint priced by an older one does not resume as current.
+  parts.push(`sim:${SIM_VERSION}`);
   return parts.join('|');
 }
 
@@ -270,10 +283,13 @@ export function fingerprintChanges(saved: string, current: string): string[] {
 export interface FingerprintSettings {
   final: number;
   firstAscension: FirstAscension;
-  availability: { days: number[]; fromHour: number; toHour: number; timezone: string } | null;
+  /** `blocked`: weekly hours (R10), read back from an `availw-` key. */
+  availability: { days: number[]; fromHour: number; toHour: number; timezone: string; blocked?: number[] } | null;
   deferShifts: boolean | null;
   milestones: { te: number; by: number }[];
   timeOff: { from: number; to: number }[];
+  noPrestige: { from: number; to: number }[];
+  siloTrick: boolean;
 }
 
 /**
@@ -293,15 +309,24 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
     deferShifts: null,
     milestones: [],
     timeOff: [],
+    noPrestige: [],
+    siloTrick: false,
   };
+  const windows = (text: string) =>
+    text
+      .split(',')
+      .map(w => w.split('-').map(Number))
+      .filter(w => w.length === 2 && w.every(Number.isFinite))
+      .map(([from, to]) => ({ from, to }));
   for (const part of parts.slice(5)) {
     if (part.startsWith('off:')) {
-      out.timeOff = part
-        .slice(4)
-        .split(',')
-        .map(w => w.split('-').map(Number))
-        .filter(w => w.length === 2 && w.every(Number.isFinite))
-        .map(([from, to]) => ({ from, to }));
+      out.timeOff = windows(part.slice(4));
+    } else if (part === 'trick') {
+      out.siloTrick = true;
+    } else if (part.startsWith('sim:')) {
+      continue;
+    } else if (part.startsWith('np:')) {
+      out.noPrestige = windows(part.slice(3));
     } else if (part.startsWith('ms')) {
       out.milestones = part
         .slice(2)
@@ -309,6 +334,14 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
         .map(m => m.split('@').map(Number))
         .filter(m => m.length === 2 && m.every(Number.isFinite))
         .map(([te, by]) => ({ te, by }));
+    } else if (/^availw-/.test(part)) {
+      // Weekly hours (R10): the mask itself; the daily window it was painted from is not in the key (7 AM-11 PM stands in).
+      const w = /^availw-([0-9a-f]{42})@(.+?)(\+shifts)?$/.exec(part);
+      const blocked = w ? blockedFromHex(w[1]) : null;
+      if (w && blocked) {
+        out.availability = { days: [], fromHour: 7, toHour: 23, timezone: w[2], blocked };
+        out.deferShifts = !!w[3];
+      }
     } else {
       const m = /^avail(all|\d*)-(\d+)-(\d+)@(.+?)(\+shifts)?$/.exec(part);
       if (m) {
@@ -351,10 +384,16 @@ function tailChanges(a: string[], b: string[]): string[] {
   const tail = (parts: string[], pick: (p: string) => boolean) => parts.slice(5).filter(pick).join('|');
   const isOff = (p: string) => p.startsWith('off:');
   const isMs = (p: string) => p.startsWith('ms');
-  const isAvail = (p: string) => !isOff(p) && !isMs(p);
+  const isNp = (p: string) => p.startsWith('np:');
+  const isSim = (p: string) => p.startsWith('sim:');
+  const isTrick = (p: string) => p === 'trick';
+  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p) && !isSim(p) && !isTrick(p);
   if (tail(a, isAvail) !== tail(b, isAvail)) out.push('the availability schedule changed');
   if (tail(a, isMs) !== tail(b, isMs)) out.push('the TE milestones changed');
   if (tail(a, isOff) !== tail(b, isOff)) out.push('the time off changed');
+  if (tail(a, isNp) !== tail(b, isNp)) out.push('the no-prestige days changed');
+  if (tail(a, isTrick) !== tail(b, isTrick)) out.push('the silo trick setting changed');
+  if (tail(a, isSim) !== tail(b, isSim)) out.push('the simulator changed');
   return out;
 }
 
@@ -424,8 +463,15 @@ export async function saveCheckpoint(
     }
   } catch (e) {
     if ((e as { setAside?: boolean }).setAside) throw e;
-    // A read failure must not stop the write. Losing the merge is survivable; losing the
-    // checkpoint entirely is what this whole module exists to prevent.
+    // The database did not answer the read (db.ts's open or transaction bound, review 7 Nov 2026 finding 2): the slot
+    // may hold an unfinished run that could neither be merged nor set aside, and the write could go through once the
+    // other tab lets go, replacing it. Skip this write; the caller tries again at its next checkpoint, when the read
+    // can answer. (Setting the prior aside first is not possible: it is the record that could not be read.)
+    if ((e as { noAnswer?: boolean }).noAnswer) {
+      throw Object.assign(new Error('the checkpoint was not written: the saved one could not be read'), { cause: e, noAnswer: true });
+    }
+    // A read that ANSWERED with an error must not stop the write. Losing the merge is survivable;
+    // losing the checkpoint entirely is what this whole module exists to prevent.
   }
   await saveMetadata(partitionHash, METADATA_KEY, merged);
 }
@@ -564,6 +610,7 @@ export function buildCheckpoint(args: {
   watch?: WatchLinkState | null;
   queue?: SweepQueueRecord | null;
   limits?: { min: number; max: number } | null;
+  spillBytes?: number;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -587,6 +634,7 @@ export function buildCheckpoint(args: {
     ...(args.watch ? { watch: { ...args.watch } } : {}),
     ...(args.queue && readSweepQueue(args.queue) ? { queue: readSweepQueue(args.queue)! } : {}),
     ...(args.limits ? { limits: { min: args.limits.min, max: args.limits.max } } : {}),
+    ...(args.spillBytes !== undefined ? { spillBytes: args.spillBytes } : {}),
   };
 }
 

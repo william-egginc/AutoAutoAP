@@ -1,5 +1,11 @@
+import { scrubParts } from '@/lib/saveScrub';
+import { downloadGzipped as downloadGzippedShared } from 'lib/planners/utils/export';
+
 /**
  * Utility to trigger a file download in the browser.
+ *
+ * NO PLAYER ID LEAVES THIS WAY (spec-savescrub, 29 Oct 2026): every EI + 16 digits in a string piece becomes
+ * EI0000000000000000 (lib/saveScrub.ts), whoever calls it -- our downloads and Joo's plan exports alike.
  */
 export function downloadFile(filename: string, content: string, contentType: string) {
   downloadParts(filename, [content], contentType);
@@ -42,7 +48,7 @@ export function downloadCsv(filename: string, parts: Iterable<BlobPart>) {
 export const CSV_BOM = '\uFEFF';
 
 export function downloadParts(filename: string, parts: Iterable<BlobPart>, contentType: string) {
-  const blob = new Blob([...parts], { type: contentType });
+  const blob = new Blob([...scrubParts(parts)], { type: contentType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -56,4 +62,12 @@ export function downloadParts(filename: string, parts: Iterable<BlobPart>, conte
   // a long time. Deferring costs nothing and removes the race; it is a precaution, not a fix for
   // anything measured here.
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * A plan file, gzipped (`plan.json` arrives as `plan.json.gz`; lib/planners/utils/export.ts, Joo's 50a26c77).
+ * Scrubbed here first like every other download: the shared helper writes the bytes as given.
+ */
+export async function downloadGzipped(filename: string, content: string): Promise<void> {
+  await downloadGzippedShared(filename, [...scrubParts([content])].join(''));
 }

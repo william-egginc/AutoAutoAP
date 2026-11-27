@@ -1,5 +1,5 @@
 /**
- * By a date's deadline, kept for the page load in lib/byDateForm.ts, and My runs' preset for it ("Find my
+ * By a date's deadline, kept for the page load in lib/byDateForm.ts, and My Runs' preset for it ("Find my
  * Egg Day answer"): applied when the screen mounts (after its async load), once, never over a run, never
  * over a date the player picks afterwards, and dropped when stale.
  */
@@ -10,13 +10,14 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import {
   PRESET_TTL_MS,
   applyByDatePreset,
+  startOnEggDay,
   byDateForm,
   byDatePresetPending,
   eggDayYearAtLoad,
   presetByDate,
   takeByDatePreset,
 } from './byDateForm';
-import { getLocalTimestampInTimezone } from './events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { renderHtml } from '@/test/renderComponent';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import DeadlinePanel from '@/components/auto/DeadlinePanel.vue';
@@ -106,12 +107,12 @@ describe('DeadlinePanel takes the preset', () => {
     expect(byDatePresetPending.value).toBeNull();
   });
 
-  it('applies it once: a date picked afterwards stays on the next visit', async () => {
+  it('applies it once: a date picked afterwards is not kept to the next visit, which starts on Egg Day (By Egg Day, 20 Nov 2026)', async () => {
     presetByDate({ eggDay: true });
     await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
     setCustom('2027-01-05', '12:00');
     await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
-    expect(form()).toEqual({ date: '2027-01-05', time: '12:00', zone: 'America/New_York', custom: true });
+    expect(form()).toEqual({ date: EGG_DATE, time: '09:00', zone: 'America/Los_Angeles', custom: false });
   });
 
   it('never under a By a date run, which owns its date: the preset is dropped', async () => {
@@ -122,9 +123,61 @@ describe('DeadlinePanel takes the preset', () => {
     expect(byDatePresetPending.value).toBeNull();
   });
 
-  it('a stale one is not applied when the screen mounts', async () => {
-    presetByDate({ eggDay: true }, Date.now() - PRESET_TTL_MS - 1000);
+  it('a stale one is not applied when the screen mounts: it opens on Egg Day, not on the stale ask', async () => {
+    const at = Date.UTC(2026, 10, 1, 16) / 1000;
+    presetByDate({ deadline: at, zone: 'America/Denver' }, Date.now() - PRESET_TTL_MS - 1000);
+    await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
+    expect(form()).toEqual({ date: EGG_DATE, time: '09:00', zone: 'America/Los_Angeles', custom: false });
+  });
+
+  it('a fresh preset for another date still applies on opening (My Runs presets win over the Egg Day start)', async () => {
+    const at = Date.UTC(2026, 10, 1, 16) / 1000;
+    presetByDate({ deadline: at, zone: 'America/Denver' });
+    await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
+    expect(form()).toEqual({ date: '2026-11-01', time: '09:00', zone: 'America/Denver', custom: true });
+  });
+});
+
+describe('By Egg Day: each opening of the screen starts on Egg Day (Jordan, 20 Nov 2026)', () => {
+  const panel = fs.readFileSync(path.resolve(__dirname, '../components/auto/DeadlinePanel.vue'), 'utf8');
+  const tpl = panel.slice(0, panel.indexOf('</template>\n\n<script'));
+
+  it('startOnEggDay puts Egg Day in the boxes and drops "another date"', () => {
+    expect(startOnEggDay(false)).toBe(true);
+    expect(form()).toEqual({ date: EGG_DATE, time: '09:00', zone: 'America/Los_Angeles', custom: false });
+  });
+  it('but not under a run going or being restored, which owns its date', () => {
+    expect(startOnEggDay(true)).toBe(false);
+    expect(form().date).toBe('2026-12-01');
+    expect(form().custom).toBe(true);
+  });
+  it('mounting the screen with a custom date left from before opens on Egg Day', async () => {
+    await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
+    expect(form()).toEqual({ date: EGG_DATE, time: '09:00', zone: 'America/Los_Angeles', custom: false });
+  });
+  it('a run going keeps its date through a mount', async () => {
+    useChainSearchStore().deadlineRunning = true;
     await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
     expect(form().date).toBe('2026-12-01');
+  });
+  it('the date row replaced the summary: pickers on one line, a small "Back to Egg Day", no "Pick another date" (R11, 21 Nov 2026)', () => {
+    expect(tpl).not.toContain('Another date</span>');
+    expect(tpl).not.toContain('role="radiogroup" aria-label="The date"');
+    expect(tpl).not.toContain('data-testid="pick-another-date"');
+    expect(tpl).not.toContain('data-testid="egg-day-summary"');
+    expect(tpl).toContain('data-testid="date-row"');
+    expect(tpl).toContain('data-testid="back-to-egg-day"');
+  });
+  it('the Egg Day screen shows the pickers prefilled and no Back link; a custom date (a My Runs preset) shows Back to Egg Day', async () => {
+    byDateForm.customDate.value = false;
+    const html0 = await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
+    expect(html0).toContain('data-testid="date-row"');
+    expect(html0).toContain('type="date"');
+    expect(html0).not.toContain('data-testid="back-to-egg-day"');
+    const at = Date.UTC(2026, 10, 1, 16) / 1000;
+    presetByDate({ deadline: at, zone: 'America/Denver' });
+    const html = await renderHtml(DeadlinePanel, { playerId: 'P' }, {}, [pinia]);
+    expect(html).toContain('data-testid="back-to-egg-day"');
+    expect(html).toContain('type="date"');
   });
 });

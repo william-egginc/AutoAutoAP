@@ -20,13 +20,13 @@
             v-tippy="'This set is currently equipped'"
           >
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-            <span class="text-[8px] font-black uppercase tracking-tighter text-emerald-600 leading-none">Equipped</span>
+            <span class="text-body font-bold text-emerald-700 leading-none">Equipped</span>
           </div>
         </div>
 
         <span
-          class="text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1"
-          :class="selectedTab === setName ? 'text-blue-700' : 'text-gray-400'"
+          class="text-body font-bold leading-none mb-1"
+          :class="selectedTab === setName ? 'text-blue-700' : 'text-gray-600'"
         >
           {{ setName }}
         </span>
@@ -41,7 +41,7 @@
           <div class="flex items-center gap-2">
             <template v-if="activeArtifactSet !== selectedTab">
               <button
-                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors"
+                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
                 @click="equipSet"
               >
                 Equip Set
@@ -50,13 +50,13 @@
 
             <template v-if="isDirty">
               <button
-                class="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider"
+                class="text-body font-bold text-gray-600 hover:text-gray-600"
                 @click="undoChanges"
               >
                 Undo
               </button>
               <button
-                class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors"
+                class="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
                 @click="saveChanges"
               >
                 Save Changes
@@ -65,14 +65,14 @@
           </div>
 
           <div v-if="selectedTab === 'earnings' && earningsClothedTe !== null" class="flex items-center gap-1.5">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clothed TE</span>
-            <span class="text-xs font-mono-premium font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
+            <span class="text-gray-600 label">Clothed TE</span>
+            <span class="text-small tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
           </div>
         </div>
 
         <div v-if="selectedTab === 'elr'" class="flex flex-wrap items-center justify-end gap-y-2 gap-x-4 border-t border-gray-200/60 pt-2 -mt-1">
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tight"
+            <span class="text-gray-600 label"
               >Exclude Gusset</span
             >
             <button
@@ -88,7 +88,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tight"
+            <span class="text-gray-600 label"
               >Assume Max Habs/Vehicles</span
             >
             <button
@@ -104,7 +104,7 @@
           </div>
 
           <button
-            class="px-3 py-1 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+            class="px-3 py-1 text-white text-body font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
             :class="isOptimalELR ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'"
             @click="equipOptimalELR"
             v-tippy="'Find and equip the best delivery rate set from your inventory'"
@@ -122,7 +122,11 @@
       </div>
 
       <div class="p-2">
-        <ArtifactSelector :model-value="localLoadout" @update:model-value="localLoadout = $event" />
+        <ArtifactSelector
+          :model-value="localLoadout"
+          :slot-count="artifactSlotCount(initialStateStore.proPermit)"
+          @update:model-value="localLoadout = $event"
+        />
       </div>
     </div>
 
@@ -140,8 +144,8 @@
             </svg>
           </div>
           <div>
-            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-tight mb-0.5">Set Optimization</h4>
-            <p class="text-[10px] text-blue-700 leading-tight">
+            <h4 class="text-blue-900 label mb-0.5">Set Optimization</h4>
+            <p class="text-small text-blue-700 leading-tight">
               <strong>Earnings:</strong> Necklaces, Ankhs, Totems, Cubes, Lunar stones.
               <br />
               <strong>Delivery:</strong> Metronomes, Compasses, Gussets, Tachyon/Quantum stones.
@@ -156,23 +160,26 @@
 </template>
 
 <script setup lang="ts">
+import { useArtifactSetEditor } from 'lib/planners/composables/useArtifactSetEditor';
 import { ref, computed, watch } from 'vue';
-import ArtifactSelector from '@/components/ArtifactSelector.vue';
+import ArtifactSelector from 'ui/components/planners/ArtifactSelector.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useActionsStore } from '@/stores/actions';
-import { useWarningStore } from '@/stores/warning';
+import { useWarningStore } from 'lib/planners/stores/warning';
 import { generateActionId, type ArtifactSlotPayload, type ArtifactSetName, type CalculationsSnapshot } from '@/types';
 import {
   type EquippedArtifact,
   createEmptyLoadout,
   summarizeLoadout,
   calculateArtifactModifiers,
+  activeSlots,
+  artifactSlotCount,
 } from '@/lib/artifacts';
-import { getOptimalELRSet, isFunctionallyIdentical, calculateClothedTEForSet } from '@/lib/artifacts/virtue';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { computeDependencies } from '@/lib/actions/executor';
-import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
-import { getSimulationContext } from '@/engine/adapter';
+import { getOptimalELRSet, isFunctionallyIdentical, calculateClothedTEForSet } from 'lib/planners/artifacts/virtue';
+import { useActionExecutor } from 'lib/planners/composables/useActionExecutor';
+import { computeDependencies } from 'lib/planners/actions/executor';
+import { calculateHabCapacity_Full } from 'lib/planners/calculations/habCapacity';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import { formatNumber } from '@/lib/format';
 
 const initialStateStore = useInitialStateStore();
@@ -199,7 +206,7 @@ const earningsClothedTe = computed<number | null>(() => {
     truthEggs: actionsStore.effectiveSnapshot.te,
     colleggtibleModifiers: context.colleggtibleModifiers,
     labUpgradeLevel: context.epicResearchLevels['cheaper_research'] ?? 0,
-    permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+    proPermit: initialStateStore.proPermit,
   });
 });
 
@@ -210,11 +217,14 @@ const isOptimalELR = computed(() => {
   const context = getSimulationContext();
   const optimized = getOptimalELRSet(initialStateStore.rawBackup, {
     assumeMaxHabsVehicles: assumeMaxHabsVehicles.value,
+    habIds: actionsStore.effectiveSnapshot.habIds,
+    vehicles: actionsStore.effectiveSnapshot.vehicles,
     currentSet: savedSet || undefined,
     excludeGusset: excludeGusset.value,
     commonResearch: actionsStore.effectiveSnapshot.researchLevels,
     epicResearchLevels: context.epicResearchLevels,
     colleggtibleModifiers: context.colleggtibleModifiers,
+    proPermit: initialStateStore.proPermit,
   });
 
   const currentArtifacts = actionsStore.effectiveSnapshot.artifactLoadout;
@@ -229,11 +239,14 @@ function equipOptimalELR() {
   const context = getSimulationContext();
   const optimized = getOptimalELRSet(initialStateStore.rawBackup, {
     assumeMaxHabsVehicles: assumeMaxHabsVehicles.value,
+    habIds: actionsStore.effectiveSnapshot.habIds,
+    vehicles: actionsStore.effectiveSnapshot.vehicles,
     currentSet: savedSet || undefined,
     excludeGusset: excludeGusset.value,
     commonResearch: actionsStore.effectiveSnapshot.researchLevels,
     epicResearchLevels: context.epicResearchLevels,
     colleggtibleModifiers: context.colleggtibleModifiers,
+    proPermit: initialStateStore.proPermit,
   });
 
   // If the optimized set is DIFFERENT from our saved ELR set, update it
@@ -259,162 +272,7 @@ function equipOptimalELR() {
   }
 }
 
-// Sync local loadout when tab or store state changes
-watch(
-  [selectedTab, () => actionsStore.effectiveSnapshot],
-  () => {
-    const setLoadout = artifactSets.value[selectedTab.value];
-    if (setLoadout) {
-      localLoadout.value = setLoadout.map(slot => ({
-        artifactId: slot.artifactId,
-        stones: [...slot.stones],
-      }));
-    } else {
-      localLoadout.value = createEmptyLoadout();
-    }
-  },
-  { immediate: true }
-);
-
-const isDirty = computed(() => {
-  const currentSet = artifactSets.value[selectedTab.value];
-  if (!currentSet) {
-    // Check if local loadout is non-empty
-    return localLoadout.value.some(slot => slot.artifactId !== null);
-  }
-
-  return localLoadout.value.some((slot, i) => {
-    const orig = currentSet[i];
-    if (slot.artifactId !== orig.artifactId) return true;
-    if (slot.stones.length !== orig.stones.length) return true;
-    return slot.stones.some((stone, j) => stone !== orig.stones[j]);
-  });
+const { isDirty, undoChanges, saveChanges, equipSet } = useArtifactSetEditor(selectedTab, localLoadout, artifactSets, activeArtifactSet, {
+  equipOnSave: false,
 });
-
-function undoChanges() {
-  const currentSet = artifactSets.value[selectedTab.value];
-  if (currentSet) {
-    localLoadout.value = currentSet.map(slot => ({
-      artifactId: slot.artifactId,
-      stones: [...slot.stones],
-    }));
-  } else {
-    localLoadout.value = createEmptyLoadout();
-  }
-}
-
-function checkHabCapacityViolation(
-  loadout: ArtifactSlotPayload[],
-  snapshot: CalculationsSnapshot,
-  actionName: string
-): boolean {
-  const context = getSimulationContext();
-  const artifactMods = calculateArtifactModifiers(loadout as EquippedArtifact[]);
-  const habCapacityOutput = calculateHabCapacity_Full({
-    habIds: snapshot.habIds,
-    researchLevels: snapshot.researchLevels,
-    habCapMultiplier: context.colleggtibleModifiers.habCap,
-    artifactMultiplier: artifactMods.habCapacity.totalMultiplier,
-    artifactEffects: artifactMods.habCapacity.effects,
-  });
-
-  const newHabCap = habCapacityOutput.totalFinalCapacity;
-  const population = snapshot.population;
-
-  if (newHabCap < population) {
-    warningStore.showWarning(
-      'Hab Capacity Violation',
-      `Cannot ${actionName}. The new habitat capacity (${formatNumber(newHabCap, 3)}) ` +
-        `would be lower than your current population (${formatNumber(population, 3)}).`
-    );
-    return true; // Violation found
-  }
-  return false;
-}
-
-// If equipping/updating a set increased hab capacity (e.g. a new or upgraded
-// gusset), queue a "Wait for Full Habs" action right after it.
-function insertWaitForFullHabsIfCapacityIncreased(beforeSnapshot: CalculationsSnapshot) {
-  if (actionsStore.effectiveSnapshot.habCapacity > beforeSnapshot.habCapacity) {
-    actionsStore.pushWaitForFullHabsAction();
-  }
-}
-
-function saveChanges() {
-  const toLoadout: ArtifactSlotPayload[] = localLoadout.value.map(slot => ({
-    artifactId: slot.artifactId,
-    stones: [...slot.stones],
-  }));
-
-  const beforeSnapshot = prepareExecution();
-
-  // If saving to the CURRENTLY EQUIPPED set, validate capacity
-  if (selectedTab.value === activeArtifactSet.value) {
-    if (checkHabCapacityViolation(toLoadout, beforeSnapshot, 'save changes')) {
-      return;
-    }
-  }
-
-  const payload = {
-    setName: selectedTab.value,
-    newLoadout: toLoadout,
-  };
-  const dependencies = computeDependencies(
-    'update_artifact_set',
-    payload,
-    actionsStore.actionsBeforeInsertion,
-    actionsStore.initialSnapshot.researchLevels
-  );
-
-  completeExecution(
-    {
-      id: generateActionId(),
-      timestamp: Date.now(),
-      type: 'update_artifact_set',
-      payload: {
-        setName: selectedTab.value,
-        newLoadout: toLoadout,
-      },
-      cost: 0,
-      dependsOn: dependencies,
-    },
-    beforeSnapshot
-  );
-  insertWaitForFullHabsIfCapacityIncreased(beforeSnapshot);
-}
-
-function equipSet() {
-  const beforeSnapshot = prepareExecution();
-
-  // Validation: Check if new hab capacity is lower than current population
-  const targetLoadout = beforeSnapshot.artifactSets[selectedTab.value];
-  if (targetLoadout && checkHabCapacityViolation(targetLoadout, beforeSnapshot, 'equip this set')) {
-    return;
-  }
-
-  const payload = {
-    setName: selectedTab.value,
-  };
-  const dependencies = computeDependencies(
-    'equip_artifact_set',
-    payload,
-    actionsStore.actionsBeforeInsertion,
-    actionsStore.initialSnapshot.researchLevels
-  );
-
-  completeExecution(
-    {
-      id: generateActionId(),
-      timestamp: Date.now(),
-      type: 'equip_artifact_set',
-      payload: {
-        setName: selectedTab.value,
-      },
-      cost: 0,
-      dependsOn: dependencies,
-    },
-    beforeSnapshot
-  );
-  insertWaitForFullHabsIfCapacityIncreased(beforeSnapshot);
-}
 </script>

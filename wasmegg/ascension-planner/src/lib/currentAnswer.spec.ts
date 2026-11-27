@@ -1,9 +1,11 @@
 /**
- * Fix 22: one rule for "the" answer of the loaded save, shared by My runs' Right now card and its tiles. The beta
+ * Fix 22: one rule for "the" answer of the loaded save, shared by My Runs' Right now card and its tiles. The beta
  * case: two Check exactly runs of one save, 11:51 pm with any hour (7 ascensions, Sep 17 2028) and 11:59 pm with
  * 7 am to 1 am (6 ascensions, Sep 22 2028), the hours changed in between. Pure.
  */
 import { describe, expect, it } from 'vitest';
+import { maskOfWindow } from '@/search/availabilitySchedule';
+import { blockedOfWeekCode, weekCodeOfBlocked } from './hoursCodec';
 import {
   compareAnswers,
   currentSetup,
@@ -107,15 +109,15 @@ describe('the priced-with check', () => {
   });
 
   it('labels: the hours it WAS priced with, or "with other hours" when not recorded', () => {
-    expect(otherSetupLabel(setupCheck(ANY, MINE, TODAY))).toBe('with any hour (before your hours changed)');
-    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9 am–1 am (before your hours changed)');
-    expect(otherSetupLabel(setupCheck(null, MINE, TODAY))).toBe('with other hours');
+    expect(otherSetupLabel(setupCheck(ANY, MINE, TODAY))).toBe('with any hour (before your awake hours changed)');
+    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9:00 AM–1:00 AM (before your awake hours changed)');
+    expect(otherSetupLabel(setupCheck(null, MINE, TODAY))).toBe('with other awake hours');
     expect(otherSetupLabel(setupCheck(MINE, { ...MINE, timeOff: [{ from: '2026-10-20', to: '2026-10-22' }] }, TODAY))).toBe(
       'with no time off (before your time off changed)'
     );
     expect(otherSetupLabel(currentSetup(MINE))).toBe('');
-    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with your hours 7 am to 1 am, no time off');
-    expect(pricedWithWords(setupCheck(null, MINE, TODAY))).toBe('priced with other hours');
+    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with awake hours 7:00 AM to 1:00 AM, no time off');
+    expect(pricedWithWords(setupCheck(null, MINE, TODAY))).toBe('priced with other awake hours');
   });
 
   it("a board row's window read back (none recorded: unknown)", () => {
@@ -150,24 +152,24 @@ describe('the ranking', () => {
 });
 
 describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () => {
-  it('setup now 7 am to 1 am: both lead with 11:59 pm; 11:51 pm is secondary "with any hour (before your hours changed)"', () => {
+  it('setup now 7:00 AM to 1:00 AM: both lead with 11:59 PM; 11:51 PM is secondary "with any hour (before your awake hours changed)"', () => {
     const card = cardPick(MINE, B, A, ANY);
     expect(card.candidate.plan).toBe(B);
     expect(card.state).toBe('this-save');
     expect(card.secondary?.plan).toBe(A);
-    expect(otherSetupLabel(card.secondary!.check)).toBe('with any hour (before your hours changed)');
+    expect(otherSetupLabel(card.secondary!.check)).toBe('with any hour (before your awake hours changed)');
     const tile = buildTile(tileInput(MINE, B, A, ANY));
     expect(tile.answer?.chain).toEqual(B.chain);
     expect(tile.answer?.calculatedAt).toBe(B.calculatedAt);
     // The lead is the very snapshot Right now shows, not the history entry of the same check.
     expect(tile.answer?.source).toBe('snapshot');
     expect(tile.secondary?.chain).toEqual(A.chain);
-    expect(secondaryLabel(tile.secondary!)).toBe('with any hour (before your hours changed)');
+    expect(secondaryLabel(tile.secondary!)).toBe('with any hour (before your awake hours changed)');
     // Priced with the current setup: How sure doesn't call it "before your hours changed".
     expect(tile.sure?.reason).not.toContain('hours changed');
   });
 
-  it('setup now any hour: 11:51 pm leads both, no secondary (the other finishes later)', () => {
+  it('setup now any hour: 11:51 PM leads both, no secondary (the other finishes later)', () => {
     const card = cardPick(ANY, A, B, MINE);
     expect(card.candidate.plan).toBe(A);
     expect(card.secondary).toBeNull();
@@ -179,10 +181,10 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
   it('hours not recorded on the other answer: secondary "with other hours"', () => {
     const card = cardPick(MINE, B, A, null);
     expect(card.candidate.plan).toBe(B);
-    expect(otherSetupLabel(card.secondary!.check)).toBe('with other hours');
+    expect(otherSetupLabel(card.secondary!.check)).toBe('with other awake hours');
     const tile = buildTile(tileInput(MINE, B, A, null));
     expect(tile.answer?.chain).toEqual(B.chain);
-    expect(secondaryLabel(tile.secondary!)).toBe('with other hours');
+    expect(secondaryLabel(tile.secondary!)).toBe('with other awake hours');
   });
 
   it('only the other-hours plan kept: Right now shows it as "setup changed", and the tile leads with it too', () => {
@@ -192,7 +194,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
     expect(card.state).toBe('setup-changed');
     const tile = buildTile({ ...tileInput(MINE, B, A, ANY), snapshot: null, history: [entry(A, ANY)] });
     expect(tile.answer?.chain).toEqual(A.chain);
-    expect(tile.sure?.reason).toBe('priced before your hours changed');
+    expect(tile.sure?.reason).toBe('priced for your earlier awake hours');
   });
 
   it('across goals the setup still comes first: a current-setup Egg Day plan leads an other-hours Fastest one', () => {
@@ -221,7 +223,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
 });
 
 describe('the setup is recorded where answers are kept', () => {
-  it('Check exactly history entries keep it; InstantRoute passes it, and its snapshot meta writes it', async () => {
+  it('check history entries keep it (entries from before 23 Oct 2026); the instant snapshot meta writes it', async () => {
     const { entryFromRecord } = await import('@/search/checkHistory');
     const rec = { mode: 'fastest', target: 490, currentTE: 191, instant: { chain: [490], end: 1 }, exact: null } as never;
     expect(entryFromRecord(rec, 's', 1, false, MINE).setup).toEqual(MINE);
@@ -229,12 +231,30 @@ describe('the setup is recorded where answers are kept', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
-    expect(src).toContain('entryFromRecord(c.record, c.sig, Date.now(), false, exactSetup)');
-    expect(src).toMatch(/setup: exactSetup \?\? \{/);
-    // My runs builds both Right now and the tiles from the one selector.
+    // No Check exactly since 23 Oct 2026: nothing new goes into the check history; the snapshot keeps the setup now.
+    expect(src).not.toContain('entryFromRecord(');
+    expect(src).toMatch(/\/\/ The hours and time off: the key holds them, so these are this snapshot's\.\s+setup: \{/);
+    // My Runs builds both Right now and the tiles from the one selector.
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
     expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)');
     expect(page).toContain('otherSnapshots: others');
     expect(page).toContain('setupNow: setupNow.value');
+  });
+});
+
+describe('one hours format: the match check reads the week, not how it was carried', () => {
+  const daily = { days: [], fromHour: 7, toHour: 1, timezone: 'America/Denver' };
+  const asMask = { ...daily, blocked: maskOfWindow([], 7, 1) };
+  it('a daily window and the same week as a mask are the current setup', () => {
+    expect(setupCheck({ availability: asMask, timeOff: [] }, { availability: daily, timeOff: [] }, '2026-11-23').fit).toBe('current');
+  });
+  it('a week that differs by one hour is other hours', () => {
+    const other = { ...daily, blocked: [...maskOfWindow([], 7, 1), 5 * 24 + 8] };
+    expect(setupCheck({ availability: other, timeOff: [] }, { availability: daily, timeOff: [] }, '2026-11-23').hours).toBe(true);
+  });
+  it('a week read back from a code is the same as the one it was made from', () => {
+    const back = { ...daily, blocked: blockedOfWeekCode(weekCodeOfBlocked([...maskOfWindow([], 7, 1), 5 * 24 + 8])) ?? [] };
+    const other = { ...daily, blocked: [...maskOfWindow([], 7, 1), 5 * 24 + 8] };
+    expect(setupCheck({ availability: back, timeOff: [] }, { availability: other, timeOff: [] }, '2026-11-23').fit).toBe('current');
   });
 });

@@ -1,3 +1,4 @@
+import type { VirtueEgg } from '@/types';
 import { describe, expect, test } from 'vitest';
 import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { deriveNextStartState, runAscensionFromC3Variant, runContinueCurrent, runUntilShift } from './ascension';
@@ -51,7 +52,7 @@ const T1 = timeToEarnTE(0, PEAK_ELR, 1);
 
 describe('runContinueCurrent: targetTE mode (regression — unaffected by the targetEndTime addition)', () => {
   test('reaches the requested whole-TE total', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
 
     const { summary } = runContinueCurrent(state, context, 0, PEAK_ELR, 3);
@@ -61,9 +62,37 @@ describe('runContinueCurrent: targetTE mode (regression — unaffected by the ta
   });
 });
 
+describe('runContinueCurrent: the plan carries the farm it starts from', () => {
+  test("its start action holds the farm, so a saved plan replays from it", () => {
+    const state = fakeState({
+      currentEgg: 'kindness',
+      researchLevels: { comfy_nests: 50 },
+      habIds: [18, 18, null, null],
+      vehicles: [{ vehicleId: 11, trainLength: 5 }],
+      siloCount: 4,
+      bankValue: 123,
+      lastStepTime: 1_793_000_000,
+    });
+    const { actions } = runContinueCurrent(state, fakeContext(), 0, PEAK_ELR, 3);
+    const start = actions[0];
+    expect(start.type).toBe('start_ascension');
+    expect(start.type === 'start_ascension' && start.payload.initialFarmState).toMatchObject({
+      eggType: 54,
+      commonResearches: { comfy_nests: 50 },
+      habs: [18, 18, null, null],
+      vehicles: [{ vehicleId: 11, trainLength: 5 }],
+      numSilos: 4,
+      cashEarned: 123,
+      cashSpent: 0,
+      // Eggs laid before the plan are already counted: its farm clock starts at the plan's.
+      lastStepTime: 0,
+    });
+  });
+});
+
 describe('runContinueCurrent: targetEndTime (deadline) mode', () => {
   test('never overruns the deadline', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
     const deadline = T1 * 2.5;
 
@@ -73,7 +102,7 @@ describe('runContinueCurrent: targetEndTime (deadline) mode', () => {
   });
 
   test('a budget landing mid-egg produces fractional (sub-threshold) progress via the top-up pass', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
     const deadline = T1 * 1.5; // one whole TE, plus half of what a second egg would need
 
@@ -90,7 +119,7 @@ describe('runContinueCurrent: targetEndTime (deadline) mode', () => {
   });
 
   test('an exact-boundary budget needs no top-up: lands cleanly on a whole TE', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
 
     const { summary } = runContinueCurrent(state, context, 0, PEAK_ELR, undefined, 'asc_continue', T1);
@@ -100,7 +129,7 @@ describe('runContinueCurrent: targetEndTime (deadline) mode', () => {
   });
 
   test('targetTE takes priority over targetEndTime when both are supplied', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
 
     // A deadline far too short for 2 TE, but targetTE should win and ignore it entirely.
@@ -110,7 +139,7 @@ describe('runContinueCurrent: targetEndTime (deadline) mode', () => {
   });
 
   test('zero remaining budget after the whole-TE pass: no top-up, no negative time', () => {
-    const state = fakeState({ eggsDelivered: {} as any, lastStepTime: 0 });
+    const state = fakeState({ eggsDelivered: {} as Record<VirtueEgg, number>, lastStepTime: 0 });
     const context = fakeContext();
 
     const { summary } = runContinueCurrent(state, context, 0, PEAK_ELR, undefined, 'asc_continue', 0);

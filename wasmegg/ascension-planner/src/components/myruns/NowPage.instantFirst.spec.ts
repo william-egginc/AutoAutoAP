@@ -1,0 +1,472 @@
+/**
+ * Right now, instant first (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026): the instant answer drives until
+ * a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts). Through useNowPage with the
+ * synthetic save (id EI0000000000000000, never printed), and the card server-rendered.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { effectScope, markRaw, ref } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
+import { renderHtml, textOf, openAscensions } from '@/test/renderComponent';
+import RightNowCard from './RightNowCard.vue';
+import type { LegSummary } from '@/search/types';
+import { planEvents, tableEvents, type NowPlan } from '@/lib/nowPlan';
+import { drivingPlan, type SnapSearch } from '@/lib/searchPlan';
+import type { CardPlan } from '@/composables/useNowPage';
+import { syntheticBackup } from '@/test/syntheticSave';
+import { resolveColleggtibleContracts } from 'lib';
+import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { useInitialStateStore } from '@/stores/initialState';
+import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
+import { instantSnapKey, readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
+import type { BoardRow } from '@/lib/leaderboardRank';
+
+// The ascension blocks start closed (Jordan, 18 Nov 2026); these specs read what an opened block holds.
+openAscensions(true);
+
+const ZONE = 'America/Los_Angeles';
+const H = 3600;
+const D = 86400;
+
+beforeEach(() => {
+  const mem = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, v),
+    removeItem: (k: string) => void mem.delete(k),
+    key: () => null,
+    length: 0,
+  });
+  setActivePinia(createPinia());
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+});
+
+const leg = (start: number, end: number, endTE: number, shifts: LegSummary['shifts'] = []) =>
+  ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts, endEgg: { egg: 'kindness', te: 40 } }) as LegSummary;
+
+const A_ID = 'EI0000000000000000';
+function save(hoursAgo: number) {
+  const b = syntheticBackup();
+  const t = Math.floor(Date.now() / 1000) - hoursAgo * H;
+  b.eiUserId = A_ID;
+  b.settings.lastBackupTime = t;
+  b.approxTime = t;
+  resolveColleggtibleContracts(b);
+  return markRaw(b);
+}
+
+describe('useNowPage: the instant answer drives until a better search result exists', () => {
+  it('Egg Day: instant, then a Fast result that makes the date, Go back, and Use your Fast run', async () => {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const eggDayAt = eggDaySeconds(nextEggDayYear());
+    const key = instantSnapKey(instantKeyFromStores(eggDayAt, target));
+    const tableLegs = [
+      { to: 200, endTE: 200, start: now - H, end: now + 30 * H },
+      { to: 240, endTE: 240, start: now + 30 * H, end: eggDayAt - 2 * D },
+    ];
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: tableLegs } },
+      exact: {},
+      dateExact: null,
+      answerStart: now - H,
+    } as never);
+
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`eggday-${nextEggDayYear()}`);
+    expect(page.cardPlan.value?.plan.exact).toBe(false);
+    expect(page.cardPlan.value?.plan.from).toBeUndefined();
+    expect(page.cardPlan.value?.driving?.takeover).toBeNull();
+
+    // A Fast result, kept with the snapshot: 1 TE less, more spare, makes the date: it drives.
+    const found: SnapSearch = {
+      level: 'Fast',
+      chain: [201, 239],
+      end: eggDayAt - 2.5 * D,
+      endTE: 239,
+      legs: [leg(now - H, now + 28 * H, 201, [{ at: now + 5 * H, egg: 'humility', fromEgg: 'integrity', te: 40 }]), leg(now + 28 * H, eggDayAt - 2.5 * D, 239)],
+      at: Date.now() - 10_000,
+      planStart: now - H,
+    };
+    writeSnapshot(key, { ...(readSnapshot(key) as object), search: found, at: Date.now() - 30_000 } as never);
+    // A new page reads it (the snapshot is parsed once per key per page).
+    resetGoalChoice();
+    const page2 = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page2.selectGoal(`eggday-${nextEggDayYear()}`);
+    expect(page2.cardPlan.value?.plan.from).toEqual({ level: 'Fast', at: found.at });
+    expect(page2.cardPlan.value?.plan.chain).toEqual([201, 239]);
+    expect(page2.cardPlan.value?.driving?.takeover).toBe('makes-date');
+    expect(page2.events.value.some(e => e.kind === 'shift' && e.egg === 'humility')).toBe(true);
+    // The Egg Day tile names it the same way.
+    expect(page2.eggDayTile.value.answer?.found).toBe('Fast');
+
+    page2.goBackToInstant();
+    expect(page2.cardPlan.value?.plan.from).toBeUndefined();
+    expect(page2.cardPlan.value?.driving?.wentBack).toBe(true);
+    page2.useSearchResult();
+    expect(page2.cardPlan.value?.plan.from?.level).toBe('Fast');
+    scope.stop();
+  });
+
+  it("Fastest: the store's finished result drives at once and is kept with the snapshot", async () => {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const first = Math.floor(store.currentTE) + 5;
+    const key = instantSnapKey(instantKeyFromStores(null, target));
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: { chain: [first, target], end: now + 100 * H, legs: [{ to: first, endTE: first, start: now - H, end: now + 10 * H }, { to: target, endTE: target, start: now + 10 * H, end: now + 100 * H }] },
+        byAscensions: [],
+      },
+      exact: {},
+      answerStart: now - H,
+    } as never);
+    // A finished Exact run, 2 h sooner than the instant answer.
+    store.bestChain = [first, target];
+    store.bestDays = (99 * H - 1 * H) / D + 0; // ends at now + 98 h from a start an hour ago
+    store.bestLegs = [leg(now - H, now + 9 * H, first), leg(now + 9 * H, now + 98 * H, target)];
+    store.planStartUsed = now - H;
+    store.chainResultAt = Date.now() - 5000;
+    store.runKindUsed = 'smart';
+    store.runSettingsUsed = { effort: 'normal' } as never;
+
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`fastest-${target}`);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    expect(page.cardPlan.value?.driving?.takeover).toBe('sooner');
+    expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search?.level).toBe('Exact');
+    scope.stop();
+  });
+});
+
+describe("useNowPage: a store result priced on another save never drives this save's plan (17 Nov 2026)", () => {
+  async function fastestFrom(priceSaveOffset: number) {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const loadedSave = useInitialStateStore().lastBackupTime as number;
+    const first = Math.floor(store.currentTE) + 5;
+    const key = instantSnapKey(instantKeyFromStores(null, target));
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: { chain: [first, target], end: now + 100 * H, legs: [{ to: first, endTE: first, start: now - H, end: now + 10 * H }, { to: target, endTE: target, start: now + 10 * H, end: now + 100 * H }] },
+        byAscensions: [],
+      },
+      exact: {},
+      answerStart: now - H,
+    } as never);
+    store.bestChain = [first, target];
+    store.bestDays = (98 * H) / D;
+    store.bestLegs = [leg(now - H, now + 9 * H, first), leg(now + 9 * H, now + 98 * H, target)];
+    store.planStartUsed = now - H;
+    store.chainResultAt = Date.now() - 5000;
+    store.runKindUsed = 'smart';
+    store.runSettingsUsed = { effort: 'normal' } as never;
+    store.chainRunSaveAt = loadedSave + priceSaveOffset;
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`fastest-${target}`);
+    return { page, scope, key, loadedSave };
+  }
+  it('Fastest, run priced on a save 30 minutes older: the instant answer keeps driving, nothing patched, kept under its own save', async () => {
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    const { page, scope, key, loadedSave } = await fastestFrom(-1800);
+    expect(page.cardPlan.value?.plan.from).toBeUndefined();
+    expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search).toBeUndefined();
+    const kept = readKeptSearches();
+    expect(kept).toHaveLength(1);
+    expect(kept[0].backupTime).toBe(loadedSave - 1800);
+    expect(kept[0].teByEgg).toBeUndefined();
+    expect(kept[0].setup).toBeUndefined();
+    scope.stop();
+  });
+  it('Fastest, run priced on this save (within ten minutes): drives and is kept under this save, as before', async () => {
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    const { page, scope, key, loadedSave } = await fastestFrom(-120);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    expect((readSnapshot(key) as { search?: SnapSearch } | null)?.search?.level).toBe('Exact');
+    expect(readKeptSearches()[0].backupTime).toBe(loadedSave);
+    scope.stop();
+  });
+});
+
+describe("useNowPage: this save's snapshot carrying another save's result does not take over (17 Nov 2026, second path)", () => {
+  async function withSnapSearch(backupAtOffset: number) {
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const loadedSave = useInitialStateStore().lastBackupTime as number;
+    const first = Math.floor(store.currentTE) + 5;
+    const key = instantSnapKey(instantKeyFromStores(null, target));
+    // Written straight to storage: writeSnapshot itself drops the other save's result (the write end of the fix).
+    const snapshot = {
+      at: Date.now() - 60_000,
+      header: {},
+      result: {
+        best: { chain: [first, target], end: now + 100 * H, legs: [{ to: first, endTE: first, start: now - H, end: now + 10 * H }, { to: target, endTE: target, start: now + 10 * H, end: now + 100 * H }] },
+        byAscensions: [],
+      },
+      exact: {},
+      answerStart: now - H,
+      meta: { account: 'acct', goal: `target ${target}`, backupTime: loadedSave, teByEgg: [] },
+      search: {
+        level: 'Exact', chain: [first, target], end: now + 90 * H, endTE: target, at: Date.now() - 5000, planStart: now - H,
+        legs: [leg(now - H, now + 9 * H, first), leg(now + 9 * H, now + 90 * H, target)], backupAt: loadedSave + backupAtOffset,
+      },
+    };
+    localStorage.setItem('aap-instant-snap:' + key, JSON.stringify(snapshot));
+    const scope = effectScope();
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(`fastest-${target}`);
+    return { page, scope };
+  }
+  it('a result priced 30 minutes before this save: the instant plan drives, no takeover', async () => {
+    const { page, scope } = await withSnapSearch(-1800);
+    expect(page.cardPlan.value?.plan.from).toBeUndefined();
+    expect(page.cardPlan.value?.driving?.search ?? null).toBeNull();
+    scope.stop();
+  });
+  it('a result priced on this save (a minute apart): drives as before', async () => {
+    const { page, scope } = await withSnapSearch(-30);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    scope.stop();
+  });
+});
+
+describe('kept beyond the snapshot: Right now does not drop back to the instant answer the next day', () => {
+  it('the snapshot gone, the kept result still drives; Go back is kept for the next visit; a newer save leads', async () => {
+    loadAndSyncBackup(A_ID, save(4), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const eggDayAt = eggDaySeconds(nextEggDayYear());
+    const key = instantSnapKey(instantKeyFromStores(eggDayAt, target));
+    const found: SnapSearch = {
+      level: 'Exact',
+      chain: [201, 239],
+      end: eggDayAt - 2.5 * D,
+      endTE: 239,
+      legs: [leg(now - H, now + 28 * H, 201), leg(now + 28 * H, eggDayAt - 2.5 * D, 239)],
+      at: Date.now() - 10_000,
+      planStart: now - H,
+    };
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now - H,
+      search: found,
+    } as never);
+    const scope = effectScope();
+    const eggDay = `eggday-${nextEggDayYear()}`;
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(eggDay);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    // My Runs kept it beyond the snapshot.
+    expect(readKeptSearches().map(k => k.search.at)).toEqual([found.at]);
+
+    // The next day: the snapshot is gone (24 h), the kept result still drives, priced on this save.
+    localStorage.removeItem(`aap-instant-snap:${key}`);
+    resetGoalChoice();
+    const next = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    next.selectGoal(eggDay);
+    expect(next.cardPlan.value?.plan.from).toEqual({ level: 'Exact', at: found.at });
+    expect(next.cardPlan.value?.state).toBe('this-save');
+
+    // Go back (with the instant answer worked out again): kept, so a reload keeps the instant answer.
+    writeSnapshot(key, {
+      at: Date.now(),
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now - H,
+    } as never);
+    resetGoalChoice();
+    const again = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    again.selectGoal(eggDay);
+    expect(again.cardPlan.value?.plan.from?.level).toBe('Exact');
+    again.goBackToInstant();
+    expect(again.cardPlan.value?.plan.from).toBeUndefined();
+    expect(readKeptSearches()[0].back).toBe(true);
+    resetGoalChoice();
+    const reload = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    reload.selectGoal(eggDay);
+    expect(reload.cardPlan.value?.plan.from).toBeUndefined();
+    expect(reload.cardPlan.value?.driving?.wentBack).toBe(true);
+    reload.useSearchResult();
+    expect(reload.cardPlan.value?.plan.from?.level).toBe('Exact');
+    expect(readKeptSearches()[0].back).toBe(false);
+
+    // A newer save (3 h later, past the 2 h a save stays current): its instant answer leads; the kept result is an
+    // older save's plan, ranked below it (lib/currentAnswer.ts).
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const newKey = instantSnapKey(instantKeyFromStores(eggDayAt, target));
+    writeSnapshot(newKey, {
+      at: Date.now(),
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now,
+    } as never);
+    resetGoalChoice();
+    const later = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    later.selectGoal(eggDay);
+    expect(later.cardPlan.value?.plan.from).toBeUndefined();
+    expect(later.cardPlan.value?.state).toBe('this-save');
+    scope.stop();
+  });
+});
+
+// ------------------------------------------------------------------------------------ the card (R1, R2)
+
+const NOW = Date.UTC(2026, 9, 22, 18, 3) / 1000; // Thu Oct 22, 11:03 AM Pacific
+const DEADLINE = eggDaySeconds(2027); // Egg Day 2027's start
+const snap = {
+  at: NOW * 1000,
+  answerStart: NOW,
+  result: {
+    best: null,
+    byAscensions: [],
+    byDate: {
+      chain: [197, 228, 255, 278, 313],
+      legs: [
+        { to: 197, endTE: 197, start: NOW, end: NOW + 5 * D + 17 * H + 12 * 60 },
+        { to: 228, endTE: 228, start: NOW + 6 * D, end: NOW + 60 * D },
+        { to: 255, endTE: 255, start: NOW + 60 * D, end: NOW + 120 * D },
+        { to: 278, endTE: 278, start: NOW + 120 * D, end: NOW + 200 * D },
+        { to: 313, endTE: 313, start: NOW + 200 * D, end: DEADLINE - 1.46 * D },
+      ],
+      end: DEADLINE - 1.46 * D,
+    },
+    byDateByAscensions: [],
+  },
+};
+const fastFound: SnapSearch = {
+  level: 'Fast',
+  chain: [197, 227, 257, 285, 312],
+  end: DEADLINE - 1.74 * D,
+  endTE: 312,
+  legs: [
+    leg(NOW, NOW + 5 * D + 17 * H + 9 * 60, 197, [{ at: NOW + 27 * H + 44 * 60, egg: 'humility', fromEgg: 'integrity', te: 40 }]),
+    leg(NOW + 6 * D, DEADLINE - 1.74 * D, 312),
+  ],
+  at: (NOW + 5 * H + 44 * 60) * 1000,
+  planStart: NOW,
+};
+function cardFor(d: ReturnType<typeof drivingPlan>): Record<string, unknown> {
+  const plan = d.plan as NowPlan;
+  const card: CardPlan = {
+    plan,
+    goal: { goal: 'date', target: 490, deadline: DEADLINE },
+    state: 'this-save',
+    key: 'eggday-2027',
+    name: 'Egg Day 2027',
+    driving: d,
+  };
+  const events = planEvents(plan, NOW);
+  return {
+    card,
+    onVirtue: true,
+    currentEgg: 'integrity',
+    teSoFar: 186,
+    ascNow: 1,
+    track: null,
+    events,
+    shownEvents: tableEvents(events),
+    gear: null,
+    now: NOW,
+    zone: ZONE,
+    saveSeconds: NOW,
+    eggDayYear: 2027,
+  };
+}
+
+describe('the card', () => {
+  it('R1, from the instant answer: the pill, times rounded to the hour, no calendar, "run Fast"', async () => {
+    const html = await renderHtml(RightNowCard, cardFor(drivingPlan(snap as never, 'date', DEADLINE)));
+    const t = textOf(html);
+    // Said once, on the tag line (spec-uxpass item 1, 8 Nov 2026): no footer under the events.
+    // Behind the "i" beside the pill now, not on the card (spec-myruns-fix; RightNowCard.sourceInfo.spec.ts has its words).
+    expect(t).toContain('from the instant answer');
+    expect(t).not.toMatch(/rounded to the hour/);
+    expect(html).toContain('data-testid="tip-info"');
+    // The header is "Calculated …" only when the pill says the source (UX fluff review 2, 5 Nov 2026, item R1).
+    expect(t).toMatch(/^Right now Calculated /);
+    expect(t).not.toContain('(instant answer)');
+    expect(t).toContain('Prestige at 197 TE Oct 28 at around 4:00 AM');
+    expect(t).toContain('Wed, Oct 28 at around 4:00 AM');
+    expect(t).toContain('in 5d 17h');
+    expect(t).toContain('Egg Day 2027 goal: 313 TE');
+    expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
+    expect(t).toMatch(/\d+h( \d+m)? spare before this date, on the instant answer's route/);
+    expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
+    // No Run Fast on the card (one path per card, 25 Oct 2026): the events point at Try next in plain words.
+    expect(html).not.toContain('data-testid="now-events-rounded"');
+    expect(html).not.toContain('data-testid="now-run-fast"');
+    expect(t).not.toContain('Add to calendar');
+    expect(t).not.toContain('＋ Add');
+    expect(t).not.toContain('Opens Highest TE by a date with your save and Fast selected');
+  });
+
+  it('R2, from your Fast run: the pill, exact times, calendar Add buttons, Go back', async () => {
+    const d = drivingPlan({ ...snap, search: fastFound } as never, 'date', DEADLINE);
+    const html = await renderHtml(RightNowCard, cardFor(d));
+    const t = textOf(html);
+    expect(t).toContain('from your Fast run, on your account done Oct 22 at 4:47 PM, your save of Oct 22 at 11:03 AM');
+    expect(t).toMatch(/^Right now Calculated /);
+    expect(t).not.toContain('(Fast run)');
+    // "Replaces the instant answer · Go back to it" (UX fluff review 2, 5 Nov 2026, item R6).
+    expect(t).toContain('Replaces the instant answer · Go back to it');
+    expect(t).toContain('Shift to Humility tomorrow at 2:47 PM');
+    expect(t).toContain('Wed, Oct 28 at 4:12 AM');
+    expect(t).toContain('Add to calendar');
+    expect(t).toContain('＋ Add');
+    expect(t).toMatch(/goal: 312 TE .*\dh( \d+m)? spare/);
+    expect(t).not.toContain("on the instant answer's route");
+    expect(t).not.toContain('Run Fast again');
+  });
+
+  it('gone back: the instant answer with "Use your Fast run"; a late result: the one line', async () => {
+    const back = textOf(
+      await renderHtml(RightNowCard, cardFor(drivingPlan({ ...snap, search: fastFound } as never, 'date', DEADLINE, { back: fastFound.at })))
+    );
+    expect(back).toContain('You went back from your Fast run (done Oct 22 at 4:47 PM). Use your Fast run');
+    expect(back).toContain('from the instant answer');
+    const late = { ...fastFound, end: DEADLINE + 3 * H };
+    const kept = textOf(await renderHtml(RightNowCard, cardFor(drivingPlan({ ...snap, search: late } as never, 'date', DEADLINE))));
+    expect(kept).toContain('Your Fast run lands after Egg Day starts, so Right now follows the instant answer.');
+    expect(kept).not.toContain('Go back to the instant answer');
+  });
+});

@@ -22,7 +22,7 @@ import { firstRouteLegs, spaceSets } from './deadlineEstimate';
 import type { ChainResult, SearchInputs } from './types';
 import type { WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
 
-vi.mock('@/lib/artifacts/utils', () => ({ sanitizeLongs: <T>(v: T) => v }));
+vi.mock('lib/planners/artifacts/utils', () => ({ sanitizeLongs: <T>(v: T) => v }));
 vi.mock('./batch', async importOriginal => ({
   ...(await importOriginal<typeof import('./batch')>()),
   hardwareThreads: () => 32,

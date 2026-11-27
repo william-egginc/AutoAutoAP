@@ -83,7 +83,7 @@ describe('Right now’s plan: only a plan in time is the pick', () => {
     const opt = goalOptions(list, 'America/Denver').find(o => o.key === 'eggday-2027')!;
     expect(opt.state).toBe('late');
     expect(opt.late?.seconds).toBe(7 * H);
-    expect(emptyGoalWords('late')).toBe('no saved plan in time for this goal');
+    expect(emptyGoalWords('late')).toBe('no saved route in time for this goal');
     // Mixed: the plan in time is picked, nothing said about the late one.
     const mixed = plansByGoal(goals, [cand(late), cand(early)], [], SAVE).find(p => p.goal.key === 'eggday-2027')!;
     expect(mixed.pick?.candidate.plan).toBe(early);

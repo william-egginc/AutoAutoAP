@@ -10,23 +10,19 @@ import {
   Inventory,
   isOldShipsConfig,
   isShipsConfig,
-  newShipsConfig,
+  parseDurationDays,
   perfectShipsConfig,
   setLocalStorage,
-  shipLevelLaunchPointThresholds,
   ShipsConfig,
   spaceshipList,
 } from 'lib';
 
 import Spaceship = ei.MissionInfo.Spaceship;
-import DurationType = ei.MissionInfo.DurationType;
 
 import {
   DEFAULT_MAX_GOLDEN_EGG_COST,
   DEFAULT_WAIT_TIME_DAYS,
-  EffortLevel,
   ExtrasConfig,
-  isEffortLevel,
   isExtrasConfig,
   isMissionFilters,
   isOverrideFlags,
@@ -36,8 +32,25 @@ import {
   newOverrides,
   OverrideFlags,
 } from './schema';
-export type { ExtrasConfig, MissionFilters, OverrideFlags, EffortLevel } from './schema';
-export { EFFORT_LEVELS, EFFORT_LAUNCH_PERIOD_SECONDS } from './schema';
+import {
+  activePlanVisit,
+  activeVisitSettings,
+  setVisitGemCostMode,
+  setVisitGemCostInput,
+  waitTimeSecondsFor,
+  type GemCostMode,
+} from './plan';
+import { formatBudgetValue, parseBudgetInput } from '@/store/budget-input';
+import { isEffortLevel, type EffortLevel } from 'lib/mission-optimizer/effort';
+import { gemBudgetFor } from 'lib/mission-optimizer/plan/read';
+import { readPlayerData } from 'lib/mission-optimizer/player-data';
+import {
+  normalizeScheduleSettings,
+  scheduleArgsOf,
+  type ScheduleArgs,
+  type ScheduleSettings,
+} from 'lib/mission-optimizer/schedule-settings';
+export type { ExtrasConfig, MissionFilters, OverrideFlags } from './schema';
 
 export const CONFIG_LOCALSTORAGE_KEY = 'config';
 export const OVERRIDES_LOCALSTORAGE_KEY = 'overrides';
@@ -140,6 +153,11 @@ export const playerGoldenEggs = ref<number | null>(null);
 // Set by ArtifactMissionOptimizer; read by the settings UI.
 export const currentOptimizerArtifactIds = ref<string[]>([]);
 
+// What the tank selector is aimed at while no plan visit is active; a visit keeps its own targets.
+// Module state rather than a ref in Main.vue because `/tank/:ids` is read into it and then
+// replaced away, which remounts the view that read it.
+export const offPlanTankTargets = ref<string[]>([]);
+
 export const playerCraftingLevel = computed<number | null>(() => {
   const xp = playerTotalCraftingXp.value;
   if (xp == null) return null;
@@ -177,17 +195,34 @@ export const effectivePreviousCraftsOverride = computed<number | undefined>(() =
 });
 
 export const effectiveTankLevel = computed<number>(() => {
-  const player = playerTankLevel.value;
-  if (player == null) return fuelTankSizes.length - 1; // largest
-  return overrides.value.tankLevel ? extras.value.tankLevel : player;
+  // A plan visit's tank level beats the loaded save's: the plan simulates forward and the save
+  // only knows today. The manual override still beats both.
+  const source = activePlanVisit.value ? activePlanVisit.value.tankLevel : playerTankLevel.value;
+  if (source == null) return extras.value.tankLevel;
+  return overrides.value.tankLevel ? extras.value.tankLevel : source;
 });
 
 export const effectiveFuelTankCapacity = computed<number>(() => fuelTankSizes[effectiveTankLevel.value]);
 
 export const effectiveConfig = computed<ShipsConfig>(() => {
   const player = playerShipsConfig.value;
-  if (!player) return config.value;
+  const visit = activePlanVisit.value;
   const o = overrides.value;
+
+  // Epic research is the one thing a plan visit knows better than the save: the plan carries the
+  // player's levels and has no action that changes them, so its figure holds at every visit. Ship
+  // levels are not in the plan file at all and keep coming from the save.
+  const ftl = o.epicResearchFTLLevel
+    ? config.value.epicResearchFTLLevel
+    : (visit?.epicResearchFTLLevel ?? player?.epicResearchFTLLevel ?? config.value.epicResearchFTLLevel);
+  const zerog = o.epicResearchZerogLevel
+    ? config.value.epicResearchZerogLevel
+    : (visit?.epicResearchZerogLevel ?? player?.epicResearchZerogLevel ?? config.value.epicResearchZerogLevel);
+
+  if (!player) {
+    return { ...config.value, epicResearchFTLLevel: ftl, epicResearchZerogLevel: zerog };
+  }
+
   const shipLevels = { ...player.shipLevels };
   const shipVisibility = { ...player.shipVisibility };
   for (const s of spaceshipList) {
@@ -196,10 +231,8 @@ export const effectiveConfig = computed<ShipsConfig>(() => {
   }
   return {
     ...player,
-    epicResearchFTLLevel: o.epicResearchFTLLevel ? config.value.epicResearchFTLLevel : player.epicResearchFTLLevel,
-    epicResearchZerogLevel: o.epicResearchZerogLevel
-      ? config.value.epicResearchZerogLevel
-      : player.epicResearchZerogLevel,
+    epicResearchFTLLevel: ftl,
+    epicResearchZerogLevel: zerog,
     shipLevels,
     shipVisibility,
     showNodata: config.value.showNodata,
@@ -227,80 +260,21 @@ function seedOverrideValuesFromPlayerData(): void {
   }
 }
 
-function computeShipLevelFromPoints(shipType: Spaceship, points: number): number {
-  const thresholds = shipLevelLaunchPointThresholds(shipType);
-  let level = 0;
-  for (; level < thresholds.length; level++) {
-    if (points < thresholds[level]) return Math.max(0, level - 1);
-  }
-  return thresholds.length - 1;
-}
-
-// `virtue.afx.tankFuels` is positional, and the virtue eggs sit at indices 20-24 as
-// [Curiosity, Integrity, Humility, Resilience, Kindness]. Humility is absent here on
-// purpose: `phases.ts` strips it from every mission's fuel cost (it is free on the Path
-// of Virtue), so a budget for it would constrain nothing.
-const VIRTUE_TANK_FUEL_INDICES: ReadonlyArray<readonly [ei.Egg, number]> = [
-  [ei.Egg.CURIOSITY, 20],
-  [ei.Egg.INTEGRITY, 21],
-  [ei.Egg.RESILIENCE, 23],
-  [ei.Egg.KINDNESS, 24],
-];
-
-function readVirtueTankFuels(backup: ei.IBackup): Map<ei.Egg, number> | null {
-  const tankFuels = backup.virtue?.afx?.tankFuels;
-  // Too short to hold the virtue eggs at all: an old or partial save, which should fall
-  // back to the tank-capacity budget rather than read as an empty tank.
-  if (!tankFuels || tankFuels.length <= 24) return null;
-  const fuels = new Map<ei.Egg, number>();
-  for (const [egg, index] of VIRTUE_TANK_FUEL_INDICES) {
-    const amount = tankFuels[index];
-    fuels.set(egg, Number.isFinite(amount) && amount > 0 ? amount : 0);
-  }
-  return fuels;
-}
-
 export function setPlayerData(backup: ei.IBackup): void {
-  if (!backup.game || !backup.artifactsDb) return;
-
-  const base = newShipsConfig(backup.game);
-
-  const launchPoints: Partial<Record<Spaceship, number>> = {};
-  const hasLaunched: Partial<Record<Spaceship, boolean>> = {};
-
-  const missions = (backup.artifactsDb.missionArchive ?? [])
-    .concat(backup.artifactsDb.missionInfos ?? [])
-    .filter(m => (m.status ?? 0) >= ei.MissionInfo.Status.EXPLORING);
-
-  for (const mission of missions) {
-    const ship = mission.ship!;
-    let pts = 1.0;
-    if (mission.durationType === DurationType.LONG) pts = 1.4;
-    else if (mission.durationType === DurationType.EPIC) pts = 1.8;
-    launchPoints[ship] = (launchPoints[ship] ?? 0) + pts;
-    hasLaunched[ship] = true;
-  }
-
-  for (const shipType of spaceshipList) {
-    base.shipLevels[shipType] = computeShipLevelFromPoints(shipType, launchPoints[shipType] ?? 0);
-    base.shipVisibility[shipType] = shipType === Spaceship.CHICKEN_ONE ? true : (hasLaunched[shipType] ?? false);
-  }
+  const data = readPlayerData(backup);
+  if (!data) return;
 
   // targets and showNodata aren't in the backup; keep the user's settings
-  base.targets = config.value.targets;
-  base.showNodata = config.value.showNodata;
-
-  playerShipsConfig.value = base;
-
-  const inv = new Inventory(backup.artifactsDb, { virtue: true });
-  for (const item of backup.artifactsDb.virtueAfxDb?.artifactStatus || []) {
-    inv.getItem(item.spec!).crafted += item.count!;
-  }
-  playerInventory.value = inv;
-  playerTotalCraftingXp.value = Math.floor(backup.artifacts?.craftingXp ?? 0);
-  playerTankLevel.value = backup.artifacts?.tankLevel ?? null;
-  playerTankFuels.value = readVirtueTankFuels(backup);
-  playerGoldenEggs.value = Math.max(0, (backup.game.goldenEggsEarned ?? 0) - (backup.game.goldenEggsSpent ?? 0));
+  playerShipsConfig.value = {
+    ...data.shipsConfig,
+    targets: config.value.targets,
+    showNodata: config.value.showNodata,
+  };
+  playerInventory.value = data.inventory;
+  playerTotalCraftingXp.value = data.totalCraftingXp;
+  playerTankLevel.value = data.tankLevel;
+  playerTankFuels.value = data.tankFuels;
+  playerGoldenEggs.value = data.goldenEggs;
 
   // The cap tracks the save's balance for as long as it is off, so ticking it on means "what I can
   // afford right now". Once on the value is the user's, and reloading a save leaves it be.
@@ -419,10 +393,24 @@ export function persistExtras(): void {
 export const missionFilters = ref<MissionFilters>(loadMissionFilters());
 
 // The per-egg budget the optimizer should use, or null to budget against tank capacity.
-// The single gate for the whole feature: the mode needs both the flag and a save with a
-// readable tank, so a flag persisted from an earlier session with no save loaded now
+// The gate for the whole feature: the mode needs a source of per-egg amounts, and the save-backed
+// one needs its flag too, so a flag persisted from an earlier session with no save loaded now
 // falls back on its own.
+//
+// A plan visit is the third source, and it carries its own flag rather than the persisted one: a
+// visit is solved either against the fuel the plan banks on arrival, or against a full tank, which
+// is the answer for a plan that has not scheduled its fuel yet and wants this app to say how much
+// to store. Null is what "full tank" means to the optimizer: the aggregate tank row, one pooled
+// capacity it splits across the eggs however the answer needs.
 export const effectiveFuelByEggCapacity = computed<Map<ei.Egg, number> | null>(() => {
+  const visit = activePlanVisit.value;
+  if (visit) {
+    if (activeVisitSettings.value?.fuelBudget !== 'banked') return null;
+    // Copied rather than returned: this Map is posted to the optimizer worker, and `loadedPlan` is a
+    // deep ref, so the visit's own Map is a reactive proxy, which has no [[MapData]] for structured
+    // clone to read. (`playerTankFuels` below is a shallowRef, which is why it needs no copy.)
+    return new Map(visit.fuelByEgg);
+  }
   if (!missionFilters.value.fuelFromTankContents) return null;
   return playerTankFuels.value;
 });
@@ -436,27 +424,103 @@ export function setEffort(level: EffortLevel): void {
 }
 
 export function setMaxGemCostEnabled(enabled: boolean): void {
-  missionFilters.value.maxGemCostEnabled = enabled;
+  if (activePlanVisit.value) setVisitGemCostMode(activePlanVisit.value.visitId, enabled ? 'custom' : 'plan');
+  else missionFilters.value.maxGemCostEnabled = enabled;
 }
 
 export function setMaxGemCost(cost: number): void {
-  missionFilters.value.maxGemCost = Math.max(0, cost);
+  if (!Number.isFinite(cost)) return;
+  if (activePlanVisit.value) setVisitGemCostInput(activePlanVisit.value.visitId, String(Math.max(0, cost)));
+  else {
+    standaloneGemDraft.value = null;
+    missionFilters.value.maxGemCost = Math.max(0, cost);
+  }
 }
 
 export function setMaxGoldenEggCostEnabled(enabled: boolean): void {
   missionFilters.value.maxGoldenEggCostEnabled = enabled;
 }
 
+export const effectiveWaitTimeSeconds = computed<number>(() => {
+  const visit = activePlanVisit.value;
+  return visit ? waitTimeSecondsFor(visit) : parseDurationDays(missionFilters.value.waitTimeDays);
+});
+
+// Drafts live outside numeric persisted filters so invalid text cannot silently reuse a cap.
+const standaloneGemDraft = ref<string | null>(null);
+const craftingDraft = ref<string | null>(null);
+export const gemCostMode = computed<GemCostMode>(
+  () => activeVisitSettings.value?.gemCostMode ?? (missionFilters.value.maxGemCostEnabled ? 'custom' : 'unlimited')
+);
+const gemDraft = computed(() =>
+  activePlanVisit.value ? (activeVisitSettings.value?.gemCostInput ?? null) : standaloneGemDraft.value
+);
+export const gemCostInput = computed(() => gemDraft.value ?? formatBudgetValue(missionFilters.value.maxGemCost));
+export const craftingCostInput = computed(
+  () => craftingDraft.value ?? formatBudgetValue(missionFilters.value.maxGoldenEggCost)
+);
+
+export function setGemCostMode(mode: GemCostMode): void {
+  const visit = activePlanVisit.value;
+  if (visit) {
+    if (mode === 'custom' && gemCostMode.value === 'plan') {
+      setVisitGemCostInput(visit.visitId, formatBudgetValue(effectiveMaxGemCost.value ?? 0));
+    }
+    setVisitGemCostMode(visit.visitId, mode);
+  } else missionFilters.value.maxGemCostEnabled = mode === 'custom';
+}
+export function setGemCostInput(raw: string): void {
+  if (activePlanVisit.value) setVisitGemCostInput(activePlanVisit.value.visitId, raw);
+  else {
+    const value = parseBudgetInput(raw);
+    if (Number.isFinite(value)) missionFilters.value.maxGemCost = value;
+    standaloneGemDraft.value = raw;
+  }
+}
+export function setCraftingCostInput(raw: string): void {
+  const value = parseBudgetInput(raw);
+  if (Number.isFinite(value)) missionFilters.value.maxGoldenEggCost = value;
+  craftingDraft.value = raw;
+}
+// A field shows four significant figures; a cap nobody has typed over is still enforced to the digit.
+export const effectiveMaxGemCost = computed<number | undefined>(() => {
+  if (gemCostMode.value === 'custom')
+    return gemDraft.value === null ? missionFilters.value.maxGemCost : parseBudgetInput(gemDraft.value);
+  const visit = activePlanVisit.value;
+  return visit && gemCostMode.value === 'plan' ? gemBudgetFor(visit, effectiveWaitTimeSeconds.value) : undefined;
+});
+export const effectiveCraftingBudget = computed<number | undefined>(() => {
+  if (!missionFilters.value.maxGoldenEggCostEnabled) return undefined;
+  return craftingDraft.value === null ? missionFilters.value.maxGoldenEggCost : parseBudgetInput(craftingDraft.value);
+});
+export const gemCostInvalid = computed(
+  () => gemCostMode.value === 'custom' && !Number.isFinite(effectiveMaxGemCost.value)
+);
+export const craftingCostInvalid = computed(
+  () => missionFilters.value.maxGoldenEggCostEnabled && !Number.isFinite(effectiveCraftingBudget.value)
+);
+export const costBudgetsValid = computed(() => !gemCostInvalid.value && !craftingCostInvalid.value);
+
 // Non-finite is dropped rather than clamped: `Math.max(0, NaN)` is NaN, and a NaN or Infinity capacity
 // reads downstream as "no cap" — the checkbox would stay on with nothing enforcing it.
 export function setMaxGoldenEggCost(cost: number): void {
   if (!Number.isFinite(cost)) return;
+  craftingDraft.value = null;
   missionFilters.value.maxGoldenEggCost = Math.max(0, cost);
 }
 
 export function setWaitTimeDays(v: string): void {
   missionFilters.value.waitTimeDays = v;
 }
+
+export function setScheduleSettings(settings: ScheduleSettings): void {
+  missionFilters.value = { ...missionFilters.value, ...normalizeScheduleSettings(settings) };
+}
+
+// Sleep and the 2x capacity event as the solve is asked them, or null while the event's "time left" is not a
+// duration. One setting for every plan visit: it describes the player, not the visit.
+export const effectiveScheduleArgs = computed<ScheduleArgs | null>(() => scheduleArgsOf(missionFilters.value));
+export const scheduleInvalid = computed(() => effectiveScheduleArgs.value === null);
 
 export function loadMissionFilters(): MissionFilters {
   const str = getLocalStorage(MISSION_FILTERS_LOCALSTORAGE_KEY);
@@ -473,6 +537,7 @@ export function loadMissionFilters(): MissionFilters {
         maxGoldenEggCost: parsed.maxGoldenEggCost ?? DEFAULT_MAX_GOLDEN_EGG_COST,
         waitTimeDays: parsed.waitTimeDays ?? DEFAULT_WAIT_TIME_DAYS,
         fuelFromTankContents: parsed.fuelFromTankContents ?? false,
+        ...normalizeScheduleSettings(parsed),
       };
     }
   } catch (err) {
@@ -483,22 +548,4 @@ export function loadMissionFilters(): MissionFilters {
 
 export function persistMissionFilters(): void {
   setLocalStorage(MISSION_FILTERS_LOCALSTORAGE_KEY, JSON.stringify(missionFilters.value));
-}
-
-export const AUTO_COMPUTE_LOCALSTORAGE_KEY = 'auto_compute';
-
-export const autoCompute = ref<boolean>(loadAutoCompute());
-
-export function setAutoCompute(b: boolean): void {
-  autoCompute.value = b;
-}
-
-function loadAutoCompute(): boolean {
-  const str = getLocalStorage(AUTO_COMPUTE_LOCALSTORAGE_KEY);
-  if (str === 'false') return false;
-  return true;
-}
-
-export function persistAutoCompute(): void {
-  setLocalStorage(AUTO_COMPUTE_LOCALSTORAGE_KEY, String(autoCompute.value));
 }

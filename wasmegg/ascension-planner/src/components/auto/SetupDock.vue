@@ -7,33 +7,31 @@
 -->
 <template>
   <div ref="dock" class="fixed z-50" :style="dockStyle">
-    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. -->
+    <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
+         Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
+         of ascensions ›"). On My Runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
+         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My Runs keeps
+         its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it.
+         One row is 297 px; below about 313 px (an iPhone with Safari's text size up) it ran off the left edge, drag
+         handle first (ux32-b, 28 Oct 2026). It now wraps instead, the workers together on a second row, never wider
+         than the screen less 2rem; its 1.75rem corners are a pill on one row and still round on two. On My Runs Setup
+         and its summary take what the row leaves (basis-0 grow), so the summary wraps under Setup and the workers stay
+         on the row while Setup's longest word fits; − and + never shrink below 44 px (at 342 px they were 34), nor the gear. -->
     <div
-      v-if="ui.setupOpen"
-      class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
-      :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
-      role="dialog"
-      aria-label="Your setup"
+      ref="pillEl"
+      class="flex flex-wrap items-center justify-center gap-1 rounded-[1.75rem] bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5 max-w-[calc(100vw-2rem)]"
+      :class="[
+        stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl',
+        round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:gap-0 max-sm:rounded-full' : '',
+        searching ? '' : summary ? 'sm:max-[1583px]:w-12 sm:max-[1583px]:h-12 sm:max-[1583px]:p-0 sm:max-[1583px]:gap-0 sm:max-[1583px]:rounded-full' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:gap-0 max-[1279px]:rounded-full',
+      ]"
+      data-testid="setup-dock-pill"
     >
-      <div
-        class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
-      >
-        <span class="text-sm font-black text-indigo-900">Your setup</span>
-        <button
-          type="button"
-          class="px-3 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
-          @click="ui.setupOpen = false"
-        >
-          Done
-        </button>
-      </div>
-      <YourSetup :screen="screen" docked />
-    </div>
-
-    <div class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5">
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
+      <!-- Below sm, as the round gear (Jordan, 12 Nov 2026 pm), there is no handle: the gear itself drags (onGearDown). -->
       <span
-        class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white/70 hover:text-white"
+        class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white hover:text-white"
+        :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1583px]:hidden' : 'max-[1279px]:hidden']"
         title="Drag to move · double-click to put back"
         aria-hidden="true"
         @pointerdown="startDrag"
@@ -41,13 +39,22 @@
         >⋮⋮</span
       >
       <button
+        ref="gearBtn"
         type="button"
-        class="relative flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-white/15"
+        class="relative flex items-center gap-1.5 min-h-[44px] sm:min-h-0 rounded-full px-2.5 py-1 hover:bg-white/15"
+        :class="[
+          summary ? 'basis-0 grow xl:basis-auto xl:grow-0' : '',
+          round ? 'max-sm:w-12 max-sm:h-12 max-sm:p-0 max-sm:justify-center max-sm:touch-none max-sm:select-none' : '',
+          searching ? '' : summary ? 'sm:max-[1583px]:w-12 sm:max-[1583px]:h-12 sm:max-[1583px]:p-0 sm:max-[1583px]:justify-center sm:max-[1583px]:touch-none sm:max-[1583px]:select-none' : 'max-[1279px]:w-12 max-[1279px]:h-12 max-[1279px]:p-0 max-[1279px]:justify-center max-[1279px]:touch-none max-[1279px]:select-none',
+        ]"
         :aria-expanded="ui.setupOpen"
-        :title="ui.setupOpen ? 'Close your setup' : 'Open your setup'"
-        @click="ui.setupOpen = !ui.setupOpen"
+        aria-label="Setup"
+        :aria-describedby="errors ? 'setup-dock-problems' : undefined"
+        :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
+        @pointerdown="onGearDown"
+        @click="onGearClick"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg class="w-4 h-4 shrink-0" :class="[round ? 'max-sm:w-6 max-sm:h-6' : '', searching ? '' : summary ? 'sm:max-[1583px]:w-6 sm:max-[1583px]:h-6' : 'max-[1279px]:w-6 max-[1279px]:h-6']" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -55,74 +62,168 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span class="flex flex-col items-start leading-tight">
-          <span class="text-[10px] font-black uppercase tracking-widest">Setup</span>
-          <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
-          <span v-if="summary" class="text-[10px] font-normal text-white/85" data-testid="setup-dock-summary">{{ summary }}</span>
+        <span class="flex flex-col items-start leading-tight" :class="[round ? 'max-sm:hidden' : '', searching ? '' : summary ? 'sm:max-[1583px]:hidden' : 'max-[1279px]:hidden']">
+          <span class="text-body font-bold">Setup</span>
+          <!-- My Runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
+          <span v-if="summary" class="text-small font-normal text-white text-left xl:max-w-[13rem] sm:max-[1583px]:hidden" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
           v-if="errors"
           class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-indigo-600"
-          :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
+          :title="problemsText"
+          aria-hidden="true"
         ></span>
       </button>
-      <span class="w-px h-5 bg-white/30" aria-hidden="true"></span>
-      <!-- Workers, adjustable folded: a running search resizes to it within about a minute. -->
-      <button
-        type="button"
-        class="w-6 h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
-        :disabled="store.workerBudget <= 1"
-        aria-label="Fewer workers"
-        @click="setWorkers(store.workerBudget - 1)"
+      <span v-if="errors" id="setup-dock-problems" class="sr-only">{{ problemsText }}</span>
+      <!-- The workers only while a search runs (the simpler page, Jordan 9 Nov 2026, Q4): at rest the pill is Setup
+           alone; mid-run they can still be turned down (Jordan, 26 Oct 2026). The count is in Setup › More options. -->
+      <template v-if="searching">
+      <!-- Below 320 px the workers wrap to a second row, where the divider would only end the first. -->
+      <span class="w-px h-5 bg-white/30 max-[319px]:hidden" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
+      <span v-if="stacked" class="hidden xl:block basis-full h-0" aria-hidden="true"></span>
+      <!-- Workers, adjustable folded: a running search resizes to it within about a minute. One group, so they wrap
+           together. -->
+      <span class="flex items-center gap-1" data-testid="setup-dock-workers">
+        <button
+          type="button"
+          class="w-11 h-11 sm:w-6 sm:h-6 shrink-0 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
+          :disabled="store.workerBudget <= 1"
+          aria-label="Fewer workers"
+          @click="setWorkers(store.workerBudget - 1)"
+        >
+          −
+        </button>
+        <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="WORKERS_TIP"
+          >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
+        >
+        <button
+          type="button"
+          class="w-11 h-11 sm:w-6 sm:h-6 shrink-0 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
+          :disabled="store.workerBudget >= store.machineThreads"
+          aria-label="More workers"
+          @click="setWorkers(store.workerBudget + 1)"
+        >
+          +
+        </button>
+      </span>
+      </template>
+    </div>
+    <!-- After the pill in the page (review W1, 15 Nov 2026): Tab goes pill, then the open panel. CSS places it, so it does not move on screen.
+         Not modal: the pill and the page stay usable. -->
+    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. Never scrolls sideways (ux31-a,
+         27 Oct 2026: on an iPhone it opened shifted left, "Setup" read as "p"): what is too wide is clipped, and
+         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). At most the
+         screen less the pill's 1rem and 4 px, else with larger text (a bigger rem) it started off the left edge (ux32-b). -->
+    <div
+      v-if="ui.setupOpen"
+      ref="panel"
+      class="absolute w-[min(94vw,calc(100vw-1rem-4px),46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
+      role="dialog"
+      aria-label="Setup"
+      @scroll="keepLeft"
+    >
+      <div
+        class="sticky top-0 z-10 min-w-0 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
       >
-        −
-      </button>
-      <span class="text-[11px] font-bold tabular-nums" :title="`Workers ${thisDevice()} gives the searches`"
-        >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
-      >
-      <button
-        type="button"
-        class="w-6 h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
-        :disabled="store.workerBudget >= store.machineThreads"
-        aria-label="More workers"
-        @click="setWorkers(store.workerBudget + 1)"
-      >
-        +
-      </button>
+        <span class="text-body font-bold text-indigo-900">Setup</span>
+        <button
+          ref="doneBtn"
+          type="button"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-lg border border-indigo-300 bg-white text-body font-bold text-indigo-700 hover:bg-indigo-50"
+          @click="ui.setupOpen = false"
+        >
+          Done
+        </button>
+      </div>
+      <YourSetup ref="setup" :screen="screen" docked />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { thisDevice } from '@/search/device';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { rememberedPos } from './setupDockPos';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
 import YourSetup from './YourSetup.vue';
+import { WORKERS_TIP } from '@/lib/layoutWords';
+import { movedPast } from './setupDockDrag';
 
-defineProps<{
+const props = defineProps<{
   screen: AutoView;
-  /** A short line under "Setup" ("7 am–11 pm · no time off"), on My runs, which has no setup box of its own. */
+  /** A short line under "Setup" ("7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27"), on My Runs, which has no
+   *  setup box of its own. */
   summary?: string;
+  /** Room to leave under the pill, px: Single run's fixed bar of totals and its fold tab (App.vue measures it,
+   *  useBottomBarRoom), so the pill sits 1rem above the bar instead of cut off over it (Jordan, 27 Oct 2026). */
+  bottomOffset?: number;
 }>();
+/** The pill's height, px, whenever it changes (App.vue sizes the room under the page by it: on My Runs its summary
+ *  wraps to two or three lines, and during a search its workers can wrap to a second row; Jordan, 12 Nov 2026). */
+const emit = defineEmits<{ height: [px: number] }>();
+const pillEl = ref<HTMLElement | null>(null);
+let pillObserver: ResizeObserver | null = null;
+/** Stacked in two rows from xl (see the pill): every screen but My Runs (its summary needs the width). */
+const stacked = computed(() => !props.summary);
 const store = useChainSearchStore();
 const ui = useUIStore();
 
+/** A search is running (or a Custom queue is between its chains): the pill shows the workers then only. */
+const searching = computed(() => store.busy || store.isRunning || store.deadlineRunning || store.sweepQueue.at >= 0);
 const errors = computed(() => store.setupIssues.filter(i => i.level === 'error').length);
+/** The red dot's words, for the gear's title and a screen reader (aria-describedby; review W1). */
+const problemsText = computed(() => `${errors.value} problem${errors.value > 1 ? 's' : ''} with your save`);
+/**
+ * THE ROUND GEAR (Jordan, 12 Nov 2026 pm, phone proposal question 5): below sm (the max-sm: classes) and while no search
+ * runs, the pill is a 48 px round gear (aria-label "Setup", its title and the red problem dot kept) that is also its own
+ * drag handle. My Runs (its summary) and a running search (the workers) keep the pill at every width.
+ */
+const round = computed(() => !props.summary && !searching.value);
 
 function setWorkers(n: number): void {
   store.setWorkersByHand(Math.max(1, Math.min(store.machineThreads, Math.floor(n))));
 }
 
-/** Asked from a panel (a sweep's "add time off"): open, and scroll to the time off. */
+/** The open panel: always at its left edge, on opening and after anything scrolls it sideways. */
+const panel = ref<HTMLElement | null>(null);
+function keepLeft(): void {
+  if (panel.value && panel.value.scrollLeft !== 0) panel.value.scrollLeft = 0;
+}
+const gearBtn = ref<HTMLElement | null>(null);
+const doneBtn = ref<HTMLElement | null>(null);
+watch(
+  () => ui.setupOpen,
+  (open, was) => {
+    if (open) {
+      void nextTick(() => {
+        if (!panel.value) return;
+        panel.value.scrollLeft = 0;
+        // Focus goes in (review W1), unless something inside already took it: a reveal lands on its own box.
+        if (typeof document !== 'undefined' && !panel.value.contains(document.activeElement)) doneBtn.value?.focus();
+      });
+    } else if (was) {
+      // Closed: back to the gear when focus would otherwise be lost to the page (the panel it was in is gone).
+      void nextTick(() => {
+        if (typeof document !== 'undefined' && (!document.activeElement || document.activeElement === document.body)) gearBtn.value?.focus();
+      });
+    }
+  }
+);
+
+/** Asked from a panel (a sweep's "add time off"): open, and bring the time off into view. Setup reveals it, opening
+ *  More options first should a target ever sit inside it (YourSetup.vue `reveal`). `ui.openSetupAt` names another
+ *  option to land on (the Build-up tracker's silo trick hint: the Silo trick box, which Setup also focuses). */
+const SETUP_TARGETS = { timeOff: 'your-setup-time-off', siloTrick: 'your-setup-silo-trick' } as const;
+const setup = ref<InstanceType<typeof YourSetup> | null>(null);
 watch(
   () => ui.openSetupRequested,
   () => {
     ui.setupOpen = true;
-    void nextTick(() =>
-      document.getElementById('your-setup-time-off')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    );
+    const target = SETUP_TARGETS[ui.openSetupAt] ?? SETUP_TARGETS.timeOff;
+    ui.openSetupAt = 'timeOff';
+    void nextTick(() => setup.value?.reveal(target));
   }
 );
 
@@ -130,34 +231,37 @@ watch(
 const POS_KEY = 'aap-setup-dock-pos';
 const dock = ref<HTMLElement | null>(null);
 const pos = ref<{ x: number; y: number } | null>(readPos());
+// (A spot saved at another window width is forgotten: setupDockPos.ts.)
 function readPos(): { x: number; y: number } | null {
   try {
-    const v = JSON.parse(localStorage.getItem(POS_KEY) ?? 'null');
-    return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null;
+    return rememberedPos(localStorage.getItem(POS_KEY), window.innerWidth);
   } catch {
     return null;
   }
 }
 function savePos(): void {
   try {
-    if (pos.value) localStorage.setItem(POS_KEY, JSON.stringify(pos.value));
+    if (pos.value) localStorage.setItem(POS_KEY, JSON.stringify({ ...pos.value, w: window.innerWidth }));
     else localStorage.removeItem(POS_KEY);
   } catch {
     /* not remembered: fine */
   }
 }
 const viewport = ref({ w: window.innerWidth, h: window.innerHeight });
-/** Kept on screen whatever the window does after. */
+/** Kept on screen whatever the window does after, and above Single run's bar. */
 function clamped(p: { x: number; y: number }): { x: number; y: number } {
   const w = dock.value?.offsetWidth ?? 260;
   const h = dock.value?.offsetHeight ?? 44;
   return {
     x: Math.min(Math.max(4, p.x), Math.max(4, viewport.value.w - w - 4)),
-    y: Math.min(Math.max(4, p.y), Math.max(4, viewport.value.h - h - 4)),
+    y: Math.min(Math.max(4, p.y), Math.max(4, viewport.value.h - h - 4 - (props.bottomOffset ?? 0))),
   };
 }
 const dockStyle = computed(() => {
-  if (!pos.value) return { right: '1rem', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' };
+  if (!pos.value) {
+    const bar = props.bottomOffset ? ` + ${props.bottomOffset}px` : '';
+    return { right: '1rem', bottom: `calc(env(safe-area-inset-bottom, 0px)${bar} + 1rem)` };
+  }
   const p = clamped(pos.value);
   return { left: `${p.x}px`, top: `${p.y}px` };
 });
@@ -182,6 +286,48 @@ function endDrag(): void {
   window.removeEventListener('pointermove', onDrag);
   savePos();
 }
+/** The gear on a phone: a press that moves past GEAR_DRAG_PX drags the pill (as the ⋮⋮ handle does from sm up); a
+ *  press that doesn't is a tap, which opens Setup (onGearClick). The click a drag ends with is swallowed. */
+let gearFrom: { px: number; py: number; x: number; y: number; id: number } | null = null;
+let dragged = false;
+/** Where the round gear gives way to the full pill: 1280 px, and on My Runs 1584 (the 1152 px column plus a margin that holds the pill). */
+const ROUND_UNDER = 1280;
+const ROUND_UNDER_MY_RUNS = 1584;
+function roundNow(): boolean {
+  // Phones (the old round gear) and, from 17 Nov 2026, any width below 1280 where the pill is the round gear (not while a search runs);
+  // on My Runs (the summary) from sm to 1583 px: its full pill covers the egg cards until the 1152 px column leaves it a margin.
+  return (round.value && viewport.value.w < 640) || (!searching.value && (props.summary ? viewport.value.w >= 640 && viewport.value.w < ROUND_UNDER_MY_RUNS : viewport.value.w < ROUND_UNDER));
+}
+function onGearDown(e: PointerEvent): void {
+  dragged = false;
+  if (!roundNow()) return;
+  const r = dock.value?.getBoundingClientRect();
+  if (!r) return;
+  gearFrom = { px: e.clientX, py: e.clientY, x: r.left, y: r.top, id: e.pointerId };
+  window.addEventListener('pointermove', onGearMove);
+  window.addEventListener('pointerup', onGearUp);
+  window.addEventListener('pointercancel', onGearUp);
+}
+function onGearMove(e: PointerEvent): void {
+  if (!gearFrom || e.pointerId !== gearFrom.id) return;
+  if (!dragged && !movedPast(gearFrom.px, gearFrom.py, e.clientX, e.clientY)) return;
+  dragged = true;
+  pos.value = clamped({ x: gearFrom.x + e.clientX - gearFrom.px, y: gearFrom.y + e.clientY - gearFrom.py });
+}
+function onGearUp(): void {
+  window.removeEventListener('pointermove', onGearMove);
+  window.removeEventListener('pointerup', onGearUp);
+  window.removeEventListener('pointercancel', onGearUp);
+  if (gearFrom && dragged) savePos();
+  gearFrom = null;
+}
+function onGearClick(): void {
+  if (dragged) {
+    dragged = false;
+    return;
+  }
+  ui.setupOpen = !ui.setupOpen;
+}
 function resetPos(): void {
   pos.value = null;
   savePos();
@@ -196,11 +342,19 @@ function onKey(e: KeyboardEvent): void {
 onMounted(() => {
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
+  if (pillEl.value && typeof ResizeObserver !== 'undefined') {
+    const el = pillEl.value;
+    pillObserver = new ResizeObserver(() => emit('height', el.offsetHeight));
+    pillObserver.observe(el);
+  }
 });
 onUnmounted(() => {
+  pillObserver?.disconnect();
+  emit('height', 0);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('pointermove', onDrag);
+  onGearUp();
   ui.setupOpen = false;
 });
 </script>

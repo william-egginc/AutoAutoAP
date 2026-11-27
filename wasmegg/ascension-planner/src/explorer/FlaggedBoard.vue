@@ -10,17 +10,17 @@
 -->
 <template>
   <div class="space-y-3">
-    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
+    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-body text-red-800">
       {{ error }}
     </p>
-    <p v-else-if="loading" class="text-[11px] text-slate-400">Loading these runs…</p>
-    <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
+    <p v-else-if="loading" class="text-body text-slate-600">Loading these runs<AnimatedDots /></p>
+    <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-bold text-emerald-700">
       No run like that has been sent yet.
     </p>
     <div v-else class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+          <tr class="text-slate-600 label text-left">
             <th class="py-1.5 pr-3">Who</th>
             <th class="py-1.5 pr-3">TE</th>
             <th class="py-1.5 pr-3">Clothed TE</th>
@@ -32,12 +32,12 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="r in rows" :key="r.id" :class="r.yours ? 'bg-indigo-50/60' : ''">
-            <td class="py-1.5 pr-3 font-bold" :class="r.yours ? 'text-indigo-800' : 'text-slate-400'">
+            <td class="py-1.5 pr-3 font-bold" :class="r.yours ? 'text-indigo-800' : 'text-slate-600'">
               {{ r.yours ? `${r.nickname || 'you'} (yours)` : 'anonymous' }}
             </td>
             <td class="py-1.5 pr-3 tabular-nums">{{ r.currentTE ?? '—' }}</td>
             <td class="py-1.5 pr-3 tabular-nums">{{ r.clothedTE !== undefined ? Math.round(r.clothedTE) : '—' }}</td>
-            <td class="py-1.5 pr-3 font-mono-premium">{{ r.chain.join(' ') }}</td>
+            <td class="py-1.5 pr-3 tabular-nums">{{ r.chain.join(' ') }}</td>
             <td class="py-1.5 pr-3 tabular-nums">{{ describeDuration(r.durationDays * 86400) }}</td>
             <td class="py-1.5 pr-3 tabular-nums">
               {{ r.integrityMinutes !== undefined ? describeDuration(r.integrityMinutes * 60) : '—' }}
@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { onMounted, ref } from 'vue';
 import { fetchFlagged, type CollectorRow } from './collector';
 import { allOwnerTokens } from '@/search/owner';

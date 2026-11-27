@@ -33,18 +33,31 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-10-23T00:30:00Z', note: 'New: Joo’s latest planner with an artifact and stone editor; one Stronger check panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
-  { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
-  { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
-  { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
-  { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },
-  { at: '2026-10-16T02:31:45Z', note: 'New: My runs tab; Compare is now Leaderboard; arrows show when each stop and egg shift happens; maxed-gear what-if; Light results can be shared; your setup and choices are remembered', level: 'big' },
-  { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
-  { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
+  { at: '2026-11-25T23:00:00Z', note: 'Release 10: instant answers for more gear sets, a mission optimizer that plans around your awake hours, and honest times for short ascensions', level: 'big' },
+  { at: '2026-11-20T23:00:00Z', note: 'Simpler By Egg Day goal, clearer tour, Instant Answer and My Runs labels' },
+  { at: '2026-11-17T22:00:15Z', note: 'Your calendar link is saved with your account, scrambled on your device first, so all your browsers show the same link. Reset link and Delete everything saved online remove it' },
+  { at: '2026-11-17T22:00:14Z', note: 'Your eggs’ “to goal” view has a picker (A1 · A2 · A3 · goal) to see each egg’s times for any ascension. Where the instant answer keeps no shifts, a note says to run a search from Try next' },
+  { at: '2026-11-17T22:00:13Z', note: 'My Runs is one timeline now: each ascension’s row in You are here opens to its shifts and dates (blocks start closed; press to open), and the Full timeline box is gone' },
+  { at: '2026-11-17T22:00:12Z', note: 'Release 9: Quick and Full tours, My Runs follows the plan on your newest save, Put my plan in my calendar is on, and instant answers on the newest simulator (sim5) where rebuilt', level: 'big' },
+  { at: '2026-11-17T22:00:11Z', note: 'Target TE(s) checks your numbers. Ascensions from/to keep your edits. A link shows each ascension’s dates. Setup names hours and time off. A fresh first ascension no longer reads as under way.' },
+  { at: '2026-11-17T22:00:10Z', note: 'A Quick tour (7 slides) and a Full tour (42, or fewer when it carries on from the Quick tour), in More and in the page footer. Show the tour again is in Setup' },
+  { at: '2026-11-17T22:00:09Z', note: 'My Runs follows the plan on your newest save and says “worked out on your save from…” for an older one. A box shows when the best for your date is below the TE you follow' },
+  { at: '2026-11-17T22:00:08Z', note: 'Setup shows When the route starts in view, and on a smaller screen Setup is a round gear button at the bottom' },
+  { at: '2026-11-17T22:00:07Z', note: 'The save line says how old your save is. The silo warning shows only when your save is fresh and your silos are low; otherwise you just see the save’s age' },
+  { at: '2026-11-17T22:00:06Z', note: 'Put my plan in my calendar is on in Setup: a private link for Google or Apple Calendar with your shifts, buys and ascensions, and a cloud calendar that updates itself. It may be a day behind' },
+  { at: '2026-11-17T22:00:05Z', note: 'Instant Answers use the newest simulator (sim5) where rebuilt, with a yellow note where one still comes from an older simulator. Answers can differ by about a week on a 490 route' },
+  { at: '2026-11-17T22:00:04Z', note: 'A fresh Safari start now uses fewer workers so the tab stays up, and Setup says how many started' },
+  { at: '2026-11-17T22:00:03Z', note: 'A warning when your silo buys wait for your awake hours (1 silo overnight), and Monday’s 2x line says to check in during it. A close By a date answer offers Check this date with Fast' },
+  { at: '2026-11-17T22:00:02Z', note: 'The Privacy text says your code is a hash of your ID, stored under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes' },
+  { at: '2026-11-17T22:00:01Z', note: 'Searches expected to take 2 hours or more now always tell the planner’s server when they start and stop, so an update can wait. Only a random code and the search’s size and times; see About' },
+  { at: '2026-11-10T06:00:07Z', note: 'Release 8: a simpler page (the rest is under More), a first-visit tour, plans that use your real TE, and one Save online switch that now also keeps your starting TE and tracker ticks and plan', level: 'big' },
+  { at: '2026-11-04T18:00:07Z', note: 'Release 7: a Build-up tracker on My Runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-10-17T23:00:00Z',
+  // R9 (18 Nov 2026): one second after live R8.1's build time (2026-11-19T02:12:17.356Z), so open R8 and R8.1 tabs are asked
+  // to reload into R9; the maintainer OK'd it. Was 2026-11-10T06:15:19.000Z (R8.1).
+  reloadIfBuiltBefore: '2026-11-19T02:12:18.000Z',
   note: history[0].note,
   history,
 };

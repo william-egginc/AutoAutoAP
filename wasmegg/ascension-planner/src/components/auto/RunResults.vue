@@ -3,7 +3,7 @@
 
     the answer (`card`: RouteResultCard.vue or ByDateRouteCard.vue, or why there is none)
     what the screen adds about it (default slot: when to start it, edge warnings; the top routes and Fastest's
-      other options and charts are on My runs › Your latest run, with a line here linking to them)
+      other options and charts are on My Runs › Your latest run, with a line here linking to them)
     keeping it (`keep`: Saved runs or Saved answers, and the CSV)
     sharing it (`share`: ShareResult.vue), under the anchor the card's Share button scrolls to
 

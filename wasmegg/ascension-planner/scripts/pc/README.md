@@ -32,7 +32,7 @@ Environment variables:
 |---|---|
 | `jobF.ps1` | Runs one job. `jobR.ps1` is the same, with the output folder as `-base`. |
 | `seqF.ps1` | A sequential queue. It re-reads `queue.txt` (`who\|preset\|bands\|mingap`) between jobs. |
-| `postwatch2.ps1` + `post_pair.mjs` | Post finished runs to the collector. `main-*` post as Williamthe5thc, `alt-*` as Willsalt. They strip `run` and refuse a payload that mentions a player ID. |
+| `postwatch2.ps1` + `post_pair.mjs` | Post finished runs to the collector. `main-*` post as Williamthe5thc, `alt-*` as Willsalt. They strip `run` and refuse a payload that mentions a player ID. LEGACY (26 Oct 2026): unlike the site's send they post with no owner token, no `?quarantine=1`, and a table of memory's legs uncapped; use `fastsearch submit --from DIR` for a send the same as the site's. |
 | `refine.ps1` | Self-steering refinement toward a target (`-final`, default 490; `-from`/`-to` for playing hours; `-quick` skips the last two steps): head box, then neighbouring pairs every TE until a round finds nothing, then every combination ±1, more probes, and a wider box. |
 | `tonight.ps1` | The 29 Sep Egg Day night: update and rebuild, the 5- and 6-ascension grids, then `refine.ps1` on the best 4-, 5- and 6-ascension routes one TE higher at a time, until a route misses the date. |
 | `horizon.ps1` | Plans to a nearer target (e.g. 225 or 260) with playing hours. |

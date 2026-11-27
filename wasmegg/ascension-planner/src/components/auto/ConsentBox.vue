@@ -1,7 +1,7 @@
 <!--
   One consent box, the same on every one of them (Jordan, 15 Oct: "consent, everywhere"): the leaderboard
   agreement of Find and submit and Share this result, the Stepping away? options, a science sweep's
-  "I understand", "Keep sharing my checks", a kept result's agreement.
+  "I understand", "Share my search results", a kept result's agreement.
 
    - Not agreed: the checkbox and the box's own words (`text`, unchanged: this only wraps them).
    - Agreed and remembered from before: folded to ONE line, "[✓] <summary> · Change". Change opens it again.
@@ -21,7 +21,7 @@
   <div class="space-y-2" :data-consent="consentId || undefined">
     <p
       v-if="folded"
-      class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-semibold"
+      class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold"
       :class="summaryClass"
       :data-testid="`${testid}-summary`"
     >
@@ -68,13 +68,13 @@
       <slot name="after" :agreed="agreed" />
       <div
         v-if="agreed && footer"
-        class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px]"
+        class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-small"
         :class="footerIndent ? 'ml-7' : ''"
         :data-testid="`${testid}-footer`"
       >
         <label
           v-if="consentId"
-          class="inline-flex items-center gap-1.5 cursor-pointer font-semibold opacity-80"
+          class="inline-flex items-center gap-1.5 cursor-pointer font-bold opacity-80"
           :data-testid="`${testid}-remembered`"
         >
           <input
@@ -87,7 +87,7 @@
           />
           <span
             >Remember my choice for this account<span class="font-normal">{{
-              remember ? ' (kept in this browser until you withdraw it)' : ' (off: for this visit only)'
+              remember ? REMEMBER_KEPT : ' (off: for this visit only)'
             }}</span></span
           >
         </label>
@@ -97,12 +97,12 @@
           :data-testid="`${testid}-withdraw`"
           @click="set(false)"
         >
-          {{ withdrawLabel }}
+          Withdraw
         </button>
         <button
           v-if="foldable && !forceOpen && open"
           type="button"
-          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
+          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50"
           :data-testid="doneTestid || `${testid}-done`"
           @click="open = false"
         >
@@ -112,7 +112,7 @@
     </template>
     <p
       v-if="withdrawn && !agreed && withdrawnText"
-      class="text-[10px] font-semibold text-rose-700"
+      class="text-small font-bold text-rose-700"
       role="status"
       :data-testid="`${testid}-withdrawn`"
     >
@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { consentRemembered, setConsentRemember, type ConsentId } from '@/composables/useConsent';
+import { REMEMBER_KEPT } from '@/lib/privacyWords';
 
 const props = withDefaults(
   defineProps<{
@@ -148,7 +149,6 @@ const props = withDefaults(
     testid?: string;
     doneTestid?: string;
     boxTestid?: string;
-    withdrawLabel?: string;
     /** Said once it was withdrawn here ('' says nothing). */
     withdrawnText?: string;
     labelClass?: string;
@@ -167,7 +167,6 @@ const props = withDefaults(
     testid: 'consent',
     doneTestid: '',
     boxTestid: '',
-    withdrawLabel: 'Withdraw',
     withdrawnText: '',
     labelClass: '',
     inputClass: 'border-indigo-300 text-indigo-600',
@@ -175,7 +174,6 @@ const props = withDefaults(
   }
 );
 const agreed = defineModel<boolean>({ required: true });
-const emit = defineEmits<{ withdrawn: [] }>();
 
 /** Change pressed, or ticked just now: shown in full. */
 const open = ref(false);
@@ -205,7 +203,6 @@ function set(v: boolean): void {
   if (v) open.value = true;
   if (was && !v) {
     withdrawn.value = true;
-    emit('withdrawn');
   }
 }
 
@@ -222,7 +219,6 @@ function quickSet(v: boolean): void {
   agreed.value = v;
   if (was && !v) {
     withdrawn.value = true;
-    emit('withdrawn');
   }
 }
 

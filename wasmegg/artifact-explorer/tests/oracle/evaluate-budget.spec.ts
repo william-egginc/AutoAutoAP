@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { makeNode, makeOpt } from '../unit/spec-helpers';
-import type { RecipeDAG } from '@/lib/types';
+import type { RecipeDAG } from 'lib/mission-optimizer/types';
 import { evaluateAllocation, evaluateAllocationFloat, evaluateAllocationJoint, type OracleInstance } from './evaluate';
 
 // A1 = 2x B1, B1 = 2x C1, C1 drops. Two priced columns.
@@ -33,7 +33,7 @@ function instance(dag: RecipeDAG, targets: string[], owned: number, budget?: Ora
     timeCapacityPerSlot: 1e9,
     // Inventory supplied as base yield, so the allocation is irrelevant and
     // every difference below is the budget's doing.
-    baseYield: new Map([['C1', owned]]),
+    ownedStock: new Map([['C1', owned]]),
     craftBudget: budget,
   } satisfies OracleInstance;
 }

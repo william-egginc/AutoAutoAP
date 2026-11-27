@@ -4,15 +4,15 @@
        leave the whole page scrolling sideways. Styled there rather than in a <style> block here,
        which would ship as one more render-blocking stylesheet on both pages. -->
   <div class="echart-frame" :style="{ width: '100%', height }" :aria-busy="state === 'loading'">
-    <div ref="containerRef" class="h-full w-full" />
+    <div ref="containerRef" class="h-full w-full" :role="label ? 'img' : undefined" :aria-label="label" />
     <div
       v-if="state !== 'ready'"
-      class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-[11px] text-slate-400"
+      class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-body text-slate-600"
     >
-      <span v-if="state === 'loading'">Loading chart…</span>
+      <span v-if="state === 'loading'">Loading chart<AnimatedDots /></span>
       <span v-else class="px-4 text-center">
         This chart could not load.
-        <button type="button" class="font-semibold text-slate-600 underline" @click="reloadPage">
+        <button type="button" class="font-bold text-slate-600 underline" @click="reloadPage">
           Reload the page
         </button>
         to try again.
@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { ref, shallowRef, onMounted, onBeforeUnmount, watch } from 'vue';
 import type { ChartOption, ECharts } from '@/lib/charts/echarts';
 import { loadEcharts, type EchartsModule } from '@/lib/charts/loadEcharts';
@@ -30,6 +31,8 @@ const props = withDefaults(
   defineProps<{
     option: ChartOption;
     height?: string;
+    /** A plain name, so the chart is announced as an image with a name (review IN-7). Absent: not announced. */
+    label?: string;
   }>(),
   {
     height: '320px',

@@ -1,6 +1,6 @@
 /**
  * The instant answer's key moved out of InstantRoute.vue (`cacheKey`) into search/instantSnapshot.ts `instantKey`
- * on 17 Oct 2026 so My runs can find the same saved answers. The hash must not move: every answer saved in a
+ * on 17 Oct 2026 so My Runs can find the same saved answers. The hash must not move: every answer saved in a
  * player's browser is under the old one. The golden values below were worked out by the OLD function's own code
  * (copied verbatim from InstantRoute.vue at 68674ebb, run on these inputs) before the refactor.
  */
@@ -54,6 +54,14 @@ describe('instantKey (the hash did not move)', () => {
     );
   });
 
+  it('keys the lower end only when set: an answer saved under "At most N" keeps its key (24 Oct 2026)', () => {
+    const atMost = { ...base, maxAscensions: 5 };
+    expect(instantKey({ ...atMost, minAscensions: null })).toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: undefined })).toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: 3 })).not.toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: 3 })).not.toBe(instantKey({ ...atMost, minAscensions: 2 }));
+  });
+
   it('lists the eggs in the simulator’s order', () => {
     expect([...KEY_EGG_ORDER]).toEqual(EGG_ORDER);
   });
@@ -68,7 +76,7 @@ describe('instantKey (the hash did not move)', () => {
   it('is what InstantRoute uses (no copy of the hash left there)', () => {
     const src = readFileSync(new URL('../components/auto/InstantRoute.vue', import.meta.url), 'utf8');
     expect(src).toContain('return instantKey({');
-    expect(src).toContain('snapKey = instantSnapKey(cachedKey)');
+    expect(src).toContain('snapKey = instantSnapKey(cacheKey())');
     expect(src).not.toContain('0x811c9dc5');
   });
 });

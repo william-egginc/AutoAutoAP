@@ -9,39 +9,29 @@
   Only the steps differ: the finish line is a date and the answer is the highest TE reached by then.
 -->
 <template>
+  <!-- THE LAYOUT CONTRACT (the simpler default page, notes/simpler-design.md, Jordan 9 Nov 2026): the save line and the
+       goal tabs above (App.vue), then the title and its one line, the date, the answer with Follow this route as its one
+       main button, what to do now and the one closed More (DeadlinePanel.vue), then the footer. Its explainer (was the
+       "How Highest TE by a date works" fold here) is in How this is worked out, inside More, word for word. -->
   <div class="max-w-4xl mx-auto space-y-4">
-    <div>
-      <h2 class="text-2xl font-black text-slate-900">{{ NAMES.byDate }}</h2>
-      <p class="text-sm text-slate-600">
-        Finds the highest TE you can reach by a date (Egg Day by default), from your save and your setup. Plans include
-        the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
-        simulated.
-      </p>
+    <div data-region="title">
+      <h1 class="sr-only">{{ NAMES.byDate }}</h1>
     </div>
-    <!-- Folded under the title, like Fastest's explainer (the user, 12 Oct: it sat in the middle of the page). -->
-    <details class="rounded-xl border border-slate-200 bg-white" data-testid="by-date-how">
-      <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-        How {{ NAMES.byDate }} works
-      </summary>
-      <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Finds the highest TE you can reach by a date. Nearby routes picks the early stops for you: the
-        instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
-        set the early stops and it tries every route in them. Either way the last stop is found to the exact TE. Like
-        any run, it uses the plan start, hours, time off and computer settings in Your setup.
-      </div>
-    </details>
+    <!-- This account's starting-TE override, when it is on (TeOverrideBanner.vue): plans start from it, not the save. -->
+    <TeOverrideBanner />
     <!-- The setup is the floating Setup button (SetupDock.vue); here only the save's problems, if any. -->
     <YourSetup screen="by-date" issues-only />
     <!-- The instant answer, the Stronger check (with Nearby routes) and Exhaustive, all on the page
-         (DeadlinePanel.vue). -->
+         (DeadlinePanel.vue). Embedded, as on Fastest: no frame of its own round DeadlinePanel's. -->
     <InsanePanel :player-id="playerId" goal="deadline" @update:goal="onGoal" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
-import { safeAsyncComponent } from '@/lib/import';
+import { safeAsyncComponent } from 'lib/planners/import';
 import YourSetup from './YourSetup.vue';
+import TeOverrideBanner from '@/components/auto/TeOverrideBanner.vue';
 
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{ goal: [goal: 'fastest' | 'deadline'] }>();

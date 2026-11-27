@@ -9,6 +9,8 @@ import { ref, watch, type Ref } from 'vue';
 import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
+import { isSafari } from '@/search/device';
+import { writeSafariCrashWorkers } from '@/lib/safariWorkers';
 import { consentAgreed, consentState } from './useConsent';
 
 /** The options. All off unless the player ticks them. The three ticks (carry on, the watcher tab, send my
@@ -252,6 +254,20 @@ export function stepAwayRunEnded(how: 'finished' | 'stopped' | 'failed'): void {
     sa.writeRunMark({ ...m, status, endedAt: m.endedAt ?? Date.now() });
     post({ type: 'ended', status });
   }
+  runOver();
+}
+
+/**
+ * The run on this page never started: its storage did not answer at its start (stores/chainSearch.ts
+ * `abandonRunStart`; review 7 Nov 2026, finding 9). Not the player's Stop, and not a crash to carry on into the same
+ * wait: its mark goes (if the start's limit has not already removed it) and nothing is marked ended.
+ */
+export function stepAwayRunNeverStarted(why: string): void {
+  if (ownMark()) stepAwayDropRunMark(why);
+  runOver();
+}
+
+function runOver(): void {
   ownStartedAt = 0;
   stopPressed = false;
   restoreBudget();
@@ -264,8 +280,22 @@ export function stepAwayPageClosing(): void {
   if (m && m.status === 'running') sa.writeRunMark({ ...m, status: 'closed', endedAt: Date.now() });
 }
 
+/** When the countdown last carried a run on (`stepAwayBeginCarryOn`), for the black box's carry-on
+ *  entry: taken once by the carry-on it started (`stepAwayTakeAutoCarryOn`). */
+let autoCarryAt = 0;
+/** How long after the countdown's carry-on the run's own start still counts as that carry-on. */
+const AUTO_CARRY_TAKE_MS = 60_000;
+
+/** Whether the carry-on starting now is the countdown's (true once, then forgotten) or a click. */
+export function stepAwayTakeAutoCarryOn(now = Date.now()): boolean {
+  const auto = autoCarryAt > 0 && now - autoCarryAt <= AUTO_CARRY_TAKE_MS;
+  autoCarryAt = 0;
+  return auto;
+}
+
 /** About to carry a crashed run on by itself: count it for the guard and take fewer workers. */
 export function stepAwayBeginCarryOn(): number | null {
+  autoCarryAt = Date.now();
   const m = sa.readRunMark();
   if (!m || !deps) return null;
   const now = Date.now();
@@ -274,6 +304,8 @@ export function stepAwayBeginCarryOn(): number | null {
   const from = deps.workerBudget.value;
   carryOnCap = Math.min(n, from);
   setBudget(carryOnCap);
+  // Safari: the next run starts here too (lib/safariWorkers.ts), so it doesn't crash the same way.
+  if (isSafari()) writeSafariCrashWorkers(carryOnCap);
   // Into the black box too, so the run's first beats say why the count is not the player's own.
   blackBox.note(`carry-on workers: ${from} -> ${deps.workerBudget.value} (the crashed run had ${m.workers || from})`);
   return deps.workerBudget.value;
@@ -287,6 +319,26 @@ export function stepAwayGiveUp(status: 'stopped' | 'stuck'): void {
     sa.writeRunMark({ ...m, status, endedAt: Date.now() });
   // A run going on this page keeps its count; only a carry-on that is not going to happen gives it back.
   if (!ownStartedAt) restoreBudget();
+}
+
+/**
+ * A run whose storage did not answer at its start or end (stores/chainSearch.ts `storageLimit`, spec-stuck3): its run
+ * mark is removed, so neither this page's next load, the watcher nor the carry-on box takes it up again (a carry-on
+ * whose restore never answers would only hang again). Only that mark: this page's own, or one no other tab's live run
+ * holds (a fresh heartbeat). True when one was removed.
+ */
+export function stepAwayDropRunMark(why: string): boolean {
+  const m = sa.readRunMark();
+  if (!m) return false;
+  if (m.startedAt !== ownStartedAt && sa.markHeldElsewhere({ mark: m, now: Date.now(), ownStartedAt, lock: 'unknown' })) return false;
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(sa.RUN_KEY);
+  } catch {
+    return false;
+  }
+  console.warn(`Removed the stored run mark (${m.kind}, ${m.status}): ${why}.`);
+  if (m.startedAt === ownStartedAt) ownStartedAt = 0;
+  return true;
 }
 
 /** The watcher page's address. */

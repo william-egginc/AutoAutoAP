@@ -24,7 +24,9 @@
  *     number. A re-run sent without a name from the same account still counts: it joins the named
  *     player's line rather than leaving the plan replaced by nothing;
  *   - the player is not behind it: a later run started at a TE 2 or more below where this plan said
- *     they would be by then (linear inside each leg; rows without legs skip this test);
+ *     they would be by then (linear inside each leg, placed by the legs' `end` when the row has them,
+ *     and through a leg's first 30% no higher than the TE it started at; rows without legs skip this
+ *     test, see `behindMark`);
  *   - it was planned within the last 30 days.
  *
  * WHO COUNTS AS THE SAME PLAYER. Phase 1 had no owner code to go on, so it used what the rows carry:
@@ -86,7 +88,9 @@
  */
 
 import { FIRST_ASCENSION_WORDS, readFirstAscensionOrNull, type FirstAscension } from '@/search/firstAscension';
+import { parseWeekWindow } from './weekWindow';
 import { finishesBefore } from './eggDayRule';
+import { inTimeStyle } from './timeStyleWords';
 
 export const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -96,6 +100,8 @@ const WHAT_IF_LEAD_MS = 12 * HOUR_MS;
 const LATER_MS = HOUR_MS;
 /** How far below the plan's own projection a later run has to be to call the plan "behind". */
 const BEHIND_TE = 2;
+/** Through this share of a leg, "behind" measures from the TE the leg started at, not the straight line. */
+const BEHIND_GRACE = 0.3;
 /** Plans older than this need a re-plan. */
 const MAX_AGE_MS = 30 * DAY_MS;
 /** Two plans are "from the same save" when their save moments agree to this. */
@@ -123,6 +129,8 @@ export interface BoardRow {
   endLocal?: string;
   timezone?: string;
   currentTE?: number;
+  /** Each egg's TE in the save the run was priced from, in the save's order (submission.ts `teByEgg`); absent on older rows. */
+  teByEgg?: number[];
   finalTE: number;
   window?: string | null;
   effort?: string;
@@ -173,6 +181,14 @@ export interface BoardRow {
   deadline?: number;
   /** Schema 8: when the route's last ascension can be made (awake hours counted), unix seconds. */
   deadlineAscendAt?: number;
+  /** By a date's Simple ('simple') or boxes ('advanced') mode, when sent. */
+  mode?: string;
+  /**
+   * The player's instant baseline (lib/instantBaseline.ts, 23 Oct 2026): the instant answer for the run's goal and
+   * save, sent only with "Share my instant baseline with my runs". The collector must keep it on the row (until then
+   * it is dropped like any unknown field, and the board shows no comparison).
+   */
+  baseline?: { chain: number[]; end: number; endTE: number; at?: number };
   /**
    * The player, exactly (phase 2): 12 hex characters of an HMAC of the sender's owner code. Only on
    * rows that carry a name AND were sent with a code, never on an anonymous row, so the board links
@@ -198,7 +214,9 @@ export interface BoardRow {
   delivery?: { artifact: string; stones?: string[] }[];
   earnings?: { artifact: string; stones?: string[] }[];
   stones?: { label: string; count: number }[];
-  legs?: { te: number; strategy?: string; days: number; peakDeliveryQph?: number }[];
+  /** `end`: days from the plan's start to the leg's end, so waits between legs show (`planPace`). Not
+   *  sent or kept by the collector yet; a row without it reads its legs back to back. */
+  legs?: { te: number; strategy?: string; days: number; peakDeliveryQph?: number; end?: number }[];
   /** Insane mode only: the space the run enumerated to prove its answer. */
   space?: {
     mode: 'bands' | 'range';
@@ -833,26 +851,76 @@ export function samePlan(earlier: BoardRow, later: BoardRow): boolean {
 }
 
 /**
- * Where `plan` said the player would be at instant `at`: linear inside each leg, starting from the
- * plan's own TE. Null when the plan has no legs or no start.
+ * Where `plan` said the player would be at instant `at`, starting from the plan's own TE, and where in
+ * its ascension that is. Null when the plan has no legs or no start.
+ *
+ * `te` rises linearly through each leg's own `days`, since the TE a row is sent with includes pending
+ * TE (startingTE.ts `rollUpPendingTE`), so it climbs inside an ascension rather than stepping at each
+ * stop. When every leg carries a sane `end` (days from the plan's start to the leg's end, the stop's
+ * moment), a leg runs over the `days` before its `end`, and the time between one leg's end and the next
+ * leg's start -- a prestige wait or time off -- holds at the TE of the stop before. Without ends the legs
+ * run back to back, so a wait reads as progress the player never planned to make.
+ *
+ * `from` is the TE the plan had at the start of the leg (or wait) holding `at`, and `into` how far
+ * through that leg's own days `at` is (0 during a wait, 1 past the last leg).
  */
-export function projectedTE(plan: BoardRow, at: number): number | null {
+export function planPace(plan: BoardRow, at: number): { te: number; from: number; into: number } | null {
   const start = startMs(plan);
   const legs = plan.legs ?? [];
   if (start == null || !legs.length || typeof plan.currentTE !== 'number') return null;
   const elapsed = (at - start) / DAY_MS;
-  if (elapsed <= 0) return plan.currentTE;
+  if (elapsed <= 0) return { te: plan.currentTE, from: plan.currentTE, into: 0 };
+  const ends = legEnds(legs);
   let prev = plan.currentTE;
   let acc = 0;
-  for (const leg of legs) {
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i];
     if (!Number.isFinite(leg.days) || !Number.isFinite(leg.te)) return null;
-    if (elapsed <= acc + leg.days) {
-      return leg.days > 0 ? prev + ((leg.te - prev) * (elapsed - acc)) / leg.days : leg.te;
+    const end = ends ? ends[i] : acc + leg.days;
+    if (elapsed <= end) {
+      const begin = end - leg.days;
+      if (elapsed <= begin) return { te: prev, from: prev, into: 0 };
+      const into = leg.days > 0 ? (elapsed - begin) / leg.days : 1;
+      return { te: leg.days > 0 ? prev + (leg.te - prev) * into : leg.te, from: prev, into };
     }
-    acc += leg.days;
+    acc = end;
     prev = leg.te;
   }
-  return plan.finalTE;
+  return { te: plan.finalTE, from: plan.finalTE, into: 1 };
+}
+
+/** Each leg's `end`, when every leg has one that fits: finite, at least its own days after the end
+ *  before it. Else null, and the legs are read back to back. */
+function legEnds(legs: NonNullable<BoardRow['legs']>): number[] | null {
+  let prev = 0;
+  const out: number[] = [];
+  for (const leg of legs) {
+    const end = leg.end;
+    if (typeof end !== 'number' || !Number.isFinite(end) || !Number.isFinite(leg.days)) return null;
+    // A thousandth of a day of slack: `days` and `end` are each rounded to 3 places when sent.
+    if (end - prev < leg.days - 0.002) return null;
+    out.push(end);
+    prev = end;
+  }
+  return out;
+}
+
+/** Where `plan` said the player would be at instant `at` (`planPace`). Null when the plan has no legs or no start. */
+export function projectedTE(plan: BoardRow, at: number): number | null {
+  return planPace(plan, at)?.te ?? null;
+}
+
+/**
+ * The TE below which (by `BEHIND_TE`) a run at `at` shows the player behind `plan`, or null when the
+ * plan cannot say. Through the first `BEHIND_GRACE` of a leg it is the TE the plan had when the leg
+ * began, not the straight line: an ascension earns slowly at first and fast at the end, so the line
+ * runs ahead of an on-schedule player early on (65 of 98 false flags in a 62-day replay of the live race
+ * fell in the first 30% of a leg). A player short of the stop the plan already made is still behind.
+ */
+function behindMark(plan: BoardRow, at: number): number | null {
+  const pace = planPace(plan, at);
+  if (!pace) return null;
+  return pace.into < BEHIND_GRACE ? pace.from : pace.te;
 }
 
 /** When the save the plan was made from was taken: its start minus how stale the save was. */
@@ -933,10 +1001,12 @@ const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 /** A date in the plan's own zone, falling back to UTC for an unknown zone. */
 export function formatDate(ms: number | null, timezone: string | undefined, opts: Intl.DateTimeFormatOptions): string {
   if (ms == null || !Number.isFinite(ms)) return '—';
-  // Players read times as 12-hour with am/pm, whatever the browser's locale.
-  if (opts.hour || opts.timeStyle) {
+  // Players read times as 12-hour, "9:00 AM" with the minutes (lib/timeStyleWords.ts), whatever the browser's locale.
+  const timed = !!(opts.hour || opts.timeStyle);
+  if (timed) {
     opts = { ...opts, hour12: true };
     if (opts.hour === '2-digit') opts.hour = 'numeric';
+    if (opts.hour && !opts.minute) opts.minute = '2-digit';
   }
   const key = `${timezone || 'UTC'}|${JSON.stringify(opts)}`;
   let f = dateFormatters.get(key);
@@ -948,7 +1018,8 @@ export function formatDate(ms: number | null, timezone: string | undefined, opts
     }
     dateFormatters.set(key, f);
   }
-  return f.format(new Date(ms));
+  const text = f.format(new Date(ms));
+  return timed ? inTimeStyle(text) : text;
 }
 
 /** Start more than 12 h after the send: "what if I started on 23 Nov". The send is the collector's
@@ -1143,7 +1214,7 @@ export function assessPlans<T extends BoardRow>(
     if (!e) return null;
     const low = whatIf.get(e);
     if (low) {
-      const which = low.start === e.start ? 'a run from the same plan start was at' : 'a later run started at';
+      const which = low.start === e.start ? 'a run from the same route start was at' : 'a later run started at';
       return { state: 'what-if', reason: `what-if: planned from TE ${e.te}, ${which} TE ${low.te}` };
     }
     const top = oldSave.get(e);
@@ -1176,7 +1247,7 @@ export function assessPlans<T extends BoardRow>(
   for (const p of plans) {
     if (p.start == null || p.finish == null) {
       p.state = 'no-date';
-      p.reason = 'no finish date (the plan start or timezone is missing)';
+      p.reason = 'no finish date (the route start or timezone is missing)';
       continue;
     }
     const off = offHistory(p.folded, p.start);
@@ -1200,7 +1271,7 @@ export function assessPlans<T extends BoardRow>(
       const when = dayOf(remeasure.start, remeasure.row);
       p.reason = remeasure.row.recheckOf
         ? `re-checked by a newer run (${when}), which priced it again from its own save`
-        : `replaced by a newer run of the same plan (${when})`;
+        : `replaced by a newer run of the same route (${when})`;
       p.replacedBy = byFolded.get(remeasure.f);
       continue;
     }
@@ -1209,12 +1280,13 @@ export function assessPlans<T extends BoardRow>(
     const newest = real.length ? real[real.length - 1] : null;
     for (const e of later) {
       const projected = projectedTE(p.row, e.start);
-      if (projected == null || e.te == null) continue;
+      const mark = behindMark(p.row, e.start);
+      if (projected == null || mark == null || e.te == null) continue;
       last = { te: e.te, projected, at: e.start };
       // The newest run that shows it wins the wording: it is the closest to "where you are now".
-      if (e.te <= projected - BEHIND_TE) {
+      if (e.te <= mark - BEHIND_TE) {
         const when = e === newest ? 'now' : `on ${dayOf(e.start, e.row)}`;
-        behind = `behind: at TE ${e.te} ${when}, the plan said ${projected.toFixed(1)}`;
+        behind = `behind: at TE ${e.te} ${when}, the route said ${mark.toFixed(1)}`;
       }
     }
     p.progress = last;
@@ -1504,8 +1576,9 @@ export function deadlineOrder(a: BoardRow, b: BoardRow): number {
  * "The highest TE by this date", grouped by date, soonest first (a date that has passed goes after
  * the ones still ahead).
  *
- * One line per player per date, by the same identity the race uses (`fileRows`/`playerKey`), with
- * their best answer: the highest last stop reached in time, then the most time to spare. Answers
+ * One line per player per date, by the same identity the race uses (`fileRows`/`playerKey`, owner
+ * codes joined by `ownerGroups` over every row sent, lines left under a shared name told apart by
+ * `tellApart`), with their best answer: the highest last stop reached in time, then the most time to spare. Answers
  * from the same deadline on different saves compete as the race's plans do -- by what they reach by
  * the same instant, which, unlike days, IS comparable across plan starts.
  *
@@ -1548,8 +1621,22 @@ export function buildDeadlineBoard<T extends BoardRow>(
       isDeadlineRow(r) &&
       !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1)
   );
-  // Identity from every answer; the filter only decides which answers are ranked.
-  const filing = fileRows(usable);
+  // Identity from every row sent, runs to a target too; the filter only decides which answers are
+  // ranked. One player's owner codes are one line, as in the race (`ownerGroups`): a player who sent
+  // from three browsers, or renamed one run, was three or four lines here, and "Nth of M" counted
+  // each (review 15 Nov 2026, LB-1).
+  const history = rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length && !r.hidden);
+  const filing = fileRows(history);
+  const groups = ownerGroups(history, { filing });
+  const lineOf = new Map<string, string>();
+  const rootsOfLine = new Map<string, Set<string>>();
+  const firstOf = new Map<string, number>();
+  for (const { lead, members } of groups) {
+    for (const m of members) lineOf.set(m.key, lead.key);
+    rootsOfLine.set(lead.key, new Set(members.flatMap(m => [...m.roots])));
+    firstOf.set(lead.key, lead.first);
+  }
+  const heirs = new Set([...filing.heirs.values()].map(a => `acct:${a}`));
   const byDate = new Map<number, T[]>();
   for (const r of usable) {
     if (!inDeadlineFilter(r, opts.filter) || !madeDeadline(r)) continue;
@@ -1559,12 +1646,13 @@ export function buildDeadlineBoard<T extends BoardRow>(
   }
   const spareOf = deadlineSpare;
   const better = deadlineOrder;
-  const groups: DeadlineGroup<T>[] = [];
+  const boards: DeadlineGroup<T>[] = [];
   for (const [deadline, list] of byDate) {
     const players = new Map<string, T[]>();
     const anonymous: DeadlineEntry<T>[] = [];
     for (const r of list) {
-      const key = playerKey(filing, r);
+      const own = playerKey(filing, r);
+      const key = lineOf.get(own) ?? own;
       if (!key) {
         anonymous.push({
           key: '',
@@ -1583,21 +1671,30 @@ export function buildDeadlineBoard<T extends BoardRow>(
     const entries = [...players].map(([key, rs]) => {
       const sorted = [...rs].sort(better);
       const newest = [...rs].sort((a, b) => (sentMs(b) ?? 0) - (sentMs(a) ?? 0))[0];
+      let label = displayName(newest.nickname, newest.timezone);
+      // As in the race: a name an owner code sends under, used since without one.
+      if (isNoCodeLine(filing, key)) label = `${label} (no code)`;
       return {
         key,
-        label: displayName(newest.nickname, newest.timezone),
+        label,
         best: sorted[0],
         te: sorted[0].finalTE,
         spare: spareOf(sorted[0]),
         others: sorted.slice(1),
       };
     });
+    tellApart(
+      entries,
+      heirs,
+      e => rootsOfLine.get(e.key),
+      e => firstOf.get(e.key) ?? Math.min(...[e.best, ...e.others].map(r => sentMs(r) ?? Infinity))
+    );
     entries.sort((a, b) => better(a.best, b.best) || a.label.localeCompare(b.label));
     anonymous.sort((a, b) => better(a.best, b.best));
-    groups.push({ deadline, entries: entries.map((e, i) => ({ ...e, rank: i + 1 })), anonymous });
+    boards.push({ deadline, entries: entries.map((e, i) => ({ ...e, rank: i + 1 })), anonymous });
   }
   const nowS = opts.now / 1000;
-  return groups.sort((a, b) => {
+  return boards.sort((a, b) => {
     const pa = a.deadline < nowS;
     const pb = b.deadline < nowS;
     return pa !== pb ? (pa ? 1 : -1) : pa ? b.deadline - a.deadline : a.deadline - b.deadline;
@@ -1887,26 +1984,187 @@ export function buildRace<T extends BoardRow>(rows: readonly T[], opts: RankOpti
 }
 
 /** A run's start and TE, for telling whether two owner lines' TE histories fit together. */
-interface TEPoint {
+export interface TEPoint {
   start: number;
   te: number;
 }
 
+/** One owner code as `ownerGroups` sees it, from every row filed under it. */
+export interface OwnerInfo {
+  /** `acct:<code>`. */
+  key: string;
+  /** The root of the name it sent under most recently ('' for none). */
+  root: string;
+  /** Every name root it ever sent under. */
+  roots: Set<string>;
+  /** Every timezone and artifact set it sent from (`accountKeyOf`). */
+  accounts: Set<string>;
+  /** The TE each of its runs started from (`teHistory`). */
+  history: TEPoint[];
+  /** When it first sent a named run. */
+  first: number;
+}
+
+/** Owner codes that are one player: `lead` (whose key and name the line keeps) first in `members`. */
+export interface OwnerGroup {
+  lead: OwnerInfo;
+  members: OwnerInfo[];
+}
+
+/** Rows by `playerKey`, anonymous rows left out. */
+function fileByPlayer<T extends BoardRow>(rows: readonly T[], filing: Filing): Map<string, T[]> {
+  const filed = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = playerKey(filing, r);
+    if (!k) continue;
+    const g = filed.get(k);
+    if (g) g.push(r);
+    else filed.set(k, [r]);
+  }
+  return filed;
+}
+
+/** The TE each run started from, leaving out runs that say of themselves they are what-ifs. */
+function teHistory(mine: readonly BoardRow[]): TEPoint[] {
+  const history: TEPoint[] = [];
+  for (const r of mine) {
+    const start = startMs(r);
+    const te = r.currentTE;
+    if (start == null || typeof te !== 'number' || !Number.isFinite(te) || futureStart(r) || selfWhatIf(r)) continue;
+    history.push({ start, te });
+  }
+  return history;
+}
+
+/** Does `a` hold a run started more than an hour after one of `b`'s, from more than 1 TE lower? */
+function teClash(a: readonly TEPoint[], b: readonly TEPoint[]): boolean {
+  return a.some(x => b.some(y => x.start > y.start + LATER_MS && x.te < y.te - 1));
+}
+
 /**
- * One place per player, however many browsers they sent from.
+ * Which owner codes are one player, however many browsers they sent from.
  *
- * Owner codes are per browser, so one player on two devices is two `acct:` lines under the same name.
- * Two owner lines are joined when ALL of these hold:
- *   - the names they are called by now have the same root (`nameRoots`, as the line labels are made);
+ * Owner codes are per browser, so one player on two devices is two `acct:` lines. Two codes are one
+ * player when ALL of these hold:
+ *   - the names they sent under share a root (`nameRoots`), over EVERY named run each sent, so a
+ *     one-run rename in one browser (a name with one letter added, review 15 Nov 2026,
+ *     L3) does not split the player: the old name is still among that code's runs;
  *   - they share a timezone and artifact set (`accountKeyOf`) -- the same test that keeps "Kenzie Alt"
  *     apart from Kenzie;
  *   - their TE histories fit together: no run of one starts more than an hour after a run of the other
  *     from more than 1 TE lower (the what-if rule, across the two). A stranger dressed as the player
- *     from another TE is kept apart by this.
+ *     from another TE, or an alt save sent under the main name, is kept apart by this.
+ * Every member of a group fits every other (no chains through a third code).
+ *
+ * `rows` is the history the codes are judged on: every row the board has, at any target and By a
+ * date too. `keys` limits the codes grouped (the race groups only codes with plans at its target);
+ * by default every owner code in `rows`. Codes are taken first-sent first; a group's lead is the code
+ * first seen under the first code's newest name (the heir, `fileRows`), so a later code can neither
+ * rename nor re-key the line.
+ */
+export function ownerGroups<T extends BoardRow>(
+  rows: readonly T[],
+  opts: { keys?: readonly string[]; filing?: Filing } = {}
+): OwnerGroup[] {
+  const filing = opts.filing ?? fileRows(rows);
+  const filed = fileByPlayer(rows, filing);
+  const keys = opts.keys ?? [...filed.keys()].filter(k => k.startsWith('acct:'));
+  const owners: OwnerInfo[] = keys.map(key => {
+    const mine = filed.get(key) ?? [];
+    const owned = mine.filter(r => r.acct && r.nickname?.trim());
+    const newest = owned.reduce<T | null>(
+      (a, b) => (a && (sentMs(a) ?? -Infinity) >= (sentMs(b) ?? -Infinity) ? a : b),
+      null
+    );
+    return {
+      key,
+      root: newest ? rootKey(filing.roots, newest.nickname) : '',
+      roots: new Set(owned.map(r => rootKey(filing.roots, r.nickname)).filter(Boolean)),
+      accounts: new Set(mine.map(r => accountKeyOf(r))),
+      history: teHistory(mine),
+      first: Math.min(...owned.map(r => sentMs(r) ?? Infinity), Infinity),
+    };
+  });
+  const fits = (a: OwnerInfo, b: OwnerInfo) =>
+    [...a.roots].some(k => b.roots.has(k)) &&
+    [...a.accounts].some(k => b.accounts.has(k)) &&
+    !teClash(a.history, b.history) &&
+    !teClash(b.history, a.history);
+  const groups: OwnerInfo[][] = [];
+  for (const o of [...owners].sort((a, b) => a.first - b.first)) {
+    const home = groups.find(g => g.every(m => fits(m, o)));
+    if (home) home.push(o);
+    else groups.push([o]);
+  }
+  return groups.map(group => {
+    const heir = filing.heirs.get(group[0].root);
+    const lead = group.find(m => m.key === `acct:${heir}`) ?? group[0];
+    return { lead, members: [lead, ...group.filter(m => m !== lead)] };
+  });
+}
+
+/**
+ * No two lines read the same. Lines called the same, and owner lines whose codes sent under a shared
+ * name root (`roots`; an alt save kept apart from the player whose name it was sent under, while the
+ * player's line took a renamed name), are told apart: the name stays with the code first seen under
+ * it (the heir), then with the first owner line to send; a line without a code comes last. The others
+ * read "(other code)", or "(2)" for a line without a code.
+ */
+function tellApart<L extends { key: string; label: string }>(
+  lines: readonly L[],
+  heirs: ReadonlySet<string>,
+  rootsOf: (line: L) => ReadonlySet<string> | undefined,
+  firstOf: (line: L) => number
+): void {
+  const parent = lines.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const join = (a: number, b: number) => {
+    parent[find(a)] = find(b);
+  };
+  const byLabel = new Map<string, number>();
+  const byRoot = new Map<string, number>();
+  lines.forEach((line, i) => {
+    const held = byLabel.get(line.label);
+    if (held === undefined) byLabel.set(line.label, i);
+    else join(i, held);
+    if (!line.key.startsWith('acct:')) return;
+    for (const root of rootsOf(line) ?? []) {
+      const r = byRoot.get(root);
+      if (r === undefined) byRoot.set(root, i);
+      else join(i, r);
+    }
+  });
+  const clusters = new Map<number, L[]>();
+  lines.forEach((line, i) => {
+    const c = find(i);
+    const g = clusters.get(c);
+    if (g) g.push(line);
+    else clusters.set(c, [line]);
+  });
+  for (const same of clusters.values()) {
+    if (same.length < 2) continue;
+    const order = same
+      .map(line => ({
+        line,
+        rank: heirs.has(line.key) ? 0 : line.key.startsWith('acct:') ? 1 : 2,
+        first: firstOf(line),
+      }))
+      .sort((a, b) => a.rank - b.rank || a.first - b.first);
+    let codes = 0;
+    let others = 1;
+    for (const { line } of order.slice(1)) {
+      if (line.key.startsWith('acct:')) line.label += ` (other code${++codes > 1 ? ` ${codes}` : ''})`;
+      else line.label += ` (${++others})`;
+    }
+  }
+}
+
+/**
+ * One place per player, however many browsers they sent from: owner lines are joined as
+ * `ownerGroups` says, over the race's rows.
  *
  * The joined line is summarised again from both lines' plans, each already judged by its own code's
- * rows alone, so nothing a join adds can drop a plan. It keeps the key and name of the code first seen
- * under the name (the heir, `fileRows`), so a later code can neither rename nor re-key it.
+ * rows alone, so nothing a join adds can drop a plan. It keeps the key and name of the group's lead.
  *
  * A CODE-LESS LINE UNDER AN OWNER'S NAME -- the name's runs sent without a code since the collector
  * stamped rows, "(no code)" -- is folded into the line of the code first seen under that name, when
@@ -1919,95 +2177,43 @@ interface TEPoint {
  * that does not fit, or whose owner has no plan that counts (folding it would cost it its place and
  * gain nobody anything), stays a line of its own, as before.
  *
- * Any lines still called the same after that -- two codes under one name whose runs do not fit -- are
- * told apart: the first seen keeps the name, the others read "(other code)".
+ * Any lines still called the same after that, or owner lines left apart under a shared name, are told
+ * apart (`tellApart`).
  */
 function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], rows: readonly T[]): RaceLine<T>[] {
   const filing = fileRows(rows);
-  const filed = new Map<string, T[]>();
-  for (const r of rows) {
-    const k = playerKey(filing, r);
-    if (!k) continue;
-    const g = filed.get(k);
-    if (g) g.push(r);
-    else filed.set(k, [r]);
-  }
+  const filed = fileByPlayer(rows, filing);
   const firstSent = (p: PlayerPlans<T>) =>
     Math.min(...p.plans.flatMap(x => x.folded.copies.map(c => sentMs(c) ?? Infinity)), Infinity);
-  /** The TE each run started from, leaving out runs that say of themselves they are what-ifs. */
-  const historyOf = (mine: readonly T[]): TEPoint[] => {
-    const history: TEPoint[] = [];
-    for (const r of mine) {
-      const start = startMs(r);
-      const te = r.currentTE;
-      if (start == null || typeof te !== 'number' || !Number.isFinite(te) || futureStart(r) || selfWhatIf(r)) continue;
-      history.push({ start, te });
-    }
-    return history;
-  };
 
-  interface Owner {
-    player: PlayerPlans<T>;
-    root: string;
-    accounts: Set<string>;
-    history: TEPoint[];
-    first: number;
-  }
-  const owners: Owner[] = [];
   const out: RaceLine<T>[] = [];
   /** Lines under a name an owner code sends under, sent without one: the "(no code)" lines. */
   const codeless: PlayerPlans<T>[] = [];
+  const ownerLines = new Map<string, PlayerPlans<T>>();
   for (const player of players) {
     if (!player.key.startsWith('acct:')) {
       if (isNoCodeLine(filing, player.key)) codeless.push(player);
       else out.push({ ...player, lines: [player.key] });
       continue;
     }
-    const mine = filed.get(player.key) ?? [];
-    const owned = mine.filter(r => r.acct && r.nickname?.trim());
-    const newest = owned.reduce<T | null>(
-      (a, b) => (a && (sentMs(a) ?? -Infinity) >= (sentMs(b) ?? -Infinity) ? a : b),
-      null
-    );
-    owners.push({
-      player,
-      root: newest ? rootKey(filing.roots, newest.nickname) : '',
-      accounts: new Set(mine.map(r => accountKeyOf(r))),
-      history: historyOf(mine),
-      first: Math.min(...owned.map(r => sentMs(r) ?? Infinity), Infinity),
-    });
+    ownerLines.set(player.key, player);
   }
+  const groups = ownerGroups(rows, { keys: [...ownerLines.keys()], filing });
 
-  const clash = (a: TEPoint[], b: TEPoint[]) =>
-    a.some(x => b.some(y => x.start > y.start + LATER_MS && x.te < y.te - 1));
-  const fits = (a: Owner, b: Owner) =>
-    !!a.root &&
-    a.root === b.root &&
-    [...a.accounts].some(k => b.accounts.has(k)) &&
-    !clash(a.history, b.history) &&
-    !clash(b.history, a.history);
-  const groups: Owner[][] = [];
-  for (const o of [...owners].sort((a, b) => a.first - b.first)) {
-    const home = groups.find(g => g.every(m => fits(m, o)));
-    if (home) home.push(o);
-    else groups.push([o]);
-  }
-  const joined: { line: RaceLine<T>; members: Owner[]; folded: PlayerPlans<T>[] }[] = [];
-  for (const group of groups) {
-    const heir = filing.heirs.get(group[0].root);
-    const lead = group.find(m => m.player.key === `acct:${heir}`) ?? group[0];
-    const members = [lead, ...group.filter(m => m !== lead)];
+  const joined: { line: RaceLine<T>; members: OwnerInfo[]; folded: PlayerPlans<T>[] }[] = [];
+  for (const { lead, members } of groups) {
+    const leadPlayer = ownerLines.get(lead.key)!;
     const line: RaceLine<T> =
       members.length === 1
-        ? { ...lead.player, lines: [lead.player.key] }
+        ? { ...leadPlayer, lines: [lead.key] }
         : {
             ...summarise(
-              lead.player.key,
-              lead.player.label,
+              lead.key,
+              leadPlayer.label,
               true,
-              members.flatMap(m => m.player.plans)
+              members.flatMap(m => ownerLines.get(m.key)!.plans)
             ),
-            lines: members.map(m => m.player.key),
+            lines: members.map(m => m.key),
           };
     joined.push({ line, members, folded: [] });
   }
@@ -2015,25 +2221,27 @@ function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], ro
   // The "(no code)" lines: into the line of the code first seen under the name, when they fit it.
   for (const nc of codeless) {
     const heirKey = `acct:${filing.heirs.get(nc.key.slice('name:'.length))}`;
-    const home = joined.find(j => j.members.some(m => m.player.key === heirKey));
+    const home = joined.find(j => j.members.some(m => m.key === heirKey));
     const mine = filed.get(nc.key) ?? [];
     const accounts = new Set(mine.map(r => accountKeyOf(r)));
-    const history = historyOf(mine);
+    const history = teHistory(mine);
     const fold =
       !!home?.line.best &&
       accounts.size > 0 &&
       [...accounts].every(k => home.members.some(m => m.accounts.has(k))) &&
-      home.members.every(m => !clash(m.history, history) && !clash(history, m.history));
+      home.members.every(m => !teClash(m.history, history) && !teClash(history, m.history));
     if (fold) home!.folded.push(nc);
     else out.push({ ...nc, lines: [nc.key] });
   }
+  const rootsOfLine = new Map<string, Set<string>>();
   for (const { line, members, folded } of joined) {
+    rootsOfLine.set(line.key, new Set(members.flatMap(m => [...m.roots])));
     if (!folded.length) {
       out.push(line);
       continue;
     }
     const noCode: ReadonlySet<Plan<T>> = new Set(folded.flatMap(nc => nc.plans));
-    const own = members.flatMap(m => m.player.plans);
+    const own = members.flatMap(m => ownerLines.get(m.key)!.plans);
     out.push({
       ...summarise(line.key, line.label, true, [...own, ...noCode], noCode),
       lines: [...line.lines, ...folded.map(nc => nc.key)],
@@ -2041,32 +2249,14 @@ function joinBrowsers<T extends BoardRow>(players: readonly PlayerPlans<T>[], ro
     });
   }
 
-  // No two lines read the same. The name stays with the code first seen under it (the heir), then with
-  // the first owner line to send, over every target; a line without a code comes last.
   const heirs = new Set([...filing.heirs.values()].map(a => `acct:${a}`));
-  const firstOf = new Map(owners.map(o => [o.player.key, o.first]));
-  const byLabel = new Map<string, RaceLine<T>[]>();
-  for (const line of out) {
-    const g = byLabel.get(line.label);
-    if (g) g.push(line);
-    else byLabel.set(line.label, [line]);
-  }
-  for (const same of byLabel.values()) {
-    if (same.length < 2) continue;
-    const order = same
-      .map(line => ({
-        line,
-        rank: heirs.has(line.key) ? 0 : line.key.startsWith('acct:') ? 1 : 2,
-        first: firstOf.get(line.key) ?? firstSent(line),
-      }))
-      .sort((a, b) => a.rank - b.rank || a.first - b.first);
-    let codes = 0;
-    let others = 1;
-    for (const { line } of order.slice(1)) {
-      if (line.key.startsWith('acct:')) line.label += ` (other code${++codes > 1 ? ` ${codes}` : ''})`;
-      else line.label += ` (${++others})`;
-    }
-  }
+  const firstOf = new Map(groups.flatMap(g => g.members.map(m => [m.key, m.first] as const)));
+  tellApart(
+    out,
+    heirs,
+    line => rootsOfLine.get(line.key),
+    line => firstOf.get(line.key) ?? firstSent(line)
+  );
   return out;
 }
 
@@ -2170,7 +2360,7 @@ export function finishDateText(finish: number | null, timezone: string | undefin
 /** The full local finish and its zone, for a tooltip. */
 export function finishTitle(finish: number | null, timezone: string | undefined): string {
   const text = formatDate(finish, timezone, { dateStyle: 'medium', timeStyle: 'short' });
-  return text === '—' ? 'No finish date: the plan start or timezone is missing' : `${text}, ${timezone || 'UTC'} time`;
+  return text === '—' ? 'No finish date: the route start or timezone is missing' : `${text}, ${timezone || 'UTC'} time`;
 }
 
 /** The calendar day `ms` falls on in `timezone` (UTC for an unknown zone), as a day count. */
@@ -2237,7 +2427,7 @@ export function plannedText(plan: Plan, { zone, brief = false }: { zone?: string
   }
   if (plan.state === 'current' && plan.progress) {
     parts.push(
-      brief ? 'on track' : `on track (TE ${plan.progress.te}, plan said ${plan.progress.projected.toFixed(1)})`
+      brief ? 'on track' : `on track (TE ${plan.progress.te}, route said ${plan.progress.projected.toFixed(1)})`
     );
   }
   return parts.join(' · ');
@@ -2248,8 +2438,12 @@ export function plannedText(plan: Plan, { zone, brief = false }: { zone?: string
  * which the full text (for a tooltip) still names; the zone made the cell wrap. `none` for no
  * schedule.
  */
+/** What a player reads for a week that is not one daily window (Words, 21 Nov). */
+export const CUSTOM_WEEK_HOURS = 'Custom weekly hours';
+
 export function scheduleText(window: string | null | undefined, none = 'any time'): string {
   if (!window) return none;
+  if (parseWeekWindow(window)) return CUSTOM_WEEK_HOURS; // R10: never print the wk: code
   return window.replace(/\s+[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)+\s*$/, '').trim() || window;
 }
 
@@ -2371,14 +2565,14 @@ function tagLookAlikes<T extends BoardRow>(g: readonly T[], out: Map<T, string[]
 export function settingTagTitle(tag: string): string {
   if (tag.startsWith('starts ')) {
     return (
-      'When this plan starts. Another run of this route to this target, from the same save and with the same ' +
-      'settings, starts at a different time. A different start shifts every leg and the finish.'
+      'When this route starts. Another run of this route to this target, from the same save and with the same ' +
+      'settings, starts at a different time. A different start shifts every ascension and the finish.'
     );
   }
   if (tag === 'finishes current run first' || tag === 'prestiges now') {
-    return 'Whether the first ascension finishes the run already under way or prestiges straight away. A look-alike of this plan from the same save was planned the other way.';
+    return 'Whether the first ascension finishes the run already under way or prestiges straight away. A look-alike of this route from the same save was planned the other way.';
   }
-  return 'Whether shifts are held. A look-alike of this plan from the same save was planned the other way.';
+  return 'Whether shifts are held. A look-alike of this route from the same save was planned the other way.';
 }
 
 /** What one copy of a result was found with, as the Effort column and the run detail show it:
@@ -2400,9 +2594,9 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
         : r.mode === 'advanced' || r.simple === false
           ? NAME_EXHAUSTIVE
           : null;
-    // A Nearby routes answer that records its level (15 Oct 2026): "Nearby routes · Exact".
-    const tier = mode === NAME_AROUND && row.level ? TIER_NAMES[row.level] : undefined;
-    if (tier) return `${NAME_AROUND} · ${tier}`;
+    // A Fast or Exact answer that records its level (15 Oct 2026): "Exact".
+    const tier = mode === NAME_AROUND && row.level && Object.hasOwn(TIER_NAMES, row.level) ? TIER_NAMES[row.level] : undefined;
+    if (tier) return tier;
     return mode ?? (row.effort || 'unknown');
   }
   return effortText(row.effort);
@@ -2410,21 +2604,21 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
 
 /** The two ways to search as the board names them (decision A, 12 Oct 2026: they were Simple and
  *  Advanced). Short, for the Effort column. */
-const NAME_AROUND = 'Nearby routes';
-const NAME_EXHAUSTIVE = 'Exhaustive';
+const NAME_AROUND = 'Fast or Exact';
+const NAME_EXHAUSTIVE = 'Custom';
 /** What was the Stronger check's Light level (no longer named to players, 22 Oct 2026): the instant answer's
  *  routes priced at once and your earlier routes, after Check exactly. */
-const NAME_LIGHT = 'Checked at once';
+const NAME_LIGHT = 'Instant Answer';
 
 /** A sent effort tier's name on the planner's slider. */
-const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };
+const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', balanced: 'Balanced (retired)' };
 
 /** A sent effort tier for display: Smart search is "Simple". Rows sent before Balanced was retired
  *  still say 'balanced'. A tier this build does not know is shown as sent. */
 export function effortText(effort: string | undefined): string {
   if (!effort) return 'unknown';
-  const name = TIER_NAMES[effort];
-  return name ? `${NAME_AROUND} · ${name}` : effort;
+  // Own keys only: `constructor` or `toString` read through the prototype would show native code (code review round 2, C6.7).
+  return Object.hasOwn(TIER_NAMES, effort) ? TIER_NAMES[effort] : effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

@@ -1,5 +1,5 @@
 /**
- * "Add to calendar" on My runs' events (Jordan, 17 Oct 2026): a shift or a prestige from the saved plan as a
+ * "Add to calendar" on My Runs' events (Jordan, 17 Oct 2026): a shift or a prestige from the saved plan as a
  * calendar event, built in this browser and handed to the player, nothing sent anywhere. Two ways: an .ics file
  * (Apple Calendar, Outlook, and Google Calendar's import), with a 10-minute alert, and a Google Calendar link that
  * opens its "new event" page filled in.
@@ -31,7 +31,7 @@ const DEFAULT_MINUTES = 15;
 
 /** Anything shaped like a player ID (EI and 16 digits) taken out. */
 export function scrub(text: string): string {
-  return text.replace(/EI\d{16}/g, '[id]');
+  return text.replace(/EI\d{16}/gi, '[id]');
 }
 
 /** RFC 5545 TEXT escaping. */
@@ -79,7 +79,7 @@ export function eventUid(e: Pick<CalEvent, 'at' | 'title'>): string {
 
 /** The whole .ics for `events`. `stampMs`: when it was made (DTSTAMP). */
 export function icsText(events: readonly CalEvent[], stampMs: number): string {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//My runs//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ascension planner//My Runs//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   for (const e of events) {
     lines.push(
       'BEGIN:VEVENT',
@@ -151,8 +151,8 @@ export function planCalEvent(
     at: e.at,
     title: `${title} (Egg, Inc.)`,
     description:
-      `${title}, as your virtue plan has it.${ctx.following ? `\n${ctx.following}.\n` : ' '}` +
-      `From your save of ${ctx.saveWhen}; plan calculated ${ctx.calculatedWhen}. ` +
-      'If the plan changes, add it again after a new check. Made on your device by the ascension planner; nothing was sent.',
+      `${title}, as your virtue route has it.${ctx.following ? `\n${ctx.following}.\n` : ' '}` +
+      `From your save of ${ctx.saveWhen}; route calculated ${ctx.calculatedWhen}. ` +
+      'If the route changes, add it again after a new check. Made on your device by the ascension planner; nothing was sent.',
   };
 }

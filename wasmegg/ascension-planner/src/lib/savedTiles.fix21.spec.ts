@@ -1,5 +1,5 @@
 /**
- * Which answer heads My runs' Egg Day tile (fix 21). On beta the main account's tile showed 197 230 276 310
+ * Which answer heads My Runs' Egg Day tile (fix 21). On beta the main account's tile showed 197 230 276 310
  * (310 TE, 3.2 d to spare, Exhaustive, from the loaded save) over 197 230 276 311 (311 TE, 30.2 h to spare, sent
  * the same day): the 311's save time, worked out from its plan start less its rounded save age, fell a few minutes
  * outside the 10-minute "same save" window, so only the 310 competed. The rule now, in plain words:
@@ -19,7 +19,7 @@ import { CURRENT_SAVE_SECONDS, buildTile, saveGapWords, type SavedDateAnswer, ty
 const ZONE = 'America/Denver';
 const H = 3600;
 const EGG_DAY = 1_815_580_800;
-/** The loaded save: Oct 15 at 2:40 pm (Denver). */
+/** The loaded save: Oct 15 at 2:40 PM (Denver). */
 const SAVE_AT = Date.parse('2026-10-15T20:40:00Z') / 1000;
 const NOW_MS = Date.parse('2026-10-16T03:00:00Z');
 
@@ -102,7 +102,7 @@ describe('the Egg Day tile: the most TE among current answers', () => {
     expect(tile.saveGapSeconds).toBe(-240);
     expect(saveGapWords(tile.saveGapSeconds!)).toBe('4 min older than the one loaded');
     const t = await render(tile);
-    expect(t).toContain('from your save of Oct 15 at 2:36 pm, 4 min older than the one loaded');
+    expect(t).toContain('from your save of Oct 15 at 2:36 PM, 4 min older than the one loaded');
     expect(t).not.toContain('Older save than the one you loaded');
     // The 311's save is current, so the TE hasn't "moved".
     expect(tile.sure?.reason).not.toBe('your TE has moved since');
@@ -113,7 +113,7 @@ describe('the Egg Day tile: the most TE among current answers', () => {
     expect(tile.answer?.endTE).toBe(310);
     expect(tile.saveGapSeconds).toBeNull();
     const t = await render(tile);
-    expect(t).toContain('from your save of Oct 15 at 2:40 pm ·');
+    expect(t).toContain('from your save of Oct 15 at 2:40 PM ·');
     expect(t).not.toContain('than the one loaded');
   });
 

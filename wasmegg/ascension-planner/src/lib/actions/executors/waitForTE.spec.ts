@@ -127,6 +127,7 @@ describe('Bulk Wait for TE on the same fresh farm', () => {
     );
     expect(text).toContain('Lower the number or build up the farm first.');
     expect(text).not.toContain('Invalid Date');
-    expect(html).toMatch(/<button[^>]*\sdisabled[\s>=][^>]*>\s*Apply Bulk TE Plan/);
+    // `disabled` may be the tag's last attribute (no scoped style, so no data-v after it since 26 Oct 2026).
+    expect(html).toMatch(/<button[^>]*\sdisabled(?=[\s>=])[^>]*>\s*Apply Bulk TE Plan/);
   });
 });

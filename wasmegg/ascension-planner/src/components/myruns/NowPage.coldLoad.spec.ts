@@ -1,5 +1,5 @@
 /**
- * My runs on a cold page load (fix 20). The first account shown after a load said "No save loaded" over the
+ * My Runs on a cold page load (fix 20). The first account shown after a load said "No save loaded" over the
  * draft's egg and TE: App.onMounted restores the Manual planner's draft into the initial-state store
  * (initPersistence -> importPlan -> hydrate: `lastBackupTime` 0, the TE and egg of whenever that plan was made)
  * and puts the last fetched save beside it (`rawBackup`); nothing loaded the save itself. Here the store goes
@@ -18,7 +18,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
-import { redactBackupForStorage } from '@/lib/artifacts/utils';
+import { redactBackupForStorage } from 'lib/planners/artifacts/utils';
 import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -46,6 +46,8 @@ function save(): ReturnType<typeof syntheticBackup> {
   const t = Math.floor(Date.now() / 1000) - 2 * H;
   b.settings.lastBackupTime = t;
   b.approxTime = t;
+  // Its virtue farm ran when it was taken (the save-age banner reads both clocks, spec-saveage).
+  for (const f of b.farms ?? []) if (f.lastStepTime) f.lastStepTime = t;
   resolveColleggtibleContracts(b);
   return markRaw(b);
 }
@@ -69,7 +71,7 @@ function loadSave(backup: ReturnType<typeof syntheticBackup>): void {
   rollUpPendingTE();
 }
 
-describe('My runs on a cold load', () => {
+describe('My Runs on a cold load', () => {
   it('the strip, the card and the tiles follow the save as it arrives (one page, no re-mount)', async () => {
     const backup = save();
     const eggDayAt = eggDaySeconds(nextEggDayYear());
@@ -99,7 +101,7 @@ describe('My runs on a cold load', () => {
 
     // 2. The draft and the stored save: the strip reads the save; nothing else shows the draft's state.
     restoreDraft(backup);
-    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2 hours ago\)\.$/);
+    expect(page.strip.value?.headline).toMatch(/^Your save is from .+, 2h ago$/);
     expect(page.saveWaiting.value).toBe(true);
     expect(page.hasSave.value).toBe(false);
     expect(page.currentEgg.value).toBeNull(); // never the draft's Integrity
@@ -110,7 +112,7 @@ describe('My runs on a cold load', () => {
     expect(page.hasSave.value).toBe(true);
     expect(page.saveWaiting.value).toBe(false);
     expect(page.saveSeconds.value).toBe(saveAt);
-    expect(page.strip.value?.tone).toBe('ok');
+    expect(page.strip.value?.tone).toBe('green');
     expect(page.currentEgg.value).toBe('curiosity');
     expect(Math.floor(page.teSoFar.value)).toBe(190);
     const tile = page.eggDayTile.value;
@@ -122,9 +124,13 @@ describe('My runs on a cold load', () => {
 
   it('renders "No save loaded", then the save’s age with the page waiting, then the card with the save’s egg', async () => {
     const { default: MyRunsView } = await import('../MyRunsView.vue');
+    // The save's age is the save line at the top of the page since the simpler page (9 Nov 2026; App.vue draws it over
+    // My Runs): drawn here with the page, as the player sees them.
+    const { default: SaveLine } = await import('../layout/SaveLine.vue');
     const pinia = getActivePinia()!;
     const render = async () => {
-      const html = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
+      const html =
+        (await renderHtml(SaveLine, {}, {}, [pinia])) + (await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]));
       expect(html).not.toMatch(/EI\d{16}/);
       return { html, t: textOf(html) };
     };
@@ -137,14 +143,14 @@ describe('My runs on a cold load', () => {
     restoreDraft(backup);
     r = await render();
     expect(r.t).not.toContain('No save loaded');
-    expect(r.t).toMatch(/Your save is from .+ \(2 hours ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+, 2h ago\./);
     expect(r.html).toContain('data-testid="now-save-waiting"');
     expect(r.html).not.toContain('data-testid="now-card"');
     expect(r.t).not.toContain('159 TE so far');
 
     loadSave(backup);
     r = await render();
-    expect(r.t).toMatch(/Your save is from .+ \(2 hours ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+, 2h ago\./);
     expect(r.html).not.toContain('data-testid="now-save-waiting"');
     expect(r.html).toContain('data-testid="now-card"');
     expect(r.t).toContain('Curiosity');
@@ -155,23 +161,29 @@ describe('My runs on a cold load', () => {
 });
 
 describe('the cold load, in the source', () => {
-  it('App loads the save on My runs once the draft is restored, once per account, never under a search', async () => {
+  it('App loads the save on My Runs once the draft is restored, once per account and save, never under a search', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
-    expect(app).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
+    // spec-overridestart (7 Nov 2026): also looked at again when a running search ends or a picked save is cleared.
+    expect(app).toContain(
+      'watch([plannerTab, playerId, loading, storesSetUpFromSave, searchActive, () => uiStore.runSaveLoaded], loadSaveForMyRuns);'
+    );
     // Then the Auto Planner's own (setUpForInstantAnswer, search/startProvenance.ts), at the end of the restore too.
     expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+(\/\/[^\n]*\n\s+)?setUpForInstantAnswer\(\);\s+\}\);/);
-    expect(app).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
+    // Once per account and save time since spec-overridestart (7 Nov 2026).
+    expect(app).toContain('if (myRunsLoadFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;');
   });
 
-  it('the board’s look-alike TE and My runs’ summary read the save’s own TE, never the stores’', async () => {
+  it('the board’s look-alike TE and My Runs’ summary read the save’s own TE, never the stores’', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const board = fs.readFileSync(path.resolve(__dirname, '../auto/LeaderboardPanel.vue'), 'utf8');
     expect(board).toContain('const myTE = computed(() => saveTEOf(initialState.rawBackup));');
     const view = fs.readFileSync(path.resolve(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(view).toContain('teNow: saveTEOf(initialState.rawBackup),');
+    // Next steps (reworked 24 Oct 2026) read no TE at all: the save's own time, as Right now reads it.
+    expect(view).toContain('saveSeconds: page.hasSave.value ? page.saveSeconds.value : 0,');
+    expect(view).not.toContain('teNow');
   });
 });

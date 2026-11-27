@@ -84,7 +84,7 @@ afterEach(() => {
 describe('the words', () => {
   it('names Williamthe5thc exactly, gives the code, and says why in plain words', () => {
     expect(quarantineMessage('c0ffee12', ['legs-sum'])).toBe(
-      "Refused for the leaderboard, but stored. Contact Williamthe5thc on Discord with this code: c0ffee12. Why: the legs don't add up to the total."
+      "Refused for the leaderboard, but stored. Contact Williamthe5thc on Discord with this code: c0ffee12. Why: the ascensions don't add up to the total."
     );
     // The collector's own sentence wins over the generic one.
     expect(quarantineMessage('c0ffee12', ['legs-sum'], 'the legs add up to 70 days but the total says 742')).toMatch(
@@ -193,7 +193,7 @@ describe('a final send the collector quarantines', () => {
     });
     const res = await s.sendSubmission(PAYLOAD);
     expect(res.ok).toBe(false);
-    expect(res.message).toMatch(/collector said 422: Refused for the leaderboard, but stored\. Contact Williamthe5thc/);
+    expect(res.message).toMatch(/the planner's server said 422: Refused for the leaderboard, but stored\. Contact Williamthe5thc/);
   });
 });
 

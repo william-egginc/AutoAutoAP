@@ -7,15 +7,40 @@
  *   [sales + 8 if tier 13 (0 = empty slot), waitStart, saleEnd, peakELR, delivered x 5 (EGG_ORDER)]
  * Float64 throughout, the egg counts above all: the tail compares them with TE thresholds exactly, and
  * a count rounded to just under its threshold would lose a whole TE.
+ *
+ * VERSION 2 (search/tableV2.ts): the same layout with more numbers per build, version 1's nine first
+ * and then the extras the hours replay needs; the header names them in order (`fields`) and carries
+ * the TE thresholds (`teThresholds`). `lookup` reads version 1's nine from either, so everything that
+ * reads a table works on both; `extras` gives the rest.
  */
-import { EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
+import { canonicalDelivered, EGG_ORDER, rebase, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import type { TableGear } from './tableGear';
+import { FORM_G_DELIVERY, type FormGDelivery } from './formG';
 import { jointSimVersion } from './simVersion';
+import {
+  readExtras,
+  scaleBuild,
+  V1_FIELDS,
+  V2_FIELDS,
+  writeV2,
+  type BuildExtras,
+  type BuildWithExtras,
+} from './tableV2';
 
 const FIELDS = 9;
 
+/** Numbers per build in a table with this header: nine in version 1, the header's `fields` in 2. */
+export function fieldsPerBuild(header: Pick<TableHeader, 'version' | 'fields'>): number {
+  return header.version === 2 ? (header.fields?.length ?? 0) : FIELDS;
+}
+
 export interface TableHeader {
-  version: 1;
+  version: 1 | 2;
+  /** Version 2: each build's numbers in file order (tableV2.ts V2_FIELDS); version 1's nine first. */
+  fields?: string[];
+  /** Version 2: the eggs delivered each TE threshold needs, the same for every egg (lib/truthEggs.ts
+   *  TE_BREAKPOINTS), so a page can replay a tail without the simulator's copy. */
+  teThresholds?: number[];
   /** Unix second of the Monday 00:00 Pacific every entry was simulated from. */
   referenceWeek: number;
   /** The account it was built on: its earnings set's Clothed TE bonus and delivery score. */
@@ -42,6 +67,13 @@ export interface TableHeader {
   gear?: TableGear;
   /** A gear table joined to the maxed one (compositeTable): the last start TE from the gear table. */
   gearTo?: number;
+  /** The maxed table moved to a player's gear (gearShiftTable, search/instantGear.ts): the Clothed-TE
+   *  row shift, the delivery scale below full research, the full-research peak, and the research and
+   *  colleggtible part of the delivery scale when it is not 1. */
+  gearShift?: { g: number; geo: number; cap: number; k: number; geoEr?: number };
+  /** The form G's delivery correction fitted on this table's simulator (search/formG.ts); absent: the
+   *  page's FORM_G_DELIVERY. */
+  formG?: FormGDelivery;
   /** The simulator the cells came from (search/simVersion.ts SIM_VERSION). Absent on a table packed
    *  before stamping; the page then treats it as older (tableSimMismatch). */
   simVersion?: string;
@@ -60,18 +92,22 @@ export interface Table {
   header: TableHeader;
   /** The builds for a start TE at a Pacific hour, or null outside the table. */
   lookup(te: number, hour: number): BuildParams[] | null;
+  /** Version 2 only: the same builds' extra numbers (tableV2.ts), in the same order. */
+  extras?(te: number, hour: number): BuildExtras[] | null;
 }
 
 /** Pack per-(TE, hour) builds into the file's bytes. */
 export function packTable(
   header: Omit<TableHeader, 'slots'>,
-  cells: { te: number; h: number; builds: BuildParams[] }[]
+  cells: { te: number; h: number; builds: (BuildParams & { extras?: BuildExtras })[] }[]
 ): Uint8Array {
   const slots = Math.max(1, ...cells.map(c => c.builds.length));
-  const full: TableHeader = { ...header, slots };
+  const v2 = header.version === 2;
+  const full: TableHeader = v2 ? { ...header, fields: [...V2_FIELDS], slots } : { ...header, slots };
+  const stride = fieldsPerBuild(full);
   const json = new TextEncoder().encode(JSON.stringify(full));
   const start = Math.ceil((4 + json.length) / 8) * 8;
-  const count = (header.to - header.from + 1) * WEEK_HOURS * slots * FIELDS;
+  const count = (header.to - header.from + 1) * WEEK_HOURS * slots * stride;
   const bytes = new Uint8Array(start + count * 8);
   new DataView(bytes.buffer).setUint32(0, json.length, true);
   bytes.set(json, 4);
@@ -79,7 +115,12 @@ export function packTable(
   for (const c of cells) {
     if (c.te < header.from || c.te > header.to) continue;
     c.builds.forEach((b, i) => {
-      const at = (((c.te - header.from) * WEEK_HOURS + c.h) * slots + i) * FIELDS;
+      const at = (((c.te - header.from) * WEEK_HOURS + c.h) * slots + i) * stride;
+      if (v2) {
+        if (!b.extras) throw new Error(`TE ${c.te} hour ${c.h}: a version 2 table needs every build's extras`);
+        writeV2(body, at, b, b.extras);
+        return;
+      }
       body[at] = b.sales + (b.tier13 ? 8 : 0);
       body[at + 1] = b.waitStart;
       body[at + 2] = b.saleEnd;
@@ -156,18 +197,46 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
   } catch {
     throw new Error('that file is not a precomputed table');
   }
-  if (header.version !== 1) throw new Error(`precomputed table version ${header.version} is not supported`);
+  if (header.version !== 1 && header.version !== 2)
+    throw new Error(`precomputed table version ${header.version} is not supported`);
+  // Version 2 names its numbers; version 1's nine must lead, in their order, or the cells would be
+  // read as something they are not.
+  if (
+    header.version === 2 &&
+    !(
+      Array.isArray(header.fields) &&
+      header.fields.length >= FIELDS &&
+      V1_FIELDS.every((f, i) => header.fields![i] === f)
+    )
+  )
+    throw new Error('precomputed table version 2 without its field list');
+  const stride = fieldsPerBuild(header);
   const start = Math.ceil((4 + len) / 8) * 8;
   // Every cell must be there: a file cut short (a half-copied upload, a truncated response) would
   // otherwise read its missing cells as empty, and the finder would quietly route around them and
   // show a wrong answer as if it were real.
-  const expected = start + (header.to - header.from + 1) * WEEK_HOURS * header.slots * FIELDS * 8;
+  const expected = start + (header.to - header.from + 1) * WEEK_HOURS * header.slots * stride * 8;
   if (!(header.slots > 0) || buffer.byteLength !== expected)
     throw new Error(`the precomputed table is incomplete (${buffer.byteLength} of ${expected} bytes)`);
   const body = new Float64Array(buffer, start);
   const cache = new LruCache<number, BuildParams[]>(maxCells);
+  const v2 = header.version === 2 && header.fields!.length >= V2_FIELDS.length;
   return {
     header,
+    ...(v2
+      ? {
+          extras(te: number, hour: number): BuildExtras[] | null {
+            if (te < header.from || te > header.to || hour < 0 || hour >= WEEK_HOURS) return null;
+            const key = (te - header.from) * WEEK_HOURS + hour;
+            const out: BuildExtras[] = [];
+            for (let i = 0; i < header.slots; i++) {
+              const at = (key * header.slots + i) * stride;
+              if (body[at]) out.push(readExtras(body, at));
+            }
+            return out;
+          },
+        }
+      : {}),
     lookup(te, hour) {
       if (te < header.from || te > header.to || hour < 0 || hour >= WEEK_HOURS) return null;
       const key = (te - header.from) * WEEK_HOURS + hour;
@@ -175,7 +244,7 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
       if (hit) return hit;
       const builds: BuildParams[] = [];
       for (let i = 0; i < header.slots; i++) {
-        const at = (key * header.slots + i) * FIELDS;
+        const at = (key * header.slots + i) * stride;
         const flags = body[at];
         if (!flags) continue;
         builds.push({
@@ -209,12 +278,14 @@ export function parseCompositeUrl(url: string): { low: string; high: string; spl
   return { low: parts[0], high: parts[1], split: Number(parts[2]), scale: Number(parts[3]) };
 }
 
-/** The two as one: the low table's rows below `split` (and all it has, when it reaches higher), the
- *  high table's above that with their peak delivery rate scaled to the player's (so the route search
+/** The two as one: the low table's rows (all it has, below `split` or past it), the
+ *  high table's above them with their peak delivery rate scaled to the player's (so the route search
  *  runs at a scale of 1). `gearTo` in the header says where the gear table's own rows end. */
 export function compositeTable(low: Table, high: Table, split: number, scale: number, maxCells = DECODED_CELLS): Table {
   const scaled = new LruCache<number, BuildParams[]>(maxCells);
-  const top = Math.max(split - 1, low.header.to);
+  // Every row the low table has (a full gear table reaches past the split), and no further: a table that stops below the
+  // split (a delivery set's, TE 150-260, found by an exact stamp: 24 Nov 2026) left 261-339 with no builds at all.
+  const top = low.header.to;
   return {
     header: {
       ...low.header,
@@ -230,10 +301,228 @@ export function compositeTable(low: Table, high: Table, split: number, scale: nu
       const key = te * WEEK_HOURS + hour;
       let hit = scaled.get(key);
       if (!hit) {
-        hit = raw.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        hit = raw.map(b => scaleBuild(b, scale));
         scaled.set(key, hit);
       }
       return hit;
+    },
+  };
+}
+
+/**
+ * A version 2 table whose `lookup` gives each build with its extras attached (`BuildWithExtras`), for
+ * the finder's held replay (routeFinder.ts `TailOptions`). A version 1 table comes back as it is.
+ */
+export function withExtras(t: Table, maxCells = DECODED_CELLS): Table {
+  const extras = t.extras;
+  if (!extras) return t;
+  const cache = new LruCache<number, BuildWithExtras[]>(maxCells);
+  return {
+    ...t,
+    lookup(te, hour) {
+      const key = te * WEEK_HOURS + hour;
+      const hit = cache.get(key);
+      if (hit) return hit;
+      const builds = t.lookup(te, hour);
+      if (!builds) return null;
+      const x = extras(te, hour) ?? [];
+      const out = builds.map((b, i) => (x[i] ? { ...b, extras: x[i] } : b));
+      cache.set(key, out);
+      return out;
+    },
+  };
+}
+
+/** The maxed table moved to a player's gear, named by one url string as composites are:
+ *  `gearshift:URL|g,geo,cap,k[,geoEr]` (search/instantGear.ts `gearShiftKey`; without geoEr it is 1). */
+export function gearShiftUrl(url: string, key: string): string {
+  return `gearshift:${url}|${key}`;
+}
+
+export function parseGearShiftUrl(
+  url: string
+): { url: string; g: number; geo: number; cap: number; k: number; geoEr?: number } | null {
+  if (!url.startsWith('gearshift:')) return null;
+  const rest = url.slice('gearshift:'.length);
+  const bar = rest.lastIndexOf('|');
+  if (bar < 0) return null;
+  const shift = parseGearShiftKey(rest.slice(bar + 1));
+  return shift && { url: rest.slice(0, bar), ...shift };
+}
+
+/** The numbers of a gear shift key (search/instantGear.ts `gearShiftKey`), or null when it is not one. */
+function parseGearShiftKey(key: string): { g: number; geo: number; cap: number; k: number; geoEr?: number } | null {
+  const nums = key.split(',').map(Number);
+  const [g, geo, cap, k, geoEr] = nums;
+  if (nums.length < 4 || nums.length > 5 || !nums.every(Number.isFinite)) return null;
+  return { g, geo, cap, k, ...(geoEr !== undefined && geoEr !== 1 ? { geoEr } : {}) };
+}
+
+/**
+ * A delivery set's table moved to the player's gear (the form G from it: search/tableGear.ts `deliveryKey`), and the
+ * maxed table from `split` (its last TE + 1) up, moved too unless the player is as good as maxed (`highKey` empty):
+ * `delivery:LOW_URL~LOW_KEY~HIGH_URL~HIGH_KEY~SPLIT`. Neither a composite (no `|`) nor a form G url.
+ * THE NEAREST TABLE'S CHAIN (R10, 25 Nov 2026: search/nearestTable.ts): `high` may itself be a delivery table, with
+ * each further table after it as `~URL~KEY~SPLIT` (`more`, its key empty for the maxed one as good as maxed); each
+ * table is read to its own last TE, then the next. Without `more` the url is the two-table one, as before.
+ */
+export function deliveryUrl(
+  lowUrl: string,
+  lowKey: string,
+  highUrl: string,
+  highKey: string,
+  split: number,
+  more: readonly { url: string; key: string; split: number }[] = []
+): string {
+  return `delivery:${[lowUrl, lowKey, highUrl, highKey, split, ...more.flatMap(m => [m.url, m.key, m.split])].join('~')}`;
+}
+
+type ShiftNumbers = { g: number; geo: number; cap: number; k: number; geoEr?: number };
+
+export function parseDeliveryUrl(url: string): {
+  low: { url: string } & ShiftNumbers;
+  high: { url: string } & Partial<ShiftNumbers>;
+  split: number;
+  /** The chain's further tables, each from its `split` (absent on a two-table url). */
+  more?: ({ url: string; split: number } & Partial<ShiftNumbers>)[];
+} | null {
+  if (!url.startsWith('delivery:')) return null;
+  const parts = url.slice('delivery:'.length).split('~');
+  if (parts.length < 5 || (parts.length - 5) % 3 !== 0) return null;
+  const [lowUrl, lowKey, highUrl, highKey, split] = parts;
+  const low = parseGearShiftKey(lowKey);
+  const high = highKey ? parseGearShiftKey(highKey) : {};
+  if (!low || !high || !Number.isFinite(Number(split))) return null;
+  const more: ({ url: string; split: number } & Partial<ShiftNumbers>)[] = [];
+  for (let i = 5; i < parts.length; i += 3) {
+    const [u, key, at] = parts.slice(i, i + 3);
+    const shift = key ? parseGearShiftKey(key) : {};
+    if (!shift || !at || !Number.isFinite(Number(at))) return null;
+    more.push({ url: u, ...shift, split: Number(at) });
+  }
+  return {
+    low: { url: lowUrl, ...low },
+    high: { url: highUrl, ...high },
+    split: Number(split),
+    ...(more.length ? { more } : {}),
+  };
+}
+
+/** The form G's row shift of a url's moved table (the delivery table's for a delivery url), for the tail's opening
+ *  (search/instantGear.ts `instantTail` gearRows); undefined for a table read as it is. */
+export function gearRowsOfUrl(url: string): number | undefined {
+  return parseGearShiftUrl(url)?.g ?? parseDeliveryUrl(url)?.low.g;
+}
+
+/**
+ * The maxed table at a player's gear (search/instantGear.ts, the weak-gear form G): the builds for a
+ * start TE are the maxed table's TE - g row (the two rows either side of a fractional g, blended by
+ * sale count), moved onto TE's canonical counts, with every delivery rate x `geo` and the peak no
+ * higher than `cap`. Below the correction's TE (search/formG.ts) the rates are also x geoEr^erExponent,
+ * for a player short on delivery epic research or colleggtibles. A row whose shifted rows fall below
+ * the table's first (TE - g < from) takes the first row, moved onto TE's counts: the table does not reach that far
+ * down, so the cell is still optimistic, and `formGBelowReach` tells the page so. (It used the player's own row with
+ * only the peak scaled, ignoring the earnings gap: 5-32% too fast per ascension, and a stronger start slower than a
+ * weaker one at TE from + g; review 15 Nov 2026, T2.)
+ */
+/** Whether a form G table's cell for start TE `te` is below its reach (te - g under the maxed table's first row):
+ *  the first row stands in, so the answer is optimistic by an unknown amount. False for any other table. */
+export function formGBelowReach(header: Pick<TableHeader, 'from' | 'gearShift'>, te: number): boolean {
+  const g = header.gearShift?.g ?? 0;
+  return g > 0 && te - g < header.from;
+}
+
+export function gearShiftTable(
+  maxed: Table,
+  shift: { g: number; geo: number; cap: number; k: number; geoEr?: number },
+  maxCells = DECODED_CELLS
+): Table {
+  // g < 0 (FORM G UPWARD, Jordan 24 Nov 2026): earnings stronger than the table's set read the rows above, TE - g.
+  const g = shift.g;
+  const gf = Math.floor(g);
+  const gc = Math.ceil(g);
+  const w = g - gf;
+  const { cap, k } = shift;
+  const geoEr = shift.geoEr ?? 1;
+  const fit = maxed.header.formG ?? FORM_G_DELIVERY;
+  const low = shift.geo * Math.pow(geoEr, fit.erExponent);
+  const cache = new LruCache<number, BuildWithExtras[] | null>(maxCells);
+  const moved = (te: number, row: number, hour: number): BuildWithExtras[] | null => {
+    const cell = maxed.lookup(row, hour) as BuildWithExtras[] | null;
+    if (!cell) return null;
+    const canon = canonicalDelivered(te);
+    const geo = te < fit.belowTe ? low : shift.geo;
+    return cell.map(b => ({
+      ...rebase(b, row, canon),
+      peakELR: Math.min(b.peakELR * geo, cap),
+      ...(b.extras
+        ? {
+            extras: {
+              ...b.extras,
+              layRate: b.extras.layRate * geo,
+              shipRate: b.extras.shipRate * geo,
+              h1Rate: b.extras.h1Rate * geo,
+              k3Rate: b.extras.k3Rate * geo,
+            },
+          }
+        : {}),
+    }));
+  };
+  const mix = (a: number, b: number) => a * (1 - w) + b * w;
+  const blend = (hi: BuildWithExtras[], lo: BuildWithExtras[]): BuildWithExtras[] => {
+    if (w === 0) return hi;
+    const out: BuildWithExtras[] = [];
+    const sales = [...new Set([...hi, ...lo].map(x => x.sales))].sort((a, b) => a - b);
+    for (const n of sales) {
+      const x = hi.find(y => y.sales === n);
+      const y = lo.find(z => z.sales === n);
+      if (!x || !y) {
+        out.push((x ?? y)!);
+        continue;
+      }
+      const near = w < 0.5 ? x : y;
+      out.push({
+        sales: n,
+        tier13: near.tier13,
+        waitStart: mix(x.waitStart, y.waitStart),
+        saleEnd: mix(x.saleEnd, y.saleEnd),
+        peakELR: mix(x.peakELR, y.peakELR),
+        delivered: x.delivered.map((d, i) => mix(d, y.delivered[i])),
+        ...(x.extras && y.extras
+          ? {
+              extras: {
+                layRate: mix(x.extras.layRate, y.extras.layRate),
+                shipRate: mix(x.extras.shipRate, y.extras.shipRate),
+                h1At: mix(x.extras.h1At, y.extras.h1At),
+                h1Rate: mix(x.extras.h1Rate, y.extras.h1Rate),
+                k3At: mix(x.extras.k3At, y.extras.k3At),
+                k3Rate: mix(x.extras.k3Rate, y.extras.k3Rate),
+                waitEgg: near.extras!.waitEgg,
+              },
+            }
+          : {}),
+      });
+    }
+    return out;
+  };
+  return {
+    header: { ...maxed.header, gearShift: { g, geo: shift.geo, cap, k, ...(geoEr !== 1 ? { geoEr } : {}) } },
+    lookup(te, hour) {
+      if (te < maxed.header.from || te > maxed.header.to || hour < 0 || hour >= WEEK_HOURS) return null;
+      const key = te * WEEK_HOURS + hour;
+      const hit = cache.get(key);
+      if (hit !== undefined) return hit;
+      const hi = moved(te, te - gf, hour);
+      const lo = gc === gf ? hi : moved(te, te - gc, hour);
+      let out: BuildWithExtras[] | null;
+      if (hi && lo) out = blend(hi, lo);
+      else if (hi || lo) out = (hi ?? lo)!;
+      // Above the table's last row once shifted up (g < 0): the last row, moved onto this TE (a little slow, never fast).
+      else if (te - g > maxed.header.to) out = moved(te, maxed.header.to, hour);
+      // Below the table's first row once shifted: the first row, moved onto this TE (formGBelowReach).
+      else out = moved(te, maxed.header.from, hour);
+      cache.set(key, out);
+      return out;
     },
   };
 }

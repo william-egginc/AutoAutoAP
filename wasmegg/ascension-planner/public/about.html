@@ -100,8 +100,33 @@
         color: var(--muted);
         font-weight: 600;
       }
+      .contents ul {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0;
+      }
+      .contents li {
+        margin: 0;
+        break-inside: avoid;
+      }
+      .contents a {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 0.25rem;
+      }
+      @media (min-width: 40rem) {
+        .contents ul {
+          columns: 2;
+          column-gap: 1.5rem;
+        }
+      }
+      section {
+        scroll-margin-top: 0.5rem;
+      }
       code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-family: inherit;
+        font-variant-numeric: tabular-nums;
         font-size: 0.9em;
       }
     </style>
@@ -110,7 +135,35 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated 22 Oct 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated Nov 15, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+
+      <!-- Contents (UX fluff review 2, A4): the page is long on a phone. Links only; the sections' text is unchanged. -->
+      <nav class="contents" aria-label="Contents">
+        <ul>
+          <li><a href="#what">What this is</a></li>
+          <li><a href="#stays">What stays on your computer</a></li>
+          <li><a href="#save">Where your save comes from</a></li>
+          <li><a href="#sent">What is sent, and when</a></li>
+          <li><a href="#follow">The route you follow, saved online</a></li>
+          <li><a href="#prefs">Your choices and Setup, saved online</a></li>
+          <li><a href="#answers">Your instant answers, saved online</a></li>
+          <li><a href="#synced">Your starting TE, tracker ticks and plan, saved online</a></li>
+          <!-- calendar-feed:begin -->
+          <li><a href="#calendar">Your calendar link</a></li>
+          <!-- calendar-feed:end -->
+          <li><a href="#readback">Your own run's CSV, read back</a></li>
+          <li><a href="#never">What is never sent to the leaderboard</a></li>
+          <li><a href="#online">What goes online, and the code made from your ID</a></li>
+          <li><a href="#pin">The optional PIN</a></li>
+          <li><a href="#long-searches">Long searches tell the maintainer they are running</a></li>
+          <li><a href="#code">The random browser code</a></li>
+          <li><a href="#stored">Where it is stored, and for how long</a></li>
+          <li><a href="#remove">Hiding or removing your rows</a></li>
+          <li><a href="#cookies">Cookies, ads and counters</a></li>
+          <li><a href="#version">Which version of the page you have open</a></li>
+          <li><a href="#security">Security</a></li>
+        </ul>
+      </nav>
 
       <section id="what">
         <h2>What this is</h2>
@@ -118,18 +171,46 @@
           An unofficial fan tool for planning virtue ascensions in Egg, Inc. It is built on Joo's Auto Ascension Planner
           and the wasmegg tools. It is not affiliated with, or endorsed by, Auxbrain, the makers of Egg, Inc.
         </p>
+        <p>Want to see where everything is? Open More on Chain Finder or My Runs and press Full tour.</p>
       </section>
 
       <section id="stays">
         <h2>What stays on your computer</h2>
         <p>
-          The planner runs in your browser. Your plans, settings, saved runs and saved answers are kept in your browser's
-          own storage on your computer.
+          The planner runs in your browser. Your plans, settings, runs saved for later and saved answers are kept in your browser's
+          own storage on your computer. Your newest instant answers are also saved online (see
+          <a href="#answers">Your instant answers, saved online</a>).
         </p>
         <p class="note">
           That includes your game save and your player ID. The latest save is kept so the page opens quickly, and
           saves that a saved run or answer needs are kept with it. Nothing expires them. Clearing this site's data in
           your browser removes all of it.
+        </p>
+        <!-- search/runLibrary.ts runIdentity, lib/savedAnswerIdentity.ts: this sentence goes with that code. -->
+        <p id="saved-once">
+          Saving the same run or answer again updates the one already in the list, so each is listed once.
+        </p>
+        <!-- lib/legSpillOpfs.ts, lib/legSpillText.ts: these sentences go with that code. -->
+        <p id="detail-file">
+          A search's per-ascension detail is kept in a file in this browser, so the downloaded CSV can have every
+          route's detail, not only the fastest routes set by <b>Keep per-ascension detail for N fastest routes</b>
+          (Setup › This computer). There is one file for each account and screen, named like
+          <code>aaap-legs/legs-fastest-&lt;code&gt;.spill</code>. The code is made from your player ID, not the ID
+          itself. A new search starts the file again. <b>Download CSV</b> writes the full file through this storage
+          too, and that copy is removed 10 minutes later. Nothing in these files leaves your computer, except what a
+          send includes (see <a href="#sent">What is sent, and when</a>). The command line keeps its own file,
+          <code>legs.spill</code>, on the computer it runs on.
+        </p>
+        <!-- lib/saveKeep.ts, lib/saveScrub.ts (entrySaveFile, idFromScreen), utils/xlsxWriter.ts, utils/xlsxRows.ts: these sentences go with that code. -->
+        <p id="downloads">
+          Downloads are made in your browser and saved to your computer. Nothing is sent. <b>Download this save</b>
+          (under Saved runs and Saved answers) writes the parts of your game save the planner reads to a file, with
+          your player ID swapped for a stand-in. Nothing else from your save goes in it: no other players, co-op codes,
+          device IDs or purchase records. Your in-game name is in it, so share it with care. <b>Load a save file</b>
+          puts it back under the account on screen.
+          <b>Download for Excel (.xlsx)</b>, beside <b>Download CSV</b>, has the same routes as the CSV, with each
+          ascension's times for the top routes only. Every column is wide enough, the header row stays in view, and
+          the CSV's notes are on a second sheet. It is offered for a finished result of up to 200,000 rows.
         </p>
       </section>
 
@@ -141,24 +222,49 @@
           nothing, logs nothing, and only talks to the game's servers. Cloudflare, who host it, keep ordinary request
           statistics. The planner does not send your save or your player ID anywhere else.
         </p>
+        <!-- lib/serverSave.ts, composables/useServerSave.ts: these sentences go with that code. -->
+        <p id="save-check">
+          My Runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the
+          same request as loading your save: your player ID goes through the same relay to the game's server, and
+          your save comes back. The planner keeps only the save's time, and only until you close or reload the page.
+          It does not put that save into the planner unless you press <b>A newer save is on the server · Load it</b>. It checks once per page load for
+          each account, and not when you are offline or your save is under 10 minutes old. Nothing goes to the
+          planner's own server.
+        </p>
       </section>
 
       <section id="sent">
-        <h2>What is sent, and only when you press a button</h2>
+        <h2>What is sent, and when</h2>
         <p>
           Nothing goes to the leaderboard until you tick the box that says you understand what is sent and then press a
-          button such as <b>Share this result</b>, <b>Find and submit</b> or <b>Send it now</b>. Once you have ticked it,
+          button such as <b>Share this result</b>, <b>Run Fast</b> (with <b>Send the result to the Leaderboard when it finishes</b> ticked) or <b>Send it now</b>. Once you have ticked it,
           this browser remembers that for that account (untick <b>Remember my choice</b> to have it for this visit
           only), and you can withdraw it any time: from then on nothing more is sent, not even from a run already
-          going.
+          going. One exception: <b>Science › Submit a sweep</b> sends a public row and its CSV when you press
+          <b>Submit this sweep</b>, without that tick.
+        </p>
+        <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts), stores/answers.ts and lib/buildCount.ts: these sentences go with that code. -->
+        <p>
+          Some things are sent without a press. The route you follow can be saved online by itself: the first answer for
+          Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal (see
+          <a href="#follow">The route you follow, saved online</a>). Each instant answer worked out on the page is saved
+          online (see <a href="#answers">Your instant answers, saved online</a>). And each open copy of the page sends its version, at
+          most once a day, unless your browser sends Global Privacy Control or Do Not Track (see
+          <a href="#version">Which version of the page you have open</a>).
+          Your choices and Setup are saved online only when you change them, and read whenever you load an account (see
+          <a href="#prefs">Your choices and Setup, saved online</a>).
+          <!-- calendar-feed:begin -->
+          With Put my plan in my calendar on, the planned times of your plan are also saved online whenever the plan changes (see
+          <a href="#calendar">Your calendar link</a>).
+          <!-- calendar-feed:end -->
         </p>
         <ul>
           <li>
             <b>A leaderboard row.</b> The route and its times, your start and end times and time zone, your starting TE
             and target, the search settings, your artifacts, stones and research that the plan uses, the days each
             ascension takes, how long the search ran and on what kind of computer (cores, workers, minutes), and the
-            name you chose to be credited as, if any. If you set them, the row also has your hours (the times of day
-            you said you can play, shown in the Schedule column) and the days you marked as time off. It always has the
+            name you chose to be credited as, if any. If you set them, the row also has your awake hours (the times of day
+            you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the
             weekday your plan starts on. Rows are public.
             A row also says where the plan started from: whether the planner used a save it had just fetched, the save
             kept in this browser, a save file, a saved Manual plan or an account switch; the Truth Eggs your save has
@@ -166,9 +272,14 @@
             that time and your eggs, never from your player ID; the eggs delivered for each egg at the start; whether
             the plan starts now, at a time you set, or at a time handed over from a search; and how long the page had
             been open and how old the planner's version was.
+            If you tick "Share my Instant Answer with my runs" (on My Runs), a row you send also has your instant
+            answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is
+            shown on your public run so others can compare. Without that tick it is not sent.
           </li>
           <li>
-            <b>The CSV</b> of every route the search priced. Nothing is sent until you tick the agreement, which is off by
+            <b>The CSV</b> of the routes the search priced, with each route's total time. It has the per-ascension
+            times for the top 20,000 routes only (5,000, or none, if the file would be too big to send), not the full
+            file that <b>Download CSV</b> saves. Nothing is sent until you tick the agreement, which is off by
             default. Once you agree, "Send my CSV too" starts ticked, and you can untick it. The CSV is public too: anyone
             can download the CSV of a row. A sweep run from Science always sends one.
           </li>
@@ -177,9 +288,23 @@
             whether the tab crashed, to help find bugs. They are never shown publicly.
           </li>
           <li>
-            <b>Instant-answer checks</b> (off unless you turn on "Share this check" or "Keep sharing my checks"): the
-            route the instant answer gave, what Check exactly found for it, and the settings used, so we can see how close
-            the instant answer is, with the same note as a row on where it started from. They are never shown publicly.
+            <b>Search results beside the instant answer</b> (off unless you tick "Share this result" or "Share my search
+            results"): the route the instant answer gave, which table answered it (or that none exists for your set),
+            your delivery artifacts (metronome, compass, gusset) and earnings artifacts (necklace, totem, cube, ankh)
+            with the stones set in them, and your clothed TE (never your spare stones), and the best result of a Fast,
+            Exact or Custom search on your account for the same goal (it is in the record's <code>exact</code> field,
+            which before Oct 23, 2026 held the price of the instant answer's own route), with the settings used, so we
+            can see how close the instant answer is, which sets players use, and which sets still have no table, with
+            the same note as a row on where it started from. The table and artifact details go only after you agree to them: ticking the box now agrees, and if you ticked it before they were added, the page asks you once more and sends none of them until you say yes. They are anonymous, sent only with that consent,
+            and never shown publicly.
+          </li>
+          <li>
+            <b>Which table answered</b> (on unless you untick it in Setup &gt; Sharing): which kind of table answered the
+            instant answer (yours, one for your gear, your delivery set's, or the main one), which delivery set it was,
+            your delivery set, whether no table exists for your set, your TE range (such as 150-199), and the app version.
+            At most once a day per browser for each answer. It carries no code for your account, never your player ID or
+            your save. Only daily counts are kept, in case we need them later, and never shown publicly. We use it to see
+            which tables players need.
           </li>
           <li>
             <b>Progress sends</b> (off unless you turn on "Send my progress every N min", or press "Send best so far"):
@@ -196,8 +321,8 @@
         <p>Sends are anonymous unless you type a name into the "Credit me as" box.</p>
         <p>
           <b>Help improve the planner</b>, the box under the tabs, asks once in each browser. Every choice in it
-          starts unticked. Its Yes turns on the choices you tick (sharing runs, the CSV, private diagnostics and "Keep
-          sharing my checks") and your credit, for the account on screen only; anything you leave unticked stays off,
+          starts unticked. Its Yes turns on the choices you tick (sharing runs, the CSV, private diagnostics and "Share
+          my search results") and your credit, for the account on screen only; anything you leave unticked stays off,
           and you can turn it on later in Setup.
           Another account is asked with a one-line strip. It adds nothing new to what is sent, and nothing goes until
           you press a button, except the checks you agreed to keep sharing. No thanks changes nothing and is not asked
@@ -213,6 +338,143 @@
         </p>
       </section>
 
+      <section id="follow">
+        <h2>The route you follow, saved online</h2>
+        <p>
+          When you press <b>Follow this route</b> (or <b>Follow it</b>, or <b>Restore</b>), the route you follow for that
+          goal is saved online, under a code made from your player ID. That is so another device shows your route when you
+          enter your ID there: loading your account reads the saved routes, and the newer of the saved one and the one on
+          that device is the one followed. Anyone who knows your player ID can make the same code, so they can see the
+          route you follow, and change it. If it couldn't be saved when you pressed it (you were offline, say), it is
+          saved once the next time your account is loaded, unless a newer one is saved online by then. If it still isn't
+          saved, My Runs, Right now, says so under the route, with <b>Save it online</b>.
+          <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts): this sentence goes with the constant. -->
+          <span id="follow-auto">The first answer for Fastest to 490 TE and for Egg Day 2027 becomes the route you follow and
+          is saved online, unless you already follow one. That is the instant answer as its box shows it, or a Fast, Exact
+          or Custom run that becomes your route on My Runs, Right now, whichever comes first. It is saved once, the same way as a press,
+          and only after your saved routes were read, so a route you follow on another device is never replaced. After
+          that, a better answer only asks you (<b>Follow it</b> or <b>Keep mine</b>). Every other goal (another Highest TE by a date, a Fastest to N TE target of your
+          own) is saved when you press <b>Follow this route</b>.</span>
+          One more case: when a page loads, a route you follow in this browser that is newer than the one saved online for
+          that goal is saved too, once, so the newest route you followed wins on every device. Nothing else saves it.
+        </p>
+        <p>
+          What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a
+          Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to
+          spare, the awake hours window you used, the time of your save, and the simulator and planner version. Never your
+          player ID or a name. Your days, time off and no prestige days are not stored.
+        </p>
+        <p>
+          The last 5 versions for each goal are kept. To put an earlier one back, open <b>Earlier versions</b> under the
+          route you follow on My Runs, Right now, and press <b>Restore</b>: it is saved again as the newest. At most 30
+          changes an hour are saved. Using the planner's route again only changes this browser: the saved route stays
+          online, and another device keeps following it.
+        </p>
+      </section>
+
+      <!-- stores/prefs.ts, lib/prefsCloud.ts: these sentences go with that code. -->
+      <section id="prefs">
+        <h2>Your choices and Setup, saved online</h2>
+        <p>
+          Your sharing choices (the <b>Help improve the planner</b> answer, what you agreed to send, and whether you are
+          credited by a name or stay anonymous) and your Setup (awake hours and the days they apply to, time off, no
+          prestige days, your target TE and your time zone) are saved online, under the same code made from your player ID
+          that the route you follow uses. That is so another device you enter your ID on starts with the same answers
+          instead of asking again. Anyone who knows your player ID can make the same code, so they could read these
+          choices, and change them.
+        </p>
+        <p>
+          They are saved when you change them, and read when your account is loaded: the newer of the saved ones and the
+          ones on that device wins. What is stored: the answers and ticks, the name you chose to be credited by (only if
+          you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for
+          <b>This computer</b> (workers, memory, the per-ascension detail) and the <b>Stepping away?</b> choices are
+          not stored. The last 5 versions of each are kept, and at most 30
+          changes an hour are saved. If the planner's server can't be reached, your choices still work on that device.
+        </p>
+      </section>
+
+      <!-- stores/answers.ts, lib/answersCloud.ts, collector/answers.js: these sentences go with that code. -->
+      <section id="answers">
+        <h2>Your instant answers, saved online</h2>
+        <p>
+          When an instant answer is kept in this browser (worked out, or shown again from what it kept), it is also saved online, under the same
+          code made from your player ID that the route you follow uses. That is so another device or a private window,
+          which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works
+          the answer out again. My Runs also uses it to price your route meanwhile. Anyone who knows your player ID can
+          make the same code, so they could read these answers, and change them.
+        </p>
+        <p>
+          What is stored: the answer as its box shows it (the route, its stops, times and TE, and the lines worked out
+          with it), which instant answer data it came from (for data made for your account, the gear it was made
+          for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the
+          time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first
+          ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige
+          days, the first ascension, your target TE and your time zone). It also has a short code made from the
+          planner's own code, not from you, so a newer version of the page knows to work the answer out again. Before it is packed, the planner replaces anything shaped like a player ID, and an answer that
+          still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB
+          packed), the pricing and then the extras are left out; if it is still too big, it is not saved.
+        </p>
+        <p>
+          It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the
+          same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for
+          each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser
+          has no answer for that goal, once per page load. The Save online switch in Setup turns it off. If the planner's server
+          can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser,
+          and it is not saved online until a later answer is.
+        </p>
+      </section>
+
+      <!-- composables/useBoardRunLegs.ts, explorer/collector.ts fetchRunCsv: these sentences go with that code. -->
+      <!-- lib/syncWords.ts: this section, Setup's line and the delete button go with that code. -->
+      <section id="synced">
+        <h2>Your starting TE, tracker ticks and plan, saved online</h2>
+        <p>
+          With Save online on (it is on to start), these are also saved online for your account: the
+          starting TE you typed (a number for each egg) and the TE your save had when you typed it; the lines you
+          ticked in the Build-up tracker; and the tracker's kept plan, which is what to buy and when, worked out from
+          your save.
+        </p>
+        <ul>
+          <li><b>Why:</b> so every browser and device you use shows the same starting TE, the same plan and the same ticks.</li>
+          <li><b>Where:</b> saved online, under the same code as your saved routes and Setup, a code made from your player ID. The ID itself is never sent.</li>
+          <li><b>Who can read it:</b> anyone who knows your player ID can make the same code, so they can see it, and change it. The maintainer can see it too. A plan shows what you are planning to buy and when.</li>
+          <li><b>Not saved online:</b> your save, your player ID, a name or a route.</li>
+          <li><b>How long it is kept:</b> until you delete it.</li>
+          <li><b>The switch:</b> <b>Save online</b> in Setup covers all of it: your followed routes, Setup and sharing choices, saved answers, starting TE, and Build-up tracker ticks and plan. It is on to start, and it is per device. Off, this browser saves nothing online and shows nothing from online, and what is already saved online stays until you delete it.</li>
+          <li><b>Delete it:</b> <b>Delete everything saved online for this account</b> deletes everything saved online under your code: your followed routes, Setup and sharing choices, instant answers, starting TE, tracker ticks and plan. Your save and everything kept in this browser stay. After it, Save online is off on this device.</li>
+        </ul>
+      </section>
+
+      <!-- calendar-feed:begin -->
+      <!-- lib/calendarFeedWords.ts, lib/calendarCloud.ts: this section and Setup's calendar card go with that code. -->
+      <section id="calendar">
+        <h2>Your calendar link</h2>
+        <p>
+          If you turn on Put my plan in my calendar, the planner makes a private link. Your calendar app subscribes to it
+          and shows the planned times of your shifts, buys and ascensions, with short titles. It shows no player ID, name or save.
+        </p>
+        <ul>
+          <li><b>Who can see it:</b> anyone who has the link, so treat it like a password. We also keep a scrambled copy of it (see Where the link is saved). Your calendar company can see it: Google or Apple keeps a copy of the events on its own servers, under its own privacy policy, and keeps the link in your account.</li>
+          <li><b>Where the link is saved:</b> Your calendar link is saved with your account, scrambled on your device first. The server keeps only the scrambled copy, so any of your browsers can show the same link. Anyone who has your player ID could unscramble it, but they could already see your plan. Reset link deletes the saved copy, and so does Delete everything saved online.</li>
+          <li><b>What we store:</b> the planned times and short titles, under a scrambled key, never your player ID. They sit on the planner's server so the link can show them, and the maintainer could read them there, but they carry no ID or name.</li>
+          <li><b>Who can make one:</b> anyone who knows your player ID can make a link for it, as with saved routes and Setup.</li>
+          <li><b>How old it is:</b> your calendar may be up to a day behind the planner.</li>
+          <li><b>Reset or delete:</b> Reset link stops every link you made at once. Deleting what is saved online removes your links too. Your calendar company's copy stays until your calendar drops it, which is usually its next refresh.</li>
+          <li><b>How long it is kept:</b> a link is removed after 90 days in which no calendar app has checked it. The 90 days count from the last check, so a calendar that is still subscribed never expires. You can make a new link any time.</li>
+        </ul>
+      </section>
+      <!-- calendar-feed:end -->
+
+      <section id="readback">
+        <h2>Your own run's CSV, read back</h2>
+        <p>
+          If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My Runs reads
+          that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It
+          asks by the run's row ID on the Leaderboard, never by your player ID. It is the same CSV the Leaderboard
+          offers for that row. If the run has no CSV, or it can't be read, My Runs shows the estimate instead.
+        </p>
+      </section>
+
       <section id="never">
         <h2>What is never sent to the leaderboard</h2>
         <ul>
@@ -223,6 +485,67 @@
           Names and notes you type are public, so keep them free of anything personal. The time zone, start time and
           inventory in a row can also point to one account if someone knows the account well.
         </p>
+      </section>
+
+      <!-- lib/privacyWords.ts, lib/followCloud.ts followKey: this section goes with that code. -->
+      <section id="online">
+        <h2>What goes online, and the code made from your ID</h2>
+        <ul>
+          <li>Saved online while <b>Save online</b> in Setup is on (it is on to start), under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), your starting TE and Build-up tracker ticks and plan, and your newest instant answers. The same code on another device shows them.</li>
+          <!-- calendar-feed:begin -->
+          <li>If you turn on Put my plan in my calendar, the planned times and short titles of your shifts, buys and ascensions are also saved online, under a scrambled key that is not your player ID (see <a href="#calendar">Your calendar link</a>).</li>
+          <!-- calendar-feed:end -->
+          <li>The code is a hash of your ID. It is scrambled, not anonymous: anyone who knows an ID can work out its code, and, unless you set a PIN, read or change what is saved under it (see <a href="#pin">The optional PIN</a>). The planner’s server stores the code under a secret salt, so a copy of the server’s database can’t be matched to an ID by its codes. The code itself still travels to the server each time you sync.</li>
+          <li>On the leaderboard: only what you tick. Never your player ID or your save.</li>
+          <li>Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.</li>
+        </ul>
+      </section>
+
+      <!-- collector/pin.js, lib/pinCardWords.ts: this section goes with that code. -->
+      <section id="pin">
+        <h2>The optional PIN</h2>
+        <p>
+          By default, anyone who knows a player ID can read and change what is saved online for it (see
+          <a href="#online">What goes online</a>). A PIN is an optional lock on that. It is off until you set one.
+        </p>
+        <ul>
+          <li><b>What it is:</b> 6 digits, for one player ID. Common PINs are allowed.</li>
+          <li><b>What it locks:</b> everything saved online for that ID: the route you follow, your Setup and sharing choices, your saved answers, your ticks and plan, <!-- calendar-feed:begin -->your My Runs calendar plan, your calendar link, <!-- calendar-feed:end -->and Delete everything online. A browser without the PIN can no longer read, change or delete them.</li>
+          <li><b>What it does not lock:</b> your save file and anything kept only in your browser. What you have already shared to the leaderboard or the public instant answers, which are not part of your saved-online copy. The PIN does not encrypt what is saved on the planner's server. It decides who may read and change it.</li>
+          <li><b>What leaves your browser:</b> not the PIN. Your browser scrambles the 6 digits together with your player ID (a slow scramble, about a second at most on a phone) and sends only the result, never in a web address.</li>
+          <li><b>What the server keeps:</b> a scrambled key for the account, a second scramble of the PIN's result under a secret key only the server has, a scramble of your recovery code, when the PIN was made, how many wrong tries were made today, and a reset timer if one is running. A copy of the server's database alone cannot be used to guess PINs.</li>
+          <li><b>Signed in:</b> after you enter the PIN, the server gives your browser a session code with no player ID in it. It is kept in that browser's site data for up to 30 days since you last used it. Clearing site data, or a private window, signs you out. Changing the PIN signs out every other browser.</li>
+          <!-- calendar-feed:begin -->
+          <li><b>Setting a PIN turns off your calendar links.</b> Your old calendar links stop working and the saved calendar link is deleted. You make a new link afterwards. The planner says so before you confirm.</li>
+          <!-- calendar-feed:end -->
+          <li><b>The recovery code:</b> 16 letters and digits, shown once when you set the PIN. It is the way back in if you forget the PIN. The planner cannot show it again or look it up. Using it sets a new PIN and gives a new recovery code.</li>
+          <li><b>Wrong tries:</b> 5 free tries, then one an hour, and at most 10 a day for one account. A right PIN resets the count. After 10 tries, even the right PIN waits until 24 hours after the first try that day. Each network address is also limited to 30 tries an hour.</li>
+          <li><b>Forgot the PIN and lost the code:</b> you can ask for a reset without signing in. It waits 7 days. Any browser signed in to that account can cancel it, and after a cancel no new reset can start for 7 days. A banner with the date shows on every signed-in browser while a reset waits. When the 7 days pass, what is saved online for that account is deleted, the same as Delete everything online, and the PIN is gone. Each browser can then upload its own copy again.</li>
+          <li><b>No email, no phone, no login:</b> nothing else can recover a forgotten PIN.</li>
+        </ul>
+        <p class="muted">
+          How safe it is: 6 digits is 1,000,000 possibilities. The limits make guessing slow (about 10 tries a day), not impossible.
+          It stops casual meddling. It is not bank-level security.
+        </p>
+      </section>
+
+      <!-- lib/runBeaconWords.ts: this section and Setup's line and the banner go with that code. -->
+      <section id="long-searches">
+        <h2>Long searches tell the maintainer they are running</h2>
+        <p>
+          When you start a search that is expected to take 2 hours or more, your page tells the planner's server when it starts and when it stops. If an update of the site is being prepared, the maintainer is told to wait for your search. There is no switch for this. It stays on while the maintainer is updating the site, and will be switched off later. An update makes
+          open pages reload, which would lose the search. The page shows a banner only if the maintainer plans an update of the site
+          while your long search is still running. It says when, and asks you to message Williamthe5thc on Discord so the update waits for it. You can close the banner.
+        </p>
+        <ul>
+          <li><b>What is sent:</b> a random code made for this one search (not linked to your player ID, an account code, a name or any other record); the kind of search (Fast, Exact, Custom, or Highest TE by a date); the time it is expected to take; the version of the page (its build time); when it started; and, when it ends, that it ended and why (finished, cancelled, the tab was closed, or failed).</li>
+          <li><b>What is not sent:</b> your player ID, your save, your route, your name, your Setup or any account code.</li>
+          <li><b>Addresses:</b> no address is stored. The server uses your address only to limit how often one address can start a long search announcement a day, through a keyed code (it cannot be turned back into the address without a secret key) that is deleted after about 3 days.</li>
+          <li><b>Who sees it:</b> only the maintainer, privately. A phone note tells the maintainer that a long search started or ended: its kind, its estimated time, when it started and should end, how many are running, and, at the end, why it ended and how long it ran. The note has no search code, no page version and no address.</li>
+          <li><b>How long it is kept:</b> deleted about 3 days after the search ends. If a page disappears without saying the search ended, the record is deleted about 3 days after the search should have ended.</li>
+          <li><b>What it does not do:</b> it does not check whether the page is still open. If you close the tab, the page tries to say so. If the tab or the browser is lost another way, nothing is sent.</li>
+          <li><b>No switch:</b> this is on for every long search for as long as the maintainer is updating the site. Nothing about you or your account is sent.</li>
+        </ul>
       </section>
 
       <section id="code">
@@ -260,14 +583,44 @@
               <td>180 days, then deleted.</td>
             </tr>
             <tr>
+              <td>The routes you follow</td>
+              <td>No time limit. The last 5 versions of each goal, for up to 8 goals.</td>
+            </tr>
+            <tr>
+              <td>Your choices and Setup</td>
+              <td>No time limit. The last 5 versions of each.</td>
+            </tr>
+            <tr>
+              <td>Your instant answers</td>
+              <td>No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.</td>
+            </tr>
+            <tr>
+              <td>Your starting TE, tracker ticks and plan</td>
+              <td>No time limit. They stay until you delete them (see Delete it above).</td>
+            </tr>
+            <!-- calendar-feed:begin -->
+            <tr>
+              <td>Your calendar link</td>
+              <td>Removed after 90 days in which no calendar app has checked it, or when you reset or delete.</td>
+            </tr>
+            <!-- calendar-feed:end -->
+            <tr>
+              <td>Long-search records</td>
+              <td>Deleted about 3 days after the search ends.</td>
+            </tr>
+            <tr>
+              <td>Version counts</td>
+              <td>30 days, then deleted.</td>
+            </tr>
+            <tr>
               <td>Phone-watch messages</td>
               <td>7 days after the last update, then deleted.</td>
             </tr>
             <tr>
               <td>Your IP address</td>
               <td>
-                Not stored in any record. It is used only to slow down floods of requests, held for 2 minutes inside a
-                temporary key.
+                No address is stored. It is used only to slow down floods of requests: held for 2 minutes inside a
+                temporary key and, to limit long-search announcements, inside a keyed code that is deleted after about 3 days.
               </td>
             </tr>
           </tbody>
@@ -280,13 +633,13 @@
       <section id="remove">
         <h2>Hiding or removing your rows</h2>
         <p>
-          <b>Hide from the public</b> is one click on your own rows (in the row details, or on the My runs tab, which lists hidden rows too). It hides them
+          <b>Hide from the public</b> is one press on your own rows (in the row details, or on the My Runs tab, which lists hidden rows too). It hides them
           from every public view and stops other people downloading their CSV. You and the planner's maintainer can still
           see them, and <b>Show again</b> undoes it. A hidden row leaves the public lists within about a minute.
         </p>
         <p>
           For anything else, message <b>Williamthe5thc</b> on Discord and say which rows are yours (your name on the
-          board, or the row's ID). The same person handles results that were refused: the message you get says "Contact
+          Leaderboard, or the row's ID). The same person handles results that were refused: the message you get says "Contact
           Williamthe5thc on Discord with this code".
         </p>
         <p class="muted">
@@ -301,15 +654,38 @@
           <li>
             Two page-view counters run on the main planner page. <b>GoatCounter</b> (the counter of the upstream wasmegg
             tools, run by Carpet) is a simple visit counter that says it does not use cookies. <b>Cloudflare Web
-            Analytics</b> is cookie-free too: it gives this site's owner aggregated page views. Both see the page address
-            you open and the usual details a browser sends, such as your IP address and browser. If you open a link that
-            has your player ID in its address, they would see that address, so don't share links like that.
+            Analytics</b> is cookie-free too: it gives this site's owner aggregated page views. Both see the usual details a
+            browser sends, such as your IP address and browser. GoatCounter is sent the page's path only, without the
+            part after the <code>?</code>. If you open a link with your player ID in its address, the page takes the ID
+            out of the address as soon as it has read it, but don't share links like that.
           </li>
           <li>
             Pages also load pictures and event data from other sites (artifact and egg images, and the event list from
-            GitHub). The cat picture in the plan summary loads from another site only after you click for it.
+            GitHub). The cat picture in the plan summary loads from another site only after you press for it.
           </li>
         </ul>
+      </section>
+
+      <section id="version">
+        <h2>Which version of the page you have open</h2>
+        <!-- lib/buildCount.ts and collector/buildcount.js: these words go with that code (lib/aboutPage.spec.ts). -->
+        <p>
+          Each open copy of the planner tells our server which version it is, at most once a day: just the
+          version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions
+          are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.
+        </p>
+        <!-- lib/updateNotes.ts, composables/useNewVersion.ts bannerFor, lib/resultCode.ts: these sentences go with that code. -->
+        <p id="update-banner">
+          When a newer version is live, a banner lists what changed: only the notes your open copy doesn't have yet,
+          newest first, at most 3. If there is nothing new to tell you, no banner shows, unless the new version asks
+          open copies to reload.
+        </p>
+        <p id="recalc">
+          After an update, answers that an older version worked out and kept in this browser are worked out again:
+          instant answers, the times My Runs works out for the route you follow, and the Build-up tracker's plan.
+          Meanwhile an instant answer is marked "From &lt;time&gt; (older version), checking…". Saved runs and saved
+          answers are kept as they are.
+        </p>
       </section>
 
       <section id="security">

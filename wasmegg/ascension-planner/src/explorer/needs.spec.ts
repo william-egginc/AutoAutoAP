@@ -14,7 +14,6 @@ import {
   woreGear,
   presetBandsFor,
   presetChains,
-  presetFits,
   NO_FIT_TEXT,
   SCIENCE_SWEEP_NOTE,
 } from './needs';
@@ -372,18 +371,6 @@ describe('Science sweeps across TEs', () => {
         expect(presetChains(id, te).chains, `${id} at ${te}`).toBeGreaterThan(0);
   });
 
-  it('keeps the everyday sweeps fitting at every TE', () => {
-    for (const id of ['M1', 'M2', 'M3', 'M4', 'F2'])
-      for (const te of TES) expect(presetFits(id, te), `${id} at ${te}`).toBe(true);
-  });
-
-  it('says which big presets do not fit, rather than offering them', () => {
-    // These price 0 chains: their minimum gaps cannot fit that many ascensions into what is left.
-    for (const id of ['F4', 'F5', 'E8', 'E9']) expect(presetFits(id, 230), id).toBe(false);
-    expect(presetFits('E7', 260)).toBe(false);
-    expect(presetFits('E7', 230)).toBe(true);
-  });
-
   it('uses the fitted bands, which start above the player', () => {
     for (const id of presets) {
       for (const te of TES) {
@@ -396,7 +383,7 @@ describe('Science sweeps across TEs', () => {
   it('has the plain copy', () => {
     expect(NO_FIT_TEXT).toBe("This sweep doesn't fit an account at your TE.");
     expect(SCIENCE_SWEEP_NOTE).toBe(
-      "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Nearby routes on Fastest to 490 TE, or the instant answer, for that."
+      "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Fast and Exact on Fastest to 490 TE, or the instant answer, for that."
     );
   });
 });

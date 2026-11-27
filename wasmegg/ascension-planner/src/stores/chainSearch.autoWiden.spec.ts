@@ -158,7 +158,7 @@ describe('the no-instant-answer fallback in the store (search/autoWiden.ts)', ()
     const store = useChainSearchStore();
     await store.startDeadline(
       'P',
-      quickScanSpec({ currentTE: 78, deadline: DEADLINE, guessHi: 193, ascendNeeded: false, level: 'quick' })
+      quickScanSpec({ currentTE: 78, deadline: DEADLINE, guessHi: 193, level: 'quick' })
     );
     expect(store.error).toBeNull();
     expect(specs).toHaveLength(1);

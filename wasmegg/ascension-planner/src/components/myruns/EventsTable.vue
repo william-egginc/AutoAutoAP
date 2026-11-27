@@ -5,12 +5,16 @@
   upcoming shift and prestige (not the goal); on a phone When and How far sit under the title with the button. Nothing is worked out here.
   A step whose time has passed but the save doesn't show done (lib/nowPlan.ts `notDone`) stays, in amber, as "Not done
   yet: shift to Curiosity (due 8:03 pm)", with no calendar button.
+  `rounded` (the instant answer drives Right now, wireframe R1): times to the hour, "at around 3:00 pm", "in about
+  28 h", and no calendar buttons at all (rounded times in a calendar would look exact).
 -->
 <template>
   <div data-testid="now-events">
-    <table class="w-full text-[12px] sm:text-[13px]">
-      <thead>
-        <tr class="text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">
+    <table class="w-full text-small">
+      <!-- On a phone only "What" showed, alone over rows that also hold the when (spec-tidy): the headers are for screen
+           readers there, seen from sm up where each has its column. -->
+      <thead class="sr-only sm:not-sr-only sm:table-header-group">
+        <tr class="label text-slate-600 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
           <th class="py-1.5 pr-2">What</th>
           <th class="py-1.5 pr-2 hidden sm:table-cell">When</th>
@@ -19,53 +23,130 @@
         </tr>
       </thead>
       <tbody>
+        <template v-for="(e, i) in events" :key="`${e.kind}-${e.at}`">
         <tr
-          v-for="e in events"
-          :key="`${e.kind}-${e.at}`"
+          v-if="here && hereAt === i"
+          class="border-t border-slate-100 align-top bg-emerald-50 text-emerald-900"
+          data-testid="now-event-here"
+        >
+          <td class="py-2 pr-1" aria-hidden="true">●</td>
+          <td class="py-2 pr-2 font-bold">
+            {{ hereText }}
+            <p class="sm:hidden text-small font-normal">Now</p>
+          </td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">Now</td>
+          <td class="py-2 pr-2 hidden sm:table-cell"></td>
+          <td class="py-2 hidden sm:table-cell"></td>
+        </tr>
+        <tr
           class="border-t border-slate-100 align-top"
-          :class="e.past ? 'text-slate-400' : e.notDone ? 'bg-amber-50 text-amber-900' : e.next ? 'bg-indigo-50' : 'text-slate-800'"
+          :class="e.past ? 'text-slate-600' : e.notDone ? 'bg-amber-50 text-amber-900' : e.next ? 'bg-indigo-50' : 'text-slate-800'"
           :data-testid="e.past ? 'now-event-past' : e.notDone ? 'now-event-notdone' : e.next ? 'now-event-next' : 'now-event'"
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
-            <span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
-            <p v-if="e.past && e.kind === 'prestige'" class="text-[11px] text-amber-800">
+            <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-600" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
+            ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
+            <!-- Every ascension's prestige is listed (26 Oct 2026). One that waits: When and How far are the time it
+                 happens; the note gives the time its stop is reached and why it waits (spec-uxpass item 10, 8 Nov
+                 2026: the reached time in When read as the prestige time). DRAFT words. -->
+            <p v-if="heldAt(e) != null" class="text-small text-amber-800" data-testid="now-event-wait">
+              Reached {{ whenAt(e, e.at) }}, {{ e.wait === 'days' ? 'waits past your no-prestige days' : 'waits for your hours' }}
+            </p>
+            <!-- What the instant estimate doesn't price (lib/instantSteps.ts): said in amber, Fast prices it. -->
+            <p v-if="e.kind === 'prestige' && !e.past && e.cutByTimeOff" class="text-small text-amber-800" data-testid="now-event-cut">
+              Runs into your time off {{ timeOffDays(e.cutByTimeOff, zone) }}: the ascension ends when it starts (going to
+              your home farm is a prestige). Fast prices it.
+            </p>
+            <p v-else-if="e.kind === 'prestige' && !e.past && e.prestigeInTimeOff" class="text-small text-amber-800" data-testid="now-event-in-timeoff">
+              Falls in your time off {{ timeOffDays(e.prestigeInTimeOff, zone) }}: Fast prices it.
+            </p>
+            <p v-if="e.kind === 'prestige' && !e.past && e.onNoPrestigeDay" class="text-small text-amber-800" data-testid="now-event-no-prestige-day">
+              Falls on a no-prestige day: it waits past your no-prestige days. Fast prices it.
+            </p>
+            <p v-if="e.past && e.kind === 'prestige'" class="text-small text-amber-800">
               The plan had you prestige {{ dateAt(e.at, now, zone, true) }}: load a newer save.
             </p>
-            <p class="sm:hidden text-[12px]">
-              {{ dateAt(e.at, now, zone, true) }}{{ ' · ' }}<b>{{ howFar(e, now, zone) }}</b>
+            <p class="sm:hidden text-small">
+              {{ when(e) }}{{ ' · ' }}<b>{{ far(e) }}</b>
             </p>
             <div v-if="addable(e)" class="mt-1 sm:hidden">
               <CalendarButton :events="[calOf(e)]" label="Add" />
             </div>
+            <!-- One timeline (Jordan, 17 Nov 2026): the ascension's shifts and dates open under its own row. -->
+            <button
+              v-if="detailRowAt.get(e.asc) === i"
+              type="button"
+              class="mt-1 inline-flex min-h-[44px] items-center gap-1 rounded-md px-1 text-left font-bold text-indigo-700 underline decoration-2 underline-offset-2 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-500"
+              :aria-expanded="isOpen(e.asc) ? 'true' : 'false'"
+              :aria-controls="`now-event-detail-${e.asc}`"
+              data-testid="now-event-open"
+              :data-asc="e.asc"
+              @click="toggle(e.asc)"
+            >
+              <span aria-hidden="true">{{ isOpen(e.asc) ? '▾' : '▸' }}</span>{{ ascDetailLabel(e.asc, isOpen(e.asc)) }}
+            </button>
           </td>
-          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">{{ dateAt(e.at, now, zone, true) }}</td>
-          <td class="py-2 pr-2 font-bold hidden sm:table-cell">{{ howFar(e, now, zone) }}</td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">{{ when(e) }}</td>
+          <td class="py-2 pr-2 font-bold hidden sm:table-cell">{{ far(e) }}</td>
           <td class="py-2 hidden sm:table-cell text-right">
             <CalendarButton v-if="addable(e)" :events="[calOf(e)]" label="Add" align-right />
           </td>
+        </tr>
+        <tr v-if="detailRowAt.get(e.asc) === i && isOpen(e.asc)" :id="`now-event-detail-${e.asc}`" class="align-top" data-testid="now-event-detail">
+          <td></td>
+          <td colspan="4" class="pb-3 pr-1">
+            <slot name="detail" :asc="e.asc" />
+          </td>
+        </tr>
+        </template>
+        <tr
+          v-if="here && hereAt === events.length"
+          class="border-t border-slate-100 align-top bg-emerald-50 text-emerald-900"
+          data-testid="now-event-here"
+        >
+          <td class="py-2 pr-1" aria-hidden="true">●</td>
+          <td class="py-2 pr-2 font-bold">
+            {{ hereText }}
+            <p class="sm:hidden text-small font-normal">Now</p>
+          </td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">Now</td>
+          <td class="py-2 pr-2 hidden sm:table-cell"></td>
+          <td class="py-2 hidden sm:table-cell"></td>
         </tr>
       </tbody>
     </table>
     <div v-if="upcoming.length > 1" class="mt-2">
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
+      <!-- The cloud calendar (the subscription feed): a suggestion, or "Update cloud calendar" when it is set up. Only with the calendar flag on. -->
+      <CalendarCloudNod />
     </div>
-    <p v-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
-      Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
-      nothing is sent. If the plan changes, add them again after a new check.
+    <!-- Rounded (the instant answer's): no footer; the card's tag line says it once (spec-uxpass item 1, 8 Nov 2026). -->
+    <!-- One clause, the rest behind a "?" (UX fluff review 2, 5 Nov 2026, item R15). DRAFT (Words). -->
+    <p v-if="!rounded && upcoming.length" class="mt-1.5 flex items-center gap-1.5 text-body text-slate-600 max-w-prose">
+      If the plan changes, add them again.
+      <HelpTip>
+        Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
+        nothing is sent. Add them again after a new run.
+      </HelpTip>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, inject, reactive, useSlots } from 'vue';
+import { ASC_START_OPEN } from '@/lib/ascOpenKey';
 import CalendarButton from './CalendarButton.vue';
+import CalendarCloudNod from './CalendarCloudNod.vue';
+import HelpTip from '@/components/auto/HelpTip.vue';
 import { dateAt } from '@/lib/eventWhen';
-import { eventTitle, howFar, notDoneTitle } from '@/lib/nowWords';
+import { eventTitle, howFar, notDoneTitle, shownEvent, whenWords } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
+import { timeOffDays } from '@/lib/instantSteps';
 import { thisDevice } from '@/search/device';
+import { ascDetailLabel } from '@/lib/timelineWords';
 
 const props = defineProps<{
   events: PlanEvent[];
@@ -78,15 +159,58 @@ const props = defineProps<{
   calculatedWhen: string;
   /** "Following 197 → 222 → … (Egg Day 2027)": each calendar event says it. */
   following?: string;
+  /** The instant answer's times (estimates): rounded to the hour, no calendar buttons. */
+  rounded?: boolean;
+  /** "You are here" (Jordan, 1 Nov 2026): the egg the loaded save is on, its TE so far and its time (said as the
+   *  row's text), shown between the last passed row and the next one. Absent: no row. */
+  here?: { egg: string | null; te: number; saveWhen: string } | null;
 }>();
+/** Where the row goes: before the first row that hasn't passed (the same clock-and-save rule `past` uses). */
+const hereAt = computed(() => {
+  const i = props.events.findIndex(e => !e.past);
+  return i < 0 ? props.events.length : i;
+});
+const hereText = computed(() =>
+  props.here
+    ? `You are here · ${virtueEggName(props.here.egg)} · ${Math.floor(props.here.te)} TE · from your save of ${props.here.saveWhen}`
+    : ''
+);
+/** Rounded to the hour: the instant answer's times, never the ascension you are in simulated on the save (`exact`). */
+const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
+/** A prestige that waits (for the hours or past the no-prestige days, lib/instantSteps.ts `markPrestigeWaits`): when it
+ *  happens, `prestigeAt`, already worked out; null for every other row. */
+const heldAt = (e: PlanEvent): number | null => (e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past ? e.prestigeAt : null);
+/** The row as it happens (lib/nowWords.ts `shownEvent`: a waiting prestige at its held time, else the next ascension's start). */
+const shown = shownEvent;
+const when = (e: PlanEvent) => whenWords(shown(e), props.goal, props.now, props.zone, roundedFor(e));
+const far = (e: PlanEvent) => howFar(shown(e), props.now, props.zone, roundedFor(e), props.goal);
+/** When a waiting prestige happens, in the row's own words (rounded like the row). */
+const whenAt = (e: PlanEvent, at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, roundedFor(e));
+
+/** One timeline (Jordan, 17 Nov 2026): each ascension's row opens to its shifts and dates (the parent's `detail` slot). The row that holds
+ *  the button is the ascension's first prestige or goal row; the ascension the farm is in (the first prestige not passed) starts open
+ *  when the save is on a known egg (`here`); the player's own opens and closes are kept while the page is up. */
+const slots = useSlots();
+const detailRowAt = computed(() => {
+  const m = new Map<number, number>();
+  if (!slots.detail) return m;
+  props.events.forEach((e, i) => {
+    if ((e.kind === 'prestige' || e.kind === 'goal') && !m.has(e.asc)) m.set(e.asc, i);
+  });
+  return m;
+});
+const chosen = reactive(new Map<number, boolean>());
+const startOpen = inject(ASC_START_OPEN, false);
+const isOpen = (asc: number): boolean => chosen.get(asc) ?? startOpen;
+const toggle = (asc: number) => chosen.set(asc, !isOpen(asc));
 
 const device = thisDevice();
 const title = (e: PlanEvent) =>
   e.notDone ? notDoneTitle(e, props.goal, props.now, props.zone, props.goalName) : eventTitle(e, props.goal, props.goalName);
-const addable = (e: PlanEvent) => !e.past && !e.notDone && e.kind !== 'goal';
+const addable = (e: PlanEvent) => !props.rounded && !e.past && !e.notDone && e.kind !== 'goal';
 const upcoming = computed(() => props.events.filter(addable));
 function calOf(e: PlanEvent) {
-  return planCalEvent(e, {
+  return planCalEvent(shown(e), {
     eggName: virtueEggName,
     saveWhen: props.saveWhen,
     calculatedWhen: props.calculatedWhen,

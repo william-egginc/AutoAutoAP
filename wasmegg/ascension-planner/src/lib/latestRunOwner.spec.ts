@@ -1,4 +1,4 @@
-/** Whose run it is (lib/latestRunOwner.ts), for My runs › Your latest run. */
+/** Whose run it is (lib/latestRunOwner.ts), for My Runs › Your latest run. */
 import { describe, expect, it } from 'vitest';
 import { runIsMine } from './latestRunOwner';
 import { accountHash, accountHashNow } from './accountHash';

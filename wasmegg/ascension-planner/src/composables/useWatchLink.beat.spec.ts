@@ -1,0 +1,461 @@
+/**
+ * The phone link's 5-minute beat survives (ux35-f, 28 Oct 2026). Jordan's phone said "Not reporting, last update
+ * 10 h ago" while the By a date run was still going on his PC (Edge, hidden tab, a watcher tab open).
+ *
+ * The beat used to ride on one thing only: the store's 15 s black-box timer (stores/chainSearch.ts `blackBoxBeat`
+ * -> `watchLinkTick`). A page timer is what a browser throttles or stops in a hidden tab (Chrome's intensive
+ * throttling, Edge's sleeping tabs and efficiency mode), while the run's own progress keeps arriving from its
+ * workers. These specs pin each suspect on a fixed clock with a fake fetch (no wall-clock waits, no collector):
+ *
+ *  - after a progress note (every 3 h) the beat goes on;
+ *  - after failed posts (429, 503, offline, a post that never answers) the beat goes on;
+ *  - a panel mounted and unmounted again changes nothing (the beat belongs to the store, not a component);
+ *  - with no timer firing at all, the run's progress events still carry the beat, one post per 5 minutes;
+ *  - consecutive failures are counted, for the run page's amber note (search/watchLink.ts `watchFailingNote`).
+ *
+ * SETTLING (29 Oct 2026). Sealing is AES-GCM through WebCrypto, which answers from Node's threadpool, not
+ * the event loop: a fixed number of event-loop turns was not always enough on a loaded box, so a post could
+ * reach the fake fetch after the test had counted (one short) or after `calls = []` (one over: 13 for 12).
+ * Now every seal is tracked and `settle` waits on the seals themselves, then drains the microtasks they
+ * start; the page timers (the 429 retry) are fake, and the clock is the fake system time.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
+import {
+  activeWatch,
+  installWatchLink,
+  resetWatchLink,
+  watchLinkNoteProgress,
+  watchLinkRunEnded,
+  watchLinkRunStarted,
+  watchLinkTick,
+  watchOptions,
+} from './useWatchLink';
+import {
+  DEFAULT_WATCH_OPTIONS,
+  WATCH_EVERY_MS,
+  WATCH_FAILS_NOTE,
+  watchFailingNote,
+  type ProgressLike,
+} from '@/search/watchLink';
+
+/** Every seal still working (the real one, just watched), so `settle` can wait for it. */
+const sealing = vi.hoisted(() => new Set<Promise<unknown>>());
+vi.mock('@/search/watchLink', async importOriginal => {
+  const real = await importOriginal<typeof import('@/search/watchLink')>();
+  return {
+    ...real,
+    sealHeartbeat: (...a: Parameters<typeof real.sealHeartbeat>) => {
+      const p = real.sealHeartbeat(...a);
+      sealing.add(p);
+      const done = () => sealing.delete(p);
+      p.then(done, done);
+      return p;
+    },
+  };
+});
+
+const T0 = Date.UTC(2026, 9, 27, 17);
+/** The page's clock (fake system time): moved only here. */
+const setClock = (t: number) => vi.setSystemTime(t);
+let calls: { url: string; body: Record<string, unknown> }[] = [];
+let answer: () => Response | Promise<Response> = () => new Response('{}');
+let progress: ProgressLike | null = null;
+/** No run going while the options are set up (ticking during a run starts a link at once). */
+let running: 'deadline' | null = null;
+
+const posts = () => calls.filter(c => c.url.endsWith('/watch'));
+const notes = () => calls.filter(c => c.url === 'https://ntfy.sh');
+/** Microtasks only: the fake fetch, its answer and the link's bookkeeping after it are all promise steps. */
+const flushPromises = async () => {
+  for (let i = 0; i < 50; i++) await Promise.resolve();
+};
+/** Let every seal (WebCrypto) and the fetch after it go through: waits on the seals themselves, never on a
+ *  clock or a count of event-loop turns, then drains what they started (a post that never answers stays out). */
+const settle = async () => {
+  await flushPromises();
+  while (sealing.size) {
+    await Promise.allSettled([...sealing]);
+    await flushPromises();
+  }
+};
+
+beforeEach(async () => {
+  vi.useFakeTimers({
+    now: T0,
+    toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'Date'],
+  });
+  calls = [];
+  answer = () => new Response('{}');
+  progress = {
+    done: 1000,
+    total: 417_953,
+    percent: 0.2,
+    secondsLeft: 80_000,
+    best: { chain: [150, 247], te: 247, at: 1783944000 },
+  };
+  running = null;
+  resetWatchLink();
+  watchOptions.value = { ...DEFAULT_WATCH_OPTIONS };
+  await nextTick();
+  await settle();
+  installWatchLink({
+    collector: () => 'https://c.example',
+    buildCollector: () => 'https://c.example',
+    progress: () => progress,
+    workers: () => 19,
+    deadline: () => 1783944000,
+    running: () => running,
+    now: () => Date.now(),
+    origin: () => 'https://site.example',
+    base: () => '/ascension-planner/',
+    fetch: (async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
+      return answer();
+    }) as typeof fetch,
+  });
+  watchOptions.value = { ...watchOptions.value, phone: true };
+  await nextTick();
+  await settle();
+  calls = [];
+  running = 'deadline';
+});
+
+afterEach(async () => {
+  // Nothing of this test's links reaches the next one: every seal done, no retry left on the page.
+  await settle();
+  resetWatchLink();
+  vi.useRealTimers();
+});
+
+/** The store's 15 s black-box timer, from `from` to `to` (as a visible tab runs it). */
+async function timerTicks(from: number, to: number, every = 15_000): Promise<void> {
+  for (let t = from; t <= to; t += every) {
+    setClock(t);
+    watchLinkTick();
+    await settle();
+  }
+}
+
+/** The run's own progress (a worker's batch back), with no timer firing at all: a hidden, throttled tab. */
+async function progressEvents(from: number, to: number, every = 30_000): Promise<void> {
+  for (let t = from; t <= to; t += every) {
+    setClock(t);
+    progress = { ...progress!, done: progress!.done + 50 };
+    watchLinkNoteProgress(progress);
+    await settle();
+  }
+}
+
+/** One post per 5-minute window from T0, through `to`. */
+const expectedPosts = (to: number) => Math.floor((to - T0) / WATCH_EVERY_MS) + 1;
+
+describe('suspect (c): a progress note every 3 hours', () => {
+  it('the beat goes on after each 3-hourly note, for 7 hours', async () => {
+    watchOptions.value = { ...watchOptions.value, ntfy: true, ntfyTopic: 'aaap-test', ntfyEveryMin: 180 };
+    await nextTick();
+    watchLinkRunStarted('deadline');
+    await settle();
+    const end = T0 + 7 * 3600_000;
+    await timerTicks(T0 + 60_000, end, 60_000);
+    expect(notes()).toHaveLength(2);
+    expect(posts()).toHaveLength(expectedPosts(end));
+    // Every post is the run's, running, under the one link.
+    expect(new Set(posts().map(p => p.body.id))).toEqual(new Set([activeWatch.value!.link.id]));
+    expect(posts().every(p => p.body.status === 'running')).toBe(true);
+  });
+});
+
+describe('suspect (b): failed posts', () => {
+  for (const [what, fail] of [
+    ['429 too soon', () => new Response('{}', { status: 429, headers: { 'retry-after': '60' } })],
+    ['429 from the per-address limit', () => new Response('{}', { status: 429, headers: { 'retry-after': '60' } })],
+    ['503', () => new Response('{}', { status: 503 })],
+    ['offline', () => Promise.reject(new TypeError('Failed to fetch'))],
+    ['a post that never answers', () => new Promise<Response>(() => undefined)],
+  ] as [string, () => Response | Promise<Response>][])
+    it(`${what}: tried again every 5 minutes, and back to normal once the collector takes one`, async () => {
+      watchLinkRunStarted('deadline');
+      await settle();
+      answer = fail;
+      await timerTicks(T0 + 15_000, T0 + 30 * 60_000);
+      expect(posts()).toHaveLength(expectedPosts(T0 + 30 * 60_000));
+      answer = () => new Response('{}');
+      await timerTicks(T0 + 30 * 60_000 + 15_000, T0 + 60 * 60_000);
+      expect(posts()).toHaveLength(expectedPosts(T0 + 60 * 60_000));
+      expect(activeWatch.value!.lastOkAt).toBe(T0 + 60 * 60_000);
+      expect(activeWatch.value!.fails).toBe(0);
+    });
+
+  it('counts failures in a row, and a success clears the count', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    expect(activeWatch.value!.fails).toBe(0);
+    answer = () => new Response('{}', { status: 503 });
+    for (let i = 1; i <= 4; i++) {
+      setClock(T0 + i * WATCH_EVERY_MS);
+      watchLinkTick();
+      await settle();
+      expect(activeWatch.value!.fails).toBe(i);
+    }
+    answer = () => Promise.reject(new TypeError('Failed to fetch'));
+    setClock(T0 + 5 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(activeWatch.value!.fails).toBe(5);
+    expect(activeWatch.value!.lastOkAt).toBe(T0);
+    answer = () => new Response('{}');
+    setClock(T0 + 6 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(activeWatch.value!.fails).toBe(0);
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 6 * WATCH_EVERY_MS);
+  });
+});
+
+describe('suspect (d): the timer and the panels', () => {
+  it("the beat's driver lives in the store, never in a component a re-render could unmount", () => {
+    const root = path.join(__dirname, '..');
+    const compDir = path.join(root, 'components');
+    const vue: string[] = [];
+    const walk = (d: string) => {
+      for (const f of fs.readdirSync(d, { withFileTypes: true }))
+        if (f.isDirectory()) walk(path.join(d, f.name));
+        else if (f.name.endsWith('.vue')) vue.push(path.join(d, f.name));
+    };
+    walk(compDir);
+    for (const f of vue) expect(fs.readFileSync(f, 'utf8'), f).not.toMatch(/watchLinkTick|watchLinkNoteProgress/);
+    const store = fs.readFileSync(path.join(root, 'stores', 'chainSearch.ts'), 'utf8');
+    // The 15 s timer and the progress hook are both the store's, set up once.
+    expect(store).toMatch(/blackBoxTimer = setInterval\(blackBoxBeat, 15_000\)/);
+    expect(store).toMatch(/watch\(runProgress, p => watchLinkNoteProgress\(/);
+  });
+
+  it('a run started again on the same page keeps exactly one beat (the old link stops)', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const first = activeWatch.value!.link.id;
+    watchLinkRunEnded('stopped');
+    await settle();
+    setClock(T0 + 60_000);
+    watchLinkRunStarted('deadline');
+    await settle();
+    const second = activeWatch.value!.link.id;
+    expect(second).not.toBe(first);
+    // Between the two: everything of the first link has landed (its start and its stop, nothing queued or
+    // sealing, no retry waiting), and the second's own start too, before the count starts from nothing.
+    expect(sealing.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(posts().map(p => [p.body.id, p.body.status])).toEqual([
+      [first, 'running'],
+      [first, 'stopped'],
+      [second, 'running'],
+    ]);
+    calls = [];
+    await timerTicks(T0 + 75_000, T0 + 61_000 + 30 * 60_000);
+    await progressEvents(T0 + 61_000 + 30 * 60_000 + 30_000, T0 + 61_000 + 60 * 60_000);
+    // Nothing more from the first link, and the second's beat: one per 5 minutes after its start.
+    expect(posts().filter(p => p.body.id !== second)).toEqual([]);
+    expect(posts().filter(p => p.body.id === second)).toHaveLength(12);
+  });
+});
+
+describe('suspect (a): a hidden, throttled tab', () => {
+  it("with no timer firing for 2 hours, the run's own progress events still send one beat every 5 minutes", async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const end = T0 + 2 * 3600_000;
+    await progressEvents(T0 + 30_000, end);
+    expect(posts()).toHaveLength(expectedPosts(end));
+    // The phone gets the fresh count.
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 24 * WATCH_EVERY_MS);
+  });
+
+  it('timer ticks and progress events together still make exactly one beat per 5 minutes', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    for (let t = T0 + 5_000; t <= T0 + 3600_000; t += 5_000) {
+      setClock(t);
+      if (t % 15_000 === 0) watchLinkTick();
+      progress = { ...progress!, done: progress!.done + 1 };
+      watchLinkNoteProgress(progress);
+      await settle();
+    }
+    expect(posts()).toHaveLength(expectedPosts(T0 + 3600_000));
+    expect(posts()).toHaveLength(13);
+  });
+
+  it('progress events after the run ended send nothing more', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    setClock(T0 + 60_000);
+    watchLinkRunEnded('finished');
+    await settle();
+    expect(posts()).toHaveLength(2);
+    await progressEvents(T0 + 6 * 60_000, T0 + 30 * 60_000);
+    expect(posts()).toHaveLength(2);
+  });
+});
+
+describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => {
+  const base = {
+    status: 'running' as const,
+    lastOkAt: Date.UTC(2026, 9, 27, 10, 5) as number | null,
+    lastError: "the planner's server said 503",
+  };
+
+  it(`appears after ${WATCH_FAILS_NOTE} failures in a row, with the last time one went`, () => {
+    expect(WATCH_FAILS_NOTE).toBe(3);
+    for (let f = 0; f < WATCH_FAILS_NOTE; f++) expect(watchFailingNote({ ...base, fails: f })).toBe('');
+    const note = watchFailingNote({ ...base, fails: WATCH_FAILS_NOTE });
+    const when = new Date(base.lastOkAt!);
+    const h = when.getHours();
+    const clock12 = `${h % 12 || 12}:${String(when.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+    expect(note).toBe(
+      `Your phone link isn't updating: the last 3 updates didn't go (the planner's server said 503). The last one sent was at ${clock12}. It keeps trying every 5 minutes.`
+    );
+    expect(note).toMatch(/\d{1,2}:\d{2} (AM|PM)/);
+  });
+
+  it('says so when none has gone yet', () => {
+    expect(watchFailingNote({ ...base, lastOkAt: null, fails: 4 })).toBe(
+      "Your phone link isn't updating: the last 4 updates didn't go (the planner's server said 503). None has gone yet. It keeps trying every 5 minutes."
+    );
+  });
+
+  it('a post that never answers counts as failed once the next one is due', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    answer = () => new Promise<Response>(() => undefined);
+    for (let i = 1; i <= 4; i++) {
+      setClock(T0 + i * WATCH_EVERY_MS);
+      watchLinkTick();
+      await settle();
+    }
+    // Posts 1-3 never answered by the time 2-4 went; the 4th is still out.
+    expect(activeWatch.value!.fails).toBe(3);
+    expect(watchFailingNote(activeWatch.value!)).toContain('(no answer from the server)');
+  });
+
+  it('is gone once the run ends, or once one goes again', () => {
+    expect(watchFailingNote({ ...base, fails: 0 })).toBe('');
+    expect(watchFailingNote({ ...base, status: 'finished', fails: 9 })).toBe('');
+  });
+
+  it('end to end: three failed beats show it, the next success clears it', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    answer = () => new Response('{}', { status: 429 });
+    for (let i = 1; i <= 3; i++) {
+      setClock(T0 + i * WATCH_EVERY_MS);
+      watchLinkTick();
+      await settle();
+      expect(watchFailingNote(activeWatch.value!) === '').toBe(i < 3);
+    }
+    expect(watchFailingNote(activeWatch.value!)).toContain("the planner's server said 429");
+    answer = () => new Response('{}');
+    setClock(T0 + 4 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(watchFailingNote(activeWatch.value!)).toBe('');
+  });
+});
+
+/**
+ * A post that hangs past the next beat, then answers after all (29 Oct 2026). It was already counted as failed
+ * ("no answer") when the next one went, so its late answer is stale: it must not count a second failure, nor
+ * reset the count, nor move "last sent at" back to its own older time. Only the newest post's answer counts.
+ */
+describe('a late answer from a post the next beat already overtook', () => {
+  /** An answer the test gives when it likes. */
+  function later() {
+    let give!: (r: Response | Error) => void;
+    const p = new Promise<Response>((res, rej) => {
+      give = r => (r instanceof Error ? rej(r) : res(r));
+    });
+    return { answer: () => p, give };
+  }
+
+  /** The run's start (answered), then a post at T0 + 5 min that hangs, then the next at T0 + 10 min. */
+  async function hangThenNext(next: () => Response | Promise<Response>) {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const hung = later();
+    answer = hung.answer;
+    setClock(T0 + WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    answer = next;
+    setClock(T0 + 2 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(posts()).toHaveLength(3);
+    return hung;
+  }
+
+  for (const [what, late] of [
+    ['an error (503)', () => new Response('{}', { status: 503 })],
+    ['a 429', () => new Response('{}', { status: 429, headers: { 'retry-after': '60' } })],
+    ['offline', () => new TypeError('Failed to fetch')],
+  ] as [string, () => Response | Error][])
+    it(`hung, then ${what} late: one failure for the hang, none more; the newer post's answer counts`, async () => {
+      const newer = later();
+      const hung = await hangThenNext(newer.answer);
+      expect(activeWatch.value!.fails).toBe(1);
+      expect(activeWatch.value!.lastError).toBe('no answer from the server');
+      hung.give(late());
+      await settle();
+      expect(activeWatch.value!.fails).toBe(1);
+      expect(activeWatch.value!.lastError).toBe('no answer from the server');
+      expect(vi.getTimerCount()).toBe(0);
+      newer.give(new Response('{}', { status: 503 }));
+      await settle();
+      expect(activeWatch.value!.fails).toBe(2);
+      expect(activeWatch.value!.lastError).toBe("the planner's server said 503");
+      expect(activeWatch.value!.lastOkAt).toBe(T0);
+    });
+
+  it('hung, the next one goes, then the hung one answers OK late: "last sent" stays at the newer time', async () => {
+    const hung = await hangThenNext(() => new Response('{}'));
+    expect(activeWatch.value!.fails).toBe(0);
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 2 * WATCH_EVERY_MS);
+    hung.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.fails).toBe(0);
+    expect(activeWatch.value!.lastError).toBe('');
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 2 * WATCH_EVERY_MS);
+  });
+
+  it('hung, the next one fails, then the hung one answers OK late: the failures are not wiped', async () => {
+    const hung = await hangThenNext(() => new Response('{}', { status: 503 }));
+    expect(activeWatch.value!.fails).toBe(2);
+    hung.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.fails).toBe(2);
+    expect(activeWatch.value!.lastError).toBe("the planner's server said 503");
+    expect(activeWatch.value!.lastOkAt).toBe(T0);
+    // A third failure in a row still shows the note, with the last one that really went.
+    setClock(T0 + 3 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(activeWatch.value!.fails).toBe(3);
+    expect(watchFailingNote(activeWatch.value!)).not.toBe('');
+  });
+
+  it('the newest post answering late still counts (it was never overtaken)', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const slow = later();
+    answer = slow.answer;
+    setClock(T0 + WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    setClock(T0 + WATCH_EVERY_MS + 90_000);
+    slow.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + WATCH_EVERY_MS);
+    expect(activeWatch.value!.fails).toBe(0);
+  });
+});

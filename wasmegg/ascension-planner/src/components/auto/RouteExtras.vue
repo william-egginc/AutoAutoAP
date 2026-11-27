@@ -4,10 +4,10 @@
   shifts fold into one line until opened; the TE is one line. Nothing when the legs don't say.
 -->
 <template>
-  <div v-if="shifts.length || more" class="space-y-1 text-[11px] leading-relaxed" data-testid="route-extras">
-    <details v-if="shifts.length" data-testid="first-shifts">
-      <summary class="cursor-pointer font-semibold" :class="tone">
-        First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
+  <div v-if="(part !== 'more' && shifts.length) || (part !== 'shifts' && more)" class="space-y-1 text-body" data-testid="route-extras">
+    <details v-if="part !== 'more' && shifts.length" data-testid="first-shifts">
+      <summary class="cursor-pointer font-bold" :class="tone">
+        First ascension:<template v-if="firstNote">{{ ' ' }}{{ firstNote }},</template> {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
         {{ short(shifts[0].at) }} to {{ short(shifts[shifts.length - 1].at) }}
       </summary>
       <ul class="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2 pl-4 list-disc" :class="muted">
@@ -16,8 +16,8 @@
         </li>
       </ul>
     </details>
-    <p v-if="more" :class="tone" data-testid="one-more-te">
-      <span class="font-semibold">One more TE ({{ more.te }}):</span>
+    <p v-if="part !== 'shifts' && more" :class="tone" data-testid="one-more-te">
+      <span class="font-bold">One more TE ({{ more.te }}):</span>
       <template v-if="more.how === 'run'"
         >{{ ' ' }}about {{ span(more.seconds) }} more, so about <span class="whitespace-nowrap">{{ short(more.at) }}</span> (what
         {{ more.te - 1 }} cost over {{ more.te - 2 }} in this run).</template
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed } from 'vue';
 import type { LegSummary } from '@/search/types';
 import { firstLegShifts, oneMoreTE } from '@/search/routeExtras';
@@ -49,8 +50,16 @@ const props = withDefaults(
     green?: boolean;
     /** One more TE only from `runCost`, never the final-rate estimate. */
     noRate?: boolean;
+    /** By a date's deadline: no run-cost "one more TE" date at or before it (search/routeExtras.ts). */
+    deadline?: number | null;
+    /** One part only: By a date's card shows the shifts in the card and one more TE inside its Next TE fold (UX fluff
+     *  review 2, 5 Nov 2026, items D3 and D5). */
+    part?: 'all' | 'shifts' | 'more';
+    /** A clause for the First ascension line: "carries on your build-up (157.2 days sooner than …)" (store
+     *  `buildUpClause`; UX fluff review 2, 5 Nov 2026, item C3). */
+    firstNote?: string;
   }>(),
-  { runCost: null, green: false, noRate: false }
+  { runCost: null, green: false, noRate: false, deadline: null, part: 'all', firstNote: '' }
 );
 
 const shifts = computed(() => firstLegShifts(props.legs));
@@ -61,6 +70,7 @@ const more = computed(() =>
     reachAt: props.reachAt,
     runCost: props.runCost,
     noRate: props.noRate,
+    deadline: props.deadline,
   })
 );
 const tone = computed(() => (props.green ? 'text-emerald-900' : 'text-slate-700'));
@@ -69,22 +79,9 @@ const muted = computed(() => (props.green ? 'text-emerald-900/80' : 'text-slate-
 function eggName(egg: string): string {
   return (VIRTUE_EGG_NAMES as Record<string, string>)[egg] ?? egg;
 }
-/** "Tue Oct 13, 4 pm" / "Tue Oct 13, 4:30 pm", in the plan's time zone. */
+/** "Tue, Oct 13, 4:00 PM" / "Tue, Oct 13, 4:30 PM" (en-US), in the plan's time zone (lib/clock.ts). */
 function short(unix: number): string {
-  const d = new Date(unix * 1000);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: props.zone,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).formatToParts(d);
-  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
-  const minute = get('minute');
-  const time = `${get('hour')}${minute && minute !== '00' ? `:${minute}` : ''} ${get('dayPeriod').toLowerCase()}`;
-  return `${get('weekday')} ${get('month')} ${get('day')}, ${time}`;
+  return formatMoment(unix * 1000, { zone: props.zone, weekday: true, year: 'never' });
 }
 function span(seconds: number): string {
   const h = seconds / 3600;

@@ -16,7 +16,7 @@
  * its share, so a pool's budget goes as far as one cache with all of it.
  */
 import type { TailSweep } from './precomputedLeg';
-import { isSmallDevice } from './device';
+import { isSafari, isSmallDevice } from './device';
 
 /** What `expandArrivals` needs of a cache: a plain Map works too (the command line's precompute). */
 export interface SweepStore {
@@ -31,6 +31,14 @@ const MB = 1024 * 1024;
  *  workers never keep sweeps; the route workers sleep while a search runs. */
 export const SMALL_SWEEP_BUDGET = 384 * MB;
 export const SWEEP_BUDGET = 2048 * MB;
+/** Safari on a computer: an eighth of a computer's (22 Oct 2026 half; 24 Oct 2026 a quarter of that). Safari reloads
+ *  the tab at a much lower memory level than Chrome, and in Safari a sweep costs about 2.5 times its `bytes` (the
+ *  JavaScriptCore shell: 256 MB of them kept, 650 MB more footprint). Worse, Prestige by's exact lookups each start
+ *  the cache afresh (new settings), and Safari's route workers free the old sweeps slowly: with 1 GB the tab's
+ *  footprint reached 10-16 GB and Safari reloaded it, over and over (Playwright WebKit, By a date with hours on, the
+ *  18 Oct alt save). With 256 MB it peaked at 1.0 GB through the answer, polish, Prestige by and nearest tables.
+ *  The answer is the same; a dropped sweep is only worked out again. */
+export const SAFARI_SWEEP_BUDGET = 256 * MB;
 
 /** The route workers the instant answer runs (routePool.ts `poolSize`, two on a small device). */
 export function routeWorkers(small: boolean, cores: number): number {
@@ -41,9 +49,11 @@ export function routeWorkers(small: boolean, cores: number): number {
 /** One route worker's budget on this device. */
 export function sweepBudget(
   small: boolean = isSmallDevice(),
-  cores: number = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4
+  cores: number = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4,
+  safari: boolean = isSafari()
 ): number {
-  return Math.floor((small ? SMALL_SWEEP_BUDGET : SWEEP_BUDGET) / routeWorkers(small, cores));
+  const total = small ? SMALL_SWEEP_BUDGET : safari ? SAFARI_SWEEP_BUDGET : SWEEP_BUDGET;
+  return Math.floor(total / routeWorkers(small, cores));
 }
 
 export class SweepCache implements SweepStore {

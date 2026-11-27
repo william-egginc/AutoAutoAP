@@ -4,19 +4,25 @@
       <!-- Earnings -->
       <div class="space-y-2">
         <div class="flex items-center justify-between px-1 h-7">
-          <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Earnings Set</h4>
+          <h4 class="text-slate-600 label">Earnings Set</h4>
         </div>
-        <ArtifactSelector :model-value="modelValue.earnings" stones="hidden" @update:model-value="onEarningsChange" />
+        <ArtifactSelector
+          :model-value="modelValue.earnings"
+          :families="earningsFamilies"
+          :slot-count="slotCount"
+          stones="hidden"
+          @update:model-value="onEarningsChange"
+        />
       </div>
 
       <!-- Delivery -->
       <div class="space-y-2">
         <div class="flex items-center justify-between px-1 h-7">
-          <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Delivery Set</h4>
+          <h4 class="text-slate-600 label">Delivery Set</h4>
           <div v-if="modelValue.delivery.mode === 'auto'" class="flex items-center gap-1.5">
             <button
               v-tippy="'Change which artifacts H1 can choose from'"
-              class="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all"
+              class="px-2.5 py-1 text-body font-bold rounded-lg border transition-all"
               :class="
                 isEditingCandidates
                   ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700'
@@ -31,7 +37,7 @@
           <button
             v-else-if="inventoryDelivery?.mode === 'auto'"
             v-tippy="'Let H1 pick from your inventory again'"
-            class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200 transition-all"
+            class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg border border-slate-200 transition-all"
             @click="useInventoryDelivery"
           >
             Pick from inventory
@@ -43,17 +49,26 @@
             v-for="(view, idx) in deliveryViews"
             :key="idx"
             class="section-premium p-3 flex items-center gap-3 min-h-[3.25rem]"
-            :style="{ backgroundColor: view.kind === 'artifact' ? slotTint(view.artifactId) : 'white' }"
+            :class="{ 'bg-slate-50 border-dashed opacity-70': idx >= slotCount }"
+            :style="idx < slotCount ? { backgroundColor: view.kind === 'artifact' ? slotTint(view.artifactId) : 'white' } : {}"
           >
             <span
-              class="text-[10px] font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
-              >{{ idx + 1 }}</span
-            >
-            <template v-if="view.kind === 'artifact'">
+              class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+              v-text="idx + 1"
+            />
+            <template v-if="idx >= slotCount">
+              <span class="text-small text-gray-600 italic">Empty slot</span>
+              <span
+                class="ml-auto flex-shrink-0 whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-small font-bold text-amber-700"
+              >
+                Pro Permit only — ignored
+              </span>
+            </template>
+            <template v-else-if="view.kind === 'artifact'">
               <img :src="iconURL(getArtifact(view.artifactId)!.iconPath, 64)" class="w-7 h-7" />
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800 truncate">{{ getArtifact(view.artifactId)!.label }}</div>
-                <div class="text-[9px] text-slate-500">{{ getArtifact(view.artifactId)!.effect }}</div>
+                <div class="text-small font-bold text-slate-800 truncate">{{ getArtifact(view.artifactId)!.label }}</div>
+                <div class="text-small text-slate-600">{{ getArtifact(view.artifactId)!.effect }}</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'choice'">
@@ -67,8 +82,8 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800 truncate">{{ choiceLabel(view.artifactIds) }}</div>
-                <div class="text-[9px] font-bold text-amber-600">H1 picks based on research and stones</div>
+                <div class="text-small font-bold text-slate-800 truncate">{{ choiceLabel(view.artifactIds) }}</div>
+                <div class="text-small font-bold text-amber-700">H1 picks based on research and stones</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'holder'">
@@ -81,20 +96,28 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800">Stone holder</div>
-                <div class="text-[9px] font-bold text-amber-600 truncate">
+                <div class="text-small font-bold text-slate-800">Stone holder</div>
+                <div class="text-small font-bold text-amber-700 truncate">
                   H1 picks {{ view.pick === 1 ? 'one' : view.pick }} of: {{ view.artifactIds.map(id => getArtifact(id)!.label).join(', ') }}
                 </div>
               </div>
             </template>
-            <span v-else class="text-[10px] text-gray-400 italic">Empty slot</span>
+            <template v-else-if="view.kind === 'any'">
+              <div class="min-w-0">
+                <div class="text-small font-bold text-slate-800">Any delivery artifact</div>
+                <div class="text-small text-amber-700 truncate">
+                  H1 picks {{ view.pick }} of: {{ view.artifactIds.map(id => getArtifact(id)!.label).join(', ') }}
+                </div>
+              </div>
+            </template>
+            <span v-else class="text-small text-gray-600 italic">Empty slot</span>
           </div>
 
           <!-- What H1 may choose from. Edited by hand to try out an inventory you don't have. -->
           <div v-if="isEditingCandidates" class="section-premium p-3 space-y-3">
             <div>
-              <div class="text-[10px] font-black text-slate-700">Which artifacts can H1 choose from?</div>
-              <div class="text-[9px] text-slate-500">
+              <div class="text-small font-bold text-slate-700">Which artifacts can H1 choose from?</div>
+              <div class="text-small text-slate-600">
                 Click to add or remove. Pick two of a family (e.g. T4R and T3E metronome) to see H1 choose between them.
               </div>
             </div>
@@ -102,18 +125,18 @@
             <div v-for="family in targetFamilies" :key="family.afxId" class="space-y-1">
               <div class="flex items-center gap-1.5">
                 <img :src="iconURL(family.iconPath, 64)" class="w-4 h-4" />
-                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">{{ family.name }}</span>
+                <span class="text-slate-600 label">{{ family.name }}</span>
               </div>
               <div class="flex flex-wrap gap-1">
                 <button
                   v-for="option in family.options"
                   :key="option.id"
                   v-tippy="`${option.label}: ${option.effect}, ${option.slots} stone slot${option.slots === 1 ? '' : 's'}`"
-                  class="px-1.5 py-0.5 rounded-md border text-[10px] font-black transition-all"
+                  class="px-1.5 py-0.5 rounded-md border text-small font-bold transition-all"
                   :class="
                     hasCandidate(option.id)
                       ? 'border-indigo-500 ring-1 ring-indigo-500 text-slate-900'
-                      : 'border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 bg-white'
+                      : 'border-slate-200 text-slate-600 hover:text-slate-700 hover:border-slate-300 bg-white'
                   "
                   :style="hasCandidate(option.id) ? { backgroundColor: slotTint(option.id) } : {}"
                   :aria-pressed="hasCandidate(option.id)"
@@ -125,25 +148,25 @@
             </div>
 
             <div class="space-y-1">
-              <div class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Stone holders</div>
+              <div class="text-slate-600 label">Stone holders</div>
               <div class="flex flex-wrap gap-1.5">
                 <span
                   v-for="candidate in holderCandidates"
                   :key="candidate.artifactId"
-                  class="flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700"
+                  class="flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-lg border border-slate-200 text-small font-bold text-slate-700"
                   :style="{ backgroundColor: slotTint(candidate.artifactId) }"
                 >
                   <img :src="iconURL(getArtifact(candidate.artifactId)!.iconPath, 64)" class="w-4 h-4" />
                   {{ getArtifact(candidate.artifactId)!.label }}
                   <button
-                    class="w-4 h-4 rounded text-slate-400 hover:text-rose-600 hover:bg-white/60 leading-none"
+                    class="w-4 h-4 rounded text-slate-600 hover:text-rose-600 hover:bg-white/60 leading-none"
                     :aria-label="`Remove ${getArtifact(candidate.artifactId)!.label}`"
                     @click="toggleCandidate(candidate.artifactId)"
                   >
                     ×
                   </button>
                 </span>
-                <span v-if="holderCandidates.length === 0" class="text-[10px] text-gray-400 italic">None</span>
+                <span v-if="holderCandidates.length === 0" class="text-small text-gray-600 italic">None</span>
               </div>
               <ArtifactSelect
                 :model-value="null"
@@ -159,22 +182,54 @@
             </div>
           </div>
         </template>
-        <ArtifactSelector v-else :model-value="fixedDeliveryDisplay" stones="hidden" @update:model-value="onFixedDeliveryChange" />
+        <template v-else>
+          <ArtifactSelector
+            :model-value="stoneHolders ? fixedDeliveryDisplay.slice(0, -1) : fixedDeliveryDisplay"
+            :families="deliveryFamilies"
+            :slot-count="slotCount"
+            stones="hidden"
+            @update:model-value="onFixedDeliveryChange"
+          />
+          <!-- The last slot as a stone holder: only its stone slots count. -->
+          <div v-if="stoneHolders" class="section-premium p-3 flex items-center gap-3">
+            <span
+              class="text-small font-bold text-slate-600 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+              >{{ fixedDeliveryDisplay.length }}</span
+            >
+            <span class="text-small font-bold text-slate-800">Stone holder</span>
+            <div class="flex gap-1">
+              <button
+                v-for="holder in stoneHolders"
+                :key="holder.id"
+                class="px-2 py-0.5 rounded-md border text-small font-bold transition-all"
+                :class="
+                  fixedHolder === holder.id
+                    ? 'border-indigo-500 ring-1 ring-indigo-500 text-slate-900 bg-indigo-50'
+                    : 'border-slate-200 text-slate-600 hover:text-slate-700 hover:border-slate-300 bg-white'
+                "
+                :aria-pressed="fixedHolder === holder.id"
+                @click="setFixedHolder(holder.id)"
+              >
+                {{ holder.label }}
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
     <!-- Stones -->
     <div class="space-y-2">
       <div class="flex items-center justify-between px-1">
-        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Stones Available</h4>
-        <span class="text-[9px] font-bold text-slate-400">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
+        <h4 class="text-slate-600 label">Stones Available</h4>
+        <span class="text-small font-bold text-slate-600">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-[10px]">
+        <table class="w-full text-small">
           <thead>
-            <tr class="text-slate-400 font-black uppercase tracking-widest">
-              <th class="text-left font-black px-1 py-1"></th>
-              <th v-for="tier in STONE_TIERS" :key="tier" class="font-black px-1 py-1">T{{ tier }}</th>
+            <tr class="text-slate-600 label">
+              <th class="text-left font-bold px-1 py-1"></th>
+              <th v-for="tier in STONE_TIERS" :key="tier" class="font-bold px-1 py-1">T{{ tier }}</th>
             </tr>
           </thead>
           <tbody>
@@ -182,13 +237,13 @@
               <td class="px-1 py-1.5">
                 <div class="flex items-center gap-1.5">
                   <img :src="iconURL(getStone(stoneId(family, 4))!.iconPath, 64)" class="w-4 h-4" />
-                  <span class="font-black text-slate-600 capitalize">{{ family }}</span>
+                  <span class="font-bold text-slate-600 capitalize">{{ family }}</span>
                 </div>
               </td>
               <td v-for="tier in STONE_TIERS" :key="tier" class="px-1 py-1.5">
                 <div class="flex items-center justify-center gap-1">
                   <button
-                    class="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-black disabled:opacity-30"
+                    class="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold disabled:opacity-30"
                     :disabled="modelValue.stones[family][tier] <= 0"
                     :aria-label="`Fewer T${tier} ${family} stones`"
                     @click="setStone(family, tier, modelValue.stones[family][tier] - 1)"
@@ -199,12 +254,12 @@
                     type="number"
                     min="0"
                     :value="modelValue.stones[family][tier]"
-                    class="w-14 bg-white border border-slate-100 rounded-md px-1 py-0.5 text-center font-mono-premium font-black text-slate-900 outline-none focus:border-indigo-500/50"
+                    class="w-14 bg-white border border-slate-100 rounded-md px-1 py-0.5 text-center tabular-nums font-bold text-slate-900 outline-none focus:border-indigo-500/50"
                     @change="setStone(family, tier, Number(($event.target as HTMLInputElement).value))"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                   />
                   <button
-                    class="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-black"
+                    class="w-5 h-5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"
                     :aria-label="`More T${tier} ${family} stones`"
                     @click="setStone(family, tier, modelValue.stones[family][tier] + 1)"
                   >
@@ -213,7 +268,7 @@
                 </div>
                 <div
                   v-if="defaultValue && defaultValue.stones[family][tier] !== modelValue.stones[family][tier]"
-                  class="text-center text-[8px] text-slate-400"
+                  class="text-center text-small text-slate-600"
                 >
                   {{ defaultLabel }} {{ defaultValue.stones[family][tier] }}
                 </div>
@@ -226,7 +281,7 @@
 
     <div v-if="defaultValue && differsFromDefault" class="flex justify-end">
       <button
-        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-200 flex items-center gap-2 active:scale-95"
+        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg transition-all border border-slate-200 flex items-center gap-2 active:scale-95"
         @click="emit('update:modelValue', cloneLoadoutInputs(defaultValue))"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,11 +308,11 @@ import { computed, ref } from 'vue';
 import { iconURL } from 'lib';
 import { ei } from 'lib/proto';
 import { GenericBaseSelectFilterable } from 'ui/components/BaseSelectFilterable.vue';
-import { isDeliveryTargetArtifact } from '@/lib/artifacts/virtue';
-import ArtifactSelector from '@/components/ArtifactSelector.vue';
+import { isDeliveryTargetArtifact } from 'lib/planners/artifacts/virtue';
+import ArtifactSelector from 'ui/components/planners/ArtifactSelector.vue';
 import { artifactOptions, getArtifact, getStone } from '@/lib/artifacts/data';
 import type { ArtifactOption } from '@/lib/artifacts/types';
-import { rarityTint } from '@/lib/artifacts/display';
+import { rarityTint } from 'lib/planners/artifacts/display';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import {
   STONE_FAMILIES,
@@ -284,8 +339,25 @@ const props = withDefaults(
     defaultLabel?: string;
     /** The inventory's own `auto` delivery inputs, so a fixed set can switch back to them. */
     inventoryDelivery?: DeliveryInputs | null;
+    /** The artifact family each earnings slot may hold (ArtifactSelector `families`). */
+    earningsFamilies?: (string | null)[];
+    /** The artifact family each fixed delivery slot may hold, before any stone holder. */
+    deliveryFamilies?: (string | null)[];
+    /** When given, a fixed delivery set's last slot is a choice of these stand-in holders. */
+    stoneHolders?: { id: string; label: string }[] | null;
+    /** How many artifact slots count: 4 with Pro permit, 2 with Standard. Later slots show as ignored. */
+    slotCount?: number;
   }>(),
-  { defaultValue: null, resetLabel: 'Reset', defaultLabel: 'Default', inventoryDelivery: null }
+  {
+    defaultValue: null,
+    resetLabel: 'Reset',
+    defaultLabel: 'Default',
+    inventoryDelivery: null,
+    earningsFamilies: () => [],
+    deliveryFamilies: () => [],
+    stoneHolders: null,
+    slotCount: 4,
+  }
 );
 
 const emit = defineEmits<{
@@ -306,7 +378,7 @@ function onEarningsChange(value: EquippedArtifact[]) {
   });
 }
 
-const deliveryViews = computed(() => deliveryCandidatesBySlot(props.modelValue));
+const deliveryViews = computed(() => deliveryCandidatesBySlot(props.modelValue, props.slotCount));
 
 const fixedDeliveryDisplay = computed<EquippedArtifact[]>(() =>
   props.modelValue.delivery.mode === 'fixed'
@@ -314,9 +386,20 @@ const fixedDeliveryDisplay = computed<EquippedArtifact[]>(() =>
     : []
 );
 
+const fixedHolder = computed(() =>
+  props.modelValue.delivery.mode === 'fixed' ? (props.modelValue.delivery.artifactIds.at(-1) ?? null) : null
+);
+
 function onFixedDeliveryChange(value: EquippedArtifact[]) {
   update(next => {
-    next.delivery = { mode: 'fixed', artifactIds: value.map(s => s.artifactId ?? null) };
+    const ids = value.map(s => s.artifactId ?? null);
+    next.delivery = { mode: 'fixed', artifactIds: props.stoneHolders ? [...ids, fixedHolder.value] : ids };
+  });
+}
+
+function setFixedHolder(id: string) {
+  update(next => {
+    if (next.delivery.mode === 'fixed') next.delivery.artifactIds[next.delivery.artifactIds.length - 1] = id;
   });
 }
 
@@ -329,14 +412,16 @@ const autoCandidates = computed(() =>
 
 // One row of tier/rarity toggles per delivery target family; everything else is a stone holder.
 const targetFamilies = computed(() =>
-  [ei.ArtifactSpec.Name.QUANTUM_METRONOME, ei.ArtifactSpec.Name.INTERSTELLAR_COMPASS, ei.ArtifactSpec.Name.ORNATE_GUSSET].map(
-    afxId => {
-      const options = artifactOptions
-        .filter(a => a.afxId === afxId)
-        .sort((a, b) => b.tier - a.tier || b.rarity - a.rarity);
-      return { afxId, name: options[0]?.familyName ?? '', iconPath: options[0]?.iconPath ?? '', options };
-    }
-  )
+  [
+    ei.ArtifactSpec.Name.QUANTUM_METRONOME,
+    ei.ArtifactSpec.Name.INTERSTELLAR_COMPASS,
+    ei.ArtifactSpec.Name.ORNATE_GUSSET,
+  ].map(afxId => {
+    const options = artifactOptions
+      .filter(a => a.afxId === afxId)
+      .sort((a, b) => b.tier - a.tier || b.rarity - a.rarity);
+    return { afxId, name: options[0]?.familyName ?? '', iconPath: options[0]?.iconPath ?? '', options };
+  })
 );
 const holderOptions = artifactOptions.filter(a => !isDeliveryTargetArtifact(a.id) && a.slots > 0);
 const holderCandidates = computed(() => autoCandidates.value.filter(c => !c.isTarget));
@@ -394,9 +479,3 @@ function choiceLabel(ids: string[]): string {
   return `${options.map(a => `T${a.tier}${a.rarityCode}`).join(' or ')} ${options[0].familyName}`;
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

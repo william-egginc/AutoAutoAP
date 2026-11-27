@@ -26,7 +26,7 @@ describe('Fastest, Nearby routes: the Limits box', () => {
     expect(panel).toContain('data-testid="limits-follow-hint"');
     expect(panel).toContain('limitsHint(store.limitsFollowing)');
     expect(panel).toMatch(
-      /limits-follow-hint"[^>]*>|class="[^"]*text-slate-400[^"]*" data-testid="limits-follow-hint"/
+      /limits-follow-hint"[^>]*>|class="[^"]*text-slate-600[^"]*" data-testid="limits-follow-hint"/
     );
   });
   it('the longer-route hint sets them on purpose (no plain writes left)', () => {
@@ -80,7 +80,6 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
       'function addChain',
       'function applyRequest',
       'function openInAdvanced',
-      'function checkByDate',
       'function setRowAsc',
       'function removeRow',
       'function fillFromSpec',
@@ -89,6 +88,7 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
       expect(at, fn).toBeGreaterThan(0);
       expect(byDate.slice(at, at + 900), fn).toContain('ascFollows.value = false');
     }
+    expect(byDate).not.toContain('checkByDate');
     expect(byDate).toContain('@asc="setRowAsc"');
     expect(byDate).toContain('@remove="removeRow"');
   });
@@ -111,10 +111,10 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
         maxAsc: 8,
         minRows: 1,
         placeholder: '',
-        sliderLead: 'Suggest a space tries',
+        sliderLead: 'Suggested boxes try',
       },
       { 'asc-after': ({ k }: { k: number }) => (k === 0 ? h('span', '(from the instant answer)') : null) }
     );
-    expect(textOf(html)).toMatch(/Box 1 Ascensions \(from the instant answer\) Suggest a space/);
+    expect(textOf(html)).toMatch(/Box 1 Ascensions \(from the instant answer\) Suggest boxes/);
   });
 });

@@ -1,25 +1,60 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
+import { ref, watch } from 'vue';
+import type { AutoView, ChainView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
-import type { ExactAsk } from '@/lib/recalc';
+import { readAutoScreen, writeAutoScreen } from '@/lib/autoScreen';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'myruns' | 'science';
 
+const KEPT_OPEN_KEY = 'aap.headerKeptOpen';
+function readKeptOpen(): boolean {
+  try {
+    return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(KEPT_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export const useUIStore = defineStore('ui', () => {
-  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My runs, Science. */
+  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My Runs, Science. */
   const plannerTab = ref<PlannerTab>('manual');
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
-  const autoView = ref<AutoView>('classic');
+  const lastScreen = readAutoScreen();
+  /** Opens on the screen the player was last on (lib/autoScreen.ts); Single run on a first visit. */
+  const autoView = ref<AutoView>(lastScreen?.view ?? 'classic');
   /** Simple (Smart search) unless the player last picked Advanced (lib/searchMode.ts); an address
    *  naming the depth (#/auto/fastest/full) wins over both. */
-  const fastestDepth = ref<Depth>(readSearchMode('fastest') === 'advanced' ? 'full' : 'smart');
+  const fastestDepth = ref<Depth>(
+    lastScreen?.depth ?? (readSearchMode('fastest') === 'advanced' ? 'full' : 'smart')
+  );
+  /** Chain Finder's goal (spec-chainfinder, 12 Nov 2026): the screen its tab opens on, Fastest on a first visit. Follows
+   *  autoView whenever that is Fastest or By a date; the simulator (the Auto Planner tab) leaves it alone. */
+  const chainView = ref<ChainView>(lastScreen?.view ?? 'fastest');
+  watch(autoView, view => {
+    if (view !== 'classic') chainView.value = view;
+  });
+  watch([autoView, fastestDepth], ([view, depth]) => writeAutoScreen(view, depth));
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
   const scienceView = ref<ScienceView>('how');
   const isHeaderCollapsed = ref(false);
+  /**
+   * The player opened the top menu (the account chips, the ID box) with its chevron and left it open: the automatic
+   * collapses (opening the Auto Planner, a reload restoring it) leave it open (QA, 26 Oct 2026: after a resize in Safari
+   * the chips came back folded away). Kept for this tab (sessionStorage), so a reload of the tab keeps it too.
+   */
+  const headerKeptOpen = ref(readKeptOpen());
+  function setHeaderKeptOpen(open: boolean): void {
+    headerKeptOpen.value = open;
+    try {
+      if (open) sessionStorage.setItem(KEPT_OPEN_KEY, '1');
+      else sessionStorage.removeItem(KEPT_OPEN_KEY);
+    } catch {
+      // a preference for this tab, never a reason to fail
+    }
+  }
   const isFooterCollapsed = ref(false);
   const loading = ref(false);
   const error = ref('');
@@ -42,29 +77,34 @@ export const useUIStore = defineStore('ui', () => {
    * Saved answers or Saved runs entry loads the save it was priced from ('entry', `label` its name);
    * "Load a save file" loads a downloaded one ('file'). Cleared by the next fresh fetch.
    */
-  const runSaveLoaded = ref<{ te: number; backupAt: number; from?: 'run' | 'entry' | 'file'; label?: string } | null>(
+  const runSaveLoaded = ref<{
+    te: number;
+    backupAt: number;
+    from?: 'run' | 'entry' | 'file';
+    label?: string;
+    /** A save file loaded with no account on screen (chainSearch `loadSaveFile`): own instant answer, Follow and
+     *  everything online are off, and there is no latest save to go back to. */
+    noAccount?: boolean;
+  } | null>(
     null
   );
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */
   const openPlannerRequested = ref(0);
-  /** A route the instant answer's "Simulate this plan" sent to Classic (search/simulateRoute.ts): Classic
+  /** A route the instant answer's "Simulate this route" sent to Classic (search/simulateRoute.ts): Classic
    *  scrolls to its plan once simulated and says where it came from, with a way back. */
   /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
-  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string } | null>(null);
-  /**
-   * My runs' "Recalculate" (lib/recalc.ts): run Check exactly on the screen just opened for this goal (its words as
-   * `instantGoal` has them). InstantRoute.vue watches it, answers it once its instant answer is in (never under a
-   * running search) and clears it. `n` counts the asks, so the same goal asked twice is two asks.
-   */
-  const exactAsk = ref<ExactAsk | null>(null);
-  let exactAsks = 0;
-  function askExact(goal: string, chain?: number[]): void {
-    exactAsk.value = { goal, n: ++exactAsks, ...(chain && chain.length ? { chain: [...chain] } : {}) };
-  }
+  /** `note`: what the banner adds about the route (the instant card's build-up note, search/simulateRoute.ts
+   *  INSTANT_BUILDUP_NOTE: Single run can't continue a build-up, so its dates run later; spec-slimcard). */
+  /** `deadline` (By a date, unix seconds): Single run's banner says when its own finish is after it (UX fluff review 2,
+   *  5 Nov 2026, finding 1). */
+  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string; note?: string; deadline?: number } | null>(null);
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
   const openSetupRequested = ref(0);
+  /** Where that open lands (SetupDock.vue maps it to the option): Time off unless set just before the bump, e.g. the
+   *  Build-up tracker's "Open Setup" lands on the Silo trick box (spec-silotrick-ui). SetupDock puts it back after. */
+  const openSetupAt = ref<'timeOff' | 'siloTrick'>('timeOff');
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
   /** A route handed to the Full sweep to price exactly (the instant answer's "Check exactly",
@@ -105,10 +145,13 @@ export const useUIStore = defineStore('ui', () => {
   return {
     plannerTab,
     autoView,
+    chainView,
     fastestDepth,
     compareView,
     scienceView,
     isHeaderCollapsed,
+    headerKeptOpen,
+    setHeaderKeptOpen,
     isFooterCollapsed,
     loading,
     error,
@@ -117,10 +160,9 @@ export const useUIStore = defineStore('ui', () => {
     runSaveLoaded,
     openPlannerRequested,
     planFromInstant,
-    exactAsk,
-    askExact,
     backupRetryRequested,
     openSetupRequested,
+    openSetupAt,
     setupOpen,
     scienceSweep,
     byDateRequest,

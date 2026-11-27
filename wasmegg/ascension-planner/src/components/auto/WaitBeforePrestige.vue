@@ -1,35 +1,40 @@
 <template>
   <!-- "Try waiting before each prestige" (search/delays.ts; aaap-tools/partial-te-2026-10.md): on request
        only, since it prices the route a few hundred times with the full simulator. -->
-  <div class="mt-2 text-[11px] text-slate-700" data-testid="wait-before-prestige">
+  <div class="mt-2 text-body text-slate-700" data-testid="wait-before-prestige">
     <button
       v-if="status !== 'running'"
       type="button"
-      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+      class="inline-flex min-h-[44px] items-center px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed sm:min-h-0"
       :disabled="disabled"
-      :title="`Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
+      :title="compact ? `${whyText} ${howText}` : `Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
+      :aria-describedby="compact && status === 'idle' ? whyId : undefined"
       data-testid="wait-try"
       @click="start"
     >
-      {{ status === 'done' ? 'Try waiting again' : 'Try waiting before each prestige' }}
+      {{ status === 'done' ? 'Try waiting again' : compact ? 'Try waiting ›' : 'Try waiting before each prestige' }}
     </button>
-    <p v-if="status === 'idle'" class="mt-1 text-[10px] text-slate-500">
+    <!-- By a date (`compact`, UX fluff review 2, 5 Nov 2026, item D4): the paragraph is behind the button, its title and,
+         for a screen reader, its description. -->
+    <span v-if="compact && status === 'idle'" :id="whyId" class="sr-only">{{ whyText }} {{ howText }}</span>
+    <p v-if="status === 'idle' && !compact" class="mt-1 text-small text-slate-600">
       Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner. This prices
       {{ chain.join(' ') }} with each wait from 1 to 24 hours (about {{ legs }} ascensions on the full simulator, several
       minutes or more).
     </p>
     <p v-if="status === 'running'" class="flex items-center gap-2 text-emerald-800">
       <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ stopAsked ? 'Stopping after the routes being priced now…' : `Trying waits before each prestige… ${done} of at most ${most} routes priced.` }}
-      <button v-if="!stopAsked" type="button" class="underline text-slate-500" data-testid="wait-stop" @click="stopAsked = true">
+      <span v-if="stopAsked">Stopping after the routes being priced now<AnimatedDots /></span
+      ><span v-else>Trying waits before each prestige<AnimatedDots />{{ ` ${done} of at most ${most} routes priced.` }}</span>
+      <button v-if="!stopAsked" type="button" class="underline text-slate-600" data-testid="wait-stop" @click="stopAsked = true">
         Stop
       </button>
     </p>
-    <p v-if="status === 'error'" class="mt-1 text-slate-500">Couldn’t price the waits this time.</p>
+    <p v-if="status === 'error'" class="mt-1 text-slate-600">Couldn’t price the waits this time.</p>
     <div v-if="lines" class="mt-1 space-y-0.5" data-testid="wait-result">
       <p v-if="!pricedOnHours" class="mb-1 font-bold text-amber-700" data-testid="wait-any-hour">{{ ANY_HOUR_WARNING }}</p>
-      <p v-if="report && report.baseSeconds !== null" class="text-slate-500">
-        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as Check exactly prices it.
+      <p v-if="report && report.baseSeconds !== null" class="text-slate-600">
+        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as the full simulator prices it.
       </p>
       <template v-for="s in lines.singles" :key="s.stop">
         <p :class="s.wait ? 'font-bold text-emerald-800' : 'text-slate-600'">{{ s.text }}</p>
@@ -37,11 +42,11 @@
       </template>
       <p v-if="lines.together" class="pt-1 font-bold text-emerald-900" data-testid="wait-together">{{ lines.together }}</p>
       <p v-for="w in lines.togetherWarns" :key="w" class="pl-3 text-amber-700">{{ w }}</p>
-      <p v-if="report?.stopped" class="text-slate-500">Stopped early: this is what was priced so far.</p>
-      <p class="pt-1 text-[10px] text-slate-400">
+      <p v-if="report?.stopped" class="text-slate-600">Stopped early: this is what was priced so far.</p>
+      <p class="pt-1 text-small text-slate-600">
         While you wait, the farm keeps laying the egg it ended on, and those eggs carry into your next ascension. Stops
         stay whole TE: prestiging before one always costs more than it saves. A wait an hour or two off can lose far more
-        than it gains, so a wait is suggested only when it gains more than half an hour and being 2 h off costs less
+        than it gains, so a wait is suggested only when it gains more than half an hour and being 2 hours off costs less
         than three times the gain; otherwise prestige as soon as you reach the stop.
       </p>
     </div>
@@ -49,7 +54,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import { formatWeekday } from '@/lib/clock';
+import { computed, onUnmounted, ref, useId, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { ANY_HOUR_WARNING, searchWaits, waitLines, waitSearchLegs, hoursText, type WaitReport, type Waits } from '@/search/delays';
@@ -65,7 +72,16 @@ const props = defineProps<{
   deadline?: number | null;
   /** True while Check exactly or a search has the cores. */
   disabled?: boolean;
+  /** By a date: "Try waiting ›", its paragraph behind the button (UX fluff review 2, item D4). DRAFT (Words). */
+  compact?: boolean;
 }>();
+const whyId = `wait-why-${useId()}`;
+/** The idle paragraph's words, for the compact button's title and description. */
+const whyText = 'Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner.';
+const howText = computed(
+  () =>
+    `This prices ${props.chain.join(' ')} with each wait from 1 to 24 hours (about ${legs.value} ascensions on the full simulator, several minutes or more).`
+);
 
 const store = useChainSearchStore();
 const status = ref<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -81,15 +97,11 @@ let planStart = 0;
 
 const legs = computed(() => waitSearchLegs(props.chain.length));
 const lines = computed(() => (report.value ? waitLines(report.value, prestigeTime) : null));
-/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates. */
+/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates (lib/clock.ts). */
 function prestigeTime(t: number): string {
-  let day = '';
-  try {
-    day = new Intl.DateTimeFormat(undefined, { timeZone: props.zone, weekday: 'short' }).format(new Date(t * 1000)) + ' ';
-  } catch {
-    // An unknown zone: the date alone.
-  }
-  return day + showDateTime(t, props.zone);
+  // An unknown zone: the date alone.
+  const day = formatWeekday(t * 1000, props.zone);
+  return (day ? `${day} ` : '') + showDateTime(t, props.zone);
 }
 /** Whether the last run was priced with the player's hours, the shifts waiting for them (Setup). Without
  *  them, waits that win at any hour usually lose once the shifts wait (aaap-tools/notes/delay.md). */

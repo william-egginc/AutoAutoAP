@@ -1,5 +1,5 @@
 /**
- * My runs' newest runs went missing (16 Oct 2026): "A run of yours isn't here?" (MyRunsMissing.vue), the
+ * My Runs' newest runs went missing (16 Oct 2026): "A run of yours isn't here?" (MyRunsMissing.vue), the
  * keys this browser remembers per account (lib/myKeys.ts), and how LeaderboardPanel feeds both and the
  * look-alike match (lib/myRuns.ts `isMyRun`). Rendered on the server; the panel by its source.
  */
@@ -45,13 +45,13 @@ describe('A run of yours isn’t here?', () => {
       'as “AltName” from another browser or site'
     );
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: 'eeee3333' }))).toContain(
-      'Its gear differs from your save’s: it has T4E Necklace; your save has T4L Necklace.'
+      "Its gear differs from your save's: it has T4E Necklace; your save has T4L Necklace."
     );
   });
 
   it('an id no row has', async () => {
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: '999999' }))).toContain(
-      'No run on the public board has that id.'
+      'No run on the public Leaderboard has that id.'
     );
   });
 });
@@ -107,6 +107,6 @@ describe('LeaderboardPanel feeds the match', () => {
     expect(src).toContain('myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null');
     const myRuns = src.slice(src.indexOf('<div v-if="myRunsMode"'), src.indexOf('<div v-else class="space-y-4">'));
     expect(myRuns.indexOf('<MyRunsMissing')).toBeGreaterThan(myRuns.indexOf('<MyRunsList'));
-    expect(src).toContain('hasCode.value = !!token;');
+    expect(src).toContain('if (ok) hasCode.value = r.code;'); // the latest /mine read sets it (U3.2, 22 Nov 2026)
   });
 });

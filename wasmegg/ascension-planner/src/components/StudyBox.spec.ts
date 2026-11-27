@@ -3,7 +3,7 @@
  * the server, and where App.vue and YourSetup.vue mount them.
  */
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
@@ -12,9 +12,22 @@ import { useShareNameStore } from '@/stores/shareName';
 import { hashID } from '@/lib/storage/db';
 import StudyBox from './StudyBox.vue';
 import StudySetup from './auto/StudySetup.vue';
+import StudyForm from './StudyForm.vue';
+import { WITHDRAW_SHORT } from '@/lib/withdrawWords';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
+/** This browser's own remembered fold toggles (lib/panelFold.ts), for the box and its choices row. */
+function stubFolds(saved: Record<string, string> = {}): Map<string, string> {
+  const map = new Map<string, string>(Object.entries(saved));
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+    removeItem: (k: string) => void map.delete(k),
+  });
+  return map;
+}
+afterEach(() => vi.unstubAllGlobals());
 const ALL_ON = { share: true, csv: true, diag: true, checks: true }; // every tick (the box now opens with none)
 
 function mem() {
@@ -35,13 +48,14 @@ beforeEach(() => {
   resetStudy(st);
 });
 
-const box = () => renderHtml(StudyBox, {}, {}, [pinia]);
+/** The box with its full form open (it opens on Yes; one line by default since 14 Nov 2026: headerRound2.spec.ts). */
+const box = () => renderHtml(StudyBox, { startOpen: true }, {}, [pinia]);
 const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
 
 /** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
 const INTRO =
-  'Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press ' +
-  'share. With the last tick, Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
+  'Help make the planner’s answers better. Your runs go public only when you press share. The last tick sends a ' +
+  'private, anonymous record of the best result of a Fast, Exact or Custom search. Your player ID and save are never sent with a shared run. ' +
   'This account only; change or withdraw it in Setup.';
 
 /** Setup's Withdraw line (21 Oct 2026): the words follow what Withdraw does (lib/study.ts afterWithdraw). */
@@ -50,13 +64,23 @@ const WITHDRAW_LINE =
   'each next loads. Another account that agreed only under a share button keeps that choice. What was already ' +
   'sent stays. Each share button still shows its own agreement, with Withdraw there too.';
 
+/** The whole Withdraw line, word for word, in the "?" (HelpTip) after the short line (spec-uxpass item 12). */
+function expectWithdrawLineBehindTip(): void {
+  const src = readFileSync(new URL('./auto/StudySetup.vue', import.meta.url), 'utf8');
+  const note = src.slice(src.indexOf('data-testid="study-setup-withdraw-note"'));
+  const tip = note.slice(note.indexOf('<HelpTip'), note.indexOf('</HelpTip'));
+  expect(note.slice(0, note.indexOf('</p>'))).toContain('{{ WITHDRAW_SHORT }}');
+  expect(tip.replace(/^<HelpTip[^>]*>/, '').replace(/\s+/g, ' ').trim()).toBe(WITHDRAW_LINE);
+}
+
 describe('the box', () => {
-  it('keeps its paragraph short: under 280 characters, 5 lines at 390 px', async () => {
+  it('keeps its paragraph short: under 300 characters, 5 or 6 lines at 390 px', async () => {
     await setConsentAccount(A);
     const html = await box();
     const intro = textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
     expect(intro).toBe(INTRO);
-    expect(intro.length).toBeLessThan(280);
+    // 280 until 6 Nov 2026; 300 since: "never sent with a shared run" says what is true (privacy wording, Jordan's OK).
+    expect(intro.length).toBeLessThan(300);
   });
 
   it('shows nothing before an account is in', async () => {
@@ -75,7 +99,7 @@ describe('the box', () => {
       'Share my runs on the leaderboard when I press a share button',
       'Send my CSV with them (public)',
       'Send private diagnostics with them',
-      'Keep sharing my checks (private, anonymous)',
+      'Share my search results (private, anonymous)',
     ])
       expect(t).toContain(words);
     for (const k of ['share', 'csv', 'diag', 'checks']) {
@@ -92,9 +116,25 @@ describe('the box', () => {
     );
     expect(t).not.toContain('Anything you untick');
     // Nothing ticked: Yes waits for a tick, and says so.
-    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="study-yes"/);
-    expect(t).toContain('Tick at least one to say yes, or press No thanks.');
+    expect(html).not.toMatch(/<button[^>]*data-testid="study-yes"[^>]*(disabled|aria-disabled)/);
+    // ...but says so only after a press on Yes (Jordan, 14 Nov 2026; StudyForm `triedYes`).
+    expect(t).not.toContain('Tick at least one to say yes, or press No thanks.');
     expect(html).not.toMatch(/EI\d{16}/);
+  });
+
+  it('has Yes to all beside Yes: on with nothing ticked, 44 px, ticks all four and says yes in one press', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const btn = html.match(/<button[^>]*data-testid="study-yes-all"[^>]*>/)?.[0] ?? '';
+    expect(btn).not.toBe('');
+    expect(btn).not.toContain('disabled');
+    expect(btn).toContain('min-h-[44px]');
+    expect(textOf(html)).toContain('Yes to all');
+    expect(textOf(html)).toContain('No thanks');
+    const src = readFileSync('src/components/StudyForm.vue', 'utf8');
+    expect(src).toContain('for (const [k] of TICK_WORDS) ticks[k] = true;');
+    // Every sharing choice, through the one function (useStudy.ts `yesToAll`; its own spec: yesToAll.spec.ts).
+    expect(src).toMatch(/function yesAll\(\): void \{[^}]*\n  yesToAll\(credit\.value, nickname\.value\);/);
   });
 
   it('starts anonymous when the account has no name, and credited when it has one', async () => {
@@ -121,7 +161,7 @@ describe('the box', () => {
     let t = textOf(await box());
     expect(t).not.toContain('Yes, help improve it');
     expect(t).toContain(
-      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on the Auto Planner and My runs).'
+      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on Chain Finder, the Auto Planner and My Runs).'
     );
     closeThanks();
     expect(textOf(await box())).toBe('');
@@ -182,12 +222,14 @@ describe('another account in the same visit (no reload)', () => {
 });
 
 describe('Setup › Help improve the planner', () => {
-  it('unanswered: Answer now', async () => {
+  it('unanswered: the form is open on a first load (21 Nov 2026), Answer now only if it was put away', async () => {
     await setConsentAccount(A);
     const t = textOf(await setup());
     expect(t).toContain('Help improve the planner');
     expect(t).toContain('Not answered yet.');
-    expect(t).toContain('Answer now');
+    expect(t).not.toContain('Answer now');
+    const src = readFileSync(new URL('./auto/StudySetup.vue', import.meta.url), 'utf8');
+    expect(src).toContain('study-setup-answer');
   });
 
   it('yes: what is on, read live, with Change and Withdraw', async () => {
@@ -195,7 +237,7 @@ describe('Setup › Help improve the planner', () => {
     answerYes({ ...ALL_ON, checks: false }, 'name', 'Williamthe5thc');
     let t = textOf(await setup());
     expect(t).toMatch(
-      /You said yes on .+ for this account: runs shared · CSV only with a share · diagnostics on · checks not shared · credited as Williamthe5thc\./
+      /You said yes on .+ for this account: runs shared · CSV only with a share · diagnostics on · search results not shared · credited as Williamthe5thc\./
     );
     expect(t).toContain('Change');
     expect(t).toContain('Withdraw');
@@ -205,7 +247,7 @@ describe('Setup › Help improve the planner', () => {
     expect(t).toContain('runs not shared');
     // Unticked at Yes is off; turned on later (Setup's Change writes the same consent).
     setConsent('keepSharingChecks', true);
-    expect(textOf(await setup())).toContain('checks shared');
+    expect(textOf(await setup())).toContain('search results shared');
     expect(textOf(await setup())).not.toContain('not decided');
   });
 
@@ -218,32 +260,58 @@ describe('Setup › Help improve the planner', () => {
     expect(t).toContain('Use for this account');
   });
 
-  it('no thanks and withdrawn: the account’s real consents right now, and Change', async () => {
+  /** The no-thanks / withdrawn line, alone. */
+  const offLine = async () => textOf((await setup()).match(/<p[^>]*data-testid="study-setup-off"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
+
+  it('no thanks, nothing on: says so, without a default-on word (Jordan, 26 Oct 2026)', async () => {
     await setConsentAccount(A);
     answerNo();
-    let t = textOf(await setup());
-    expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous.'
-    );
-    expect(t).not.toContain('Nothing is shared unless');
+    expect(await offLine()).toBe('You said no thanks. Nothing is shared from this account.');
+    const t = textOf(await setup());
+    // The CSV default (on until unticked) is no choice of the player's: never named here.
+    expect(t).not.toContain('CSV');
     expect(t).toContain('Change');
     expect(t).not.toContain('Withdraw');
-    // Agreed under a share button after No thanks: Setup says so, and offers Withdraw.
+  });
+
+  it('no thanks, then agreed under a share button: only what is on, as turned on by hand, and Withdraw', async () => {
+    await setConsentAccount(A);
+    answerNo();
     setConsent('keepSharingChecks', true);
-    t = textOf(await setup());
-    expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks shared'
+    expect(await offLine()).toBe('You said no thanks to the box; sharing you turned on by hand: search results shared.');
+    setConsent('leaderboard', true);
+    setConsent('shareBaseline', true);
+    expect(await offLine()).toBe(
+      'You said no thanks to the box; sharing you turned on by hand: runs shared · CSV only with a share · search results shared · instant answer shared with your runs · anonymous.'
     );
+    const t = textOf(await setup());
     expect(t).toContain('Withdraw');
-    expect(t).toContain(WITHDRAW_LINE);
+    expect(t).toContain(WITHDRAW_SHORT);
+    expectWithdrawLineBehindTip();
+  });
+
+  it('yes with every tick, and yes with some: the yes line, read from the same consents', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    expect(textOf(await setup())).toMatch(
+      /You said yes on [^:]+ for this account: runs shared · CSV only with a share · diagnostics on · search results shared · anonymous\./
+    );
+    // Another account, yes with some ticks.
+    await setConsentAccount(B);
+    answerYes({ share: true, csv: true, diag: false, checks: false }, 'anon', '');
+    expect(textOf(await setup())).toMatch(
+      /You said yes on [^:]+ for this account: runs shared · CSV only with a share · diagnostics off · search results not shared · anonymous\./
+    );
+  });
+
+  it('withdrawn: nothing on, or what was turned on by hand since', async () => {
+    await setConsentAccount(A);
     answerYes({ ...ALL_ON }, 'anon', '');
     withdrawStudy();
-    t = textOf(await setup());
-    expect(t).toMatch(
-      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous\./
-    );
-    expect(t).not.toContain('nothing is shared from this browser');
-    expect(t).toContain('Change');
+    expect(await offLine()).toMatch(/^Withdrawn on [^.;]+\. Nothing is shared from this account\.$/);
+    setConsent('leaderboard', true);
+    expect(await offLine()).toMatch(/^Withdrawn on [^.;]+; sharing you turned on by hand: runs shared · CSV only with a share · anonymous\.$/);
+    expect(textOf(await setup())).toContain('Change');
   });
 
   it('the CSV item never reads as "we send your CSV": only with a share, or off', async () => {
@@ -273,7 +341,10 @@ describe('Setup › Help improve the planner', () => {
     await setConsentAccount(A);
     answerYes({ ...ALL_ON }, 'anon', '');
     const t = textOf(await setup());
-    expect(t).toContain(WITHDRAW_LINE);
+    // One short line in view; the whole line, word for word, behind its "?" (spec-uxpass item 12, 8 Nov 2026).
+    expect(t).toContain(WITHDRAW_SHORT);
+    expect(t).not.toContain(WITHDRAW_LINE);
+    expectWithdrawLineBehindTip();
     expect(t).not.toContain('keep their own choices');
     expect(t).not.toContain('for this account from now on');
   });
@@ -282,7 +353,7 @@ describe('Setup › Help improve the planner', () => {
 describe('wiring', () => {
   const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector', () => {
+  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector (on Fastest and By a date it is below the answer since the simpler page, 9 Nov 2026: layoutContract.consent.spec.ts)', () => {
     const app = read('../App.vue');
     const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl"');
     expect(at).toBeGreaterThan(0);
@@ -292,7 +363,7 @@ describe('wiring', () => {
     expect(at).toBeGreaterThan(app.indexOf('<SiteTabs'));
     expect(at).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
     // Before every tab's content: Manual's folding part, the Auto Planner's nav, and the other tabs.
-    expect(at).toBeLessThan(app.indexOf('v-if="plannerTab === \'manual\'"\n        class="mt-2 rounded-2xl border'));
+    expect(at).toBeLessThan(app.indexOf('v-if="manualShown"\n        class="mt-2 rounded-2xl border'));
     expect(at).toBeLessThan(app.indexOf('<nav v-if="playerId"'));
     expect(at).toBeLessThan(app.indexOf('<LeaderboardPanel'));
     expect(at).toBeLessThan(app.indexOf('<SetupDock'));
@@ -311,22 +382,27 @@ describe('wiring', () => {
     );
   });
 
-  it('Yes is disabled until at least one tick is on, and then says nothing more', () => {
+  it('Yes is always enabled and records nothing until at least one tick is on; a press then says why, and nothing more once a tick is on', () => {
     const f = read('./StudyForm.vue');
-    expect(f).toContain(':disabled="!canSayYes"');
+    expect(f).toContain(':aria-invalid="triedYes && !canSayYes"');
     expect(f).toContain('const canSayYes = computed(() => anyTick(ticks));');
-    expect(f).toMatch(/<p v-if="!canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
-    expect(f).toContain('if (!canSayYes.value) return;');
+    expect(f).toMatch(/<p\s+v-if="triedYes && !canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
+    expect(f).toMatch(/if \(!canSayYes\.value\) \{\s*triedYes\.value = true;\s*return;\s*\}/);
   });
 
   it('both name boxes cap a paste at once, not only typed keys (maxlength)', () => {
+    // One name box since ux29 #11 (SharingChoices.vue), shown by both: it caps on every input and reports the capped name.
+    const one = read('./SharingChoices.vue');
+    expect(one).toContain('@input="onName"');
+    expect(one).toContain('const c = capName(el.value);');
+    expect(one).toMatch(/if \(c !== el\.value\) el\.value = c;\s*emit\('update:nickname', c\);/);
+    expect(one).toContain(':maxlength="STUDY_NAME_MAX"');
     for (const f of ['./StudyForm.vue', './auto/StudySetup.vue']) {
       const src = read(f);
-      expect(src, f).toContain('@input="capField"');
-      expect(src, f).toContain('const c = capName(el.value);');
-      expect(src, f).toContain(':maxlength="STUDY_NAME_MAX"');
+      expect(src, f).toMatch(/<SharingChoices[\s\S]*?@update:nickname="\(v: string\) => \(nickname = v\)"/);
     }
     expect(read('./StudyForm.vue')).toContain('set: v => (typed.value = capName(v)),');
+    expect(read('./auto/StudySetup.vue')).toContain('() => (nickname.value = capName(knownName(account.value))),');
   });
 
   it('Setup has its section before Sharing, with a collector', () => {
@@ -336,3 +412,192 @@ describe('wiring', () => {
     expect(at).toBeLessThan(s.indexOf('data-testid="share-instant"'));
   });
 });
+
+describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing seen)', () => {
+  const strip = (html: string) => html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
+  const formWrap = (html: string) => html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0] ?? '';
+
+  it('folded (after Hide, remembered in this browser): one line, the question, Yes, No and Later, the form mounted but hidden', async () => {
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
+    const s = strip(html);
+    expect(textOf(s)).toBe('Help improve the planner . You choose what to share. Choose what to share No thanks');
+    const choose = s.match(/<button[^>]*data-testid="study-choose"[^>]*>/)?.[0] ?? '';
+    expect(choose).toContain('aria-expanded="false"');
+    expect(choose).toContain('aria-controls="study-box-form"');
+    expect(choose).toContain('min-h-[44px]');
+    const no = s.match(/<button[^>]*data-testid="study-strip-no-thanks"[^>]*>/)?.[0] ?? '';
+    expect(no).toContain('min-h-[44px]');
+    // Still mounted in the same place, just not shown.
+    expect(formWrap(html)).toContain('display:none');
+    expect(html).toContain('data-testid="study-form"');
+    // Slim: no big padded card.
+    const section = html.match(/<section[^>]*data-testid="study-box"[^>]*>/)?.[0] ?? '';
+    expect(section).toContain('py-2');
+    expect(section).not.toContain('p-4');
+  });
+
+  it('open (after Yes): the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    expect(formWrap(html)).not.toContain('display:none');
+    const s = strip(html);
+    expect(s).toContain('aria-expanded="true"');
+    expect(textOf(s)).toBe('Help improve the planner Hide');
+    expect(s).not.toContain('study-strip-no-thanks');
+    for (const id of ['study-yes', 'study-yes-all', 'study-no']) expect(html).toContain(`data-testid="${id}"`);
+    expect(html.indexOf('data-testid="study-box-strip"')).toBeLessThan(html.indexOf('data-testid="study-form"'));
+  });
+
+  it("the strip's No thanks answers no, as the form's does", async () => {
+    await setConsentAccount(A);
+    const src = readFileSync('src/components/StudyBox.vue', 'utf8');
+    expect(src).toMatch(/data-testid="study-strip-no-thanks"\s+@click="answerNo"/);
+    answerNo();
+    expect(textOf(await box())).toBe('');
+  });
+});
+
+describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open, trimmed under sm)', () => {
+  const tag = (html: string, id: string) =>
+    html.match(new RegExp(`<[a-z]+\\b[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
+  const classes = (t: string) => (t.match(/class="([^"]*)"/)?.[1] ?? '').split(/\s+/).filter(Boolean);
+  /** The classes that apply under sm (no sm:, hover: or disabled: prefix). */
+  const phone = (t: string) => classes(t).filter(c => !/^(sm|md|lg|xl|hover|disabled):/.test(c));
+  /** The intro as a phone shows it: the `hidden sm:inline` sentences left out. */
+  const phoneIntro = (html: string) =>
+    textOf(
+      (html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '').replace(
+        /<span class="hidden sm:inline">[\s\S]*?<\/span>/g,
+        ''
+      )
+    );
+
+  it('open: the heading and Hide on one row at every width (no flex-col, no full-width Hide)', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const strip = tag(html, 'study-box-strip');
+    expect(classes(strip)).toContain('flex-row');
+    expect(classes(strip)).not.toContain('flex-col');
+    const hide = tag(html, 'study-choose');
+    expect(classes(hide)).not.toContain('w-full');
+    // Folded (one line since 14 Nov 2026): the question and the buttons wrap in a row, nothing stacks full width.
+    const folded = tag(await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]), 'study-box-strip');
+    expect(classes(folded)).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(classes(folded)).not.toContain('flex-col');
+  });
+
+  it('Hide is the quiet one: a small slate underlined text button, 44 px tall, at every width; Choose… stays filled', async () => {
+    await setConsentAccount(A);
+    const hide = classes(tag(await box(), 'study-choose'));
+    expect(hide).toEqual(expect.arrayContaining(['min-h-[44px]', 'underline', 'text-slate-600']));
+    expect(hide.join(' ')).not.toMatch(/\bbg-|indigo|sm:min-h-0|w-full/);
+    const choose = classes(tag(await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]), 'study-choose'));
+    expect(choose).toEqual(expect.arrayContaining(['bg-indigo-600', 'text-white', 'min-h-[44px]']));
+  });
+
+  it('StudyBox passes compact; Setup’s copy does not', () => {
+    expect(readFileSync('src/components/StudyBox.vue', 'utf8')).toContain('<StudyForm compact />');
+    const setupSrc = readFileSync('src/components/auto/StudySetup.vue', 'utf8');
+    expect(setupSrc.match(/<StudyForm\b[^>]*>/g)?.length).toBeGreaterThan(0);
+    for (const t of setupSrc.match(/<StudyForm\b[^>]*>/g) ?? []) expect(t).not.toContain('compact');
+  });
+
+  it('the intro is one sentence on a phone, the whole paragraph from sm up, and the link stays', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    expect(phoneIntro(html)).toBe('Help make the planner’s answers better. Your player ID and save are never sent with a shared run.');
+    expect(textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '')).toBe(INTRO);
+    expect(phone(tag(html, 'study-about'))).not.toContain('hidden');
+  });
+
+  it('ticks, untick note and credit fold behind one 44 px "Choose what to share ›" row, always open from sm up (folded here: the player closed it, remembered)', async () => {
+    stubFolds({ 'aap.fold.studyChoices': '0' });
+    await setConsentAccount(A);
+    const html = await box();
+    const row = tag(html, 'study-choices-toggle');
+    expect(textOf(html.match(/<button[^>]*data-testid="study-choices-toggle"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '')).toBe(
+      'Choose what to share ›'
+    );
+    expect(row).toContain('min-h-[44px]');
+    expect(row).toContain('aria-expanded="false"');
+    expect(row).toContain('aria-controls="study-choices"');
+    expect(classes(row)).toContain('sm:hidden');
+    const choices = tag(html, 'study-choices');
+    expect(choices).toMatch(/\sid="study-choices"/);
+    expect(classes(choices)).toEqual(expect.arrayContaining(['hidden', 'sm:block']));
+    // Everything folded is inside it, once (one set of ids and ticks).
+    const inner = html.slice(html.indexOf('data-testid="study-choices"'), html.indexOf('data-testid="study-yes"'));
+    for (const id of ['study-tick-share', 'study-tick-csv', 'study-tick-diag', 'study-tick-checks', 'study-untick-note', 'study-credit-name', 'study-nickname', 'study-credit-anon'])
+      expect(inner).toContain(`data-testid="${id}"`);
+    expect(html.match(/data-testid="study-tick-share"/g)).toHaveLength(1);
+  });
+
+  it('on a phone, folded: Yes to all and No thanks side by side, the same size and weight; Yes and its line wait for the ticks', async () => {
+    stubFolds({ 'aap.fold.studyChoices': '0' });
+    await setConsentAccount(A);
+    const html = await box();
+    const row = html.slice(html.lastIndexOf('<div', html.indexOf('data-testid="study-yes"')));
+    expect(classes(row.match(/<div[^>]*>/)![0])).toEqual(expect.arrayContaining(['grid', 'grid-cols-2']));
+    const all = tag(html, 'study-yes-all');
+    const no = tag(html, 'study-no');
+    expect(phone(all).sort()).toEqual(phone(no).sort());
+    expect(phone(all)).toEqual(expect.arrayContaining(['bg-white', 'text-slate-700', 'border-slate-300']));
+    expect(phone(all).join(' ')).not.toMatch(/indigo/);
+    // Yes, help improve it (needs a tick) and "Tick at least one" show with the ticks only.
+    expect(classes(tag(html, 'study-yes'))).toEqual(expect.arrayContaining(['hidden', 'sm:inline-block', 'col-span-2']));
+    expect(html).not.toContain('data-testid="study-yes-why"');
+    // What a phone shows of the form: the link, the row and two buttons.
+    expect(phone(tag(html, 'study-choices-toggle'))).not.toContain('hidden');
+    expect(phone(all)).not.toContain('hidden');
+    expect(phone(no)).not.toContain('hidden');
+  });
+
+  it('Setup’s full form: no fold, the whole intro, all three buttons as before', async () => {
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyForm, {}, {}, [pinia]);
+    expect(html).not.toContain('study-choices-toggle');
+    expect(html).not.toMatch(/\bhidden sm:/);
+    expect(phoneIntro(html)).toBe(INTRO);
+    expect(phone(tag(html, 'study-yes-all'))).toEqual(expect.arrayContaining(['bg-indigo-50', 'text-indigo-800']));
+    expect(html).not.toContain('grid-cols-2');
+    expect(html).not.toMatch(/\sid="study-choices"/);
+  });
+});
+
+describe('open on the first load, then as the player left it (Jordan, 21 Nov 2026: "open on the first load and then not need to be opened")', () => {
+  it('a first load (nothing remembered): the box shows its form open, and so are its choices on a phone', async () => {
+    stubFolds();
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    expect(html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0]).not.toContain('display:none');
+    expect(tagOf(html, 'study-choose')).toContain('aria-expanded="true"');
+    expect(tagOf(html, 'study-choices-toggle')).toContain('aria-expanded="true"');
+    expect(tagOf(html, 'study-choices')).not.toMatch(/class="[^"]*\bhidden\b/);
+  });
+  it('after the player closed the box it stays closed on the next load', async () => {
+    stubFolds({ 'aap.fold.studyBox': '0' });
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, {}, {}, [pinia]);
+    expect(html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0]).toContain('display:none');
+    expect(tagOf(html, 'study-choose')).toContain('aria-expanded="false"');
+  });
+  it('Hide and the choices row remember the player\'s toggle in this browser', () => {
+    const box = readFileSync(new URL('./StudyBox.vue', import.meta.url), 'utf8');
+    expect(box).toContain("foldOpen('studyBox', { remembered: readFoldToggle('studyBox') })");
+    expect(box).toContain("rememberFoldToggle('studyBox', open.value);");
+    const form = readFileSync(new URL('./StudyForm.vue', import.meta.url), 'utf8');
+    expect(form).toContain("foldOpen('studyChoices', { remembered: readFoldToggle('studyChoices') })");
+    expect(form).toContain("rememberFoldToggle('studyChoices', choicesOpen.value);");
+  });
+  it('Setup\'s Help improve the planner shows the form open while nothing is answered, not a button to open it', async () => {
+    stubFolds();
+    await setConsentAccount(A);
+    const html = await setup();
+    expect(html).toContain('data-testid="study-form"');
+    expect(html).not.toContain('study-setup-answer');
+  });
+});
+function tagOf(html: string, id: string): string {
+  return html.match(new RegExp(`<[a-z]+[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
+}

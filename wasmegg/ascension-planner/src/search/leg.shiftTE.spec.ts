@@ -17,7 +17,7 @@ import '../../scripts/node-shims';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { syntheticInputs } from '@/test/syntheticSave';
-import { applyAction } from '@/engine/apply/actions';
+import { applyAction } from 'lib/planners/engine/apply/actions';
 import { createChainEvaluator } from './chain';
 import { eggTE } from './leg';
 import { VIRTUE_EGGS } from '@/types';
@@ -31,32 +31,37 @@ import type { ChainResult } from './types';
  * and the leg takes 16.3 days. The 15 Oct numbers: seconds 20844400.35885477, end 1811704000.3588548,
  * nine shifts, the I1 ending at 1805159981.4405875.
  */
+// sim3 (3 Nov 2026, SIM_VERSION 2026-11-03-sim3): recorded again; the 1410518.5 s route of before moved with the simulator.
+// sim4 (9 Nov 2026, SIM_VERSION 2026-11-09-sim4): recorded again. Joo's 799a6502 (delivery research planned as a set,
+// hr/% at the charged price) moved it: 1421633.58 s -> 1410546.64 s (3.08 h sooner), shifts 3-7 and the Humility
+// swap earlier, the last shift later. sim3's numbers come back with sim3's calculations/researchRanking.ts and
+// smartBuyPreview.ts put back (checked 5 Nov), so the move is that change, not this spec's subject.
 const BEFORE = {
-  seconds: 1410518.5035481453,
+  seconds: 1410546.6424200535,
   startTime: 1790859600,
-  endTime: 1792270118.5035481,
-  durationSeconds: 1410518.503548117,
+  endTime: 1792270146.64242,
+  durationSeconds: 1410546.6424199664,
   key: '1-sale',
   endTE: 192,
   shifts: [
-    [1790861349.4107058, 'kindness', 'curiosity'],
-    [1790862865.0780554, 'integrity', 'kindness'],
-    [1790863616.0352676, 'curiosity', 'integrity'],
-    [1790864711.3002753, 'kindness', 'curiosity'],
-    [1790864717.103002, 'integrity', 'kindness'],
-    [1790864733.414759, 'resilience', 'integrity'],
-    [1790864754.5340643, 'curiosity', 'resilience'],
-    [1791018171.5381534, 'humility', 'curiosity'],
-    [1791018171.5381534, 'kindness', 'humility'],
+    [1790861317.8029885, 'kindness', 'curiosity'],
+    [1790863073.8166099, 'integrity', 'kindness'],
+    [1790863703.1136541, 'curiosity', 'integrity'],
+    [1790864867.5231314, 'kindness', 'curiosity'],
+    [1790864927.5231314, 'integrity', 'kindness'],
+    [1790864987.5231314, 'resilience', 'integrity'],
+    [1790865047.5231314, 'curiosity', 'resilience'],
+    [1791017421.5093265, 'humility', 'curiosity'],
+    [1791017421.5093265, 'kindness', 'humility'],
     [1791043200, 'curiosity', 'kindness'],
-    [1791608561.2172203, 'integrity', 'curiosity'],
+    [1791608604.1786046, 'resilience', 'curiosity'],
   ] as [number, string, string][],
   endEggs: {
     delivered: [
-      3510000000343879000, 3510000000343879000, 3282500000000000000, 3282503261526989300, 3291106990925773000,
+      3510000000343879000, 3282503866143426600, 3282500000000000000, 3510000000343879000, 3291362088466104000,
     ],
-    te: [39, 39, 38, 38, 38],
-    egg: 'integrity',
+    te: [39, 38, 38, 39, 38],
+    egg: 'resilience',
   },
 };
 

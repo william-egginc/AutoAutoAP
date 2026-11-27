@@ -16,10 +16,13 @@
  * current research (which moves mid-ascension) is not part of it.
  */
 import { getOptimalELRSet } from '@/lib/artifacts';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { toRaw } from 'vue';
+import { workerCopy } from './workerCopy';
+import { trimBackupForWorkers } from './workerBackup';
+import { perfStep } from '@/lib/buildUpDebug';
 import { describeLoadoutSlots, type LoadoutSlot } from './csv';
 import { getColleggtibleTiers, modifiersFromColleggtibleTiers } from 'lib/collegtibles';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';
 
@@ -56,22 +59,59 @@ export function gearStamp(
   earnings: EquippedArtifact[] | null | undefined,
   research: Record<string, number>
 ): TableGear | null {
+  return perfStep('gearStamp', () => stampOf(inputs, earnings, research));
+}
+
+/** The delivery sets worked out for the last save `gearStamp` read, by their research (`stampOf`). */
+let deliveryMemo: { save: string; sets: Map<string, LoadoutSlot[]> } | null = null;
+
+function stampOf(
+  inputs: SearchInputs,
+  earnings: EquippedArtifact[] | null | undefined,
+  research: Record<string, number>
+): TableGear | null {
   const ctx = inputs.context;
-  const raw = ctx.rawBackup;
+  // The plain save under the store's proxy (spec-mainfreeze, 31 Oct 2026): read through Vue's traps, the two copies
+  // below walked the whole 2.8 MB save proxy by proxy, about a second of the main thread on a fast Mac (several on a
+  // busy one), every time the instant answer or the table prefetch picked a table.
+  const raw = toRaw(ctx.rawBackup);
   if (!raw) return null;
   // Each on a fresh copy of the save: getOptimalELRSet caches the first set structure it finds per
   // backup OBJECT (lib/artifacts/virtue.ts), so on the page's own save the answer would depend on
   // whatever ran first, and a stamp computed first would leave its structure in that cache for the
-  // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone.
-  const delivery = (commonResearch: Record<string, number>) =>
-    describeLoadoutSlots(
-      getOptimalELRSet(sanitizeLongs(raw) as typeof raw, {
-        commonResearch,
-        epicResearchLevels: ctx.epicResearchLevels,
-        colleggtibleModifiers: ctx.colleggtibleModifiers,
-        assumeMaxHabsVehicles: true,
-      }) as EquippedArtifact[] | null
-    );
+  // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone. Only the part of the
+  // save getOptimalELRSet reads is copied (search/workerBackup.ts, the same cut the workers get: the research, epic
+  // research and colleggtible modifiers are passed here, so nothing else of the save is read).
+  //
+  // MEMO (review 15 Nov 2026 P6): a fresh instant answer worked the stamp out twice (its own table's research, then the
+  // maxed table's), and the table prefetch and the kept answer's tables once more each, every time a full optimizer
+  // search per set. The sets are kept for the last save read here, by what the optimizer reads of it (the trimmed
+  // copy as text, the epic research and colleggtible modifiers), so an edited save, even one changed in place, is
+  // worked out again. Text, one copy of the save cut: a few ms against the optimizer's search.
+  let fresh: unknown = workerCopy(trimBackupForWorkers(raw, ctx));
+  const saveKey = JSON.stringify([fresh, ctx.epicResearchLevels ?? null, ctx.colleggtibleModifiers ?? null]);
+  if (deliveryMemo?.save !== saveKey) deliveryMemo = { save: saveKey, sets: new Map() };
+  const sets = deliveryMemo.sets;
+  const delivery = (commonResearch: Record<string, number>): LoadoutSlot[] => {
+    const key = JSON.stringify(commonResearch ?? null);
+    let got = sets.get(key);
+    if (!got) {
+      // The copy the key was read from is used once (a fresh object: see above), then new ones.
+      const backup = fresh ?? workerCopy(trimBackupForWorkers(raw, ctx));
+      fresh = null;
+      got = describeLoadoutSlots(
+        getOptimalELRSet(backup as typeof raw, {
+          commonResearch,
+          epicResearchLevels: ctx.epicResearchLevels,
+          colleggtibleModifiers: ctx.colleggtibleModifiers,
+          assumeMaxHabsVehicles: true,
+        }) as EquippedArtifact[] | null
+      );
+      sets.set(key, got);
+    }
+    // A copy: what a caller does with its stamp never reaches the memo.
+    return JSON.parse(JSON.stringify(got)) as LoadoutSlot[];
+  };
   const sorted = (r: Record<string, number> | undefined) =>
     Object.fromEntries(Object.entries(r ?? {}).sort(([a], [b]) => a.localeCompare(b)));
   return {
@@ -189,6 +229,38 @@ export async function gearTableNames(stamp: TableGear): Promise<string[]> {
 }
 
 /**
+ * VERSION 2 NAMES (24 Oct 2026, the same reason as the maxed table's `table-v2.bin`, tableBracket.ts
+ * MAXED_TABLE_FILE): pages from before instant answer v2 read `acct-<hex>.bin` and `gear-<hex>.bin` with a loader
+ * that refuses version 2 ("precomputed table version 2 is not supported"), so an own or gear table of version 2
+ * deployed under the plain name blanked that account's instant answer in every open older tab. A version 2 own or
+ * gear table goes under `acct-<hex>.v2.bin` / `gear-<hex>.v2.bin` (and `.v2.bin.gz`); version 1 keeps the plain
+ * name, which older pages go on reading. This page tries the `.v2` name first and the plain one only after it
+ * misses; it reads either version under either name, and one it can't read is no table, quietly.
+ */
+export function v2TableName(name: string): string {
+  return name.replace(/(?<!\.v2)\.bin$/, '.v2.bin');
+}
+
+/** The `.v2` name's plain one (`acct-<hex>.v2.bin` -> `acct-<hex>.bin`); any other name as it is. */
+export function plainTableName(name: string): string {
+  return name.replace(/\.v2\.bin$/, '.bin');
+}
+
+/** The file names a player's own table is looked up under, in order: the `.v2` name, then the plain one. */
+export async function ownTableNames(playerId: string): Promise<string[]> {
+  const name = await tableName(playerId);
+  return [v2TableName(name), name];
+}
+
+/** The file names a player's gear table is looked up under, in order: every `gearTableNames` name's `.v2` first
+ *  (v3, v2 canonical, legacy), then the plain ones in the same order. A version 2 file is always the newer, so
+ *  no plain file is taken while one of them is there. */
+export async function gearTableFiles(stamp: TableGear): Promise<string[]> {
+  const names = await gearTableNames(stamp);
+  return [...names.map(v2TableName), ...names];
+}
+
+/**
  * A set as what it does: its artifacts and its stones, each as a sorted list. An artifact's effect and
  * a stone's effect are each a factor of their own, whichever artifact the stone sits in
  * (src/lib/artifacts/calculator.ts multiplies every effect in), so the same artifacts with the same
@@ -232,4 +304,77 @@ export function gearChanges(table: TableGear, mine: TableGear): string[] {
   if (!same(simEpicResearch(table.epicResearch), simEpicResearch(mine.epicResearch))) out.push('epic research');
   if (!same(colleggtibleEffects(table.colleggtibles), colleggtibleEffects(mine.colleggtibles))) out.push('colleggtibles');
   return out;
+}
+
+/**
+ * DELIVERY-SET TABLES (Jordan, 23 Nov 2026: "just the artifacts is how you distinguish them"). A table built on one
+ * delivery set (Carpet's combinations: the best earnings set, everything else maxed) is found by the three delivery
+ * artifacts alone, metronome / compass / gusset at their tier and rarity: no stones, and not the fourth slot, which is
+ * the stone holder. The rest of the player's gear (earnings, stones, epic research, colleggtibles) is the form G's to
+ * move, from that table rather than the maxed one (search/instantCompute.ts `chooseInstantTable`).
+ */
+const DELIVERY_ARTIFACTS = ['Quantum metronome', 'Interstellar compass', 'Gusset'] as const;
+
+/** `T4L-T4E-T4L` (metronome / compass / gusset) for a delivery set as words (csv.ts `describeLoadoutSlots`), X for one
+ *  not in it (`T3E-X-T2E`, as `earningsKey`: orchestrator for Jordan, 24 Nov 2026, Carpet's 09f8b316 set drops its T4C
+ *  compass for a cube at full research), or null without a set or with none of the three. Dashes, as the collector
+ *  takes it ([A-Za-z0-9_-]{1,24}, collector 5a156536e). */
+export function deliveryKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  if (!slots?.length) return null;
+  const parts = DELIVERY_ARTIFACTS.map(name => {
+    const label = slots.find(s => s.artifact.slice(s.artifact.indexOf(' ') + 1) === name)?.artifact;
+    return label ? label.slice(0, label.indexOf(' ')) : null;
+  });
+  return parts.some(p => p) ? parts.map(p => p ?? 'X').join('-') : null;
+}
+
+/** The name a delivery set's table is served under (a copy of the built table, listed as its alias in aliases.json):
+ *  a version 2 gear name, so tables.json and the page's file rules take it as any gear table. */
+export async function deliveryTableFile(key: string): Promise<string> {
+  return (await gearFile(`delivery ${key}`)).replace(/\.bin$/, '.v2.bin');
+}
+
+/** `T4L-T4L-T4L-T4L` (necklace / totem / cube / ankh: tier and rarity, X for one not worn) for an earnings set as words,
+ *  or null without a set. For the instant answer record (Jordan, 24 Nov 2026), not a table name. */
+export function earningsKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  if (!slots?.length) return null;
+  return ['Demeters necklace', 'Lunar totem', 'Puzzle cube', 'Tungsten ankh']
+    .map(name => {
+      const label = slots.find(s => s.artifact.slice(s.artifact.indexOf(' ') + 1) === name)?.artifact;
+      return label ? label.slice(0, label.indexOf(' ')) : 'X';
+    })
+    .join('-');
+}
+
+/** Two letters a stone type, as one letter would clash (Tachyon / Terra, Shell / Soul, Lunar / Life). */
+const STONE_CODES: Record<string, string> = {
+  Tachyon: 'Ta',
+  Quantum: 'Qu',
+  Lunar: 'Lu',
+  Terra: 'Te',
+  Shell: 'Sh',
+  Life: 'Li',
+  Soul: 'So',
+  Dilithium: 'Di',
+  Prophecy: 'Pr',
+  Clarity: 'Cl',
+};
+
+/** The stones slotted in a set (every slot, a delivery set's stone holder included; spares never), counted by type with
+ *  no tier, most first: `Qu5-Ta5-Te1`. Null when none is slotted, or when it would be over the collector's 48 characters
+ *  (left out, never cut). For the instant answer record (Jordan, 24 Nov 2026). */
+export function stonesKey(slots: readonly LoadoutSlot[] | null | undefined): string | null {
+  const counts = new Map<string, number>();
+  for (const s of slots ?? [])
+    for (const stone of s.stones) {
+      const type = stone.replace(/^T\d+ /, '').replace(/ stone$/, '');
+      const code = STONE_CODES[type] ?? type.replace(/[^A-Za-z]/g, '').slice(0, 2);
+      counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+  if (!counts.size) return null;
+  const key = [...counts]
+    .sort(([a, n], [b, m]) => m - n || a.localeCompare(b))
+    .map(([code, n]) => `${code}${n}`)
+    .join('-');
+  return /^[A-Za-z0-9_-]{1,48}$/.test(key) ? key : null;
 }

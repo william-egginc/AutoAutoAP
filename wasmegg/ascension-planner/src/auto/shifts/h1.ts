@@ -1,5 +1,5 @@
 import type { EngineState, SimulationContext, ShiftResult } from '../types';
-import { getOptimalELRSetFromSource } from '@/lib/artifacts/virtue';
+import { getOptimalELRSetFromSource } from 'lib/planners/artifacts/virtue';
 import { createSimAction } from '@/types/actions/meta';
 import { applyShiftAction, applyDecoratedAction } from './helpers/actionHelpers';
 import { contextDeliverySource } from '../loadout/resolve';
@@ -26,6 +26,7 @@ export function runH1(state: EngineState, context: SimulationContext): ShiftResu
     commonResearch: state.researchLevels,
     epicResearchLevels: context.epicResearchLevels,
     colleggtibleModifiers: context.colleggtibleModifiers,
+    proPermit: state.proPermit,
     assumeMaxHabsVehicles: true, // H1 is near the end, we likely have CU and max vehicles
   });
 

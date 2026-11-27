@@ -1,5 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { eggDaySeconds, nextEggDayYear } from './eggDay';
+import { eggDaySeconds, nextEggDayYear, sameClock } from './eggDay';
 
 describe('Egg Day', () => {
   it('is 14 July at 9:00 AM Pacific (16:00 UTC in summer time)', () => {
@@ -17,5 +19,26 @@ describe('telling an Egg Day deadline from any other', () => {
     const { eggDayYearOf } = await import('./eggDay');
     expect(eggDayYearOf(eggDaySeconds(2027))).toBe(2027);
     expect(eggDayYearOf(eggDaySeconds(2027) + 60)).toBeNull();
+  });
+});
+
+describe('sameClock: the planner\'s time line only when it says something new (UX review 26 Oct 2026, item 14)', () => {
+  const at = eggDaySeconds(2027);
+  it('Pacific and its twins read the same; other zones do not', () => {
+    expect(sameClock(at, 'America/Los_Angeles')).toBe(true);
+    expect(sameClock(at, 'America/Vancouver')).toBe(true);
+    expect(sameClock(at, 'America/Denver')).toBe(false);
+    expect(sameClock(at, 'Asia/Tokyo')).toBe(false);
+    expect(sameClock(at, 'Europe/London', 'Europe/London')).toBe(true);
+  });
+  it('an unknown zone reads as different (the line stays)', () => {
+    expect(sameClock(at, 'Not/AZone')).toBe(false);
+  });
+  it("DeadlinePanel: no second planner's-time line under the picker (UX fluff review 2, 5 Nov 2026, item D0b)", () => {
+    // The picker's own line gives the time in your zone; under it only the days from the plan start.
+    const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/DeadlinePanel.vue'), 'utf8');
+    expect(src).not.toContain('sameClock(deadline, plannerZone, zone)');
+    // The days line is lib/daysFromStart.ts since R11 ("N days from the route’s start.", under half a day: "Right at ...").
+    expect(src).toContain('daysFromStartLine(daysAway)');
   });
 });

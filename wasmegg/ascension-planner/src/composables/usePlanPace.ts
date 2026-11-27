@@ -1,5 +1,5 @@
 /**
- * My runs' "ahead / behind" badges on saved runs and saved answers (R6 simple, ~/code/aaap-tools/specialists/
+ * My Runs' "ahead / behind" badges on saved runs and saved answers (R6 simple, ~/code/aaap-tools/specialists/
  * ui-r6-plan.md): the loading around lib/planPace.ts.
  *
  *   - The latest save is the one in memory (initial-state `rawBackup`, as Right now reads it); no new load. Without

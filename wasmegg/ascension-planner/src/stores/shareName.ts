@@ -11,6 +11,11 @@
  * "Submit anonymously" or "Credit me as" is one per account too (the user, 14 Oct: he kept sending
  * anonymously because each screen started on anonymous again). Kept the same way, under
  * `aap-share-anon:<sha-256>` ('1' anonymous, '0' credit me); anonymous until the player picks.
+ *
+ * ONE SETTING (Jordan, 26 Oct 2026: "Credit me as" picked in Help improve the planner, then Before you send showed
+ * Submit anonymously): this store is the only place the credit lives. The Help box and Setup (composables/useStudy.ts)
+ * write here, every Before you send reads and writes here, the send reads here, and /prefs (stores/prefs.ts) saves and
+ * applies this. `onCreditChange` tells the Help box's record (useStudy.ts) when the choice changes from anywhere.
  */
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
@@ -22,6 +27,15 @@ const ANON_PREFIX = 'aap-share-anon:';
 /** The collector keeps 40 characters, and every send cuts there: the name is kept at that too (QA, 22 Oct
  *  2026: a paste of 500 characters was held in full), in memory and in this browser. */
 const MAX = 40;
+
+/** Told of every anonymous-or-named choice made in this tab (player ID, anonymous): the Help box's record follows it
+ *  (composables/useStudy.ts). A plain set, so this store needs nothing from there. */
+type CreditListener = (playerId: string, anonymous: boolean) => void;
+const creditListeners = new Set<CreditListener>();
+export function onCreditChange(fn: CreditListener): () => void {
+  creditListeners.add(fn);
+  return () => creditListeners.delete(fn);
+}
 
 function read(key: string): string | null {
   try {
@@ -58,7 +72,9 @@ function writeAnon(key: string, v: boolean): void {
 export const useShareNameStore = defineStore('shareName', () => {
   /** By player ID (trimmed), in memory only: the name typed, '' when cleared. */
   const names = ref<Record<string, string>>({});
-  const loaded = new Set<string>();
+  /** Each account's read of its kept values, once: a second caller waits for the same read (stores/prefs.ts must
+   *  see the kept choice before it compares it with the saved one). */
+  const loaded = new Map<string, Promise<void>>();
   /** The latest write per account, so an older one finishing its hash late cannot win. */
   const writes = new Map<string, number>();
   /** By player ID (trimmed), in memory: anonymous (true) or "Credit me as" (false), once chosen. */
@@ -78,15 +94,20 @@ export const useShareNameStore = defineStore('shareName', () => {
   }
 
   /** Read this account's kept name, once. A name typed meanwhile wins over the kept one. */
-  async function load(playerId: string): Promise<void> {
+  function load(playerId: string): Promise<void> {
     const id = playerId.trim();
-    if (!id || loaded.has(id)) return;
-    loaded.add(id);
-    const key = await hashOf(id);
-    const kept = read(key);
-    if (kept !== null && names.value[id] === undefined) names.value = { ...names.value, [id]: capName(kept, MAX) };
-    const keptAnon = readAnon(key);
-    if (keptAnon !== undefined && anon.value[id] === undefined) anon.value = { ...anon.value, [id]: keptAnon };
+    if (!id) return Promise.resolve();
+    const was = loaded.get(id);
+    if (was) return was;
+    const done = (async () => {
+      const key = await hashOf(id);
+      const kept = read(key);
+      if (kept !== null && names.value[id] === undefined) names.value = { ...names.value, [id]: capName(kept, MAX) };
+      const keptAnon = readAnon(key);
+      if (keptAnon !== undefined && anon.value[id] === undefined) anon.value = { ...anon.value, [id]: keptAnon };
+    })();
+    loaded.set(id, done);
+    return done;
   }
 
   /** Anonymous or "Credit me as" for this account, or undefined until the player has picked. */
@@ -98,6 +119,13 @@ export const useShareNameStore = defineStore('shareName', () => {
     const id = playerId.trim();
     anon.value = { ...anon.value, [id]: v };
     if (!id) return;
+    for (const fn of creditListeners) {
+      try {
+        fn(id, v);
+      } catch {
+        // a listener's trouble never stops the choice
+      }
+    }
     const n = (anonWrites.get(id) ?? 0) + 1;
     anonWrites.set(id, n);
     void hashOf(id).then(key => {

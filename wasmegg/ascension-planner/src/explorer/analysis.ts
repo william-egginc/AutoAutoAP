@@ -526,47 +526,6 @@ export interface FinishJudgement {
 }
 
 /**
- * Each run's finish date and whether it still stands, from the Leaderboard's own rules.
- *
- * `rows` should be every run on the page at every target -- a run to 300 is still evidence of the
- * TE the account had that day -- and exact copies included: `groupPlayers` folds them itself, and
- * every copy's id is answered with the judgement of the result it is a copy of. That includes runs
- * the page hides: whether a run is SHOWN must not change which OTHER runs stand. `now` only decides
- * the Leaderboard's 30-day rule, which this page does not apply (see `STANDING`).
- *
- * `shown` is the ids of the runs the page lists (every copy's id will do). Only those can be an
- * account's best or carry a `behind`: a best nobody can find in the table is no help. Leave it out
- * and every run counts as shown.
- *
- * `zone` is the calendar the dates inside each `reason` are read on (the Leaderboard's
- * `RankOptions.zone`): the page passes the viewer's, so "replaced by a newer run (24 Sep)" agrees
- * with the Planned and Finishes cells beside it. Left out, each date is in the zone of the run it
- * names.
- *
- * Lines the Leaderboard makes from a newer run's `rechecks` are used for what they replace but are
- * never an account's best here, for the same reason: they are not rows in this page's table.
- *
- * EACH RUN IS JUDGED ON ITS OWN LINE. `groupPlayers` can list one run on two lines: an anonymous
- * re-run of a plan sent under a name with no owner code is on its own line (the anonymous runs of its
- * account) and on the named player's too (`withUnnamedRechecks`), and the named line also weighs that
- * name's runs from OTHER accounts. So a same-name run on another account's gear could make the re-run
- * a what-if, or replace it, and which of the two verdicts showed was whichever line came last in
- * /all's order. Here a run's verdict, and what it may replace in `replacedAcrossLines`, come only from
- * the line `groupPlayers` files it under -- its own copy on the named line is left out, and so are the
- * lines that line made from its `rechecks`. Its re-check of the named plan still counts on the named
- * line, as on the Leaderboard.
- */
-export function judgeFinishes(
-  rows: CollectorRow[],
-  finalTE: number,
-  now: number,
-  shown?: ReadonlySet<string>,
-  zone?: string
-): FinishJudgement {
-  return finishJudgement(assessFinishes(rows, finalTE, now, zone), shown);
-}
-
-/**
  * The expensive half of `judgeFinishes`: every run at `finalTE` judged by the Leaderboard's rules
  * (`groupPlayers`, then `replacedAcrossLines`), before `shown` picks each account's best. Nothing in
  * it depends on which runs are shown, so a page can keep one per target and ask `finishJudgement`
@@ -1167,7 +1126,7 @@ export function compareCounts(
       out.push({
         key: `${account.key}#${proven.id}`,
         accountKey: account.key,
-        label: `${label} (one exhaustive run)`,
+        label: `${label} (one Custom run)`,
         singleRun: true,
         anchor: stands ? 'account' : 'run',
         anchorFinish: stands ? anchorFinish : start == null ? null : start + fastest * DAY_MS,
@@ -1479,7 +1438,7 @@ export function searchedOf(row: CollectorRow): Searched {
   const title = words.join(' ');
   return {
     // A box the run did not finish is partial, whether it was stopped or just never recorded the rest.
-    how: `${finished ? foundByText(row) : 'Exhaustive · partial'}${preset}`,
+    how: `${finished ? foundByText(row) : 'Custom · partial'}${preset}`,
     finished,
     where: pieces.join(' '),
     pieces,
@@ -1517,7 +1476,7 @@ export function rateCheckOf(row: Submission): RateCheckState {
   if (rate?.suspect) {
     return {
       state: 'suspect',
-      why: `Final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr; this gear reaches about ${rate.expectedQph.toFixed(2)} from ${row.chain[row.chain.length - 2]} TE. Looks like the old delivery-set-for-earnings bug.`,
+      why: `Final ascension peaks at ${rate.measuredQph.toFixed(2)} q/hr; this gear reaches about ${rate.expectedQph.toFixed(2)} from ${row.chain[row.chain.length - 2]} TE. Looks like the old delivery-set-for-earnings bug.`,
     };
   }
   if (rate) return { state: 'clean' };
@@ -1525,15 +1484,15 @@ export function rateCheckOf(row: Submission): RateCheckState {
   const last = row.legs?.[row.legs.length - 1];
   const why =
     row.chain?.[row.chain.length - 1] !== 490
-      ? 'The delivery-rate check only works on runs to 490: a shorter final leg can end before the farm reaches its rate.'
+      ? 'The delivery-rate check only works on runs to 490: a shorter final ascension can end before the farm reaches its rate.'
       : !deliveryScore(slotsFromLabels(row.delivery))
-        ? 'This run did not record its delivery set, so there is nothing to check its final leg against.'
+        ? 'This run did not record its delivery set, so there is nothing to check its final ascension against.'
         : !last
-          ? 'This run carried no per-leg detail, so its final leg cannot be checked.'
+          ? 'This run carried no per-ascension detail, so its final ascension cannot be checked.'
           : !(last.peakDeliveryQph > 0)
-            ? 'Its final leg recorded no peak delivery rate to check.'
+            ? 'Its final ascension recorded no peak delivery rate to check.'
             : row.chain.length < 2
-              ? 'A plan with one ascension has no stop to check its final leg from.'
+              ? 'A plan with one ascension has no stop to check its final ascension from.'
               : `Its last stop (${row.chain[row.chain.length - 2]} TE) is under 190, below where the delivery ramp was measured.`;
   return { state: 'unchecked', why: `Not checked for the delivery-set bug. ${why}` };
 }

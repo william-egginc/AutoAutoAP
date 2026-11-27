@@ -43,10 +43,17 @@ export function oneMoreTE(o: {
   runCost?: number | null;
   /** Only a run's measured cost (By a date's card already says when the next TE comes at the final rate). */
   noRate?: boolean;
+  /** By a date's deadline (unix second). The run cost is what the last TE cost over the one before it, not a
+   *  price of the next: the search priced last stops one higher and none made the date, so a "run" date at
+   *  or before the deadline contradicts the answer and is dropped (UX review 2, 5 Nov 2026). */
+  deadline?: number | null;
 }): OneMoreTE | null {
   const last = o.chain[o.chain.length - 1];
   if (!(last > 0) || last >= 490 || !Number.isFinite(o.reachAt) || o.reachAt <= 0) return null;
-  if (o.runCost && o.runCost > 0) return { te: last + 1, seconds: o.runCost, at: o.reachAt + o.runCost, how: 'run' };
+  if (o.runCost && o.runCost > 0) {
+    if (o.deadline != null && o.reachAt + o.runCost <= o.deadline) return null;
+    return { te: last + 1, seconds: o.runCost, at: o.reachAt + o.runCost, how: 'run' };
+  }
   if (o.noRate) return null;
   const eggs = endEggsOf({ chain: [...o.chain], legs: o.legs ? [...o.legs] : [] });
   if (!eggs?.next) return null;

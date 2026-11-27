@@ -1,11 +1,12 @@
 /**
  * YOUR SETUP, REMEMBERED PER ACCOUNT (batch 16, item 8): the hours ("Let me pick my hours", from, to,
- * days), hold shifts, time off and first ascension, kept in this browser under the account's partition
+ * days), hold shifts, time off (away from virtue), the no-prestige days, first ascension and Chain Finder's target TE
+ * (spec-targetmemory, 13 Nov 2026: it was kept only online, so a reload with no network went back to 490), kept in this browser under the account's partition
  * hash (`aap-setup:<sha-256 of the player ID>`, the same hashing as stores/shareName.ts), never under the
  * player ID. One JSON blob an account, with when it was written.
  *
  * Not remembered, on purpose: the plan start (it stays "now" or the save's moment), the time zone and
- * Target TE (Single run's own cache, lib/autoPlannerFormCache.ts), milestones, and the workers
+ * Single run's own Target TE (its own cache, lib/autoPlannerFormCache.ts), milestones, and the workers
  * (`aap-workers`) and Stronger check level (`aap-stronger-level`), which stay one per browser: they
  * describe the computer and a habit, not the account.
  *
@@ -16,32 +17,51 @@
  */
 import { DEFAULT_FIRST_ASCENSION, isFirstAscension, type FirstAscension } from '@/search/firstAscension';
 import type { TimeOffDates } from '@/search/timeOff';
+import { validBlocked } from '@/search/availabilitySchedule';
 
 export const SETUP_PREFIX = 'aap-setup:';
+/** The target with nothing remembered, and the highest one (stores/chainSearch.ts TARGET_TE_MAX). */
+const DEFAULT_TARGET = 490;
+/** A target the store can take: a whole number 1 to 490. */
+export const isSetupTarget = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= DEFAULT_TARGET;
 
 /** What is remembered. `v` for a later change of shape. */
 export interface RememberedSetup {
   v: 1;
-  hours: { on: boolean; from: number; to: number; days: number[] };
+  /** `blocked`: weekly hours (R10), the week's blocked hours (search/availabilitySchedule.ts). Absent: the daily window. */
+  hours: { on: boolean; from: number; to: number; days: number[]; blocked?: number[] };
   holdShifts: boolean;
+  /** The silo trick (10 Nov 2026): plans count the 2x-event credit for going offline into Monday. Off by default; absent in a
+   *  blob written before: off. */
+  siloTrick: boolean;
   timeOff: TimeOffDates[];
+  /** No prestige on these days (search/noPrestige.ts), whole local dates like time off. Absent in a blob written
+   *  before 24 Oct 2026: none. */
+  noPrestige: TimeOffDates[];
   firstAscension: FirstAscension;
+  /** Chain Finder's target TE (chainSearch `finalTE`), a whole number 1 to 490. Absent in a blob written before
+   *  13 Nov 2026: 490. A target at or below the player's TE is kept as it is (the answer says "already at or past"). */
+  target: number;
   /** When it was written, ms. */
   at: number;
 }
 
 /** The parts the player edits, one group each: an edit writes only its own group. */
-export type SetupGroup = 'hours' | 'holdShifts' | 'timeOff' | 'firstAscension';
+export type SetupGroup = 'hours' | 'holdShifts' | 'siloTrick' | 'timeOff' | 'noPrestige' | 'firstAscension' | 'target';
 export type SetupValues = Omit<RememberedSetup, 'v' | 'at'>;
 
 /** The store's own defaults (stores/chainSearch.ts): any hour (7 am to 11 pm when picked, every day),
- *  hold shifts on, no time off, first ascension Fastest. */
+ *  hold shifts on, no time off, no no-prestige days, first ascension Soonest, target 490. */
 export function setupDefaults(): SetupValues {
   return {
     hours: { on: false, from: 7, to: 23, days: [0, 1, 2, 3, 4, 5, 6] },
     holdShifts: true,
+    siloTrick: false,
     timeOff: [],
+    noPrestige: [],
     firstAscension: DEFAULT_FIRST_ASCENSION,
+    target: DEFAULT_TARGET,
   };
 }
 
@@ -72,16 +92,19 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
   const days = Array.isArray(h.days)
     ? [...new Set(h.days.filter((x): x is number => Number.isInteger(x) && x >= 0 && x <= 6))].sort((a, b) => a - b)
     : d.hours.days;
-  const timeOff = Array.isArray(o.timeOff)
-    ? (o.timeOff as unknown[])
-        .filter((w): w is TimeOffDates => {
-          const x = w as Partial<TimeOffDates> | null;
-          return !!x && typeof x.from === 'string' && typeof x.to === 'string' && YMD.test(x.from) && YMD.test(x.to);
-        })
-        .map(w => ({ from: w.from, to: w.to }))
-        // Already over: dropped, so a trip from last month doesn't quietly change every answer.
-        .filter(w => !(YMD.test(today) && w.to < today))
-    : d.timeOff;
+  const dates = (v: unknown, fallback: TimeOffDates[]): TimeOffDates[] =>
+    Array.isArray(v)
+      ? (v as unknown[])
+          .filter((w): w is TimeOffDates => {
+            const x = w as Partial<TimeOffDates> | null;
+            return !!x && typeof x.from === 'string' && typeof x.to === 'string' && YMD.test(x.from) && YMD.test(x.to);
+          })
+          .map(w => ({ from: w.from, to: w.to }))
+          // Already over: dropped, so a trip from last month doesn't quietly change every answer.
+          .filter(w => !(YMD.test(today) && w.to < today))
+      : fallback;
+  const timeOff = dates(o.timeOff, d.timeOff);
+  const noPrestige = dates(o.noPrestige, d.noPrestige);
   return {
     v: 1,
     hours: {
@@ -89,17 +112,30 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
       from: hour(h.from) ? h.from : d.hours.from,
       to: hour(h.to) ? h.to : d.hours.to,
       days,
+      ...(Array.isArray(h.blocked) ? { blocked: validBlocked(h.blocked as number[]) } : {}),
     },
     holdShifts: typeof o.holdShifts === 'boolean' ? o.holdShifts : d.holdShifts,
+    siloTrick: typeof o.siloTrick === 'boolean' ? o.siloTrick : d.siloTrick,
     timeOff,
+    noPrestige,
     firstAscension: isFirstAscension(o.firstAscension) ? o.firstAscension : d.firstAscension,
+    target: isSetupTarget(o.target) ? o.target : d.target,
     at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : 0,
   };
 }
 
 /** The same values (the time it was written aside). */
 export function sameSetup(a: SetupValues, b: SetupValues): boolean {
-  const pick = (s: SetupValues) => JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension]);
+  const pick = (s: SetupValues) =>
+    JSON.stringify([
+      s.hours,
+      s.holdShifts,
+      s.timeOff,
+      s.firstAscension,
+      s.noPrestige ?? [],
+      !!s.siloTrick,
+      isSetupTarget(s.target) ? s.target : DEFAULT_TARGET,
+    ]);
   return pick(a) === pick(b);
 }
 
@@ -116,8 +152,11 @@ export function mergeSetup(base: SetupValues, edits: Partial<SetupValues>, at: n
       ? { ...edits.hours, days: [...edits.hours.days] }
       : { ...base.hours, days: [...base.hours.days] },
     holdShifts: edits.holdShifts ?? base.holdShifts,
+    siloTrick: edits.siloTrick ?? base.siloTrick ?? false,
     timeOff: (edits.timeOff ?? base.timeOff).map(w => ({ from: w.from, to: w.to })),
+    noPrestige: (edits.noPrestige ?? base.noPrestige ?? []).map(w => ({ from: w.from, to: w.to })),
     firstAscension: edits.firstAscension ?? base.firstAscension,
+    target: [edits.target, base.target].find(isSetupTarget) ?? DEFAULT_TARGET,
     at,
   };
 }

@@ -66,7 +66,7 @@ describe('ConsentBox', () => {
     expect(html).not.toContain('consent-summary');
     expect(t).toContain('I acknowledge THE TEXT');
     expect(html).toContain('data-testid="consent-remember"');
-    expect(t).toContain('Remember my choice for this account (kept in this browser until you withdraw it)');
+    expect(t).toContain('Remember my choice for this account (kept in this browser and saved online until you withdraw it)');
     expect(html).toMatch(/data-testid="consent-remember"[^>]*checked|checked[^>]*data-testid="consent-remember"/);
     expect(html).toContain('data-testid="consent-withdraw"');
     expect(t).toContain('Withdraw');
@@ -163,7 +163,7 @@ describe('the folded line: each option one click (Jordan, 16 Oct)', () => {
       (st.quickSet as (v: boolean) => void)(false)
     );
     expect(r.models).toEqual([false]);
-    expect(r.withdrawn).toBe(1);
+    expect(r.withdrawn).toBe(0); // the unheard `withdrawn` emit is gone (dead-deep-6); the agreement going off is the model's
   });
 
   it('…but never agrees from the line: a tick there opens the full text, and nothing is agreed', async () => {
@@ -250,7 +250,7 @@ describe('every consent box is a ConsentBox, with its words unchanged', () => {
     expect(read('InsanePanel.vue')).not.toContain('const sweepConsent = ref(false);');
   });
 
-  it('the acknowledgement of Find and submit, byte for byte', () => {
+  it('the acknowledgement of Run with the send ticked (Find and submit until 25 Oct), byte for byte', () => {
     expect(flat(read('FindBar.vue'))).toContain(
       'I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template v-if="consentNote" > ({{ consentNote }})</template >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone, local plan start and the random code this browser keeps for the account (not my player ID, and never shown), plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the best it found so far. Send best so far shares it while the run goes on, with the CSV so far and diagnostics if ticked below; that row and its CSV are replaced when the run finishes.</span'
     );

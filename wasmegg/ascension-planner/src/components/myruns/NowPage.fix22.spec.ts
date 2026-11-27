@@ -15,14 +15,14 @@ import { mergeSimultaneousShifts, planEvents, tableEvents, type NowPlan } from '
 import type { CardPlan } from '@/composables/useNowPage';
 import { currentSetup, otherSetupLabel, pickCardPlan, pricedWithWords, setupCheck, todayIn, type PricedSetup } from '@/lib/currentAnswer';
 import { buildTile } from '@/lib/savedTiles';
-import { formatDate } from '@/lib/leaderboardRank';
+import { dayWords } from '@/lib/eventWhen';
 
-/** The tile's own date format (the browser's locale: "Sep 17, 2028" or "17 Sept 2028"). */
-const day = (unix: number) => formatDate(unix * 1000, ZONE, { month: 'short', day: 'numeric', year: 'numeric' });
+/** The tile's own date format, month first ("Sep 17, 2028", lib/eventWhen.ts `dayWords`). */
+const day = (unix: number) => dayWords(unix, ZONE);
 
 const ZONE = 'America/Denver';
-const SAVE = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Oct 15, 2:40 pm Denver
-const NOW = Date.UTC(2026, 9, 16, 20, 0) / 1000; // Oct 16, 2:00 pm Denver
+const SAVE = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Oct 15, 2:40 PM Denver
+const NOW = Date.UTC(2026, 9, 16, 20, 0) / 1000; // Oct 16, 2:00 PM Denver
 const TODAY = todayIn(NOW * 1000, ZONE);
 const H = 3600;
 const ANY: PricedSetup = { availability: null, timeOff: [] };
@@ -40,7 +40,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-const T = Date.UTC(2026, 9, 17, 10, 16) / 1000; // Sat Oct 17, 4:16 am Denver
+const T = Date.UTC(2026, 9, 17, 10, 16) / 1000; // Sat Oct 17, 4:16 AM Denver
 const leg = (start: number, end: number, endTE: number, shifts: LegSummary['shifts']) =>
   ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts, endEgg: { egg: 'kindness', te: 40 } }) as LegSummary;
 const plan = (at: number, chain: number[], end: number, legs: LegSummary[] | null): NowPlan => ({
@@ -60,15 +60,15 @@ const plan = (at: number, chain: number[], end: number, legs: LegSummary[] | nul
   meta: { account: 'acct', goal: 'target 490', backupTime: SAVE },
   whatIf: null,
 });
-// 11:59 pm, 7 am to 1 am: 6 ascensions, Sep 22 2028; its first ascension shifts to Humility and straight on to
-// Kindness at 4:16 am (Joo's H1 step, then K3).
+// 11:59 PM, 7 am to 1 am: 6 ascensions, Sep 22 2028; its first ascension shifts to Humility and straight on to
+// Kindness at 4:16 AM (Joo's H1 step, then K3).
 const B = plan(Date.UTC(2026, 9, 16, 5, 59), [197, 240, 300, 350, 420, 490], Date.UTC(2028, 8, 22, 18) / 1000, [
   leg(SAVE, T + 13 * H, 197, [
     { at: T, egg: 'humility', fromEgg: 'integrity', te: 39 },
     { at: T + 25, egg: 'kindness', fromEgg: 'humility', te: 39 },
   ]),
 ]);
-// 11:51 pm, any hour: 7 ascensions, Sep 17 2028.
+// 11:51 PM, any hour: 7 ascensions, Sep 17 2028.
 const A = plan(Date.UTC(2026, 9, 16, 5, 51), [160, 197, 230, 280, 350, 420, 490], Date.UTC(2028, 8, 17, 18) / 1000, null);
 
 function cardOf(): CardPlan {
@@ -107,13 +107,13 @@ const cardProps = (card: CardPlan) => {
 };
 
 describe('Right now and the Fastest tile: one plan, the other hours secondary', () => {
-  it('the card names the hours and the 11:59 pm plan; the 11:51 pm one is the secondary line', async () => {
+  it('the card names the hours and the 11:59 PM plan; the 11:51 PM one is the secondary line', async () => {
     const html = await renderHtml(RightNowCard, cardProps(cardOf()));
     const t = textOf(html);
-    expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 11:59 pm');
-    expect(t).toContain('(Check exactly) · priced with your hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 pm');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 11:59 PM');
+    expect(t).toContain('(simulator check) · priced with awake hours 7:00 AM to 1:00 AM, no time off · from your save of Oct 15 at 2:40 PM');
     expect(html).toContain('data-testid="now-secondary"');
-    expect(t).toContain(`With any hour (before your hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 pm)`);
+    expect(t).toContain(`With any hour (before your awake hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM)`);
   });
 
   it('the tile leads with the same plan and shows the same secondary line', async () => {
@@ -136,8 +136,8 @@ describe('Right now and the Fastest tile: one plan, the other hours secondary', 
     );
     expect(t).toContain(day(B.end));
     expect(t).toContain('6 ascensions');
-    expect(t).toContain('Calculated Oct 15 at 11:59 pm');
-    expect(t).toContain(`With any hour (before your hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 pm`);
+    expect(t).toContain('Calculated Oct 15 at 11:59 PM');
+    expect(t).toContain(`With any hour (before your awake hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM`);
   });
 });
 
@@ -146,8 +146,8 @@ describe('two shifts at the same minute: one row', () => {
     const card = cardOf();
     const html = await renderHtml(RightNowCard, cardProps(card));
     const t = textOf(html);
-    const pair = "Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness";
-    expect(t).toContain(`${pair} tomorrow at 4:16 am`);
+    const pair = "Shift to Humility (to swap artifacts), then straight to Kindness";
+    expect(t).toContain(`${pair} tomorrow at 4:16 AM`);
     expect(t.split(pair).length - 1).toBe(2); // Next step and the table, once each
     expect(t).not.toContain('Shift to Kindness');
     const events = mergeSimultaneousShifts(planEvents(card.plan, NOW), ZONE);
@@ -174,6 +174,43 @@ describe('the next TE under two days: hours', () => {
         saveSeconds: SAVE,
       })
     );
-    expect(t).toContain('next TE in 33 h');
+    expect(t).toContain('next TE in 33h');
+  });
+});
+
+describe('Right now: the routes saved online could not be read (UX review, 25 Oct 2026)', () => {
+  it('says so in amber, with Retry, and that following still works here', async () => {
+    const html = await renderHtml(RightNowCard, { ...cardProps(cardOf()), followCloudUnreachable: true });
+    expect(html).toMatch(/class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable"/);
+    expect(textOf(html)).toContain("Couldn't read your routes saved online right now. Following still works in this browser. Retry ›");
+    expect(html).not.toMatch(/now-follow-cloud-unreachable[^>]*rose|red-/);
+  });
+  it('nothing when the read worked', async () => {
+    expect(await renderHtml(RightNowCard, cardProps(cardOf()))).not.toContain('now-follow-cloud-unreachable');
+  });
+  it('spec-tidy M8: a failed save and an unreachable read are ONE line, not two stacked notes', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: "Couldn't save the route online right now; it is still followed in this browser.",
+      })
+    );
+    expect(t).toContain("Couldn't save or read your routes online right now. Following still works in this browser. Retry ›");
+    expect(t).not.toContain("Couldn't read your routes saved online");
+    expect(t).not.toContain("Couldn't save the route online right now");
+  });
+  it('spec-tidy M8: a refused save (too big, hour limit) keeps its own note beside the unreachable read', async () => {
+    const t = textOf(
+      await renderHtml(RightNowCard, {
+        ...cardProps(cardOf()),
+        follow: { chain: [210, 260], goalKey: 'fastest', estimating: null },
+        followCloudUnreachable: true,
+        followSaveWords: 'Too many changes this hour. Try again later.',
+      })
+    );
+    expect(t).toContain('Too many changes this hour. Try again later.');
+    expect(t).toContain("Couldn't read your routes saved online right now. Following still works in this browser. Retry ›");
   });
 });

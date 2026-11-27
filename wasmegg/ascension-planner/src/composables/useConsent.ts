@@ -31,7 +31,7 @@ export type ConsentId =
   | 'sendCsv'
   /** "Tick this by default from now on" under "Also send diagnostics". */
   | 'diagnosticsDefault'
-  /** "Keep sharing my checks" (the instant answer, and Your setup › Sharing). */
+  /** "Share my search results" (was "Keep sharing my checks"; under a search's result, and Your setup › Sharing). */
   | 'keepSharingChecks'
   /** Stepping away?: "Carry on by itself after a crash". */
   | 'carryOn'
@@ -42,7 +42,17 @@ export type ConsentId =
   /** Stepping away?: "Send my progress every ...". */
   | 'autoSend'
   /** A science sweep's "I understand ... sent to the board automatically" (Science and the sweep card). */
-  | 'scienceSweep';
+  | 'scienceSweep'
+  /** "Share my instant baseline with my runs" (My Runs, 23 Oct 2026): each run sent to the board carries the instant
+   *  answer for its goal and save (lib/instantBaseline.ts), shown on the board beside it. */
+  | 'shareBaseline'
+  /** "Share more of my gear with my search results" (revision 3, 24 Nov 2026): the instant answer record also says which
+   *  delivery table answered and the player's delivery and earnings sets and slotted stones. Its own box, so a player who
+   *  ticked "Share my search results" before is asked once more; until they agree only the old fields are sent. */
+  | 'shareGearDetail'
+  /** "Tell the maintainer which table answered" (R10.1, 25 Nov 2026): the anonymous ping to the collector's /tablepick (lib/tablePick.ts).
+   *  ON until the player says no; a stored No or a Withdraw stays off. Covers only this ping. */
+  | 'shareTableUse';
 
 export interface ConsentRecord {
   agreed: boolean;
@@ -64,6 +74,9 @@ export const CONSENT_DEFAULTS: Record<ConsentId, { agreed: boolean; remember: bo
   watchPhone: { agreed: false, remember: true },
   autoSend: { agreed: false, remember: true },
   scienceSweep: { agreed: false, remember: false },
+  shareBaseline: { agreed: false, remember: true },
+  shareGearDetail: { agreed: false, remember: true },
+  shareTableUse: { agreed: true, remember: true },
 };
 
 export const CONSENT_PREFIX = 'aap-consent:';
@@ -347,6 +360,23 @@ export function setConsentRemember(id: ConsentId, remember: boolean): void {
   state.records = { ...state.records, [id]: { ...r, remember, at: r.at || Date.now() } };
   if (state.account && state.loaded) visit.set(state.account, state.records);
   persist();
+}
+
+/**
+ * A choice read back from the account's choices saved online (stores/prefs.ts, newer than this browser's): kept as a
+ * remembered choice. Dated no later than this visit's start, so it is never "given this visit" and sends nothing by
+ * itself (the 15 Oct rule); a newer choice of this tab's own keeps its place in the order. A yes turned off is a
+ * withdraw, as everywhere.
+ */
+export function applySavedConsent(id: ConsentId, agreed: boolean, at: number): void {
+  const was = consentRecord(id);
+  if (state.records[id] && was.agreed === agreed) return;
+  let when = Math.max(1, Math.min(Math.floor(at) || 1, visitStart - 1));
+  if (when <= was.at) when = was.at + 1;
+  state.records = { ...state.records, [id]: { agreed, remember: true, at: when } };
+  if (state.account && state.loaded) visit.set(state.account, state.records);
+  persist();
+  if (was.agreed && !agreed) state.withdrawals = { ...state.withdrawals, [id]: consentWithdrawals(id) + 1 };
 }
 
 /** A yes the page itself gives on the player's behalf (a run that sends what it owes): for this visit

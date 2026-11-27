@@ -45,6 +45,9 @@ export interface EvaluateRequest {
    * steps kept -- what Smart search and the Full sweep always had. By a date sends both.
    */
   memo?: import('@/search/chain').MemoSettings;
+  /** BUILD-UP TRACKER (search/chain.ts `EvaluateChainOptions.keepPurchases`): each chain's first step
+   *  comes back with its build-up list. Absent: off, every result as before. */
+  keepPurchases?: true;
 }
 
 /** How long a fresh ascension from the plan start sits on its first Integrity shift. See
@@ -55,7 +58,8 @@ export interface IntegrityRequest {
 }
 
 /** "Continue my build-up" as the instant answer's tails, one per sale variant, timed from the plan
- *  start (`buildUpTailParams` in search/leg.ts): a few seconds of simulation, so it runs here. */
+ *  start (`buildUpTailParamsV2` in search/leg.ts, with table version 2's extras): a few seconds of
+ *  simulation, so it runs here. */
 export interface BuildUpTailsRequest {
   kind: 'buildup-tails';
   requestId: number;
@@ -157,7 +161,7 @@ export interface IntegrityResultMessage {
 export interface BuildUpTailsResultMessage {
   type: 'buildup-tails';
   requestId: number;
-  /** Empty without a farm in the save (or when nothing could be simulated). */
+  /** Empty without a farm in the save, or with nothing left to build. A failure is an 'error' reply instead. */
   tails: import('@/search/precomputedLeg').BuildParams[];
 }
 

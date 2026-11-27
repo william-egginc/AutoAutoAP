@@ -23,7 +23,7 @@ describe('ResultHealth', () => {
     expect(t).toMatch(/^This result contradicts itself/);
     expect(t).toContain(slow.message);
     expect(t).toContain(wrong.message);
-    expect(t).toContain('Reload your backup and run it again');
+    expect(t).toContain('Reload your save and run it again');
     expect(html).toContain('result-contradicts');
     expect(html).toContain('bg-rose-50');
   });

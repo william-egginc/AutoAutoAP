@@ -1,7 +1,7 @@
 /**
  * Right now's "which plan" switch and the route followed (Jordan, 16 Oct 2026), server-rendered and through
  * useNowPage with the synthetic saves (ids EI0000000000000000 and EI1234567890123456, never printed):
- *   - the switch: a radiogroup of the goals (Race to 490 | Egg Day 2027 | By a date), 44 px, wrapping; an empty goal
+ *   - the switch: a radiogroup of the goals (Fastest to 490 TE | Egg Day 2027 | By a date), 44 px, wrapping; an empty goal
  *     says so with "Work it out ›" opening that goal's screen;
  *   - the default is the goal checked last; a pick is kept for this account and save, and falls back after a switch;
  *   - the events table, Next step, the timeline, the calendar and the route line follow the selected goal;
@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp, effectScope, h, markRaw, ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { createPinia, setActivePinia } from 'pinia';
@@ -34,6 +34,7 @@ const ZONE = 'America/Denver';
 const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
 const H = 3600;
 const EGG_DAY_AT = Date.UTC(2027, 6, 14, 16) / 1000;
+const PINNED_AT = new Date(NOW * 1000);
 
 beforeEach(() => {
   const mem = new Map<string, string>();
@@ -81,8 +82,8 @@ const options = (o: Partial<Record<'race' | 'egg', GoalOption['state']>> = {}): 
   {
     key: 'fastest-490',
     kind: 'race',
-    label: 'Race to 490',
-    name: 'Race to 490',
+    label: 'Fastest to 490 TE',
+    name: 'Fastest to 490 TE',
     deadline: null,
     state: o.race ?? 'plan',
     calculatedAt: (NOW - 3 * H) * 1000,
@@ -132,7 +133,7 @@ describe('the switch', () => {
   it('a radiogroup of the goals: the selected one checked and in the tab order, 44 px targets, wrapping', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Which plan"');
+    expect(html).toContain('aria-label="Which goal"');
     expect(html.match(/role="radio"/g)).toHaveLength(2);
     const radio = (key: string) => html.match(new RegExp(`<button[^>]*data-testid="now-goal-${key}"[^>]*>`))![0];
     expect(radio('eggday-2027')).toContain('aria-checked="true"');
@@ -142,21 +143,21 @@ describe('the switch', () => {
     expect(radio('fastest-490')).toContain('min-h-[44px]');
     expect(html).toMatch(/class="flex flex-wrap gap-2" data-testid="now-goal-switch"/);
     const t = textOf(html);
-    expect(t).toContain('Race to 490 calculated 3 h ago');
-    expect(t).toContain('Egg Day 2027 calculated 1 h ago');
+    expect(t).toContain('Fastest to 490 TE calculated 3h ago');
+    expect(t).toContain('Egg Day 2027 calculated 1h ago');
     // The switch sits above the rest of the card.
     expect(html.indexOf('now-goal-switch')).toBeLessThan(html.indexOf('data-testid="now-next"'));
   });
 
-  it('an empty goal: "no saved plan for this goal yet · Work it out ›", opening that goal’s screen', async () => {
+  it('an empty goal: "no saved route for this goal yet · Work it out ›", opening that goal’s screen', async () => {
     const none = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null, goals: options({ egg: 'none' }) }));
     const t = textOf(none);
-    expect(t).toContain('Egg Day 2027: no saved plan for this goal yet · Work it out ›');
-    expect(t).toContain('Egg Day 2027 no saved plan yet'); // the option's own line
+    expect(t).toContain('Egg Day 2027: no saved route for this goal yet · Work it out ›');
+    expect(t).toContain('Egg Day 2027 no saved route yet'); // the option's own line
     expect(t).not.toContain('Following');
     expect(none).not.toContain('data-testid="now-events"');
     const only = textOf(await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null, goals: options({ egg: 'answer-only' }) })));
-    expect(only).toContain('Egg Day 2027: no saved plan with its times for this goal yet · Work it out ›');
+    expect(only).toContain('Egg Day 2027: no saved route with its times for this goal yet · Work it out ›');
     expect(read('RightNowCard.vue')).toContain(`data-testid="now-work-it-out" @click="emit('open', selectedOption.open)"`);
   });
 
@@ -187,10 +188,17 @@ describe('the route followed', () => {
   it('"Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)": the ascension the save is in highlighted, the ones passed grey', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const line = html.match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
-    expect(textOf(line)).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)');
+    // No goal in brackets while the goal switch names it (UX fluff review 2, 5 Nov 2026, item R3).
+    // Not followed yet (no Follow press): the instant answer's route, never "Following" (13 Nov 2026).
+    expect(textOf(line)).toBe("The instant answer's route: 197 → 222 → 247 → 285 → 313");
+    const alone = (await renderHtml(RightNowCard, cardProps({ goals: [] }))).match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
+    expect(textOf(alone)).toBe("The instant answer's route: 197 → 222 → 247 → 285 → 313 (Egg Day 2027)");
+    // Followed (a `follow` card): "Following".
+    const kept = (await renderHtml(RightNowCard, cardProps({ follow: { chain: [197, 222, 247, 285, 313], price: 'none' } }))).match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
+    expect(textOf(kept)).toBe('Following 197 → 222 → 247 → 285 → 313');
     const stop = (te: number) => line.match(new RegExp(`<span[^>]*>${te}</span>`))![0];
     expect(stop(197)).toContain('data-stop="passed"');
-    expect(stop(197)).toContain('text-slate-400');
+    expect(stop(197)).toContain('text-slate-600');
     expect(stop(222)).toContain('data-stop="now"');
     expect(stop(222)).toContain('aria-current="step"');
     expect(stop(222)).toContain('underline');
@@ -204,14 +212,15 @@ describe('the route followed', () => {
     expect(before).not.toContain('data-stop="now"');
   });
 
-  it('a Race plan says "(Race to 490)"; the calendar events of the table carry the line', async () => {
+  it('a Race plan says "(Fastest to 490 TE)"; the calendar events of the table carry the line', async () => {
     const t = textOf(
-      await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Race to 490' }, selectedGoal: 'fastest-490' }))
+      await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Fastest to 490 TE' }, selectedGoal: 'fastest-490' }))
     );
-    expect(t).toContain('Following 197 → 490 (Race to 490)');
+    expect(t).toContain("The instant answer's route: 197 → 490");
     expect(read('RightNowCard.vue')).toContain(':following="following"');
     expect(read('RightNowCard.vue')).toMatch(/planCalEvent\(nextEvent\.value, \{[\s\S]*?following: following\.value/);
-    expect(read('EventsTable.vue')).toMatch(/planCalEvent\(e, \{[\s\S]*?following: props\.following/);
+    // The row as it happens (a waiting prestige at its held time, spec-uxpass item 10), with the same `following` label.
+    expect(read('EventsTable.vue')).toMatch(/planCalEvent\(shown\(e\), \{[\s\S]*?following: props\.following/);
     // EventsTable's own render still works with the line passed.
     const events = planEvents(datePlan, NOW);
     const html = await renderHtml(EventsTable, {
@@ -243,6 +252,14 @@ function save(id: string, hoursAgo: number) {
 }
 
 describe('the page: the default is the goal checked last, the pick follows everything, and resets', () => {
+  // The clock is pinned (review X1, 15 Nov 2026): 'another date' is Egg Day minus 120 days, which is in the past from
+  // about Mar 14 to Jul 14 every year, so on the real clock this failed for four months a year.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(PINNED_AT);
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('Race (older) and Egg Day (newer) kept, and a plan for another date: Egg Day opens; Race picked moves the card', async () => {
     const a = save(A_ID, 2);
     loadAndSyncBackup(A_ID, a, 'plan_next');
@@ -281,9 +298,10 @@ describe('the page: the default is the goal checked last, the pick follows every
     const scope = effectScope();
     const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
     expect(page.goalChoices.value.map(g => [g.key, g.label, g.state])).toEqual([
-      [`fastest-${target}`, `Race to ${target}`, 'plan'],
+      [`fastest-${target}`, `Fastest to ${target} TE`, 'plan'],
       [`eggday-${year}`, `Egg Day ${year}`, 'plan'],
-      [`date-${MAR}`, 'By a date', 'plan'],
+      // Named by its date, month first ("By Mar 16, 2027"; was "By a date" for every date).
+      [`date-${MAR}`, expect.stringMatching(/^By [A-Z][a-z]{2} \d{1,2}, \d{4}$/), 'plan'],
     ]);
     // Egg Day was checked last.
     expect(page.selectedGoal.value).toBe(`eggday-${year}`);
@@ -295,7 +313,7 @@ describe('the page: the default is the goal checked last, the pick follows every
     // Race picked: the plan, the events (table, Next step, calendar) and the timeline's chain are Race's.
     page.selectGoal(`fastest-${target}`);
     expect(page.cardPlan.value?.goal.goal).toBe('fastest');
-    expect(page.cardPlan.value?.name).toBe(`Race to ${target}`);
+    expect(page.cardPlan.value?.name).toBe(`Fastest to ${target} TE`);
     expect(page.cardPlan.value?.plan.chain).toEqual([192, target]);
     expect(page.events.value.find(e => e.kind === 'shift')?.egg).toBe('humility');
     expect(page.shownEvents.value.some(e => e.kind === 'goal' && e.te === target)).toBe(true);
@@ -349,7 +367,7 @@ describe('source: everything on the card follows the selected goal', () => {
     expect(src).toContain('mergeSimultaneousShifts(');
     expect(src).toContain('planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null)');
     expect(src).toContain('const shownEvents = computed(() => tableEvents(events.value));');
-    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value)');
+    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value)');
     // The pick is module state for this visit, scoped to the account and the save (no localStorage).
     expect(src).toContain('const choiceScope = computed(() => `${account.value ?? \'\'}|${saveSeconds.value}`);');
     expect(src).not.toMatch(/localStorage\.setItem/);
@@ -357,6 +375,6 @@ describe('source: everything on the card follows the selected goal', () => {
     expect(card).toContain(':chain="card.plan.chain"');
     expect(card).toContain(':legs="card.plan.legs"');
     expect(card).toContain(':events="shownEvents"');
-    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone)');
+    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value)');
   });
 });

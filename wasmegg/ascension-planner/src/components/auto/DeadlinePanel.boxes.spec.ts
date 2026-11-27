@@ -1,7 +1,7 @@
 /**
  * Highest TE by a date, built like Fastest (the user, 12 Oct 2026: "I thought we had them the same, just
- * different steps?"): Nearby routes and Exhaustive each have their own run controls (Find, Find and
- * submit) and results, showing only their own run. Before, one set of controls was teleported to "the
+ * different steps?"): Nearby routes and Exhaustive each have their own run controls (Run Fast / Exact /
+ * Custom and its send tick; Find and Find and submit until 25 Oct 2026) and results, showing only their own run. Before, one set of controls was teleported to "the
  * search in hand", and Exhaustive had no Find until "Find with these boxes here" was pressed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -68,26 +68,25 @@ describe('each box has its own Find when nothing runs', () => {
     expect(template).toContain("!(k === 'around' ? canStartAround : canStart)");
     expect(template).toContain(':running="runKind === k"');
   });
-  it('By a date run controls, idle, show Find and Find and submit', async () => {
-    const html = await renderHtml(
-      RunControls,
-      {
-        kind: 'by-date',
-        playerId: 'x',
-        findDisabled: false,
-        running: false,
-        showSubmit: true,
-        canCarryOn: false,
-        report: { own: false },
-        optIn: false,
-        anonymous: true,
-        nickname: '',
-        note: '',
-      },
-      {},
-      [pinia]
-    );
-    expect(textOf(html)).toContain('Find and submit');
+  it('By a date run controls, idle, show Run <strength> and the send tick', async () => {
+    const props = {
+      playerId: 'x',
+      findDisabled: false,
+      running: false,
+      showSubmit: true,
+      canCarryOn: false,
+      report: { own: false },
+      optIn: false,
+      anonymous: true,
+      nickname: '',
+      note: '',
+    };
+    const fast = textOf(await renderHtml(RunControls, { kind: 'by-date', option: 'fast', ...props }, {}, [pinia]));
+    expect(fast).toContain('Run Fast');
+    expect(fast).toContain('Send the result to the Leaderboard when it finishes');
+    expect(fast).not.toContain('Find and submit');
+    const custom = textOf(await renderHtml(RunControls, { kind: 'by-date', option: 'custom', ...props }, {}, [pinia]));
+    expect(custom).toContain('Run Custom');
   });
   it('the old "search in hand" buttons are gone', () => {
     expect(template).not.toContain('Find with these boxes here');
@@ -137,7 +136,7 @@ describe('results gated by result.simple', () => {
   });
 });
 
-describe('widen and run from Nearby routes', () => {
+describe('widen and run from the Fast or Exact result', () => {
   const fn = panel.slice(panel.indexOf('async function widenAndRun'), panel.indexOf('const atCeiling'));
   it("opens Nearby routes' boxes in Exhaustive and runs Exhaustive", () => {
     expect(fn).toContain('if (result.value?.simple) openInAdvanced();');
@@ -154,12 +153,12 @@ describe('compact share boxes', () => {
   const shareTag = (src: string) => src.match(/<ShareResult\b(?:"[^"]*"|[^>"])*>/)?.[0] ?? '';
   it('By a date sends from one button that names the TE', () => {
     const tag = shareTag(template);
-    expect(tag).toMatch(/\bcompact\b/);
+    expect(tag).not.toMatch(/\bcompact\b/); // always compact; the prop is gone (dead-deep-6)
     expect(tag).toMatch(/:send-label="[^"]*TE by this date/);
   });
   for (const file of ['InsanePanel.vue', 'ChainSearchPanel.vue']) {
-    it(`${file} share box is compact`, () => {
-      expect(shareTag(fs.readFileSync(path.join(__dirname, file), 'utf8'))).toMatch(/\bcompact\b/);
+    it(`${file} share box is always compact (no prop)`, () => {
+      expect(shareTag(fs.readFileSync(path.join(__dirname, file), 'utf8'))).not.toMatch(/\bcompact\b/);
     });
   }
 });

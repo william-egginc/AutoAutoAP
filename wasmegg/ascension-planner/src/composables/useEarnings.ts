@@ -6,10 +6,10 @@
 import { computed, type ComputedRef } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
-import { useEggValue } from './useEggValue';
-import { useEffectiveLayRate } from './useEffectiveLayRate';
-import { useSalesStore } from '@/stores/sales';
+import { usePlanStore } from '@/stores/plan';
+import { useEggValue } from 'lib/planners/composables/useEggValue';
+import { useEffectiveLayRate } from 'lib/planners/composables/useEffectiveLayRate';
+import { useSalesStore } from 'lib/planners/stores/sales';
 import { calculateEarnings } from '@/calculations/earnings';
 import type { EarningsInput, EarningsOutput } from '@/types';
 
@@ -21,12 +21,12 @@ export function useEarnings(): {
   output: ComputedRef<EarningsOutput>;
 } {
   const initialStateStore = useInitialStateStore();
-  const virtueStore = useVirtueStore();
+  const planStore = usePlanStore();
   const salesStore = useSalesStore();
   const { output: eggValueOutput } = useEggValue();
   const { output: elrOutput } = useEffectiveLayRate();
 
-  const { te } = storeToRefs(virtueStore);
+  const { te } = storeToRefs(planStore);
 
   const input = computed<EarningsInput>(() => {
     const artifactMod = initialStateStore.artifactModifiers.awayEarnings;
@@ -39,6 +39,7 @@ export function useEarnings(): {
       artifactAwayMultiplier: artifactMod.totalMultiplier,
       videoDoublerMultiplier: initialStateStore.assumeDoubleEarnings ? 2 : 1,
       eventMultiplier: salesStore.earningsBoostActive ? salesStore.earningsBoostMultiplier : 1,
+      proPermit: initialStateStore.proPermit,
       artifactEffects: artifactMod.effects,
     };
   });

@@ -1,9 +1,11 @@
 <!--
   The search panel under the instant answer, on Fastest and on By a date (22 Oct 2026; mockup
   wireframes/search-panel-fec-v1): one card, "Stronger check", in place of the Nearby routes / Exhaustive
-  tabs and the Light / Fast / Exact / Very high bar. At the top, what the page prices by itself after Check
-  exactly (LightStatus.vue: no status line and no "Light" for players, Jordan 22 Oct), then a 3-way choice, Fast | Exact | Custom, each with its time
-  here and what it is for, then the picked option's content. Fast and Exact are Nearby routes (the
+  tabs and the Light / Fast / Exact / Very high bar. A 3-way choice, Fast | Exact | Custom (Fast until the player
+  picks another), each with its time here and what it is for, then the picked option's content, and at the bottom
+  "Share this result" once a search has one (InstantRoute.vue teleports InstantShareCheck into
+  `#search-share-<screen>`). Nothing here runs by itself: Light, which priced routes after Check exactly, is gone with
+  it (23 Oct 2026). Fast and Exact are Nearby routes (the
   `nearby` slot, StrongerBox.vue: Very high is a tick box inside Exact, lib/veryHigh.ts); Custom is
   Exhaustive, unchanged (the `custom` slot). The levels underneath are unchanged (lib/searchOption.ts).
 
@@ -18,25 +20,20 @@
     :data-testid="`search-panel-${screen}`"
   >
     <div class="flex flex-wrap items-center gap-2">
-      <h3 class="text-base font-black text-slate-900">Stronger check</h3>
+      <h3 class="text-title font-bold text-slate-900">Search</h3>
+      <!-- "Stopping" once Stop is pressed (23 Oct 2026): the run goes on until the workers finish the routes they
+           have (search/stopNote.ts), which can be minutes, and "Running" then looked as if Stop had not worked. -->
       <span
         v-if="running"
-        class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
+        class="px-1.5 py-0.5 rounded text-white label"
+        :class="stopping ? 'bg-amber-600' : 'bg-indigo-600'"
         data-testid="search-panel-running"
-        >Running</span
+        >{{ stopping ? 'Stopping' : 'Running' }}</span
       >
-      <a
-        href="#/science/how"
-        class="ml-auto inline-flex min-h-[44px] items-center text-[12px] font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
-        data-testid="search-panel-how"
-        >How it works ›</a
-      >
+      <!-- Its own "How it works ›" went with the simpler default page (9 Nov 2026): the screen's More ends with the one
+           How it works link (lib/layoutWords.ts HOW_IT_WORKS_LINK). -->
     </div>
-    <p class="text-[12px] text-slate-600 leading-relaxed" data-testid="search-panel-intro">
-      Checks the instant answer harder, with the full simulator on your save. Pick how hard to look; your choice is
-      remembered.
-    </p>
-    <LightStatus :goal="goal" :player-id="playerId" />
+    <p class="text-body text-slate-600 max-w-prose" data-testid="search-panel-intro">{{ SEARCH_CARD_LINE }}</p>
 
     <div
       class="grid grid-cols-3 gap-1 sm:gap-2 rounded-2xl bg-slate-100 p-1 sm:p-1.5"
@@ -44,37 +41,49 @@
       aria-label="How to search"
       @keydown="onKey"
     >
-      <button
+      <!-- Each choice's tip (Tip.vue, lib/tipWords.ts TIP_SEARCH_*; Allan, 9 Nov 2026): at once on hover and focus, by a
+           long press on a phone (no "i": three across do not leave room, and each says what it is for under it). -->
+      <Tip
         v-for="o in options"
         :key="o.id"
-        :ref="el => setOptEl(o.id, el)"
-        type="button"
-        role="radio"
-        :aria-checked="selected === o.id"
-        :tabindex="selected === o.id ? 0 : -1"
-        :disabled="running && selected !== o.id"
-        :data-testid="`search-option-${o.id}`"
-        class="min-h-[44px] min-w-0 rounded-xl px-1.5 py-2 sm:px-3 text-center sm:text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-55"
-        :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-800'"
-        @click="choose(o.id)"
+        :text="o.tip"
+        :name="o.label"
+        :info="false"
+        fill
+        class="min-w-0"
+        v-slot="{ describedby }"
       >
-        <span class="block text-[12px] font-black uppercase tracking-widest">{{ o.label }}</span>
-        <span
-          class="block mt-0.5 text-[10px] font-bold"
-          :class="selected === o.id ? 'text-indigo-500' : 'text-slate-400'"
-          :data-testid="`search-option-time-${o.id}`"
-          >{{ o.time }}</span
+        <button
+          :ref="el => setOptEl(o.id, el)"
+          type="button"
+          role="radio"
+          :aria-describedby="describedby"
+          :aria-checked="selected === o.id"
+          :tabindex="selected === o.id ? 0 : -1"
+          :disabled="running && selected !== o.id"
+          :data-testid="`search-option-${o.id}`"
+          class="min-h-[44px] w-full min-w-0 rounded-xl px-1.5 py-2 sm:px-3 text-center sm:text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-55"
+          :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
+          @click="choose(o.id)"
         >
-        <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
-        <span
-          class="block mt-0.5 text-[10px] font-semibold leading-tight"
-          :class="selected === o.id ? 'text-indigo-400' : 'text-slate-400'"
-          :data-testid="`search-option-for-${o.id}`"
-          >{{ o.purpose }}</span
-        >
-      </button>
+          <span class="block text-body font-bold">{{ o.label }}</span>
+          <span
+            class="block mt-0.5 text-small font-bold"
+            :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
+            :data-testid="`search-option-time-${o.id}`"
+            >{{ o.time }}</span
+          >
+          <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
+          <span
+            class="block mt-0.5 text-small font-normal leading-tight"
+            :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
+            :data-testid="`search-option-for-${o.id}`"
+            >{{ o.purpose }}</span
+          >
+        </button>
+      </Tip>
     </div>
-    <p v-if="running" class="text-[11px] text-slate-500" data-testid="search-panel-locked">
+    <p v-if="running" class="text-body text-slate-600" data-testid="search-panel-locked">
       The choice is locked while a search runs. Stop it to change.
     </p>
 
@@ -90,11 +99,16 @@
     >
       <slot :name="p.slot" />
     </div>
+    <!-- "Share this result" (InstantShareCheck.vue, teleported by the instant answer once a search has a result). -->
+    <div :id="`search-share-${screen}`" data-testid="search-share" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { SEARCH_CARD_LINE } from '@/lib/layoutWords';
+import Tip from '@/components/Tip.vue';
+import { TIP_SEARCH_CUSTOM, TIP_SEARCH_EXACT, TIP_SEARCH_FAST } from '@/lib/tipWords';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { searchTabs, selectSearchTab, type SearchTabId, type SearchTabScreen } from '@/lib/searchTab';
 import {
@@ -108,15 +122,16 @@ import {
   type SearchOption,
 } from '@/lib/searchOption';
 import { SHOW_VERY_HIGH } from '@/lib/veryHigh';
-import LightStatus from './LightStatus.vue';
 
 const props = defineProps<{
   screen: SearchTabScreen;
   /** A search in this panel is running: the Running pill, and the choice is locked. */
   running?: boolean;
+  /** Stop was pressed and the run is finishing the routes its workers have: the pill says Stopping. */
+  stopping?: boolean;
   /** What each Nearby routes level would cost on THIS computer (FastestRoute.vue, DeadlinePanel.vue). */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
-  /** The header's player ID, for Light's Share box. */
+  /** The header's player ID (kept for the screens that pass it). */
   playerId?: string;
   /** An unfinished run's own option (lib/searchOption.ts `choiceForEffort`): the screen opens on it,
    *  without changing what is remembered. */
@@ -125,7 +140,6 @@ const props = defineProps<{
 const emit = defineEmits<{ pick: [option: SearchOption] }>();
 
 const stronger = useStrongerStore();
-const goal = computed(() => (props.screen === 'fastest' ? 'fastest' : 'date'));
 
 const PANELS: { tab: SearchTabId; slot: 'nearby' | 'custom' }[] = [
   { tab: 'nearby', slot: 'nearby' },
@@ -148,14 +162,15 @@ const here = (l: StrongerLevel): string => {
   return s ? `${s} here` : '';
 };
 const options = computed(() => [
-  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'most likely best' },
+  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'usually close to the best', tip: TIP_SEARCH_FAST },
   {
     id: 'exact' as const,
     label: 'Exact',
     time: here(SHOW_VERY_HIGH && veryHigh.value ? 'thorough' : 'normal'),
     purpose: 'a second opinion',
+    tip: TIP_SEARCH_EXACT,
   },
-  { id: 'custom' as const, label: 'Custom', time: 'you set the boxes', purpose: 'to prove it in your boxes' },
+  { id: 'custom' as const, label: 'Custom', time: 'you set the boxes', purpose: 'to prove it in your boxes', tip: TIP_SEARCH_CUSTOM },
 ]);
 
 /** Show a choice: its tab and, for Fast and Exact, its level (Fastest follows it with the search's effort). */
@@ -173,7 +188,7 @@ function choose(o: SearchOption): void {
   emit('pick', o);
 }
 
-/** Opening the screen with no search running: an unfinished run's option (or My runs' Next step), else the
+/** Opening the screen with no search running: an unfinished run's option (or My Runs' Next step), else the
  *  level remembered here. The remembered part (Custom, or Fast / Exact) is lib/searchTab.ts's tab, which
  *  every pick also remembers and a link (#/auto/fastest/full) may have set, so only the level comes from
  *  here. Light is no longer picked: it shows as Fast. Very high shows as Exact while its box is switched

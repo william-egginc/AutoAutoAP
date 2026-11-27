@@ -6,8 +6,8 @@
 import { computed, type ComputedRef } from 'vue';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
-import { getSimulationContext } from '@/engine/adapter';
-import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
+import { calculateClothedTEForSet } from 'lib/planners/artifacts/virtue';
 
 export function useEarningsClothedTE(): {
   clothedTE: ComputedRef<number | null>;
@@ -27,7 +27,7 @@ export function useEarningsClothedTE(): {
       truthEggs,
       colleggtibleModifiers: context.colleggtibleModifiers,
       labUpgradeLevel: context.epicResearchLevels['cheaper_research'] ?? 0,
-      permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+      proPermit: initialStateStore.proPermit,
     });
   });
 

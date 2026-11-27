@@ -6,6 +6,7 @@
  */
 import { formatBand } from './exhaustive';
 import type { SavedDeadlineResult } from './deadlineStore';
+import { compactDuration } from '@/lib/duration';
 
 /** `45 s`, `5 min 40 s`, `1 h 12 min`: exact enough to compare runs, unlike `durationLabel`. */
 export function tookDuration(seconds: number): string {
@@ -16,16 +17,17 @@ export function tookDuration(seconds: number): string {
     const r = s % 60;
     return r ? `${m} min ${r} s` : `${m} min`;
   }
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
+  // Whole minutes first, then the hours off them: rounding the minutes after the hours gave "1 h 60 min" for 7170 s
+  // (code review round 2, 22 Nov 2026, R6.3).
+  const mins = Math.round(s / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** A route's time to spare before the deadline: `40 min`, `27.3 h`, `3.5 days`. */
+/** A route's time to spare before the deadline: `40m`, `27h 18m`, `3d 12h` (lib/duration). */
 export function spareLabel(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(0, Math.round(seconds / 60))} min`;
-  if (seconds < 2 * 86400) return `${(seconds / 3600).toFixed(1)} h`;
-  return `${(seconds / 86400).toFixed(1)} days`;
+  return compactDuration(Math.max(0, seconds));
 }
 
 export type SearchedSummary = Pick<
@@ -74,7 +76,7 @@ export function summariseByDate(r: SearchedSummary): ByDateSummary {
   const widths = simpleWidths(r.bandSets);
   const how = r.simple
     ? `around the instant answer's routes${widths ? `, ${widths} TE` : ''}`
-    : 'Exhaustive, in your own boxes';
+    : 'Custom, in your own boxes';
   parts.push(`${parts.length ? 'searched' : 'Searched'} ${sets} (${how})`);
   parts.push(`${r.priced.toLocaleString('en-US')} route${r.priced === 1 ? '' : 's'} priced`);
 

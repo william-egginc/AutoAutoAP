@@ -79,12 +79,25 @@ export interface SearchInputs {
    *  exactly what that approximates and in which direction it errs. */
   deferShifts?: boolean;
   /**
+   * Setup's "silo trick" (10 Nov 2026, off by default): the player goes offline into Monday's 2x event and collects inside it,
+   * so the away time is paid at 2x (capped at what the silos hold). On, the simulator credits it (`deferForEarningsMode`,
+   * auto/shifts/helpers/advanceTime.ts; set in `legContext`); off or absent, plans are exactly as they were.
+   */
+  siloTrick?: boolean;
+  /**
    * Time away from the virtue farm, absolute unix seconds, sorted and not overlapping: Egg Day, a
    * week chasing a legendary on the home farm. The ascension in progress ENDS when the time off
    * begins -- it keeps the TE it reached -- nothing happens while away, and the player comes back
    * to a complete rebuild: a fresh ascension toward the same checkpoint. Null/absent means none.
    */
   timeOff?: TimeOffWindow[] | null;
+  /**
+   * No prestige on these days (search/noPrestige.ts), absolute unix seconds like `timeOff`: the player stays on the
+   * virtue farm, and a prestige that would fall inside one waits for the next allowed moment (inside the hours when
+   * they are set). The farm keeps laying meanwhile, up to what its silos hold; shifts are unaffected. Null/absent
+   * means none, and a run without them prices exactly as before.
+   */
+  noPrestige?: TimeOffWindow[] | null;
 }
 
 /**
@@ -155,6 +168,9 @@ export interface LegSummary {
    *  `EvaluateChainOptions.delays`, search/delays.ts), seconds; the farm keeps laying through it. Absent
    *  when none. The prestige is at `endTime + plannedWaitSeconds + sleepDelaySeconds`. */
   plannedWaitSeconds?: number;
+  /** Of `sleepDelaySeconds`, the part a no-prestige day added (SearchInputs.noPrestige): the prestige waited past
+   *  where the player's hours alone would have let it happen. Absent when none. */
+  noPrestigeWaitSeconds?: number;
   /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
    *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
    *  because they are different costs: one is you not being there to tap prestige, the other is
@@ -196,6 +212,13 @@ export interface LegSummary {
    *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
    *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */
   replayed?: true;
+  /** BUILD-UP TRACKER: the picked variant's actions as compact records and its start farm
+   *  (search/buildUpActions.ts). Only on a route's first step evaluated with `keepPurchases`
+   *  (search/chain.ts `EvaluateChainOptions`); absent everywhere else. */
+  buildUp?: import('./buildUpActions').BuildUpList;
+  /** Leg 1 only, when "continue my build-up" was simulated: how many things its build buys (search/leg.ts
+   *  `LegResult.buildUpBuys`). My Runs' A1 choice reads it (spec-a1choice). */
+  buildUpBuys?: number;
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */

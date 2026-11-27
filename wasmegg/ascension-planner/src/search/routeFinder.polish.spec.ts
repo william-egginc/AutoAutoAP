@@ -8,7 +8,7 @@ import {
   type PolishOptions,
   type PricedPrefix,
 } from './routeFinder';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 
 // Monday 4 Jan 2027, 9:00 am PST.
 const START = Date.parse('2027-01-04T17:00:00Z') / 1000;

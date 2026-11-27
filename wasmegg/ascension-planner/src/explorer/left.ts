@@ -50,6 +50,9 @@ function everyValue(lo: number, hi: number): number[] {
   return Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
 }
 
+/** The tallest TE a band may name (exhaustive.ts's MAX_BAND_TE; a local copy so this file's change moves no search code). */
+const MAX_BAND_TE_SHOWN = 1000;
+
 /**
  * What a run left of its box at every TE, or null when there is nothing to measure against: a
  * staged search (no box), or a row whose box cannot be reproduced -- recounted from the row, its
@@ -79,6 +82,9 @@ export function leftOf(row: CollectorRow, measured?: Map<number, { seconds: numb
     everyTE = count(1);
     pieces.push(`${lo}-${hi}:1 for every target`, `· ${asc} asc`);
   } else if (sp.bands?.length && sp.bands.every(b => b.length)) {
+    // No TE goes past 1000 (exhaustive.ts MAX_BAND_TE): a crafted band of [0, 999999] would be a million values a band, per row,
+    // on every recompute (code review round 2, C6.2).
+    if (sp.bands.some(b => Math.max(...b) > MAX_BAND_TE_SHOWN)) return null;
     own = countBanded(sp.bands, row.finalTE, row.currentTE, sp.minGap);
     const wide = sp.bands.map(b => everyValue(Math.min(...b), Math.max(...b)));
     everyTE = countBanded(wide, row.finalTE, row.currentTE, sp.minGap);

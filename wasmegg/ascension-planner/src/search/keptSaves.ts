@@ -12,7 +12,7 @@
  * This one keeps only the game's backup, keyed by the backup itself, so the many answers and runs
  * priced from one save share one copy whatever their settings, and it stays while any saved entry
  * names it. It is the FULL backup the planner loads (`initPlanFuture`), not the trimmed copy the
- * workers get (workerBackup.ts): Your plan, Simulate this plan and a new search all need all of it.
+ * workers get (workerBackup.ts): Your plan, Simulate this route and a new search all need all of it.
  *
  * SIZE. A real save is about 1.4 MB of JSON (most of it the artifact database and the contract
  * archive) and about 150 KB gzipped, which is how it is stored. At most MAX_KEPT_SAVES saves and
@@ -24,8 +24,10 @@
  */
 import type { ei } from 'lib';
 import { loadMetadata, putMetadataRecords } from '@/lib/storage/db';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
-import { accountOf, decode, encode, hash53 } from './runSaves';
+// workerCopy: sanitizeLongs's copy read under the store proxies (spec-mainfreeze): the same result, without the traps.
+import { workerCopy } from './workerCopy';
+import { accountOf, decode, encode, hash53, reviveNumbers } from './runSaves';
+import { checkSave, parseJsonStrict } from '@/lib/uploadGuard';
 
 const INDEX_KEY = 'keptSaveIndex';
 const BODY_PREFIX = 'keptSave:';
@@ -65,7 +67,7 @@ interface Body {
 
 /** The backup as the file and the store hold it: plain JSON, Longs as numbers, Infinity kept. */
 export function backupText(raw: unknown): string {
-  return encode(sanitizeLongs(raw));
+  return encode(workerCopy(raw));
 }
 
 /** A save's key: the same backup always gets the same one, whoever keeps it. */
@@ -221,15 +223,8 @@ export function saveFileName(save: Pick<EntrySave, 'te' | 'backupAt'>, zone?: st
  * command-line search's `--backup` reads). Throws, in player words, for anything that is not one.
  */
 export function parseSaveFile(text: string): ei.IBackup {
-  let value: unknown;
-  try {
-    value = decode<unknown>(text);
-  } catch {
-    throw new Error("This file isn't a save: it isn't JSON.");
-  }
-  const b = value as { game?: unknown; farms?: unknown; approxTime?: unknown } | null;
-  if (!b || typeof b !== 'object' || Array.isArray(b) || typeof b.game !== 'object' || !Array.isArray(b.farms)) {
-    throw new Error("This file isn't an Egg, Inc. save (it has no game or farms).");
-  }
+  // Strict JSON (lib/uploadGuard.ts): no __proto__-style keys, bounded sizes; `encode`'s Infinity kept.
+  const value = parseJsonStrict(text, 'This save file', { maxString: 200_000 }, reviveNumbers);
+  checkSave(value);
   return value as ei.IBackup;
 }

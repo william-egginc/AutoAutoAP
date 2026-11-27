@@ -1,0 +1,147 @@
+<!--
+  Right now's Full timeline for a plan with no exact legs (26 Oct 2026, Jordan: it said "the instant answer keeps when
+  each ascension ends, not each shift"). Every ascension A1..An, as the instant answer's "When each step happens" has
+  it (lib/instantSteps.ts): when its prestige happens (marked when it waits for the hours or past a no-prestige day)
+  and when its stop is reached; under each, its build-up in one line (lib/buildUpLine.ts: the opening's shifts are not in
+  the table), how many shifts that opening makes (estimated, lib/openingShifts.ts) and its shifts. The table's shifts come from its replay (search/legShifts.ts),
+  each after the build-up, to the hour; the current ascension's, once simulated on the live save, are exact, and so is
+  the prestige after it (27 Oct 2026: from its simulated end, never the table's hour); with no shifts left in it, "No
+  shifts left: stay on <egg> until you prestige at about <time>". Nothing is worked out here.
+-->
+<template>
+  <div class="text-body text-slate-700" data-testid="now-ascensions">
+    <ol class="space-y-1.5 list-none pl-0">
+      <li v-for="l in shownLines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
+        <span class="font-bold text-slate-800">A{{ l.asc }}</span>
+        <template v-if="l.now && l.fresh">{{ ' ' }}· {{ STEP_FRESH_NOW }}</template>
+        <template v-else-if="l.now"
+          >{{ ' ' }}· now, in the ascension you are in<span
+            v-if="here"
+            class="ml-1 rounded bg-emerald-100 px-1.5 text-small font-bold text-emerald-900"
+            data-testid="you-are-here"
+            >you are here</span
+          ></template
+        >
+        <template v-else>
+          <template v-if="l.prestigeInTimeOff"
+            >{{ ' ' }}· prestige <span class="text-amber-800 font-bold" data-testid="ascension-prestige-timeoff"
+              >falls in your time off {{ timeOffDays(l.prestigeInTimeOff, zone) }}: Fast prices it</span
+            ></template
+          >
+          <template v-else
+            >{{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ l.prestigeExact ? exact(l.prestigeAt) : about(l.prestigeAt) }}</span></template
+          >
+          <template v-if="l.onNoPrestigeDay"
+            >{{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-no-prestige-day"
+              >on a no-prestige day: it waits past your no-prestige days. Fast prices it.</span
+            ></template
+          >
+          <template v-if="l.wait === 'days'">
+            {{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-waits-days">waits past your no-prestige days</span>
+            (ready {{ l.prestigeExact ? exact(l.readyAt!) : about(l.readyAt!) }})
+          </template>
+          <template v-else-if="l.wait === 'hours'">
+            {{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-waits-hours">waits for your hours</span>
+            (ready {{ l.prestigeExact ? exact(l.readyAt!) : about(l.readyAt!) }})
+          </template>
+        </template>
+        {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
+        <span class="whitespace-nowrap">{{ l.simulated ? exact(l.reachedAt) : about(l.reachedAt) }}</span>
+        <p v-if="l.cutByTimeOff" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="now-ascension-cut">
+          Runs into your time off {{ timeOffDays(l.cutByTimeOff, zone) }}: it ends when the time off starts (going to your
+          home farm is a prestige) and is built again after it. The instant answer doesn't price time off: Fast prices it.
+        </p>
+        <p v-if="l.timeOff" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="now-ascension-timeoff">
+          Your time off starts {{ exact(l.timeOff.from) }}: this ascension ends there at {{ l.timeOff.te }} TE (going
+          to your home farm is a prestige), and is built again from {{ exact(l.timeOff.to) }}.
+        </p>
+        <!-- R1 would come after the player's hours end (Jordan's option a, 15 Nov 2026; lib/sleepBeforeR1.ts, Words' text). -->
+        <p v-if="r1Of(l)" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="ascension-r1-sleep">
+          {{ sleepBeforeR1Card(r1Of(l)!, exact) }}
+        </p>
+        <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
+        <!-- Its opening's shifts, when its list leaves them out: the simulator's standard count (lib/openingShifts.ts). -->
+        <p v-if="l.openingShifts" class="ml-4 text-small text-slate-600" data-testid="now-ascension-opening">
+          Its first hours: about {{ l.openingShifts }} shifts while buying research (estimated, not listed)
+        </p>
+        <!-- Its third Curiosity wait (C3), which can take 1 to 3 weeks (M13): the start of the ascension to its H1 (lib/c3WaitWords.ts). DRAFT words. -->
+        <p v-if="c3Wait(l)" class="ml-4 text-small text-slate-600" data-testid="now-ascension-c3">
+          Wait on Curiosity (C3): about {{ dayOnly(c3Wait(l)!.from) }} to {{ dayOnly(c3Wait(l)!.to) }}
+        </p>
+        <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-small text-slate-600" data-testid="now-ascension-shifts">
+          <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
+            Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
+          </li>
+          <li class="text-slate-600" data-testid="now-ascension-shifts-source">
+            {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
+          </li>
+        </ul>
+        <p v-else-if="!l.stay && !(quiet && working && l.asc === 1)" class="ml-4 text-body text-slate-600" data-testid="now-ascension-no-shifts"
+          >{{ noShifts(l) }}<AnimatedDots v-if="shiftsWorking(l)"
+        /></p>
+        <!-- The ascension you are in with no shifts left: what to do until its prestige (lib/instantSteps.ts withStayLine). -->
+        <p v-if="l.stay" class="mt-0.5 ml-4 text-body text-slate-700" data-testid="now-ascension-stay">{{ stayWords(l.stay, exact) }}</p>
+      </li>
+    </ol>
+    <p v-if="note" class="mt-1.5 text-body text-slate-600 max-w-prose" data-testid="now-ascensions-note">{{ ASC_TIMES_NOTE }}</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { ASC_TIMES_NOTE } from '@/lib/timelineWords';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import { STEP_FRESH_NO_SHIFTS, STEP_FRESH_NOW } from '@/lib/instantWords';
+import { showDateTime } from '@/lib/displayTime';
+import { formatMoment } from '@/lib/clock';
+import { c3Wait } from '@/lib/c3WaitWords';
+import { virtueEggName } from '@/lib/virtueEggs';
+import { roundToHourIn } from '@/lib/nowWords';
+import { stayWords, timeOffDays, type AscensionStep } from '@/lib/instantSteps';
+import { r1OfShifts, r1OfTableAscension } from '@/lib/sleepBeforeR1View';
+import { sleepBeforeR1Card } from '@/lib/sleepBeforeR1Words';
+import type { Availability } from '@/search/availabilitySchedule';
+
+const props = withDefaults(defineProps<{
+  lines: AscensionStep[];
+  /** Only this ascension (1-based): the detail under its row in You are here (17 Nov 2026). Absent: every ascension. */
+  only?: number;
+  /** The instant-answer note under the list (default on); off inside one ascension's detail, where the page says it once. */
+  note?: boolean;
+  /** Right now already says the shifts are being worked out: not said again under A1. */
+  quiet?: boolean;
+  zone: string;
+  /** The current ascension's simulation is being worked out (lib/followSim.ts). */
+  working?: boolean;
+  /** The save is on a known egg: tag the ascension you are in "you are here". */
+  here?: boolean;
+  /** The player's awake hours (null or absent: none). */
+  hours?: Availability | null;
+  /** The player's shifts wait for their hours (deferShifts): the softer "R1 waits until …" line. */
+  heldShifts?: boolean;
+}>(), { note: true });
+const shownLines = computed(() => (props.only === undefined ? props.lines : props.lines.filter(l => l.asc === props.only)));
+/** The R1 warning for an ascension that starts later (not the one the farm is in): a simulated one has every shift, a table one an opening span. */
+const r1Of = (l: AscensionStep) => {
+  // A fresh first ascension is a real prestige now: its R1 is checked like the others' (17 Nov 2026).
+  if ((l.now && !l.fresh) || !props.hours) return null;
+  return l.simulated
+    ? r1OfShifts({ start: l.prestigeAt, shifts: l.shifts, hours: props.hours, held: props.heldShifts })
+    : r1OfTableAscension({ start: l.prestigeAt, fromTE: l.fromTE, hours: props.hours, held: props.heldShifts });
+};
+
+/** The table's times: to the hour on the player's clock. */
+const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone), props.zone)}`;
+/** A day, "Dec 22" (the C3 wait's ends: it runs days, so the hour says nothing). */
+const dayOnly = (t: number) => formatMoment(t * 1000, { zone: props.zone, dateOnly: true, year: 'never' });
+const exact = (t: number) => showDateTime(t, props.zone);
+/** The first ascension's shifts still being worked out: its line gets the moving dots (spec-dots, 1 Nov 2026). */
+const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working && !props.quiet;
+function noShifts(l: AscensionStep): string {
+  if (shiftsWorking(l)) return 'Working out your shifts';
+  if (l.simulated) return 'No shifts left in it: worked out on your save.';
+  // A fresh first ascension (off virtue) is not one you are in yet: its shifts come after the prestige (QA, 18 Nov 2026).
+  if (l.now && l.fresh) return STEP_FRESH_NO_SHIFTS;
+  return l.now ? "The instant answer doesn't keep the shifts of the ascension you are in." : 'No shifts kept for it.';
+}
+</script>

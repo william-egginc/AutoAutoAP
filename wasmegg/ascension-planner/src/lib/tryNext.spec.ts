@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 // The line reads endEggsOf's `next` and nothing else (the laid egg, shift-aware: search/endEggs.ts).
@@ -23,17 +24,31 @@ const tile = (goal: 'fastest' | 'date', answer: TileAnswer | null): Tile => ({ g
 describe('try next', () => {
   it('nothing run yet: Egg Day Fast, Exact on the race, Exhaustive', () => {
     const p = tryNextPills({ tile: tile('fastest', null), target: 490 }, tile('date', null));
-    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on my 490 route', 'Custom']);
+    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on Fastest to 490', 'Custom']);
     expect(p[0].open).toEqual({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true }, level: 'quick' });
     expect(p[1].open).toEqual({ auto: 'fastest', depth: 'smart', tab: 'nearby', target: 490, level: 'normal' });
     expect(p[2].open).toMatchObject({ depth: 'full', tab: 'exhaustive' });
   });
 
-  it('table-only tiles add Check exactly, at most four pills', () => {
+  it('table-only tiles: no Check exactly pills any more (23 Oct 2026), at most four pills', () => {
     const p = tryNextPills({ tile: tile('fastest', ans({ how: 'instant' })), target: 490 }, tile('date', ans({ how: 'instant', endTE: 248 })));
-    expect(p).toHaveLength(MAX_PILLS);
-    expect(p.map(x => x.id)).toContain('check-eggday');
+    expect(p.length).toBeLessThanOrEqual(MAX_PILLS);
+    expect(p.map(x => x.id)).toEqual(['eggday-fast', 'exact-race', 'exhaustive']);
+    expect(p.map(x => x.label).join(' ')).not.toContain('Check exactly');
     expect(p[2].label).toBe('Custom (around 4 ascensions)');
+  });
+
+  it('Exact on the race names its goal, and is not offered while the route followed is for another goal (17 Nov 2026)', () => {
+    const f = { tile: tile('fastest', null), target: 490 };
+    const ids = (followed: Parameters<typeof tryNextPills>[2]) => tryNextPills(f, tile('date', null), followed).map(x => x.id);
+    // No route followed, or the race's own: offered.
+    expect(ids(null)).toContain('exact-race');
+    expect(ids({ goal: 'fastest', target: 490 })).toContain('exact-race');
+    // A date goal (Egg Day 2027 to 176) or another target: it would open the 490 race, which is not the route she follows.
+    expect(ids({ goal: 'date', target: 176 })).not.toContain('exact-race');
+    expect(ids({ goal: 'fastest', target: 300 })).not.toContain('exact-race');
+    // The others stay.
+    expect(ids({ goal: 'date', target: 176 })).toEqual(['eggday-fast', 'exhaustive']);
   });
 
   it('drops what is done', () => {
@@ -46,7 +61,7 @@ describe('try next', () => {
 
   const ZONE = 'America/Denver';
   const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000;
-  const DEADLINE = Date.UTC(2027, 6, 14, 16, 0) / 1000; // Jul 14, 2027, 10:00 am Denver
+  const DEADLINE = Date.UTC(2027, 6, 14, 16, 0) / 1000; // Jul 14, 2027, 10:00 AM Denver
   const legs = [{ endTime: DEADLINE - 3600 }] as never;
   const line = (d: number | null) =>
     oneMoreLine({ chain: [200, 248], legs, deadline: d, what: 'Egg Day 2027', nowSeconds: NOW, zone: ZONE });
@@ -58,18 +73,23 @@ describe('try next', () => {
     expect(line(DEADLINE)).toBe('');
   });
 
-  it('after Egg Day starts it says so: it isn’t counted (lib/eggDayRule.ts)', () => {
+  it('after Egg Day starts: nothing to try, and it says why (lib/eggDayRule.ts; UX fluff review 2, item R19)', () => {
     next.value = { egg: 'integrity', at: DEADLINE + 86400 };
-    expect(line(DEADLINE)).toBe(
-      "One more TE by Egg Day 2027 (249, on Integrity) would come Jul 15, 2027 at 10:00 am, after Egg Day starts, so it isn't counted."
-    );
+    expect(line(DEADLINE)).toBe('Nothing to try: the next TE comes after Egg Day starts.');
     // Another date: "after your date".
     next.value = { egg: 'integrity', at: DEADLINE + 86400 + 3600 };
-    expect(line(DEADLINE + 3600)).toContain(', after your date, so it isn\'t counted.');
+    expect(line(DEADLINE + 3600)).toBe('Nothing to try: the next TE comes after your date.');
     // Exactly at the start it still counts.
     next.value = { egg: 'integrity', at: DEADLINE };
-    expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 10:00 am.');
+    expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 10:00 AM.');
     next.value = { egg: 'integrity', at: DEADLINE - 600 };
-    expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 9:50 am.');
+    expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 9:50 AM.');
+  });
+});
+
+describe('My Runs hands Try next the followed route\'s goal', () => {
+  it('MyRunsView passes cardPlan.goal when the card is followed', () => {
+    const src = readFileSync(new URL('../components/MyRunsView.vue', import.meta.url), 'utf8');
+    expect(src).toContain('c?.followed ? { goal: c.goal.goal, target: c.goal.target } : null');
   });
 });

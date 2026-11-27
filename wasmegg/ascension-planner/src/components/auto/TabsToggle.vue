@@ -1,8 +1,7 @@
-<!-- Which optional tabs show, in this browser (composables/useTabPrefs.ts, 21 Oct 2026): Setup › How the site shows
+<!-- Which optional tabs show, in this browser (composables/useTabPrefs.ts, 21 Oct 2026): Setup › More options › How the site shows
      things. Both off by default; with no collector both boxes are greyed out, since there is no board to show. -->
 <template>
   <div class="space-y-1" data-testid="tabs-toggle">
-    <p class="text-[11px] text-slate-500 leading-relaxed">{{ TABS_HIDDEN_NOTE }}</p>
     <label
       v-for="t in ROWS"
       :key="t.id"
@@ -17,9 +16,9 @@
         :disabled="!collector"
         @change="setTabPref(t.id, ($event.target as HTMLInputElement).checked)"
       />
-      <span class="text-[11px] text-slate-600 leading-relaxed">
-        <span class="font-bold text-slate-800">{{ t.label }}</span>
-        <span class="block">{{ collector ? t.what : NO_COLLECTOR }}</span>
+      <span class="text-body text-slate-600">
+        <span class="font-bold text-slate-800">{{ t.label }}</span><template v-if="collector">{{ ' ' }}· {{ t.what }}</template>
+        <span v-if="!collector" class="block">{{ NO_COLLECTOR }}</span>
       </span>
     </label>
   </div>
@@ -34,19 +33,18 @@ const store = useChainSearchStore();
 const collector = !!store.submitUrl;
 const { prefs } = useTabPrefs(() => collector);
 
-/** For players who used the Leaderboard before it went behind this box. */
-const TABS_HIDDEN_NOTE = `The ${NAMES.compare} and ${NAMES.science} tabs show only when you turn them on here.`;
 const NO_COLLECTOR = 'This build has no leaderboard, so there is nothing to show.';
 const ROWS: { id: OptionalTab; label: string; what: string }[] = [
+  // One line each (UX fluff review 2, S44; DRAFT for Words): "Leaderboard tab · everyone’s shared runs".
   {
     id: 'leaderboard',
-    label: `Show the ${NAMES.compare} tab`,
-    what: 'Everyone’s shared runs: Egg Day, the race to 490 and the charts.',
+    label: `${NAMES.compare} tab`,
+    what: 'everyone’s shared runs',
   },
   {
     id: 'science',
-    label: `Show the ${NAMES.science} tab`,
-    what: 'How the planner works and how its answers were checked, and the sweeps still to run.',
+    label: `${NAMES.science} tab`,
+    what: 'how the planner works and was checked',
   },
 ];
 </script>

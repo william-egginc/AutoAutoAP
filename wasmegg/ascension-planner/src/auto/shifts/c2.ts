@@ -1,10 +1,10 @@
 import type { EngineState, SimulationContext, ShiftResult } from '../types';
 import { getResearchById, isTierUnlocked } from '../../calculations/commonResearch';
-import { rankResearchByROI } from '../../calculations/researchRanking';
-import { computeSnapshot } from '../../engine/compute';
-import { MAX_SILOS } from '@/stores/silos';
-import { isResearchSaleActive, getNextSaleEnd } from '@/lib/events';
-import { buildR1LookaheadNotePayload } from '@/lib/actions/notes';
+import { rankResearchByROI } from 'lib/planners/calculations/researchRanking';
+import { computeSnapshot } from 'lib/planners/engine/compute';
+import { maxSilos } from 'lib/planners/stores/silos';
+import { isResearchSaleActive, getNextSaleEnd } from 'lib/planners/events';
+import { buildR1LookaheadNotePayload } from 'lib/planners/actions/notes';
 import type { DeferralCheckpoint } from './helpers/earningsEventDeferral';
 import { applyShiftIfNeeded } from './helpers/actionHelpers';
 import {
@@ -144,7 +144,7 @@ function isBetterScore(a: ThroughR1Score, b: ThroughR1Score): boolean {
  * before one more makes the next silo affordable. So this never stops at the first purchase that
  * doesn't help — it keeps buying until the budget or the candidates run out, then rewinds to the
  * best stopping point seen (which may be no purchases at all). The one early exit: once the best
- * plan already reaches `MAX_SILOS`, only time can still improve, and the C2 time spent so far is a
+ * plan already reaches the permit's `maxSilos`, only time can still improve, and the C2 time spent so far is a
  * lower bound on any later stopping point's total, so once it reaches the best total nothing later
  * can win.
  *
@@ -159,16 +159,17 @@ export function runR1LookaheadEarningsBuy(
   const helpers = createMilestoneShiftHelpers(startState, context);
 
   const baseline = scoreThroughR1(startState, context, 0);
-  let best: { score: ThroughR1Score; checkpoint: DeferralCheckpoint; purchaseCount: number; gemsSpent: number } = {
+  let best: { score: ThroughR1Score; checkpoint: DeferralCheckpoint; purchaseCount: number; totalSpent: number } = {
     score: baseline,
     checkpoint: helpers.deferralHost.checkpoint(),
     purchaseCount: 0,
-    gemsSpent: 0,
+    totalSpent: 0,
   };
   let purchaseCount = 0;
-  let gemsSpent = 0;
+  let totalSpent = 0;
 
-  while (!(best.score.siloCount >= MAX_SILOS && helpers.getElapsedSeconds() >= best.score.totalSeconds)) {
+  const siloCap = maxSilos(startState.proPermit);
+  while (!(best.score.siloCount >= siloCap && helpers.getElapsedSeconds() >= best.score.totalSeconds)) {
     const state = helpers.getState();
     const snapshot = computeSnapshot(state, context, { skipGrowth: true });
     const absTime = helpers.getAbsTime();
@@ -195,11 +196,11 @@ export function runR1LookaheadEarningsBuy(
 
     const actions = helpers.getActions();
     purchaseCount++;
-    gemsSpent += actions[actions.length - 1].cost;
+    totalSpent += actions[actions.length - 1].cost;
 
     const score = scoreThroughR1(helpers.getState(), context, helpers.getElapsedSeconds());
     if (isBetterScore(score, best.score)) {
-      best = { score, checkpoint: helpers.deferralHost.checkpoint(), purchaseCount, gemsSpent };
+      best = { score, checkpoint: helpers.deferralHost.checkpoint(), purchaseCount, totalSpent };
     }
   }
 
@@ -208,7 +209,7 @@ export function runR1LookaheadEarningsBuy(
   const notePayload = buildR1LookaheadNotePayload(
     best.purchaseCount,
     helpers.getElapsedSeconds(),
-    best.gemsSpent,
+    best.totalSpent,
     best.score.siloCount - baseline.siloCount,
     baseline.totalSeconds - best.score.totalSeconds
   );

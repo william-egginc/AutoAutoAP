@@ -13,7 +13,7 @@
  *   1. `?collector=https://…` on the page's own URL. A static copy of this page can be pointed at
  *      a different collector without rebuilding it, which is the difference between "hostable" and
  *      "hostable by the person who ran the build".
- *   2. `VITE_SUBMIT_URL` minus its `/submit`, so a build already configured to submit is already
+ *   2. `VITE_BOARD_SUBMIT_URL` (a beta's test board), else `VITE_SUBMIT_URL`, minus its `/submit`, so a build already configured to submit is already
  *      configured to read.
  *   3. Nothing, and the page says so and offers a box. A fork with no collector is a normal state,
  *      not an error -- the planner hides its own Submit button in the same situation.
@@ -24,9 +24,11 @@
  * this module's job, via `DecompressionStream`, and the magic-number check means a collector that
  * ever starts sending plain text still works.
  */
+import { UPLOAD_LIMITS, decodeText, inflateCapped } from '@/lib/uploadGuard';
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
+import { readCsv } from '@/lib/csvParse';
 
 /** A row from `GET /all`: a stored submission, plus the two fields the Worker derives per request. */
 export interface CollectorRow extends Submission {
@@ -70,6 +72,18 @@ export function normaliseCollectorBase(raw: string): string | null {
 }
 
 /**
+ * The collector a phone watch link reads (code review round 2, C6.3): the one the run REPORTS to, which is the build's submit
+ * collector, never the board's (egg-beta reports to live while its board is the test collector), unless the link itself names
+ * one with `?collector=`. Null when neither exists.
+ */
+export function watchCollectorBase(search = typeof location === 'undefined' ? '' : location.search): string | null {
+  const fromQuery = new URLSearchParams(search).get('collector');
+  if (fromQuery) return normaliseCollectorBase(fromQuery);
+  const configured = ((import.meta.env.VITE_SUBMIT_URL as string | undefined) ?? '').trim();
+  return configured ? stripSubmit(configured) : null;
+}
+
+/**
  * The collector this page should read, or null when nothing has pointed it at one.
  *
  * `search` is injectable so this is testable without a browser location.
@@ -80,8 +94,35 @@ export function resolveCollectorBase(search = typeof location === 'undefined' ? 
   // build-time default: someone who put `?collector=` on the URL asked for that collector, and
   // quietly showing them a different one's data would be worse than showing them nothing.
   if (fromQuery) return normaliseCollectorBase(fromQuery);
-  const configured = import.meta.env.VITE_SUBMIT_URL as string | undefined;
+  // The board's own collector when the build has one (spec-betaboard, lib/boardSubmitUrl.ts), else the build's collector.
+  const configured = ((import.meta.env.VITE_BOARD_SUBMIT_URL as string | undefined) ?? '').trim() || (import.meta.env.VITE_SUBMIT_URL as string | undefined);
   return configured ? stripSubmit(configured) : null;
+}
+
+/** `https://Host/path/` -> `https://host/path`: origin plus path, the form two collector bases are compared in. Null for a bad URL. */
+function baseKey(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    return `${u.origin}${u.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is `base` one of the collectors this build is configured for (VITE_BOARD_SUBMIT_URL, VITE_SUBMIT_URL)? Saved owner codes go
+ * only to those: `?collector=` can name any server, and a code sent there would let it /mine, /hide and /claim that player's
+ * runs on the real board (code review 22 Nov 2026, C4.1).
+ */
+export function isOwnCollector(base: string): boolean {
+  const want = baseKey(stripSubmit(base.trim()));
+  if (!want) return false;
+  for (const configured of [import.meta.env.VITE_BOARD_SUBMIT_URL, import.meta.env.VITE_SUBMIT_URL] as (string | undefined)[]) {
+    const have = configured?.trim() ? baseKey(stripSubmit(configured.trim())) : null;
+    if (have && have === want) return true;
+  }
+  return false;
 }
 
 export interface AllResponse {
@@ -184,9 +225,11 @@ export async function fetchAll(base: string, signal?: AbortSignal): Promise<Coll
 /** `fetchAll`, and the By a date answers it leaves out, handed back separately. */
 export async function fetchAllRows(base: string, signal?: AbortSignal): Promise<AllRows> {
   const res = await (takeEarly(base, signal) ?? fetch(`${base}/all`, { signal }));
-  if (!res.ok) throw new Error(`The collector answered ${res.status} for /all.`);
+  if (!res.ok) throw new Error(`The planner's server answered ${res.status} for /all.`);
   const body = (await res.json()) as AllResponse;
-  if (!body || !Array.isArray(body.rows)) throw new Error('The collector answered something that is not a run list.');
+  if (!body || !Array.isArray(body.rows)) {
+    throw new Error("The planner's server answered something that is not a run list.");
+  }
   // A row without a chain cannot be placed on any chart here, and one bad record should not empty
   // the page. Same posture the Worker takes when a stored value will not parse.
   // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
@@ -215,16 +258,17 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
     const res = await fetch(`${base}/flagged`, { signal, headers: token ? { 'x-owner-token': token } : {} });
     if (res.status === 404) {
       throw new Error(
-        'This collector has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying.'
+        "The planner's server has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying."
       );
     }
-    if (!res.ok) throw new Error(`The collector answered ${res.status} for /flagged.`);
+    if (!res.ok) throw new Error(`The planner's server answered ${res.status} for /flagged.`);
     const body = (await res.json()) as AllResponse;
     return normalizeBoardRows<CollectorRow>(body?.rows);
   };
   const byId = new Map<string, CollectorRow>();
   for (const row of await ask()) byId.set(row.id, row);
-  for (const token of tokens) {
+  // A codes-free board for a foreign collector: the anonymous list still works, no code leaves this browser.
+  for (const token of isOwnCollector(base) ? tokens : []) {
     for (const row of await ask(token)) if (row.yours) byId.set(row.id, row);
   }
   return [...byId.values()].filter(r => Array.isArray(r.chain) && Number.isFinite(r.durationDays)).map(onlyFinalCsv);
@@ -239,7 +283,7 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
 export async function fetchRunCsv(base: string, id: string, signal?: AbortSignal): Promise<string> {
   const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });
   if (res.status === 404) throw new Error('That run has no route table stored.');
-  if (!res.ok) throw new Error(`The collector answered ${res.status} for that run's table.`);
+  if (!res.ok) throw new Error(`The planner's server answered ${res.status} for that run's table.`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   return inflateIfGzip(bytes);
 }
@@ -253,8 +297,8 @@ export async function inflateIfGzip(bytes: Uint8Array): Promise<string> {
       'This browser cannot inflate gzip (no DecompressionStream). Chrome, Edge, Firefox 113+ or Safari 16.4+ can.'
     );
   }
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).text();
+  // Capped: a gzip bomb stops with an UploadError once more than the CSV limit comes out (code review round 2, C6.4). Strict UTF-8.
+  return decodeText(await inflateCapped(bytes, UPLOAD_LIMITS.csv.inflated));
 }
 
 export interface ParsedRunCsv {
@@ -309,8 +353,7 @@ export function byDateCsvLine(p: ParsedByDateCsv): string {
 /**
  * A By a date CSV (search/csv.ts `deadlineCsvChunks`), old or new. The kept routes are the rows
  * that start with a rank number, one per leg (the first of each route is read); the summary lines
- * start with `priced,`. Same index scan as `parseRunCsv`, and the same naive comma split: none of
- * the cells read here can hold a comma.
+ * start with `priced,`. Read with the one CSV reader (lib/csvParse.ts), as `parseRunCsv` is.
  */
 export function parseByDateCsv(text: string): ParsedByDateCsv {
   const out: ParsedByDateCsv = { kept: [], priced: [], pricedStated: 0, partial: false };
@@ -320,53 +363,46 @@ export function parseByDateCsv(text: string): ParsedByDateCsv {
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
   };
-  let i = 0;
-  const n = text.length;
-  while (i < n) {
-    let end = text.indexOf('\n', i);
-    if (end === -1) end = n;
-    const line = text[end - 1] === '\r' ? text.slice(i, end - 1) : text.slice(i, end);
-    i = end + 1;
-    if (!line) continue;
-    if (line.charCodeAt(0) === 35 /* # */) {
+  readCsv(text, {
+    comment(line) {
       const m = /^# (\d+) routes priced/.exec(line);
       if (m) out.pricedStated = Number(m[1]);
       else if (line.startsWith('# in progress, ')) out.partial = true;
-      continue;
-    }
-    const cells = line.split(',');
-    if (cells[0] === 'priced') {
-      // kind,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,total_days,makes_it
-      const chain = cells[1].split(' ').map(Number);
-      if (!chain.length || chain.some(v => !Number.isFinite(v))) continue;
-      const makesText = cells[8] ?? '';
-      out.priced.push({
+    },
+    record(cells) {
+      if (cells[0] === 'priced') {
+        // kind,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,total_days,makes_it
+        const chain = (cells[1] ?? '').split(' ').map(Number);
+        if (!chain.length || chain.some(v => !Number.isFinite(v))) return;
+        const makesText = cells[8] ?? '';
+        out.priced.push({
+          chain,
+          lastStop: chain[chain.length - 1],
+          reachedLocal: cells[4] ?? '',
+          spareHours: num(cells[6]),
+          totalDays: num(cells[7]),
+          makes: makesText === 'yes' ? true : makesText.startsWith("couldn't") ? null : false,
+        });
+        return;
+      }
+      const code = (cells[0] ?? '').charCodeAt(0);
+      if (!(code >= 48 && code <= 57)) return;
+      // rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,chain,prestiges,total_days,...
+      const routeText = cells[1];
+      if (!routeText || seen.has(routeText)) return;
+      seen.add(routeText);
+      const chain = routeText.split(' ').map(Number);
+      if (!chain.length || chain.some(v => !Number.isFinite(v))) return;
+      out.kept.push({
         chain,
         lastStop: chain[chain.length - 1],
         reachedLocal: cells[4] ?? '',
         spareHours: num(cells[6]),
-        totalDays: num(cells[7]),
-        makes: makesText === 'yes' ? true : makesText.startsWith("couldn't") ? null : false,
+        totalDays: num(cells[9]),
+        makes: true,
       });
-      continue;
-    }
-    const code = line.charCodeAt(0);
-    if (code < 48 || code > 57) continue;
-    // rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,chain,prestiges,total_days,...
-    const routeText = cells[1];
-    if (!routeText || seen.has(routeText)) continue;
-    seen.add(routeText);
-    const chain = routeText.split(' ').map(Number);
-    if (!chain.length || chain.some(v => !Number.isFinite(v))) continue;
-    out.kept.push({
-      chain,
-      lastStop: chain[chain.length - 1],
-      reachedLocal: cells[4] ?? '',
-      spareHours: num(cells[6]),
-      totalDays: num(cells[9]),
-      makes: true,
-    });
-  }
+    },
+  });
   return out;
 }
 
@@ -384,13 +420,12 @@ export const MAX_PARSED_CHAINS = 60_000;
  *
  * WRITTEN AGAINST `search/csv.ts`, not against a sample file: header comments start with `#`, then
  * one `rank,chain,…` header line, then ONE ROW PER LEG, so a six-ascension chain appears six times
- * and only the first row of each is worth reading. Only the first four columns are touched
- * (`rank`, `chain`, `prestiges`, `total_days`), which is also why a naive comma split is safe here
- * -- the columns that can contain a semicolon-separated list are all to the right of them.
+ * and only the first row of each is worth reading. Only the first four columns are used (`rank`,
+ * `chain`, `prestiges`, `total_days`).
  *
- * Scans by index rather than `split('\n')`: these files reach 15 MB, and materialising a
- * quarter-million substrings to throw away five of every six is the kind of thing that kills a tab
- * on a phone.
+ * Read with the one CSV reader (lib/csvParse.ts, owner's item 13): these are other players' files, so
+ * quoted cells, line breaks in quotes and the row and cell limits apply as they do to uploads. It
+ * streams line by line, so a 15 MB file never becomes a quarter-million kept substrings.
  */
 export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunCsv {
   if (text.startsWith('# highest TE by ')) {
@@ -412,49 +447,32 @@ export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunC
   let truncated = 0;
   let partial = false;
 
-  let i = 0;
-  const n = text.length;
-  while (i < n) {
-    let end = text.indexOf('\n', i);
-    if (end === -1) end = n;
-    const line = text[end - 1] === '\r' ? text.slice(i, end - 1) : text.slice(i, end);
-    i = end + 1;
-    if (!line) continue;
-
-    if (line.charCodeAt(0) === 35 /* # */) {
+  readCsv(text, {
+    comment(line) {
       const header = /current TE (\d+)\s*->\s*final target (\d+)/.exec(line);
       if (header) {
         currentTE = Number(header[1]);
         finalTE = Number(header[2]);
       } else if (line.startsWith('# in progress, ')) partial = true;
-      continue;
-    }
-    // The column header, and anything else that does not start a data row.
-    const code = line.charCodeAt(0);
-    if (code < 48 || code > 57) continue;
-
-    const c1 = line.indexOf(',');
-    const c2 = line.indexOf(',', c1 + 1);
-    const c3 = line.indexOf(',', c2 + 1);
-    const c4 = line.indexOf(',', c3 + 1);
-    if (c1 < 0 || c2 < 0 || c3 < 0 || c4 < 0) continue;
-
-    const chainText = line.slice(c1 + 1, c2);
-    if (seen.has(chainText)) continue;
-    if (chains.length >= limit) {
-      truncated++;
+    },
+    record(cells) {
+      // The column header, and anything else that does not start a data row.
+      const code = (cells[0] ?? '').charCodeAt(0);
+      if (!(code >= 48 && code <= 57) || cells.length < 5) return;
+      const chainText = cells[1];
+      if (seen.has(chainText)) return;
       seen.add(chainText);
-      continue;
-    }
-    seen.add(chainText);
-
-    const days = Number(line.slice(c3 + 1, c4));
-    if (!Number.isFinite(days) || days <= 0) continue;
-    const chain = chainText.split(' ').map(Number);
-    if (chain.length < 2 || chain.some(v => !Number.isFinite(v))) continue;
-
-    chains.push({ chain, days, prestiges: chain.length, lastCheckpoint: chain[chain.length - 2] });
-  }
+      if (chains.length >= limit) {
+        truncated++;
+        return;
+      }
+      const days = Number(cells[3]);
+      if (!Number.isFinite(days) || days <= 0) return;
+      const chain = chainText.split(' ').map(Number);
+      if (chain.length < 2 || chain.some(v => !Number.isFinite(v))) return;
+      chains.push({ chain, days, prestiges: chain.length, lastCheckpoint: chain[chain.length - 2] });
+    },
+  });
 
   return { currentTE, finalTE, chains, truncated, partial };
 }

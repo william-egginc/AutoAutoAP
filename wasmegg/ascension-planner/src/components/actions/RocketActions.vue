@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="text-sm text-gray-500">
+    <p class="text-body text-gray-600 max-w-prose">
       Plan rocket missions. Choose how many of each ship to send — fuel is drawn from your tank.
     </p>
 
@@ -12,6 +12,19 @@
       :tank-level="fuelTankStore.tankLevel"
     />
 
+    <!-- Standard permit saves do not get the optimizer: it plans for the Pro permit (three slots, every ship). -->
+    <HumilityOptimizer v-if="initialStateStore.proPermit" />
+
+    <!-- The file round trip through the artifact explorer, for visits solved there. -->
+    <details :open="missionsStore.file !== null">
+      <summary class="text-small text-gray-600 hover:text-gray-800 cursor-pointer select-none">
+        Solved a visit in the artifact explorer instead? Import its missions file
+      </summary>
+      <div class="mt-2">
+        <HumilityMissionsImport />
+      </div>
+    </details>
+
     <!-- Mission Grid -->
     <MissionGrid :ftl-level="ftlLevel" :earnings-per-second="earningsPerSecond" />
 
@@ -19,11 +32,8 @@
     <MissionSummary :summary="summary" :schedule="schedule" />
 
     <!-- Artifact Warning -->
-    <div
-      v-if="showArtifactWarning"
-      class="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3"
-    >
-      <div class="text-amber-500 mt-0.5">
+    <div v-if="showArtifactWarning" class="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+      <div class="text-amber-700 mt-0.5">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path
             fill-rule="evenodd"
@@ -32,7 +42,7 @@
           />
         </svg>
       </div>
-      <div class="text-xs text-amber-800 leading-normal">
+      <div class="text-body text-amber-800">
         Saving for these ships will take <strong>{{ formatDuration(saveTimeSeconds) }}</strong>. Consider switching to your
         <strong>earnings set</strong> while you wait.
       </div>
@@ -41,28 +51,28 @@
     <!-- Launch Button -->
     <div v-if="rocketsStore.queuedMissions.length > 0" class="flex items-center gap-3">
       <button
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-body"
         :disabled="rocketsStore.isOverBudget"
         @click="handleLaunch"
       >
         Launch {{ schedule.totalMissions }} Missions
       </button>
-      <button class="px-3 py-2 text-gray-600 hover:text-gray-800 text-sm" @click="rocketsStore.clearAll()">
+      <button class="px-3 py-2 text-gray-600 hover:text-gray-800 text-body" @click="rocketsStore.clearAll()">
         Clear All
       </button>
-      <span v-if="rocketsStore.isOverBudget" class="text-red-500 text-xs"> Not enough fuel in tank </span>
+      <span v-if="rocketsStore.isOverBudget" class="text-red-500 text-small"> Not enough fuel in tank </span>
     </div>
 
     <!-- Pre-shift Launch Option -->
     <div v-if="schedule.totalMissions >= 1 && schedule.totalMissions <= 3">
       <div class="flex items-center gap-2 px-1">
         <input type="checkbox" id="zero-time-launch" v-model="isZeroTime" class="rounded text-blue-600" />
-        <label for="zero-time-launch" class="text-xs text-gray-600 font-medium cursor-pointer select-none">
+        <label for="zero-time-launch" class="text-small text-gray-600 font-normal cursor-pointer select-none">
           Launch for 0 time (pre-shift sends)
         </label>
       </div>
 
-      <p class="text-[11px] text-gray-500 leading-relaxed italic border-l-2 border-gray-200 pl-3 py-0.5">
+      <p class="text-body text-gray-600 italic border-l-2 border-gray-200 pl-3 py-0.5">
         Use this when you launch right before a shift: the missions add no time to your plan.
       </p>
     </div>
@@ -72,28 +82,34 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useFuelTankStore } from '@/stores/fuelTank';
-import { useRocketsStore } from '@/stores/rockets';
+import { useRocketsStore } from 'lib/planners/stores/rockets';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useEarnings } from '@/composables/useEarnings';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { computeDependencies } from '@/lib/actions/executor';
+import { useEventCrossingWaits } from 'lib/planners/composables/usePlannerEventCrossingWaits';
+import { computeDependencies } from 'lib/planners/actions/executor';
 import { generateActionId, VIRTUE_EGGS } from '@/types';
 import type { VirtueEgg, LaunchMissionEntry } from '@/types';
-import { SHIP_INFO, Spaceship } from '@/lib/missions';
+import { launchCost } from 'lib/planners/rockets/launches';
 import { formatDuration } from '@/lib/format';
-import { getTimeToSave } from '@/engine/apply';
+import { getBoostAwareTimeToSave } from '@/engine/apply';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 
-import FuelTankGraphic from './rockets/FuelTankGraphic.vue';
-import MissionGrid from './rockets/MissionGrid.vue';
-import MissionSummary from './rockets/MissionSummary.vue';
+import FuelTankGraphic from 'ui/components/planners/actions/rockets/FuelTankGraphic.vue';
+import HumilityMissionsImport from 'ui/components/planners/actions/rockets/HumilityMissionsImport.vue';
+import HumilityOptimizer from './rockets/HumilityOptimizer.vue';
+import { useHumilityMissionsStore } from '@/stores/humilityMissions';
+import MissionGrid from 'ui/components/planners/actions/rockets/MissionGrid.vue';
+import MissionSummary from 'ui/components/planners/actions/rockets/MissionSummary.vue';
 
 const fuelTankStore = useFuelTankStore();
 const rocketsStore = useRocketsStore();
+const missionsStore = useHumilityMissionsStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
 const { output: earningsOutput } = useEarnings();
-const { prepareExecution, completeExecution } = useActionExecutor();
+const { prepareExecution, completeExecution, batch, isEditingPastGroup, settled, insertBoostCrossingWaits } =
+  useEventCrossingWaits();
 
 const isZeroTime = ref(false);
 
@@ -106,21 +122,15 @@ const earningsPerSecond = computed(() =>
 const schedule = computed(() => rocketsStore.getSchedule(ftlLevel.value));
 const summary = computed(() => rocketsStore.getSummary(ftlLevel.value));
 
-const totalLaunchCost = computed(() => {
-  let cost = 0;
-  for (const m of rocketsStore.queuedMissions) {
-    cost += SHIP_INFO[m.ship].price * m.count;
-  }
-  return cost;
-});
+const totalLaunchCost = computed(() => launchCost(rocketsStore.queuedMissions));
 
 const saveTimeSeconds = computed(() => {
   const cost = totalLaunchCost.value;
   if (cost <= 0) return 0;
 
-  // Use the engine's timeToSave which correctly handles bank balance,
-  // population growth, and uses offline rates (consistent with the rest of the app).
-  return getTimeToSave(cost, actionsStore.effectiveSnapshot);
+  // The wait the launch is charged: handles bank balance, population growth and 2x earnings,
+  // and uses offline rates (consistent with the rest of the app).
+  return getBoostAwareTimeToSave(cost, actionsStore.effectiveSnapshot, getSimulationContext());
 });
 
 const showArtifactWarning = computed(() => {
@@ -130,26 +140,24 @@ const showArtifactWarning = computed(() => {
 function handleLaunch() {
   if (rocketsStore.isOverBudget || rocketsStore.queuedMissions.length === 0) return;
 
+  batch(async () => {
+    prepareExecution();
+    insertBoostCrossingWaits(totalLaunchCost.value);
+    if (isEditingPastGroup.value) await settled();
+    addLaunch();
+  });
+}
+
+function addLaunch() {
   const beforeSnapshot = prepareExecution();
 
-  // Build mission entries for the payload
   const missions: LaunchMissionEntry[] = rocketsStore.queuedMissions.map(m => ({
     ship: m.ship,
     duration: m.duration,
     count: m.count,
   }));
 
-  // Calculate total fuel consumed
-  const fuelConsumed: Record<VirtueEgg, number> = {
-    curiosity: 0,
-    integrity: 0,
-    humility: 0,
-    resilience: 0,
-    kindness: 0,
-  };
-  for (const egg of VIRTUE_EGGS) {
-    fuelConsumed[egg] = rocketsStore.totalFuelCost[egg];
-  }
+  const fuelConsumed: Record<VirtueEgg, number> = { ...rocketsStore.totalFuelCost };
 
   const scheduleResult = schedule.value;
   const isZeroTimeLaunch = isZeroTime.value;
@@ -177,25 +185,18 @@ function handleLaunch() {
     }
   }
 
-  // Calculate total cost (gems)
-  let totalCost = 0;
-  for (const m of missions) {
-    totalCost += SHIP_INFO[m.ship as Spaceship].price * m.count;
-  }
-
   completeExecution(
     {
       id: generateActionId(),
       timestamp: Date.now(),
       type: 'launch_missions',
       payload,
-      cost: totalCost,
+      cost: totalLaunchCost.value,
       dependsOn: dependencies,
     },
     beforeSnapshot
   );
 
-  // Clear the mission queue
   rocketsStore.clearAll();
   isZeroTime.value = false;
 }

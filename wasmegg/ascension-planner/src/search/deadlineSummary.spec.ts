@@ -10,6 +10,10 @@ describe('By a date run summary', () => {
     expect(tookDuration(340)).toBe('5 min 40 s');
     expect(tookDuration(600)).toBe('10 min');
     expect(tookDuration(4320)).toBe('1 h 12 min');
+    // Rounds to the minute before splitting the hours off (code review round 2, 22 Nov 2026, R6.3: '1 h 60 min').
+    expect(tookDuration(7170)).toBe('2 h');
+    expect(tookDuration(3599 + 3600)).toBe('2 h');
+    expect(tookDuration(3600 + 89)).toBe('1 h 1 min');
   });
 
   it('says how long Simple took and what it searched', () => {
@@ -34,7 +38,7 @@ describe('By a date run summary', () => {
       lastLo: 278,
       bandSets: [[band(189, 215), band(211, 251).filter((_, i) => i % 10 === 0), [257, 267, 277, 287, 297]]],
     });
-    expect(s.line.startsWith('Took 1 h 2 min on 1 worker · searched 236 sets of early stops (Exhaustive, in your own boxes)')).toBe(true);
+    expect(s.line.startsWith('Took 1 h 2 min on 1 worker · searched 236 sets of early stops (Custom, in your own boxes)')).toBe(true);
     expect(s.chains).toEqual(['4 ascensions 189-215:1; 211-251:10; 257-297:10']);
     expect(s.lastStop).toBe('last stop 278-318');
   });

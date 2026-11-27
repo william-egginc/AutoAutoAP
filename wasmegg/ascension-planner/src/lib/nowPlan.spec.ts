@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PREFER_KEY, PREFER_OFF } from '@/search/preferFewer';
 import type { LegSummary } from '@/search/types';
 import {
   ascensionAt,
@@ -54,7 +57,8 @@ describe('planFromSnapshot', () => {
   });
 
   it('Fastest without the exact check: the table’s best, no legs', () => {
-    const p = planFromSnapshot({ ...snap, exact: {} }, 'fastest')!;
+    // Prefer fewer Off (the 12 h default would pick the 1-ascension route 9 h behind: see the box's route below).
+    const p = planFromSnapshot({ ...snap, exact: {} }, 'fastest', null, PREFER_OFF)!;
     expect(p.exact).toBe(false);
     expect(p.legs).toBeNull();
     expect(p.tableLegs).toHaveLength(2);
@@ -115,7 +119,7 @@ describe('planEvents and the table', () => {
   });
 
   it('without the exact legs: the prestiges from the table, no shifts', () => {
-    const t = planFromSnapshot({ ...snap, exact: {} }, 'fastest')!;
+    const t = planFromSnapshot({ ...snap, exact: {} }, 'fastest', null, PREFER_OFF)!;
     expect(planEvents(t, T0).map(e => e.kind)).toEqual(['prestige', 'goal']);
     expect(shiftsAfter(t, T0)).toBeNull();
   });
@@ -128,6 +132,27 @@ describe('planEvents and the table', () => {
     expect(ascensionAt(p, T0 + 12 * H)).toBe(2);
     expect(ascensionAt(p, T0 + 99 * H)).toBe(2);
   });
+
+  it('a FRESH first ascension has not started until a save shows the prestige (17 Nov 2026: 93 TE, no virtue farm)', () => {
+    // An instant answer's plan starts when it was priced, so the clock is past `planStart` almost at once; with a fresh first leg
+    // ('2-sale') the player still has to prestige into A1. The loaded save says whether that happened: from before the first
+    // leg's prestige, nothing has started; from after it, A1 runs.
+    const p = planFromSnapshot(snap, 'fastest')!;
+    const fresh = { ...p, legs: p.legs!.map((l, i) => (i === 0 ? { ...l, key: '2-sale' as never } : l)) };
+    expect(ascensionAt(fresh, T0 + H, T0 - 1800)).toBe(0);
+    expect(ascensionAt(fresh, T0 + 12 * H, T0 - 1800)).toBe(0);
+    expect(ascensionAt(fresh, T0 + 12 * H, T0 + H)).toBe(2);
+    expect(ascensionAt(fresh, T0 + H, T0 + 1)).toBe(1);
+    // The table's legs: the label says it.
+    const table = { ...p, legs: null, tableLegs: [{ to: 190, endTE: 190, start: T0, end: T0 + 10 * H, label: '3-sale-tier13' }, { to: 200, endTE: 200, start: T0 + 11 * H, end: T0 + 30 * H }] };
+    expect(ascensionAt(table, T0 + H, T0 - 1800)).toBe(0);
+    // A continued first ascension, or no save time: as before.
+    expect(ascensionAt(p, T0 + H, T0 - 1800)).toBe(1);
+    expect(ascensionAt(fresh, T0 + H)).toBe(1);
+    // My Runs' ascension count passes the loaded save's time.
+    const src = readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
+    expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value, saveSeconds.value)');
+  });
 });
 
 describe('on track', () => {
@@ -139,7 +164,7 @@ describe('on track', () => {
     expect(planTEAt(legs, teStart, T0 + 10 * H)).toBe(191); // Humility ends on 38: one past the stop
   });
 
-  // R6 (21 Oct 2026): onTrack is now a thin wrapper over lib/planPace.ts, shared with My runs' saved plans. Wording
+  // R6 (21 Oct 2026): onTrack is now a thin wrapper over lib/planPace.ts, shared with My Runs' saved plans. Wording
   // changed with it (Jordan's OK): "On plan" within 30 minutes is "On schedule (within an hour)", hours are whole
   // ("3 hours behind", days from 48 h), behind is negative hours, and a plan without its shift TEs or without the
   // exact legs is compared leg by leg ("rough") instead of "Can't tell". planPace.spec.ts has every case.
@@ -171,16 +196,99 @@ describe('on track', () => {
       why: 'no-te',
     });
     expect(onTrack(p, { seconds: T0 - 600, teByEgg: teStart })).toEqual({ kind: 'cant', why: 'not-started', start: T0 });
+    // A followed estimate (table legs, no snapshot TE per egg): leg by leg from the first leg's start TE, not "no-te".
+    const est = { ...p, legs: null, exact: false, meta: null, tableLegs: p.tableLegs!.map((l, i) => (i ? l : { ...l, from: 186 })) };
+    expect(onTrack(est, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toMatchObject({ rough: true, estimate: true });
+    expect(onTrack({ ...est, tableLegs: est.tableLegs.map(l => ({ ...l, from: undefined })) }, { seconds: T0 + H, teByEgg: teStart })).toEqual({
+      kind: 'cant',
+      why: 'no-te',
+    });
     const noTE = { ...p, legs: legs.map(l => ({ ...l, shifts: l.shifts!.map(s => ({ ...s, te: undefined })) })) };
     expect(onTrack(noTE, { seconds: T0 + H, teByEgg: [41, 37, 36, 37, 36] })).toMatchObject({ rough: true });
   });
 
+  it('a Custom run sent from another browser: simulated legs, no per-egg TE, but the plan’s start TE (meta.startTE): leg by leg, not "no-te" (1 Nov 2026)', () => {
+    const board = { ...p, meta: { account: 'acc', goal: 'target 200', backupTime: T0 - 1800, startTE: 186 } };
+    expect(onTrack(board, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toMatchObject({ rough: true });
+    // Without it, still "Can't tell".
+    expect(onTrack({ ...board, meta: { ...board.meta, startTE: undefined } }, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toEqual({ kind: 'cant', why: 'no-te' });
+  });
+
   it('words the chip (planPace’s words, with the save’s time)', () => {
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
-    expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 pm' });
+    expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 PM' });
     const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
-    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '4 hours behind, as of 3:46 am' });
+    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '4 hours behind, as of 3:46 AM' });
     expect(trackWords({ kind: 'cant', why: 'no-timeline' }, T0, 'UTC').text).toBe("Can't tell: saved without its timeline");
     expect(trackWords({ kind: 'same-save' }, T0, 'UTC').text).toBe('Made from your latest save');
+  });
+});
+
+describe('planFromSnapshot: the route the green box shows (Prefer fewer, 26 Oct 2026)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  // A race to 200: 3 ascensions the fastest, 2 ascensions 10 h later, 1 ascension 20 h later.
+  const race: SnapLike = {
+    at: (T0 - 600) * 1000,
+    result: {
+      best: route([188, 194, 200], T0 + 30 * H),
+      byAscensions: [null, route([200], T0 + 50 * H), route([194, 200], T0 + 40 * H), route([188, 194, 200], T0 + 30 * H)],
+    },
+    exact: {},
+    answerStart: T0,
+  };
+  const twelve = { kind: 'time' as const, seconds: 12 * H };
+
+  it('a race: the route with the fewest ascensions within 12 h, no runner-up; Off: the fastest', () => {
+    const p = planFromSnapshot(race, 'fastest', null, twelve)!;
+    expect(p.chain).toEqual([194, 200]);
+    expect(p.end).toBe(T0 + 40 * H);
+    expect(p.exact).toBe(false);
+    expect(p.tableLegs).toHaveLength(2);
+    expect(p.runnerUp).toBeNull();
+    expect(p.runnerUpHours).toBeNull();
+    expect(planFromSnapshot(race, 'fastest', null, { kind: 'time', seconds: 24 * H })!.chain).toEqual([200]);
+    const off = planFromSnapshot(race, 'fastest', null, PREFER_OFF)!;
+    expect(off.chain).toEqual([188, 194, 200]);
+    expect(off.runnerUpHours).toBe(10);
+  });
+
+  it('a date: the route with the fewest ascensions reaching the same TE; Off: the highest TE', () => {
+    const deadline = T0 + 60 * H;
+    const date: SnapLike = {
+      ...race,
+      result: {
+        best: null,
+        byAscensions: [],
+        byDate: route([188, 194, 200], T0 + 30 * H),
+        byDateByAscensions: [null, route([199], T0 + 20 * H), route([194, 200], T0 + 45 * H), route([188, 194, 200], T0 + 30 * H)],
+      },
+    };
+    const same = planFromSnapshot(date, 'date', deadline, { kind: 'te', te: 0 })!;
+    expect(same.chain).toEqual([194, 200]);
+    expect(same.endTE).toBe(200);
+    expect(same.instantTE).toBe(200);
+    expect(same.spareHours).toBe(15);
+    expect(same.runnerUp).toBeNull();
+    // Within 1 TE: the 1-ascension route at 199.
+    expect(planFromSnapshot(date, 'date', deadline, { kind: 'te', te: 1 })!.chain).toEqual([199]);
+    const off = planFromSnapshot(date, 'date', deadline, PREFER_OFF)!;
+    expect(off.chain).toEqual([188, 194, 200]);
+    expect(off.spareHours).toBe(30);
+  });
+
+  it('by default the margin stored for the screen (the defaults without one): within 12 h, same TE; a stored Off', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    expect(planFromSnapshot(race, 'fastest')!.chain).toEqual([194, 200]);
+    store.set(PREFER_KEY, JSON.stringify({ fastest: PREFER_OFF }));
+    expect(planFromSnapshot(race, 'fastest')!.chain).toEqual([188, 194, 200]);
+  });
+
+  it('Check exactly’s prices (answers saved before 23 Oct 2026) keep their own soonest', () => {
+    expect(planFromSnapshot(snap, 'fastest', null, twelve)!.chain).toEqual([190, 200]);
   });
 });

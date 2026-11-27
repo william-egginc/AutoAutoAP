@@ -144,7 +144,7 @@ describe("the run's final send replaces its best so far", () => {
     collector({ ok: true, id: 'eeee0005', replaceRefused: 'the earlier row (dddd0004) was kept: not yours' });
     const res = await s.sendSubmission(BY_DATE);
     expect(res.ok).toBe(true);
-    expect(res.message).toMatch(/still on the board \(the earlier row \(dddd0004\) was kept/);
+    expect(res.message).toMatch(/still on the Leaderboard \(the earlier row \(dddd0004\) was kept/);
     // Sending again cannot change a refusal: the run is done with it.
     expect(s.provisionalRows.deadline).toBeNull();
   });
@@ -168,7 +168,7 @@ describe('Send best so far', () => {
     expect((await s.sendBestSoFar()).ok).toBe(false);
     s.beginBestSoFar('fastest', null);
     const res = await s.sendBestSoFar();
-    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Find to agree first.' });
+    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Run to agree first.' });
     expect(s.bestSoFarStatus).toMatchObject({ ok: false });
     expect(bodies).toHaveLength(0);
   });
@@ -260,7 +260,7 @@ describe('Send best so far', () => {
         expect(bodies[0]).toMatchObject({ provisional: true });
         // Fastest: the finish date, not "best 490" (its target is always 490).
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Last progress sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 routes\)\. Next in about 60 min\.$/
+          /^Last progress sent \d+:\d\d [AP]M \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 routes\)\. Next in about 60 min\.$/
         );
         // An hour on, nothing new priced: not sent, and the line says so (no send status, no error).
         at('14:00');
@@ -270,7 +270,7 @@ describe('Send best so far', () => {
         expect(bodies).toHaveLength(1);
         expect(s.bestSoFarStatus).toBeNull();
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Not sent at \d+:\d\d [ap]m: nothing new priced since \d+:\d\d [ap]m\. Next check in about 60 min\.$/
+          /^Not sent at \d+:\d\d [AP]M: nothing new priced since \d+:\d\d [AP]M\. Next check in about 60 min\.$/
         );
         // More priced, same best: the next check (one interval on) sends it, replacing the first row.
         s.chainsDone = 180;
@@ -300,7 +300,7 @@ describe('Send best so far', () => {
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(0);
-        expect(s.bestSoFarAutoLine).toMatch(/^Last progress sent \d+:\d\d [ap]m\. Next in about 8 min\.$/);
+        expect(s.bestSoFarAutoLine).toMatch(/^Last progress sent \d+:\d\d [AP]M\. Next in about 8 min\.$/);
         expect(s.bestSoFarWait).toBe(8);
         at('11:59');
         s.autoTick();
@@ -340,7 +340,7 @@ describe('Send best so far', () => {
         await flush();
         expect(n).toBe(2);
         expect(s.bestSoFarStatus).toMatchObject({ ok: false });
-        expect(s.bestSoFarAutoLine).toMatch(/Couldn't send at \d+:\d\d [ap]m\. Next in about 30 min\./);
+        expect(s.bestSoFarAutoLine).toMatch(/Couldn't send at \d+:\d\d [AP]M\. Next in about 30 min\./);
         at('13:09');
         s.autoTick();
         await flush();
@@ -413,7 +413,7 @@ describe('Send best so far', () => {
       expect(s.bestSoFar).toMatchObject({ asked: true, sendOnAgree: true, consent: null });
       expect(s.bestSoFarStatus).toMatchObject({
         pending: true,
-        text: expect.stringMatching(/tick the box under Find/),
+        text: expect.stringMatching(/tick the box under Run/),
       });
       s.agreeBestSoFar('');
       expect(s.bestSoFar).toMatchObject({ asked: false, consent: { nickname: '' } });
@@ -458,7 +458,7 @@ describe('Send best so far', () => {
       expect(await s.sendBestSoFar()).toMatchObject({ ok: false });
       expect(s.bestSoFarStatus).toEqual({
         ok: false,
-        text: 'Not sent: collector said 400: a best so far needs the owner code',
+        text: "Not sent: the planner's server said 400: a best so far needs the owner code",
       });
       vi.stubGlobal(
         'fetch',

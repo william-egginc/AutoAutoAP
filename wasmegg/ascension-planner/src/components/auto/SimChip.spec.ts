@@ -8,13 +8,11 @@ const OLD = '2026-10-13-lowte-gate';
 const NEW = '2026-10-21-egg-beta2';
 
 describe('SimChip', () => {
-  it('says which simulator in plain words, the stamp on hover', async () => {
+  it('says which simulator in plain words, the stamp on hover; nothing for this site\'s own (fluff review 2, L4)', async () => {
+    // A chip on every current row was noise (5 Nov 2026): only a run from another simulator gets one.
     const cur = await renderHtml(SimChip, { stamp: NEW, current: NEW });
-    expect(textOf(cur)).toBe('sim: current');
-    expect(cur).toContain(`title="Simulator ${NEW}, the one this site runs."`);
-    expect(cur).toContain('data-kind="current"');
-    // The quiet accent on the current simulator's chip only.
-    expect(cur).toContain('bg-emerald-50');
+    expect(textOf(cur)).toBe('');
+    expect(cur).not.toContain('data-testid="sim-chip"');
 
     const old = await renderHtml(SimChip, { stamp: OLD, current: NEW });
     expect(textOf(old)).toBe('older simulator');
@@ -32,8 +30,9 @@ describe('SimChip', () => {
     expect(html).not.toContain('role="note"');
   });
 
-  it('defaults to this site’s simulator', async () => {
-    expect(textOf(await renderHtml(SimChip, { stamp: SIM_VERSION }))).toBe('sim: current');
+  it('defaults to this site’s simulator (so no chip)', async () => {
+    expect(textOf(await renderHtml(SimChip, { stamp: SIM_VERSION }))).toBe('');
+    expect(textOf(await renderHtml(SimChip, { stamp: '2000-01-01-old' }))).toBe('older simulator');
   });
 });
 

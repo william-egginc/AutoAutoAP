@@ -3,14 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DAY_MS, localToUtcMs } from '@/lib/leaderboardRank';
 import type { PricedChain } from '@/search/types';
-import { accountKey, judgeFinishes, type FinishJudgement, type RunFinish } from './analysis';
+import { accountKey, type FinishJudgement, type RunFinish } from './analysis';
+import { judgeFinishes, mergeAccountTables } from '@/test/explorerReference';
 import type { CollectorRow } from './collector';
 import {
   accountTables,
   bestPerAscensions,
   createPlanMerger,
   leftOutText,
-  mergeAccountTables,
   type AccountTable,
   type PlanSettings,
 } from './accountTop';
@@ -130,7 +130,7 @@ describe('mergeAccountTables', () => {
     // Only look-alikes are tagged: 280 490 has no twin under the other setting.
     expect(top.plans.map(p => [p.chain.join(' '), p.id, p.tags])).toEqual([
       ['277 490', '1fed', ['Continue Asc.']],
-      ['277 490', '16f9', ['Fastest']],
+      ['277 490', '16f9', ['Soonest']],
       ['280 490', '1fed', []],
     ]);
     expect(top.merged).toBe(0);

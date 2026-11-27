@@ -174,7 +174,7 @@ describe('a run starts from the TE it is priced from', () => {
     const store = useChainSearchStore();
     loadSave(196, SAVE_AT);
     plannerAt(196);
-    planEndingAt(255); // "Simulate this plan", or a plan built by hand
+    planEndingAt(255); // "Simulate this route", or a plan built by hand
     expect(useActionsStore().effectiveSnapshot.teEarned).toEqual(earned(255));
     expect(store.plannerTE).toBe(196);
     expect(store.saveNotReady).toBe('');
@@ -226,6 +226,41 @@ describe('a run starts from the TE it is priced from', () => {
     expect(sub.currentTE).toBe(196);
     expect(sub.backupTE).toBe(196);
     expect(sub.backupAgeHours).toBeCloseTo((PLAN_START - SAVE_AT) / 3600, 1);
+  });
+});
+
+// "I need to ascend at the last stop before the deadline" is gone (Jordan, 5 Nov 2026): a TE counts when it is
+// reached. A run or checkpoint saved with it ticked runs as the box did unticked: no wait for the hours at the end.
+describe('a run saved with the old "I need to ascend at the last stop" ticked', () => {
+  it('a fresh run with playing hours set counts the last stop when reached', async () => {
+    const store = useChainSearchStore();
+    store.scheduleEnabled = true;
+    expect(store.availability).not.toBeNull();
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    await store.startDeadline('P', { ...spec(), ascendNeeded: true } as never);
+    expect(store.error).toBeNull();
+    expect(specs).toHaveLength(1);
+    expect(specs[0].ascendAt).toBeUndefined();
+    expect(store.deadlineResult!.ascendNeeded).toBeFalsy();
+  });
+
+  it('a carry-on of a checkpoint saved ticked counts it when reached too', async () => {
+    const store = useChainSearchStore();
+    store.scheduleEnabled = true;
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    stopEarly = true;
+    await finishedRun(store);
+    const cp = (await loadDeadlineCheckpoint('P'))!;
+    (cp.spec as unknown as Record<string, unknown>).ascendNeeded = true;
+    await saveDeadlineCheckpoint('P', cp);
+    stopEarly = false;
+    await store.resumeDeadline('P');
+    expect(store.error).toBeNull();
+    expect(specs).toHaveLength(2);
+    expect(specs[1].ascendAt).toBeUndefined();
+    expect(store.deadlineResult!.ascendNeeded).toBeFalsy();
   });
 });
 

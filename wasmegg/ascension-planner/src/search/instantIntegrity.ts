@@ -65,7 +65,7 @@ export function instantIntegrity(
     text:
       `Times on your account include an Integrity wait of ${long}: a fresh ascension here sits on an ` +
       `Integrity shift that long before it can afford its habs (a healthy account is through it in under an hour).` +
-      (own ? '' : ` The instant answer's own dates may leave that wait out; Check exactly includes it.`),
+      (own ? '' : ` The instant answer's own dates may leave that wait out; a Fast search includes it.`),
   };
 }
 
@@ -88,6 +88,27 @@ export function lowTeOpeningNote(info: { rounds: number; openingSeconds: number 
     `Low-TE opening: a fresh ascension on this account can't max its habs in one round of research, vehicles ` +
     `and habs (C1, K1, I1), so it goes round ${rounds}, about ${describeDuration(info.openingSeconds)} before ` +
     `its habs are maxed. The instant answer may not have been made with this opening for your ascensions, so ` +
-    `its dates for them are rough; Check exactly prices the low-TE opening.`
+    `its dates for them are rough; a Fast search prices the low-TE opening.`
   );
+}
+
+/**
+ * How long the check ahead of Start (store `probeIntegrity`) may hold the instant answer back. It takes a few
+ * seconds (one worker, one fresh ascension simulated to its Integrity shift); one that never answers (a worker that
+ * never started or was taken away without a word, which Safari does) held the answer behind "Checking whether this
+ * account can build…" for as long as the page stayed open (Jordan's Safari reload, 23 Oct 2026). Past this the check
+ * counts as not measured, which never holds the answer (`instantIntegrity`: null), and Start checks again.
+ */
+export const INTEGRITY_PROBE_MS = 30_000;
+
+/** The message `probeLimit` rejects with. */
+export const PROBE_TOO_LONG = 'the integrity check took too long';
+
+/** `work`, or a rejection with PROBE_TOO_LONG once `ms` have passed without it settling. */
+export function probeLimit<T>(work: Promise<T>, ms: number = INTEGRITY_PROBE_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(PROBE_TOO_LONG)), ms);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }

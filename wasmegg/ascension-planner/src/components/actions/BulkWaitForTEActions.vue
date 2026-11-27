@@ -3,10 +3,10 @@
     <!-- Header: Total Gain and Final TE -->
     <div class="bg-slate-50/50 rounded-xl p-4 border border-slate-100 flex flex-wrap items-center justify-between gap-4">
       <div class="space-y-1">
-        <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total TE to Gain</label>
+        <label class="block label text-slate-600">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
-            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(-1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -18,13 +18,13 @@
             step="1"
             v-model.lazy.number="totalTEToGain"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
+            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center tabular-nums font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
             @input="onBoxInput"
             @blur="onBoxLeave"
           />
           <button 
-            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -33,16 +33,16 @@
       </div>
 
       <div class="space-y-1">
-        <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Final Total TE</label>
+        <label class="block label text-slate-600 text-right">Final Total TE</label>
         <div class="flex items-center justify-end gap-2">
-          <span class="font-mono-premium font-black text-2xl text-slate-900">{{ finalTotalTE }}</span>
+          <span class="tabular-nums font-black text-headline text-slate-900">{{ finalTotalTE }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-6 h-6 object-contain" />
         </div>
       </div>
 
       <div class="w-full sm:w-auto">
         <button 
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-bold text-body transition-all shadow-sm border"
           :class="canRebalance ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'"
           :disabled="!canRebalance"
           @click="rebalance"
@@ -67,14 +67,14 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-black text-[10px] uppercase text-slate-900">{{ VIRTUE_EGG_NAMES[eggPlan.egg] }}</span>
-                <span class="text-slate-600 text-[10px] font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
-                <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-tighter rounded">Current</span>
+                <span class="label text-slate-900">{{ VIRTUE_EGG_NAMES[eggPlan.egg] }}</span>
+                <span class="text-slate-600 text-small font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
+                <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white label rounded">Current</span>
               </div>
-              <div class="text-[10px] font-mono-premium text-slate-400 mt-0.5">
+              <div class="text-small tabular-nums text-slate-600 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
                 <span v-else>Shift on</span>
-                <span class="text-slate-500">&nbsp;{{ eggPlan.absoluteTime }}</span>
+                <span class="text-slate-600">&nbsp;{{ eggPlan.absoluteTime }}</span>
               </div>
             </div>
           </div>
@@ -83,17 +83,17 @@
             <!-- Individual Adjustments -->
             <div class="flex items-center bg-slate-50 rounded-lg border border-slate-100 p-0.5 shadow-inner">
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, -1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
               </button>
-              <span class="px-2 text-center text-xs font-mono-premium font-black text-slate-900">
+              <span class="px-2 text-center text-small tabular-nums font-bold text-slate-900">
                 {{ eggPlan.targetTE }}
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, 1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -103,14 +103,14 @@
             <!-- Reorder Controls -->
             <div v-if="!eggPlan.isCurrentEgg" class="flex flex-col gap-0.5">
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === 1 }"
                 @click="moveEgg(index, -1)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
               </button>
               <button 
-                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === eggPlans.length - 1 }"
                 @click="moveEgg(index, 1)"
               >
@@ -126,12 +126,12 @@
     <div v-if="totalTEToGain > 0" class="bg-slate-900 rounded-2xl p-5 text-white shadow-xl shadow-slate-900/20">
       <div class="flex items-center justify-between">
         <div class="space-y-1">
-          <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Duration</label>
-          <div class="text-xl font-mono-premium font-black">{{ formatDuration(totalDurationSeconds) }}</div>
+          <label class="block label text-slate-600">Total Duration</label>
+          <div class="text-title tabular-nums font-bold">{{ formatDuration(totalDurationSeconds) }}</div>
         </div>
         <div class="text-right space-y-1">
-          <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Final Completion</label>
-          <div class="text-sm font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
+          <label class="block label text-slate-600">Final Completion</label>
+          <div class="text-body font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
         </div>
       </div>
     </div>
@@ -139,7 +139,7 @@
     <!-- Apply Button -->
     <div class="pt-2">
       <button 
-        class="btn-premium btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.3em] shadow-xl"
+        class="btn-premium btn-primary w-full py-4 text-body font-bold shadow-xl"
         :disabled="totalTEToGain <= 0 || !allReachable"
         @click="handleApply"
       >
@@ -149,7 +149,7 @@
         v-if="totalTEToGain > 0 && !allReachable"
         class="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-4"
       >
-        <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+        <p class="text-body font-bold text-amber-700 max-w-prose">
           Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate
           ({{ unreachableEggNames }}). Lower the number or build up the farm first.
         </p>
@@ -159,23 +159,24 @@
 </template>
 
 <script setup lang="ts">
+import { formatClock, formatHourOfDay } from '@/lib/clock';
 import { ref, computed, watch } from 'vue';
 import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL, shiftCost } from 'lib';
 import { useTruthEggsStore } from '@/stores/truthEggs';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useActionsStore } from '@/stores/actions';
-import { useActionExecutor } from '@/composables/useActionExecutor';
-import { computeDependencies } from '@/lib/actions/executor';
+import { useActionExecutor } from 'lib/planners/composables/useActionExecutor';
+import { computeDependencies } from 'lib/planners/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
-import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg } from '@/types';
+import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg, type DraftAction } from '@/types';
 import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE, isTEWaitReachable, clampTECount } from '@/lib/truthEggs';
-import { integrateRate } from '@/engine/apply/math';
+import { integrateRate } from 'lib/planners/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const actionsStore = useActionsStore();
 
 const totalTEToGain = ref(15);
@@ -192,7 +193,7 @@ const manualGains = ref<Record<VirtueEgg, number | null>>({
 
 // Current starting stats per egg (accounts for pending TE in the plan)
 const eggStartStates = computed(() => {
-  const stats: Record<VirtueEgg, { te: number; delivered: number }> = {} as any;
+  const stats: Record<VirtueEgg, { te: number; delivered: number }> = {} as Record<VirtueEgg, { te: number; delivered: number }>;
   const snapshot = actionsStore.effectiveSnapshot;
   
   for (const egg of VIRTUE_EGGS) {
@@ -217,7 +218,7 @@ const finalTotalTE = computed(() => currentTotalTE.value + totalTEToGain.value);
  * The Greedy Allocation Algorithm
  */
 function calculateGreedyGains(total: number) {
-  const gains: Record<VirtueEgg, number> = {} as any;
+  const gains: Record<VirtueEgg, number> = {} as Record<VirtueEgg, number>;
   VIRTUE_EGGS.forEach(e => gains[e] = 0);
 
   const working = VIRTUE_EGGS.map(egg => ({
@@ -261,7 +262,7 @@ const distributedGains = computed(() => {
   // But the plan says Rebalance button resets everything to greedy.
   const anyManual = Object.values(manualGains.value).some(v => v !== null);
   if (anyManual) {
-    const gains: Record<VirtueEgg, number> = {} as any;
+    const gains: Record<VirtueEgg, number> = {} as Record<VirtueEgg, number>;
     VIRTUE_EGGS.forEach(e => gains[e] = manualGains.value[e] ?? 0);
     return gains;
   }
@@ -356,18 +357,15 @@ function formatSimTime(seconds: number) {
   // Use current time as fallback for Continue Ascension if store start time is missing
   const startTime = actionsStore.ascensionStartTime || (Date.now() / 1000);
   
-  if (isNaN(seconds) || seconds === 0) return 'Day 1, 12:00 AM';
+  if (isNaN(seconds) || seconds === 0) return `Day 1, ${formatHourOfDay(0)}`;
 
   const relativeSeconds = Math.max(0, seconds - startTime);
   const day = Math.floor(relativeSeconds / 86400) + 1;
   const hour = Math.floor((relativeSeconds % 86400) / 3600);
   const minute = Math.floor((relativeSeconds % 3600) / 60);
   
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-  const displayMinute = minute.toString().padStart(2, '0');
-  
-  return `Day ${day}, ${displayHour}:${displayMinute} ${period}`;
+  // The hour and minute on the player's own clock (lib/clock.ts).
+  return `Day ${day}, ${formatClock(Date.UTC(2020, 0, 1, hour, minute), 'UTC')}`;
 }
 
 // Initialization (in setup, not onMounted: it needs no DOM, and a server render sees the plan too)
@@ -459,7 +457,7 @@ function moveEgg(index: number, delta: number) {
  * Generates all actions in a single batch.
  */
 async function handleApply() {
-  const execute = async (action: any) => {
+  const execute = async (action: DraftAction) => {
     if (actionsStore.editingGroupId) {
       await actionsStore.insertAction(action);
     } else {
@@ -567,9 +565,3 @@ async function handleApply() {
   }
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-variant-numeric: tabular-nums;
-}
-</style>

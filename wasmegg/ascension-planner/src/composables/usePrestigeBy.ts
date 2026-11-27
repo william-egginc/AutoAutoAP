@@ -5,7 +5,7 @@
  * On for this visit with `?prestigeBy=1` in the address (`?prestigeBy=0`: off for this visit, whatever
  * is stored), or for this browser with the box in Your setup › Experimental (localStorage). A second
  * box there keeps the prediction in the opt-in instant answer record, so it can be checked later; it
- * only goes anywhere when "Share this check" is ticked for that check.
+ * only goes anywhere when "Share this result" is ticked for that result.
  *
  * ON BY DEFAULT ON THE BETA SITE (the user, 11 Oct 2026): egg-beta and a local dev server show it
  * unless the box in Your setup was unticked there (or `?prestigeBy=0`), so the line can be watched

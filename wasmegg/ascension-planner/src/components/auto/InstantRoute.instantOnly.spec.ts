@@ -1,0 +1,158 @@
+/**
+ * The instant card is instant only (wireframes/price-route-v2, Jordan 23 Oct 2026). No Check exactly, automatic or
+ * pressed, and no pricing run (Light) after the answer: the green box and the counts list show the instant answer's
+ * numbers and never change by themselves, nor while a search runs. One short line under the box. A finished Fast,
+ * Exact or Custom result for the same goal adds only the pointer line. Source checks, as InstantRoute's other specs
+ * (the component needs the route workers and a save to mount).
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SEARCH_OPTION, readChoice } from '@/lib/searchOption';
+
+const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
+const template = src.slice(0, src.indexOf('<script'));
+const script = src.slice(src.indexOf('<script setup'));
+/** A function's body, from its name to the next top-level declaration. */
+function fn(name: string): string {
+  const at = script.indexOf(name);
+  expect(at, name).toBeGreaterThan(0);
+  const next = script.slice(at + name.length).search(/\n(?:async function|function|const|let|watch\()/);
+  return script.slice(at, at + name.length + next);
+}
+
+describe('no automatic run on the answer', () => {
+  it('nothing prices a route on this card: no Check exactly, no simulator pool, no stronger check', () => {
+    for (const gone of [
+      'runExact',
+      'checkAgain',
+      'createChainSearchPool',
+      'exactStatus',
+      'boxPick',
+      '<StrongerCheck',
+      'lightRows',
+      'priceWithRunnerUps',
+    ])
+      expect(src, gone).not.toContain(gone);
+  });
+  it('after the answer: only the background polish, the "Prestige by" line and the nearest tables (all instant)', () => {
+    const polish = fn('async function polishInBackground(');
+    expect(polish).toContain('void runPrestigeBy(id, p, url);');
+    expect(polish).toContain('saveSnapshot(id);');
+    expect(polish).not.toMatch(/runExact|evaluate\(/);
+  });
+  it("My Runs' Run Fast only opens the screen on Fast: no ask reaches this card (part B, 23 Oct 2026)", () => {
+    expect(script).not.toContain('exactAsk');
+  });
+});
+
+describe('the box never changes while a search runs', () => {
+  it('the box reads the instant answer (or Prefer fewer’s pick of its rows), nothing from a search', () => {
+    expect(fn('function datePickOf(')).toMatch(
+      /if \(preferPicked\.value && dateChoice\.value\) return dateChoice\.value\.chosen\.item;\s+return tableDate\(fallback\);/
+    );
+    expect(script).toContain('const lead = computed(() => result.value?.best ?? null);');
+    for (const f of ['function datePickOf(', 'function dateBoxOf(', 'const fastestChoice', 'const dateChoice', 'function behind(', 'function nearTie('])
+      expect(fn(f), f).not.toMatch(/store\.(bestChain|deadlineResult|isRunning|deadlineRunning)|searchFound/);
+  });
+  it('the answer is set only by working it out, its polish, or a saved one put back', () => {
+    const sets = script.match(/\bresult\.value = /g) ?? [];
+    // run (none at the target, none below the table, the answer, none while waiting), the polish, applySnapshot, and
+    // dropStale (a stale answer of another key goes when the work fails: cached answers first, 27 Oct 2026).
+    expect(sets).toHaveLength(7);
+    expect(fn('function dropStale(')).toMatch(/if \(staleAt\.value !== null && staleOther\) \{\s*result\.value = null;/);
+    expect(fn('function applySnapshot(')).toContain('result.value = s.result;');
+  });
+  it('a search result reaches the card only through the pointer and the share box', () => {
+    const uses = template.match(/\bpointer\b|searchFound/g) ?? [];
+    expect(uses.length).toBeGreaterThan(0);
+    const box = template.slice(template.indexOf('data-testid="instant-box"'), template.indexOf('<!-- THE POINTER'));
+    expect(box).not.toMatch(/pointer|searchFound/);
+  });
+  it('the counts lists show instant numbers only: no exact column, no at-once line, no arrow', () => {
+    for (const gone of ['Exact, your account', 'at-once-line', 'instant-row-expand', '· exact', 'exact, your account'])
+      expect(template, gone).not.toContain(gone);
+  });
+});
+
+describe('the one line', () => {
+  it('under the title since spec-slimcard (lib/instantWords.ts); lib/searchPointer.ts INSTANT_ONE_LINE no longer drawn', () => {
+    expect(template).not.toContain('INSTANT_ONE_LINE }}');
+    expect(template).not.toContain('data-testid="instant-one-line"');
+    expect(template.match(/data-testid="instant-header-line">\{\{ headerLine \}\}/g)).toHaveLength(1);
+  });
+  it('replaces the disclaimers that said the same', () => {
+    for (const gone of [
+      'Exact = the full simulator on your account',
+      'hours-shifts-note',
+      'Check exactly prices a route with the full simulator',
+      'press Check exactly first',
+      'Check exactly gives your real',
+      'Check exactly gives your own times',
+    ])
+      expect(src, gone).not.toContain(gone);
+    // What the instant answer leaves out, beyond the one line (time off, dates to hit), and the gear's amber box stay.
+    expect(template).toContain('Not in the instant answer\'s routes: your {{ leftOut.join(\', \') }}. Fast, Exact and Custom include them.');
+    expect(template).toContain('<GearCaveat');
+  });
+});
+
+describe('the pointer', () => {
+  it('By a date and Fastest: the result’s own level and number, then See it ↓', () => {
+    expect(script).toContain("pointerOf(\n    props.deadline ? 'date' : 'fastest',\n    searchFound.value,\n    show,");
+    // InstantPointer.vue at the top of both sections (the answer's and the file-not-loaded one), on `pointer` alone.
+    expect(template.match(/<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>/g)).toHaveLength(2);
+    const box = fs.readFileSync(path.join(__dirname, 'InstantPointer.vue'), 'utf8');
+    expect(box).toContain("{{ parts[0] }}<b>{{ pointer.value }}</b>{{ parts[1] }}{{ ' ' }}<button");
+    expect(box).toContain('{{ POINTER_LINK }}');
+    expect(box).toContain(`@click="emit('see')"`);
+  });
+  it('only a finished result for this goal, on this save and account (lib/searchPlan.ts, specs there)', () => {
+    const found = fn('const searchFound');
+    expect(found).toContain('liveSearchResult({');
+    expect(found).toContain('ownerOk: ownerMatches');
+    expect(found).toContain('running: store.isRunning');
+    expect(found).toContain("custom: store.runKindUsed === 'full'");
+    expect(found).toContain('date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner }');
+    // Kept with the snapshot for My Runs' Right now.
+    expect(script).toContain('patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });');
+    expect(script).toContain('search: newerSearch(keptSearch.value, thisSaveFound.value),');
+    // And beyond the snapshot's day, for this save (lib/searchPlan.ts recordKeptSearch).
+    expect(script).toContain('if (meta && recordKeptSearch(keptEntryOf(meta, f)))\n    noteMyRuns();');
+  });
+  it('See it ↓ shows the part of the panel that holds it, then scrolls to its result card', () => {
+    const see = fn('function seeResult(');
+    expect(see).toContain("const tab = f.level === 'Custom' ? 'exhaustive' : 'nearby';");
+    expect(see).toContain('selectSearchTab(screen, tab);');
+    expect(see).toContain("panel?.querySelector('[data-result-card]')");
+    expect(fs.readFileSync(path.join(__dirname, 'ResultCardFrame.vue'), 'utf8')).toContain('data-result-card');
+  });
+});
+
+describe('the box keeps both buttons, and the panel opens on Fast', () => {
+  it('Simulate this route and Follow this route on both boxes', () => {
+    const actions = [...template.matchAll(/data-testid="box-actions"[\s\S]*?<\/div>/g)].map(m => m[0]);
+    expect(actions).toHaveLength(2);
+    for (const a of actions) {
+      expect(a).toContain('Simulate this route');
+      expect(a).toContain('<FollowButton');
+    }
+  });
+  it('Fast is the default option, with Run Fast as its main button (Find until 25 Oct 2026)', () => {
+    expect(DEFAULT_SEARCH_OPTION).toBe('fast');
+    expect(readChoice('fastest').option).toBe('fast');
+    expect(readChoice('by-date').option).toBe('fast');
+    const bar = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
+    expect(bar).toContain("props.findLabel || (props.option ? `Run ${OPTION_WORD[props.option]}` : 'Run')");
+    expect(bar).toContain("fast: 'Fast'");
+    expect(fs.readFileSync(path.join(__dirname, 'RunControls.vue'), 'utf8')).toContain(':option="option"');
+    // Each screen names the strength it will run: Fastest's Fast / Exact by its effort, Custom by its box.
+    expect(fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8')).toContain(
+      ':option="choiceForEffort(store.effort).option"'
+    );
+    expect(fs.readFileSync(path.join(__dirname, 'InsanePanel.vue'), 'utf8')).toContain('option="custom"');
+    expect(fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8')).toContain(
+      `:option="k === 'boxes' ? 'custom' : choiceForEffort(stronger.level).option"`
+    );
+  });
+});

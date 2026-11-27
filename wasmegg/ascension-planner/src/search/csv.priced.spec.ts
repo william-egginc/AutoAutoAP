@@ -4,7 +4,7 @@
  * Explorer reading both the new files and the old ones.
  */
 import { describe, expect, it } from 'vitest';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { buildDeadlineCsv, CHUNK_CHARS, deadlineCsvChunks, DEADLINE_PRICED_COLUMNS, pricedOrder } from './csv';
 import { PricedRoutes } from './deadline';
 import { byDateCsvLine, parseByDateCsv, parseRunCsv } from '@/explorer/collector';

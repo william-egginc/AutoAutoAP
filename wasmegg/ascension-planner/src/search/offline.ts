@@ -163,7 +163,7 @@ export function readOfflineSubmission(text: string): ReadOffline {
 
 /** A name as the collector stores it: trimmed, a player id redacted, at most 40 characters. */
 export function cleanNickname(name: string): string {
-  return name.trim().replace(/EI\d{16}/g, 'EI[redacted]').slice(0, 40);
+  return name.trim().replace(/EI\d{16}/gi, 'EI[redacted]').slice(0, 40);
 }
 
 /* ------------------------------------------------------------------------------------------- *

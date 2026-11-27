@@ -14,11 +14,11 @@
  *  4. A verdict (`verdictOf`): PASS / CLOSE / FAIL / STALE.
  *  5. Still current (`currentChanges`): does the stamp still match a save, or today's maxed account?
  */
-import { getBuildPhaseEndForSaleCount } from '@/lib/events';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { getBuildPhaseEndForSaleCount, isEarningsBoostActive, isResearchSaleActive } from 'lib/planners/events';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { colleggtibleDefs, modifiersFromColleggtibleTiers, type Modifiers } from 'lib/collegtibles';
 import { canonicalDelivered, EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
-import type { TableHeader } from './precomputedTable';
+import { fieldsPerBuild, type TableHeader } from './precomputedTable';
 import { colleggtibleEffects, simEpicResearch, type TableGear } from './tableGear';
 import type { LoadoutSlot } from './csv';
 
@@ -147,7 +147,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
   const read = readHeader(buffer);
   if ('error' in read) return { header: null, readable: false, errors: [read.error], notes };
   const { header, bodyStart } = read;
-  if (header.version !== 1) errors.push(`header version ${header.version} (expected 1)`);
+  if (header.version !== 1 && header.version !== 2) errors.push(`header version ${header.version} (expected 1 or 2)`);
+  if (header.version === 2 && !(fieldsPerBuild(header) >= FIELDS)) errors.push('version 2 without its field list');
+  const stride = header.version === 2 ? fieldsPerBuild(header) : FIELDS;
   const int = (x: unknown) => typeof x === 'number' && Number.isInteger(x);
   if (!int(header.from) || !int(header.to) || header.from > header.to || header.from < 0)
     errors.push(`start TEs from ${header.from} to ${header.to} are not a range`);
@@ -157,7 +159,7 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
     errors.push('fake rows: rows filled from the nearest real ones (--pack --fake-below), never real answers');
   if (errors.length) return { header, readable: false, errors, notes };
   const cells = (header.to - header.from + 1) * WEEK_HOURS;
-  const expected = bodyStart + cells * header.slots * FIELDS * 8;
+  const expected = bodyStart + cells * header.slots * stride * 8;
   if (buffer.byteLength !== expected) {
     errors.push(`the file is ${buffer.byteLength} bytes; ${cells} cells of ${header.slots} slots need ${expected}`);
     return { header, readable: false, errors, notes };
@@ -165,6 +167,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
   const body = new Float64Array(buffer, bodyStart);
   const bad = new Tally();
   const week = header.referenceWeek;
+  // Version 2's extras (code review 22 Nov 2026, T1.9): only the waiting egg for now. The h1At <= k3At <= waitStart
+  // order is left until it has been run against a known-good version 2 table.
+  const waitEggAt = header.version === 2 ? (header.fields?.indexOf('waitEgg') ?? -1) : -1;
   for (let te = header.from; te <= header.to; te++) {
     const canon = canonicalDelivered(te);
     for (let h = 0; h < WEEK_HOURS; h++) {
@@ -175,8 +180,8 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
       let lastSales = 0;
       let tier13Seen = false;
       for (let s = 0; s < header.slots; s++) {
-        const at = (((te - header.from) * WEEK_HOURS + h) * header.slots + s) * FIELDS;
-        const v = body.subarray(at, at + FIELDS);
+        const at = (((te - header.from) * WEEK_HOURS + h) * header.slots + s) * stride;
+        const v = body.subarray(at, at + stride);
         if (v.some(x => !Number.isFinite(x))) {
           bad.add('NaN or Infinity', `${where} slot ${s}`);
           continue;
@@ -212,6 +217,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
           else if (d < canon[e])
             bad.add("delivered below the start's own count", `${at_} ${EGG_ORDER[e]}: ${d} < ${canon[e]}`);
         }
+        // The replay models kindness (1) waiting, and humility (4) when K3 buys nothing (tableV2.ts BuildExtras).
+        if (waitEggAt >= 0 && v[waitEggAt] !== 1 && v[waitEggAt] !== 4)
+          bad.add('waitEgg not kindness (1) or humility (4)', `${at_}: ${v[waitEggAt]}`);
       }
       if (!builds) bad.add('a cell with no builds', where);
     }
@@ -336,17 +344,38 @@ export function rng(seed: number): () => number {
 export interface CellRef {
   te: number;
   h: number;
-  /** An edge (the first and last start TE at hours 0, 83, 167), checked every time. */
+  /** An edge (the first and last start TE at `edgeHours`), checked every time. */
   edge?: boolean;
 }
 
-/** The edges, then `n` distinct random cells from `seed` (none of them an edge). */
-export function sampleCells(header: Pick<TableHeader, 'from' | 'to'>, n: number, seed: number): CellRef[] {
+/**
+ * The hours of the reference week a cell check always looks at (review 15 Nov, T8): 0, 83 and 167, the first hour
+ * of the week's first research sale and first 2x boost, and the hour before each starts (C2's and I1's 4 h lookahead
+ * and the opening read a coming event there). Ascending, no repeats.
+ */
+export function checkHours(referenceWeek: number): number[] {
+  const at = (h: number) => referenceWeek + h * 3600;
+  const hours = new Set([0, 83, 167]);
+  for (const active of [isResearchSaleActive, isEarningsBoostActive]) {
+    const first = Array.from({ length: WEEK_HOURS }, (_, h) => h).find(h => h > 0 && active(at(h)) && !active(at(h - 1)));
+    if (first !== undefined) hours.add(first).add(first - 1);
+  }
+  return [...hours].sort((a, b) => a - b);
+}
+
+/** The edges (the first and last start TE at `edgeHours`), then `n` distinct random cells from `seed` (none of them
+ *  an edge). */
+export function sampleCells(
+  header: Pick<TableHeader, 'from' | 'to'>,
+  n: number,
+  seed: number,
+  edgeHours: readonly number[] = [0, 83, 167]
+): CellRef[] {
   const out: CellRef[] = [];
   const seen = new Set<number>();
   const key = (te: number, h: number) => te * WEEK_HOURS + h;
   for (const te of [...new Set([header.from, header.to])])
-    for (const h of [0, 83, 167]) {
+    for (const h of edgeHours) {
       seen.add(key(te, h));
       out.push({ te, h, edge: true });
     }

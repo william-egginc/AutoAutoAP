@@ -1,5 +1,5 @@
-import { createReadStream, statSync, type Stats } from 'node:fs';
-import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { createReadStream, readdirSync, readFileSync, statSync, type Stats } from 'node:fs';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,14 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
+import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
+import { applyCalendarFeed, releaseHistoryFor } from './src/lib/aboutBuild';
+import { calendarFeedOn } from './src/lib/calendarFlag';
+import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
+import { resultCodeHash } from './src/lib/resultCodeHash';
+import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
+import { withAppLoadWatch } from './src/lib/appLoadWatch';
+import { trailingSlashRedirect } from './src/lib/previewRedirects';
 import {
   BROTLI_TYPES,
   digest,
@@ -40,11 +48,45 @@ import {
  * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
  * asked for the difference between a real fix and a wording change -- the same loud banner on every
  * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
- * (__BUILD_TIME__) to compare with.
+ * (__BUILD_TIME__) to compare with, plus the key of every note it already carries
+ * (__BUILD_NOTE_KEYS__, a hash of the note's text; __BUILD_NOTE_ATS__ for tabs built before keys),
+ * so the banner tags only the notes it does not (src/lib/updateNotes.ts).
  */
 const BUILD_TIME = new Date().toISOString();
 
-function versionFile(): Plugin {
+/**
+ * THE RESULT CODE HASH (src/lib/resultCodeHash.ts, read by the page through src/lib/resultCode.ts): a hash of the code
+ * that decides results, not its words, so a kept answer worked out by older code is worked out again on a new build
+ * (Release 7, allanfieldhouse) and a wording-only deploy keeps everyone's. Every .ts under src (and release.ts) is handed
+ * in; the helper picks the inputs. Printed once by the build.
+ */
+function readResultCodeFiles(): Map<string, string> {
+  const root = fileURLToPath(new URL('.', import.meta.url));
+  const files = new Map<string, string>();
+  const walk = (dir: string) => {
+    for (const e of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(rel);
+      else if (e.name.endsWith('.ts')) files.set(rel, readFileSync(path.join(root, rel), 'utf8'));
+    }
+  };
+  walk('src');
+  files.set('release.ts', readFileSync(path.join(root, 'release.ts'), 'utf8'));
+  return files;
+}
+const RESULT_CODE = resultCodeHash(readResultCodeFiles());
+
+function resultCodeLine(): Plugin {
+  return {
+    name: 'aap-result-code',
+    apply: 'build',
+    buildStart() {
+      console.log(`[aap] result code hash ${RESULT_CODE.hash} over ${RESULT_CODE.inputs.length} files`);
+    },
+  };
+}
+
+function versionFile(history: typeof release.history): Plugin {
   return {
     name: 'aap-version-file',
     apply: 'build',
@@ -56,16 +98,15 @@ function versionFile(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({
-          ...entries,
-          release: {
-            reloadIfBuiltBefore: release.reloadIfBuiltBefore,
-            note: release.note.slice(0, 200),
-            history: release.history
-              .slice(0, 8)
-              .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
-          },
-        }),
+        // lib/versionJson.ts: the same body as ever, plus the egg-beta overrides when their env vars are set.
+        source: JSON.stringify(
+          versionJsonBody(
+            entries,
+            { reloadIfBuiltBefore: release.reloadIfBuiltBefore, history: versionHistory(history) },
+            process.env,
+            BUILD_TIME
+          )
+        ),
       });
     },
   };
@@ -115,11 +156,13 @@ function noChunkCycles(): Plugin {
 }
 
 /**
- * A loud line in the build output when src/ has commits newer than release.ts's last one. The note
- * is written by hand, and it went four days without a change (26-30 Sep 2026): every deploy in that
- * time told players "New: an Egg Day 2027 leaderboard", and the fixes in them only got the quiet
- * "small update" note instead of a reload. Only a warning: a build with no git (or no history) goes
- * ahead silently, and a deploy of wording alone rightly leaves release.ts alone.
+ * A loud box in the build output when src/ has commits newer than release.ts's last one
+ * (src/lib/releaseNoteWarning.ts). The note is written by hand, and it went four days without a change
+ * (26-30 Sep 2026): every deploy in that time told players "New: an Egg Day 2027 leaderboard", and the
+ * fixes in them only got the quiet "small update" note instead of a reload. Since R7 (31 Oct 2026) a build
+ * with no new note shows open tabs no banner at all, so it is a box now, not one plugin line. Its first
+ * line starts with RELEASE_NOTE_MISSING for deploy scripts to grep. Only a warning: a build with no git
+ * (or no history) goes ahead silently, and a deploy of nothing players notice rightly leaves release.ts alone.
  */
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
@@ -128,29 +171,9 @@ function warnIfReleaseStale(): Plugin {
     name: 'aap-release-stale',
     apply: 'build',
     buildStart() {
-      try {
-        const last = (paths: string[]) =>
-          Number(
-            execFileSync('git', ['log', '-1', '--format=%ct', '--', ...paths], { cwd: HERE })
-              .toString()
-              .trim()
-          );
-        const src = last(['src']);
-        const rel = last(['release.ts']);
-        if (src && rel && src > rel) {
-          const n = execFileSync('git', ['rev-list', '--count', `--since=${rel + 1}`, 'HEAD', '--', 'src'], {
-            cwd: HERE,
-          })
-            .toString()
-            .trim();
-          this.warn(
-            `release.ts is older than ${n} commit(s) in src/: open tabs will be shown its old note ` +
-              `("${release.note.slice(0, 60)}..."). Update its note, and reloadIfBuiltBefore if a fix ships.`
-          );
-        }
-      } catch {
-        /* no git here: nothing to compare */
-      }
+      const git: Git = args => execFileSync('git', args, { cwd: HERE, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      const warning = releaseNoteWarningFor(git, release.note);
+      if (warning) console.warn(`\n${warning}\n`);
     },
   };
 }
@@ -224,7 +247,8 @@ function securityHeaders(env: Record<string, string | undefined>): Plugin {
           // Not built (yet): its inline scripts, if any, are refused until the next restart.
         }
       }
-      const extra = [env.VITE_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
+      // VITE_BOARD_SUBMIT_URL: where Run results are sent when not VITE_SUBMIT_URL (lib/boardSubmitUrl.ts, egg-beta).
+      const extra = [env.VITE_SUBMIT_URL, env.VITE_BOARD_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
         .map(originOf)
         .filter((o): o is string => !!o && !o.endsWith('.workers.dev'));
       const doc = documentHeaders(contentSecurityPolicy([...hashes], extra));
@@ -276,6 +300,24 @@ function securityHeaders(env: Record<string, string | undefined>): Plugin {
         } as typeof res.writeHead;
         next();
       });
+    },
+  };
+}
+
+/**
+ * /ascension-planner (no slash) to /ascension-planner/, query kept (src/lib/previewRedirects.ts): both servers
+ * answered it with a plain-text 404. In preview (the live site and egg-beta) it runs after securityHeaders, so the
+ * redirect carries the same headers as everything else. Takes effect when `pnpm serve` restarts; it has nothing to do
+ * with `vite build`, so a static copy of dist/ (Netlify, Pages) is unchanged.
+ */
+function previewRedirects(): Plugin {
+  return {
+    name: 'aap-preview-redirects',
+    configureServer(server) {
+      server.middlewares.use(trailingSlashRedirect(server.config.base));
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(trailingSlashRedirect(server.config.base));
     },
   };
 }
@@ -441,6 +483,33 @@ function keepOldAssets(): Plugin {
 }
 
 /**
+ * About ships the calendar feed dark (14 Nov 2026; lib/calendarFlag.ts): public/about.html is static, with no script, so this
+ * edits the built copy. Between `<!-- calendar-feed:begin -->` and `<!-- calendar-feed:end -->` the calendar section, its
+ * contents link and two lines elsewhere are removed, markers included, while the flag is off; only the markers are dropped
+ * when it is on (lib/aboutBuild.ts). `vite preview` and dev serve the file as it is in public/.
+ */
+function calendarAbout(enabled: boolean): Plugin {
+  let outDir = '';
+  return {
+    name: 'aap-calendar-about',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      const file = path.join(outDir, 'about.html');
+      let html: string;
+      try {
+        html = await readFile(file, 'utf8');
+      } catch {
+        return; // a build without public/about.html (or one emitted elsewhere): nothing to edit
+      }
+      await writeFile(file, applyCalendarFeed(html, enabled));
+    },
+  };
+}
+
+/**
  * The Chain Explorer's run list, requested while the page's JavaScript is still downloading.
  *
  * The Explorer can draw nothing until the collector's `GET /all` answers, and it used to ask only
@@ -481,6 +550,21 @@ function collectorEarlyStart(submitUrl: string | undefined): Plugin {
   };
 }
 
+/**
+ * THE PLANNER THAT NEVER LOADS (src/lib/appLoadWatch.ts, spec-stuck2): index.html's "Loading the planner…" line says
+ * the planner is taking too long, with a reload hint, when the app has not mounted in time (its scripts hung or failed).
+ * index.html only; the inline script is hashed into the policy like the others (securityHeaders).
+ */
+function appLoadWatch(): Plugin {
+  return {
+    name: 'aap-app-load-watch',
+    transformIndexHtml(html, ctx) {
+      if (path.basename(ctx.filename) !== 'index.html') return;
+      return withAppLoadWatch(html);
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // vite.config.ts is evaluated before vite loads .env files, so `process.env` here holds only
@@ -489,6 +573,9 @@ export default defineConfig(({ mode }) => {
   // inlined into the bundle) and `vite preview` (the hostnames below). A real shell variable
   // still wins, so a one-off `VITE_PREVIEW_HOSTS=... pnpm serve` keeps working.
   const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+  // The calendar feed ships dark (lib/calendarFlag.ts): off, its release note, About's calendar blocks and the card stay out.
+  const calendarOn = calendarFeedOn(env.VITE_CALENDAR_FEED);
+  const history = releaseHistoryFor(release.history, calendarOn);
 
   return {
     // Where the built pages will be SERVED from, which is not always where they are built.
@@ -516,25 +603,45 @@ export default defineConfig(({ mode }) => {
       // browser and, under the Content-Security-Policy (securityHeaders), is reported as a violation
       // on every load. The stub gives the same answer (nothing) without the eval. Not under vitest,
       // which runs in Node.
-      alias: process.env.VITEST
-        ? []
-        : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }],
+      // `@planner` is how the shared planner code (lib/planners, ui/components/planners, Joo's PR 731) names this app's
+      // own modules. tsconfigPaths only maps it for files under this tsconfig, so the shared files outside it need the
+      // alias spelled out (as Joo's vite.config has it).
+      alias: [
+        { find: /^@planner\//, replacement: fileURLToPath(new URL('./src/', import.meta.url)) },
+        // And `@/`: our edits that git carried into the shared ui/ copies in the merge use the app's own `@/` imports.
+        { find: /^@\//, replacement: fileURLToPath(new URL('./src/', import.meta.url)) },
+        ...(process.env.VITEST
+          ? []
+          : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }]),
+      ],
     },
     plugins: [
       vue(),
       vueJsx(),
-      versionFile(),
+      versionFile(history),
+      calendarAbout(calendarOn),
+      resultCodeLine(),
       noChunkCycles(),
       warnIfReleaseStale(),
       // Also writes the brotli copies and checks the files (one closeBundle, in order).
       keepOldAssets(),
       // Before immutableAssets, which answers brotli requests itself.
       securityHeaders(env),
+      previewRedirects(),
       immutableAssets(),
       watcherIsolation(),
-      collectorEarlyStart(env.VITE_SUBMIT_URL),
+      collectorEarlyStart(env.VITE_BOARD_SUBMIT_URL || env.VITE_SUBMIT_URL),
+      appLoadWatch(),
     ],
-    define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
+    define: {
+      __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+      __BUILD_NOTE_ATS__: JSON.stringify(history.map(h => h.at)),
+      __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(history)),
+      __RESULT_CODE_HASH__: JSON.stringify(RESULT_CODE.hash),
+      // The egg-beta timed reload (lib/eggBetaReload.ts) is compiled in only when AAP_EGG_BETA_RELOAD_AT is set at build
+      // time (lib/versionJson.ts); every other build, live included, drops it as dead code.
+      __AAP_EGG_BETA_RELOAD__: JSON.stringify(eggBetaBuild(process.env)),
+    },
     build: {
       chunkSizeWarningLimit: 2000,
       // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the

@@ -1,5 +1,5 @@
 /**
- * My runs (#/myruns, 15 Oct 2026): three parts, each folded when empty; the board part is Compare's own
+ * My Runs (#/myruns, 15 Oct 2026): three parts, each folded when empty; the board part is Compare's own
  * LeaderboardPanel in its my-runs mode; Compare no longer has a My plans tab; the tab sits between
  * Compare and Science.
  */
@@ -51,11 +51,13 @@ describe('MyRunsView', () => {
     const saved = html.indexOf('data-testid="my-runs-part-saved"');
     const unsent = html.indexOf('data-testid="my-runs-part-unsent"');
     expect(board).toBeGreaterThan(-1);
-    expect(board).toBeLessThan(saved);
-    expect(saved).toBeLessThan(unsent);
-    expect(t).toContain('Your runs on the board');
-    expect(t).toContain('Saved on this computer');
-    expect(t).toContain('Not sent yet');
+    // Nothing saved and nothing unsent: those two parts are not shown at all (spec-uxpass item 7, 8 Nov 2026).
+    expect(saved).toBe(-1);
+    expect(unsent).toBe(-1);
+    expect(t).toContain('Your runs on the Leaderboard');
+    expect(t).not.toContain('Saved on this computer');
+    expect(t).not.toContain('Not sent yet');
+    expect(t).not.toContain('none yet');
     // Compare's board in its my-runs mode: no view tabs, no target picker; it asks for the save first.
     expect(html).toContain('data-testid="my-runs-board"');
     expect(html).not.toContain('aria-label="Leaderboard views"');
@@ -67,10 +69,11 @@ describe('MyRunsView', () => {
   it('folds a part that is empty, opens one with something in it, and keeps the board open while it loads', async () => {
     const empty = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(empty, 'my-runs-part-board')).toContain(' open');
-    expect(textOf(empty)).toContain('Your runs on the board · loading');
-    expect(partTag(empty, 'my-runs-part-saved')).not.toContain(' open');
-    expect(partTag(empty, 'my-runs-part-unsent')).not.toContain(' open');
-    expect(textOf(empty)).toContain('Not sent yet · none yet');
+    expect(textOf(empty)).toContain('Your runs on the Leaderboard · loading');
+    // Empty parts are hidden, not shown as "· none yet" (spec-uxpass item 7, 8 Nov 2026).
+    expect(empty).not.toContain('data-testid="my-runs-part-saved"');
+    expect(empty).not.toContain('data-testid="my-runs-part-unsent"');
+    expect(textOf(empty)).not.toContain('none yet');
 
     const store = useChainSearchStore();
     store.pendingSends = [
@@ -85,9 +88,12 @@ describe('MyRunsView', () => {
     ];
     const kept = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(kept, 'my-runs-part-unsent')).toContain(' open');
+    expect(kept.indexOf('data-testid="my-runs-part-board"')).toBeLessThan(kept.indexOf('data-testid="my-runs-part-unsent"'));
     expect(textOf(kept)).toContain('Not sent yet (1)');
+    // Something unsent: the warning colour.
+    expect(partTag(kept, 'my-runs-part-unsent')).toContain('border-amber-200 bg-amber-50/40');
     // Every kind: a By a date result shows here (UnsentResults without a kind).
-    expect(textOf(kept)).toContain("This result wasn't sent to the leaderboard: 320 TE by Jul 14, 2027 9:00 AM");
+    expect(textOf(kept)).toContain("This result wasn't sent to the Leaderboard: 320 TE by Jul 14, 2027 9:00 AM");
   });
 
   it('reuses Saved runs and Saved answers as lists only, and Unsent results for every kind', () => {
@@ -99,19 +105,18 @@ describe('MyRunsView', () => {
   });
 });
 
-describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; were above the parts)', () => {
-  it('come after the three parts, folded; they wait for the board', async () => {
+describe('Next steps, folded under Your runs (17 Oct 2026; the six cards gone 24 Oct 2026)', () => {
+  it('come after the three parts, folded; no cards, nothing waits for the board; hidden with nothing to look at', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
-    const steps = html.indexOf('data-testid="my-runs-steps"');
-    const cards = html.indexOf('data-testid="my-runs-cards"');
-    expect(steps).toBeGreaterThan(html.indexOf('data-testid="my-runs-part-unsent"'));
-    expect(steps).toBeLessThan(cards);
-    for (const id of ['eggday', 'race', 'date', 'saved', 'last', 'hours'])
-      expect(html).toContain(`data-testid="my-runs-card-${id}"`);
+    expect(html).not.toContain('data-testid="my-runs-cards"');
+    expect(html).not.toContain('data-testid="my-runs-card-');
     const t = textOf(html);
-    expect(t).toContain('Next steps · checking');
-    expect(t).toContain('Checking your runs on the board…');
-    expect(t).toContain('Your hours Any hour no time off');
+    // Nothing to look at: the fold is not shown at all (spec-uxpass item 7, 8 Nov 2026).
+    expect(t).not.toContain('Next steps');
+    expect(html).not.toContain('data-testid="my-runs-steps"');
+    expect(t).not.toContain('Next steps · checking');
+    expect(t).not.toContain('Six cards');
+    expect(t).not.toContain('Nothing to change: keep following your route.');
     expect(html).not.toContain('EI1234567890123456');
   });
 
@@ -125,10 +130,11 @@ describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; wer
     );
   });
 
-  it('a step opens its part here (unsent, the board list) or asks App for its screen, set up', async () => {
+  it('a step opens its part here (unsent), Right now on its goal, a fresh save, or asks App for its screen, set up', async () => {
     let setup: Record<string, unknown> = {};
     const onOpen = vi.fn();
-    const app = createSSRApp({ render: () => h(MyRunsView, { playerId: 'P', onOpen }) });
+    const onFresh = vi.fn();
+    const app = createSSRApp({ render: () => h(MyRunsView, { playerId: 'P', onOpen, onFresh }) });
     app.use(pinia);
     app.mixin({
       created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
@@ -141,8 +147,9 @@ describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; wer
     expect(open.unsent).toBe(false);
     act({ to: 'unsent' });
     expect(open.unsent).toBe(true);
-    act({ to: 'board' });
-    expect(open.board).toBe(true);
+    act({ to: 'fresh' });
+    expect(onFresh).toHaveBeenCalledTimes(1);
+    act({ to: 'right-now', goalKey: 'fastest-490' });
     expect(onOpen).not.toHaveBeenCalled();
     act({ to: 'by-date', deadline: 1, eggDay: true, tab: 'nearby' });
     expect(onOpen).toHaveBeenLastCalledWith({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true } });
@@ -184,44 +191,41 @@ describe('Compare without My plans', () => {
   });
 });
 
-describe('the My runs tab', () => {
+describe('the My Runs tab', () => {
   const app = read('../App.vue');
 
-  it('sits after Leaderboard and before Science, always (collector or not; 21 Oct 2026), and opens MyRunsView', () => {
-    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
+  it('sits after Chain Finder and before Leaderboard and Science (Joo\'s order, Jordan 12 Nov 2026; was after Leaderboard), shown once there is something on it (24 Oct 2026), and opens MyRunsView', () => {
+    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('\n]);', app.indexOf('const topTabs = computed')));
     const ids = [...tabs.matchAll(/id: '(\w+)' as const/g)].map(m => m[1]);
-    expect(ids).toEqual(['manual', 'auto', 'compare', 'myruns', 'science']);
-    // Leaderboard and Science each behind their own switch; My runs behind none.
+    expect(ids).toEqual(['manual', 'auto', 'chain', 'myruns', 'compare', 'science']);
+    // Leaderboard and Science each behind their own switch; My Runs behind what the account has (lib/myRunsShown.ts),
+    // never behind the collector.
     expect(tabs).not.toContain('submitUrl');
-    const my = tabs.slice(tabs.indexOf("id: 'compare'"), tabs.indexOf("id: 'science'"));
-    expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).not.toMatch(/\?\s*\[/);
+    const my = tabs.slice(tabs.indexOf("id: 'chain'"), tabs.indexOf("id: 'compare'"));
+    expect(my.slice(0, my.indexOf("id: 'myruns'"))).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[/);
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
-      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+\/>/
+      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+@setup="setUpAgainForMyRuns"\s+\/>/
     );
     // No address for it is turned away any more: only a hidden Leaderboard or Science falls back.
     expect(app).not.toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
   });
 
-  it('the tabs wrap as two full rows below lg (planners, then My runs with Leaderboard and Science when shown)', () => {
+  it('the tabs wrap two a row below lg (the planners, then Chain Finder and My Runs, then Leaderboard and Science when shown), an odd last one across its row', () => {
     const tabs = read('SiteTabs.vue');
-    expect(tabs).toContain('grid grid-cols-6 w-full lg:flex');
-    expect(tabs).toContain("i < 2 ? 'col-span-3' : (SECOND_ROW[tabs.length - 2] ?? 'col-span-2')");
-    expect(tabs).toContain("{ 1: 'col-span-6', 2: 'col-span-3', 3: 'col-span-2' }");
+    expect(tabs).toContain('grid grid-cols-2 w-full lg:flex');
+    expect(tabs).toContain("i === tabs.length - 1 && tabs.length % 2 === 1 ? 'col-span-2' : 'col-span-1'");
   });
 
-  it("is also the Auto Planner's fourth sub-tab, opening the same page (#/myruns)", () => {
-    const nav = app.slice(app.indexOf('v-for="v in autoTabs"'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
-    expect(nav).toContain('data-testid="auto-tab-myruns"');
-    expect(nav).toContain("@click=\"selectSection('myruns')\"");
-    expect(nav).toContain('{{ NAMES.myRuns }}');
-    // Always, like the top tab; four tabs make two rows of two on a phone.
-    expect(nav).not.toContain('submitUrl');
-    expect(app).toContain('class="grid grid-cols-2 w-full sm:flex');
+  it('is a top tab only, not a side of Chain Finder\'s goal switch (Jordan, 26 Oct 2026: the sub-tabs jumped when it appeared)', () => {
+    const nav = app.slice(app.indexOf('<GoalSwitch'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
+    expect(nav).not.toContain('data-testid="auto-tab-myruns"');
+    expect(nav).not.toContain("selectSection('myruns')");
+    expect(read('../lib/goalSwitch.ts')).toContain("export const CHAIN_GOALS: ChainView[] = ['fastest', 'by-date'];");
   });
 });
 
-describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its own part)', () => {
+describe('My Runs › Your runs: the latest run inside it (17 Oct 2026; was its own part)', () => {
   it('opens Your runs on the latest run, before the board part, with the Showing switch', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const section = html.indexOf('data-testid="my-runs-your-runs"');
@@ -253,13 +257,10 @@ describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its 
     expect(theirs).not.toContain('EI0000000000000000');
   });
 
-  it("the Leaderboard's Your latest run tab is one line to My runs", async () => {
-    const { useUIStore } = await import('@/stores/ui');
-    useUIStore().compareView = 'latest';
+  it("the Leaderboard has no Your latest run tab (fluff review 2, L1): #/compare/latest opens My Runs", async () => {
     const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
-    expect(html).toContain('data-testid="latest-moved"');
-    expect(textOf(html)).toContain('Your latest run is now in My runs ›');
-    expect(html).toContain('href="#/myruns"');
+    expect(html).not.toContain('data-testid="latest-moved"');
+    expect(textOf(html)).not.toContain('Your latest run');
     expect(html).not.toContain('data-testid="latest-run"');
   });
 });
@@ -272,7 +273,8 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const t = textOf(html);
     expect(html).toContain('data-testid="my-runs"');
-    expect(html).toContain('data-testid="my-runs-part-saved"');
+    // Nothing saved yet: the part is hidden (spec-uxpass item 7).
+    expect(html).not.toContain('data-testid="my-runs-part-saved"');
     expect(html).toContain('data-testid="my-runs-part-latest"');
     expect(t).toContain(NO_BOARD);
     expect(html).not.toContain('data-testid="my-runs-part-board"');
@@ -284,7 +286,9 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     expect(t).not.toContain('· loading');
     expect(t).not.toContain('Checking your runs on the board');
     expect(t).not.toContain('Next steps · checking');
-    expect(t).toContain('Six cards (saved on this computer)');
+    // The six cards are gone (24 Oct 2026); Next steps stay, with nothing to wait for.
+    expect(t).not.toContain('Six cards');
+    expect(t).not.toContain('nothing to look at');
     expect(html).not.toContain('EI1234567890123456');
   });
 
@@ -297,7 +301,22 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     const src = read('MyRunsView.vue');
     expect(src).toContain('const hasBoard = !!store.submitUrl;');
     expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.board"/);
-    expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.unsent"/);
+    expect(src).toMatch(/<details\s+v-if="hasBoard && unsentCount > 0"\s+:open="open\.unsent"/);
     expect(src).toContain('const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);');
+  });
+});
+
+describe('words (26 Oct 2026)', () => {
+  it('no intro line since the simpler page (9 Nov 2026): the save line at the top says whose save and how old (was one clause, UX fluff review 2, item M1)', () => {
+    const src = read('MyRunsView.vue');
+    expect(src).not.toContain('data-testid="my-runs-intro"');
+    expect(src).not.toContain('From your save: where you are now');
+    expect(src).not.toContain('The only thing worked out here');
+  });
+
+  it("Custom's run list is headed Saved for later, as its text says; My Runs' stays Saved runs", () => {
+    expect(read('auto/InsanePanel.vue')).toContain('<SavedRuns :player-id="playerId" can-resume heading="Saved for later" />');
+    expect(read('auto/SavedRuns.vue')).toContain("{{ heading || 'Saved runs' }}");
+    expect(read('MyRunsView.vue')).not.toMatch(/<SavedRuns[^>]*heading=/);
   });
 });

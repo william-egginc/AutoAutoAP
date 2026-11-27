@@ -6,7 +6,7 @@
 -->
 <template>
   <div
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+    :class="bare ? 'space-y-2' : 'rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900'"
     data-test="edge-warning"
   >
     <p v-for="line in lines" :key="line">{{ line }}</p>
@@ -14,17 +14,19 @@
       <button
         type="button"
         :disabled="disabled"
-        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
         @click="emit('widen')"
       >
-        Widen and run again
+        Widen and run again<template v-if="routes">{{ ' ' }}({{ routes }})</template>
       </button>
-      <p class="text-[10px] text-amber-800/80"><slot /></p>
+      <p v-if="$slots.default" class="text-small text-amber-800/80"><slot /></p>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ lines: string[]; canWiden: boolean; disabled: boolean }>();
+/** `bare`: inside a box of the screen's own (Custom's one amber box for every edge, UX fluff review 2, item C0b). */
+/** `routes`: the wider space's size on the button, "13 routes" (Custom; UX fluff review 2, 5 Nov 2026, item C0b, DRAFT). */
+defineProps<{ lines: string[]; canWiden: boolean; disabled: boolean; bare?: boolean; routes?: string }>();
 const emit = defineEmits<{ widen: [] }>();
 </script>

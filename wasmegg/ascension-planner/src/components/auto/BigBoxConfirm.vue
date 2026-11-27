@@ -19,16 +19,16 @@
       aria-describedby="big-box-confirm-text"
       class="w-full max-w-lg rounded-2xl border border-amber-300 bg-white p-5 shadow-2xl space-y-3"
     >
-      <p id="big-box-confirm-title" class="text-[11px] font-black uppercase tracking-widest text-amber-800">
+      <p id="big-box-confirm-title" class="label text-amber-800">
         {{ ask.step === 1 ? 'Start this big box?' : 'A very big box' }}
       </p>
-      <p id="big-box-confirm-text" class="text-[13px] leading-relaxed text-slate-700">{{ ask.text }}</p>
+      <p id="big-box-confirm-text" class="text-body text-slate-700">{{ ask.text }}</p>
       <div class="flex flex-wrap justify-end gap-3 pt-1">
         <button
           ref="cancelButton"
           type="button"
           data-testid="big-box-cancel"
-          class="min-h-[44px] min-w-[44px] px-5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          class="min-h-[44px] min-w-[44px] px-5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-body font-bold hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           @click="answer(false)"
         >
           Cancel
@@ -37,7 +37,7 @@
           ref="startButton"
           type="button"
           data-testid="big-box-start"
-          class="min-h-[44px] min-w-[44px] px-5 py-2.5 rounded-xl bg-amber-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-amber-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          class="min-h-[44px] min-w-[44px] px-5 py-2.5 rounded-xl bg-amber-700 text-white text-body font-bold hover:bg-amber-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           @click="answer(true)"
         >
           {{ ask.step === 1 ? 'Start' : 'Yes, start it' }}

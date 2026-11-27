@@ -8,18 +8,18 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xs font-black text-slate-800 uppercase tracking-wider leading-none">Virtue Progress</h2>
+          <h2 class="text-slate-800 label leading-none">Virtue Progress</h2>
           <div class="flex items-center gap-2 mt-1">
-            <span class="text-[10px] font-black text-indigo-500 uppercase">{{ claimedTotal }} TE Total</span>
-            <span v-if="pendingTotal > 0" class="text-[10px] font-black text-emerald-500 uppercase">
+            <span class="text-indigo-600 label">{{ claimedTotal }} TE Total</span>
+            <span v-if="pendingTotal > 0" class="text-emerald-700 label">
               +{{ pendingTotal }} Pending
             </span>
             <span v-if="earningsClothedTe !== null" class="w-1 h-1 bg-slate-200 rounded-full"></span>
-            <span v-if="earningsClothedTe !== null" class="text-[10px] font-black text-indigo-500 uppercase"
+            <span v-if="earningsClothedTe !== null" class="text-indigo-600 label"
               >Clothed TE {{ Math.round(earningsClothedTe) }}</span
             >
             <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
-            <span class="text-[10px] font-black text-slate-500">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
+            <span class="text-small font-bold text-slate-600">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
           </div>
         </div>
       </div>
@@ -27,14 +27,14 @@
         <button
           v-if="teOverride"
           @click="removeOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-200 active:scale-95"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg transition-all border border-slate-200 active:scale-95"
         >
           Remove Override
         </button>
         <button
           v-else
           @click="addOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-200 active:scale-95"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg transition-all border border-slate-200 active:scale-95"
         >
           Override
         </button>
@@ -52,21 +52,21 @@
         >
           <div class="flex items-center gap-2 mb-2">
             <img :src="iconURL(`egginc/egg_${egg}.png`, 64)" class="w-4 h-4 object-contain" />
-            <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">{{ VIRTUE_EGG_NAMES[egg] }}</span>
+            <span class="text-slate-600 label">{{ VIRTUE_EGG_NAMES[egg] }}</span>
           </div>
           <div class="flex items-baseline gap-1">
-            <span class="text-lg font-mono-premium font-black text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
-            <span class="text-[8px] font-black text-slate-400 uppercase">Claimed</span>
+            <span class="text-title tabular-nums font-bold text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
+            <span class="text-slate-600 label">Claimed</span>
           </div>
-          <div class="mt-1 text-[9px] font-black uppercase" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-600' : 'text-slate-300'">
+          <div class="mt-1 label" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-700' : 'text-slate-600'">
             +{{ backupProgress.tePending[egg] }} Pending
           </div>
         </div>
       </div>
-      <p v-if="sinceSync" class="text-[11px] font-bold text-slate-600 px-1 tabular-nums">
-        <span class="font-black text-indigo-600">+{{ formatNumber(sinceSync.eggs, 3) }}</span>
+      <p v-if="sinceSync" class="text-body font-bold text-slate-600 px-1 tabular-nums">
+        <span class="font-bold text-indigo-600">+{{ formatNumber(sinceSync.eggs, 3) }}</span>
         {{ VIRTUE_EGG_NAMES[sinceSync.egg] }} eggs since your last sync {{ formatDuration(sinceSync.seconds) }} ago
-        <span v-if="sinceSync.te > 0" class="font-black text-emerald-600">(+{{ sinceSync.te }} TE)</span>
+        <span v-if="sinceSync.te > 0" class="font-bold text-emerald-700">(+{{ sinceSync.te }} TE)</span>
       </p>
     </template>
 
@@ -74,9 +74,9 @@
     <template v-else>
       <p
         v-if="teOverride"
-        class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-800 leading-relaxed"
+        class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-body font-bold text-amber-800"
       >
-        The plan starts from exactly the claimed TE entered below. Pending (unclaimed) TE, partial progress toward
+        The route starts from exactly the claimed TE entered below. Pending (unclaimed) TE, partial progress toward
         your next TE, and eggs shipped since your last sync are not counted.
       </p>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -84,7 +84,7 @@
           <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 group-hover:border-indigo-100 group-hover:bg-slate-50/80 transition-all duration-300">
             <div class="flex items-center gap-2 mb-2">
               <img :src="iconURL(`egginc/egg_${egg}.png`, 64)" class="w-4 h-4 object-contain grayscale group-hover:grayscale-0 transition-all" />
-              <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
+              <span class="text-slate-600 label group-hover:text-indigo-400 transition-colors">
                 {{ VIRTUE_EGG_NAMES[egg] }}
               </span>
             </div>
@@ -93,7 +93,7 @@
               :value="teOverride ? teOverride[egg] : truthEggsStore.teEarned[egg]"
               min="0"
               max="98"
-              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] font-mono-premium font-black text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
+              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-body tabular-nums font-bold text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
               @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -110,11 +110,11 @@
         @click="isLoadoutOpen = !isLoadoutOpen"
       >
         <div class="min-w-0">
-          <div class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Artifacts &amp; Stones</div>
-          <div class="text-[10px] font-bold text-slate-500 truncate">{{ loadoutSummary }}</div>
+          <div class="text-body font-bold text-slate-700">Artifacts &amp; Stones</div>
+          <div class="text-small font-bold text-slate-600 truncate">{{ loadoutSummary }}</div>
         </div>
         <svg
-          class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform"
+          class="w-4 h-4 text-slate-600 flex-shrink-0 transition-transform"
           :class="{ 'rotate-180': isLoadoutOpen }"
           fill="none"
           stroke="currentColor"
@@ -124,7 +124,7 @@
         </svg>
       </button>
       <div v-if="isLoadoutOpen" class="px-3 pb-3 space-y-2">
-        <p v-if="!initialStateStore.rawBackup" class="text-[10px] font-bold text-amber-600">
+        <p v-if="!initialStateStore.rawBackup" class="text-small font-bold text-amber-700">
           No inventory — enter stones manually.
         </p>
         <AutoLoadoutEditor
@@ -150,19 +150,19 @@ import { useTruthEggsStore, VIRTUE_TE_ORDER } from '@/stores/truthEggs';
 import { VIRTUE_EGG_NAMES } from '@/types';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useVirtueStore } from '@/stores/virtue';
+import { usePlanStore } from '@/stores/plan';
 import { useFuelTankStore } from '@/stores/fuelTank';
-import { useSilosStore } from '@/stores/silos';
-import { getSimulationContext } from '@/engine/adapter';
+import { useSilosStore } from 'lib/planners/stores/silos';
+import { getSimulationContext } from 'lib/planners/engine/adapter';
 import { getArtifactLoadoutFromBackup, getOptimalEarningsSet } from '@/lib/artifacts';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
-import { computeSnapshot } from '@/engine/compute';
+import { computeSnapshot } from 'lib/planners/engine/compute';
 import { saveAutoPlannerTEInputs } from '@/lib/autoPlannerFormCache';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { applyAutoStartingTE, eggsSinceLastSync } from '@/auto/startingTE';
 import type { VirtueEgg } from '@/types';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
+import { calculateClothedTEForSet } from 'lib/planners/artifacts/virtue';
 import {
   buildLoadoutInputsFromBackup,
   buildLoadoutInputsFromSets,
@@ -190,7 +190,7 @@ const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
 const truthEggsStore = useTruthEggsStore();
 const actionsStore = useActionsStore();
 const initialStateStore = useInitialStateStore();
-const virtueStore = useVirtueStore();
+const planStore = usePlanStore();
 const fuelTankStore = useFuelTankStore();
 const silosStore = useSilosStore();
 const autoPlannerStore = useAutoPlannerStore();
@@ -212,7 +212,7 @@ const earningsClothedTe = computed<number | null>(() => {
     truthEggs: currentTE.value,
     colleggtibleModifiers: context.colleggtibleModifiers,
     labUpgradeLevel: context.epicResearchLevels['cheaper_research'] ?? 0,
-    permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+    proPermit: initialStateStore.rawBackup?.game?.permitLevel === 1,
   });
 });
 
@@ -232,8 +232,8 @@ const currentELR = computed(() => {
 
   const continueState: import('@/engine/types').EngineState = {
     currentEgg: (VIRTUE_EGGS_MAP[farmState.eggType] || 'curiosity') as VirtueEgg,
-    shiftCount: virtueStore.initialShiftCount,
-    te: virtueStore.initialTE,
+    shiftCount: planStore.initialShiftCount,
+    te: planStore.initialTE,
     soulEggs: initialStateStore.soulEggs,
     vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
     habIds: farmState.habs || [0, null, null, null],
@@ -283,7 +283,7 @@ const pendingTotal = computed(() =>
 );
 
 // Eggs shipped on the current egg since the backup's last sync — the same catch-up the generator
-// adds to every variant's starting eggs up to the plan start. Ticks every second.
+// adds to every variant's starting eggs up to the route start. Ticks every second.
 const nowMs = ref(Date.now());
 const clock = setInterval(() => (nowMs.value = Date.now()), 1000);
 onBeforeUnmount(() => clearInterval(clock));
@@ -391,9 +391,3 @@ function handleLoadoutChange(inputs: AutoLoadoutInputs) {
   saveAutoPlannerLoadoutInputs(initialStateStore.playerId, customized ? inputs : null);
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

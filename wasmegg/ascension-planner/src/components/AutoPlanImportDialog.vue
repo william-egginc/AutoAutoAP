@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { NAMES } from '@/lib/siteNav';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -25,8 +26,8 @@ const emit = defineEmits<{
           </svg>
         </div>
         
-        <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Auto Planner file detected</h3>
-        <p class="text-slate-500 text-sm leading-relaxed mb-8">
+        <h3 class="text-title font-bold text-slate-900 mb-2">Auto Planner file detected</h3>
+        <p class="text-slate-600 text-body mb-8">
           The file "<span class="font-bold text-slate-700">{{ planName }}</span>" has
           <span class="font-bold text-indigo-600">{{ plural(ascensionCount, 'ascension') }}</span>. 
           How would you like to import it?
@@ -37,14 +38,14 @@ const emit = defineEmits<{
             @click="emit('resolve', 'restore')"
             class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all text-left group"
           >
-            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-500 shadow-sm group-hover:scale-110 transition-transform">
+            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm group-hover:scale-110 transition-transform">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </div>
             <div>
-              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Open in Single run</div>
-              <div class="text-[10px] font-medium text-slate-500">Restores all ascensions in Auto Planner › Single run.</div>
+              <div class="text-body font-bold text-slate-900">Open in the {{ NAMES.classic }}</div>
+              <div class="text-small font-normal text-slate-600">Restores all ascensions in the {{ NAMES.classic }}.</div>
             </div>
           </button>
 
@@ -52,14 +53,14 @@ const emit = defineEmits<{
             @click="emit('resolve', 'individual')"
             class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200 transition-all text-left group"
           >
-            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm group-hover:scale-110 transition-transform">
+            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-sm group-hover:scale-110 transition-transform">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
             <div>
-              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Import into Library</div>
-              <div class="text-[10px] font-medium text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
+              <div class="text-body font-bold text-slate-900">Import into Library</div>
+              <div class="text-small font-normal text-slate-600">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
             </div>
           </button>
         </div>
@@ -67,7 +68,7 @@ const emit = defineEmits<{
         <div class="mt-8 flex justify-center">
           <button 
             @click="emit('cancel')"
-            class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            class="text-body font-bold text-slate-600 hover:text-slate-600 transition-colors"
           >
             Cancel
           </button>
