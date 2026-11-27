@@ -5,16 +5,21 @@ at on the way to a target such as 490, so you get there soonest. It is built on 
 Ascension Planner** (the simulator) and the **wasmegg tools** by **Carpet**, and is not affiliated
 with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 248 286 327 490`.
 
-- **Instant Answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
+- **Instant Answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time. It uses the
+  table for your own or exact gear when there is one; otherwise the closest delivery-set table that covers your TE, moved
+  to your gear; otherwise the main (maxed) table. It says which one answered.
 - **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look and press Run (the button
   reads Run Fast, Run Exact or Run Custom; the tick under it sends the result to the Leaderboard). Fast and Exact search
   near the instant answer's route, pricing each route through the full simulator on your own save. **Price this
   route** (on the instant answer's longer-route note) puts that route in Custom's first box.
 - **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
-- **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
+- **By Egg Day** (called Highest TE by a date until Release 9.1, 21 Nov 2026): how much TE you can have by Egg Day or another date.
 - **Prefer fewer ascensions** (on the instant answer) and **Try waiting before each prestige** (under a search result).
-- **My Runs**: where you are now on the route you follow: the Next step, the Next shifts, the Build-up tracker, the Full
-  timeline, and your runs.
+- **My Runs**: where you are now on the route you follow: the Next step, the Next shifts, the Build-up tracker, You are
+  here (each ascension's shifts and dates), and your runs.
+- **Mission optimizer** (PipSqueak's tool): in the Manual Planner, with two answers side by side, **Best** and **Fits your
+  awake hours**; My Runs, under Next step, has **Plan the rockets for your Humility stop** (read-only, with a link to stage
+  it in the Manual Planner).
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
   Both are off until you tick them in Setup.
 
@@ -52,11 +57,21 @@ account loaded later gets a one-line offer to use the same choices. Withdrawing 
 every account in this browser that said yes in the box; an account that agreed under a share button keeps
 that choice.
 
+Two more things sit with the sharing choices (Setup › Sharing and privacy). Since Release 10, **Share my search
+results** also sends which table answered the instant answer, and your delivery and earnings artifacts with the
+stones set in them (never spare stones, never a player ID); it is the consent `shareGearDetail`, off until agreed,
+and an account that ticked it before is asked once more and sends none of those details until it says yes. Since
+Release 10.1, **Tell the maintainer which table answered** is a separate anonymous ping to the collector's
+`/tablepick` (`lib/tablePick.ts`): on by default (the consent `shareTableUse`), once a day per browser for each answer,
+off with its Setup tick, with **No thanks** on the first-visit box, or with **Withdraw**; an account that loads
+later in a browser that said No starts with it off. It covers only that ping. What it sends and what the
+collector keeps: [collector/README.md](collector/README.md) (Which table answered) and `public/about.html`.
+
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
 - **Auto Planner** (was Single run, before that Your plan, Classic): Joo's own auto planner. Type the TEs to ascend at and it lays out every ascension.
   Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
-- **Chain Finder** (Fastest to 490 TE and Highest TE by a date, on one switch: Target TE | By a date)
+- **Chain Finder** (Fastest to 490 TE and By Egg Day, on one switch: Target TE | By Egg Day)
   - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
     **Search** card: **Fast**, **Exact** or **Custom**. One button runs it, named after the strength picked
     (**Run Fast**, **Run Exact**, **Run Custom**), with the tick **Send the result to the Leaderboard when it
@@ -68,20 +83,24 @@ that choice.
     before these defaults is dropped once (`aap-prefer-fewer-v2`). Under a search result, **Try waiting before each
     prestige** prices the route with waits of 1 to 24 hours, on Setup's Awake hours, and suggests a wait only
     when it gains over half an hour and being 2 hours off costs under three times that.
-  - **Highest TE by a date**: the same layout (Prefer fewer: same TE by default; Off, within 1 or 2 TE). With no instant
+  - **By Egg Day** (the by-date goal; opens on Egg Day, with a **Pick another date** link): the same layout (Prefer fewer: same TE by default; Off, within 1 or 2 TE). With no instant
     answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 10
     to 15 minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
   - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
 - **Setup** (the Setup button on Chain Finder, the Auto Planner and My Runs; a round gear button on a phone) holds the three kinds of "not now":
   - **Awake hours**: you are on the virtue farm, but a shift or a prestige waits until you are back inside
-    them; the farm keeps laying meanwhile, and those eggs count.
+    them; the farm keeps laying meanwhile, and those eggs count. The weekly hours are saved online with the
+    account's Setup (when Save online is on), so every browser shows the same week.
   - **No prestige days**: whole dates with no prestige. You stay on virtue, a prestige waits for the next
     allowed time (inside your Awake hours if set), shifts still happen, and the laying while it waits counts
     only up to the farm's silo time.
   - **Time off**: whole dates off the virtue farm, on the home farm. Going home is a prestige, so the ascension
     in progress ends when the time off starts, nothing is earned on virtue while away, and you come back to a
     complete rebuild toward the same stop.
+  - **Prestige-window hint** (Setup › More options, off by default, kept in this browser only): for a short
+    ascension (25 TE or less, starting at TE 240 or more) the steps say the latest time to start, before the
+    sale ends (`lib/prestigeWindow.ts`).
   - Fast, Exact and Custom use all three. The instant answer uses Awake hours and No prestige days but does not
     price Time off, and says so; its "Prestige by" line knows Awake hours only. The Auto Planner does not hold for
     Awake hours.
@@ -171,6 +190,22 @@ artifacts it has on; one save-age box with Check your clock; Download for Excel 
 player ID and no device IDs; saving the same run or answer twice keeps one entry; answers worked out by an older
 version of the page are worked out again; an update banner that lists only notes new to your tab, at most 3; and
 tidier phone layouts; a line when starting fresh would end the ascension over an hour sooner than a forced build-up, with Switch to Soonest; and an estimate line under the instant answer's date.
+Release 8 (Nov 9, 2026), in short: a simpler page, with the rest under More; a first-visit tour; one Save online switch that
+also keeps your starting TE, the Build-up tracker's ticks and plan; plans that use your real TE; searches of 2 hours or
+more tell the planner's server they started and ended, so an update can wait.
+Release 9 (Nov 19, 2026), in short: a Quick tour and a Full tour; My Runs follows the plan on your newest save and is one
+timeline (the Full timeline box is gone); Put my plan in my calendar; the save line says how old your save is; instant
+answers on the newest simulator (sim5) where rebuilt; Setup shows When the route starts; the code made from your ID is
+stored under a secret salt. Release 9.1 (Nov 21, 2026): By Egg Day named and opening on Egg Day, a Quick tour of 7 slides,
+and Instant Answer and My Runs capitalised.
+Release 10 (Nov 26, 2026), in short: the instant answer has tables for 13 delivery sets (metronome, compass, gusset), and
+for other gear it moves the closest table that covers your TE to your gear, then the maxed one, and says which; a result
+is out of date after a week unless a newer save on the planned route confirms it; the mission optimizer in the Manual
+Planner (Best and Fits your awake hours) and the rockets row on My Runs; short ascensions are priced more honestly; the
+Prestige-window hint; weekly awake hours sync to your account; Put my name on it on By Egg Day results; and the Share my
+search results box also asks to share which table answered and your artifacts with their stones.
+Release 10.1: the anonymous which-table-answered ping (see Privacy and security). Releases 10.2 and 10.3: the tours' pictures
+and alt text match what they show (both Goals choices ringed, My Runs not dimmed, the Instant Answer ring from heading to card).
 
 ---
 
@@ -185,7 +220,7 @@ up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with 
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
 rule, which used the rounds only below TE 120. Joo's own Chain Finder and Table Builder screens were left out of
-this merge; our Chain Finder tab is our own Fastest and Highest TE by a date screens, not his. The Auto Planner
+this merge; our Chain Finder tab is our own Fastest and By Egg Day screens, not his. The Auto Planner
 does **not** plan around Awake hours (the searches hold for them, via `search/leg.ts`, and the instant answer
 prices them) or Continue my build-up, and does not find stops for you. Full list:
 [Auto Planner vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
@@ -288,7 +323,8 @@ node dist-search/fastsearch.js --help        # every flag
 
 The flags still use the older names: `--effort` is the search behind Fast and Exact (`fast`, `exact` or
 `thorough`, the site's Fast / Exact / the retired Very high; there is no Light), `--bands`, `--suggest` and
-`--preset` are **Custom**, and `--by-date` / `--egg-day` are **Highest TE by a date**.
+`--preset` are **Custom**, and `--by-date` / `--egg-day` are **By Egg Day** (the flags and `--help` still say
+"Highest TE by a date").
 
 ```bash
 # The Fast / Exact search at thorough (the retired Very high), finding its own starting route
@@ -312,7 +348,7 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 - The settings are the flags: Awake hours (`--available-from/--available-to/--available-days`, or
   `--sleep-from/--sleep-until`), `--time-off`, `--no-prestige` (Your setup's no-prestige days),
   `--first-ascension auto|buildup|continue|fresh` (auto is the site's Soonest), `--timezone`. Setup saved on the
-  site is not read. Without an instant answer the command line's default limits (5-8, By a date 4
+  site is not read. Without an instant answer the command line's default limits (5-8, By Egg Day 4
   ascensions) are fixed and it says so; the site sets them from its instant answer.
 - Environment knobs: `AAP_LEG_DETAIL_BUDGET` (Setup > Memory's routes kept in memory), `AAP_WORKER_HEAP_MB`,
   `AAP_HEAP_STOP_SHARE`, `AAP_MEMORY_LOG` (see `--help`).
@@ -361,7 +397,7 @@ Windows block above) again only if a `.proto` file changed, because the generate
 
 Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each range
 is one stop before the last, `low-high:step`, and `--last` is where to look for the last stop. This
-is the Highest TE by a date screen's Custom, by Egg Day, as an example:
+is the By Egg Day screen's Custom, by Egg Day, as an example:
 
 ```bash
 # How big it is, without running it (sets of early stops, routes, a time estimate)
@@ -404,7 +440,7 @@ and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searc
 line's `run-full.csv.gz`, `run.csv` and `--csv` file. Each priced route's per-ascension detail is written to
 disk as the run goes (the leg spill: in the browser's private file storage, OPFS, one file per account and
 screen; `legs.spill` in the command line), and the download reads it back, through an OPFS file, so even a
-big file never sits in the page's memory. Highest TE by a date's full file adds a section of every priced route's legs,
+big file never sits in the page's memory. By Egg Day's full file adds a section of every priced route's legs,
 rows tagged `pricedleg`. Without that storage (no OPFS, a private window, or another tab has this account's file
 open) the download has per-ascension detail only for the routes held in memory: Setup › This computer › Memory,
 **Keep per-ascension detail for N fastest routes** (0 is all; the default follows the browser's reported memory,
@@ -413,7 +449,7 @@ says which case applies. The `run.csv.gz` that `--out` writes and the table a se
 detail for the top 20,000 routes only, and only the total for every other route; a Fastest send over
 the upload limit tries 5,000 routes, then none. The CSV starts with `#` comment lines: plan start, TE and target, effort, first
 ascension, Awake hours, Time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
-line's notation) and `# ascensions:` (the count range and the minimum gap); and, for Highest TE by a date, `# workers:`
+line's notation) and `# ascensions:` (the count range and the minimum gap); and, for By Egg Day, `# workers:`
 (the run's workers over its life). The header's own words have no commas, since Numbers and Excel split
 comment lines at commas too; only lines with your data (a note, a weekday list, uneven boxes) can.
 
@@ -423,10 +459,10 @@ The columns: `rank`, `chain`, `prestiges`, `total_days`, `gap_days` (the route),
 `prestige_delay_hours`, `shift_hold_hours` (waits for Awake hours), `starts_on_egg`, `shift_times_local`
 and `time_off`; leg 1 has a few more (which way it went, and what the other way would have given). A
 route restored after a refresh keeps its per-leg cells when the run's detail on disk survived (else just its
-total); a full By a date file adds a section with every priced route's legs (rows starting `pricedleg`). Details:
+total); a full By Egg Day file adds a section with every priced route's legs (rows starting `pricedleg`). Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
-**Download for Excel (.xlsx)**, beside Download CSV on Fastest's and Highest TE by a date's result cards, is the
+**Download for Excel (.xlsx)**, beside Download CSV on Fastest's and By Egg Day's result cards, is the
 same table the page holds in memory (per-ascension detail for the routes kept there, not the leg spill), written in
 the browser with no library (`src/utils/xlsxWriter.ts`): a **Routes** sheet with the header row bold and frozen,
 every column sized (time columns at least 19 characters wide) and times kept as the CSV's text, so Excel shows no
@@ -537,10 +573,18 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
 - Nothing goes to the Leaderboard until you tick the agreement and send: Run with its Leaderboard tick on, or a share
   button. Unticking the agreement stops sends at once.
 - Your sharing choices and your Setup (Awake hours, Time off, No prestige days, the target TE and the time zone) are
-  saved online on the planner's server (`GET`/`PUT /prefs`), under a code made from your player ID (SHA-256, the same
-  code as the followed route), never the ID itself, and a name only if you chose to be credited by name. The Save online
-  switch in Setup turns it off, and anyone who knows the player ID can read and change them while it is on. This computer's settings, the first
-  ascension, the Stepping away? choices and Prefer fewer stay in the browser.
+  saved online on the planner's server (`GET`/`PUT /prefs`), under a code made from your player ID, never the ID itself,
+  and a name only if you chose to be credited by name. The code is a hash of the ID (the same code as the followed
+  route); the server stores it under a secret salt, so a copy of its database cannot be matched to an ID by its codes
+  (`public/about.html`, What goes online). The Save online switch in Setup turns it off. Anyone who knows the player ID can
+  work out the code and, unless you set the optional PIN (About, The optional PIN), read and change what is saved under it
+  while it is on. This computer's settings, the first ascension, the Stepping away? choices and Prefer fewer stay in the browser.
+- Put my plan in my calendar keeps the planned times and short titles under a scrambled key that is not your player ID
+  (About, Your calendar link).
+- The anonymous table ping (Release 10.1): on by default, off with its Setup tick, No thanks or Withdraw. It tells the
+  collector which kind of table answered, your delivery set and your TE range, with the app version, at most once a day
+  for each answer; no code for your account, never your player ID or your save. Only daily counts are kept, never shown
+  publicly. The collector's side is in `collector/README.md`.
 - A send never holds your player ID, and ID-shaped text is stripped from names, notes, `searched` and the CSV.
 - Downloads are made in the browser and send nothing. A downloaded save (Download this save) has every player
   ID replaced by a stand-in and its device IDs blank; it still holds the rest of the save, the in-game name included.

@@ -11,7 +11,7 @@ Tooling for long chain-search runs on a Windows PC, driven over SSH. It isn't pa
 
 ## The harness
 
-`zz_e2e_fine.spec.ts` runs the real chain-search store end to end, with CLI workers. It's a vitest spec, so a job copies it into `src/stores/`, runs it, and deletes it. It saves the payload and table that Submit would send; it never submits.
+`zz_e2e_fine.spec.ts` runs the real chain-search store end to end, with CLI workers. It's a vitest spec, so a job copies it into `src/stores/`, runs it, and deletes it. With `E2E_OUTDIR` set it saves the payload and table that Submit would send and never submits; without it the spec does submit, unless `E2E_DRY` is set. (Both spec files read the same variables.)
 
 Environment variables:
 
@@ -23,6 +23,10 @@ Environment variables:
 | `E2E_AVAIL_FROM`, `E2E_AVAIL_TO` | Playing hours in the plan's timezone, e.g. 9 and 1. Shifts are held for them too. |
 | `E2E_PIN_DAYS` | `--continue-pin-days`: keep the current ascension going for leg 1 |
 | `E2E_WORKERS`, `E2E_CLI`, `E2E_OUTDIR`, `E2E_OUT` | Workers, the CLI path, and where output goes |
+| `E2E_PRESET` | The sweep: M1-M4, the Explorer link's own bands for the save's TE (default M1) |
+| `E2E_SUBMIT_DIR` | Post a saved payload and table pair from this folder instead of running a search |
+| `E2E_DRY` | Answer the collector's submit and upload calls from memory, so nothing leaves the PC |
+| `E2E_BATCH_FACTOR` | Report a bigger worker pool than there are children, so the store's own chunking is exercised (default 1) |
 
 `zz_e2e_submit.spec.ts` is the older version, which also submits.
 

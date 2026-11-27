@@ -679,7 +679,7 @@ def main():
                     help="upper bound for the last checkpoint (default final-150); a tiny "
                          "final leg pays a rebuild for almost no earning time")
     ap.add_argument("--effort", choices=sorted(EFFORT), default="normal",
-                    help="quick / normal / thorough - see the estimate printed before it runs")
+                    help="quick (the site's Fast) / balanced (retired on the site) / normal (the site's Exact) / thorough - see the estimate printed before it runs")
     ap.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
     ap.add_argument("--budget", type=int, default=1200,
                 help="max chains for the stage-2 coarse scan before auto-coarsening")
